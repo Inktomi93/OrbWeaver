@@ -1,6 +1,7 @@
 // The env parse's floor: what an empty environment resolves to, how the data slots read as their effective paths, and which spellings the boolean knobs refuse.
 import { DATA_LAYOUT_SKIP_KEY, LEGACY_ENTRIES, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { AUTH_MODE_DEFAULT_FALLBACK } from "@orb/server/foundation/env/record";
+import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { ASSETS_DIR_KEY } from "#server/foundation/data-layout/contract.ts";
@@ -41,8 +42,8 @@ test("every data slot reads as its effective path, from the default root, a re-r
 
 test("a DATA_LAYOUT_SKIP the layout refuses is refused at the parse, and the same list without the refused name parses", () => {
   const keyedEntry = Object.entries(LEGACY_ENTRIES).find(([, entry]) => entry.keptBy !== null)?.[0] ?? "";
-  expect(() => createTestEnv({ [DATA_LAYOUT_SKIP_KEY]: keyedEntry })).toThrow();
-  expect(() => createTestEnv({ [DATA_LAYOUT_SKIP_KEY]: "not-a-legacy-entry" })).toThrow();
+  expect(() => createTestEnv({ [DATA_LAYOUT_SKIP_KEY]: keyedEntry })).toThrow("which it cannot keep");
+  expect(() => createTestEnv({ [DATA_LAYOUT_SKIP_KEY]: "not-a-legacy-entry" })).toThrow("not a legacy entry");
   expect(createTestEnv({ [DATA_LAYOUT_SKIP_KEY]: "" }).DATA_LAYOUT.skip.size).toBe(0);
 });
 
@@ -58,6 +59,6 @@ test("boolean knobs accept exactly lowercase true and false", () => {
   expect(createTestEnv({ ["CORPUS_AUTOINDEX"]: "false" }).CORPUS_AUTOINDEX).toBe(false);
   expect(createTestEnv({ ["CORPUS_AUTOINDEX"]: "true" }).CORPUS_AUTOINDEX).toBe(true);
   for (const spelling of ["TRUE", "True", "1", "0", "yes", "on", "off", "", " true"]) {
-    expect(() => createTestEnv({ ["CORPUS_AUTOINDEX"]: spelling }), JSON.stringify(spelling)).toThrow();
+    expect(() => createTestEnv({ ["CORPUS_AUTOINDEX"]: spelling }), JSON.stringify(spelling)).toThrow(EnvRefusedError);
   }
 });

@@ -27,4 +27,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+1 row: applied 1, kept 0, handed off 0, owner question 0.
+
+- `PluginCommandView`: the `export type ... from "@orb/contracts/plugin"` in `client/src/features/plugin/hooks/use-plugin-commands.ts` is deleted. The home stays `packages/contracts/src/plugin/command-view.ts`, untouched. Scan: ast-grep inline rule, `-l ts` and `-l tsx`, `packages tests` (5199 ts and 1450 tsx files): 18 hits, every other client and server consumer already imports from `@orb/contracts/plugin`; none used the hook path.
+- `pnpm typecheck packages/client/tsconfig.json` exit 0.

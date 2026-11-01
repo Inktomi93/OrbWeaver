@@ -188,7 +188,6 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       characterName,
       userName,
       createDate: chat.createdAt,
-      isBranch: parentRef !== null,
       parentRef,
       // ALWAYS null: the room author's-note override was retired (owner ruling 2026-08-01) — per-chat prose
       // is a `chat_injections` LIST now, and ST's single `note_prompt` slot has no unambiguous inverse for a
@@ -209,7 +208,6 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       // The import leg reads ST's key; the export leg is one-way (and the serde does not emit the key).
       scriptInjects: [],
       bucket: classifyChat(parsedMessages),
-      sourceMetadata: null,
       messages: parsedMessages,
     };
     const base = `${slug(characterName)}-${slug(chat.title ?? "chat")}`;

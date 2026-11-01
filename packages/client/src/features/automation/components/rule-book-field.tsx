@@ -1,11 +1,11 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { useTRPC } from "#data";
 import { notify } from "#lib";
 
@@ -24,8 +24,6 @@ export function RuleBookField({
   readonly onBlur: () => void;
 }): ReactElement {
   const trpc = useTRPC();
-  const id = useId();
-  const labelId = `${id}-label`;
   const attached = useQuery(trpc.worldInfo.listForChat.queryOptions(chatId === null ? skipToken : { chatId }));
   const owned = useQuery(trpc.worldInfo.listBooks.queryOptions(undefined, { enabled: chatId === null }));
   const query = chatId === null ? owned : attached;
@@ -33,33 +31,24 @@ export function RuleBookField({
   const unavailable = value.length > 0 && !items.some((item) => item.value === value);
   return (
     <Stack gap="tight">
-      <label id={labelId} htmlFor={id}>
-        World book
-      </label>
-      <Select
-        id={id}
-        aria-labelledby={labelId}
-        aria-invalid={error !== null}
-        {...(error === null ? {} : { "aria-describedby": `${id}-error` })}
-        onOpenChange={(open): void => {
-          if (!open) {
-            onBlur();
-          }
-        }}
-        value={value || null}
-        placeholder="Choose a world book…"
-        items={unavailable ? [...items, { value, label: `Unavailable book (${value})` }] : items}
-        onValueChange={(next): void => {
-          if (next !== null) {
-            onChange(next);
-          }
-        }}
-      />
-      {error === null ? null : (
-        <Text tone="destructive" id={`${id}-error`} role="alert">
-          {error}
-        </Text>
-      )}
+      <Field label="World book" error={error}>
+        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the label association flows through Base UI's FieldRootContext at render time, the same as `SelectField`. */}
+        <Select
+          onOpenChange={(open): void => {
+            if (!open) {
+              onBlur();
+            }
+          }}
+          value={value || null}
+          placeholder="Choose a world book…"
+          items={unavailable ? [...items, { value, label: `Unavailable book (${value})` }] : items}
+          onValueChange={(next): void => {
+            if (next !== null) {
+              onChange(next);
+            }
+          }}
+        />
+      </Field>
       {query.isPending ? <Text voice="gloss">Loading world books…</Text> : null}
       {query.isError ? (
         <>

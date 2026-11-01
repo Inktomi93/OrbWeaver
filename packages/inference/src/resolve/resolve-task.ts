@@ -391,19 +391,6 @@ export async function discoveredKind(ctx: ResolverContext, connection: UserConne
   return statedKind(ctx, { provider: await warmedOrCached(ctx, provider, connection), connection });
 }
 
-/** {@link discoveredKind} over the persisted facts only, dialing nothing. `held` is false when a warm could still change
- *  the kind (a catalog or detect answer never persisted, a listed model not yet probed): the server's own answer
- *  outranks a curated row, so only the row's declaration settles the kind without it. */
-export async function cachedKind(ctx: ResolverContext, connection: UserConnection): Promise<{ readonly kind: ModelKind | undefined; readonly held: boolean }> {
-  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
-  if (provider === undefined) {
-    return { kind: undefined, held: true };
-  }
-  const behaved = await heldFacts(ctx, provider, connection);
-  const kind = statedKind(ctx, { provider: behaved, connection });
-  return { kind, held: connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection) };
-}
-
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the
 // mirrors already hold, and the task that needs the key refuses with its own reason.
 async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Promise<ProviderDef> {
@@ -599,4 +586,4 @@ export async function resolveTaskWithBaseline(ctx: ResolverContext, args: Resolv
   return await abortableWait(resolveTaskFold(ctx, args, true), args.signal, RESOLUTION_ABORTED_MESSAGE);
 }
 
-export type { ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
+export type { ResolverContext } from "../contract/task-resolution.ts";

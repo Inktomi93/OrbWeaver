@@ -10,7 +10,7 @@ import type { GenerationCapability, ResolvedWarning } from "@orb/contracts/infer
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatPosture, ResolvedChatKnobs, ResolvedReasoning } from "#contract";
 import { resolveChat } from "#funnel";
-import type { AgentSdkLog, ClaudeRuntimeOverrides, DisciplineOptions } from "../../contract/agent-sdk-backend.ts";
+import type { ClaudeRuntimeOverrides, DisciplineOptions } from "../../contract/agent-sdk-backend.ts";
 
 // tools:[] alone does NOT remove the cowork bundle (leaks in regardless of env/settingSources); disallowedTools does.
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"] as const;
@@ -37,19 +37,6 @@ function firewallBase(): Omit<DisciplineOptions, "env"> {
 
 export function disciplineOptions(env: Record<string, string | undefined>): DisciplineOptions {
   return { ...firewallBase(), env };
-}
-
-/** Opt-in subprocess observability. Kept out of `disciplineOptions` so that helper stays the pure leak contract. */
-export function observabilityOptions(debug: boolean, log: AgentSdkLog): { debug?: boolean; stderr?: (data: string) => void } {
-  if (!debug) {
-    return {};
-  }
-  return {
-    debug: true,
-    stderr: (data: string): void => {
-      log.debug({ sdk: "stderr" }, data.trimEnd());
-    },
-  };
 }
 
 /** The text the tail-system hook injects for this context, or `null` when it mounts no hook. The one

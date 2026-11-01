@@ -6,21 +6,16 @@
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 
 // Base free-mode only — extraction and edit modes are driven through the /imagine slash command and its modal (imagery feature), not through this composer hook.
 const FREE_MODE: PromptTemplateMode = "free";
 
-interface GenerateImageVars {
-  readonly chatId: ChatId;
-  readonly mode: PromptTemplateMode;
-  readonly prompt: string;
-  readonly timeZone: string;
-}
-
 // TData is `unknown` — the posted image message arrives over the bus (messageCommitted), never read back.
-const useGenerateImageMutation = createEntityMutation<GenerateImageVars, unknown>({
+const useGenerateImageMutation = createEntityMutation<inferInput<Trpc["chat"]["generateImage"]>, unknown>({
   options: (trpc) => trpc.chat.generateImage.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't generate the image.",
@@ -31,7 +26,6 @@ export interface UseGenerateImageResult {
    *  prompt there, never synchronously, so a failed generate leaves the prompt intact for retry (F-P1). */
   readonly generate: (prompt: string, opts?: { readonly onSuccess?: () => void }) => void;
   readonly isPending: boolean;
-  readonly error: unknown | null;
 }
 
 export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult {
@@ -56,6 +50,5 @@ export function useGenerateImage(chatId: ChatId | null): UseGenerateImageResult 
   return {
     generate,
     isPending: mutation.isPending,
-    error: mutation.error,
   };
 }

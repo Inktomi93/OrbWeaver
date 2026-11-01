@@ -7,17 +7,12 @@ import { Field } from "@orb/ui/field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { ReactElement, ReactNode } from "react";
+import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
-export interface SelectFieldProps {
-  readonly label: ReactNode;
-  readonly description?: ReactNode;
-  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
-   *  stay always-visible. */
-  readonly hint?: ReactNode;
+export interface SelectFieldProps extends BoundFieldShellProps {
   readonly items: SelectItems<string>;
   readonly placeholder?: ReactNode;
-  readonly disabled?: boolean;
 }
 
 export function SelectField(props: SelectFieldProps): ReactElement {

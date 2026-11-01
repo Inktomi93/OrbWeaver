@@ -154,5 +154,5 @@ test("native SDK root disposal joins its actual held child before closing the co
   }
   expect(await turn).toMatchObject({ kind: "aborted" });
   expect(wire.children.every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
-  await expect(root.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(root.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });

@@ -3,6 +3,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -68,7 +69,7 @@ async function placements(page: Page): Promise<{ readonly prose: Placement; read
   return { prose: await placementOf(page, proseId), code: await placementOf(page, codeId) };
 }
 
-for (const chatStyle of CENTRED_STYLES) {
+forEachNonEmpty(CENTRED_STYLES, "CENTRED_STYLES", (chatStyle) => {
   test(`${chatStyle} keeps one column width and chip position for a prose row and a code row`, async ({ corpus, mount, page }) => {
     await openReadingStyle(page, corpus, chatStyle);
     await seedShellState(page, { activeSection: "chats" });
@@ -76,4 +77,4 @@ for (const chatStyle of CENTRED_STYLES) {
     const { prose, code } = await placements(page);
     expect(code).toEqual(prose);
   });
-}
+});

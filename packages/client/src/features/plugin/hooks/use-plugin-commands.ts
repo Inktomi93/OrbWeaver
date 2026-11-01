@@ -1,5 +1,5 @@
-// The COMMAND read + the ONE runner both consuming surfaces share: the
-// `/plugin` composer dispatch and the "Plugins" chrome menu.
+// The COMMAND read + the ONE runner every consuming surface shares: the
+// `/plugin` composer dispatch, the command palette and the placed commands.
 //
 // EVERY SURFACE, ONE RUNNER — deliberately. Menus, composer placements and the slash line do the identical thing
 // (resolve the command off the caller's own installs, invoke it, apply the outcome), and the moment that lives
@@ -17,8 +17,6 @@ import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replace
 import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
-
-export type { PluginCommandView } from "@orb/contracts/plugin";
 
 interface PluginCommandRunner {
   readonly isPending: boolean;
@@ -44,9 +42,9 @@ interface PluginCommandAction {
   readonly undoLabel: string;
 }
 
-/** Every command across the caller's granted-and-enabled plugins, ordered by what the Plugins menu and palette
- *  show: the plugin attribution, then group and command name. The plugin id keeps same-attribution installs
- *  contiguous. Not a suspense read: the composer and the chrome menu are both always-mounted chrome, and neither
+/** Every command across the caller's granted-and-enabled plugins, ordered by what the palette
+ *  shows: the plugin attribution, then group and command name. The plugin id keeps same-attribution installs
+ *  contiguous. Not a suspense read: the composer and the top bar are both always-mounted chrome, and neither
  *  may block the shell on a plugin catalog. */
 export function usePluginCommands(includeComposerDraft = false): readonly PluginCommandView[] {
   const trpc = useTRPC();
@@ -68,15 +66,9 @@ export function useSharedPluginNames(): ReadonlySet<string> {
   return sharedPluginNames(usePluginCommands(true));
 }
 
-/** The top-bar launcher's commands: only the ones with no placement. A placed command lives at its placement
- *  (composer wand), so listing it here too would show it twice. */
-export function useLauncherCommands(): readonly PluginCommandView[] {
-  return usePluginCommands().filter((command) => command.placements.length === 0);
-}
-
-/** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the menu say
+/** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the palette say
  *  the same sentence — the runner below is the ONE place either surface can reach it. */
-const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — try the Plugins menu to see what you have.";
+const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — open Jump to… to see what you have.";
 
 /** The ONE runner: resolve `(slug, name)` against the caller's own commands, invoke it, apply the host-mediated
  *  outcome. An unresolved pair is a house toast, never a silent no-op — a slash line that vanishes teaches a
@@ -139,7 +131,7 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
   return { isPending: invoke.isPending || runningCommandCount > 0, run };
 }
 
-/** The ONE "run this command" entry the DISCRETE surfaces share (the palette rows, the wand menu) — a command
+/** The ONE "run this command" entry the DISCRETE surfaces share (the palette rows, the placed commands) — a command
  *  that DECLARES typed args (#791) opens the args-collection modal (typed inputs, coerced + validated before
  *  dispatch); a command with none dispatches directly with an empty bag (the U8 shape). Both surfaces route
  *  through here so a with-args command can never be fired with a bare, invalid bag from one door but not another.

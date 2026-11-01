@@ -188,4 +188,54 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+162 rows: 2 deleted, 0 derived, 77 kept, 0 handed off, 83 under owner questions (Q1 76, Q2 2, Q3 5).
+
+Most rows are the shapes of the dev bridge (`window.__orb.*`), the appearance matrix and the bug-report bundle. Their readers are in tooling, which holds restated twin types or zod schemas and reads the page by property name, or the value is serialized whole. A row is kept only where a reader is named below; a row with no coded reader is an owner question, and nothing was deleted for it.
+
+Deleted:
+
+| Row | Result |
+| - | - |
+| `ParsedConfigQuery.unknown` | deleted with `MutableParse.unknown` and its `push`; no reader in production, tests or tooling. An unknown `@` word is still dropped from the search terms |
+| `CorpusModeContribution.listSearch` | deleted with its two writes (`insights-mode.tsx`, `labels-mode.tsx`) and the unused `ListSearchPolicy` import in `corpus-modes.ts`. The section-level `SectionWithList.listSearch` stays: a type test reads it (item 1555) |
+
+Kept, with the reader:
+
+| Rows | Reader |
+| - | - |
+| `AppearanceMessageRegistryReceipt.mounted`, `.registered`, `.matched`, `.missingIds`, `.staleIds` | `tooling/src/floor/appearance/appearance-matrix.ts:100-106` (schema) and `:247-250` |
+| `AppearanceMatrixBridgeContract.rows`, `.messageRegistry` | `appearance-matrix.ts:182-197`, `:256-259`; `tooling/src/snap/ops/appearance-invariant-runtime.ts:72`, `:76` |
+| `ShellSnapshot.section`, `.panels`, `.chatOpen` | `tooling/src/snap/lib/map-report.ts:84`, `:123`; `tooling/src/ui-audit/lib/result-rows.ts:28` |
+| `OrbNavCapabilities.sections`, `.modalSlots`, `.configGroups`, `.contextTabs`, `.contextTabNames`, `.contextTabsPublished`, `.chatPositions` | `tooling/src/snap/ops/page-validate.ts:196-218`; `tooling/src/snap/contract/map.ts:63-64`; `map-report.ts:32`, `:35`, `:90` |
+| `ThemeCarrierObservable.lifecycle` | `appearance-matrix.ts:80`, `:147` (`themeObservables` schema) |
+| `AppearanceMatrixContractRow.key`, `.dependsOn`, `.incompatibleWith` | `appearance-matrix.ts:100-105` |
+| `AppearanceMatrixContract.declared`, `.executable`, `.dependencies`, `.themeObservables`, `.historicalRows` | `appearance-matrix.ts:189-197`, `:144-148` |
+| `AppearanceHistoricalSubject.*`, `.Cascade.*`, `.Row.*` (15 rows) | `appearance-matrix.ts:67-72`, `:110-140` (schema), merge arm at `tooling/src/snap/ops/matrix.ts:381` |
+| `AppearanceMessageCarrierSnapshot.*` (17 rows, including `metadataVisibility.*`) | read by dotted path: `agent-bridge-appearance.ts:49` (`nestedValue(entry.snapshot, observable.signal)`) with the signal names at `appearance-carrier-manifest.ts:376-391` |
+| `BugReportRoute.pathname`, `BugReportClientBundle.route` | `tooling/src/bug-reports/lib/read.ts:45` |
+| `ConsoleErrorRecord.source`, `.text`, `.stack`, `.route` | the whole record is serialized: `tooling/src/floor/browser/browser-diagnostics.ts:249` |
+| `MessageToolsRenderer.id` | `ContributorRegistry<Def extends { readonly id: string }>`: `registry.ts:48-51`; `MessageToolsRendererRegistry` is that type (`message-tools-renderer-registry-context.ts:11`) |
+| `Anchorish.href`, `.download` | written to the anchor at `download-json.ts:32-34`; the browser reads them on `click()` |
+| `FlipAnimation.animationName` | `flip-phase.ts:42`; the browser's `CSSAnimation` writes it |
+| `AnimationRecord.target`, `.properties`, `.compositorClean` | `tooling/src/motion-audit/lib/animations.ts:64`, `:71`; `motion-audit/ops/page-validate.ts:85-87` |
+| `MotionFlaggerDrainReceipt.requestedGeneration`, `.completedGeneration` | `tooling/src/snap/contract/dead-css.ts:17`; `tooling/src/snap/ops/report-summary-blocks.ts:81` |
+| `MotionFlagRecord.at`, `.offender`, `.overBudget`, `.animation` | `tooling/src/motion-audit/ops/page-validate.ts:76-87` |
+
+Owner question Q1 (default: keep, 76 rows, nothing changed). The `window.__orb.*()` and bug-report payload fields that no code reads. Agents read them through an eval, or a person reads the report. Keep them as agent-facing payload, or delete as unread data?
+
+- `OrbRingMetadata.name`, `.read`, `.resettable`, `.description` (the documented reader is the `--eval` in `tooling/src/snap/contract/help.ts:195`)
+- `QuerySummary.key`, `.status`, `.fetch`, `.stale` (tooling reads only `.length`, `tooling/src/snap/ops/drive.ts:38`)
+- `OrbNavCapabilities.corpusModes`
+- `OrbRpgSnapshot.chatId`, `.game`, `.tracker`, `.journal`, `.turnToolCalls`
+- `OrbPluginLogLine.*` (3), `OrbPluginPublication.*` (5), `OrbPluginUiHost.*` (5), `OrbPluginUiSurface.*` (2), `OrbPluginUiCommand.*` (2), `OrbPluginUiEntry.*` (2), `OrbPluginUiSnapshot.*` (2). No plugin guest reaches the bridge
+- `AppearanceMatrixContractRow.owner`, `.carriers`, `.consumer`, `.lifecycle`, `.portal`
+- `BugReportRoute.origin`, `.section`, `.shell`; `BugReportEnvironment.*` (10 rows, including `viewport.width` and `.height`); `BugReportClientBundle.environment`, `.sources`, `.evidence`, `.checkpointTotals`; `PublicBugReportBundle.format`, `.formatVersion`, `.window`, `.browserErrors.held`, `.browserErrors.dropped`
+- `BusEventRecord.type`, `.chatId`, `.keys`
+- `AnimationLifecycleState.observedAt`; `AnimationAttribution.owner`, `.mechanism`, `.phase`; `AnimationRecord.id`, `.targetState`, `.targetState.startingStyle`, `.targetState.endingStyle`, `.lifecycleState`, `.attribution`
+- `MotionFlagRecord.detail`
+
+Owner question Q2 (default: keep, 2 rows). `AppearanceConsumerBinding.file` and `.symbol` are citation data in a typed manifest, like the registry rationale fields in item 1555. Keep the typed pointers, or turn them into comments?
+
+Owner question Q3 (default: keep, 5 rows). `ChatSettingsHostControlsContribution.anchor` and `CharacterDetailSectionsContribution.anchor` are the single-arm discriminant the contract documents; `CharacterDetailState.characterId` is a projection with no contributor (the contract says an unread projection field is a promise). `ListPaneHeaderView.accent` and `.back` have no producer, but `data-scoped` and `list-pane-back` are selectors in `mobile.css:187-205`, and `list-pane-back` is a slot in the owner CSS surface (`packages/client/owner-css-surface.ts:362`). Deleting them changes that surface; the owner decides.
+
+Survey: `codegraph_explore` on the bound and bridge type names and on `bound-fields`; ast-grep (`-l ts` 5904, `-l tsx` 1522 files) on `useBoundField` and the registry builders; `rg` for each leaf name over `tooling`, `scripts`, `tests/support` and `packages/client/src`, then a read of the declaring and reading files. Typecheck: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0 after the two deletes. CT: `config-search-input` and `library-accessibility`, 8 passed. Lint: `pnpm lint:eslint` on the four touched files, exit 0.

@@ -61,12 +61,11 @@ export const credentialsRouter = t.router({
 
   markRevokedByUser: authedProcedure
     .output(z.void())
-    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential), reason: z.string().optional() }))
+    .input(z.strictObject({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))
     .mutation(({ ctx, input }) =>
       ctx.services.credentials.markRevokedByUser({
         principal: ctx.auth,
         credentialId: input.credentialId,
-        ...(input.reason !== undefined ? { reason: input.reason } : {}),
       }),
     ),
 

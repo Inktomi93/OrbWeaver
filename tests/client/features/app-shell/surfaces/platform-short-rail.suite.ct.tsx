@@ -4,6 +4,7 @@ import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
@@ -92,8 +93,8 @@ async function columnPointer(page: Page, rail: Locator, home: Locator, info: Tes
   const refinery = rail.getByRole("button", { name: SECTION_LABELS.refinery, exact: true });
   await refinery.click();
   await withinViewport(refinery);
-  const controlSize = await resolvedLength(page, "var(--size-control-lg)");
-  const chromeRow = await resolvedLength(page, "var(--dimension-chrome-row)");
+  const controlSize = await resolvedLength(page, `var(${TOKENS["size.control-lg"].cssVar})`);
+  const chromeRow = await resolvedLength(page, `var(${TOKENS["dimension.chrome-row"].cssVar})`);
   expect((await settledBox(refinery)).height).toBeGreaterThanOrEqual(controlSize - GEOMETRY_EPSILON);
   expect((await settledBox(home)).height).toBeGreaterThanOrEqual(chromeRow - GEOMETRY_EPSILON);
   const settings = rail.getByRole("button", { name: SECTION_LABELS.settings, exact: true });

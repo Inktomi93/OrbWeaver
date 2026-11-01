@@ -43,7 +43,7 @@ test("a mid-tone carried base emits the solved knobs, and the roles they spell c
   const { vars } = clampThemeTokens({ background: MID_BASE }, undefined, HEARTH_ACCENT);
   const knobs = emittedKnobs(vars);
   const scheme = carriedToneScheme(carriedPaletteOf(parsed(MID_BASE)));
-  const sources = carriedToneSources(scheme, parsed(vars["--color-primary"] ?? ""));
+  const sources = carriedToneSources(scheme, parsed(vars[TOKENS["color.primary"].cssVar] ?? ""));
   expect(knobs).toEqual(
     Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solveCarriedToneMix(scheme, sources).scope[knob as keyof typeof TONE_MIX_DEFAULTS]])),
   );
@@ -79,9 +79,9 @@ test("an accent-only scope over a carried palette emits its primary alone, so ev
   const primarySteps = ["hover", "active"] as const satisfies readonly ToneMixKnob[];
   expect(Object.keys(vars).toSorted()).toEqual(
     [
-      "--color-primary",
-      "--color-ring",
-      "--color-primary-foreground",
+      TOKENS["color.primary"].cssVar,
+      TOKENS["color.ring"].cssVar,
+      TOKENS["color.primary-foreground"].cssVar,
       ...primaryLiterals,
       ...primarySteps.map((knob) => toneKnobVar("primary", knob)),
     ].toSorted(),
@@ -91,10 +91,10 @@ test("an accent-only scope over a carried palette emits its primary alone, so ev
 
 test("a carried scope paints the primary it judged, and reports when the solid steps needed the fallback", () => {
   const inherited = clampThemeTokens({ background: DARK_BASE }, undefined, HEARTH_ACCENT);
-  expect(inherited.vars["--color-primary"]).toBe(HEARTH_ACCENT);
+  expect(inherited.vars[TOKENS["color.primary"].cssVar]).toBe(HEARTH_ACCENT);
   expect(inherited.toneFallback).toBeUndefined();
   // Corrected up to clear the dark card, this fill lands where no one ink covers it and both solid steps.
   const shared = clampThemeTokens({ background: DARK_BASE, accent: "oklch(0.3 0.1 260)" });
-  expect(shared.toneFallback?.accent).toBe(shared.vars["--color-primary"]);
+  expect(shared.toneFallback?.accent).toBe(shared.vars[TOKENS["color.primary"].cssVar]);
   expect(shared.toneFallback?.active).toBeGreaterThan(TONE_MIX_DEFAULTS.active);
 });

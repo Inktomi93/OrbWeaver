@@ -24,7 +24,7 @@ test("the component runner exposes its actual Chromium acceleration posture", as
     body: JSON.stringify({ browserName, browserVersion: browser.version(), acceleration, timing, launchArguments, qualifiedTiming: qualified }, null, 2),
     contentType: "application/json",
   });
-  expect(!argumentsAvailable || enableGpuPresent).toBe(true);
+  expect(argumentsAvailable ? enableGpuPresent : true).toBe(true);
   expect(acceleration.backend.length).toBeGreaterThan(0);
   expect(["hardware", "software", "unknown"]).toContain(acceleration.posture);
   expect(acceleration.gpuCompositing.length).toBeGreaterThan(0);

@@ -62,6 +62,6 @@ test("both stable pointer writes retain the native admission failure under impli
   for (const source of [docker, notes]) {
     const result = await spawnNiced("bash", ["-e", "-c", z.string().parse(source)], { cwd: scratch });
     expect(result.code, result.stderr).toBe(71);
-    expect(() => readFileSync(join(scratch, "promoted"), "utf8")).toThrow();
+    expect(() => readFileSync(join(scratch, "promoted"), "utf8")).toThrow(expect.objectContaining({ code: "ENOENT" }));
   }
 });

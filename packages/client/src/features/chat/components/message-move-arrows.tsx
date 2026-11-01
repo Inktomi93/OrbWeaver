@@ -5,14 +5,15 @@
 // while a turn is generating in the room or the loaded pages are still catching up to the live tail. The verb is host-only, and the caller mounts these for the host alone.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronUp, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { isLiveTurnPhase, useTurnPhase } from "#state";
@@ -20,13 +21,7 @@ import { MESSAGE_MOVE_DOWN_NAME, MESSAGE_MOVE_FAILED, MESSAGE_MOVE_NEIGHBOUR_GON
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { moveReasons } from "../lib/move-neighbours.ts";
 
-interface MoveVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-  readonly toSeq: number;
-}
-
-const useMoveMessageMutation = createEntityMutation<MoveVars, unknown>({
+const useMoveMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["moveMessage"]>, unknown>({
   options: (trpc) => trpc.chat.moveMessage.mutationOptions(),
   busDriven: true,
   errorToast: MESSAGE_MOVE_FAILED,

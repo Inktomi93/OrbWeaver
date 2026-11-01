@@ -28,4 +28,11 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Two rows: two applied, none kept, none handed off, no owner questions.
+
+| Row | Result |
+| - | - |
+| `requireAuthed.wait` | applied: parameter and the `WaitOp` injection seam removed in `packages/client/src/features/auth/lib/route-guards.ts`; `meOrNull` calls the one module-level `wait` |
+| `redirectIfAuthed.wait` | applied: same file |
+
+Callers: `packages/client/src/routes/router.tsx:40,47` call both guards with no arguments; the barrel `packages/client/src/features/auth/index.ts:11` re-exports them. Survey: `codegraph_explore` on `requireAuthed redirectIfAuthed route-guards wait`; literal `rg` for both names over `packages tests tooling scripts` (no test passes a wait). Proof: client typecheck clean; `tests/client/features/auth/surfaces/login-pending-join.ct.tsx` result in the lane report.

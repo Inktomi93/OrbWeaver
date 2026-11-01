@@ -116,7 +116,11 @@ function AvailableConnectionEditorBody({
   providers,
   trpc,
   invalidation,
-}: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef; readonly providers: readonly ProviderDef[] }): ReactElement {
+}: Omit<ConnectionEditorProps, "onRemoved" | "removalFinalFocus"> & {
+  readonly connection: ConnectionView;
+  readonly provider: ProviderDef;
+  readonly providers: readonly ProviderDef[];
+}): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
   // The width editor closes as the confirm opens, so focus returns to the vector-width row itself, not the page and

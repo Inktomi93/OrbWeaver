@@ -47,12 +47,11 @@ export interface BackfillResult {
 
 // ── collectGarbage (mark-sweep, grace-windowed) ──────────────────────────────────────────────────────────
 
-/** `collectGarbage` options. `graceMs` protects a just-put-but-not-yet-linked blob (the put→link gap) via the
- *  CAS mtime; omitted ⇒ the verb's floor default. `dryRun` reports without deleting. `signal` aborts the
- *  (potentially long) whole-CAS sweep (workload cancel / SIGTERM). */
+/** `collectGarbage` options. A fixed grace window on the CAS mtime protects a just-put-but-not-yet-linked blob
+ *  (the put→link gap). `dryRun` reports without deleting. `signal` aborts the (potentially long) whole-CAS sweep
+ *  (workload cancel / SIGTERM). */
 export interface GcOptions {
   readonly dryRun?: boolean;
-  readonly graceMs?: number;
   readonly signal?: AbortSignal;
 }
 

@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // The real member author and frozen host connection remain distinct from retained canon accounting.
 import { expect, test } from "@orb/testkit/node";
+import { connectDevice } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreHttpRoom, coreSse } from "./core-physical.ts";
 
@@ -24,7 +25,7 @@ test("a real member's send credits the retained host cohort and speaker, never t
   const online = new AbortController();
   using presence = new DisposableStack();
   presence.defer(() => online.abort());
-  h.root.app.presence.connect(h.owner.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
   const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "The member asks the retained keeper." });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter((message) => message.role === "user")).toMatchObject([{ authorUserId: member.userId }]);

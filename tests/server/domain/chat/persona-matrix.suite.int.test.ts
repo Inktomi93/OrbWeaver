@@ -11,6 +11,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { connectDevice } from "@orb/testkit/node/composed";
 import {
   attachPersonaLore,
   inputMessages,
@@ -67,9 +68,9 @@ async function roomFor(options: RoomOptions): Promise<Room> {
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: null });
   const online = new AbortController();
   construction.defer(() => online.abort());
-  h.root.app.presence.connect(h.owner.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
   if (options.bobOffline !== true) {
-    h.root.app.presence.connect(bob.userId, online.signal);
+    await connectDevice(h.root, bob.userId, online.signal);
   }
   const lifetime = construction.move();
   return { h, alice: h.owner, bob, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };

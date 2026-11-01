@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { automationRuleCreateSchema, automationRuleToolViewSchema, RULE_PRESET_IDS } from "@orb/contracts/automation";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -214,7 +215,7 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
     expect(raised.source).toEqual({ kind: "rule", ruleId: rule.id });
     const foreign = await root.principalFor((await root.actor()).id);
     const params = { principal, suggestionId: raised.suggestionId };
-    await expect(seedAutomationConfirmationRows(root, { ...params, principal: foreign }, rule.id)).rejects.toThrow();
+    await expect(seedAutomationConfirmationRows(root, { ...params, principal: foreign }, rule.id)).rejects.toThrow(DomainNotFoundError);
     const confirmed = await seedAutomationConfirmationRows(root, params, rule.id);
     expect(confirmed.result).toEqual({ ran: "stashed-arm", outcome: "fired" });
     expect(confirmed.fires).toMatchObject([
@@ -222,7 +223,7 @@ test("a genuinely raised confirmation keeps its actor and fire identity while a 
     ]);
     const entries = await root.services.worldInfo.listEntries({ principal, bookId: book.id });
     expect(entries.map((entry) => [entry.worldBookId, entry.content, entry.keys])).toEqual([[book.id, "The host preserved this witnessed fact.", ["witness"]]]);
-    await expect(seedAutomationConfirmationRows(root, params, rule.id)).rejects.toThrow();
+    await expect(seedAutomationConfirmationRows(root, params, rule.id)).rejects.toThrow(DomainNotFoundError);
     expect(await root.services.worldInfo.listEntries({ principal, bookId: book.id })).toEqual(entries);
   } finally {
     cancellation.abort();

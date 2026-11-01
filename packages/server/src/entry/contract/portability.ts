@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 
 export type { SchemaTableName as PortabilityTableName } from "@orb/db/wiring";
 
-export const NON_PORTABLE_CLASSES = ["RULED-OUT", "DERIVED", "RUNTIME", "DEFERRED", "ACCEPTED-LOSSY"] as const;
+export const NON_PORTABLE_CLASSES = ["RULED-OUT", "DERIVED", "RUNTIME", "DEFERRED"] as const;
 export type NonPortableClass = (typeof NON_PORTABLE_CLASSES)[number];
 
 export interface NonPortableCanon {

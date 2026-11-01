@@ -130,6 +130,29 @@ test("a SIBLING-combinator group variant stays WITHHELD — closest() has no ans
   await expect(res).toExitWith(2);
 });
 
+/** The ListRow shape: a visible title and a screen-reader-only full title, both repainted by the row's
+ *  hover. The sr-only span's hover ink fails contrast, but it paints no pixels, so it is never judged. */
+const SR_ONLY_HOVER_FIXTURE = `<style>
+.row { padding: 8px; background: #222222; }
+.title { color: #8a8a8a; }
+.row:hover .title { color: #ffffff; }
+.full-title { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border-width: 0; color: #8a8a8a; }
+.row:hover .full-title { color: #3a3a3a; }
+</style>
+<div class="row"><span class="title">visible title</span><span class="full-title">the full title for screen readers</span></div>`;
+
+test("screen-reader-only text is excluded from hover contrast, never judged", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "sr-only-hover.html"), relationalDocument(SR_ONLY_HOVER_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "sr-only-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout, "the visible title is judged; the sr-only span is excluded by name").toMatch(
+    /POPULATION\s+hover-contrast candidates=2 judged=1 .*excluded\([^)]*srOnly=1/u,
+  );
+  expect(res.stdout).not.toMatch(/^P[0-3]\s+hover-contrast\s/mu);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
+
 test("a plain :hover rule on the painted element itself keeps being judged", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "plain-hover.html"), relationalDocument(PLAIN_HOVER_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });

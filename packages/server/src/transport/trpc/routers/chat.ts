@@ -111,7 +111,6 @@ const commitMessageSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   content: z.string(),
   personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
-  blocks: z.array(messageContentBlockSchema).optional(),
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
   timeZone: reportedTimeZoneSchema,
 });

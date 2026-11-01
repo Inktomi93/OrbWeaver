@@ -1,3 +1,4 @@
+import type { ViewTransitionSettlement, ViewTransitionVisibility } from "../lib/view-transition-settlement.ts";
 import { isDocumentHidden, observeViewTransition } from "../lib/view-transition-settlement.ts";
 
 type RouterUpdate = () => Promise<void>;
@@ -8,15 +9,8 @@ interface RouterViewTransitionPort {
   startViewTransition: (update: RouterUpdate) => void;
 }
 
-interface NativeTransition {
-  readonly ready?: Promise<unknown>;
-  readonly finished?: Promise<unknown>;
-  readonly updateCallbackDone?: Promise<unknown>;
-}
-
-interface ViewTransitionDocument {
-  readonly visibilityState?: string;
-  startViewTransition?: ((update: NativeStartArgument) => NativeTransition | undefined) | undefined;
+interface ViewTransitionDocument extends ViewTransitionVisibility {
+  startViewTransition?: ((update: NativeStartArgument) => ViewTransitionSettlement | undefined) | undefined;
 }
 
 interface ViewTransitionGlobals {
@@ -38,7 +32,7 @@ export function observeRouterViewTransitions(router: RouterViewTransitionPort): 
     // document commit the navigation directly instead of being skipped by the browser.
     transitionDocument.startViewTransition = isDocumentHidden(transitionDocument)
       ? undefined
-      : (argument): NativeTransition | undefined => {
+      : (argument): ViewTransitionSettlement | undefined => {
           const transition = nativeStart.call(transitionDocument, argument);
           observeViewTransition(transition);
           return transition;

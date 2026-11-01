@@ -6,6 +6,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { ZodError } from "zod";
 import {
   aggregateDimension,
   aggregateScope,
@@ -219,7 +220,7 @@ test("unknown schema, malformed scope, duplicate fact identity, and wrong-arm da
       ...base,
       batches: [{ ...base.batches[0], arms: [{ ...base.batches[0]?.arms[0], scope: { kind: "scope-v1", context: null, page: null, window: null } }] }],
     }),
-  ).toThrow();
+  ).toThrow(ZodError);
   expect(() => parseSnapRunResults({ ...base, batches: [{ ...base.batches[0], arms: [base.batches[0]?.arms[0], base.batches[0]?.arms[0]] }] })).toThrow(
     "duplicate requests fact scope",
   );

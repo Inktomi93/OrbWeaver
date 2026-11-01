@@ -1,8 +1,9 @@
 // Ranked digest and segment pools enforce current host scope, and the query's width, in SQL before any limit.
-import type { BlockKey } from "@orb/contracts/search";
+
 import type { ReadOnlyDb } from "@orb/db";
 import { chatDigests, chatParticipants, chatSegments, embedGenerations } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { BlockKey } from "@orb/kit/recall";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
 import { digestScopeCond, segmentScopeCond } from "./scope.ts";

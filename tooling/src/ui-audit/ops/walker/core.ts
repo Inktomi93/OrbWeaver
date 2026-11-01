@@ -388,21 +388,36 @@ const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominato
   }
   // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
   // is structural: seed block on <html>, an inline ThemeScope custom-property carrier, or the base default.
+  //
+  // The arm's carrier is the ROOT-LEVEL scope (no theme-scope ancestor) holding the most rendered
+  // subjects, never the first visible scope: the shell's scope is display:contents and paints no box,
+  // and a nested scope (a theme preview tile, a speaker's room theme) is local to its own subtree.
   var rootDataTheme = document.documentElement.getAttribute("data-theme");
-  var shellThemeScope = null;
-  var shellThemeScopes = document.querySelectorAll("[data-slot='theme-scope']");
-  for (var scopeIndex = 0; scopeIndex < shellThemeScopes.length; scopeIndex += 1) {
-    if (isVisible(shellThemeScopes[scopeIndex])) { shellThemeScope = shellThemeScopes[scopeIndex]; break; }
+  function enclosingThemeScope(el) {
+    return el.parentElement ? el.parentElement.closest("[data-slot='theme-scope']") : null;
   }
-  var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
-  var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
+  function carriedBackgroundOf(el) {
+    for (var carrier = el.closest("[data-slot='theme-scope']"); carrier !== null; carrier = enclosingThemeScope(carrier)) {
+      var carried = carrier.style.getPropertyValue("--color-background").trim();
+      if (carried !== "") return carried;
+    }
+    return "";
+  }
+  var rootScopeSubjects = new Map();
+  var shellThemeScope = null;
   var themeSubjectSources = { default: 0, seed: 0, custom: 0, unknown: 0 };
   var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
   for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
     var themeSubject = allEls[themeIndex];
     if (!isVisible(themeSubject)) continue;
-    var carryingScope = themeSubject.closest ? themeSubject.closest("[data-slot='theme-scope']") : null;
-    var carriedBackground = carryingScope ? carryingScope.style.getPropertyValue("--color-background").trim() : "";
+    var rootScope = themeSubject.closest("[data-slot='theme-scope']");
+    for (var outerScope = rootScope; outerScope !== null; outerScope = enclosingThemeScope(outerScope)) rootScope = outerScope;
+    if (rootScope !== null) {
+      var rootScopeCount = (rootScopeSubjects.get(rootScope) || 0) + 1;
+      rootScopeSubjects.set(rootScope, rootScopeCount);
+      if (shellThemeScope === null || rootScopeCount > rootScopeSubjects.get(shellThemeScope)) shellThemeScope = rootScope;
+    }
+    var carriedBackground = carriedBackgroundOf(themeSubject);
     if (carriedBackground !== "") themeSubjectSources.custom += 1;
     else if (rootDataTheme !== null && rootDataTheme !== "") themeSubjectSources.seed += 1;
     else themeSubjectSources.default += 1;
@@ -414,6 +429,8 @@ const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominato
     else if (schemeHasDark) themeSubjectPolarities.dark += 1;
     else themeSubjectPolarities.unknown += 1;
   }
+  var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
+  var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
   var themeRender = {
     rootDataTheme: rootDataTheme,
     shellScope: { present: shellThemeScope !== null, inlineBackground: shellInlineBackground, colorScheme: shellColorScheme },

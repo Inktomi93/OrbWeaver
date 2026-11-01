@@ -358,7 +358,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
   if (capability.kind !== "tokens") {
     return null;
   }
-  const { def, factoryDefault } = row;
+  const { def } = row;
   const guidedKind = isGuidedActionKind(def.id) ? def.id : undefined;
   const tokens = capability.tokens;
   return (
@@ -391,7 +391,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
       {guidedKind === undefined || !tokens.includes(GUIDED_INPUT_TOKEN) ? null : (
         <form.Subscribe selector={(state): string => state.values.guidedActions?.[guidedKind].prompt ?? ""}>
           {(prompt): ReactElement | null =>
-            !guidedFooterState(prompt, factoryDefault).missingInputLint ? null : (
+            !guidedFooterState(prompt).missingInputLint ? null : (
               // The warning SIGNAL rides the band + the glyph, never a `tone` prop on Text — type colour
               // belongs to the four-voice grammar (§2).
               <Card tone="warning" variant="soft">

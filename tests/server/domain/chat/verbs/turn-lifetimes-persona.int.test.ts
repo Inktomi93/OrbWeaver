@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 import { expect, test } from "@orb/testkit/node";
+import { connectDevice } from "@orb/testkit/node/composed";
 import { attachPersonaLore, invitePerson, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 
 const HOST_LORE = "HOST-PERSONA-ONLY-LORE";
@@ -18,7 +19,7 @@ test("the host's disabled member-persona-lore policy also excludes the initiatin
   const online = new AbortController();
   using presence = new DisposableStack();
   presence.defer(() => online.abort());
-  h.root.app.presence.connect(h.owner.userId, online.signal);
+  await connectDevice(h.root, h.owner.userId, online.signal);
   const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "Ask the keeper." });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter(({ role }) => role === "user")).toMatchObject([{ authorUserId: member.userId, personaId: memberPersona.id }]);

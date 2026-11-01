@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
@@ -266,8 +267,8 @@ for (const regime of REGIMES) {
       await page.getByRole("menuitem", { name: /^Add another model on this key/u }).click();
       const dialog = page.getByRole("dialog", { name: "Add another model on this key", exact: true });
       const bounds = await settledBox(dialog);
-      const dialogCap = await resolvedLength(page, "var(--width-dialog-lg)", dialog);
-      const inset = await resolvedLength(page, "var(--spacing-field)", dialog);
+      const dialogCap = await resolvedLength(page, `var(${TOKENS["width.dialog-lg"].cssVar})`, dialog);
+      const inset = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, dialog);
       const viewportWidth = await page.evaluate(() => innerWidth);
       await testInfo.attach("model-picker-dialog-width", {
         body: JSON.stringify({ bounds, cap: dialogCap, inset, viewportWidth }),

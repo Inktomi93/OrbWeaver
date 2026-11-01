@@ -41,7 +41,9 @@ describe("record — coStatements ride the SAME batch (tx-atomicity)", () => {
       .set({ handle: castId("alice3") })
       .where(eq(users.id, actors.alice.userId));
 
-    await expect(svc.record({ event: actors.aliceInvite, coStatements: [statementToken(good), statementToken(bad)] })).rejects.toThrow();
+    await expect(svc.record({ event: actors.aliceInvite, coStatements: [statementToken(good), statementToken(bad)] })).rejects.toMatchObject({
+      code: "SQLITE_CONSTRAINT",
+    });
     const [row] = await harness.db.select().from(users).where(eq(users.id, actors.alice.userId));
     expect(row?.handle).toBe(actors.alice.handle);
     expect((await svc.list({ principal: actors.alice })).items).toHaveLength(0);

@@ -3,7 +3,7 @@
 // @subject packages/client/src/data/import-tree-served.ts
 
 import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
-import { importTree, planServedFolderImport, relativePathOf } from "@orb/client/data";
+import { importTree, planServedFolderImport, relativePathOf, skippedByReason } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices, StProfileHandledEntry } from "@orb/contracts/import";
@@ -19,7 +19,8 @@ import {
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -27,6 +28,8 @@ import { vi } from "vitest";
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
 import { PERSONA_COLLISION_CHOICES } from "#contracts/import/persona-collision.ts";
+
+const ids = createSeededIds(FIXTURE_ID_CURSOR);
 
 const WRAPPER = "backup";
 const WORKLOAD_DEADLINE_MS = 60_000;
@@ -96,7 +99,7 @@ test("a split native backup skips entries outside native directories instead of 
   const files = [...splitNativeTree(harness), ...outside];
   const plan = await planTreeImport(files, SPLIT_CAPS);
   expect(plan.layout).toBe("orb");
-  expect(plan.skipped.map((entry) => entry.path).toSorted()).toEqual(["README.txt", "notes/plan.txt"]);
+  expect(plan.skipped).toHaveLength(outside.length);
   expect(plan.batches.flat().some((file) => outside.includes(file))).toBe(false);
   for (const paths of uploadedPaths(plan.batches)) {
     expect(admitTreeBatch(paths, plan.layout).kind).toBe("orb");
@@ -181,6 +184,25 @@ test("a split profile seats a group with its member cards and transcript, and se
   expect(plan.skipped).toEqual([]);
 });
 
+test.each([
+  ["members only", { members: ["Aria.png", "Bram.png"], name: "Duo" }, [`${CHARACTERS}/Aria.png`, `${CHARACTERS}/Bram.png`]],
+  ["chats only", { chats: ["party"] }, [`${GROUP_CHATS}/party.jsonl`]],
+])("a split profile still seats a group definition with %s", async (_label, definition, seated) => {
+  const files = [
+    profileFile(ST_SETTINGS_FILE, "{}"),
+    profileFile(`${CHARACTERS}/Aria.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Bram.png`, "x".repeat(UNIT)),
+    profileFile(`${CHARACTERS}/Cora.png`, "x".repeat(UNIT)),
+    profileFile(`${GROUPS}/g1.json`, JSON.stringify(definition)),
+    profileFile(`${GROUP_CHATS}/party.jsonl`, "x".repeat(UNIT / 2)),
+    profileFile(`${CHATS}/Nobody/orphan.jsonl`, "x".repeat(UNIT / 2)),
+  ];
+  const plan = await planTreeImport(files, { ...SPLIT_CAPS, totalBytes: UNIT * 4 });
+  const batches = plan.batches.map(pathsOf);
+  expect(batches.length).toBeGreaterThan(1);
+  expect(batches.find((batch) => batch.includes(`${GROUPS}/g1.json`))).toEqual(expect.arrayContaining(seated));
+});
+
 test("the plan never sends a secrets.json at any depth, and reports foreign planes with the contract's reasons", async () => {
   const foreign = stProfileEntryDisposition(FOREIGN_PLANE, true);
   const secrets = stProfileEntryDisposition(ST_SECRETS_FILE, false);
@@ -196,11 +218,18 @@ test("the plan never sends a secrets.json at any depth, and reports foreign plan
     profileFile(`${FOREIGN_PLANE}/index.bin`),
   ];
   const plan = await planTreeImport(files, SPLIT_CAPS);
-  const skipped = new Map(plan.skipped.map((entry) => [entry.path, entry.reason]));
-  expect(skipped.get(`${PROFILE_DIR}/${FOREIGN_PLANE}/index.bin`)).toBe(foreign.reason);
-  expect(skipped.get(`${PROFILE_DIR}/${ST_SECRETS_FILE}`)).toBe(secrets.reason);
-  expect(skipped.get(`${PROFILE_DIR}/${nestedSecrets}`)).toBe(secrets.reason);
+  expect(plan.skipped).toHaveLength(3);
   expect(pathsOf(plan.batches.flat())).toEqual([ST_SETTINGS_FILE, `${CHARACTERS}/Aria.png`]);
+  // A skip carries no path, so each candidate is planned alone to pin its own reason to it.
+  for (const [path, reason] of [
+    [ST_SECRETS_FILE, secrets.reason],
+    [nestedSecrets, secrets.reason],
+    [`${FOREIGN_PLANE}/index.bin`, foreign.reason],
+  ] as const) {
+    const alone = await planTreeImport([profileFile(ST_SETTINGS_FILE, "{}"), profileFile(`${CHARACTERS}/Aria.png`), profileFile(path, "{}")], SPLIT_CAPS);
+    expect(skippedByReason(alone.skipped)).toEqual([{ reason, files: 1 }]);
+    expect(pathsOf(alone.batches.flat())).not.toContain(path);
+  }
 });
 
 test("a multi-profile root keeps every profile's settings in every upload", async () => {
@@ -222,7 +251,7 @@ test("a multi-profile root keeps every profile's settings in every upload", asyn
 /** The multipart body bytes each upload of `plan` sends through the production sender. */
 async function sentBodyBytes(plan: TreeImportPlan, choices: PersonaCollisionChoices): Promise<number[]> {
   const bodies: number[] = [];
-  const started = importStartedSchema.parse({ workloadId: mintTypeId(ID_PREFIX.workload) });
+  const started = importStartedSchema.parse({ workloadId: ids.typeId(ID_PREFIX.workload) });
   vi.stubGlobal("fetch", async (_input: string, init?: RequestInit) => {
     bodies.push((await new Response(init?.body).arrayBuffer()).byteLength);
     return Response.json(started, { status: 202 });
@@ -280,14 +309,15 @@ test("a file no framed upload can carry is skipped with its reason instead of se
   const served: TreeImportCaps = { totalBytes: totalHolding([small]), fileBytes: UNIT * 2, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
   const plan = await planServedTreeImport([small, whole], served, []);
   expect(plan.batches).toEqual([[small]]);
-  expect(plan.skipped.map((entry) => entry.path)).toEqual([relativePathOf(whole).slice(WRAPPER.length + 1)]);
+  expect(plan.skipped).toHaveLength(1);
+  expect(plan.batches.flat()).not.toContain(whole);
   expect(plan.files).toBe(1);
 });
 
 test("a served total the upload framing alone fills refuses the plan instead of sending one file per upload", async ({ harness }) => {
   const files = ["a", "b"].map((stem) => nativeFile(harness, "regex", stem, 1));
   const served: TreeImportCaps = { totalBytes: totalHolding([]), fileBytes: UNIT, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
-  await expect(planServedTreeImport(files, served, [])).rejects.toThrow(Error);
+  await expect(planServedTreeImport(files, served, [])).rejects.toThrow("leaves no room for any file");
 });
 
 /** A single-user root whose loopback requests act as its owner, so the client's own fetches reach it unauthenticated. */

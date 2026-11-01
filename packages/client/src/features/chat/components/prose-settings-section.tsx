@@ -27,15 +27,16 @@ import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
+import type { SectionPatchVars } from "#data";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import {
+  keepProsePatch,
   PROSE_SETTINGS_SUBCATEGORY,
   projectProseForm,
   proseFieldName,
-  proseSlotPatch,
   toProsePatch,
   validateProseLengths,
 } from "../lib/prose-settings-model.ts";
@@ -43,13 +44,8 @@ import {
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
 type ProseForm = ReturnType<typeof projectProseForm>;
-type ProsePatch = ReturnType<typeof toProsePatch>;
 
-interface UpdateProseVars {
-  readonly section: "prose";
-  readonly patch: ProsePatch;
-}
-const useUpdateProse = createEntityMutation<UpdateProseVars, unknown>({
+const useUpdateProse = createEntityMutation<SectionPatchVars<"prose">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your prose overrides.",
@@ -114,7 +110,7 @@ function ProseFormBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   // autosave driver has nothing to fire; re-stamping `baseVersion` to the current slot version is what
   // dismisses the stale chip, and it must not touch any other slot's stored override.
   const keepMine = (id: ProseSlotId, text: string): void => {
-    update.mutate({ section: "prose", patch: { [id]: proseSlotPatch(id, text) } });
+    update.mutate({ section: "prose", patch: keepProsePatch(id, text) });
   };
 
   return (

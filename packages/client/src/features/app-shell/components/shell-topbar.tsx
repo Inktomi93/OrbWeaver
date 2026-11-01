@@ -58,7 +58,6 @@ export interface ShellTopbarProps {
 export interface TopbarIconButtonProps {
   readonly label: string;
   readonly icon: LucideIcon;
-  readonly pressed?: boolean;
   readonly expanded?: boolean;
   readonly onClick: () => void;
   readonly focusReturnMarker?: string;
@@ -70,7 +69,7 @@ export interface TopbarIconButtonProps {
 
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
  *  Exported so the trail chrome widgets (features/app-shell/lib) render the SAME affordance shape. */
-export function TopbarIconButton({ label, icon, pressed, expanded, onClick, marker, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
+export function TopbarIconButton({ label, icon, expanded, onClick, marker, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -80,7 +79,6 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
             square={true}
             className={cn("shell-topbar-icon-btn", marker) ?? ""}
             aria-label={label}
-            aria-pressed={pressed}
             aria-expanded={expanded}
             data-focus-return-marker={focusReturnMarker}
             onClick={onClick}

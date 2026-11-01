@@ -32,8 +32,7 @@ function matchesTurn(event: RpgTraceEvent, wanted: ChatTurnId): boolean {
 }
 
 /** Build the per-process trace recorder (ONE, wired at the composition root when tracing is enabled). */
-export function createRpgTraceRecorder(deps: { readonly now: Clock; readonly limit?: number }): RpgTraceRecorder {
-  const limit = deps.limit ?? DEFAULT_LIMIT;
+export function createRpgTraceRecorder(deps: { readonly now: Clock }): RpgTraceRecorder {
   const ring: RpgTraceRecord[] = [];
   let seq = 0;
 
@@ -41,7 +40,7 @@ export function createRpgTraceRecorder(deps: { readonly now: Clock; readonly lim
     sink: (event: RpgTraceEvent): void => {
       seq += 1;
       ring.push({ seq, at: deps.now(), event });
-      if (ring.length > limit) {
+      if (ring.length > DEFAULT_LIMIT) {
         ring.shift();
       }
     },
@@ -55,7 +54,7 @@ export function createRpgTraceRecorder(deps: { readonly now: Clock; readonly lim
         }
         return true;
       });
-      const cap = filter?.limit ?? limit;
+      const cap = filter?.limit ?? DEFAULT_LIMIT;
       return cap >= matched.length ? matched : matched.slice(matched.length - cap);
     },
   };

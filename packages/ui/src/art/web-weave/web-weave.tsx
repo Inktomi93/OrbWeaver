@@ -36,8 +36,8 @@ import type { PigmentScope } from "#tokens";
 import { PIGMENTS } from "#tokens";
 import { webWeaveVariants } from "./variants.ts";
 import { AMBIENT_FRAME_MS, PREY_SETTLE_TAIL_MS, weaveIsQuiet } from "./web-weave-cadence.ts";
-import type { CharacterPreset, WeaveCharacter } from "./web-weave-character.ts";
-import { WEAVE_CHARACTER_PRESETS } from "./web-weave-character.ts";
+import type { CharacterPreset } from "./web-weave-character.ts";
+import { CALM_CHARACTER } from "./web-weave-character.ts";
 import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
 import type { WeaveGlintSegment } from "./web-weave-glint.ts";
@@ -81,26 +81,12 @@ export interface WebWeaveProps {
   hub?: { readonly x: number; readonly y: number };
   /** Silk brightness multiplier 0..1 — the login card dims the web under itself. @defaultValue 1 */
   dim?: number;
-  /** The weaver herself — a future "reduce spiders" courtesy hides her, the web stays. @defaultValue true */
-  spider?: boolean;
-  /** The hub-centered ambient accent glow layer. @defaultValue true */
-  glow?: boolean;
-  /** Fired once when the build reaches settle (immediately for the already-settled states). */
-  onSettled?: () => void;
   /** Build-phase changes (the boot veil's caption feed). Only `weaving` walks the phases. */
   onPhaseChange?: (phase: WeavePhase) => void;
   /** Let a pointer touch the web: the silk plucks where the cursor crosses it and the weaver comes to
    *  investigate (weave-lab §2/§5). Takes pointer events; the art stays `aria-hidden` either way —
    *  it announces nothing and has no keyboard path, so there is nothing to expose. @defaultValue false */
   interactive?: boolean;
-  /** Weather, 0..1 — widens the ambient sway and adds a rolling gust. @defaultValue 0 */
-  wind?: number;
-  /** How lively the weaver is: gait, turn rate, burst, sprint, idle twitches. `calm` is the motion the
-   *  component shipped with. @defaultValue "calm" */
-  character?: WeaveCharacter;
-  /** Build-clock multiplier — 2.2 runs the ~12s weave in ~5.5s (the boot story). Ambient beats (sway,
-   *  glint, dew) keep wall-clock time; only the BUILD is scaled. @defaultValue 1 */
-  tempo?: number;
   className?: string;
 }
 
@@ -117,8 +103,8 @@ const PERCENT = 100;
 const DEW_CONDENSE_LEAD_MS = 900;
 /** The reduced-motion resting instant: past settle far enough that dew is fully condensed. */
 const STILL_T = WEAVE_TIMELINE.settle + DEW_CONDENSE_LEAD_MS;
-/** No wind, no shiver — what the buffer is baked under (it is blitted, never re-stroked). */
-const CALM_WEATHER: WeaveWeather = { wind: 0, shiver: 0 };
+/** No shiver — what the buffer is baked under (it is blitted, never re-stroked). */
+const CALM_WEATHER: WeaveWeather = { shiver: 0 };
 /** Frame-delta ceiling: a backgrounded tab returns a multi-second delta, which would teleport the
  *  weaver across the web on the first frame back. */
 const MAX_FRAME_MS = 50;
@@ -158,14 +144,8 @@ export function WebWeave({
   seed = DEFAULT_SEED,
   hub = DEFAULT_HUB,
   dim = 1,
-  spider = true,
-  glow = true,
-  onSettled,
   onPhaseChange,
   interactive = false,
-  wind = 0,
-  character = "calm",
-  tempo = 1,
   className,
 }: WebWeaveProps): ReactElement {
   const slots = webWeaveVariants({ interactive });
@@ -174,10 +154,8 @@ export function WebWeave({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Latest-callback refs (written in an effect, read in the loop — never during render) so a parent
   // re-render with a fresh closure doesn't tear down and restart the whole weave.
-  const onSettledRef = useRef(onSettled);
   const onPhaseRef = useRef(onPhaseChange);
   useEffect(() => {
-    onSettledRef.current = onSettled;
     onPhaseRef.current = onPhaseChange;
   });
   const hubX = hub.x;
@@ -206,12 +184,12 @@ export function WebWeave({
     let dpr = 1;
     let strandOut: { pts: ReturnType<typeof buildStrandOut>; t0: number } | null = null;
     const tracker: SpiderTracker = { prev: null };
-    // The physics + character state (weave-lab §1/§2/§3). Inert unless a host opts in: no wind, no
-    // shiver and no plucks is exactly the sway the web shipped with.
-    const characterPreset = WEAVE_CHARACTER_PRESETS[character];
+    // The physics + character state (weave-lab §1/§2/§3). Inert unless a host opts in: no shiver and no
+    // plucks is exactly the sway the web shipped with.
+    const characterPreset = CALM_CHARACTER;
     const prey = interactive ? createPreyState() : null;
     const listening = (now: number): boolean => !reduced && (state !== "weaving" || timelineAt(now) >= WEAVE_TIMELINE.settle);
-    const touch = makeTouch(interactive, { host: wrapper, getWeb: () => web, accepts: listening, prey: spider ? prey : null });
+    const touch = makeTouch(interactive, { host: wrapper, getWeb: () => web, accepts: listening, prey });
     const plucks: WeavePluckMap = touch?.plucks ?? null;
     let shiver = 0;
     let ringing = false;
@@ -229,7 +207,6 @@ export function WebWeave({
     const clock0 = performance.now();
     let rafId = 0;
     let frames = 0;
-    let settledFired = false;
     let lastPhase: WeavePhase | null = null;
 
     const rebuild = (): void => {
@@ -251,7 +228,7 @@ export function WebWeave({
         return state === "partial" ? PARTIAL_T : STILL_T;
       }
       if (state === "weaving") {
-        return (now - clock0) * tempo;
+        return now - clock0;
       }
       if (state === "partial") {
         return PARTIAL_T;
@@ -272,21 +249,16 @@ export function WebWeave({
         lastPhase = phase;
         onPhaseRef.current?.(phase);
       }
-      if (!settledFired && state !== "partial" && t >= WEAVE_TIMELINE.settle) {
-        settledFired = true;
-        onSettledRef.current?.();
-      }
     };
 
     // The web is STATIC (cacheable) whenever it isn't actively being woven: every resting state, and
     // the weaving build once it has passed settle (the boot veil's slow-boot hold). Reduced motion is
     // excluded — it keeps the untouched single renderWeaveFrame(still) paint (§3.9, zero perf concern).
     //
-    // WIND and a LIVE RING both un-static the frame: the cached blit can only sway as one rigid sheet,
-    // and a ringing strand is a per-point deformation the buffer cannot express. Both are opt-in and
-    // transient — the default (no wind, nothing touched) keeps the bake/composite split intact, and a
-    // plucked web returns to the cache the moment its last ring dies.
-    const staticNow = (t: number): boolean => (state !== "weaving" || t >= WEAVE_TIMELINE.settle) && wind === 0 && shiver === 0 && !ringing;
+    // A LIVE RING un-statics the frame: a ringing strand is a per-point deformation the cached blit
+    // cannot express. It is opt-in and transient — the default (nothing touched) keeps the
+    // bake/composite split intact, and a plucked web returns to the cache the moment its last ring dies.
+    const staticNow = (t: number): boolean => (state !== "weaving" || t >= WEAVE_TIMELINE.settle) && shiver === 0 && !ringing;
 
     const bake = (now: number): void => {
       if (web === null || bufferCtx === null) {
@@ -304,7 +276,6 @@ export function WebWeave({
         paintGlow,
         dim: 1,
         still: true,
-        spider,
         strandOut,
         weather: CALM_WEATHER,
         plucks: null,
@@ -332,7 +303,7 @@ export function WebWeave({
       ctx.globalAlpha = 1;
       // …then paint only the live layers on top, in CSS-px space.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawLiveLayers(ctx, { web, state, t, now, palette, paintGlow, dim, still: false, spider, strandOut, glint, ...frame }, tracker);
+      drawLiveLayers(ctx, { web, state, t, now, palette, paintGlow, dim, still: false, strandOut, glint, ...frame }, tracker);
     };
 
     const paint = (now: number): void => {
@@ -347,14 +318,14 @@ export function WebWeave({
       const physics = touch === null ? QUIET : touch.step(now, dt);
       shiver = physics.shiver;
       ringing = physics.ringing;
-      const weather: WeaveWeather = { wind, shiver };
+      const weather: WeaveWeather = { shiver };
       const frame = { weather, plucks, dt, character: characterPreset, prey };
       if (!reduced && bufferCtx !== null && staticNow(t)) {
         composite(now, t, frame);
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
-        renderWeaveFrame(ctx, { web, state, t, now, palette, paintGlow, dim, still: reduced, spider, strandOut, glint, ...frame }, tracker);
+        renderWeaveFrame(ctx, { web, state, t, now, palette, paintGlow, dim, still: reduced, strandOut, glint, ...frame }, tracker);
       }
       notify(t);
       frames += 1;
@@ -362,7 +333,7 @@ export function WebWeave({
     };
 
     // Is the web merely BREATHING right now? Everything here is something a person is doing or
-    // watching happen — the build, the A9 ride, wind, a rung strand, the weaver off her hub (plus the
+    // watching happen — the build, the A9 ride, a rung strand, the weaver off her hub (plus the
     // tail her per-frame turn-home ease needs). Any of them and the ambient budget is off for the
     // frame. `plucks.size` is read straight from the pointer seam rather than from the previous
     // frame's verdict: a skipped frame never ran `touch.step`, so last frame's `ringing` is stale
@@ -375,7 +346,6 @@ export function WebWeave({
         building: state === "weaving" && timelineAt(now) < WEAVE_TIMELINE.settle,
         riding: strandOut !== null && now - strandOut.t0 < STRAND_OUT_MS,
         hunting: now < preyBusyUntil,
-        wind,
         shiver,
         ringing,
         plucks,
@@ -437,7 +407,7 @@ export function WebWeave({
       touch?.detach();
       probe.remove();
     };
-  }, [state, seed, hubX, hubY, dim, spider, reduced, interactive, wind, character, tempo]);
+  }, [state, seed, hubX, hubY, dim, reduced, interactive]);
 
   const glowPosition = { "--orb-weave-hub-x": `${hubX * PERCENT}%`, "--orb-weave-hub-y": `${hubY * PERCENT}%` } as CSSProperties;
   return (
@@ -449,7 +419,7 @@ export function WebWeave({
       data-weave-state={state}
       className={cn(slots.root(), className)}
     >
-      {glow ? <div data-slot="web-weave-glow" className={slots.glow()} style={glowPosition} /> : null}
+      <div data-slot="web-weave-glow" className={slots.glow()} style={glowPosition} />
       <canvas ref={canvasRef} data-slot="web-weave-canvas" className={slots.canvas()} />
     </div>
   );

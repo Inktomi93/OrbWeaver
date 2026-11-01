@@ -6,12 +6,12 @@
 // so "it didn't throw" is never a success signal: an all-failed batch says WHY (the server's own reason —
 // the `card_unreadable` throw in domain/import), and a partial says how many of how many.
 
+import type { CardImportResult } from "@orb/contracts/import";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
-import type { CardImportResult } from "#data";
 import { importCharacters, useInvalidation } from "#data";
 import { notify } from "#lib";
 import { selectCharacter } from "#state";

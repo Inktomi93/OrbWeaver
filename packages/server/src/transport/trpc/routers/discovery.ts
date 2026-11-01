@@ -117,7 +117,6 @@ export const discoveryRouter = t.router({
           genre: z.string().optional(),
           tone: z.string().optional(),
           tag: z.string().optional(),
-          q: z.string().optional(),
           sort: browseSortSchema.optional(),
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           cursor: browseCursorSchema.nullish(),
@@ -130,7 +129,6 @@ export const discoveryRouter = t.router({
         ...(input?.genre !== undefined ? { genre: input.genre } : {}),
         ...(input?.tone !== undefined ? { tone: input.tone } : {}),
         ...(input?.tag !== undefined ? { tag: input.tag } : {}),
-        ...(input?.q !== undefined ? { q: input.q } : {}),
         ...(input?.sort !== undefined ? { sort: input.sort } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
         ...(input?.cursor === undefined || input.cursor === null ? {} : { cursor: input.cursor }),
@@ -278,8 +276,8 @@ export const discoveryRouter = t.router({
 
   cooccurringKeywords: authedProcedure
     .output(z.array(keywordCountSchema))
-    .input(z.strictObject({ keyword: z.string(), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
-    .query(({ ctx, input }) => ctx.services.discovery.cooccurringKeywords(ctx.auth.userId, input.keyword, input.limit)),
+    .input(z.strictObject({ keyword: z.string() }))
+    .query(({ ctx, input }) => ctx.services.discovery.cooccurringKeywords(ctx.auth.userId, input.keyword)),
 
   characterKeywords: authedProcedure
     .output(z.array(keywordCountSchema))

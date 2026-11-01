@@ -605,14 +605,16 @@ export async function loadChatLastMessages(
   return out;
 }
 
+const MAX_ANCESTOR_DEPTH = 64;
+
 /** Walk the fork-lineage chain from `chatId` up to its root — unscoped (membership is gated per-ancestor
- *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
-export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
+ *  by the verb). Returns rows self-first; the `visited` set + `MAX_ANCESTOR_DEPTH` cap defend against a cycle. */
+export async function loadAncestorChain(db: Db, chatId: ChatId): Promise<ChatRow[]> {
   const chain: ChatRow[] = [];
   // query-local visited Set for ancestor chain cycle guard. Ends if it outlives the call.
   const visited = new Set<ChatId>();
   let current: ChatId | undefined = chatId;
-  while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {
+  while (current !== undefined && !visited.has(current) && chain.length < MAX_ANCESTOR_DEPTH) {
     visited.add(current);
     const row = await loadChatRow(db, current);
     if (row === undefined) {

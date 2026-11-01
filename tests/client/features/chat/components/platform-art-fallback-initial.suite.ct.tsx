@@ -7,6 +7,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -72,7 +73,7 @@ async function letterRatios(page: Page, role: (typeof READING_ROLES)[number]): P
 }
 
 for (const viewport of [DESKTOP, PHONE]) {
-  for (const chatStyle of ART_STYLES) {
+  forEachNonEmpty(ART_STYLES, "ART_STYLES", (chatStyle) => {
     test(`${chatStyle} at ${viewport.width}px sizes every fallback initial to its art slot`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(viewport);
       await openReadingStyle(page, corpus, chatStyle);
@@ -87,7 +88,7 @@ for (const viewport of [DESKTOP, PHONE]) {
         }
       }
     });
-  }
+  });
 }
 
 // Primaries a card or owner theme can carry: light, dark, mid and saturated, so the hue steps taken off each one are judged.
@@ -142,7 +143,7 @@ async function letterContrasts(page: Page): Promise<readonly { readonly label: s
 }
 
 for (const primary of CUSTOM_PRIMARIES) {
-  for (const chatStyle of ART_STYLES) {
+  forEachNonEmpty(ART_STYLES, "ART_STYLES", (chatStyle) => {
     test(`${chatStyle} keeps its fallback initial legible over a theme primary of ${primary}`, async ({ corpus, mount, page }) => {
       await page.setViewportSize(DESKTOP);
       await openReadingStyle(page, corpus, chatStyle);
@@ -155,5 +156,5 @@ for (const primary of CUSTOM_PRIMARIES) {
         expect(letter.ratio, `${chatStyle} ${letter.label}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
       }
     });
-  }
+  });
 }

@@ -62,7 +62,6 @@ export const presetRouter = t.router({
         z.strictObject({
           id: typeIdSchema(ID_PREFIX.preset),
           name: z.string().min(1).optional(),
-          kind: z.string().min(1).optional(),
           config: promptConfigWriteSchema.optional(),
           // The copy-on-write fork intent (only meaningful when `id` is the system default) — absent means
           // `converge`, the historical silent behavior. `name` is required and non-empty on the "new" arm so a
@@ -78,7 +77,6 @@ export const presetRouter = t.router({
         userId: ctx.auth.userId,
         id: input.id,
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.config !== undefined ? { config: input.config } : {}),
         ...(input.fork !== undefined ? { fork: input.fork } : {}),
       }),

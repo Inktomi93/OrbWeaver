@@ -42,6 +42,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Download, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { selectActionName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
@@ -60,7 +61,6 @@ import {
   regexScriptTitle,
   rowActionSubject,
   rowQualifiers,
-  selectActionName,
   timeLib,
 } from "#lib";
 import {

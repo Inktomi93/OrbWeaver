@@ -10,7 +10,7 @@
 // via tRPC `inferOutput`, so no contract result type is duplicated here.
 
 import { assetIdSchema } from "@orb/contracts/assets";
-import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema, promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/imagery";
+import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema, promptTemplateModeSchema } from "@orb/contracts/imagery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
@@ -38,7 +38,6 @@ export const imageryRouter = t.router({
         sourceAssetId: assetIdSchema,
         instruction: z.string().trim().min(1).max(MAX_INSTRUCTION_CHARS),
         n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
-        size: sizePresetSchema.optional(),
         chatId: typeIdSchema(ID_PREFIX.chat).optional(),
       }),
     )
@@ -48,7 +47,6 @@ export const imageryRouter = t.router({
         source: { assetId: input.sourceAssetId },
         instruction: input.instruction,
         ...(input.n === undefined ? {} : { n: input.n }),
-        ...(input.size === undefined ? {} : { size: input.size }),
         ...(input.chatId === undefined ? {} : { chatId: input.chatId }),
       }),
     ),

@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { pluginDetailsLabel, updateAvailableLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginActionGroupsStory, PluginInstallActionsStory } from "./_update-action-groups-stories.tsx";
 
@@ -109,7 +110,7 @@ for (const regime of REGIMES) {
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
       const contentOverflow = await update.evaluate((node) => node.scrollWidth - node.clientWidth);
       expect(contentOverflow).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-sm)", group);
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, group);
       for (const box of geometry.controls) {
         expect(box.height).toBeGreaterThanOrEqual(floor);
       }
@@ -188,7 +189,7 @@ for (const regime of REGIMES) {
       const geometry = await actionGroupGeometry(group, [install, cancel]);
       await testInfo.attach("actual-install-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
-      const floor = await resolvedLength(page, "var(--size-control-md)", group);
+      const floor = await resolvedLength(page, `var(${TOKENS["size.control-md"].cssVar})`, group);
       for (const box of geometry.controls) {
         expect(box.height).toBeGreaterThanOrEqual(floor);
       }

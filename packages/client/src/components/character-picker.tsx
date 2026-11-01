@@ -29,7 +29,7 @@ import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
+import type { ReactElement, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
@@ -68,8 +68,6 @@ export interface CharacterPickerProps {
   readonly excludeIds?: readonly CharacterId[];
   /** Trailing per-row check for multi-select modes; omit for single-select (no adornment). */
   readonly isSelected?: (id: CharacterId) => boolean;
-  /** A leading CommandGroup rendered before the character rows (e.g. Start/Blank actions). */
-  readonly leadingGroup?: ReactNode;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
   /** CommandList max-height utility (e.g. "max-h-(--height-scroll-lg)" / "max-h-(--height-scroll-lg)"). @defaultValue "max-h-(--height-scroll-lg)" */
@@ -121,7 +119,6 @@ function CharacterPickerBody({
   onSelect,
   excludeIds,
   isSelected,
-  leadingGroup,
   rowsHeading,
   listClassName,
   onEscape,
@@ -192,7 +189,6 @@ function CharacterPickerBody({
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
       <CommandList className={listClassName ?? "max-block-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
-        {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
       </CommandList>
       {/* The KEYBOARD path to the tail (no button — owner ruling 2026-08-19). Inside `<Command>` so it can

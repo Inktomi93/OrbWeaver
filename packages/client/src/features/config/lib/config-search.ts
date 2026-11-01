@@ -79,7 +79,7 @@ function sectionEntries(group: ConfigGroupDefinition, sub: ConfigSubcategory): C
       groupLabel: group.label,
       subId: sub.id,
       settingId: setting.id,
-      advanced: setting.advanced ?? false,
+      advanced: false,
       keywords: [setting.label, ...(setting.keywords ?? []), sub.label, group.label],
     }),
   );

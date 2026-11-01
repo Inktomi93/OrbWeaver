@@ -1,12 +1,11 @@
-import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, gapPxFor, prefersReducedMotionNow } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor } from "#lib";
 
 // TanStack's own default, made explicit.
-const DEFAULT_OVERSCAN = 1;
+const OVERSCAN = 1;
 
 export interface VirtualListProps<T> {
   readonly items: readonly T[];
@@ -18,32 +17,9 @@ export interface VirtualListProps<T> {
   readonly getItemKey: (item: T, index: number) => string | number;
   /** Initial size guess per row (px, main axis) — rows re-measure themselves after mount. */
   readonly estimateSize: (index: number) => number;
-  /** Rows rendered beyond the visible window on each side. Defaults to the lib default (1). */
-  readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: GapToken;
-  /**
-   * Round-robins rows across N lanes instead of one column. Passthrough only: this seal stays a 1D
-   * row list, so a `lanes>1` caller owns the lane→horizontal-position CSS via `data-lane`.
-   */
-  readonly lanes?: number;
-  /** Overrides which indices render for a given scroll range (e.g. keep a pinned row mounted). */
-  readonly rangeExtractor?: (range: Range) => number[];
   readonly renderItem: (item: T, index: number) => ReactNode;
-  /**
-   * Scrolls to this item index (end-aligned) any time the value changes — the declarative "pin to
-   * bottom on append" seam. Respects prefers-reduced-motion itself.
-   */
-  readonly scrollToIndex?: number;
-  /**
-   * Where the list starts scrolled, in px — the BROWSE-CONTEXT seam for a pane that unmounts and comes
-   * back (a master list whose slot swaps to a detail view: #255). Read ONCE, at mount, by the virtualizer
-   * itself, so the restored window is what renders on the FIRST paint — an imperative `scrollTop` write
-   * after mount would paint the top of the list and then jump. Later changes to the value are ignored on
-   * purpose: once mounted, the live scroll position is the USER's, and re-applying a stale offset mid-scroll
-   * would fight them. Distinct from `scrollToIndex`, which is an ongoing imperative pin, not a restore.
-   */
-  readonly initialScrollOffset?: number;
   /**
    * Resets the live scroll offset to the top when this settled scope identity changes, without remounting.
    */
@@ -97,13 +73,8 @@ export function VirtualList<T>({
   items,
   getItemKey,
   estimateSize,
-  overscan = DEFAULT_OVERSCAN,
   gapToken,
-  lanes,
-  rangeExtractor,
   renderItem,
-  scrollToIndex,
-  initialScrollOffset,
   resetScrollKey,
   resetScrollReady = true,
   onEndApproach,
@@ -127,16 +98,9 @@ export function VirtualList<T>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     estimateSize,
-    overscan,
+    overscan: OVERSCAN,
     gap: gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
-    // exactOptionalPropertyTypes: a bare key here would widen lanes: number (no | undefined) and fail tsc.
-    ...(lanes === undefined ? {} : { lanes }),
-    ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
-    // `initialOffset` is virtual-core's own restore seam: it seeds the virtualizer's scroll state BEFORE the
-    // first render, so the correct window is the first thing painted. Omitted (not passed as `undefined`)
-    // under exactOptionalPropertyTypes.
-    ...(initialScrollOffset === undefined ? {} : { initialOffset: initialScrollOffset }),
     directDomUpdates: true,
     // Transform mode breaks position:fixed descendants (iframe/media rows) — position writes top.
     directDomUpdatesMode: "position",
@@ -202,17 +166,6 @@ export function VirtualList<T>({
     return (): void => targetWindow.cancelAnimationFrame(frame);
   }, [resetScrollKey, resetScrollReady, virtualizer, virtualizer.measure, virtualizer.scrollToIndex]);
 
-  // Fires only when the value changes, not on every render. align: "end" is the pin-to-bottom shape.
-  useLayoutEffect(() => {
-    if (scrollToIndex === undefined) {
-      return;
-    }
-    virtualizer.scrollToIndex(scrollToIndex, {
-      align: "end",
-      behavior: prefersReducedMotionNow() ? "auto" : "smooth",
-    });
-  }, [scrollToIndex, virtualizer, virtualizer.scrollToIndex]);
-
   return (
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
@@ -235,7 +188,6 @@ export function VirtualList<T>({
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
-            data-lane={lanes === undefined ? undefined : virtualItem.lane}
             data-slot="virtual-list-row"
             className="absolute inset-x-0"
             role="listitem"

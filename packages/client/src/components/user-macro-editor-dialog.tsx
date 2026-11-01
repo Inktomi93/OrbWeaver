@@ -34,9 +34,6 @@ import { notify } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
 import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
-/** The shared macro editor's draft values, including parallel row identities. */
-export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
-
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog never
 // calls `reset`, so it accepts the wider shape; the RegexEditorDialog precedent).
 type UserMacroEditorForm = Omit<AppFormInstance<UserMacrosFormValues>, "reset">;

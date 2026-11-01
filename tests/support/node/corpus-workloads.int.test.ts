@@ -379,7 +379,7 @@ test("manual native corpus execution joins only its admitted jobs and leaves an 
   const closedRunner = root.runAdmittedWorkload;
   expect(closedRunner).toBeDefined();
   await root[Symbol.asyncDispose]();
-  await expect(closedRunner?.(older.id, new AbortController().signal)).rejects.toThrow();
+  await expect(closedRunner?.(older.id, new AbortController().signal)).rejects.toMatchObject({ name: "AbortError" });
 });
 
 test("selected native corpus settlement reads its exact admitted ID behind newer history", async () => {

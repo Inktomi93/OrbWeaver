@@ -101,7 +101,7 @@ for (const [platform, arch, libc, asset] of PLATFORM_ASSETS) {
     expect(await readFile(executable, "utf8")).toBe(ARCHIVE_CONTENT);
     expect(existsSync(join(copiedPackage, "binary", `ffmpeg-v8.1-${asset}.zip`))).toBe(false);
     const mode = (await stat(executable)).mode % 0o1000;
-    expect(process.platform === "win32" || platform === "win32" || mode === 0o755).toBe(true);
+    expect(process.platform === "win32" || platform === "win32" ? 0o755 : mode).toBe(0o755);
   });
 }
 

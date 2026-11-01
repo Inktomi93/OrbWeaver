@@ -15,32 +15,24 @@
 // procedure leaves the census, and a third continuation door is what should red.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { turnMutationToast, viewerTimeZone } from "#lib";
 
-interface CommitMessageVars {
-  readonly chatId: ChatId;
-  readonly content: string;
-  readonly timeZone: string;
-}
-interface ContinueRestoreVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
-
-const useCommitMessageMutation = createEntityMutation<CommitMessageVars, unknown>({
+const useCommitMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["commitMessage"]>, unknown>({
   options: (trpc) => trpc.chat.commitMessage.mutationOptions(),
   busDriven: true,
   errorToast: (error) => turnMutationToast(error, "Couldn't post your message."),
 });
 
-const useUndoContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+const useUndoContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["undoContinue"]>, unknown>({
   options: (trpc) => trpc.chat.undoContinue.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't undo the continuation.",
 });
 
-const useRevertContinueMutation = createEntityMutation<ContinueRestoreVars, unknown>({
+const useRevertContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["revertContinue"]>, unknown>({
   options: (trpc) => trpc.chat.revertContinue.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't re-apply the continuation.",

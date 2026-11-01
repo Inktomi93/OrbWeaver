@@ -30,8 +30,8 @@ export function requireGenerationCapability(capability: Capability): GenerationC
   return capability.generation;
 }
 
-function accepts(capability: GenerationCapability, side: "input" | "output", modality: Modality): boolean {
-  return side === "input" ? capability.input.includes(modality) : capability.output.modalities.includes(modality);
+function accepts(capability: GenerationCapability, modality: Modality): boolean {
+  return capability.input.includes(modality);
 }
 
 // The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
@@ -51,11 +51,11 @@ export function windowForPreset(capability: GenerationCapability, maxContextToke
 }
 
 export function acceptsImageInput(capability: GenerationCapability): boolean {
-  return accepts(capability, "input", "image");
+  return accepts(capability, "image");
 }
 
 export function acceptsVideoInput(capability: GenerationCapability): boolean {
-  return accepts(capability, "input", "video");
+  return accepts(capability, "video");
 }
 
 /** Accepts an init/reference image on the image-GENERATION call — distinct from `acceptsImageInput`. */

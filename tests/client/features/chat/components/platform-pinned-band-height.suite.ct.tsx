@@ -7,6 +7,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
@@ -55,7 +56,7 @@ async function fillBelowRail(page: Page, chatStyle: ThemeChatStyle): Promise<{ r
   };
 }
 
-for (const chatStyle of NAMED_STYLES) {
+forEachNonEmpty(NAMED_STYLES, "NAMED_STYLES", (chatStyle) => {
   test(`${chatStyle} keeps one row step of fill under its action rail while pinned on a coarse pointer`, async ({ corpus, mount, page }) => {
     await openReadingStyle(page, corpus, chatStyle);
     await seedShellState(page, { activeSection: "chats" });
@@ -68,4 +69,4 @@ for (const chatStyle of NAMED_STYLES) {
       `${chatStyle}: ${String(fill)}px under the rail, ${String(step)}px step, ${String(excess)}px of identity and rule`,
     ).toBeLessThanOrEqual(0.5);
   });
-}
+});

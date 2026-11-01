@@ -62,7 +62,7 @@ for (const wire of CONFORMANCE_WIRES) {
         (event.code === WARNING_CODE.samplingKnobDropped || event.code === WARNING_CODE.sdkUnsupportedSetting) &&
         event.knob === KNOB,
     );
-    expect(sent || announced, `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toBe(true);
+    expect([sent, announced], `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toContain(true);
   });
 }
 

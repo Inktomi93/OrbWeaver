@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import assert, { AssertionError } from "node:assert/strict";
 import { lstatSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,12 +41,12 @@ test("the client manifest preserves application effects and rejects every invali
   }
   const invalidUtf8 = join(importStagingDir, "invalid-utf8.json");
   writeFileSync(invalidUtf8, Buffer.concat([Buffer.from('{"name":"@orb/client","note":"'), Buffer.from([0xff]), Buffer.from('"}')]));
-  expect(() => assertClientManifest(invalidUtf8)).toThrow();
+  expect(() => assertClientManifest(invalidUtf8)).toThrow(expect.objectContaining({ code: "ERR_ENCODING_INVALID_ENCODED_DATA" }));
   const manifestTarget = join(importStagingDir, "client-target.json");
   const manifestLink = join(importStagingDir, "client-link.json");
   writeFileSync(manifestTarget, JSON.stringify({ name: "@orb/client", private: true }));
   symlinkSync(manifestTarget, manifestLink);
-  expect(() => assertClientManifest(manifestLink)).toThrow();
+  expect(() => assertClientManifest(manifestLink)).toThrow(AssertionError);
   const admitted = join(importStagingDir, "admitted");
   const external = join(importStagingDir, "external-manifest");
   mkdirSync(join(admitted, "packages"), { recursive: true });
@@ -54,7 +54,7 @@ test("the client manifest preserves application effects and rejects every invali
   writeFileSync(join(external, "package.json"), JSON.stringify({ name: "@orb/client", private: true }));
   const directoryLink = join(admitted, "packages", "linked-package");
   symlinkSync(external, directoryLink, "dir");
-  expect(() => assertClientManifest(join(directoryLink, "package.json"), admitted)).toThrow();
+  expect(() => assertClientManifest(join(directoryLink, "package.json"), admitted)).toThrow(AssertionError);
   const admittedAlias = join(importStagingDir, "admitted-alias");
   symlinkSync(external, admittedAlias, "dir");
   expect(() => assertClientManifest(join(admittedAlias, "package.json"), admittedAlias)).not.toThrow();
@@ -63,6 +63,6 @@ test("the client manifest preserves application effects and rejects every invali
   for (const source of ["", "{", "null", "[]", '{"private":true}', '{"name":"","private":true}']) {
     const path = join(importStagingDir, "client.json");
     writeFileSync(path, source);
-    expect(() => assertClientManifest(path), source).toThrow();
+    expect(() => assertClientManifest(path), source).toThrow(/JSON|invalid_type|too_small|invalid_format/u);
   }
 });

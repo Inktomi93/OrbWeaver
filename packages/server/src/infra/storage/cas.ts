@@ -211,7 +211,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
         try {
           const seconds = now / MS_PER_SECOND;
           await utimes(dest, seconds, seconds);
-          return { hash, size, created: false };
+          return { hash, size };
         } catch (err) {
           if (!isMissingFile(err)) {
             throw err;
@@ -219,7 +219,7 @@ export function createCas(rootDir: string, log: Logger): Cas {
         }
       }
       await writeAtomic(dest, bytes);
-      return { hash, size, created: true };
+      return { hash, size };
     },
 
     async verify(ownerId, hash): Promise<boolean> {

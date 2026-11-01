@@ -21,6 +21,7 @@ import {
   pluginUiHostCallResultSchema,
 } from "@orb/server/domain/plugin";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { ZodError } from "zod";
 import {
   CORPUS_PLUGIN_CALLBACK_VALUE,
   CORPUS_PLUGIN_TYPED_VALUES,
@@ -42,7 +43,7 @@ test("native callbacks refuse invalid args and stale scopes, revoke grants and r
   expect(captured.beforeRefusals.state).toEqual({ calls: 3, values: CORPUS_PLUGIN_TYPED_VALUES });
   expect(captured.invalid).toHaveLength(10);
   for (const refusal of captured.invalid) {
-    expect(refusal).toMatchObject({ status: "rejected", reason: expect.any(Error) });
+    expect(refusal).toMatchObject({ status: "rejected", reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: |not found$/u) }) });
   }
   expect(captured.invalid.slice(-2)).toEqual([
     expect.objectContaining({ status: "rejected", reason: expect.objectContaining({ code: "NOT_FOUND" }) }),
@@ -187,5 +188,5 @@ test("native guest publications preserve callback inputs, private storage, draft
 
 test("the browser-safe plugin default refuses non-finite override timestamps at the canonical contract", () => {
   expect(makePluginRow({ status: "disabled", grantedCapabilities: [] }).status).toBe("disabled");
-  expect(() => makePluginRow({ installedAt: Number.NaN })).toThrow();
+  expect(() => makePluginRow({ installedAt: Number.NaN })).toThrow(ZodError);
 });

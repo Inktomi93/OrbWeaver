@@ -11,7 +11,6 @@ export interface TlsTerminatorOptions {
 
 /** A listening terminator. A renewal swaps the certificate in place; `close` ends every connection. */
 export interface TlsTerminator {
-  readonly port: number;
   readonly replaceCertificate: (certificatePem: string, keyPem: string) => void;
   readonly close: () => Promise<void>;
 }

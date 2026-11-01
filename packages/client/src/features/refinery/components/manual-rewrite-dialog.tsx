@@ -64,7 +64,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
     return drafts[keyOf(target)] ?? { text: target.text, cleared: false, touched: false };
   }
 
-  function patch(target: ManualTarget, next: Partial<DraftState>): void {
+  function patch(target: ManualTarget, next: Partial<Omit<DraftState, "touched">>): void {
     setDrafts((prev) => ({ ...prev, [keyOf(target)]: { ...draftOf(target), ...next, touched: true } }));
   }
 

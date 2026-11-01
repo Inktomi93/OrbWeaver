@@ -25,7 +25,9 @@ test("the real DB wrapper records query results and failures without breaking na
     attributes: { "db.method": "execute", "db.rows": 1, "db.sql": "SELECT 7 AS answer" },
   });
   const failureId = `db-failure:${ids.uuid()}`;
-  await expect(withRequestSpan({ traces, requestId: failureId }, DB_ROOT, {}, () => db.get(sql`SELECT * FROM missing_migration_table`))).rejects.toThrow();
+  await expect(withRequestSpan({ traces, requestId: failureId }, DB_ROOT, {}, () => db.get(sql`SELECT * FROM missing_migration_table`))).rejects.toMatchObject({
+    cause: { code: "SQLITE_ERROR" },
+  });
   const failed = traces.get(failureId);
   expect(failed).toMatchObject({ status: "error", totals: { spanCount: 2, dbSpanCount: 1 } });
   expect(failed?.spans.find((entry) => entry.name === "db.execute")).toMatchObject({
@@ -33,5 +35,5 @@ test("the real DB wrapper records query results and failures without breaking na
     events: [expect.objectContaining({ name: "exception" })],
   });
   lifetime.dispose();
-  await expect(db.get(sql`SELECT 7 AS answer`)).rejects.toThrow();
+  await expect(db.get(sql`SELECT 7 AS answer`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });

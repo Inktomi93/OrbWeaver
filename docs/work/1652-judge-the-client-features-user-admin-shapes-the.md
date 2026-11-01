@@ -30,4 +30,9 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+4 rows: applied 3, kept 1, handed off 0, owner question 0.
+
+- `AdminLinkSsoDialogProps` / `AdminResetPasswordDialogProps` / `AdminUserSessionsDialogProps` (3 rows): merged. The three dialogs are one concept, an admin dialog acting on one account: the same four fields, one feature, and their parents hold the same `{ userId, handle }` target. A new target field changes all three together. The three named props are deleted and the dialogs take `AdminUserDialogProps` (`packages/client/src/features/user-admin/lib/admin-model.ts`). Scan: ast-grep inline rule, `-l ts` and `-l tsx`, `packages tests` (5199 ts and 1450 tsx files): each name had 2 hits, in its own file; rg for the old names returns 0 after the change.
+- `AdminCreateUserDialogProps` / `CreateScheduleDialogProps` (1 row): kept. Both are `{ open, onOpenChange, viewerIsOwner }` of a create dialog, but in different features (user-admin, workloads) and for different things; a shared type needs a sideways feature import.
+- `pnpm typecheck packages/client/tsconfig.json` exit 0; `pnpm lint:eslint packages/client/src/features/user-admin` exit 0.
+- The distinct ledger `tooling/src/unwired/distinct-lookalikes.ts` drops the two merged dialog-props pairs and points the three `onOpenChange` refs at `user-admin/lib/admin-model.ts`; `pnpm test:tools tests/tooling/unwired` exit 0.

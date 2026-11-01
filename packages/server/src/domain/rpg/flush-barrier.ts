@@ -85,11 +85,7 @@ interface InFlightFlush {
 /** Build the flush barrier (a compose-created singleton — one per server process, like the staging store). The
  *  bound arms only through `scheduleTimeout` (production passes the root's `timers.timeout`), so a test drives it
  *  without a global fake clock. */
-export function createRpgFlushBarrier(
-  onTimeout: FlushBarrierOnTimeout,
-  scheduleTimeout: ScheduleOp,
-  timeoutMs: number = BARRIER_TIMEOUT_MS,
-): OwnedRpgFlushBarrier {
+export function createRpgFlushBarrier(onTimeout: FlushBarrierOnTimeout, scheduleTimeout: ScheduleOp): OwnedRpgFlushBarrier {
   // The SET of in-flight flushes per chat (S2). Each flush self-removes on settle; an emptied set is deleted so
   // the common fast path (no in-flight flush) is a Map miss. Two concurrent flushes on one chat are BOTH tracked.
   const inFlight = new Map<ChatId, Set<InFlightFlush>>();
@@ -166,7 +162,7 @@ export function createRpgFlushBarrier(
       let cancelTimer: (() => void) | undefined;
       const timedOut = Symbol("barrier-timeout");
       const timeout = new Promise<typeof timedOut>((resolve) => {
-        cancelTimer = scheduleTimeout(() => resolve(timedOut), timeoutMs);
+        cancelTimer = scheduleTimeout(() => resolve(timedOut), BARRIER_TIMEOUT_MS);
       });
       const allSettled = Promise.all(flushes.map((f) => f.then(() => undefined))).then(() => undefined);
       const outcome = await Promise.race([allSettled, timeout]);

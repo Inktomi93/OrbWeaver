@@ -396,7 +396,7 @@ test("root teardown aborts and joins native remote-JWKS body cancellation before
     await disposal;
     expect((await request).status).toBe(400);
   }
-  await expect(root.db.all(sql`select 1`)).rejects.toThrow();
+  await expect(root.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   await expect(access(root.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
   expect(root.timers.pending()).toBe(0);
 });

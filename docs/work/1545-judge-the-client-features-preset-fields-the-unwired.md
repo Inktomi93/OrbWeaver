@@ -39,4 +39,16 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+13 rows: 4 deleted, 7 derived from the owning type, 2 kept. 0 handed off, 0 owner questions.
+
+| Row | Result |
+| - | - |
+| `MarkerCopy.templateNoteDetail.label`, `.text` | derived: `TemplateNoteDetail` in `section-body.tsx` read `detail.label` and `detail.text` through a restated twin; its prop is now `NonNullable<MarkerCopy["templateNoteDetail"]>` |
+| `DefaultPresetPatchVars.section`, `.patch`, `.patch.defaultPresetId` | derived: `useSetDefaultPreset` takes `inferInput<Trpc["settings"]["updateUserSettingsSection"]>`; the interface is gone |
+| `ToggleItem.value`, `.label` | derived: `GENERATION_TYPE_ITEMS` is handed whole to the `Select` `items` prop, so it is `readonly SelectOption<string>[]`; `ToggleItem` is gone |
+| `GuidedFooterState.isEmpty`, `.isDefault` | deleted with their writes; the one caller (`template-drill-in.tsx`) reads `missingInputLint`, so the unused `factoryDefault` parameter went too |
+| `QualityOption.description` | deleted with its write. New orphan: `QUALITY_META.description` in `capability-panel-model.ts` now has no reader |
+| `metadataSchema.macroRowIds` | deleted. `macroRowIdsMatch` parses `macroRowIds` in the same `&&` check, so admission is unchanged; `macroRowIdsSchema` lost its export |
+| `ReadFailure.message`, `.data` | kept: `resolveFailureMessage` reads `"message"` (`resolve-failure.ts:105-108`) and `failureCause` reads `data.code` (`resolve-failure.ts:86-89`) off the same value through `unknown`; the type is the prop gate that rejects `undefined` |
+
+Survey: `codegraph_explore` on `MarkerCopy templateNoteDetail … ReadFailure metadataSchema macroRowIds`; ast-grep (`-l ts` 5904 files, `-l tsx` 1522 files, `packages tests tooling scripts`) on `guidedFooterState($$$)` (1 hit, `template-drill-in.tsx`), `GENERATION_TYPE_ITEMS` (5), `QUALITY_OPTIONS` (2), `$X.isDefault` (9, all other types). Compiler probe: `pnpm typecheck packages/client/tsconfig.json tsconfig.tests-dom.json` exit 0. CT: `platform-preset-action-groups` and `platform-preset-pivot-focus` mount `PresetEditorSurface`, 13 passed. Lint: `pnpm lint:eslint` on the touched trees, exit 0.

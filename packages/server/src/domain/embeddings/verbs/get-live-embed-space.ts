@@ -5,7 +5,7 @@ import { requireTaskModel } from "../substrate/task-model.ts";
 
 export function createGetLiveEmbedSpace(deps: LiveEmbedSpaceDeps): (ownerId: UserId) => Promise<LiveEmbedSpace | null> {
   return async (ownerId) => {
-    const model = await requireTaskModel(deps, ownerId, "embed");
+    const model = await requireTaskModel(deps, ownerId);
     return model === null ? null : { model };
   };
 }

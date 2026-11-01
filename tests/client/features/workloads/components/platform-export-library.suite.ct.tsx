@@ -4,6 +4,7 @@ import { resolvedLength, touchTargetFindings } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 
 for (const regime of [
   { label: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false },
@@ -64,7 +65,7 @@ for (const regime of [
         }),
       );
       const pitch = Math.min(...centres.slice(1).map((centre, index) => centre - (centres[index] ?? centre)));
-      const floor = regime.coarse ? await resolvedLength(page, "var(--size-touch-target)", include) : 0;
+      const floor = regime.coarse ? await resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`, include) : 0;
       expect(pitch).toBeGreaterThanOrEqual(floor);
       expect(Math.min(...verticalOverlaps)).toBeGreaterThan(0);
       expect(Math.max(...controlStarts) - Math.min(...controlStarts)).toBeLessThanOrEqual(1);

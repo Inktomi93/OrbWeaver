@@ -4,7 +4,7 @@ import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalContainer, variantAttrs } from "#lib";
+import { ANCHOR_GAP_INPUT, formatResultCount, removeActionName, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
@@ -69,8 +69,6 @@ export interface ComboboxProps extends ComboboxPassthrough {
   "aria-describedby"?: string;
   /** The control scale step (D336): the field's height, level with the controls of its row. @defaultValue "sm" */
   size?: VariantProps<typeof comboboxVariants>["size"];
-  /** Applied to the input (the in-flow element). */
-  className?: string;
   id?: BaseRootProps<string, true>["id"];
   /** Render an arrow pointing at the input inside the popup. @defaultValue false */
   arrow?: boolean;
@@ -122,7 +120,6 @@ export function Combobox({
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedby,
   size,
-  className,
   id,
   arrow = false,
   side,
@@ -253,7 +250,7 @@ export function Combobox({
                 <BaseCombobox.Input
                   aria-describedby={ariaDescribedby}
                   aria-label={ariaLabel}
-                  className={cn(slots.input(), className)}
+                  className={slots.input()}
                   data-slot="combobox-input"
                   id={identity.id}
                   {...(identity.name === undefined ? {} : { name: identity.name })}

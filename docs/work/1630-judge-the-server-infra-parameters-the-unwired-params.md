@@ -34,4 +34,13 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+8 rows: applied 5, handed off 2, left and flagged 1, owner questions 0.
+
+Applied: `isAllowedImageBuffer.caps.maxDimension`, `.maxPixels`, `.allowedMime`, `.requireDimensions`. The three callers (`domain/assets/verbs/materialize-background.ts:55`, `domain/assets/verbs/store-inline-reply-image.ts:52`, `infra/plugin-host/net-egress.ts:48`) pass `{ maxBytes }` only. The decompression-bomb limits keep their names (`MAX_DIMENSION` 8192, `MAX_PIXELS` 40_000_000), unparseable dimensions are still always rejected, and `ImageGuardCaps` is `{ maxBytes }`. The now-unbuildable `"mime-not-allowed"` reject reason went with `allowedMime` (no reader in packages, tests, tooling or scripts), and two kit comments that named `requireDimensions` were corrected. `createLocalPluginHost.seams.spawn`: `LocalPluginHostSeams` now omits `spawn` (`infra/plugin-host/contract/port.ts:46`); the Worker-local host never launches a broker, and the process runtime that reads `seams.spawn` (`process-runtime.ts:474`) uses `PluginHostSeamDeps`, which keeps it.
+
+Handed off (only a test file supplies them; tests not rewritten): `serveHttpServer.serverOptions` and `.serveAdapter`, supplied by `tests/server/infra/network/http-server.int.test.ts` (calls at 26, 108, 174, 265); production (`entry/lifecycle.ts:105`) and the support doors (`tests/support/node/http.ts:132`, `physical-peer.ts:17`) pass neither.
+
+Left and flagged (secrets, lane rule; 1698): `loadOrCreateKeyfile.generate` (`packages/server/src/infra/crypto/key.ts:129`). Not touched.
+
+Survey: codegraph_explore on serveHttpServer, isAllowedImageBuffer, createLocalPluginHost; literal `rg` for isAllowedImageBuffer, maxPixels, requireDimensions, allowedMime, maxDimension, mime-not-allowed, serverOptions, serveAdapter, spawn, LocalPluginHostSeams across packages, tests, tooling, scripts (ts and tsx; 5929 .ts, 1524 .tsx files in scope). No test calls `isAllowedImageBuffer` directly; the guard is exercised through the plugin and asset suites below.
+Ran: `pnpm typecheck packages/server/tsconfig.json packages/kit/tsconfig.json tsconfig.tests-iso.json tsconfig.node.json` exit 0; `pnpm lint:eslint` on image-guard.ts and port.ts exit 0; `pnpm test` corpus-plugin, guest-call-floors, gc-import-overlap: 3 files, 11 passed.

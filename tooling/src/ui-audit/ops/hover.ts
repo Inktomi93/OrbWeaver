@@ -365,6 +365,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     const merged: ForcedReads = { ...forced, reads: mergedReads };
     const inputs = settleInputs(census.rest, merged, stuck, withheld);
     bump(withheld, "unreadableRestColor", census.census.unreadableColor);
+    bump(withheld, "srOnlyUnreadable", census.census.srOnlyUnreadable);
     bump(withheld, "forceBudget", census.census.overBudget);
     // The state shapes the forcer refuses to fake a measurement for (samples-hover.ts) — withheld by
     // NAME, so a surface carrying one is a NO VERDICT with a reason, never a false noHoverPaint.
@@ -382,6 +383,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     // A subject already IN the forced state at rest: that paint is live and the rest families judge
     // it — a measurement-backed exclusion, never a re-force.
     bump(excluded, "alreadyInState", census.census.alreadyInState);
+    bump(excluded, "srOnly", census.census.srOnly);
     const stateShadows = [...forced.shadows, ...attrForced.shadows];
     const stateRadials = [...forced.radials, ...attrForced.radials];
     // The attribute + glow arms' visible receipt (the glow families carry no per-sample accounting

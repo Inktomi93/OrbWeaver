@@ -8,16 +8,17 @@
 // the room exists from the creation click, so a send is a send. Two whole failure classes go with it: the
 // scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
-import type { UserIntent } from "@orb/contracts/preset";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { turnMutationToast, viewerTimeZone } from "#lib";
+import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { notify, turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
 type SendVars = inferInput<Trpc["chat"]["send"]>;
+
+const SEND_FAILED_TITLE = "Couldn't send your message.";
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
 const useSendMutation = createEntityMutation<SendVars, unknown>({
@@ -25,12 +26,11 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't send your message."),
+  errorToast: (error) => turnMutationToast(error, SEND_FAILED_TITLE),
 });
 
 export interface UseSendMessageOptions {
   readonly chatId: ChatId;
-  readonly intent?: Partial<UserIntent> | undefined;
   /** Fires once the bus confirms the caller's own user row committed — the composer clears its draft
    *  here, never optimistically on submit, so a failed send leaves the draft intact for retry. */
   readonly onDraftCommitted?: (() => void) | undefined;
@@ -39,7 +39,6 @@ export interface UseSendMessageOptions {
 export interface UseSendMessageResult {
   readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;
-  readonly error: unknown | null;
 }
 
 async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, attachments: readonly File[]): Promise<AssetId[]> {
@@ -56,22 +55,24 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<unknown>(null);
 
   // We subscribe synchronously right before firing the mutation that produces the user's row — JS is
   // single-threaded and bus delivery needs a real network round-trip, so the subscribe always lands
   // before the event can arrive. A send that fails before commit never fires the user-role
   // messageCommitted, so onDraftCommitted never runs and the draft survives for retry untouched.
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
-    const attachmentAssetIds = await uploadAttachments(upload, attachments);
+    // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it
+    // here, with the server's own reason when it gave one, and rethrow so the draft and strip stay put.
+    const attachmentAssetIds = await uploadAttachments(upload, attachments).catch((err: unknown) => {
+      notify.error({ title: SEND_FAILED_TITLE, ...(err instanceof UploadRefusedError ? { description: err.reason } : {}) });
+      throw err;
+    });
     const unsubscribe = subscribeUserMessageCommitted(opts.chatId, () => opts.onDraftCommitted?.());
     try {
-      const hasIntent = opts.intent !== undefined && Object.keys(opts.intent).length > 0;
       await sendMutation.mutateAsync({
         chatId: opts.chatId,
         content: trimmed,
         timeZone: viewerTimeZone(),
-        ...(hasIntent ? { intent: opts.intent } : {}),
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } finally {
@@ -84,16 +85,15 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     if (trimmed.length === 0 && attachments.length === 0) {
       return;
     }
-    setError(null);
     setIsPending(true);
+    // Only a send failure reaches the mutation's errorToast; an upload rejection is dropped here with no notice.
     runSend(trimmed, attachments)
-      .catch((err: unknown) => setError(err))
+      .catch(() => undefined)
       .finally(() => setIsPending(false));
   };
 
   return {
     send,
     isPending,
-    error,
   };
 }

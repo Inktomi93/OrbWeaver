@@ -291,7 +291,7 @@ export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the
- *  Plugins chrome menu both land here. Reconciles the plugin's SURFACE STATE broadly rather than by key: a
+ *  command palette both land here. Reconciles the plugin's SURFACE STATE broadly rather than by key: a
  *  command is not scoped to one surface (it can publish into any of the plugin's), so the narrow
  *  `{pluginId, surfaceId}` filter an action uses would miss exactly the panel the command just updated. The
  *  caller reads the returned `PluginUiOutcome` through `mutateAsync` and hands it to `applyPluginUiOutcome`. */
