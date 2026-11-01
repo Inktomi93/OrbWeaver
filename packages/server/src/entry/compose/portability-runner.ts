@@ -31,7 +31,7 @@ import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
-import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
+import { createAdoptImportedDefaultPersona, createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
@@ -176,6 +176,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           attachBooksByName: deps.attachBooksByName,
           importPreset: createImportPresets(deps.presetCtx),
           importTheme: createImportTheme(deps.settingsCtx),
+          adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
           storeBackground: createBackgroundStore({ store: deps.assets.store, maxBytes: () => ASSET_UPLOAD_MAX_BYTES }),
           applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
           newBackgroundEntryId: deps.settingsCtx.newBackgroundEntryId,
