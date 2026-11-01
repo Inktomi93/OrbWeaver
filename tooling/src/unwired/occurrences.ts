@@ -212,13 +212,35 @@ interface Link {
   readonly to: readonly string[];
 }
 
+// What a reflection reads, as types: its value, the type a spread lands in, and a computed key's names.
+interface ReflectedShape {
+  readonly value: Type;
+  readonly target: Type | undefined;
+  readonly names: readonly string[] | null;
+}
+
+function* shapeOf(checker: Checker, { value, key }: Reflection): APIRequestGenerator<ReflectedShape> {
+  const names = key === null ? null : yield* keyNames(checker, key);
+  const spreadInto = spreadTarget(value);
+  return {
+    value: yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value)),
+    target: spreadInto === null ? undefined : yield* checker.getContextualType.gen(spreadInto),
+    names,
+  };
+}
+
+const shapeKey = ({ value, target, names }: ReflectedShape): string => `${value.id}|${target?.id ?? ""}|${names?.join("|") ?? "*"}`;
+
+interface Reflected {
+  readonly reads: readonly NativeSymbol[];
+  readonly links: readonly Link[];
+}
+
 // The properties a reflection reads, and the links a spread into a typed literal makes instead. A spread member
 // whose target member a library declares is read by that library.
-function* reflected(world: NativeWorld, { value, key }: Reflection): APIRequestGenerator<{ readonly reads: NativeSymbol[]; readonly links: Link[] }> {
+function* reflected(world: NativeWorld, { value, target, names }: ReflectedShape): APIRequestGenerator<Reflected> {
   const { checker } = world;
-  const properties = yield* reflectedProperties(checker, value, key === null ? null : yield* keyNames(checker, key));
-  const spreadInto = spreadTarget(value);
-  const target = spreadInto === null ? undefined : yield* checker.getContextualType.gen(spreadInto);
+  const properties = yield* reflectedProperties(checker, value, names);
   if (target === undefined) {
     return { reads: properties, links: [] };
   }
@@ -235,6 +257,15 @@ function* reflected(world: NativeWorld, { value, key }: Reflection): APIRequestG
   return { reads, links };
 }
 
+// Each distinct shape once, so a library props type spread at many sites lists its properties a single time.
+function reflectedOnce(world: NativeWorld, reflections: readonly Reflection[]): readonly Reflected[] {
+  const shapes = world.batch(reflections.map((reflection) => shapeOf(world.checker, reflection)));
+  const distinct = new Map(shapes.map((shape) => [shapeKey(shape), shape]));
+  const answers = world.batch([...distinct.values()].map((shape) => reflected(world, shape)));
+  const byKey = new Map([...distinct.keys()].map((key, at) => [key, answers[at] as Reflected]));
+  return shapes.map((shape) => byKey.get(shapeKey(shape)) as Reflected);
+}
+
 // The object literal or JSX attributes a spread value lands in.
 function spreadTarget(value: Node): Expression | null {
   const { parent } = value;
@@ -244,9 +275,9 @@ function spreadTarget(value: Node): Expression | null {
 }
 
 // All of a value's properties, or those a computed key's literal type names.
-function* reflectedProperties(checker: Checker, value: Node, names: readonly string[] | null): APIRequestGenerator<NativeSymbol[]> {
+function* reflectedProperties(checker: Checker, value: Type, names: readonly string[] | null): APIRequestGenerator<NativeSymbol[]> {
   const found: NativeSymbol[] = [];
-  for (const type of yield* constituents(yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value)))) {
+  for (const type of yield* constituents(value)) {
     if (names === null) {
       found.push(...(yield* checker.getPropertiesOfType.gen(type)));
     }
@@ -389,7 +420,7 @@ export function propertyReferences(world: NativeWorld): PropertyReferences {
       return { symbols, own };
     }),
   );
-  const reads = world.batch(reflections.map((reflection) => reflected(world, reflection)));
+  const reads = reflectedOnce(world, reflections);
   const derived = world.batch(
     indexed.map(function* ({ member, owner, name }): APIRequestGenerator<Link> {
       const from = yield* checker.getSymbolAtLocation.gen(member);
@@ -422,13 +453,25 @@ export function propertyReferences(world: NativeWorld): PropertyReferences {
 
 // The index with each link's `from` sites added to its `to` keys, read from the unlinked index so order cannot matter.
 function linked(index: ReadonlyMap<string, readonly Site[]>, links: readonly Link[]): ReferenceIndex {
+  const sources = new Map<string, Set<string>>();
+  for (const { from, to } of links) {
+    for (const key of to.filter((candidate) => !from.includes(candidate))) {
+      const known = sources.get(key) ?? new Set();
+      sources.set(
+        key,
+        from.reduce((all, source) => all.add(source), known),
+      );
+    }
+  }
   const joined = new Map(index);
-  const additions = links.flatMap(({ from, to }) => {
-    const sites = from.flatMap((key) => index.get(key) ?? []);
-    return sites.length === 0 ? [] : to.filter((key) => !from.includes(key)).map((key) => [key, sites] as const);
-  });
-  for (const [key, sites] of additions) {
-    joined.set(key, [...(joined.get(key) ?? []), ...sites]);
+  for (const [key, from] of sources) {
+    const sites = new Set(index.get(key));
+    for (const source of from) {
+      for (const site of index.get(source) ?? []) {
+        sites.add(site);
+      }
+    }
+    joined.set(key, [...sites]);
   }
   return joined;
 }
