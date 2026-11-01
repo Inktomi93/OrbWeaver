@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 
-const VERIFIED: VerifyAuthResult = { source: "max-pro-sub", ok: true, apiKeySource: "none", model: "claude-haiku", reply: "ok", costUsd: 0 };
+const VERIFIED: VerifyAuthResult = { ok: true, apiKeySource: "none", reply: "ok", costUsd: 0 };
 
 test("the verify-auth result refuses a key the wire does not declare instead of dropping it", async () => {
   await using root = await createServerHarness();
@@ -30,8 +30,5 @@ test("the verify-auth result refuses a key the wire does not declare instead of 
 });
 
 test("the SDK account projection drops a field the SDK adds rather than losing the whole account", () => {
-  expect(verifyAuthAccountSchema.parse({ email: "owner@example.test", apiProvider: "firstParty", seatTier: "team" })).toEqual({
-    email: "owner@example.test",
-    apiProvider: "firstParty",
-  });
+  expect(verifyAuthAccountSchema.parse({ email: "owner@example.test", seatTier: "team" })).toEqual({ email: "owner@example.test" });
 });

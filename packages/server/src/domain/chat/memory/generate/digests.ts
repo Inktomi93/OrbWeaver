@@ -373,7 +373,6 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
     }
     const parsed = parseDigest(raw);
     const receipt = await ctx.embeddingsStore({
-      lens: "digest",
       ownerId: plan.embedSpace.ownerId,
       model: plan.embedSpace.model,
       key: { chatId, tier: 0, blockIdx: item.block.blockIdx, scopedCharacterId },
@@ -650,7 +649,6 @@ export async function storeConsolidationTier(
       continue;
     }
     const receipt = await ctx.embeddingsStore({
-      lens: "digest",
       ownerId: plan.embedSpace.ownerId,
       model: plan.embedSpace.model,
       key: {

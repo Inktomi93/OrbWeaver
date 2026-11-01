@@ -56,7 +56,7 @@ async function reapOrphan(
   if (!moved) {
     return "unmoved";
   }
-  const error: WorkloadError = { kind: "worker_died", message };
+  const error: WorkloadError = { message };
   emitEvent({ type: "failed", workloadId: args.id, kind: args.kind, at: args.now, error });
   return "reaped";
 }

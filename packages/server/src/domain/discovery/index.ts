@@ -16,8 +16,8 @@
 //   • a compute pass's engine/infra fault PROPAGATES unchanged (themes/generate, the workload runners);
 //   • an LLM validation failure DEGRADES to a result that CARRIES the degrade as data — never a silent
 //     substitution (`ComparisonNarrative.degraded`, `AskCardAnswer.degraded`, verbs/analyze.ts);
-//   • the BATCH distill CONTAINS a per-card failure and reports it in `DistillStats.failed` — and a name-only
-//     card in `DistillStats.skipped`, surfaced by the workload's progress line (a sweep reports, never
+//   • the BATCH distill CONTAINS a per-card failure (the card is absent from `DistillStats.distilled`) and counts a
+//     name-only card in `DistillStats.skipped`, surfaced by the workload's progress line (a sweep reports, never
 //     aborts) — only the single-card narrow throws;
 //   • an empty / degenerate corpus is a zero-count result, not a fault (the substrate is total on empty input).
 // Growing this taxonomy further needs a convicted path with a throw site AND a surfaced client state — a class

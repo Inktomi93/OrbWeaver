@@ -101,7 +101,7 @@ import type {
   RedeemInviteParams,
   RemoveCharacterFromChatParams,
   ReplayChatEventsParams,
-  ReplayStreamEventsParams,
+  ReplayLiveTurnParams,
   RevertContinueParams,
   RevokeInviteParams,
   SelectVariantParams,
@@ -126,23 +126,13 @@ import type {
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
-  StreamEventBoundsParams,
   SwipeParams,
   ToggleReactionParams,
   UndoContinueParams,
   UpdateTitleParams,
 } from "./params.ts";
 import type { CompactResult, DrainDeferredTurnsScope, DrainReport, ForkData, ReapResult, RedeemInviteData, StartChatData, TurnOutcome } from "./results.ts";
-import type {
-  ChatBusReplayEvent,
-  ChatDetailData,
-  ChatEventAttach,
-  ChatLineageData,
-  ChatListPageData,
-  ChatStreamReplayEvent,
-  ChatSummaryData,
-  StreamEventBounds,
-} from "./views.ts";
+import type { ChatBusReplayEvent, ChatDetailData, ChatEventAttach, ChatLineageData, ChatListPageData, ChatSummaryData } from "./views.ts";
 
 export interface ChatService {
   // ── reads / lifecycle ───────────────────────────────────────────────────────
@@ -200,10 +190,8 @@ export interface ChatService {
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantData[]>;
-  /** Resume the SSE token log from a cursor (late-subscriber ramp-up). */
-  readonly replayStreamEvents: (params: ReplayStreamEventsParams) => Promise<ChatStreamReplayEvent[]>;
-  /** The retained stream-log replay-cursor bounds (min/max seq). */
-  readonly streamEventBounds: (params: StreamEventBoundsParams) => Promise<StreamEventBounds>;
+  /** The turn in flight, from generation start through `throughSeq`, for a device attaching with no cursor. */
+  readonly replayLiveTurn: (params: ReplayLiveTurnParams) => Promise<ChatBusReplayEvent[]>;
   /** Resume the durable chat-bus log from a cursor (the chat room's SSE reconnect replay). */
   readonly replayChatEvents: (params: ReplayChatEventsParams) => Promise<ChatBusReplayEvent[]>;
   /** The durable bus-log cursor bounds + the caller's own D16 canon read floor — also the SSE attach /

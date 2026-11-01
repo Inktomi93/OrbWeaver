@@ -87,7 +87,6 @@ test("a real held turn owns its lock until canonical commit, then captures repla
     const during = await captureChatReplayRows(root.db, chatId);
     expect(during.locks.map((row) => row.chatId)).toEqual([chatId]);
     expect(during.locks.every((row) => row.holder !== "" && row.expiresAt > row.acquiredAt)).toBe(true);
-    expect(during.stream).toEqual([]);
   } finally {
     release.resolve();
   }
@@ -99,9 +98,6 @@ test("a real held turn owns its lock until canonical commit, then captures repla
   }
   const completed = await captureChatReplayRows(root.db, chatId);
   expect(completed.locks).toEqual([]);
-  expect(completed.stream.map((row) => [row.chatId, row.messageId])).toEqual(completed.stream.map(() => [chatId, assistant.id]));
-  expect(completed.stream.map((row) => row.delta).join("")).toBe(REPLY);
-  expect(completed.stream.every((row) => row.generationId !== null)).toBe(true);
   expect(
     completed.events.filter((row) => row.payload.type === "messageCommitted").map((row) => row.payload.type === "messageCommitted" && row.payload.messageId),
   ).toEqual(result.messages.map((message) => message.id));
@@ -163,7 +159,6 @@ test("a real member send defers without a lock while its host is offline and the
   const completed = await captureChatReplayRows(root.db, chatId);
   expect(completed.pending).toEqual([]);
   expect(completed.locks).toEqual([]);
-  expect(completed.stream.map((row) => row.delta).join("")).toBe(REPLY);
   const calls = provider.requests.filter((request) => request === "POST /v1/chat/completions");
   expect(calls).toHaveLength(1);
   expect(await root.services.chat.drainDeferredTurns({ hostUserId: root.ownerId })).toEqual({ ran: 0, dropped: 0 });

@@ -23,5 +23,4 @@ test("provenance snapshots keep unknown usage distinct from recorded zero withou
   expect(unknown.usage.costProvenance).toBeNull();
   expect(unknown.edited).toBe(false);
   expect(unknown.subjectCharacterId).toBeNull();
-  expect(unknown.identityHash).toBeNull();
 });

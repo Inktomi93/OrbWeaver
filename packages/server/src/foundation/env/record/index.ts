@@ -335,9 +335,6 @@ const envObjectSchema = z.object({
   // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
   // background, post-turn. "false" pauses it to offload the GPU.
   CORPUS_AUTOINDEX: envBool(true),
-  // Comma-separated character names (case-insensitive) to exclude at import. Default: skip nothing — the
-  // installation must not exclude personal library names by default. Set per box in the env or admin import settings.
-  IMPORT_SKIP_CHARACTERS: z.string().default(""),
 
   DEFAULT_USER_HANDLE: z.string().min(1).default("owner"),
   // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header

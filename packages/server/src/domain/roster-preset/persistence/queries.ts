@@ -203,7 +203,6 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     game: rpgGameTemplateSchema.nullable().parse(row.gameTemplate),
     members,
     rules,
-    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }

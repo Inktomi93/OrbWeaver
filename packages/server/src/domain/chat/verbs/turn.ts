@@ -39,7 +39,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import { contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
@@ -311,14 +311,14 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     talkativeness: r.talkativeness,
     disabled: r.disabled,
     leftSeq: r.leftSeq,
   }));
 
   const charSpeakerCandidates: SpeakerCandidate[] = charRows.map((r, i) => ({
-    ref: { kind: "character", characterId: r.characterId },
+    ref: { characterId: r.characterId },
     name: cards[i]?.name ?? "",
   }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
@@ -390,7 +390,7 @@ function lastSpeakerRef(row: { readonly characterId: CharacterId | null; readonl
     return null;
   }
   if (row.characterId !== null) {
-    return { kind: "character", characterId: row.characterId };
+    return { characterId: row.characterId };
   }
   return null;
 }
@@ -439,7 +439,7 @@ interface BuiltTurnContext {
  *  the next such field is why this exists.
  *
  *  WHAT DELIBERATELY STAYS AT THE CALL SITE: `kind`, `persist`, `speakerCharacterId`, `lockFree`, `signal`,
- *  the automation origin stamps, `slotAccepted`, and the two fields only SOME kinds own —
+ *  the automation origin stamps, `acceptedTurnId`, and the two fields only SOME kinds own —
  *  `respondsToLatestUserTurn` (a swipe/send/drain fact, absent on continue/generate) and the macro-registry
  *  spread (absent on the two drain bases). Folding those in would let a site silently acquire a field it
  *  deliberately lacks, which is the failure mode a shared builder invites; the split is exactly the line
@@ -995,7 +995,7 @@ async function arbitrate(
   // and returns exactly that intersection — so a returned speaker who is a forced target proves it. The
   // converse is safe too: when no forced id is eligible the result is policy-derived off the eligible pool,
   // which is disjoint from the (ineligible) forced ids.
-  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ kind: "character", characterId })));
+  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ characterId })));
   const forcedOverride = speakers.some((c) => forcedKeys.has(speakerKey(c.ref)));
   return { speakers, aborted: false, forcedOverride };
 }
@@ -1105,6 +1105,8 @@ async function runChain(
     readonly initialLastSpeaker: SpeakerRef | null;
   },
 ): Promise<AutoModeResult> {
+  // Each beat is its own accepted turn: `nextSpeaker` mints the id and `runTurn` drives under it.
+  let chainTurnId = args.base.acceptedTurnId;
   return await runAutoModeVia({
     maxTurns: args.group.autoModeMaxTurns,
     delayMs: args.group.autoModeDelayMs,
@@ -1119,31 +1121,36 @@ async function runChain(
       // arbiter IS working); `speakerCharacterId` is null until this arbitration resolves it, exactly like the
       // primary emit. Every exit below resolves this slot (turnStarted→terminal on the speaking path via
       // runTurn, turnAborted on a cancelled arbitration, turnCompleted on a no-next-speaker end, and
-      // turnAborted from the engine on a pre-start refusal — the base carries `slotAccepted`).
+      // turnAborted from the engine on a pre-start refusal — the base carries `acceptedTurnId`).
       const chainIntent = KIND_TO_INTENT.auto;
-      await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
-      const facts = await canonFacts(ctx, args.base.chatId);
+      const turnId = ctx.newChatTurnId();
+      chainTurnId = turnId;
+      await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, turnId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
       // RECORDED TWIN (#1767), not a fold: `runAiRound`'s own arbitrate call below shares this room plumbing
       // and then DIVERGES on the fields that decide the answer — that one passes the caller's `forcedIds` and
       // an origin `lastSpeaker`, this chain pass deliberately passes neither (a chained beat has no forced
       // pick, and it re-reads `facts` because the previous beat just committed). Two sites, and the shared
       // half is the room's candidate lists — a builder for them would hide exactly the arguments that differ.
-      const arbitration = await arbitrate(ctx, deps, {
-        chatId: args.base.chatId,
-        funderUserId: args.base.funderUserId,
-        group: args.group,
-        candidates: args.room.candidates,
-        speakerCandidates: args.room.speakerCandidates,
-        characterLines: args.room.characterLines,
-        assembled: args.base.assembleContext,
-        // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
-        // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
-        // chain becomes one character monologuing under a control that promises a rotation.
-        lastSpeaker: last,
-        banLast: banLastFor(args.group, false),
-        recentRows: facts.recentRows,
-        maxSpeakers: 1,
-        signal: args.signal,
+      const closes = { chatId: args.base.chatId, turnId, kind: "auto", automationDepth: args.base.automationDepth } as const;
+      const arbitration = await closeSlotOnThrow(deps, closes, async () => {
+        const facts = await canonFacts(ctx, args.base.chatId);
+        return await arbitrate(ctx, deps, {
+          chatId: args.base.chatId,
+          funderUserId: args.base.funderUserId,
+          group: args.group,
+          candidates: args.room.candidates,
+          speakerCandidates: args.room.speakerCandidates,
+          characterLines: args.room.characterLines,
+          assembled: args.base.assembleContext,
+          // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
+          // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
+          // chain becomes one character monologuing under a control that promises a rotation.
+          lastSpeaker: last,
+          banLast: banLastFor(args.group, false),
+          recentRows: facts.recentRows,
+          maxSpeakers: 1,
+          signal: args.signal,
+        });
       });
       // A cancelled arbitration yields no speaker, which stops the chain. CLOSE the slot this
       // iteration opened with `turnAborted` (the user's Stop mid-chain-arbitration), mirroring the primary window.
@@ -1151,6 +1158,7 @@ async function runChain(
         await deps.emit({
           type: "turnAborted",
           chatId: args.base.chatId,
+          turnId,
           intent: chainIntent,
           reason: "user",
           automationDepth: args.base.automationDepth ?? 0,
@@ -1161,14 +1169,14 @@ async function runChain(
       // No-next-speaker end (everyone muted/left): the engine never runs this iteration, so nothing else closes
       // the slot this iteration opened — close it with the honest no-reply terminal (the primary no-eligible pattern).
       if (next === null) {
-        await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, intent: chainIntent, messageId: null });
+        await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, turnId, intent: chainIntent, messageId: null });
       }
       return next;
     },
     runTurn: async (speaker) =>
       await driveRoundVia({
         engine: deps.engine,
-        base: { ...args.base, kind: "auto" },
+        base: { ...args.base, kind: "auto", acceptedTurnId: chainTurnId },
         group: args.group,
         speakers: [speaker],
         groupCharacterId: args.groupCharacterId,
@@ -1212,33 +1220,37 @@ async function runAiRound(
   // client's turn slot stayed idle through that hang, so the user had no Stop affordance while the turn was in
   // fact live and abortable (the abort signal already threads into arbitration). `turnAccepted` opens the slot
   // now; every exit below is TOTAL — it resolves that slot (turnStarted→terminal on the speaking path,
-  // turnAborted on a cancelled arbitration, turnCompleted on a no-eligible round, turnAborted from the engine
-  // on a pre-start refusal — see the `slotAccepted` base below). `speakerCharacterId` is null
+  // turnAborted on a cancelled arbitration or a throw before the engine, turnCompleted on a no-eligible round,
+  // turnAborted from the engine on a pre-start refusal — see the `acceptedTurnId` base below). `speakerCharacterId` is null
   // (arbitration has not picked yet); the later `turnStarted` re-opens the slot with the resolved speaker.
   const intent = KIND_TO_INTENT[args.base.kind];
-  await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent, speakerCharacterId: null, targetMessageId: null });
+  const turnId = ctx.newChatTurnId();
+  await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, turnId, intent, speakerCharacterId: null, targetMessageId: null });
   // …and every engine turn this round drives (here, and each auto-chain iteration below) carries that
   // acceptance, so the engine's PRE-START refusals close the slot instead of stranding it. This closed a real
   // send-path hole, not just a swipe one: a `locked` refusal is SWALLOWED by `driveRound` (it yields the round)
   // and a consent/budget refusal throws straight past every emit — either way the accept above used to be the
   // last event the room ever saw for this turn.
-  const base: RoundBase = { ...args.base, slotAccepted: true };
+  const base: RoundBase = { ...args.base, acceptedTurnId: turnId };
 
-  const facts = await canonFacts(ctx, args.base.chatId);
-  const arbitration = await arbitrate(ctx, deps, {
-    chatId: args.base.chatId,
-    funderUserId: args.base.funderUserId,
-    group: args.group,
-    candidates: args.room.candidates,
-    speakerCandidates: args.room.speakerCandidates,
-    characterLines: args.room.characterLines,
-    assembled: args.base.assembleContext,
-    forcedIds: args.forcedIds,
-    mentionedIds: args.mentionedIds,
-    lastSpeaker: facts.lastSpeaker,
-    banLast: args.banLast,
-    recentRows: facts.recentRows,
-    signal: args.signal,
+  const closes = { chatId: args.base.chatId, turnId, kind: args.base.kind, automationDepth: args.base.automationDepth } as const;
+  const arbitration = await closeSlotOnThrow(deps, closes, async () => {
+    const facts = await canonFacts(ctx, args.base.chatId);
+    return await arbitrate(ctx, deps, {
+      chatId: args.base.chatId,
+      funderUserId: args.base.funderUserId,
+      group: args.group,
+      candidates: args.room.candidates,
+      speakerCandidates: args.room.speakerCandidates,
+      characterLines: args.room.characterLines,
+      assembled: args.base.assembleContext,
+      forcedIds: args.forcedIds,
+      mentionedIds: args.mentionedIds,
+      lastSpeaker: facts.lastSpeaker,
+      banLast: args.banLast,
+      recentRows: facts.recentRows,
+      signal: args.signal,
+    });
   });
   // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
   // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
@@ -1249,7 +1261,7 @@ async function runAiRound(
   // Depth rides `automationDepth` off the base (0 for a human turn) so an automation cascade gates the same as
   // the engine's own `turnAborted`.
   if (arbitration.aborted) {
-    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, intent, reason: "user", automationDepth: args.base.automationDepth ?? 0 });
+    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, turnId, intent, reason: "user", automationDepth: args.base.automationDepth ?? 0 });
     return { messages: [], aborted: true, abortReason: "user" };
   }
   const speakers = arbitration.speakers;
@@ -1262,10 +1274,12 @@ async function runAiRound(
   const groupCharacterId =
     args.group.output === "narrator"
       ? (
-          await ctx.mintSyntheticGroupCharacter({
-            ownerId: args.base.runAsUserId,
-            chatId: args.base.chatId,
-          })
+          await closeSlotOnThrow(deps, closes, () =>
+            ctx.mintSyntheticGroupCharacter({
+              ownerId: args.base.runAsUserId,
+              chatId: args.base.chatId,
+            }),
+          )
         ).characterId
       : null;
   const narratorSpeakerName = joinedCandidateName(args.room.speakerCandidates);
@@ -1275,7 +1289,7 @@ async function runAiRound(
   // strand OPEN (a stuck Stop button, the same bug inverted). Close it here with the honest no-reply terminal.
   const drivesAnyTurn = roundGroup.output === "narrator" || speakers.length > 0;
   if (!drivesAnyTurn) {
-    await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, intent, messageId: null });
+    await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, turnId, intent, messageId: null });
     return { messages: [], aborted: false, abortReason: undefined };
   }
   const round = await driveRoundVia({
@@ -1822,7 +1836,7 @@ function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["com
  *  recall), so the host clicked "summon" and the room showed nothing for the whole of that window. The slot is
  *  a FRESH reply (`targetMessageId: null` — nothing to ghost over), but its speaker IS known at the accept
  *  instant (the host named them), so unlike `generate` it accepts carrying the character id. Totality: the
- *  pre-engine resolve is closed by `withAcceptedSlot`, and the round's engine turn carries `slotAccepted` so
+ *  pre-engine resolve is closed by `withAcceptedSlot`, and the round's engine turn carries `acceptedTurnId` so
  *  the engine's pre-start refusals close the slot too — including the `locked` one `driveRound` SWALLOWS, which
  *  on this path is the only closer there is (the verb returns a normal empty round). */
 function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService["forceCharacterTurn"] {
@@ -1845,32 +1859,37 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
-    const { connection, built } = await withAcceptedSlot(deps, { chatId, kind: "force", speakerCharacterId: characterId, targetMessageId: null }, async () => {
-      const resolved = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
-      return {
-        connection: resolved,
-        built: await buildTurnContext(ctx, deps, {
-          chatId,
-          runAsUserId: identity.runAsUserId,
-          funderUserId: identity.funderUserId,
-          model: resolved.model,
-          kind: "force",
-          characterIds: room.characterIds,
+    const turnId = ctx.newChatTurnId();
+    const { connection, built } = await withAcceptedSlot(
+      deps,
+      { chatId, turnId, kind: "force", speakerCharacterId: characterId, targetMessageId: null },
+      async () => {
+        const resolved = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
+        return {
+          connection: resolved,
+          built: await buildTurnContext(ctx, deps, {
+            chatId,
+            runAsUserId: identity.runAsUserId,
+            funderUserId: identity.funderUserId,
+            model: resolved.model,
+            kind: "force",
+            characterIds: room.characterIds,
 
-          mutedSpeakerKeys: room.mutedSpeakerKeys,
-          personaIds: room.personaIds,
-          presentHumanUserIds: room.presentHumanUserIds,
-          humanSeats: room.humanSeats,
-          anchorPersonaId: membership.chat.anchorPersonaId,
-          trigger: humanTrigger(principal.userId, membership.activePersonaId),
-          guided,
-          // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
-          candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
-          chatMetadata: membership.chat.metadata,
-          timeZone,
-        }),
-      };
-    });
+            mutedSpeakerKeys: room.mutedSpeakerKeys,
+            personaIds: room.personaIds,
+            presentHumanUserIds: room.presentHumanUserIds,
+            humanSeats: room.humanSeats,
+            anchorPersonaId: membership.chat.anchorPersonaId,
+            trigger: humanTrigger(principal.userId, membership.activePersonaId),
+            guided,
+            // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+            candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
+            chatMetadata: membership.chat.metadata,
+            timeZone,
+          }),
+        };
+      },
+    );
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
@@ -1880,7 +1899,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       signal: handle.signal,
       // The accept above opened the client's slot, so the engine's PRE-START refusals owe it a `turnAborted`
       // (`closePreStartRefusal`) instead of the historical bus-silent throw.
-      slotAccepted: true,
+      acceptedTurnId: turnId,
     };
     const round = await driveRoundVia({
       engine: deps.engine,
@@ -2057,20 +2076,18 @@ async function resolveTurnBase(
   };
 }
 
+/** A turn prep whose verb has emitted `turnAccepted`. */
+type AcceptedPrep = Omit<TurnPrep, "signal"> & { readonly acceptedTurnId: ChatTurnId };
+
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
  *  releasing the handle at scope exit (`using`). The outcome is §3.6-projected for the CALLER: a non-host member who
  *  ran the turn (swipe/continue/impersonate/generate) never receives the assistant reply's hidden spans in the
  *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb.
  *
- *  EVERY caller of this helper has already ACCEPTED its turn ({@link withAcceptedSlot}), so the prep is stamped
- *  `slotAccepted` here — ONE home, so a fourth auxiliary verb cannot forget it and leave the engine's pre-start
+ *  EVERY caller of this helper has already ACCEPTED its turn ({@link withAcceptedSlot}), so the prep's type
+ *  requires `acceptedTurnId` — a fourth auxiliary verb cannot forget it and leave the engine's pre-start
  *  refusals (lock contention / consent / budget / a missing target) stranding an open client slot. */
-async function runRegistered(
-  ctx: ChatContext,
-  deps: TurnDeps,
-  viewer: { readonly role: ParticipantRoleState },
-  prep: Omit<TurnPrep, "signal">,
-): Promise<TurnOutcome> {
+async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: ParticipantRoleState }, prep: AcceptedPrep): Promise<TurnOutcome> {
   using handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
   return await runOnHandle(ctx, deps, handle, { viewer, prep });
 }
@@ -2081,9 +2098,9 @@ async function runOnHandle(
   ctx: ChatContext,
   deps: TurnDeps,
   handle: ActiveTurnHandle,
-  { viewer, prep }: { readonly viewer: { readonly role: ParticipantRoleState }; readonly prep: Omit<TurnPrep, "signal"> },
+  { viewer, prep }: { readonly viewer: { readonly role: ParticipantRoleState }; readonly prep: AcceptedPrep },
 ): Promise<TurnOutcome> {
-  const outcome = await deps.engine.runTurn({ ...prep, slotAccepted: true, signal: handle.signal });
+  const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
   // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
   // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
   return stripMessagesForViewer(outcome, viewer, await reasoningHostOnlyFor(ctx, prep.chatId, viewer));
@@ -2104,7 +2121,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
     cardScope: "merged",
     scopedTargetId: null,
     speakerName: name,
-    speakerRef: { kind: "character", characterId },
+    speakerRef: { characterId },
   };
 }
 
@@ -2122,14 +2139,14 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
 //   • BEFORE the engine (the resolve + the verb's own post-resolve validation): {@link withAcceptedSlot}
 //     closes the slot with `turnAborted` on any throw.
 //   • INSIDE the engine (lock contention · consent · budget · a missing persist target — all shared with
-//     `send`): `runRegistered` marks the prep `slotAccepted`, and the engine's
+//     `send`): the prep carries `acceptedTurnId`, and the engine's
 //     `closePreStartRefusal` closes it. Only the engine knows `turnStarted` never fired; a verb-level catch
 //     around `runTurn` would DOUBLE-emit on every post-start fault (the engine already emits there).
 // The NOT_FOUND target throw needs no closer: the target load is ordered BEFORE the accept, so a bad slot id
 // never opens one.
 //
 // `forceCharacterTurn` follows the same wall with one structural difference: it
-// drives a ROUND rather than calling `runRegistered`, so its engine-side half is a `slotAccepted` stamp on the
+// drives a ROUND rather than calling `runRegistered`, so its engine-side half is an `acceptedTurnId` stamp on the
 // `RoundBase` (see the verb). That difference matters — `driveRound` SWALLOWS a `locked` refusal, so on that
 // path the engine's close is the ONLY thing that resolves the slot.
 
@@ -2145,6 +2162,7 @@ async function withAcceptedSlot<T>(
   deps: TurnDeps,
   slot: {
     readonly chatId: ChatId;
+    readonly turnId: ChatTurnId;
     readonly kind: TurnKind;
     /** The slot's speaker when the verb already knows it (swipe/continue read it off the target row); null
      *  when it is not resolved yet — `turnStarted` re-opens the slot with the resolved speaker. */
@@ -2157,6 +2175,7 @@ async function withAcceptedSlot<T>(
   await deps.emit({
     type: "turnAccepted",
     chatId: slot.chatId,
+    turnId: slot.turnId,
     intent: KIND_TO_INTENT[slot.kind],
     speakerCharacterId: slot.speakerCharacterId,
     targetMessageId: slot.targetMessageId,
@@ -2167,11 +2186,22 @@ async function withAcceptedSlot<T>(
 /** The pre-engine GUARD half of {@link withAcceptedSlot}: a throw from `work` closes the already-accepted slot
  *  with `turnAborted` before it propagates. Used directly for pre-engine work that runs after the accept's own
  *  resolve (generate's speaker arbitration). */
-async function closeSlotOnThrow<T>(deps: TurnDeps, slot: { readonly chatId: ChatId; readonly kind: TurnKind }, work: () => Promise<T>): Promise<T> {
+async function closeSlotOnThrow<T>(
+  deps: TurnDeps,
+  slot: { readonly chatId: ChatId; readonly turnId: ChatTurnId; readonly kind: TurnKind; readonly automationDepth?: number | undefined },
+  work: () => Promise<T>,
+): Promise<T> {
   try {
     return await work();
   } catch (err) {
-    await deps.emit({ type: "turnAborted", chatId: slot.chatId, intent: KIND_TO_INTENT[slot.kind], reason: "error", automationDepth: 0 });
+    await deps.emit({
+      type: "turnAborted",
+      chatId: slot.chatId,
+      turnId: slot.turnId,
+      intent: KIND_TO_INTENT[slot.kind],
+      reason: "error",
+      automationDepth: slot.automationDepth ?? 0,
+    });
     throw err;
   }
 }
@@ -2198,7 +2228,8 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     // ACCEPTED: the target is real and the caller is a member, so this swipe IS happening — open the client's
     // ghost slot on `messageId` NOW, before the multi-second `resolveTurnBase`. Ordered AFTER the NOT_FOUND
     // throw above so a bad slot id never opens a slot at all.
-    const built = await withAcceptedSlot(deps, { chatId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+    const turnId = ctx.newChatTurnId();
+    const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "swipe", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -2223,6 +2254,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
+      acceptedTurnId: turnId,
       ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "swipe",
       respondsToLatestUserTurn,
@@ -2248,7 +2280,8 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     }
     // ACCEPTED (same instant as swipe's): the target is real, so the client's ghost slot for `messageId` opens
     // before `resolveTurnBase`, not after. A bad slot id threw above and never opened one.
-    const built = await withAcceptedSlot(deps, { chatId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
+    const turnId = ctx.newChatTurnId();
+    const built = await withAcceptedSlot(deps, { chatId, turnId, kind: "continue", speakerCharacterId: target.characterId, targetMessageId: messageId }, () =>
       resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -2266,6 +2299,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
+      acceptedTurnId: turnId,
       ...sharedTurnPrepFields({ built, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
       kind: "continue",
       ...prepMacroFields(macroRegistry, userMacroDraws),
@@ -2563,7 +2597,7 @@ async function arbitrateGenerateSpeaker(
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant, timeZone }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const slot = { chatId, kind: "generate", speakerCharacterId: null, targetMessageId: null } as const;
+    const slot = { chatId, turnId: ctx.newChatTurnId(), kind: "generate", speakerCharacterId: null, targetMessageId: null } as const;
     // ACCEPTED: a member asked for a reply, so the client's slot opens before the multi-second resolve. NO
     // `targetMessageId` (a fresh slot, nothing to ghost over) and NO speaker: the requested id is still
     // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
@@ -2603,11 +2637,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         : { speaker: speakerCharacterId, aborted: false };
     // The two speakerless exits close the accepted slot exactly as a send round's do (`runAiRound`).
     if (pick.aborted) {
-      await deps.emit({ type: "turnAborted", chatId, intent: KIND_TO_INTENT.generate, reason: "user", automationDepth: 0 });
+      await deps.emit({ type: "turnAborted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, reason: "user", automationDepth: 0 });
       return { messages: [], aborted: true, abortReason: "user" };
     }
     if (pick.speaker === null) {
-      await deps.emit({ type: "turnCompleted", chatId, intent: KIND_TO_INTENT.generate, messageId: null });
+      await deps.emit({ type: "turnCompleted", chatId, turnId: slot.turnId, intent: KIND_TO_INTENT.generate, messageId: null });
       return { messages: [], aborted: false, abortReason: undefined };
     }
     const speaker = pick.speaker;
@@ -2616,6 +2650,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       viewer: membership,
       prep: {
         chatId,
+        acceptedTurnId: slot.turnId,
         ...sharedTurnPrepFields({ built: base, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
         kind: "generate",
         ...prepMacroFields(macroRegistry, userMacroDraws),

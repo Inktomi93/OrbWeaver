@@ -121,12 +121,11 @@ test("native selected latency and economics separate model populations, retained
   }
   expect(unpricedSelected).toMatchObject({ costUsd: null, costProvenance: "unrecorded", tokensIn: 9, tokensOut: 3 });
   expect(capture.economics.find((row) => row.characterId === priced.id)).toMatchObject({
-    generations: 1,
-    tokensIn: 80,
     tokensOut: 30,
     costUsd: pricedSelected.costUsd,
   });
-  expect(capture.economics.find((row) => row.characterId === unpriced.id)).toMatchObject({ generations: 1, costUsd: null });
+  expect(pricedSelected.tokensIn).toBe(80);
+  expect(capture.economics.find((row) => row.characterId === unpriced.id)).toMatchObject({ costUsd: null });
   expect(capture.modelEconomics.find((row) => row.characterId === priced.id)).toMatchObject({
     model: PRICED_MODEL,
     generations: 1,
@@ -141,10 +140,10 @@ test("native selected latency and economics separate model populations, retained
   expect(capture.models.find((model) => model.model === PRICED_MODEL)).toMatchObject({
     generations: 2,
     charactersUsedWith: 1,
-    tokensIn: 120,
     tokensOut: 45,
     costUsd: pricedSelected.costUsd,
   });
+  expect(pricedVariants.reduce((sum, variant) => sum + (variant.tokensIn ?? 0), 0)).toBe(120);
   expect(capture.models.find((model) => model.model === UNPRICED_MODEL)).toMatchObject({ generations: 1, charactersUsedWith: 1, costUsd: null });
   for (const [index, variant] of [pricedSelected, unpricedSelected].entries()) {
     if (variant.genStartedAt === null || variant.genFinishedAt === null || variant.ttftMs === null) {
@@ -160,10 +159,7 @@ test("native selected latency and economics separate model populations, retained
       p90TtftMs: variant.ttftMs,
     });
     expect(characterStatsViewSchema.parse(capture.characters[index])).toMatchObject({ avgGenMs: duration, avgTtftMs: variant.ttftMs });
-    expect(modelStatRowSchema.parse(capture.models.find((model) => model.model === variant.model))).toMatchObject({
-      avgGenMs: duration,
-      avgTtftMs: variant.ttftMs,
-    });
+    expect(modelStatRowSchema.parse(capture.models.find((model) => model.model === variant.model))).toMatchObject({ avgTtftMs: variant.ttftMs });
   }
   expect(capture.latency[0]?.avgGenMs).not.toBe(capture.latency[1]?.avgGenMs);
   expect(capture.ownerLatency.avgGenMs).toBe(((capture.latency[0]?.avgGenMs ?? 0) + (capture.latency[1]?.avgGenMs ?? 0)) / 2);

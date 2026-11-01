@@ -64,9 +64,9 @@ import { projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { participantRoleValue } from "#primitives/role-data/decode";
-import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views.ts";
+import type { ChatBusReplayEvent } from "../contract/views.ts";
 
 /** A caller's chat role — the §3.6 verdict axis (host reads unstripped; anyone else is a member). Matches the
  *  captured participant-role data the guards resolve, narrowed to the one field this boundary needs. */
@@ -266,7 +266,7 @@ const MEMBER_DELTA_CHANNELS: { readonly [K in ChatDeltaEvent["kind"]]: MemberDel
       return null;
     }
     const delta: ChatDeltaEvent = { chatId: event.delta.chatId, kind: "text", text: safe };
-    return { type: event.type, chatId: event.chatId, slotSeq: event.slotSeq, delta };
+    return { type: event.type, chatId: event.chatId, turnId: event.turnId, slotSeq: event.slotSeq, delta };
   },
   // The THINKING channel: withheld entirely on a deception game (host-only reasoning), verbatim otherwise.
   reasoning: (event, reasoningHostOnly) => (reasoningHostOnly ? null : event),
@@ -281,16 +281,22 @@ interface MemberDeltaStamper {
   readonly stamp: (event: DurableChatBusEvent) => DurableChatBusEvent;
 }
 
-/** One streaming slot's scrub-state key — the chat plus the `messages.seq` the tokens are streaming INTO
- *  (the same anchor the D16 clamp reads off the delta event). */
-function slotKey(chatId: ChatId, slotSeq: number): string {
-  return `${chatId}:${slotSeq}`;
+/** The prefix of every scrub-state key one turn owns. */
+function turnKey(chatId: ChatId, turnId: ChatTurnId): string {
+  return `${chatId}:${turnId}:`;
+}
+
+/** One streaming slot's scrub-state key — the turn plus the `messages.seq` the tokens are streaming INTO. The turn
+ *  is part of the key because two turns can stream into one seq: a `generate` beside a locked send. */
+function slotKey(chatId: ChatId, turnId: ChatTurnId, slotSeq: number): string {
+  return `${turnKey(chatId, turnId)}${slotSeq}`;
 }
 
 /** The stamped `memberText` for ONE text delta, advancing that slot's scrubber. `null` = byte-identical to
  *  `delta.text` (the common tick — the durable row then keeps ONE copy of the token). */
-function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, chatId: ChatId, slotSeq: number, text: string): string | null {
-  const key = slotKey(chatId, slotSeq);
+function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: Extract<DurableChatBusEvent, { type: "delta" }>): string | null {
+  const key = slotKey(event.chatId, event.turnId, event.slotSeq);
+  const text = event.delta.text;
   const existing = scrubbers.get(key);
   const scrubber = existing ?? createHiddenSpanStreamScrubber();
   if (existing === undefined) {
@@ -300,22 +306,17 @@ function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, chatId
   return safe === text ? null : safe;
 }
 
-/** The slot's streaming phase is over: drop its state. A committed/edited row retires its own slot precisely
- *  (`view.seq`); a turn that ends WITHOUT committing one (abort/failure) would otherwise leave its scrubber
- *  behind forever, so a turn-terminal event sweeps the whole chat — turns are sequential per chat, so no live
- *  slot's state is ever swept out from under it. */
-function retireSlotState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: ChatBusEvent): void {
-  // `in` narrows the optional `view?: MessageView` to present-and-defined — the same shape the transport's
-  // retired `retireScrubberOnCommit` read.
-  if ("view" in event) {
-    scrubbers.delete(slotKey(event.chatId, event.view.seq));
+/** A turn's streaming is over: drop its state, and only its state. SECURITY: another turn can be mid-span in this
+ *  chat. A sweep or a retire by `view.seq` hands that turn a cold scrubber, which stamps the rest of its secret
+ *  safe: a refused send's user row lands on the very seq the live turn streams into, and its terminal lands
+ *  mid-stream. */
+function retireTurnState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: DurableChatBusEvent): void {
+  if (event.type !== "turnCompleted" && event.type !== "turnAborted") {
     return;
   }
-  if (event.type !== "turnCompleted" && event.type !== "turnAborted" && event.type !== "chatDeleted") {
-    return;
-  }
+  const prefix = turnKey(event.chatId, event.turnId);
   for (const key of scrubbers.keys()) {
-    if (key.startsWith(`${event.chatId}:`)) {
+    if (key.startsWith(prefix)) {
       scrubbers.delete(key);
     }
   }
@@ -327,54 +328,16 @@ export function createMemberDeltaStamper(): MemberDeltaStamper {
   return {
     stamp(event: DurableChatBusEvent): DurableChatBusEvent {
       if (event.type !== "delta") {
-        retireSlotState(scrubbers, event);
+        retireTurnState(scrubbers, event);
         return event;
       }
       // The reasoning channel carries no hidden-span grammar; its member verdict is the deception gate
       // (`reasoningHostOnly`), applied per-viewer at the read seam. Stamp `null` so it is never mistaken for
       // an UNSTAMPED event (which is withheld).
-      const memberText = event.delta.kind === "text" ? stampTextDelta(scrubbers, event.chatId, event.slotSeq, event.delta.text) : null;
+      const memberText = event.delta.kind === "text" ? stampTextDelta(scrubbers, event) : null;
       return { ...event, memberText };
     },
   };
-}
-
-/** Scrub the DURABLE SSE token-log replay (`replayStreamEvents`) for a NON-HOST caller (§3.6). A late
- *  subscriber / reconnect replays the raw per-slot token stream; without this a member would receive the
- *  model's hidden bytes in the replayed `text` deltas. Each committed generation gets a FRESH scrubber;
- *  swipe/continue generations can reuse a `messageId`, so `generationId` is the lifetime boundary. Historical
- *  rows without that marker fall back to the slot key. A row whose scrubbed text is empty is DROPPED (it
- *  carried only held/hidden bytes). The final held tail is dropped — the caller's authoritative
- *  content is the at-commit-stripped `listMessages`/`replayChatEvents` view, not the token log. Reasoning
- *  rows and a `null` messageId (an unanchored control row) pass through. Identity for a host (verbatim). */
-export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatStreamReplayEvent[] {
-  if (viewerReadsHidden(viewer)) {
-    return [...rows];
-  }
-  const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
-  const out: ChatStreamReplayEvent[] = [];
-  for (const row of rows) {
-    // P3 (§3.6): a REASONING replay row is a member-visible thinking-channel byte; DROP it on a deception game
-    // (host-only reasoning), else pass it through.
-    if (row.kind === "reasoning") {
-      if (!reasoningHostOnly) {
-        out.push(row);
-      }
-      continue;
-    }
-    // A `text` row with no slot anchor (an unanchored control row) passes through — it carries no scrubable body.
-    if (row.messageId === null) {
-      out.push(row);
-      continue;
-    }
-    const scrubberKey = row.generationId ?? row.messageId;
-    const scrubber = scrubbers.getOrInsertComputed(scrubberKey, () => createHiddenSpanStreamScrubber());
-    const safe = scrubber.push(row.delta);
-    if (safe.length > 0) {
-      out.push({ ...row, delta: safe });
-    }
-  }
-  return out;
 }
 
 /** The member projection of the DURABLE chat-bus-log replay (`replayChatEvents`), §3.6. Unlike the per-event

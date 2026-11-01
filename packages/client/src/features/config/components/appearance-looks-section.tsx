@@ -71,7 +71,7 @@ interface EditorSession {
 /** A not-yet-existing theme, shaped as the entity the editor seeds from. */
 function draftFromValues(id: Theme["id"], values: ThemeFormValues): Theme {
   const input = themeInputFromForm(values);
-  return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, isDefault: false, createdAt: 0, updatedAt: 0 };
+  return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, isDefault: false };
 }
 
 /** The exported file's shape — the row's own bytes, so an export→import round-trip is identity. */

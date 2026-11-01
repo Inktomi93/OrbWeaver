@@ -35,6 +35,6 @@ export function createCreateBook(ctx: WorldInfoContext): WorldInfoService["creat
     );
 
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
-    return { id: bookId, name: input.name, description, createdAt: at };
+    return { id: bookId, name: input.name, description };
   };
 }

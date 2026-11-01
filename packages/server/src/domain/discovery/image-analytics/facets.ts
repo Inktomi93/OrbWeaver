@@ -166,8 +166,6 @@ async function charactersByImageFacet(db: Db, ownerId: UserId, facet: ImageFacet
     characterId: r.characterId,
     name: r.name,
     avatarHash: r.avatarHash,
-    rating: metaStr(r.captionMeta, "rating"),
-    artStyle: metaStr(r.captionMeta, "artStyle"),
     caption: r.caption,
   }));
 }

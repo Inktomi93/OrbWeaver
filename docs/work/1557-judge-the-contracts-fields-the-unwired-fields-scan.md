@@ -179,7 +179,6 @@ plan: unwired-code
 | `inspectedChatSchema.startedAt` | `contracts/src/debug/index.ts:77` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `inspectedChatSchema.parentChatId` | `contracts/src/debug/index.ts:78` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `inspectedChatSchema.forkedAt` | `contracts/src/debug/index.ts:79` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
-| `inspectedChatSchema.streamSeq` | `contracts/src/debug/index.ts:80` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `inspectedChatSchema.createdAt` | `contracts/src/debug/index.ts:81` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `inspectedChatSchema.updatedAt` | `contracts/src/debug/index.ts:82` | never-read | unknown | nothing reads this type's fields by name, so its value is handed on whole: find the slot it flows into, then derive that slot from this type or delete the unread fields |
 | `inspectedEventSchema.id` | `contracts/src/debug/index.ts:87` | unreferenced | delete | delete the key |
@@ -204,7 +203,22 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Not started. Judging method learned on 1556, for the lane that takes this item after the scanner links structurally equivalent twin types:
+Partly applied against the fresh fields report (`fields-tsapi.json`, 128 rows in `chat`, `credentials`, `databank`, `debug`, `diagnostics`). The table above is stale: 63 of its 178 rows are absent from the fresh report. 61 of those members are still in their files, so the TypeScript-API engine counts them read or twinned (for example the `assembleTraceSchema` and `shapeTraceSchema` keys, `chatReasoningPartSchema.meta`, the `chatInspectionFields` and `wireCapture*` keys, `healthResponseSchema`); 2 members are gone. None of the 63 was touched. The item stays open for the rows still reported.
+
+| Decision | Rows |
+| - | - |
+| Deleted (11) | `MemoryRecallCandidate.score`, `MemoryRecallSlice.ms`, `AssembleContext.recentMessages`, `HandoffCardCopy.minted`, `MemoryDigestInput.lens`, `StoreSegmentParams.lens`, `SpeakerRef.kind`, `MessageKindPolicy.reading`, `ChatIdentityKindPolicy.macro`, `RegexTierRowView.position`, `TeachingContribution.id` |
+| Kept, product intent for the owner | `ChatSummaryFields.viewerLastTurnAt` and `createdAt` (Home resume is documented but unwired); `nextTurnConnectionViewSchema` provider and model fields (member-visible connection never rendered); `TurnOrigin.initiator`; `MessageReactionGroup.emojiImageAssetId` (type note says custom emoji is unwired by design); `GatherTurnContextArgs.pendingUserText` and `respondsToLatestUserTurn` (rpg gather ignores them, a possible defect); `credentialHealthSchema.checkedAt`; `ingestRunResultSchema.failed.*`; `databankSettingsSchema.retrieval` (stored retrieval knobs nothing applies) |
+| Kept, a test is the only reader | `ContextFitPreview.droppedCount` (managed-compaction suites and an e2e spec), `assembleTraceSchema.worldInfoDropped` and `matchedKeys.matchedLatestUserMessage` (world-info suites). Deleting them drops the oracle for the fit and keyword paths, so they wait for an owner call |
+| Kept, discriminant or empty-type result | `ContextFitUnbound.unbound` (the union tag); `ForkGameResult.cloned`, `ReindexResult.workloadId` (t=4), `BulkImportChatsResult` tallies (state counters need their own pass) |
+| Kept, handed on whole to an external reader | `namedProviderMetadataSchema.*`, `pluginProviderMetadataSchema.raw` (plugin surface), `ChatDetail.*`, `redeemInviteResultSchema.participant`, `createInviteResultSchema.invite` (78 test refs), `inviteViewSchema.*`, `ParticipantView.joinedAt`, `MemberCardView.avatarAssetId`, `StartChatResult.chat`, `ChatListPage.items` (router override twins, wire per the plan table, not done) |
+| Kept, never-written input keys | `chatInjectionInputSchema.order`, `groupConfigInputSchema.cardScope`, `guidedSteerSchema.placement`, `messageContentBlockSchema.css`, `startChatSchema.opening` and `injections`, `listDocumentsInputSchema.origin` and `cursor`, `clientErrorReportSchema.requestId` (a deleted key strips silently, so each needs its outside writer named first) |
+| Kept, debug inspector output | `inspectedParticipantSchema`, `inspectedMessageSchema`, `inspectedChatSchema`, `inspectedEventSchema` (HTTP debug JSON read by a person) |
+| Not yet judged | `MemoryRecallCandidate` siblings, `ChatMetadata.databankVisibility`, `ViewerVisibility.role`, `RegexTierRowView` siblings, `EffectiveRegexEntry.scriptId` and `runsAt`, `characterMemberSpecSchema.kind`, `ActionTemplatesPreview.identity.char`, `ChatSeatPortrait`, `HandoffCardCopy` siblings, `messageWindowSchema.endMessageId` (a contract test pins the correlated variants), `ChatDetail` fields, `ChatLineageView.chain` (router override twin) |
+
+Floor: typecheck on server, router, contracts, client, inference, tooling, tests-dom, node and tests-iso; 24 suites; the corpus republished (only `PersonaDetail.createdAt` appears in it; `aiBubble` moved on main's seed).
+
+Judging method learned on 1556, for the lane that takes this item after the scanner links structurally equivalent twin types:
 
 1. A field in a CEL fact or env, in stored rule JSON, in a card-spec schema, or in a schema parsed then handed on whole stays, with the handoff site as its reader.
 2. A field read only by test files goes on the handed-off list with its readers.

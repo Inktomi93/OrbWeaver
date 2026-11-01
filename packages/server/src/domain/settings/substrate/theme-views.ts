@@ -26,7 +26,5 @@ export function toThemeView(row: ThemeRow): Theme {
     css: row.css,
     isSeed: row.ownerId === null,
     isDefault: row.id === THEME_HEARTH_ID,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
   };
 }

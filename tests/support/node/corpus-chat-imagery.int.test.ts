@@ -67,20 +67,15 @@ test("native chat lifecycle preserves imported canon, exact reactions/spend/refu
   ]);
   expect(result.compacted.canon.messages.map((message) => message.role)).toEqual(["user"]);
   expect(result.held.during?.locks.map((row) => row.chatId)).toEqual([result.held.room.chat.id]);
-  expect(result.held.during?.stream).toEqual([]);
   expect(result.held.foreignRefusal).toBe(CHAT_OP_CODES.notTurnOwner);
   expect(result.held.turn.aborted).toBe(false);
   expect(result.held.completed.locks).toEqual([]);
-  expect(result.held.stream.map((row) => row.delta).join("")).toBe(CORPUS_CHAT_REPLY);
-  expect(result.held.completed.stream.map((row) => row.delta).join("")).toBe(CORPUS_CHAT_REPLY);
   const assistant = result.held.turn.messages.find((message) => message.role === "assistant");
-  expect(result.held.completed.stream.every((row) => row.messageId === assistant?.id && row.generationId !== null)).toBe(true);
   expect(result.held.events.some((row) => row.event.type === "turnCompleted" && row.event.messageId === assistant?.id)).toBe(true);
   expect(result.aborted.during?.locks.map((row) => row.chatId)).toEqual([result.aborted.room.chat.id]);
   expect(result.aborted.foreignRefusal).toBe(CHAT_OP_CODES.notTurnOwner);
   expect(result.aborted.turn).toMatchObject({ aborted: true, abortReason: "user" });
   expect(result.aborted.completed.locks).toEqual([]);
-  expect(result.aborted.stream).toEqual([]);
   expect(result.aborted.canon.messages.map((message) => message.role)).toEqual(["user"]);
   expect(result.handoff.submitted.messages.map((message) => [message.role, message.authorUserId])).toEqual([["user", actors.secondUserId]]);
   expect(result.handoff.deferred.locks).toEqual([]);
@@ -91,7 +86,6 @@ test("native chat lifecycle preserves imported canon, exact reactions/spend/refu
   expect(result.handoff.drainRepeated).toEqual({ ran: 0, dropped: 0 });
   expect(result.handoff.completed.pending).toEqual([]);
   expect(result.handoff.completed.locks).toEqual([]);
-  expect(result.handoff.completed.stream.map((row) => row.delta).join("")).toBe(CORPUS_CHAT_REPLY);
   expect(result.handoff.marker).toMatchObject({
     chatId: result.handoff.room.chat.id,
     acceptedByUserId: actors.secondUserId,

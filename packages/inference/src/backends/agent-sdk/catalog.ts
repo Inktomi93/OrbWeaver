@@ -85,9 +85,7 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
     }
   }
 }
-async function reduceVerifyStream(
-  stream: Query,
-): Promise<Pick<Extract<VerifyAuthResult, { readonly source: "max-pro-sub" }>, "apiKeySource" | "reply" | "ok" | "costUsd">> {
+async function reduceVerifyStream(stream: Query): Promise<Pick<VerifyAuthResult, "apiKeySource" | "reply" | "ok" | "costUsd">> {
   let apiKeySource = "unknown";
   let reply = "";
   let ok = false;
@@ -157,5 +155,5 @@ export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDep
   }
   const { apiKeySource, reply, ok, costUsd } = result;
   const account = await probeAccountInfo(stream, deps);
-  return { source: "max-pro-sub", ok, apiKeySource, model: connection.model, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };
+  return { ok, apiKeySource, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };
 }

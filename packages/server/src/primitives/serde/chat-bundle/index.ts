@@ -30,7 +30,7 @@
 //     USERS who do not exist on the target box. A restore seats the importer as host, alone.
 //   • `temporary` — an ephemeral room with a TTL over `createdAt`; restoring one would resurrect a room its
 //     own sweeper already decided to reap.
-//   • `chat_events` / `chat_stream_events` / `pending_turns` / `chat_locks` — RUNTIME.
+//   • `chat_events` / `pending_turns` / `chat_locks` — RUNTIME.
 //   • `rpg_games.gmUserId` / `gmPresetId` — a cross-box user seat and a preset id that is not preserved.
 //     Both are nullable and their NULL is a real state (seatless / augment-your-own-preset), so dropping
 //     them lands a legal game rather than a dangling FK.

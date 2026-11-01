@@ -94,8 +94,6 @@ export const uploadCapsSchema = z
     image: z.number(),
     /** A single databank source document. */
     databankUpload: z.number(),
-    /** The per-request cap for an in-memory import: a bare card or a chat file. */
-    importTotal: z.number(),
     /** The backup ZIP cap. */
     importBundle: z.number(),
     /** The folder-import caps: one upload's total bytes, one file's bytes, and one upload's file count. The
@@ -114,7 +112,6 @@ export const DEFAULT_UPLOAD_CAPS: UploadCaps = {
   assetUpload: ASSET_UPLOAD_MAX_BYTES,
   image: ASSET_UPLOAD_MAX_BYTES,
   databankUpload: DATABANK_UPLOAD_MAX_BYTES,
-  importTotal: IMPORT_MAX_TOTAL_BYTES,
   importBundle: IMPORT_BUNDLE_MAX_BYTES,
   importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
   importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
@@ -139,7 +136,6 @@ export function resolveUploadCaps(overrides: EffectiveUploadOverrides): UploadCa
     assetUpload: ASSET_UPLOAD_MAX_BYTES,
     image: Math.min(ASSET_UPLOAD_MAX_BYTES, overrides.maxImageBytes),
     databankUpload: Math.min(DATABANK_UPLOAD_MAX_BYTES, overrides.maxDatabankBytes),
-    importTotal: IMPORT_MAX_TOTAL_BYTES,
     importBundle: IMPORT_BUNDLE_MAX_BYTES,
     importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
     importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,

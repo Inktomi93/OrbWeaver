@@ -8,7 +8,6 @@ import type { DocumentId, UserId } from "@orb/kit/ids";
  *  (its width is the owner's generation's); the `fkRefs` locate the chunk in its producer document. No `hubScore`
  *  (discovery-only). Unique key: `(documentId, chunkIdx, model)`. */
 export interface DocumentChunkStoreInput {
-  readonly kind: "document";
   readonly lens: "chunk";
   readonly ownerId: UserId;
   readonly content: string;

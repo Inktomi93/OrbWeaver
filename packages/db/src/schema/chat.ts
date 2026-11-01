@@ -1,7 +1,7 @@
 // schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). The retained chat tables:
 // chats · messages · message_variants · message_assets · message_reactions · chat_participants ·
 // chat_invites · pending_turns · chat_events ·
-// chat_stream_events · chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
+// chat_injections · chat_locks · chat_import_claims · chat_handoff_resumptions ·
 // compaction_spend · chat_generation_observations. Built
 // WHOLE (no feature-phasing — ledger D16); the authoritative spec is `docs/law/Tier-1-DB.md`.
 //
@@ -29,7 +29,7 @@
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
 // `chat_events.type` derives the DURABLE `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys minus
 // `LIVE_ONLY_CHAT_EVENT_TYPES` — the live-only lane is never appended, contracts/chat/bus.ts §3.4); the
-// `chat_injections.position` + `chat_stream_events.kind` tuples are tied to the contract wire types
+// `chat_injections.position` tuple is tied to the contract wire types
 // (`satisfies`) — compile-time validity + a test-mirror over each column's `.enumValues`. Every CHECK is
 // built from the SAME tuple as a static raw fragment (a CHECK is DDL — no bound parameters).
 //
@@ -42,7 +42,6 @@
 import type {
   AssembledPrompt,
   ChatBusEvent,
-  ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
   ChatReasoningPart,
@@ -85,8 +84,6 @@ import type {
   ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
-  ChatStreamEventId,
-  ChatStreamGenerationId,
   ChatTurnId,
   CompactionSpendId,
   MessageAssetId,
@@ -202,9 +199,6 @@ export const chats = sqliteTable(
     // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
     // the assembly env seed overlays THIS over the resolved config picks. Typed JSON; nullable (nothing folded yet).
     runtimeVariables: text("runtime_variables", { mode: "json" }).$type<Record<string, string>>(),
-    // Monotonic replay cursor head. Stream-row cascades never rewind it; the writer advances it in the
-    // same transaction as each appended row, so competing writers serialize on this DB-owned value.
-    streamSeq: integer("stream_seq").notNull().default(0),
     // The standalone (out-of-turn) runtime-variable delta log — an
     // `applyVariableOps` call with no turn in flight appends a seq-stamped batch here; every runtime-cache
     // fold reads it alongside the per-variant message deltas. Nullable JSON (no standalone delta yet).
@@ -961,59 +955,6 @@ export const chatEvents = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex("chat_events_chat_seq_unique").on(t.chatId, t.seq), check("chat_events_type_check", sql.raw(`type in (${checkList(CHAT_EVENT_TYPES)})`))],
-);
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_stream_events — the RESUMABLE SSE token log. Each row is one
-// streamed delta; `seq` is the resume cursor (`replayStreamEvents`/`streamEventBounds`). `kind` mirrors the
-// `ChatDeltaEvent` discriminant (text | reasoning) — tied to the contract wire type via `satisfies`.
-//
-// The production writer lives in `domain/chat/persistence/stream-events.ts`. Generation commit appends
-// its statements after the canon message statements in the same ordered database batch. Each row mints
-// its own `ChatStreamEventId`; both reference arms are derived through the one server-trusted message
-// root, and a missing or cross-chat root makes the whole batch fail before a stream row can persist.
-//
-// `loadStreamReplay`/`loadStreamBounds` (`domain/chat/persistence/queries.ts`) back the
-// `replayStreamEvents`/`streamEventBounds` verbs (`domain/chat/verbs/read.ts`), including the D16
-// join-history-floor clamp against this table. Historical nullable message rows remain readable below
-// the clamp; the canonical generation writer always anchors new rows to the committed canon slot.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-// The stream-delta kind tuple — tied to the contract `ChatDeltaEvent["kind"]` (compile-time validity; a
-// new delta kind fails this `satisfies` until the column learns it). No `z`-schema home exists for a
-// runtime mirror, so the test asserts the column's `.enumValues` equals this tuple.
-const STREAM_DELTA_KINDS = ["text", "reasoning"] as const satisfies readonly ChatDeltaEvent["kind"][];
-
-export const chatStreamEvents = sqliteTable(
-  "chat_stream_events",
-  {
-    id: text("id").$type<ChatStreamEventId>().primaryKey(),
-    chatId: text("chat_id")
-      .$type<ChatId>()
-      .notNull()
-      .references(() => chats.id, { onDelete: "cascade" }),
-    // The message being streamed (nullable: a turn-level delta may precede the committed slot). CASCADE.
-    messageId: text("message_id")
-      .$type<MessageId>()
-      .references(() => messages.id, { onDelete: "cascade" }),
-    // One provider generation, distinct from the message slot (swipe/continue reuse a slot). Nullable only
-    // for pre-writer historical/control rows; the canonical append writer always stamps it.
-    generationId: text("generation_id").$type<ChatStreamGenerationId>(),
-    // Per-chat resume cursor (`lastEventId`). UNIQUE per chat.
-    seq: integer("seq").notNull(),
-    // text | reasoning — derives STREAM_DELTA_KINDS (tied to ChatDeltaEvent).
-    kind: text("kind", { enum: STREAM_DELTA_KINDS }).notNull(),
-    // The streamed chunk text.
-    delta: text("delta").notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-  },
-  (t) => [
-    uniqueIndex("chat_stream_events_chat_seq_unique").on(t.chatId, t.seq),
-    // The message CASCADE parent + the `loadStreamEvents` innerJoin on `messages.id` (queries.ts) — both
-    // scan without it, and SQLite auto-indexes no child FK (FK-index test).
-    index("chat_stream_events_message_idx").on(t.messageId),
-    check("chat_stream_events_kind_check", sql.raw(`kind in (${checkList(STREAM_DELTA_KINDS)})`)),
-  ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

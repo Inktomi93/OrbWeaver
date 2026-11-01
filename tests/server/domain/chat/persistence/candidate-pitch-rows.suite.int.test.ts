@@ -31,7 +31,7 @@ test("the real owned distillation writer supplies the native candidate pitch", a
     funderUserId: room.h.owner.userId,
     characterId: bryn.id,
   });
-  expect(distilled.result).toMatchObject({ distilled: 1, failed: 0 });
+  expect(distilled.result).toMatchObject({ distilled: 1 });
   expect(distilled.summaries).toMatchObject([{ characterId: bryn.id, elevatorPitch: "The caravan's guide." }]);
   expect(
     await room.h.root.db

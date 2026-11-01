@@ -185,15 +185,14 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
           ctx,
         );
         if (claimed) {
-          return [{ sourceCharacterId: source.id, characterId: newId, minted: true }];
+          return [{ sourceCharacterId: source.id, characterId: newId }];
         }
         // A concurrent accept of the same offer won this key. Converge on THEIR copy — the identical answer
-        // the sequential re-accept path gives, and the reason `minted` exists (audit trail, not control
-        // flow). A key claimed by a row we can no longer read is not reachable: the claim is per-OWNER and
+        // the sequential re-accept path gives. A key claimed by a row we can no longer read is not reachable: the claim is per-OWNER and
         // this owner is the recipient, so the winner's row is theirs; a deletion in that instant drops the
         // seat to the caller's D64 fallback, exactly like a source card deleted between nominate and accept.
         const [winner] = await findByOwnerImportedFrom(db, toOwnerId, [provenance]);
-        return winner === undefined ? [] : [{ sourceCharacterId: source.id, characterId: winner.characterId, minted: false }];
+        return winner === undefined ? [] : [{ sourceCharacterId: source.id, characterId: winner.characterId }];
       }),
     );
 

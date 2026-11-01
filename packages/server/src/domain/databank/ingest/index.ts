@@ -105,7 +105,6 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
       return { chunksUpserted, chunksNoop, chunksPruned: 0 };
     }
     const stored = await ctx.embeddingsStore({
-      kind: "document",
       lens: "chunk",
       ownerId: doc.ownerId,
       content: chunk.content,

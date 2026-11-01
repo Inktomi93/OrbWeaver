@@ -210,4 +210,29 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Judged from `reports/unwired/fields-tsapi.json` (`unwired`), not the stale table above. A row of the table that the fresh report no longer lists is not re-judged: the structural scan dropped it.
+
+Deleted, with the writers:
+
+- `ProseSlotDef.id` and `ProseSlotDef.macros`: the slot tables in `packages/contracts/src/*/prose.ts` and `imagery/index.ts`, `PROSE_MACRO_MODES`. The preset storage test reads the id from the registry key.
+- `ProseResolution.source` and `ProseResolution.stale`: `resolveProseFrom`. `proseFooterState` derives its own staleness.
+- `PresetDetail.schemaVersion`: `toPresetDetail`, the testkit factory and the contract test.
+- `embedResultSchema.usage`, `imageEmbedResultSchema.usage`, `rerankResultSchema.model` and `.usage`, `summarizeResultSchema.model`: the Google, OpenAI-compatible, local-light and side-gen writers. Token accounting still flows through `recordBatch`.
+- `generationCostSchema.tokensPrompt` and `.tokensCompletion`, `verifyAuthAccountSchema.apiProvider`, `verifyAuthResultSchema.source` and `.model`.
+
+Kept, with the reader:
+
+- `PortableEnvelope.schemaKind` and `.schemaVersion`: written by `envelopeOf` into every native file and read by string key in `packages/server/src/primitives/serde/lib/index.ts` (`raw["schemaKind"]`, the version walk). The on-disk format.
+- `PortableEntity.ext`: read only by `tests/client/data/import-tree-plan.int.test.ts`. Owner call below.
+- `RewriteToggle.slot` and `GreetingTransform.slot`: read through the structural `SteerCatalogEntry.slot` in `resolveSteerFragments` (`packages/contracts/src/prose/index.ts`). Prompt assembly.
+- `EffectivePreset.presetId`: read by `tests/support/iso/corpus-library-relations.ts`, a testkit helper.
+- The `userIntentSchema` knobs, `guidedActionConfigSchema.depth`, `templatedMarkerSection.forbidRoomOverride`, `choiceBlockSchema.defaultValue`, `promptConfigSchema.namesBehavior` and `.continuePostfix`: the report samples name the client editors that write them (`params-deck.tsx`, `params-limits.tsx`, `response-replay-controls.tsx`, `preset-editor-model.ts`, `template-drill-in.tsx`, `section-row.tsx`, `macro-picks-section.tsx`). Writers were taken from the report samples and not re-derived key by key.
+- `userMacroArgSchema.description`: mirrors `MacroArgDef.description` in `packages/kit/src/macro/types.ts`, which is outside this item.
+- `stPromptSchema.system_prompt`, `.marker`, `stPresetSchema.prompt_order.character_id`: SillyTavern foreign-format schema.
+- `subscriptionErrorFrameSchema.__subscriptionError`: read with the `in` operator in `use-orb-socket.ts`, `use-guided-actions.ts` and `tooling/src/wire-tap/ops/sse.ts`. `okResultSchema.ok` is the acknowledgement.
+- All rows under Plugin API: published surface. The host-only views in `plugin/view.ts`, `bridge.ts`, `frame.ts` and `index.ts` are not proven unreachable by guests.
+
+Verification: `pnpm typecheck` on the contracts, inference, server, client, node and tests-dom programs, the targeted suites and the corpus republish named in the commit.
+
+Owner call: `PortableEntity.ext` has only `tests/client/data/import-tree-plan.int.test.ts` as a reader. Delete it and derive the test file names from the exports, or keep it as the descriptor contract.
+

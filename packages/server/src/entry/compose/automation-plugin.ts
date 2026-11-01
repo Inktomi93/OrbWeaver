@@ -59,7 +59,7 @@ import { createPluginDocumentSearch } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
-import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
+import type { DrivableToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginWorldInfoReads } from "#domain/world-info";
 import type { ScopedEgress } from "#infra/network";
@@ -114,7 +114,7 @@ export interface AutomationPluginComposeDeps {
    *  neither automation nor the membrane may reach `register` (compose-time, first-party only). */
   readonly toolUse: Pick<
     ToolUseService,
-    "registerPluginTool" | "isToolDrivableBy" | "resolveTools" | "executeToolCalls" | "listDrivableToolNames" | "toToolDefinitions"
+    "registerPluginTool" | "isToolDrivableBy" | "resolveDrivableTools" | "executeToolCalls" | "listDrivableToolNames" | "toToolDefinitions"
   >;
   /** The plugin fan-out's RECIPIENT enumeration (D147 clause (d)), and nothing else — a `Pick` of exactly the
    *  one admin read, because `admin` is the only sanctioned reader of `users` and a distribution needs to know
@@ -189,7 +189,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const { service: chat } = chatCompose;
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
-  const automationRuntime = createAutomationRuntimeOps<ResolvedToolSet>({
+  const automationRuntime = createAutomationRuntimeOps<DrivableToolSet>({
     resolveOwnerPrincipal,
     requestTurn: (params) => chatCompose.requestTurn(params),
     postNarratorMessage: (chatId, content, media, options) => chatCompose.rpgChatOps.postNarratorMessage(chatId, content, media, options),

@@ -1045,6 +1045,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     pluginMacros: pluginMacros.resolveForTurn,
     emitChatEvent,
     emitChatEventChecked,
+    openChatTurns: chatBus.openTurns,
     prepareChatCreationEvent,
     emitChatEventLive,
     holder: deps.holder ?? "replica-default",

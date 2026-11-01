@@ -35,7 +35,9 @@ test("adapted format and compaction defaults stay out of prose storage", () => {
 });
 
 test("preset prose storage and Templates rows agree in both directions", () => {
-  const storedSlots = Object.values(PROSE_SLOTS).filter((slot) => isPresetProseSlotId(slot.id));
+  const storedSlots = Object.entries(PROSE_SLOTS)
+    .filter(([id]) => isPresetProseSlotId(id))
+    .map(([id, slot]) => ({ id, home: slot.home }));
   const proseRows = TEMPLATE_DEFS.filter((def) => isProseSlotId(def.id));
   expect(storedSlots.map((slot) => slot.id).toSorted()).toEqual(proseRows.map((def) => def.id).toSorted());
   expect(storedSlots.map((slot) => slot.home)).toEqual(storedSlots.map(() => "preset"));

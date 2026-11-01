@@ -9,7 +9,7 @@
 //     branded ids, enum literals, plain scalars, and `MessageView` — credentials/secrets/baseUrls are
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import type { AdjustedKnob } from "./adjusted-knobs.ts";
@@ -462,9 +462,10 @@ export type ChatBusEvent =
   //   • a string    ⇒ exactly the bytes a member may see this tick; `""` ⇒ withhold the whole row.
   // It is free text, but never UNANCHORED free text: it rides the same member as `slotSeq`, so the D16
   // clamp (`substrate/auth::isBelowHistoryFloor`) covers it exactly as it covers `delta`.
-  | { type: "delta"; chatId: ChatId; slotSeq: number; delta: ChatDeltaEvent; memberText?: string | null }
+  | { type: "delta"; chatId: ChatId; turnId: ChatTurnId; slotSeq: number; delta: ChatDeltaEvent; memberText?: string | null }
   // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
-  | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  // `turnId` is the generating turn, absent on a row no turn wrote.
+  | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView; turnId?: ChatTurnId }
   | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   // A slot's `excludedFromPrompt` flag flipped (hidden from assembly / restored) — a pure slot-flag change,
   // no content edit; the fresh view carries the flag (the dedicated carrier, not `messageEdited`).
@@ -491,10 +492,16 @@ export type ChatBusEvent =
   // arbitration, and `turnCompleted`(messageId:null) when arbitration yields no eligible speaker; an auxiliary
   // turn emits `turnAborted` when its resolve/validation throws; and for EVERY accepted turn the engine's
   // PRE-START refusals (lock contention · consent · budget · a missing persist target) emit `turnAborted` too
-  // (`TurnPrep.slotAccepted` — the engine is the only party that knows `turnStarted` never fired).
+  // (`TurnPrep.acceptedTurnId` — the engine is the only party that knows `turnStarted` never fired).
+  //
+  // `turnId` NAMES THE TURN. Turns are not sequential per chat: a `generate` runs beside a locked send, and a send
+  // refused by the lock still accepts, commits its user row and aborts while the first turn streams. Every member
+  // of a turn's lifecycle carries the id its acceptance minted, so a terminal closes that turn and no other. A
+  // round's speakers share their acceptance's id, one after another.
   | {
       type: "turnAccepted";
       chatId: ChatId;
+      turnId: ChatTurnId;
       intent: TurnIntent;
       /** Null on accept — the group arbitration that resolves the speaker has not run yet; `turnStarted`
        *  carries the resolved speaker once it does. */
@@ -505,6 +512,7 @@ export type ChatBusEvent =
   | {
       type: "turnStarted";
       chatId: ChatId;
+      turnId: ChatTurnId;
       intent: TurnIntent;
       api: ChatApi | null;
       /** The provider REGISTRY id the turn resolved to (inference program §5.3c) — the source axis is retired. */
@@ -516,14 +524,14 @@ export type ChatBusEvent =
       /** For swipe/continue, the message this turn rerolls/extends (the ghost-slot id). Null otherwise. */
       targetMessageId: MessageId | null;
     }
-  | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
+  | { type: "turnCompleted"; chatId: ChatId; turnId: ChatTurnId; intent: TurnIntent; messageId: MessageId | null }
   // An aborted turn commits NO reply slot, so its cascade depth cannot be read back
   // through `getTurnOrigin` (there is no message to read). It therefore rides HERE as a plain scalar so the
   // automation fact-resolver can gate the cascade: an aborted automation turn (depth ≥ 1) must NOT re-trigger
   // non-opted `turnAborted` rules — a "retry on failure" rule at depth 0 self-loops otherwise. This is turn-
   // path DEPTH, not attribution: no caller id, no secret (the allowlist bans those, not a counter). 0 = a
   // human-plane turn (the `TurnPrep.automationDepth` default).
-  | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason; automationDepth: number }
+  | { type: "turnAborted"; chatId: ChatId; turnId: ChatTurnId; intent: TurnIntent; reason: TurnAbortReason; automationDepth: number }
   // ── Pre-provider MEMORY RECALL phase (the header brain-icon's live feed; #313) ──────────────
   // The one signal that surfaces the `{{memory}}` recall WINDOW to a viewer: `phase:"recalling"` the instant
   // recall starts for a turn (memory on), `phase:"recalled"` with the surfaced `count` once it closes. Stamped
@@ -609,7 +617,9 @@ export type ChatBusEvent =
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
   //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
   //    open, set POV / run setup") ──
-  | { type: "chatOpened"; chatId: ChatId }
+  // `openTurnIds` is the room's turns in flight as of this attach, when the room stamps them. A device closes any
+  // live slot outside the set: the process that ran that turn is gone, and no terminal will ever arrive.
+  | { type: "chatOpened"; chatId: ChatId; openTurnIds?: readonly ChatTurnId[] }
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (starred/archive/title/variables/injections/compact) ──
