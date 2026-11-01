@@ -4,6 +4,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import type { CustomPropertyUses } from "../css-names/index.ts";
 import { PROPERTY_READ } from "../css-names/index.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -30,14 +31,14 @@ function textFindings(text: string, { declared, read, readPrefixes }: CustomProp
 function styleCallProperty(node: TSESTree.CallExpression): string | undefined {
   const callee = node.callee as TSESTree.MemberExpression;
   const [first] = node.arguments;
-  if (callee.property.type !== "Identifier" || !STYLE_CALLS.has(callee.property.name)) {
+  if (callee.property.type !== AST_NODE_TYPES.Identifier || !STYLE_CALLS.has(callee.property.name)) {
     return undefined;
   }
-  if (first?.type === "Literal" && typeof first.value === "string") {
+  if (first?.type === AST_NODE_TYPES.Literal && typeof first.value === "string") {
     return first.value;
   }
   // A template literal with no interpolation is a plain string.
-  return first?.type === "TemplateLiteral" && first.expressions.length === 0 ? (first.quasis[0]?.value.cooked ?? undefined) : undefined;
+  return first?.type === AST_NODE_TYPES.TemplateLiteral && first.expressions.length === 0 ? (first.quasis[0]?.value.cooked ?? undefined) : undefined;
 }
 
 /** Build the rule over the sheets' and sources' uses (`customPropertyUses`), the one home Stylelint reads too. */

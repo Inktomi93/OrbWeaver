@@ -13,6 +13,7 @@ import type { ThemeEntry } from "../../floor/appearance/theme.ts";
 import { MOBILE_DEVICE } from "../../floor/browser/browser-environment.ts";
 import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { VariantAssignment, VariantAxis, VariantMatrixPlan, VariantRequiredRow, VariantRequiredTwin } from "../../floor/variant-matrix/variant-matrix.ts";
 import { planVariantMatrix, variantArtifactId } from "../../floor/variant-matrix/variant-matrix.ts";
 import type { SnapAppearanceContract, SnapAppearanceMatrix, SnapMatrixVariant } from "../contract/matrix.ts";
@@ -237,12 +238,12 @@ function isThemeEntry(value: unknown): value is ThemeEntry {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
-  const id = Reflect.get(value, "id");
-  const name = Reflect.get(value, "name");
-  const isSeed = Reflect.get(value, "isSeed");
-  const background = Reflect.get(value, "background");
-  const polarity = Reflect.get(value, "polarity");
-  const hasCustomCss = Reflect.get(value, "hasCustomCss");
+  const id = readMember(value, "id");
+  const name = readMember(value, "name");
+  const isSeed = readMember(value, "isSeed");
+  const background = readMember(value, "background");
+  const polarity = readMember(value, "polarity");
+  const hasCustomCss = readMember(value, "hasCustomCss");
   return (
     typeof id === "string" &&
     typeof name === "string" &&

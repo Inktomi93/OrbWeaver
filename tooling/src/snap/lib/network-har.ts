@@ -12,6 +12,7 @@ import type {
 } from "../../floor/browser/browser-contract.ts";
 import { browserEvidenceRetentionBatchSchema, retentionBatch } from "../../floor/browser/browser-evidence-ring.ts";
 import { networkRecordsForPages, networkRetentionForPages } from "../../floor/browser/browser-network.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { NetworkBodyInput, NetworkCookieInput, RawNetworkEvidence } from "../contract/har-redaction.ts";
 import { redactNetworkEvidence } from "./har-redaction.ts";
 import type { NetworkHarWriteReceipt } from "./network-har-receipt.ts";
@@ -43,7 +44,7 @@ function responseFor(record: BrowserNetworkRecord): BrowserNetworkResponse {
 }
 
 function field(value: unknown, key: string): unknown {
-  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+  return typeof value === "object" && value !== null ? readMember(value, key) : undefined;
 }
 
 function text(value: unknown, key: string, fallback = ""): string {

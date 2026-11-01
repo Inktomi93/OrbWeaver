@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { reportsPath } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
@@ -19,7 +20,7 @@ function isMissingPath(error: unknown): boolean {
   if (typeof error !== "object" || error === null) {
     return false;
   }
-  const code = Reflect.get(error, "code");
+  const code = readMember(error, "code");
   return code === "ENOENT" || code === "ENOTDIR";
 }
 

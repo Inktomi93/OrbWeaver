@@ -78,7 +78,7 @@ async function runLocatedStep(
   if (step.kind === "jsclick") {
     await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
     await loc.evaluate((element) => {
-      const click = Reflect.get(element, "click");
+      const click: unknown = Reflect.get(element, "click");
       if (typeof click !== "function") {
         throw new Error("target has no DOM click method");
       }
