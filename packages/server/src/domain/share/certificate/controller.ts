@@ -68,7 +68,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
   async function settle(): Promise<void> {
     const results = await Promise.allSettled([...pending]);
     await ordering;
-    const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+    const failures = results.filter((result) => result.status === "rejected").map((result): unknown => result.reason);
     if (failures.length > 0) {
       throw new AggregateError(failures, "certificate controller settlement failed");
     }
@@ -358,7 +358,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
         const stopped = halt();
         status = { state: "off" };
         const results = await Promise.allSettled([stopped, settle()]);
-        const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+        const failures = results.filter((result) => result.status === "rejected").map((result): unknown => result.reason);
         if (failures.length > 0) {
           throw new AggregateError(failures, "certificate controller disposal failed");
         }

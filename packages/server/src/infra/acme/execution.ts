@@ -85,7 +85,7 @@ export function createOwnedAcmeIssuer(options: Pick<AcmeIssuerDeps, "directoryUr
       disposal ??= (async (): Promise<void> => {
         cancel();
         const results = await Promise.allSettled([...pending, ...terminations]);
-        const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason);
+        const failures = results.filter((result) => result.status === "rejected").map((result): unknown => result.reason);
         if (failures.length > 0) {
           throw new AggregateError(failures, "native ACME execution disposal failed");
         }

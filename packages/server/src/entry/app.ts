@@ -320,7 +320,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   );
 
   // Resolve the ONE Principal per request + refresh a slid cookie session.
-  app.use("*", async (c, next) => {
+  app.use("*", async (c: Context<PrincipalEnv>, next) => {
     // The transport is resolved ONCE and handed to the seam, so the name the seam reads and the name the
     // slide re-issues under are the same by construction.
     const transport = requestTransport(c, trustedProxies);
