@@ -88,7 +88,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           sectionLabel={OPERATIONS_SUBCATEGORY.label}
           anyOverridden={autoindexOverridden || logLevelOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onReset={(): void => write({ corpusAutoindex: null, logLevel: null })}
         />
         {viewer.globalRole === "owner" ? <RestartServerControl /> : null}

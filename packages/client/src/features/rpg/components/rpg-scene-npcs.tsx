@@ -20,6 +20,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { Tip } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
@@ -254,7 +255,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
-          Cancel
+          {DIALOG_VERBS.cancel}
         </Button>
         <Button size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
           Promote

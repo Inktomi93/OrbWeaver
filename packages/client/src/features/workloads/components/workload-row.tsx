@@ -27,7 +27,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { timeLib } from "#lib";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import { useWorkloadStream } from "../hooks/use-workload-stream.ts";
 import { friendlyWorkloadError } from "../lib/workloads-failure-copy.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
@@ -123,12 +123,12 @@ function WorkloadRowBody({
             </Row>
             {active ? (
               <Button type="button" variant="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
-                Cancel
+                {DIALOG_VERBS.cancel}
               </Button>
             ) : null}
             {isRetryableWorkloadStatus(workload.status) ? (
               <Button type="button" variant="outline" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
-                Retry
+                {DIALOG_VERBS.retry}
               </Button>
             ) : null}
           </Row>

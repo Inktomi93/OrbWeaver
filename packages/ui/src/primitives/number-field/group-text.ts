@@ -26,7 +26,7 @@ function separatorsOf(locale: Intl.LocalesArgument): { readonly group: string; r
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 /** `text` with the locale's group separators removed. */
-export function stripGroupSeparators(text: string, locale: Intl.LocalesArgument): string {
+function stripGroupSeparators(text: string, locale: Intl.LocalesArgument): string {
   const { group, decimal } = separatorsOf(locale);
   if (group === "") {
     return text;

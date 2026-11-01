@@ -43,6 +43,7 @@ import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySe
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
+import { REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 
 interface ResolvedRow {
@@ -103,7 +104,7 @@ export function RefineryListSurface(): ReactElement {
     <ListPage
       body="bounded"
       ref={surfaceRef}
-      search={<Input aria-label="Search sessions by character or name" onValueChange={setSearch} placeholder="Search sessions…" value={search} />}
+      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setSearch} placeholder="Search sessions…" value={search} />}
       skipTo="Skip to sessions"
     >
       <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…">

@@ -48,6 +48,7 @@ test.for([
   ["a FormSubmitButton", '<FormDialog title="A"><FormSubmitButton label="Save" /></FormDialog>'],
   ["a DialogClose", '<ContentDialog title="A"><DialogClose render={<Button>Later</Button>} /></ContentDialog>'],
   ["a Cancel button", '<ContentDialog title="A"><Button>Cancel</Button></ContentDialog>'],
+  ["a Cancel button by shared verb", '<FormDialog title="A"><Button>{DIALOG_VERBS.cancel}</Button></FormDialog>'],
   ["forwarded props", "<ContentDialog {...props} />"],
   ["a mounted Body component that owns the footer", '<FormDialog title="A"><EditorBody onDone={f} /></FormDialog>'],
   ["a built-in dismiss", '<ConfirmDialog title="A" />'],

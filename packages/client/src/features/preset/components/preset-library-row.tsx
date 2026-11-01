@@ -81,7 +81,7 @@ export interface PresetLibraryRowProps {
   /** The row is the ACTIVE-for-generation preset (the built-in row ⇔ `defaultPresetId === null`). */
   readonly active: boolean;
   readonly onSelect: (id: PresetId) => void;
-  readonly onDelete: (id: PresetId) => void;
+  readonly onDelete: (id: PresetId) => Promise<void>;
   readonly onDuplicate: (id: PresetId) => void;
   /** Make THIS row the active-for-generation pick (§16 row 3 — the one `setDefault` mutation). */
   readonly onActivate: (id: PresetId) => void;
@@ -211,7 +211,7 @@ export function PresetLibraryRow({
               // (the regex list minted the omission). Nothing else about this row changes: Duplicate,
               // Delete and Export are lifecycle and stay list-side (O-16★).
               onDuplicate: (): void => onDuplicate(preset.id),
-              ...rowFocus.delete(preset.id, (): void => onDelete(preset.id)),
+              ...rowFocus.delete(preset.id, (): Promise<void> => onDelete(preset.id)),
               // G6: the single-preset export door. Its bytes are `buildPresetFile`'s — the same serde the
               // whole-profile bundle writes (the surface owns the download; this is just its home).
               menuItemsAfter: (

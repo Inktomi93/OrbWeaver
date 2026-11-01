@@ -7,6 +7,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { RowActionsMenu } from "#components";
 import { useReactionsEnabled } from "../hooks/use-message-reactions.ts";
+import { CHAT_DELETE_MESSAGE_TITLE } from "../lib/chat-surface-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { GenerationCreditGlyph } from "./generation-credit.tsx";
 
@@ -77,7 +78,7 @@ export function MessageActionsCluster({
         {...(menuTriggerRef === undefined ? {} : { triggerRef: menuTriggerRef })}
         {...(onDelete === undefined
           ? {}
-          : { destructive: { title: "Delete this message?", description: "This can't be undone.", confirmLabel: "Delete", onConfirm: onDelete } })}
+          : { destructive: { title: CHAT_DELETE_MESSAGE_TITLE, description: "This can't be undone.", confirmLabel: "Delete", onConfirm: onDelete } })}
       >
         {menuItems}
       </RowActionsMenu>

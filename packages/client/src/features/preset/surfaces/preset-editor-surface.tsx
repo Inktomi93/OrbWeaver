@@ -67,6 +67,7 @@ import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_EDITOR_NAME } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import type { ViewContentProps } from "../lib/preset-view-content.tsx";
 import { viewContent } from "../lib/preset-view-content.tsx";
@@ -108,7 +109,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
     // NAMED, for the reason the list surface's twin is (side-eye 2026-08-19 ARIA): `useFocusOnMount` lands
     // focus here on entry, and an unnamed role-less div announces nothing about where you just arrived.
     <Stack
-      aria-label="Preset editor"
+      aria-label={PRESET_EDITOR_NAME}
       ref={surfaceRef}
       role="region"
       tabIndex={-1}

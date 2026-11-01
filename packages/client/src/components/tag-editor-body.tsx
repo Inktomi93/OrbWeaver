@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm, touchedFieldError } from "#forms/editor";
-import { useFocusOnMount } from "#lib";
+import { DIALOG_VERBS, useFocusOnMount } from "#lib";
 import { setLabelNameFocus, useLabelNameFocus } from "#state";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag-model.ts";
 import { EditorPage } from "./editor-page.tsx";
@@ -393,7 +393,7 @@ function TagMergeControl({
           />
           <Row gap="field">
             <Button variant="ghost" onClick={cancel} type="button">
-              Cancel
+              {DIALOG_VERBS.cancel}
             </Button>
             <Button tone="destructive" disabled={target === null || merging} loading={merging} onClick={confirmMerge} type="button">
               Merge

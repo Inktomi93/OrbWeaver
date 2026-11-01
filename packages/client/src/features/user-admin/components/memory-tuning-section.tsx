@@ -212,7 +212,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
           dirty={dirty}
           anyOverridden={anyDefaultsOverridden}
           saving={save.isPending}
-          errored={save.error !== null}
+          error={save.error}
           onSave={(): void => writeMemoryDefaults(patch)}
           onReset={resetMemoryDefaults}
         />

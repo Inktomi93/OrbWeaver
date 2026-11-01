@@ -134,7 +134,7 @@ export const NOT_LINTABLE: readonly NotLintable[] = [
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
   "Class strings assembled across statements, or held in constants not named *Class or *Classes, are not read.",
-  "A spread or computed prop is invisible to the variant usage count; an axis with a computed use cannot claim an unused value.",
+  "A computed prop, or a spread that is not an object literal, is unread by the variant usage count; an axis with such a use cannot claim an unused value.",
   "Layout variants are merged per door, so a value used on Row counts for Stack.",
   "Dialog dismiss evidence is read per file: a file with two dialogs shares one answer. Dismiss evidence is an element, not a runtime check.",
   "The destructive-verb check reads button text against a word list; a Delete behind an icon-only button is not matched.",

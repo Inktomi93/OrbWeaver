@@ -11,13 +11,14 @@ import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { ModalDefinition } from "#state";
 import { RosterPicker } from "../components/roster-picker.tsx";
+import { ROSTER_SAVED_NAME } from "./roster-names.ts";
 
 const SKELETON_ROW_COUNT = 4;
 
 export const savedRostersModal: ModalDefinition = {
   id: "savedRosters",
-  title: "Saved rosters",
-  trigger: { placement: "surface", label: "Saved rosters", icon: Users },
+  title: ROSTER_SAVED_NAME,
+  trigger: { placement: "surface", label: ROSTER_SAVED_NAME, icon: Users },
   body: (): ReactElement => (
     <QueryBoundary fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />} reserveKey="rosterPreset.savedRosters">
       <RosterPicker />

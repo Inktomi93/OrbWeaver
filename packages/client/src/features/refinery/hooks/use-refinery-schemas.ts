@@ -54,7 +54,7 @@ type SchemaPlanRead = { readonly state: "asking" } | { readonly state: "answered
 /** What the caller's bound Utility model would do with a draft schema, asked once the draft has settled. The last
  *  answer stays up while the next draft is asked, so the line does not flicker as the author types. */
 export function useRefinerySchemaPlan(schema: Record<string, unknown>, stage: RefinerySchemaStage): SchemaPlanRead {
-  const { mutate } = useAskSchemaPlan({ trpc: useTRPC(), invalidation: useInvalidation(), failureShownInline: true });
+  const { mutate } = useAskSchemaPlan({ trpc: useTRPC(), invalidation: useInvalidation() });
   const [read, setRead] = useState<SchemaPlanRead>({ state: "asking" });
   // Settled by content, not identity: the dialog re-parses the draft text on every render.
   const settled = useDebouncedValue(JSON.stringify(schema), SCHEMA_PLAN_SETTLE_MS);

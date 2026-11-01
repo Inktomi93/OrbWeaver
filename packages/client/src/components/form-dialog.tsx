@@ -9,7 +9,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId, useRef } from "react";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
@@ -122,7 +122,7 @@ export function FormDialog({
         {closeButton ? (
           <DialogClose
             render={
-              <Button aria-label="Close" className="absolute inset-e-field inset-bs-field" variant="ghost" square={true} type="button">
+              <Button aria-label={DIALOG_VERBS.close} className="absolute inset-e-field inset-bs-field" variant="ghost" square={true} type="button">
                 <Icon icon={X} size="sm" />
               </Button>
             }
@@ -146,7 +146,7 @@ function OwnedFooter({
   if (submit !== undefined) {
     return (
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={submit.disabled ?? false} form={formId} tone="primary" loading={submit.loading ?? false} type="submit">
           {submit.label}
         </Button>
@@ -212,7 +212,7 @@ export interface FormSubmitButtonProps {
 export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
   return (
     <DialogFooter>
-      <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+      <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       <Button data-testid={testId(testKey)} disabled={disabled} onClick={onSubmit}>
         {label}
       </Button>

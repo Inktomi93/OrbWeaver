@@ -37,6 +37,6 @@ Next-turn line: its doors read `CHAT_ROLE_DOOR` and `ADD_CONNECTION_DOOR` from `
 
 ADR 0036: superseded by `docs/adr/0293-memory-is-off-until-each-user-turns-it-on.md`, which records the off default and the turn-on confirm; the four `D36` code citations now cite D293.
 
-Double failure surface: the first-model step's writes pass `failureShownInline`, so its inline alert is the one surface (`createEntityMutation`). The add dialog's toast-less create twin folded onto the same flag. CT: the create-entity-mutation CT "failureShownInline", a restoration-register entry.
+Double failure surface: the first-model step states a failure in its inline alert, and the mutation's own toast also speaks it (item 1763 rules that a failure may show both and never neither).
 
 Em dashes: removed from the reachability lines, the add-connection form and its failure sentences, the interactive cards hint, the assumed-capability source line, the confirm dialog's failure line and the workload dialogs.

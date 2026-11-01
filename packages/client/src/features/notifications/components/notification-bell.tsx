@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { testId, useOpenRequests } from "#lib";
+import { DIALOG_VERBS, testId, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSection } from "#state";
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
@@ -98,7 +98,7 @@ function NoInboxRows({
       icon={<Icon icon={Bell} size="md" />}
       action={
         <Button variant="outline" size="sm" onClick={onDone}>
-          Done
+          {DIALOG_VERBS.done}
         </Button>
       }
     />

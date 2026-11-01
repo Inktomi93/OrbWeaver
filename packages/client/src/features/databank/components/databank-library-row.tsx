@@ -39,6 +39,7 @@ import type { ReactElement } from "react";
 import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import { documentSubtitle, ingestBadge, ingestEmptyHint, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
+import { DATABANK_USE_IN_EVERY_CHAT_NAME } from "../lib/databank-names.ts";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;
@@ -80,6 +81,7 @@ export function DatabankLibraryRow({
   // flipped would announce the opposite of what is on ("Stop using…, pressed").
   const everywhereName = `Use ${document.name} in every chat`;
   const toggleGlobal = (): void => onToggleGlobal(document.id, !global);
+  const feedName = global ? "Stop using in every chat" : DATABANK_USE_IN_EVERY_CHAT_NAME;
 
   return (
     <LibraryRow
@@ -100,7 +102,7 @@ export function DatabankLibraryRow({
         menuItemsBefore: (
           <MenuItem onClick={toggleGlobal}>
             <Icon icon={Globe} size="sm" />
-            {global ? "Stop using in every chat" : "Use in every chat"}
+            {feedName}
           </MenuItem>
         ),
         menuItemsAfter: (

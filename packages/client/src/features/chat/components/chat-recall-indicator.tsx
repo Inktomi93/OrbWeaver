@@ -25,7 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useOpenRequests, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, useOpenRequests, viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
 import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
@@ -136,7 +136,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
           </Stack>
         </PopoverPopup>
       </Popover>
-      <FormDialog dismissLabel="Close" onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
+      <FormDialog dismissLabel={DIALOG_VERBS.close} onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
         <Stack gap="block">
           <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
         </Stack>

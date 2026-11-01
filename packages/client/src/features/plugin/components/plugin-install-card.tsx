@@ -53,7 +53,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
@@ -421,7 +421,7 @@ export function PluginInstallCard(): ReactElement {
                   setState({ step: "pick" });
                 }}
               >
-                Cancel
+                {DIALOG_VERBS.cancel}
               </Button>
             </Row>
           </Stack>

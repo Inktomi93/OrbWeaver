@@ -26,6 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
 
@@ -161,7 +162,7 @@ function FactOverrideEditor({
       </Stack>
       <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
         <Button variant="ghost" onClick={onCancel} size="sm">
-          Cancel
+          {DIALOG_VERBS.cancel}
         </Button>
         <Button
           aria-label={`Save your ${row.name}`}
@@ -169,7 +170,7 @@ function FactOverrideEditor({
           onClick={(): void => onCommit(parseFactValue(row.edit, draft))}
           size="sm"
         >
-          Save
+          {DIALOG_VERBS.save}
         </Button>
       </Row>
     </Row>

@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
 import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
 import type { RunWorkloadFormValues, WorkloadRunScope } from "../lib/workloads-model.ts";
@@ -201,7 +201,7 @@ function RunWorkloadFormBody({
         }
       </form.Subscribe>
       {start.error === null ? null : (
-        <Text tone="destructive" voice="label">
+        <Text role="alert" tone="destructive" voice="label">
           Couldn't start the workload. A run of that kind may already be active.
         </Text>
       )}
@@ -209,7 +209,8 @@ function RunWorkloadFormBody({
         disabled={start.isPending}
         label={start.isPending ? "Starting…" : RUN_LABEL}
         onSubmit={(): void => {
-          form.handleSubmit().catch(() => notify.error("Couldn't start the workload."));
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
         }}
         testKey="runWorkloadSubmit"
       />

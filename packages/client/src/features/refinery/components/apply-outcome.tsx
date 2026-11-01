@@ -13,8 +13,9 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
+import { REFINERY_EDIT_SCOPE_NAME } from "../lib/refinery-names.ts";
 import { NEW_GREETING_LABEL, slotLabelOf } from "../lib/render-plan.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -119,7 +120,7 @@ function OutcomeActions({
     return (
       <Row gap="row" justify="end">
         <Button onClick={onDone} size="sm">
-          Done
+          {DIALOG_VERBS.done}
         </Button>
       </Row>
     );
@@ -133,7 +134,7 @@ function OutcomeActions({
         </Button>
       )}
       <Button variant="outline" onClick={onEditScope} size="sm">
-        Edit scope
+        {REFINERY_EDIT_SCOPE_NAME}
       </Button>
       <Button onClick={onRerunRewrite} size="sm">
         Re-run rewrite

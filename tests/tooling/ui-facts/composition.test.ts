@@ -1,5 +1,6 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
+import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
 
 const FEATURE = "packages/client/src/features/probe";
 const UI_PACKAGE = JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts", "./layout": "./src/layout/index.ts" } });
@@ -97,6 +98,40 @@ test("variant values reached through a const map or a conditional count as writt
   expect(axes.find((entry) => entry.axis === "size")?.unresolved).toEqual({});
 });
 
+test("a spread of object literals writes its axes, and a spread the syntax cannot read makes every axis of the door unclaimable", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-spreads");
+  plant(root, {
+    "components/spreads.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'const LOOK = { size: "md" } as const;',
+      "export const A = ({ flag, rest }) => (",
+      "  <>",
+      '    <Button {...(flag ? { variant: "ghost" } : {})} />',
+      "    <Button {...LOOK} />",
+      "  </>",
+      ");",
+      "export const B = ({ rest }) => <Button {...rest} />;",
+    ].join("\n"),
+  });
+  const axes = analyse(root, [], null).composition.variants.axes;
+  const axis = (name: string): (typeof axes)[number] | undefined => axes.find((entry) => entry.axis === name);
+  const resolved = (name: string, value: string): number | undefined => axis(name)?.values.find((entry) => entry.value === value)?.resolved;
+  expect(resolved("variant", "ghost")).toBe(1);
+  expect(resolved("size", "md")).toBe(1);
+  expect(axis("variant")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+  expect(axis("size")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+});
+
+test("the skeleton cohorts hold list panes and context bodies, not the transcript, the host or the wiring file", () => {
+  const feature = "packages/client/src/features";
+  expect(skeletonCohortOf(`${feature}/tag/surfaces/labels-list-surface.tsx`)).toBe("surface:list");
+  expect(skeletonCohortOf(`${feature}/chat/surfaces/message-list-surface.tsx`)).toBe("surface:other");
+  expect(skeletonCohortOf(`${feature}/regex/components/regex-context-body.tsx`)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/refinery/components/context-tabs.tsx`)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/app-shell/components/context-tabs-panel.tsx`)).toBeNull();
+  expect(skeletonCohortOf(`${feature}/refinery/components/refinery-context-tabs.tsx`)).toBeNull();
+});
+
 test("an autosave form that dismisses with Cancel is a defect, and a hook toast beside an inline error is a repeated failure", ({ scratch }) => {
   const root = plantDir(scratch, "forms");
   plant(root, {
@@ -128,6 +163,108 @@ test("an autosave form that dismisses with Cancel is a defect, and a hook toast 
   ]);
   const feedback = facts.cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
   expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([["useSaveThing", "toast+inline"]]);
+});
+
+test("a failed-state mark, a toast that stands down and a catch that sets local state read as the failure surface they are", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-surfaces");
+  plant(root, {
+    "hooks/use-mutations.ts": [
+      'export const useMarked = createEntityMutation<A, B>({ errorToast: "Could not save", busDriven: true });',
+      'export const useSplit = createEntityMutation<A, B>({ errorToast: (error) => (isCoded(error) ? null : "Could not save"), busDriven: true });',
+      "export const useCaught = createEntityMutation<A, B>({ busDriven: true });",
+      'export const useCaughtAndToasted = createEntityMutation<A, B>({ errorToast: "Could not save", busDriven: true });',
+    ].join("\n"),
+    "components/consumers.tsx": [
+      'import { useCaught, useCaughtAndToasted, useMarked, useSplit } from "../hooks/use-mutations.ts";',
+      "export const Marked = ({ trpc, invalidation }) => {",
+      "  const save = useMarked({ trpc, invalidation });",
+      "  useReportSaveStatus(id, saveStateOf(save.isPending, save.error !== null));",
+      "  return null;",
+      "};",
+      "export const Split = ({ trpc, invalidation }) => {",
+      "  const save = useSplit({ trpc, invalidation });",
+      "  return save.error === null ? null : <p>coded</p>;",
+      "};",
+      "export const Caught = ({ trpc, invalidation }) => {",
+      "  const save = useCaught({ trpc, invalidation });",
+      "  const [failure, setFailure] = useState(null);",
+      '  const run = async () => { try { await save.mutateAsync({}); } catch { setFailure("no"); } };',
+      "  return <p>{failure}</p>;",
+      "};",
+      "export const CaughtAndToasted = ({ trpc, invalidation }) => {",
+      "  const save = useCaughtAndToasted({ trpc, invalidation });",
+      "  const [failure, setFailure] = useState(null);",
+      '  const run = async () => { try { await save.mutateAsync({}); } catch { setFailure("no"); } };',
+      "  return <p>{failure}</p>;",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
+    ["useMarked", "toast"],
+    ["useSplit", "toast"],
+    ["useCaught", "inline"],
+    ["useCaughtAndToasted", "toast+inline"],
+  ]);
+});
+
+test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "feedback-false-cases");
+  plant(root, {
+    "hooks/use-more.ts": [
+      "export const useNullArg = createEntityMutation<A, B>({ errorToast: (e) => describe(e, null), busDriven: true });",
+      "export const useCloser = createEntityMutation<A, B>({ busDriven: true });",
+      "export const useForm = createEntityMutation<A, B>({ busDriven: true });",
+      "export const useOther = createEntityMutation<A, B>({ busDriven: true });",
+    ].join("\n"),
+    "components/more.tsx": [
+      'import { useCloser, useForm, useNullArg, useOther } from "../hooks/use-more.ts";',
+      "export const NullArg = (d) => {",
+      "  const save = useNullArg(d);",
+      "  return save.error === null ? null : <p>x</p>;",
+      "};",
+      "export const Closer = (d) => {",
+      "  const save = useCloser(d);",
+      "  const [open, setOpen] = useState(true);",
+      "  const run = async () => { try { await save.mutateAsync({}); } catch { setOpen(false); } };",
+      "  return null;",
+      "};",
+      "export const Unrelated = (d) => {",
+      "  const save = useOther(d);",
+      '  form.handleSubmit().catch(() => notify.error("no"));',
+      "  return null;",
+      "};",
+      "export const Form = (d) => {",
+      "  const save = useForm(d);",
+      "  const run = () => save.mutate({});",
+      '  form.handleSubmit().catch(() => notify.error("no"));',
+      "  return null;",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
+    ["useNullArg", "toast+inline"],
+    ["useCloser", "none"],
+    ["useOther", "none"],
+    ["useForm", "inline"],
+  ]);
+});
+
+test("a spread with a computed key or a getter leaves its door's axes unresolved, not zero", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-spread-keys");
+  plant(root, {
+    "components/keys.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'const KEY = "variant";',
+      'export const A = () => <Button {...{ [KEY]: "ghost" }} />;',
+      'export const B = () => <Button {...{ get variant() { return "ghost"; } }} />;',
+    ].join("\n"),
+  });
+  const variant = analyse(root, [], null).composition.variants.axes.find((entry) => entry.axis === "variant");
+  expect(variant?.unresolved).toEqual({ "spread with a computed key": 1, "spread with a getter or method": 1 });
 });
 
 test("a section's list boundary is the shell, the boundary or none", ({ scratch }) => {

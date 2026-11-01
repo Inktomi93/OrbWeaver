@@ -15,6 +15,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
+import { CHAT_SAVED_REPLIES_DOOR_NAME, CHAT_SAVED_REPLIES_NAME, CHAT_SAVED_REPLY_NAME } from "../lib/chat-surface-names.ts";
 
 interface SavedRepliesSelectProps {
   readonly variants: readonly MessageVariantSummary[];
@@ -29,7 +30,7 @@ function SavedRepliesSelect({ variants, selectedVariantId, pending, onSelect }: 
   return (
     <>
       <Select
-        label="Saved reply"
+        label={CHAT_SAVED_REPLY_NAME}
         value={selectedVariantId}
         items={variants.map(({ idx, variantId }) => ({
           value: variantId,
@@ -74,7 +75,7 @@ export function SavedRepliesItem({
   return (
     <MenuItem onClick={onSelect}>
       <Icon icon={History} size="sm" />
-      Saved replies…
+      {CHAT_SAVED_REPLIES_DOOR_NAME}
     </MenuItem>
   );
 }
@@ -82,7 +83,7 @@ export function SavedRepliesItem({
 function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProps, "message" | "onOpenChange">): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const selectVariant = useSelectVariantMutation({ trpc, invalidation, failureShownInline: true });
+  const selectVariant = useSelectVariantMutation({ trpc, invalidation });
   const history = useVariantHistory(message);
   if (history.isError) {
     return <QueryErrorState label="saved replies" onRetry={history.retry} />;
@@ -110,7 +111,7 @@ function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProp
 
 export function SavedRepliesPicker({ message, onOpenChange, finalFocus }: SavedRepliesPickerProps): ReactElement {
   return (
-    <PickerDialog title="Saved replies" open={true} onOpenChange={onOpenChange} popupProps={{ size: "sm", finalFocus }}>
+    <PickerDialog title={CHAT_SAVED_REPLIES_NAME} open={true} onOpenChange={onOpenChange} popupProps={{ size: "sm", finalFocus }}>
       <SavedRepliesBody message={message} onOpenChange={onOpenChange} />
     </PickerDialog>
   );

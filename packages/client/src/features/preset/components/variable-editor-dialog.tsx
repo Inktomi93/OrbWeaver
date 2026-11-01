@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { FlowDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
@@ -62,7 +62,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
       </form.AppField>
 
       <DialogFooter>
-        <DialogClose render={<Button>Done</Button>} />
+        <DialogClose render={<Button>{DIALOG_VERBS.done}</Button>} />
       </DialogFooter>
     </FlowDialog>
   );

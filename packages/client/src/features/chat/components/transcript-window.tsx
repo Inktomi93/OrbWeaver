@@ -10,6 +10,7 @@ import { useEffect, useId } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
+import { CHAT_EARLIER_MESSAGES_NAME } from "../lib/chat-surface-names.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
@@ -28,7 +29,7 @@ export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
   return moment === null ? <OrdinaryThread {...props} /> : <AnchoredThread {...props} target={moment.target} />;
 }
 
-const EARLIER_MESSAGES_LABEL = "Earlier messages";
+const EARLIER_MESSAGES_LABEL = CHAT_EARLIER_MESSAGES_NAME;
 
 function mergePages(pages: readonly CanonPage[]): CanonPage {
   return {

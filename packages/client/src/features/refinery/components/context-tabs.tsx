@@ -21,13 +21,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, ContextTabBody } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
+import { refineryCompareToggleName } from "../lib/refinery-names.ts";
 import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -147,11 +148,11 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
   // Newest first — the ledger reads backward from "now" (the mock's ordering).
   const newestFirst = [...runs].reverse();
   return (
-    <Stack data-testid={testId("refineryRunsTab")} gap="tight">
+    <ContextTabBody data-testid={testId("refineryRunsTab")} kind="rows">
       {newestFirst.map((run) => (
         <RunRow armed={run.id === armedRewriteId} key={run.id} onArmRewrite={onArmRewrite} onView={onView} run={run} viewed={run.id === viewedRunId} />
       ))}
-    </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -254,7 +255,7 @@ export function SetupTab({
   onOpenDoor,
 }: SetupTabProps): ReactElement {
   return (
-    <Stack data-testid={testId("refinerySetupTab")} gap="tight">
+    <ContextTabBody data-testid={testId("refinerySetupTab")} kind="rows">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
@@ -269,7 +270,7 @@ export function SetupTab({
       />
       <SetupRow k="Stage modes" v={stageModesLine} />
       <SetupRow action="Edit" k="Guidance" onAction={(): void => onOpenDoor("guidance")} v={guidanceLine} />
-    </Stack>
+    </ContextTabBody>
   );
 }
 
@@ -326,7 +327,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
     );
   }
   return (
-    <Stack data-testid={testId("refineryVersionsTab")} gap="tight">
+    <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
       {/* NOT "the LIVE card" (caps mid-sentence is "the one place the app raises its voice at the reader"). The contrast is real and survives in
           words — the live card against the session's pinned original — and the sentence carries it. */}
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
@@ -343,17 +344,17 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
               </Row>
               <Row className="flex-wrap" gap="field">
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
-                  {compareId === snapshot.id ? "Hide compare" : "Compare"}
+                  {refineryCompareToggleName(compareId === snapshot.id)}
                 </Button>
                 <ConfirmDialog
-                  confirmLabel="Restore"
+                  confirmLabel={DIALOG_VERBS.restore}
                   confirmTone="primary"
                   description="This replaces the live card with this version. The current card is snapshotted first, so you can undo it."
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
                   title="Restore this snapshot?"
                   trigger={
                     <Button variant="ghost" size="sm">
-                      Restore
+                      {DIALOG_VERBS.restore}
                     </Button>
                   }
                 />
@@ -372,6 +373,6 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
           </Card>
         );
       })}
-    </Stack>
+    </ContextTabBody>
   );
 }

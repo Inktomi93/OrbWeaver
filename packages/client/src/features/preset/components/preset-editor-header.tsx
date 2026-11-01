@@ -26,6 +26,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
+import { PRESET_SECTIONS_NAME } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
@@ -186,7 +187,7 @@ export function PresetEditorHeader({
             <Row className="overflow-x-auto py-tight min-inline-0" ref={stripRef} scrollFade="x">
               {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
                   contents — `ParamsPromptActionsDataTransforms` — and no semantic selector can address it. */}
-              <TabsList aria-label="Preset sections">
+              <TabsList aria-label={PRESET_SECTIONS_NAME}>
                 {PRESET_EDITOR_VIEWS.map((entry) => (
                   <TabsTab key={entry.id} value={entry.id}>
                     {entry.label}
