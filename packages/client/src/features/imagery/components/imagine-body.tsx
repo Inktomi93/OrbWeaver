@@ -225,7 +225,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
             checked={toGallery}
             disabled={busy}
             id={galleryCheckboxId}
-            onCheckedChange={(next): void => setToGallery(next === true)}
+            onCheckedChange={(next): void => setToGallery(next)}
           />
           {/* A real label, so a tap on the words toggles the box as well as naming it. */}
           <label htmlFor={galleryCheckboxId}>

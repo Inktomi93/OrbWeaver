@@ -115,8 +115,8 @@ test("an UNREADABLE port owner fails CLOSED and names what could not be read (#1
     owner: () => ({ kind: "unreadable", reason: "no process could be identified as the owner of :8790" }),
   });
   expect(status.up).toBe(false);
-  expect(status.up === false && status.reason).toContain("could not prove :8790 is the fixture");
-  expect(status.up === false && status.reason).toContain("no process could be identified");
+  expect(!status.up && status.reason).toContain("could not prove :8790 is the fixture");
+  expect(!status.up && status.reason).toContain("no process could be identified");
 });
 
 test("a PROVEN local port owner is still up (#1507 positive control)", () => {
@@ -129,7 +129,7 @@ test("a port owner running another AUTH_MODE is refused, and the reason names th
     config: FIXTURE_CONFIG,
     owner: () => ({ kind: "not-local", mode: "single-user" }),
   });
-  expect(status.up === false && status.reason).toContain("AUTH_MODE=single-user");
+  expect(!status.up && status.reason).toContain("AUTH_MODE=single-user");
 });
 
 test("the owner probe is only asked once the cheap HTTP evidence agrees", () => {

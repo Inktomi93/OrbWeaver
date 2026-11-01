@@ -26,9 +26,9 @@ test("a keyboard-focused tab keeps a visible outline", async ({ mount, page }) =
 
 test("the tab indicator is painted in a colour other than the canvas", async ({ mount, page }) => {
   await mount<typeof ForcedColorsStory>(STORY, {});
-  const colours = await page.evaluate(() => ({
-    canvas: getComputedStyle(document.body).backgroundColor,
-    indicator: getComputedStyle(document.querySelector('[data-slot="tabs-indicator"]') as Element).backgroundColor,
-  }));
+  const colours = {
+    canvas: await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+    indicator: await page.locator('[data-slot="tabs-indicator"]').evaluate((element) => getComputedStyle(element).backgroundColor),
+  };
   expect(colours.indicator).not.toBe(colours.canvas);
 });

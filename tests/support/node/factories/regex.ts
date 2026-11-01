@@ -21,11 +21,8 @@ export async function seedRegexScript(
 }
 
 /** The real operation appends to the owner's tier; the seed does not invent an execution position. */
-export async function seedGlobalRegexScript(
-  root: ServerProducerRoot,
-  params: Parameters<RegexService["attachGlobal"]>[0],
-): Promise<Awaited<ReturnType<RegexService["attachGlobal"]>>> {
-  return await root.services.regex.attachGlobal(params);
+export async function seedGlobalRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachGlobal"]>[0]): Promise<void> {
+  await root.services.regex.attachGlobal(params);
 }
 
 export interface CapturedRegexRows {

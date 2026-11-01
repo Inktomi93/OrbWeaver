@@ -185,7 +185,7 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
 export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing, membrane?: MembraneRuntime): void {
   const stubResult = ctx.evalCode(AMBIENT_STUBS);
   if (stubResult.error) {
-    const dump = ctx.dump(stubResult.error);
+    const dump: unknown = ctx.dump(stubResult.error);
     stubResult.error.dispose();
     throw new Error(`plugin realm ambient-stub install failed: ${JSON.stringify(dump)}`);
   }

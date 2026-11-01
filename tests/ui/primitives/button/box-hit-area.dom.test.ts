@@ -1,3 +1,4 @@
+import { keysOf } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { Button } from "@orb/ui/button";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
@@ -36,7 +37,7 @@ function expectBoxes<Component extends keyof Box>(component: Component): void {
   }
 }
 
-test.for(Object.keys(BUTTON_BOX_OVERFLOW) as (keyof Box)[])("%s hit-area metadata matches what its door renders", (component) => {
+test.for(keysOf(BUTTON_BOX_OVERFLOW))("%s hit-area metadata matches what its door renders", (component) => {
   expectBoxes(component);
 });
 

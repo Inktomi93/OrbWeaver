@@ -781,8 +781,7 @@ export const REWRITE_TOGGLES = [
 /** tsc-forced exhaustiveness: a wire id with no catalog row surfaces HERE (the `TEMPLATE_DEFS` precedent).
  *  The other direction is `satisfies` — a catalog row whose id is not in the tuple fails to assign. */
 type UncataloguedRewriteToggleId = Exclude<RewriteToggleId, (typeof REWRITE_TOGGLES)[number]["id"]>;
-const _rewriteTogglesAreExhaustive: [UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId = true;
-void _rewriteTogglesAreExhaustive;
+const [_rewriteTogglesAreExhaustive]: [[UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId] = [true];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Greeting transform catalog — the greeting studio's one-click steer set (audit §3). Adapted (not ported)
@@ -862,8 +861,7 @@ export const GREETING_TRANSFORMS = [
 
 /** tsc-forced exhaustiveness, both directions (the `REWRITE_TOGGLES` pin). */
 type UncataloguedGreetingTransformId = Exclude<GreetingTransformId, (typeof GREETING_TRANSFORMS)[number]["id"]>;
-const _greetingTransformsAreExhaustive: [UncataloguedGreetingTransformId] extends [never] ? true : UncataloguedGreetingTransformId = true;
-void _greetingTransformsAreExhaustive;
+const [_greetingTransformsAreExhaustive]: [[UncataloguedGreetingTransformId] extends [never] ? true : UncataloguedGreetingTransformId] = [true];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
@@ -2155,8 +2153,7 @@ type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat"
 /** tsc-forced exhaustiveness: a new guided kind or format string with no `TEMPLATE_DEFS` row surfaces HERE
  *  as the missing id, not as a silently absent row in the Actions view. */
 type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)[number]["id"]>;
-const _templateDefsAreExhaustive: [UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId = true;
-void _templateDefsAreExhaustive;
+const [_templateDefsAreExhaustive]: [[UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId] = [true];
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
  *  PROSE-1 slot (census 49, §4.6 adapted): the override stays `promptConfig.compaction.instructions`; the
@@ -2334,8 +2331,7 @@ export type UserMacroSpec = z.infer<typeof userMacroSchema>;
 
 // Drift guard: the authored schema must produce EXACTLY kit's UserMacroDef — the engine half consumes it
 // unmapped. A schema field diverging from the kit shape is a compile error here, not a runtime surprise.
-const _userMacroIsKitDef = (spec: UserMacroSpec): UserMacroDef => spec;
-void _userMacroIsKitDef;
+const [_userMacroIsKitDef]: [UserMacroSpec extends UserMacroDef ? true : never] = [true];
 
 // The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
 //  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
@@ -2356,8 +2352,7 @@ export const userMacroValuesSchema = z.record(z.string().max(MAX_NAME_LENGTH), z
 export type UserMacroValues = z.infer<typeof userMacroValuesSchema>;
 
 // The values-bag wire type must stay assignable to kit's per-macro bag (the threading passes it through).
-const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): UserMacroInputValue => value;
-void _valueIsKitValue;
+const [_valueIsKitValue]: [z.infer<typeof userMacroInputValueSchema> extends UserMacroInputValue ? true : never] = [true];
 
 /** Current blob shape. Bump + add a lift below when the shape changes. A bump also owes a forward db migration:
  *  `presets.schema_version` defaults to this value (`@orb/db` schema/preset), and `check:db-baseline` fails

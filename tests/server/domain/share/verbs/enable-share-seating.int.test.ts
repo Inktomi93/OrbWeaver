@@ -61,7 +61,9 @@ test("restoration leaves already-on settings alone and an actual stored-write fa
   expect(services.settings.getEffectiveConfig()).toMatchObject({ localMultiUser: false, discreetLogin: false });
   await using refusal = await refuseWrites(db, { table: settings, event: "UPDATE", message: "restore refused" });
   try {
-    await expect(restore()).rejects.toMatchObject({ cause: expect.objectContaining({ message: expect.stringContaining("restore refused") }) });
+    await expect(restore()).rejects.toMatchObject({
+      cause: expect.objectContaining({ message: expect.stringContaining("restore refused") }),
+    });
   } finally {
     await refusal.lift();
   }

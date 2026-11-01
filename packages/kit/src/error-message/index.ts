@@ -15,3 +15,9 @@
 export function errorMessage(err: unknown): string {
   return Error.isError(err) ? err.message : String(err);
 }
+
+/** The value itself when it is an Error, else an Error that carries it as `cause`. A rethrow or promise
+ *  rejection of a caught `unknown` or an abort `reason` goes through this so a consumer always sees an Error. */
+export function toError(value: unknown): Error {
+  return Error.isError(value) ? value : new Error(String(value), { cause: value });
+}

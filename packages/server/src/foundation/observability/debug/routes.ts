@@ -234,14 +234,15 @@ function debugAuthConfigOf(opts: DebugAuthOptions | string | undefined): DebugAu
 /** Factory — the middleware closes over the gate config. Order: admin-session short-circuit, then the
  *  token check. The query-param token form is intentionally absent (it leaked into proxy access logs). */
 function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler {
-  return async (c: Context, next: Next) => {
+  return async (c: Context, next: Next): ReturnType<MiddlewareHandler> => {
     const adminArmConsulted = config.adminAuth !== undefined;
     if (config.adminAuth !== undefined) {
       // documented below — a checker error falls
       // through to the token check, never opening the gate. Ends if the fallthrough is removed.
       try {
         if (config.adminAuth.isAdmin(c)) {
-          return await next();
+          await next();
+          return;
         }
       } catch {
         // Fall through to the token check — never throw upward from the gate.
@@ -254,7 +255,7 @@ function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler 
     if (!tokenMatches(provided, config.expectedToken)) {
       return c.json({ error: "unauthorized", reason: refusalReason(adminArmConsulted, provided === undefined ? TOKEN_ABSENT : TOKEN_MISMATCH) }, UNAUTHORIZED);
     }
-    return await next();
+    await next();
   };
 }
 

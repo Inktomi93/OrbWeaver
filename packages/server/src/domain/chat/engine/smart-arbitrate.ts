@@ -330,7 +330,9 @@ function clip(text: string, tokens: number): string {
 /** {@link clip} from the other end: the tail survives. The estimate counts characters, not their order, so
  *  clamping the reversed codepoints keeps exactly the longest tail that fits. */
 function clipHead(text: string, tokens: number): string {
-  const tail = [...clampToTokenBudget([...text].reverse().join(""), tokens)].reverse().join("");
+  const tail = Array.from(clampToTokenBudget(Array.from(text).reverse().join(""), tokens))
+    .reverse()
+    .join("");
   return tail.length < text.length ? `${CLIPPED}${tail.trimStart()}` : text;
 }
 

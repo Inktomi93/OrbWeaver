@@ -3,6 +3,7 @@
 import { createTimeLib } from "@orb/kit/time";
 import type { CDPSession, Page } from "@playwright/test";
 import { exactScope } from "../artifacts/artifact-scope.ts";
+import { readMember } from "../instrument/member.ts";
 import type {
   BrowserDiagnostic as BrowserDiagnosticContract,
   BrowserPageError,
@@ -124,11 +125,11 @@ function parseOrbRecord(value: unknown): OrbConsoleRecord | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const source = Reflect.get(value, "source");
-  const at = Reflect.get(value, "at");
-  const text = Reflect.get(value, "text");
-  const route = Reflect.get(value, "route");
-  const stack = Reflect.get(value, "stack");
+  const source = readMember(value, "source");
+  const at = readMember(value, "at");
+  const text = readMember(value, "text");
+  const route = readMember(value, "route");
+  const stack = readMember(value, "stack");
   if (
     !ORB_CONSOLE_SOURCES.includes(source as OrbConsoleSource) ||
     typeof at !== "number" ||
@@ -148,9 +149,9 @@ function parseOrbSnapshot(value: unknown): OrbConsoleSnapshot | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const rawRecords = Reflect.get(value, "records");
-  const dropped = Reflect.get(value, "dropped");
-  const cap = Reflect.get(value, "cap");
+  const rawRecords = readMember(value, "records");
+  const dropped = readMember(value, "dropped");
+  const cap = readMember(value, "cap");
   if (!(Array.isArray(rawRecords) && Number.isInteger(dropped) && Number.isInteger(cap))) {
     return null;
   }
@@ -238,13 +239,14 @@ export async function collectOrbConsoleDiagnostics(
   if (typeof read !== "object" || read === null) {
     return instrumentGap(ring, identity, "__orb.consoleErrors() read returned no status", read);
   }
-  const status = Reflect.get(read, "status");
+  const status = readMember(read, "status");
   if (status === "absent") {
-    return staticFile || Reflect.get(read, "ready") !== true ? null : instrumentGap(ring, identity, "ready app is missing __orb.consoleErrors()", read);
+    return staticFile || readMember(read, "ready") !== true ? null : instrumentGap(ring, identity, "ready app is missing __orb.consoleErrors()", read);
   }
-  const snapshot = status === "value" ? parseOrbSnapshot(Reflect.get(read, "value")) : null;
+  const snapshot = status === "value" ? parseOrbSnapshot(readMember(read, "value")) : null;
   if (snapshot === null) {
-    return instrumentGap(ring, identity, `__orb.consoleErrors() is malformed (${String(Reflect.get(read, "detail") ?? "invalid ring shape")})`, read);
+    const detail = readMember(read, "detail");
+    return instrumentGap(ring, identity, `__orb.consoleErrors() is malformed (${typeof detail === "string" ? detail : "invalid ring shape"})`, read);
   }
   const keys = snapshot.records.map((record) => JSON.stringify(record));
   const prior = ORB_RING_STATE.get(page) ?? { records: [], dropped: 0 };

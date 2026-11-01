@@ -57,10 +57,14 @@ function scenarioFailureSummary(input: ScenarioSummaryInput): SnapFailureSummary
   // Every ARM-owned member comes from the arm that measures it (contract/arms.ts). The scenario keeps its
   // own literal because its non-arm members are scoped differently (per-checkpoint console/page-error
   // windows, no watch, no diff) — the arm halves must never be a second implementation.
+  const runArmFailures: Partial<Record<keyof SnapFailureSummary, number>> = {};
+  for (const runArm of input.runArms) {
+    Object.assign(runArmFailures, runArm.failures());
+  }
   const arms = {
     ...pageArmFailures({ opts, outcomes, ctx: { ...input.plan, failed: [...failedRequests], totalPages: 1 } }),
     ...disabledRunArmFailures(opts, ["cascade", "filmstrip"]),
-    ...Object.assign({}, ...input.runArms.map((runArm) => runArm.failures())),
+    ...runArmFailures,
   };
   const armCount = (field: keyof SnapFailureSummary): number => {
     const count = arms[field];

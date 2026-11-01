@@ -1,6 +1,7 @@
 // Native and SillyTavern import vocabulary and shared folder-layout admission.
 // The planner and HTTP boundary classify the same paths before selecting their import behavior.
 
+import { trimEndWhile } from "@orb/kit/strings";
 import { z } from "zod";
 import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
 import { encodePersonaCollisionChoices, PERSONA_COLLISION_CHOICES, PERSONA_COLLISION_FIELD } from "./persona-collision.ts";
@@ -125,15 +126,14 @@ export function isStSecretsFile(relPath: string): boolean {
   return relPath.split("/").at(-1) === ST_SECRETS_FILE;
 }
 
-const TRAILING_DIGITS = /\d+$/u;
-const TRAILING_HYPHENS = /-+$/u;
+const DIGITS = "0123456789";
 const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/u;
 
 /** The card slugs a chat directory's slug may belong to when no card carries it exactly: the slug minus
  *  an ST folder-name decoration (a trailing number, the `main-<name>-spec-v2` wrapper), in the order the
  *  pairing tries them. The browser planner and the server collector pair by this ONE rule. */
 export function chatDirCardCandidates(slug: string): string[] {
-  const candidates = [slug.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(slug)?.[1]];
+  const candidates = [trimEndWhile(trimEndWhile(slug, DIGITS), "-"), SPEC_WRAPPER.exec(slug)?.[1]];
   return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }
 

@@ -353,7 +353,7 @@ test("the actual GC timer reaps expired transactions while retaining a live logi
   if (sweep === undefined) {
     throw new Error("configured OIDC did not arm its actual hourly GC callback");
   }
-  void sweep();
+  sweep();
   await expect.poll(async () => (await root.db.select().from(oidcTransactions)).map((row) => row.state)).toEqual([live.callback.searchParams.get("state")]);
 });
 

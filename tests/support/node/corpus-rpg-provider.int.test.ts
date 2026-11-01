@@ -168,7 +168,10 @@ test("native RPG host doors distinguish no-card, stranger, writer-less and physi
   expect(physical.requests.length).toBe(beforeRequests);
   const populatedInput = { chatId, actorRef: { kind: "character", characterId: result.character.id } } as const;
   refuse = true;
-  expect(await caller.rpg.populateFromCharacter(populatedInput)).toMatchObject({ ok: false, reason: expect.stringContaining("corpus RPG provider refused") });
+  expect(await caller.rpg.populateFromCharacter(populatedInput)).toMatchObject({
+    ok: false,
+    reason: expect.stringContaining("corpus RPG provider refused"),
+  });
   expect(await caller.rpg.resyncFromStory({ chatId })).toMatchObject({ ok: false, reason: expect.stringContaining("corpus RPG provider refused") });
   expect(refusedCalls).toBe(2);
   const connection = await root.services.connection.get({ principal: owner, connectionId: connections.text.id });

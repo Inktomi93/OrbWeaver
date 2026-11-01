@@ -104,7 +104,7 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   // `tracker.trackersReadOnly` is a real boolean (strict-boolean-expressions) and the panel state stays typed.
   const game: RpgGameView = gameQuery.data;
   const tracker: RpgTrackerView = trackerQuery.data;
-  const isHost = chat.viewerIsHost === true;
+  const isHost = chat.viewerIsHost;
   return {
     chatId,
     viewerUserId: chat.viewerUserId,

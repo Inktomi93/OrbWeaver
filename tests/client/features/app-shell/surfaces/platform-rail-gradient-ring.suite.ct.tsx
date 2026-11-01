@@ -4,12 +4,13 @@ import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contrac
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
-const SEEDS = [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])] as const;
+const SEEDS = [undefined, ...keysOf(SEED_THEME_VALUE_SETS)] as const;
 
 for (const seed of SEEDS) {
   test(`${seed ?? "hearth"} seed: the active rail button paints the masked gradient ring`, async ({ corpus, mount, page }) => {

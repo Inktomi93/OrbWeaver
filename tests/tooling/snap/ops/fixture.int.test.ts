@@ -1,9 +1,9 @@
 // `loginFixtureUser` against a loopback server that answers the login form with the exact `Set-Cookie`
 // shapes the app writes: a mint under the transport's name plus a `Max-Age=0` clear of the other name.
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { expect, test } from "@orb/testkit/tooling";
 import { loginFixtureUser } from "../../../../tooling/src/snap/ops/fixture.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const HTTP_MINT = "orb_session_insecure=tok-http; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax";
 const HTTPS_MINT = "__Host-orb_session=tok-https; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax";
@@ -18,7 +18,7 @@ async function loginAgainst(setCookies: readonly string[]): Promise<Awaited<Retu
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
-    const { port } = server.address() as AddressInfo;
+    const { port } = listeningAddress(server);
     return await loginFixtureUser(`http://127.0.0.1:${String(port)}`, "owner", "owner-dev-pass");
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));

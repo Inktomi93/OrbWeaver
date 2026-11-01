@@ -92,7 +92,7 @@ function normalizeSchemaNode(node: Record<string, unknown>): Record<string, unkn
 /** Project a zod schema (a tool's args OR a structured-output payload) to the wire JSON Schema. The ONE
  *  producer of {@link WireReady} — the single `as WireReady` in the tree, so "was this projected?" has one
  *  provable answer and a send-site cannot skip it. */
-export function projectJsonSchema<Schema extends z.ZodType>(schema: Schema): WireReady {
+export function projectJsonSchema(schema: z.ZodType): WireReady {
   const projected: Record<string, unknown> = { ...z.toJSONSchema(schema) };
   return normalizeSchemaNode(projected) as WireReady;
 }

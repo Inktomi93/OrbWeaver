@@ -486,10 +486,10 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
   if (pairs === undefined || pairs.length === 0) {
     return sampling;
   }
-  const out: Record<string, unknown> = { ...sampling };
+  const out = new Map<string, unknown>(Object.entries(sampling));
   for (const [keep, drop] of pairs) {
-    if (out[keep] !== undefined && out[drop] !== undefined) {
-      delete out[drop];
+    if (out.get(keep) !== undefined && out.get(drop) !== undefined) {
+      out.delete(drop);
       warnings.push({
         code: "sampling_knob_conflict",
         knob: drop as AdjustedKnob,
@@ -497,7 +497,7 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
       });
     }
   }
-  return out as ResolvedSampling;
+  return Object.fromEntries(out) as ResolvedSampling;
 }
 
 function resolveSampling(params: UserIntent, capability: GenerationCapability, reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): ResolvedSampling {

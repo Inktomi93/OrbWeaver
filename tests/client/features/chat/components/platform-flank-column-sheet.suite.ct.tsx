@@ -1,12 +1,14 @@
 // The room's plugin column is a sheet while it is a panel: it slides on `translate`, parks invisible and inert, and casts the
 // overlay shadow only while it overlays the transcript. An inline column neither slides nor lifts.
+
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { FlankColumnStory } from "./_flank-column-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_flank-column-stories/FlankColumnStory";
-const THEMES = [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])] as const;
+const THEMES = [undefined, ...keysOf(SEED_THEME_VALUE_SETS)] as const;
 
 function style(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);

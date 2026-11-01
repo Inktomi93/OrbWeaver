@@ -109,7 +109,7 @@ async function fileBytes(file: File): Promise<Uint8Array> {
  *  web origin (a browser on the box tricked into POSTing to 127.0.0.1) able to drive an owner write. tRPC is
  *  NOT in this bucket: it requires JSON, which forces a preflight, so its belt keys on `cookie` only (see
  *  transport/trpc/trpc.ts). */
-const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
+const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
@@ -117,7 +117,7 @@ const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
   if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
     return c.body(null, FORBIDDEN);
   }
-  return await next();
+  await next();
 };
 
 /** A `hono/body-limit` belt that returns a 413 (rather than throwing an HTTPException, which the app's

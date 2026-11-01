@@ -7,6 +7,7 @@ import type { ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
 import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { toError } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import { providerLogger } from "../backends/http/provider-log.ts";
 import { toImageUrl } from "../backends/wire/image-normalize.ts";
@@ -178,7 +179,7 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
     throw state.failure.withPartialItems(req.inputs.map((_, index) => items[index]));
   }
   if (state.failure !== undefined) {
-    throw state.failure;
+    throw toError(state.failure);
   }
   return { items };
 }

@@ -928,7 +928,7 @@ test.describe("below-the-fold census reach", () => {
 
   test("the sweep puts every scroller back — the text samples' viewport boxes must survive it", async ({ mount, page }) => {
     await mount<typeof WalkerBelowTheFoldStory>("tests/tooling/_ct-stories/WalkerBelowTheFoldStory", {});
-    const host = page.locator("[data-testid=fold-scroll-host]");
+    const host = page.getByTestId("fold-scroll-host");
     await host.evaluate((el) => {
       el.scrollTop = 120;
     });
@@ -961,7 +961,7 @@ test.describe("viewport-edge probe frame (#797)", () => {
    *  i.e. centre 3px above the edge and every outward probe (11/16/22px) past it. The host is fixed and
    *  exactly viewport-tall, so this offset is the viewport's own geometry, not the CT page's layout. */
   async function parkAtBottomEdge(page: Page): Promise<void> {
-    await page.locator("[data-testid=cbtt-edge-host]").evaluate((el) => {
+    await page.getByTestId("cbtt-edge-host").evaluate((el) => {
       el.scrollTop = 600 - (el.clientHeight - 12);
     });
   }

@@ -285,9 +285,13 @@ async function messageLeafName(item: Locator): Promise<string> {
   return label;
 }
 
+function menuLeaves(menu: Locator): Locator {
+  return menu.getByRole("menuitem").or(menu.getByRole("menuitemcheckbox")).or(menu.getByRole("menuitemradio"));
+}
+
 async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, message: MessageView): Promise<void> {
   const chat = await flow.client.chat.getChat.query({ chatId: message.chatId });
-  for (const item of await menu.locator("[role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]").all()) {
+  for (const item of await menuLeaves(menu).all()) {
     const label = await messageLeafName(item);
     const id = `${name}/leaf/${label}`;
     expectSubject(flow, id, "message-menu-leaf");
@@ -329,7 +333,7 @@ async function inspectMenu(
 ): Promise<void> {
   const { depth, message } = options;
   await expect(menu).toBeVisible();
-  const items = menu.locator('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]');
+  const items = menuLeaves(menu);
   await expect(items.first()).toBeVisible();
   await attachNativeFile(flow.info, flow.info, `${name}-items`, { body: await menu.ariaSnapshot(), contentType: "text/plain" });
   const enabled = menu.locator('[role^="menuitem"]:not([aria-disabled="true"]):not([disabled])');

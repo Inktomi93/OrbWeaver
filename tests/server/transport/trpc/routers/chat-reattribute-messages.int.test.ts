@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts
 // A re-voice lands only on a present seat of the room. Every refused stamp leaves the row, the bus and the rollups alone.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { REATTRIBUTE_MESSAGES_MAX, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
@@ -15,6 +16,7 @@ import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ChatRoot, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createChatRoot, freshHeldDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { textProvider, textRoom, wireBodies, wireText } from "../../../domain/chat/scenario-physical.ts";
 
 const LOCAL_ENV = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
@@ -389,7 +391,7 @@ test("the export names the new speaker", async () => {
     (exported?.text ?? "")
       .split("\n")
       .filter((line) => line !== "")
-      .map((line) => JSON.parse(line) as { readonly mes?: string; readonly name?: string })
+      .map((line) => z.object({ mes: z.string().optional(), name: z.string().optional() }).parse(JSON.parse(line)))
       .map((line) => [line.mes, line.name]),
   );
   expect(speakers.get(SECOND_REPLY)).toBe(BEX.name);

@@ -38,7 +38,7 @@ export function useChatContextState(): CommittedChatContext | null {
     viewerUserId: chat.viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     roomOverrides: chat.roomOverrides,
-    isHost: chat.viewerIsHost === true,
+    isHost: chat.viewerIsHost,
     multiHumanCapable,
     background: chat.background,
   };

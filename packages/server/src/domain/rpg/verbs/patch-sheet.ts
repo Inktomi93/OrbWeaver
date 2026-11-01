@@ -70,15 +70,15 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
  * as unset.
  */
 function mergeAttributes(current: Readonly<Record<string, number>>, patch: Readonly<Record<string, number | null>>): Record<string, number> {
-  const next: Record<string, number> = { ...current };
+  const next = new Map(Object.entries(current));
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) {
-      delete next[key];
+      next.delete(key);
     } else {
-      next[key] = value;
+      next.set(key, value);
     }
   }
-  return next;
+  return Object.fromEntries(next);
 }
 
 /** The default sheet a first-write patch merges onto (a missing row = the default sheet, §4.3). */

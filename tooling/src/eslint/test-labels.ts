@@ -2,6 +2,7 @@ import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { staticTextValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -247,11 +248,11 @@ export function exportedProductionValues(root: string): ReadonlyMap<string, Expo
 }
 
 function nameOption(options: TSESTree.CallExpressionArgument | undefined): TSESTree.Node | undefined {
-  if (options?.type !== "ObjectExpression") {
+  if (options?.type !== AST_NODE_TYPES.ObjectExpression) {
     return undefined;
   }
   for (const property of options.properties) {
-    if (property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === "name") {
+    if (property.type === AST_NODE_TYPES.Property && !property.computed && property.key.type === AST_NODE_TYPES.Identifier && property.key.name === "name") {
       return property.value;
     }
   }
@@ -261,7 +262,7 @@ function nameOption(options: TSESTree.CallExpressionArgument | undefined): TSEST
 // The text a locator call matches: `getByLabel("x")`, `getByText("x")` and `getByRole(role, { name: "x" })`.
 function locatedName(call: TSESTree.CallExpression): TSESTree.Node | undefined {
   const { callee } = call;
-  if (callee.type !== "MemberExpression" || callee.computed || callee.property.type !== "Identifier") {
+  if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed || callee.property.type !== AST_NODE_TYPES.Identifier) {
     return undefined;
   }
   if (callee.property.name === "getByLabel" || callee.property.name === "getByText" || callee.property.name === "toHaveAccessibleName") {
@@ -298,21 +299,21 @@ function isValueSite(node: TSESTree.Node): boolean {
     return false;
   }
   switch (parent.type) {
-    case "Property":
-    case "PropertyDefinition":
-    case "MethodDefinition":
-    case "TSPropertySignature":
+    case AST_NODE_TYPES.Property:
+    case AST_NODE_TYPES.PropertyDefinition:
+    case AST_NODE_TYPES.MethodDefinition:
+    case AST_NODE_TYPES.TSPropertySignature:
       return !(parent.key === node && !parent.computed);
-    case "ImportDeclaration":
-    case "ExportNamedDeclaration":
-    case "ExportAllDeclaration":
-    case "ImportExpression":
-    case "TSLiteralType":
-    case "TSEnumMember":
-    case "TSExternalModuleReference":
-    case "TSImportType":
+    case AST_NODE_TYPES.ImportDeclaration:
+    case AST_NODE_TYPES.ExportNamedDeclaration:
+    case AST_NODE_TYPES.ExportAllDeclaration:
+    case AST_NODE_TYPES.ImportExpression:
+    case AST_NODE_TYPES.TSLiteralType:
+    case AST_NODE_TYPES.TSEnumMember:
+    case AST_NODE_TYPES.TSExternalModuleReference:
+    case AST_NODE_TYPES.TSImportType:
       return false;
-    case "ExpressionStatement":
+    case AST_NODE_TYPES.ExpressionStatement:
       return parent.directive === undefined;
     default:
       return true;

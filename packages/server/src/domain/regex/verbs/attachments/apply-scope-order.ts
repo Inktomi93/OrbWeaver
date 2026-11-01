@@ -19,7 +19,7 @@
 
 import type { Db } from "@orb/db";
 import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRegexScripts } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { RowsAffectedStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
@@ -45,7 +45,7 @@ async function ensureGlobalScriptsOwned(db: Db, ownerId: UserId, scriptIds: read
 
 /** Per-scope: authorize the scope, then build the per-attachment position writes. Exhaustive over the ref
  *  union — a new scope is a compile error here, not a silently un-orderable junction. */
-async function buildOrderWrites(ctx: RegexContext, params: ApplyScopeOrderParams): Promise<BatchStmt[]> {
+async function buildOrderWrites(ctx: RegexContext, params: ApplyScopeOrderParams): Promise<RowsAffectedStmt[]> {
   const { principal, scope, orderedScriptIds } = params;
   const ownerId = principal.userId;
   switch (scope.kind) {

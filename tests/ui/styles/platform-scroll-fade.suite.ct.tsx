@@ -18,7 +18,7 @@ async function band(box: Locator, property: string): Promise<number> {
 }
 
 async function scrollTo(box: Locator, axis: "top" | "left", offset: number): Promise<void> {
-  await box.evaluate((el, [side, to]) => el.scrollTo({ [side as string]: to as number, behavior: "instant" }), [axis, offset]);
+  await box.evaluate((el, target) => el.scrollTo({ [target.side]: target.to, behavior: "instant" }), { side: axis, to: offset });
 }
 
 test("the vertical fade ramps in from the top and out toward the bottom edge", async ({ mount, page }) => {

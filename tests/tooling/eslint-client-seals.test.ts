@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 // The first test pays for loading the whole flat config.
 const CONFIG_LOAD_MS = 60_000;
@@ -26,7 +27,7 @@ let engine: ESLint | undefined;
 async function messages(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
   engine ??= new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root });
-  const config = await engine.calculateConfigForFile(filename);
+  const config = await resolvedConfig(engine, filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,

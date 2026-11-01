@@ -31,16 +31,17 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
         adoptActive: true,
       });
     }
-    return await deps.purgeMemoryVectors({
+    await deps.purgeMemoryVectors({
       ownerId,
       generation: { id: vacuous.generationId, task: "embed", via: "embed", epoch: vacuous.generationEpoch, space: vacuous.model },
       ...(vacuous.onlyIf === null ? {} : { emptyScope: vacuous.onlyIf }),
     });
+    return undefined;
   };
 
   // Forced rebuilds bypass autoindex and adopt existing runs; each scope completes under its own root span.
   const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
-    if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
+    if (!(embedderChanged || deps.getEffectiveConfig().corpusAutoindex)) {
       return [];
     }
     const at = String(deps.now());
@@ -108,9 +109,9 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     });
   };
 
-  let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
+  let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex;
   const refreshAutoindex = (): void => {
-    const enabled = deps.getEffectiveConfig().corpusAutoindex === true;
+    const enabled = deps.getEffectiveConfig().corpusAutoindex;
     const starts = enabled && !autoindexEnabled;
     autoindexEnabled = enabled;
     if (starts) {

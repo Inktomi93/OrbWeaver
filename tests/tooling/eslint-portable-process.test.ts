@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const RULE = "no-restricted-syntax";
 const COMMANDS = ["rm", "cp", "mkdir", "kill"] as const;
@@ -13,7 +14,7 @@ test.for(["tooling/src/dev/ops/probe.ts", "tooling/src/snap/ops/probe.tsx", "scr
     const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
     const linter = new Linter();
     const filename = join(repoRoot, path);
-    const config = await eslint.calculateConfigForFile(filename);
+    const config = await resolvedConfig(eslint, filename);
     const native = {
       files: ["**/*.{ts,tsx}"],
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
@@ -66,7 +67,7 @@ test("the platform and subprocess adapters retain their native shell capability"
   const linter = new Linter();
   for (const path of ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"]) {
     const filename = join(repoRoot, path);
-    const config = await eslint.calculateConfigForFile(filename);
+    const config = await resolvedConfig(eslint, filename);
     const native = {
       files: ["**/*.ts"],
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },

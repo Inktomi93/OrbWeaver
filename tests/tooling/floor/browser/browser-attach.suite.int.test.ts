@@ -22,7 +22,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -39,6 +38,7 @@ import { snapshot } from "lighthouse";
 import puppeteer from "puppeteer-core";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 // Structural assertions stay parallel; their completion deadline scales with browser startup cost.
 const RUN_TIMEOUT_MS = scaledBudget(90_000, 4);
@@ -96,7 +96,7 @@ async function startOrigin(): Promise<{ readonly server: Server; readonly base: 
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
+  return { server, base: `http://127.0.0.1:${listeningAddress(server).port}` };
 }
 
 async function closeOrigin(server: Server): Promise<void> {

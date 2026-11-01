@@ -2,6 +2,7 @@
 // plain room. The ink on it clears AA against the plate's painted pixels whichever extreme the photo puts behind it.
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -9,7 +10,7 @@ import type { ContextDividerStory } from "./_context-divider-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_context-divider-stories/ContextDividerStory";
 const LABEL = /^In context from here/u;
-const THEMES = [undefined, ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[])] as const;
+const THEMES = [undefined, ...keysOf(SEED_THEME_VALUE_SETS)] as const;
 
 function style(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);

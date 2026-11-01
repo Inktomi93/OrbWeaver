@@ -376,7 +376,7 @@ async function queryRuntime(args: QueryRuntimeArgs): Promise<readonly DevToolsCa
   // Loading DevTools' frontend clears Emulation.setEmulatedMedia on the inspected target. Restore the
   // exact live slate after detaching so both successful and failed observations leave the cell intact.
   const [restored] = await Promise.allSettled([restoreMediaAfterObserver(page, inspectedMedia)]);
-  const failures = [observation, detached, restored].flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+  const failures = [observation, detached, restored].flatMap((result): unknown[] => (result.status === "rejected" ? [result.reason] : []));
   if (failures.length === 1) {
     throw failures[0];
   }

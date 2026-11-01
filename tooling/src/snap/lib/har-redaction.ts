@@ -1,5 +1,6 @@
 import { isUtf8 } from "node:buffer";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type {
   DiskSafeBody,
   DiskSafeCookie,
@@ -244,7 +245,7 @@ function jsonValue(value: unknown, cursor: HarJsonCursor): RedactedJsonValue {
         .map((key) => {
           // a throwing property getter records an `unreadable` limit event at har-redaction.ts:250 and the value becomes [OMITTED]; the receipt rides _orbMeasuredLimit into network-har.ts:296. The thrown error is dropped on purpose because it can hold the secret. Ends if the event push or the receipt is removed.
           try {
-            return [key, Reflect.get(value, key)] as const;
+            return [key, readMember(value, key)] as const;
           } catch {
             const safeKey = bounded(key, `${cursor.path}.$key`, cursor);
             event(cursor, { kind: "unreadable", path: `${cursor.path}.${safeKey}`, original: null, retained: 0, omitted: 1 });

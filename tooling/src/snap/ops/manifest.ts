@@ -13,6 +13,7 @@ import type { BrowserEvidenceRetentionBatch } from "../../floor/browser/browser-
 import { BROWSER_EVIDENCE_SOURCES } from "../../floor/browser/browser-evidence-ring.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { DiskSafeBrowserPageError, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
 import type { Args, CaptureOutcome, DriveFailure, WatchTick } from "../contract/types.ts";
@@ -204,15 +205,15 @@ function diskSafeManifest(input: ManifestInput): SnapManifest {
 }
 
 function measuredLimitReceipt(record: object, path: string): InstrumentArtifactLimitReceipt | null {
-  const receipt = Reflect.get(record, "_orbMeasuredLimit");
+  const receipt = readMember(record, "_orbMeasuredLimit");
   if (receipt === undefined) {
     return null;
   }
   if (typeof receipt !== "object" || receipt === null) {
     throw new Error(`INSTRUMENT ERROR: ${path} measured-limit receipt is not an object`);
   }
-  const policy = Reflect.get(receipt, "policy");
-  const rawEvents = Reflect.get(receipt, "events");
+  const policy = readMember(receipt, "policy");
+  const rawEvents = readMember(receipt, "events");
   if (!Array.isArray(rawEvents)) {
     throw new Error(`INSTRUMENT ERROR: ${path} measured-limit receipt has no events array`);
   }
@@ -220,11 +221,11 @@ function measuredLimitReceipt(record: object, path: string): InstrumentArtifactL
     if (typeof event !== "object" || event === null) {
       throw new Error(`INSTRUMENT ERROR: ${path} measured-limit event ${String(index)} is not an object`);
     }
-    const kind = Reflect.get(event, "kind");
-    const eventPath = Reflect.get(event, "path");
-    const original = Reflect.get(event, "original");
-    const retained = Reflect.get(event, "retained");
-    const omitted = Reflect.get(event, "omitted");
+    const kind = readMember(event, "kind");
+    const eventPath = readMember(event, "path");
+    const original = readMember(event, "original");
+    const retained = readMember(event, "retained");
+    const omitted = readMember(event, "omitted");
     if (
       typeof kind !== "string" ||
       typeof eventPath !== "string" ||

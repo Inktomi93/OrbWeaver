@@ -18,7 +18,8 @@ import type { ChatEvent, RateLimitSnapshot } from "#contract";
 const ANTHROPIC_RE = /^anthropic-ratelimit-(?<axis>[a-z-]+)-(?<field>limit|remaining|reset)$/u;
 const OPENAI_RE = /^x-ratelimit-(?<field>limit|remaining|reset)-(?<axis>[a-z-]+)$/u;
 const RETRY_AFTER = "retry-after";
-const DURATION_PART_RE = /(?<value>\d+(?:\.\d+)?)(?<unit>ms|[smh])/gu;
+// Sticky: the parts are read back-to-back from a string `DURATION_WHOLE_RE` already accepted, so no scan is needed.
+const DURATION_PART_RE = /(?<value>\d+(?:\.\d+)?)(?<unit>ms|[smh])/uy;
 const DURATION_WHOLE_RE = /^(?:\d+(?:\.\d+)?(?:ms|[smh]))+$/u;
 const MS_PER: Readonly<Record<"ms" | "s" | "m" | "h", number>> = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 };
 const STATUS_ALLOWED = "allowed";
@@ -54,7 +55,8 @@ function parseGoDuration(text: string): number | undefined {
     return;
   }
   let total = 0;
-  for (const part of trimmed.matchAll(DURATION_PART_RE)) {
+  DURATION_PART_RE.lastIndex = 0;
+  for (let part = DURATION_PART_RE.exec(trimmed); part !== null; part = DURATION_PART_RE.exec(trimmed)) {
     const value = Number(part.groups?.["value"]);
     const unit = part.groups?.["unit"];
     if (unit !== "ms" && unit !== "s" && unit !== "m" && unit !== "h") {

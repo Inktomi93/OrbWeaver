@@ -2,7 +2,7 @@
 // batch tuple bridge, the unified constraint classifier, the owner-scoped fetch, the member-visible chat
 // scope + recency clock, the bound-variable chunker, the LIKE-term escape, and the JSON read-seam parsers.
 
-export type { AwaitableBatchStmt, BatchStmt } from "./batch.ts";
+export type { AwaitableBatchStmt, BatchStmt, RowsAffectedStmt } from "./batch.ts";
 export { batchMany, batchStmt } from "./batch.ts";
 export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { isConstraintViolation } from "./db-errors.ts";

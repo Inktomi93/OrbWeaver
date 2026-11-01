@@ -1,5 +1,7 @@
 // D336 step four: InlineToken and IndicatorDot each paint their own skin from the tone's roles, under each seed and a nested
 // custom scope. Neither draws a hover paint, so no hover media query is read.
+
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS, TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -9,7 +11,7 @@ import type { BadgeFamilyStory } from "./_badge-family-stories.tsx";
 const STORY = "tests/ui/primitives/badge/_badge-family-stories/BadgeFamilyStory";
 const CASES = [
   { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom dark scope nested in the light seed", theme: "light" as const, background: BASES[0].background },
 ] as const;
 
