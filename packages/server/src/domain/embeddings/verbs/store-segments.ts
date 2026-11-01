@@ -138,7 +138,6 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
     signal?.throwIfAborted();
     const results: StoreResult[] = params.map((p) => ({
       outcome: "noop",
-      contentHash: p.contentHash,
       model: p.model,
       ...receiptOf(generations.get(p.ownerId)),
     }));
@@ -171,7 +170,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         dim: item.generation.dims,
         now: ctx.now(),
       });
-      results[item.index] = { outcome: landed ? "written" : "noop", contentHash: p.contentHash, model: embedded.model, ...receiptOf(item.generation) };
+      results[item.index] = { outcome: landed ? "written" : "noop", model: embedded.model, ...receiptOf(item.generation) };
     }
     return results;
   };

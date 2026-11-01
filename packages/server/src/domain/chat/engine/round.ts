@@ -144,7 +144,7 @@ function roundSpeakers(params: DriveRoundParams): readonly SpeakerCandidate[] {
     }
     return [
       {
-        ref: { kind: "character", characterId: params.groupCharacterId },
+        ref: { characterId: params.groupCharacterId },
         name: params.narratorSpeakerName,
       },
     ];

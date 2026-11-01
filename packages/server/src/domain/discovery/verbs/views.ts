@@ -75,7 +75,7 @@ async function themeDetail(db: Db, deps: ViewsDeps, args: { ownerId: UserId; clu
     readThemeClusterDigestIds(db, ownerId, theme.id, THEME_SOURCE_LIMIT),
   ]);
   const sources = await deps.resolveDigestSources(ownerId, digestIds);
-  return { ...theme, timeline, members, sources, sourceLimit: THEME_SOURCE_LIMIT };
+  return { id: theme.id, level: theme.level, size: theme.size, timeline, members, sources, sourceLimit: THEME_SOURCE_LIMIT };
 }
 
 /** null when the character isn't owned/distilled. Composes the distilled headline facets, the in-RAM
@@ -90,7 +90,6 @@ async function characterDossier(db: Db, deps: ViewsDeps, args: { ownerId: UserId
   const pair = pairs.find((p) => p.characterId === characterId);
   const portrait = pair === undefined ? null : { avatarHash: pair.avatarHash, alignment: cosineSim(pair.cardVec, pair.imageVec) };
   return {
-    characterId,
     name: card.name,
     genre: card.genre,
     tone: card.tone,

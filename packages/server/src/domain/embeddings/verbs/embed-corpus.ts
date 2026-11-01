@@ -35,7 +35,6 @@ async function embedOneCard(
     return "skipped";
   }
   const result = await deps.store({
-    kind: "card",
     lens: "card-text",
     ownerId: cardOwnerId,
     characterId,

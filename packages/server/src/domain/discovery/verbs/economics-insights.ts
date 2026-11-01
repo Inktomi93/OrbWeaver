@@ -73,7 +73,6 @@ async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEF
       lastActiveAt: c.lastActiveAt,
       tokensOut: econ === undefined ? null : econ.tokensOut,
       tokensOutProvenance: econ?.tokensOutProvenance ?? "unrecorded",
-      costUsd: econ?.costUsd ?? null,
     };
   });
   const newestActiveAt = Math.max(...gems.map((g) => g.lastActiveAt), 0);

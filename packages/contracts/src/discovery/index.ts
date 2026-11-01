@@ -143,8 +143,7 @@ const [recentCursor, nameCursor] = browseCursorSchema.options;
 const browseCursorOutputSchema = z.discriminatedUnion("sort", [recentCursor.strict(), nameCursor.strict()]);
 
 // ── near-duplicate characters ─────────────────────────────────────────────────
-/** One owner-scoped near-duplicate character pair (canonical `A<B`). `similarity` is the raw cosine;
- *  `cslsScore` is the hub-adjusted rank key (`2·cos − hub_a − hub_b`). */
+/** One owner-scoped near-duplicate character pair (canonical `A<B`). `similarity` is the raw cosine. */
 export interface DuplicateCharacterPair {
   readonly id: DuplicateCharacterPairId;
   readonly characterIdA: CharacterId;
@@ -152,9 +151,6 @@ export interface DuplicateCharacterPair {
   readonly nameA: string;
   readonly nameB: string;
   readonly similarity: number;
-  readonly cslsScore: number;
-  readonly model: string;
-  readonly computedAt: number;
 }
 
 /** One owner-scoped near-duplicate chat pair (canonical `A<B`). `similarity` is the Jaccard overlap of the
@@ -166,22 +162,15 @@ export interface DuplicateChatPair {
   readonly titleA: string | null;
   readonly titleB: string | null;
   readonly similarity: number;
-  readonly cslsScore: number;
   readonly relation: DuplicateRelation;
-  readonly model: string;
-  readonly computedAt: number;
 }
 
-/** The `distillCharacters` pass summary. `failed` and `skipped` are DIFFERENT outcomes and must not be
- *  summed into one "didn't work" bucket: `failed` = the summarizer was asked and produced nothing usable
- *  (transient — re-run it); `skipped` = the card was never asked, because it carries no writing beyond its
- *  name (permanent until the user writes the card — the on-demand arm refuses it outright). */
+/** The `distillCharacters` pass summary. `skipped` = the card was never asked, because it carries no writing
+ *  beyond its name (permanent until the user writes the card — the on-demand arm refuses it outright). */
 export interface DistillStats {
   readonly scanned: number;
   readonly distilled: number;
-  readonly failed: number;
   readonly skipped: number;
-  readonly tagsStaged: number;
 }
 
 // ── browse (the filterable distilled catalog) ──────────────────────────────────────
@@ -191,8 +180,6 @@ export interface BrowseCharacter {
   readonly name: string;
   readonly genre: string | null;
   readonly tone: string | null;
-  readonly setting: string | null;
-  readonly tags: string[];
   readonly elevatorPitch: string | null;
   readonly avatarHash: string | null;
   readonly createdAt: number;
@@ -241,8 +228,6 @@ export interface CorpusPoint {
 export interface SimilarityGraphNode {
   readonly characterId: CharacterId;
   readonly name: string;
-  readonly degree: number;
-  readonly genre: string | null;
 }
 
 /** One edge — a character pair whose raw card-embedding cosine cleared `minSimilarity`. */
@@ -262,7 +247,6 @@ export interface SimilarityGraph {
 export interface SimilarChat {
   readonly chatId: ChatId;
   readonly title: string | null;
-  readonly similarity: number;
 }
 
 // ── cooccurrence (keyword×keyword tallies; per-character keyword profiles) ──────────────────────────────
@@ -279,19 +263,11 @@ export interface TagCount {
   readonly count: number;
 }
 
-/** Two distilled tags that co-occur on the same card + how often. Canonical `a < b` (case-folded). */
-export interface TagPair {
-  readonly a: string;
-  readonly b: string;
-  readonly count: number;
-}
-
 /** The distill-powered catalog overview — what the owner actually collected, content-only. */
 export interface CatalogStats {
   readonly genres: FacetCount[];
   readonly tones: FacetCount[];
   readonly topTags: TagCount[];
-  readonly tagPairs: TagPair[];
   readonly totalDistilled: number;
   /** THE BASE `totalDistilled` IS OUT OF (issue #535, the one-pass denominator rule). Every corpus surface
    *  that prints the distilled count reads THIS payload — the LIST band, the CONTEXT band, the browse
@@ -304,7 +280,6 @@ export interface CatalogStats {
 
 /** One side of a `compareCharacters` diff — the card identity + its headline distilled facets. */
 export interface ComparedCharacter {
-  readonly characterId: CharacterId;
   readonly name: string;
   readonly genre: string | null;
   readonly tone: string | null;
@@ -353,8 +328,6 @@ export interface CharacterComparisonDeep extends CharacterComparison {
  *  • `degraded` — OURS: the reply failed the payload schema twice, so `answer` is the raw text verbatim.
  *  A renderer that shows "Speculative" for a degraded answer is attributing our parse failure to the model. */
 export interface AskCardAnswer {
-  readonly characterId: CharacterId;
-  readonly question: string;
   readonly answer: string;
   readonly grounded: boolean;
   readonly degraded: boolean;
@@ -367,8 +340,6 @@ export interface AskCardAnswer {
 export interface SwipeHotspot {
   readonly messageId: MessageId;
   readonly seq: number;
-  readonly characterId: CharacterId;
-  readonly characterName: string;
   readonly variantCount: number;
   readonly snippet: string;
 }
@@ -411,15 +382,12 @@ export interface ForgottenGem {
   /** Origin of `tokensOut`; estimates remain approximate across the stats → discovery seam. */
   readonly tokensOutProvenance: TokenProvenance;
   /** `null` = no selected variant reported a dollar cost. */
-  readonly costUsd: number | null;
 }
 
 // ── composed views (content-only server verbs — home + themeDetail) ─────────────────────────────────────
 /** Corpus coverage — how much of the owner's library is indexed (not usage). */
 interface CorpusCoverage {
   readonly characters: number;
-  readonly digests: number;
-  readonly segments: number;
 }
 
 /**
@@ -459,7 +427,6 @@ export interface ThemeMember {
 export interface DossierNeighbor {
   readonly characterId: CharacterId;
   readonly name: string;
-  readonly score: number;
   readonly relevance: number;
   readonly avatarHash: string | null;
   readonly genre: string | null;
@@ -471,7 +438,6 @@ export interface DossierNeighbor {
  *  cosine) + nearest neighbours (the injected search seam). `portrait` is null when the character has no
  *  paired card/avatar vector; `similar` is empty when search has no neighbours. */
 export interface CharacterDossier {
-  readonly characterId: CharacterId;
   readonly name: string;
   readonly genre: string | null;
   readonly tone: string | null;
@@ -490,13 +456,9 @@ export interface CharacterDossier {
 export interface ThemeDetail {
   readonly sources: readonly CorpusDigestSource[];
   readonly sourceLimit: number;
-  readonly computedAt: number;
   readonly id: ThemeClusterId;
   readonly level: ThemeLevel;
-  readonly clusterIdx: number;
-  readonly name: string | null;
   readonly size: number;
-  readonly model: string;
   readonly timeline: ThemeTimelineBucket[];
   readonly members: ThemeMember[];
 }
@@ -561,8 +523,6 @@ export interface ImageFacetMember {
   readonly characterId: CharacterId;
   readonly name: string;
   readonly avatarHash: string | null;
-  readonly rating: string | null;
-  readonly artStyle: string | null;
   readonly caption: string | null;
 }
 
@@ -573,9 +533,6 @@ export const duplicateCharacterPairSchema = z.strictObject({
   nameA: z.string(),
   nameB: z.string(),
   similarity: z.number(),
-  cslsScore: z.number(),
-  model: z.string(),
-  computedAt: z.number(),
 }) satisfies z.ZodType<DuplicateCharacterPair>;
 
 export const duplicateChatPairSchema = z.strictObject({
@@ -585,18 +542,13 @@ export const duplicateChatPairSchema = z.strictObject({
   titleA: z.string().nullable(),
   titleB: z.string().nullable(),
   similarity: z.number(),
-  cslsScore: z.number(),
   relation: duplicateRelationSchema,
-  model: z.string(),
-  computedAt: z.number(),
 }) satisfies z.ZodType<DuplicateChatPair>;
 
 export const distillStatsSchema = z.strictObject({
   scanned: z.number(),
   distilled: z.number(),
-  failed: z.number(),
   skipped: z.number(),
-  tagsStaged: z.number(),
 }) satisfies z.ZodType<DistillStats>;
 
 const browseCharacterSchema = z.strictObject({
@@ -604,8 +556,6 @@ const browseCharacterSchema = z.strictObject({
   name: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
-  setting: z.string().nullable(),
-  tags: z.array(z.string()),
   elevatorPitch: z.string().nullable(),
   avatarHash: z.string().nullable(),
   createdAt: z.number(),
@@ -635,8 +585,6 @@ export const corpusPointSchema = z.strictObject({
 const similarityGraphNodeSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
-  degree: z.number(),
-  genre: z.string().nullable(),
 }) satisfies z.ZodType<SimilarityGraphNode>;
 
 const similarityGraphEdgeSchema = z.strictObject({
@@ -653,26 +601,21 @@ export const similarityGraphSchema = z.strictObject({
 export const similarChatSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   title: z.string().nullable(),
-  similarity: z.number(),
 }) satisfies z.ZodType<SimilarChat>;
 
 export const keywordCountSchema = z.strictObject({ keyword: z.string(), count: z.number() }) satisfies z.ZodType<KeywordCount>;
 
 const tagCountSchema = z.strictObject({ tag: z.string(), count: z.number() }) satisfies z.ZodType<TagCount>;
 
-const tagPairSchema = z.strictObject({ a: z.string(), b: z.string(), count: z.number() }) satisfies z.ZodType<TagPair>;
-
 export const catalogStatsSchema = z.strictObject({
   genres: z.array(facetCountSchema),
   tones: z.array(facetCountSchema),
   topTags: z.array(tagCountSchema),
-  tagPairs: z.array(tagPairSchema),
   totalDistilled: z.number(),
   totalCharacters: z.number(),
 }) satisfies z.ZodType<CatalogStats>;
 
 const comparedCharacterSchema = z.strictObject({
-  characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
@@ -702,8 +645,6 @@ export const characterComparisonDeepSchema = characterComparisonSchema.extend({
 }) satisfies z.ZodType<CharacterComparisonDeep>;
 
 export const askCardAnswerSchema = z.strictObject({
-  characterId: typeIdSchema(ID_PREFIX.character),
-  question: z.string(),
   answer: z.string(),
   grounded: z.boolean(),
   degraded: z.boolean(),
@@ -713,8 +654,6 @@ export const askCardAnswerSchema = z.strictObject({
 export const swipeHotspotSchema = z.strictObject({
   messageId: typeIdSchema(ID_PREFIX.message),
   seq: z.number(),
-  characterId: typeIdSchema(ID_PREFIX.character),
-  characterName: z.string(),
   variantCount: z.number(),
   snippet: z.string(),
 }) satisfies z.ZodType<SwipeHotspot>;
@@ -740,10 +679,9 @@ export const forgottenGemSchema = z.strictObject({
   lastActiveAt: z.number(),
   tokensOut: z.number().nullable(),
   tokensOutProvenance: tokenProvenanceSchema,
-  costUsd: z.number().nullable(),
 }) satisfies z.ZodType<ForgottenGem>;
 
-const corpusCoverageSchema = z.strictObject({ characters: z.number(), digests: z.number(), segments: z.number() }) satisfies z.ZodType<CorpusCoverage>;
+const corpusCoverageSchema = z.strictObject({ characters: z.number() }) satisfies z.ZodType<CorpusCoverage>;
 
 export const homeViewSchema = z.strictObject({
   coverage: corpusCoverageSchema,
@@ -761,7 +699,6 @@ const themeMemberSchema = z.strictObject({
 const dossierNeighborSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
-  score: z.number(),
   relevance: z.number(),
   avatarHash: z.string().nullable(),
   genre: z.string().nullable(),
@@ -770,7 +707,6 @@ const dossierNeighborSchema = z.strictObject({
 }) satisfies z.ZodType<DossierNeighbor>;
 
 export const characterDossierSchema = z.strictObject({
-  characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
@@ -784,13 +720,9 @@ export const characterDossierSchema = z.strictObject({
 export const themeDetailSchema = z.strictObject({
   sources: z.array(corpusDigestSourceSchema).readonly(),
   sourceLimit: z.number(),
-  computedAt: z.number(),
   id: typeIdSchema(ID_PREFIX.themeCluster),
   level: z.enum(THEME_LEVELS),
-  clusterIdx: z.number(),
-  name: z.string().nullable(),
   size: z.number(),
-  model: z.string(),
   timeline: z.array(themeTimelineBucketSchema),
   members: z.array(themeMemberSchema),
 }) satisfies z.ZodType<ThemeDetail>;
@@ -844,8 +776,6 @@ export const imageFacetMemberSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
   avatarHash: z.string().nullable(),
-  rating: z.string().nullable(),
-  artStyle: z.string().nullable(),
   caption: z.string().nullable(),
 }) satisfies z.ZodType<ImageFacetMember>;
 

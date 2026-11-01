@@ -462,7 +462,6 @@ function buildBaseContext(
     // null ⇒ fail closed (no null-stamped row borrows the name).
     activePersonaUserId: input.personas.activeUserId ?? null,
     speaker: { kind: "single", character },
-    recentMessages: [...input.recentMessages],
     variableValues: input.variableValues,
     // D46 runtime plane: ONE fresh op-log per assembly, threaded BY REFERENCE (like `variableValues`) into every
     // macro context so a `{{setvar}}` in ANY section / regex template / guided template this turn is recorded.
@@ -874,7 +873,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     return card ? [{ characterId, card }] : [];
   });
   const characters = present.map((p) => toAssembleCharacter(p.card));
-  const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
+  const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ characterId: p.characterId }));
   const character: AssembleCharacter = characters[0] ?? { name: "Assistant", description: "" };
 
   // The turn's PROSE bag — the two homes composed into one home-agnostic record (PROSE-1 §3.1 stays intact:

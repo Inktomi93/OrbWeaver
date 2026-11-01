@@ -120,7 +120,6 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
         continue;
       }
       pending.push({
-        lens: "segment",
         ownerId: embedSpace.ownerId,
         model: embedSpace.model,
         generationId: embedSpace.generationId,

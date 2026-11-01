@@ -166,7 +166,7 @@ export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 //   • `below-floor`    — it WAS scanned as a candidate and did not survive the retrieval cut (the `minScore`
 //                        floor, or the mixC rerank trim). Carries no score by construction: retrieval returns
 //                        its SURVIVORS, so the score of a rejected candidate is not knowable here;
-//   • `admitted`       — it made the block, and carries the `score`/`relevance`/`rank` it made it with.
+//   • `admitted`       — it made the block, and carries the `relevance`/`rank` it made it with.
 const MEMORY_RECALL_VERDICTS = ["admitted", "below-floor", "bridge-covered", "mode-excluded", "live-window", "unwitnessed"] as const;
 export type MemoryRecallVerdict = (typeof MEMORY_RECALL_VERDICTS)[number];
 
@@ -183,11 +183,8 @@ export interface MemoryRecallCandidate {
    *  under scoped recall (the two buckets the mode-switch union reads). */
   scopedCharacterId: CharacterId;
   verdict: MemoryRecallVerdict;
-  /** The CSLS rank signal retrieval admitted it on (LOWER = closer). ABSENT unless `verdict === "admitted"` in
-   *  an embedding mode — a pure-assembly mode (mixA/tiered) runs no scan and therefore produces no score. */
-  score?: number;
-  /** Cosine `1 − distance`, HIGHER = closer — the readout number a surface prints. Same absence rule as
-   *  {@link MemoryRecallCandidate.score}. */
+  /** Cosine `1 − distance`, HIGHER = closer — the readout number a surface prints. ABSENT unless
+   *  `verdict === "admitted"` in an embedding mode — a pure-assembly mode (mixA/tiered) runs no scan. */
   relevance?: number;
   /** 0-based position in the RETRIEVAL-admitted order (best-scoring first — the order this trace lists the
    *  admitted candidates). NOTE (#330 P7): the `{{memory}}` TEXT itself renders the embedding-mode (mixB/mixC)
@@ -223,8 +220,6 @@ export interface MemoryRecallSlice {
   candidateCount: number;
   /** Blocks that actually reached the rendered `{{memory}}` block. */
   surfaced: number;
-  /** Wall time of the whole recall, from the injected clock. */
-  ms: number;
   /** The zero-work / degrade reason ("mode off", "no digests"), else null. */
   note: string | null;
   candidates: readonly MemoryRecallCandidate[];
@@ -658,8 +653,6 @@ export interface AssembleContext {
   /** Whether the `persona` marker should emit the active persona's description (false ⇒ it rode an
    *  injection; marker stays silent to avoid double-inject). Absent ⇒ true. */
   personaMarkerActive?: boolean;
-  /** Recent message texts, for keyword-WI matching at build time. */
-  recentMessages: string[];
   currentInput?: string | undefined;
   lastMessage?: string | undefined;
   lastUserMessage?: string | undefined;
@@ -762,7 +755,6 @@ const memoryRecallCandidateSchema = z.strictObject({
   blockIdx: z.number(),
   scopedCharacterId: typeIdSchema(ID_PREFIX.character),
   verdict: z.enum(MEMORY_RECALL_VERDICTS),
-  score: z.number().exactOptional(),
   relevance: z.number().exactOptional(),
   rank: z.number().exactOptional(),
 }) satisfies z.ZodType<MemoryRecallCandidate>;
@@ -774,7 +766,6 @@ const memoryRecallSliceSchema = z.strictObject({
   poolSize: z.number(),
   candidateCount: z.number(),
   surfaced: z.number(),
-  ms: z.number(),
   note: z.string().nullable(),
   candidates: z.array(memoryRecallCandidateSchema).readonly(),
 }) satisfies z.ZodType<MemoryRecallSlice>;

@@ -42,7 +42,6 @@ import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote
  *  accounting. The stamp's original reason is preserved exactly — the BUILD walk accounts the state block
  *  under its own source without chat ever reading an rpg type. */
 const rpgGatherProjection: TeachingContribution = {
-  id: "chat.rpg-gather",
   order: 0,
   collect: (tctx: TeachingContext): Promise<TeachingCollection> =>
     Promise.resolve({
@@ -105,7 +104,6 @@ function resolveChoicesTeach(tctx: TeachingContext): string {
  *  rather than in the generic collector, which must not learn to sniff inside another domain's blob. It reads
  *  `tctx.rpgGather` (the structural gather chat already owns), so it is independent of contributor order. */
 const offerChoicesTeach: TeachingContribution = {
-  id: "chat.offer-choices",
   order: 1,
   collect: (tctx: TeachingContext): Promise<TeachingCollection> => {
     if (!tctx.knobs.offerChoices) {
@@ -202,7 +200,6 @@ function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionRe
  *  {@link EMPTY_COLLECTION} ⇒ byte-identical (the A1 per-contributor property). */
 function createReactionAttribution(db: Db): TeachingContribution {
   return {
-    id: "chat.reaction-attribution",
     order: 2,
     collect: async (tctx: TeachingContext): Promise<TeachingCollection> => {
       if (!tctx.knobs.reactionsEnabled) {
@@ -232,7 +229,6 @@ function createReactionAttribution(db: Db): TeachingContribution {
  *  default at both tiers) AND `reactionsEnabled` (a room with the plane off attaches nothing). Either off
  *  ⇒ {@link EMPTY_COLLECTION} ⇒ the react tool never reaches the wire — the receipt the OFF toggle owes. */
 const reactToolAttach: TeachingContribution = {
-  id: "chat.react-tool",
   order: 3,
   collect: (tctx: TeachingContext): Promise<TeachingCollection> =>
     Promise.resolve(tctx.knobs.reactionsEnabled && tctx.knobs.charactersCanReact ? { injections: [], toolNames: [CHAT_REACT_TOOL_NAME] } : EMPTY_COLLECTION),

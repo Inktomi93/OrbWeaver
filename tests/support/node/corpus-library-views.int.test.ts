@@ -126,7 +126,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(result.persona.imported.output.id).not.toBe(result.persona.duplicate.output.id);
   expect(result.persona.repeated.output).toEqual(result.persona.imported.output);
   expect(result.persona.disconnected.output).toEqual({ disconnected: false });
-  expect(result.persona.deleted.output).toEqual({ deleted: true, newDefaultPersonaId: null });
+  expect(result.persona.deleted.output).toEqual({ newDefaultPersonaId: null });
 
   const roster = result.roster;
   expect(roster.persisted.members.map((member) => [member.characterId, member.position])).toEqual([
