@@ -1723,6 +1723,11 @@ export const TONE_HUE_ADJACENT_DEGREES = 45;
 // About one 8-bit step in OKLab at the mid lightnesses where tints sit: what quantizing two tints can spend of their separation.
 const TINT_PIXEL_HEADROOM = 0.004;
 
+// How far past the nearest ink-clearing tint a search looks for the solid's floor: a tint this far off is no longer the tone's tint, and an unreachable floor must not walk the whole range.
+const TINT_MARK_SEARCH_STEPS = 400;
+// Every clamp render pays this search on a palette whose floor is out of reach, so it samples rather than walks. Odd, because the walk alternates sides.
+const TINT_MARK_SEARCH_STRIDE = 7;
+
 // A browser can round a pixel one level off the solve's own 8-bit reading, so a tint landing on the separation can paint just under it.
 const TINT_ROUNDING_MARGIN = 0.001;
 
@@ -1902,6 +1907,24 @@ function* lightnessWalk(start: number, first: 1 | -1): Generator<number> {
   }
 }
 
+/** The lightness walk a tint search takes: every step, then a bounded sample once a tint has cleared its inks but missed the solid's floor. */
+function* tintLightnessWalk(start: number, first: 1 | -1, unmarked: () => boolean): Generator<number> {
+  let past = 0;
+  for (const l of lightnessWalk(start, first)) {
+    if (!unmarked()) {
+      yield l;
+      continue;
+    }
+    past += 1;
+    if (past > TINT_MARK_SEARCH_STEPS) {
+      return;
+    }
+    if (past % TINT_MARK_SEARCH_STRIDE === 0) {
+      yield l;
+    }
+  }
+}
+
 function mixStepToward<Knob extends string>(colored: ColoredToneOrigin | ToneMixStep<Knob>, target: ToneMixTarget): ToneMixStep<Knob> | undefined {
   return typeof colored === "object" && colored.toward === target ? colored : undefined;
 }
@@ -1982,23 +2005,26 @@ function solveTint<Host extends string>(palette: TonePalette<Host>, base: Oklch,
   const markLuminance = luminances(oklchToSrgb(mark));
   let nearest: Oklch | undefined;
   let unmarked: Oklch | undefined;
-  for (const l of lightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1)) {
+  const keepsFloors = (candidate: Oklch): boolean => {
+    const pixel = [luminances(paintedForms(candidate).srgb)];
+    return (
+      hosts.every((host) => paintedDistance(candidate, host) >= TONE_TINT_SEPARATION + TINT_ROUNDING_MARGIN) &&
+      aims.every(({ ink, aim }) => worstLuminanceContrast(ink, pixel) >= aim)
+    );
+  };
+  const holdsMark = (candidate: Oklch): boolean => worstLuminanceContrast(markLuminance, [luminances(paintedForms(candidate).srgb)]) >= AA_NON_TEXT_RATIO;
+  for (const l of tintLightnessWalk(mixOklab(base, percent, background).l, foreground.l < background.l ? 1 : -1, () => unmarked !== undefined)) {
     const candidate = onHue(l, chroma, base.h);
-    if (hosts.some((host) => paintedDistance(candidate, host) < TONE_TINT_SEPARATION + TINT_ROUNDING_MARGIN)) {
+    if (!keepsFloors(candidate)) {
       continue;
     }
-    const candidatePixel = [luminances(paintedForms(candidate).srgb)];
-    if (aims.some(({ ink, aim }) => worstLuminanceContrast(ink, candidatePixel) < aim)) {
-      continue;
-    }
-    if (worstLuminanceContrast(markLuminance, candidatePixel) < AA_NON_TEXT_RATIO) {
+    if (!holdsMark(candidate)) {
       unmarked ??= candidate;
-      continue;
-    }
-    if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
+    } else if (candidate.c >= floorChroma - CHROMA_TOLERANCE) {
       return candidate;
+    } else {
+      nearest ??= candidate;
     }
-    nearest ??= candidate;
   }
   const tint = nearest ?? unmarked;
   if (tint === undefined) {
