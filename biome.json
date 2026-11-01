@@ -1645,12 +1645,7 @@
       }
     },
     {
-      "includes": [
-        "packages/inference/src/backends/agent-sdk/env.ts",
-        "packages/client/src/features/refinery/lib/builtin-hints.ts",
-        "packages/client/src/features/refinery/components/context-tabs.tsx",
-        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx"
-      ],
+      "includes": ["packages/inference/src/backends/agent-sdk/env.ts", "packages/client/src/features/refinery/lib/verdict.ts"],
       "linter": {
         "rules": {
           "style": {

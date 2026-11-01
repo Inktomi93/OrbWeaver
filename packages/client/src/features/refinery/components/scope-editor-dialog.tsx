@@ -30,13 +30,14 @@ import type { RefinableField, RefineryScorePayload, RefinerySelection, RefineryS
 import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogFooter } from "@orb/ui/dialog";
+import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import { scopeChipLabelOf } from "../lib/render-plan.ts";
 
 export interface ScopeEditorDialogProps {
   readonly open: boolean;
@@ -145,7 +146,7 @@ function GreetingsScopeRow({
         checked={on}
         gloss={card.greetings.length === 0 ? "no greetings" : `${on ? selectedCount : 0} of ${card.greetings.length} slots selected`}
         indeterminate={on && greetingIndexes !== undefined && greetingIndexes.length < card.greetings.length}
-        name="greetings"
+        name={scopeChipLabelOf("greetings", undefined)}
         onToggle={onToggleField}
       />
       {on
@@ -240,7 +241,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
             disabled={depthless}
             gloss={fieldGlossOf(depthless, text)}
             key={field}
-            name={field}
+            name={scopeChipLabelOf(field, undefined)}
             onToggle={(): void => toggleField(field)}
           />
         );
@@ -265,6 +266,13 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
           </Button>
         ) : null}
         <Row className="flex-1" gap="row" justify="end">
+          <DialogClose
+            render={
+              <Button variant="ghost" size="sm">
+                Cancel
+              </Button>
+            }
+          />
           <Button
             onClick={(): void => {
               // The delta (header): `fields` always; the greeting axis only when addressed, and then
@@ -278,7 +286,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
             }}
             size="sm"
           >
-            Save scope
+            Save
           </Button>
         </Row>
       </DialogFooter>
