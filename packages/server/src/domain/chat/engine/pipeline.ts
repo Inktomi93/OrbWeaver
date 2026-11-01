@@ -850,7 +850,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   return {
     toolEvents,
     exchangeEnds,
-    toolSignatures: [...loop.toolSignatures, ...attach.offerSignatures].toSorted((a, b) => (a.callOrdinal ?? 0) - (b.callOrdinal ?? 0)),
+    toolSignatures: loop.toolSignatures.toSorted((a, b) => (a.callOrdinal ?? 0) - (b.callOrdinal ?? 0)),
     request: structured.request,
     content: received.content,
     reasoning: received.reasoning,
@@ -920,16 +920,15 @@ async function attachTools(
   execute: BoundToolExecution | null;
   unsupported: boolean;
   offerRecords: readonly ToolCallRecord[];
-  offerSignatures: NonNullable<ContentSignatures["tools"]>;
 }> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = generationOf(args.connection).tools !== undefined;
   // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
-    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [], offerSignatures: [] };
+    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [] };
   }
   if (!toolsSupported) {
-    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [], offerSignatures: [] };
+    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [] };
   }
   // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
@@ -937,7 +936,6 @@ async function attachTools(
   const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
   const execute = await set.prepareExecution(args.toolExecFrame);
   const offerRecords: ToolCallRecord[] = [];
-  const offerSignatures: NonNullable<ContentSignatures["tools"]> = [];
   const offer: ChatToolOffer = {
     definitions: set.toToolDefinitions(),
     execute: (call) =>
@@ -945,14 +943,13 @@ async function attachTools(
         execute,
         call,
         sink: offerRecords,
-        signatureSink: offerSignatures,
         turnId: args.toolExecFrame.turnId,
         textOffset: textOffset(),
         callOrdinal: reserveToolOrdinals(1),
       }),
     turnLimit: args.toolRecurseLimit,
   };
-  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords, offerSignatures };
+  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords };
 }
 
 /** ONE backend-driven invocation through the ONE execute path: single call in, single record out. The record is
@@ -961,9 +958,8 @@ async function attachTools(
  *  only the recurse loop's recorded-but-unexecuted case, which never rides this callback. */
 async function executeOfferedCall(input: {
   readonly execute: BoundToolExecution;
-  readonly call: ToolCallInput;
+  readonly call: Parameters<ChatToolOffer["execute"]>[0];
   readonly sink: ToolCallRecord[];
-  readonly signatureSink: NonNullable<ContentSignatures["tools"]>;
   readonly turnId: ChatToolExecFrame["turnId"];
   readonly textOffset: number;
   readonly callOrdinal: number;
@@ -974,7 +970,6 @@ async function executeOfferedCall(input: {
     throw new Error(`tool-use: executeToolCalls returned no record for ${input.call.name}`);
   }
   input.sink.push(...recordToolBoundary([record], { textOffset: input.textOffset, turnId: input.turnId, firstOrdinal: input.callOrdinal }));
-  input.signatureSink.push(...toolDepthSignatures([input.call], null, input.turnId, input.callOrdinal));
   return { text: record.result ?? "", isError: record.isError };
 }
 

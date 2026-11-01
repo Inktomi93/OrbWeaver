@@ -2,12 +2,13 @@
 // domain never loops (the recurse loop is chat's) and owns no tables. Chat consumes via injected ops
 // on ChatContext, never a sideways import.
 
+import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { Can } from "@orb/contracts/identity";
 import type { IsToolDrivableByOp, ListDrivableToolNamesOp, PluginToolHandle, ResolveToolsOp } from "@orb/contracts/tool-use";
 import type { ChatToolDefinition } from "@orb/inference";
 import type { Clock } from "@orb/kit/time";
 import type { PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
-import type { ResolvedToolSet, ToolCallRecord } from "./results.ts";
+import type { ResolvedToolSet } from "./results.ts";
 
 export interface ToolUseContext {
   readonly can: Can;

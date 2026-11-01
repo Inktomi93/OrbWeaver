@@ -27,4 +27,7 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `RosterPresetContext` / `RosterPresetAssemblyContext` renamed-reexport: applied. The door exports the declared name; the one importer (`entry/compose/roster-preset.ts`; ast-grep ts 5949 / tsx 1525 tracked files) is renamed. The inner `RosterPresetContext` is a different type.
+- Check: `pnpm typecheck packages/server/tsconfig.json` exit 0 (covers 1671 to 1675).

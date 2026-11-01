@@ -27,4 +27,6 @@ Each row is applied as its decision says; `pnpm typecheck` passes for every worl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Counts: 1 row = 1 applied. 0 kept, 0 handed off, 0 owner questions.
+
+- `RefineryContext` / `RefineryAssemblyContext` renamed-reexport: applied. The door exports the declared name; the one importer (`entry/compose/refinery.ts`; ast-grep ts 5949 / tsx 1525 tracked files) is renamed with `move-import-names`. The inner `RefineryContext` is a different type.

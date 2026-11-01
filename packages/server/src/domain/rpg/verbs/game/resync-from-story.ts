@@ -49,9 +49,8 @@
 //     db); dropping the write makes the plane idempotent by construction instead. A host repairing the
 //     archive itself uses `addJournalEntry`/`editJournalEntry`/`deleteJournalEntry` (built, host-gated).
 
-import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import type { ResyncResult, RpgSnapshotState } from "@orb/contracts/rpg";
 import type { ResyncFromStoryParams } from "#src/domain/rpg/contract/params.ts";
-import type { ResyncResult } from "#src/domain/rpg/contract/results.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
 import { snapshotRowToState } from "#src/domain/rpg/contract/service.ts";
 import { resolveHost } from "#src/domain/rpg/guard.ts";

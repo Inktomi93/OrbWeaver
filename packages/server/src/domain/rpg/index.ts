@@ -10,9 +10,9 @@ export type { RpgEventBus } from "./contract/bus.ts";
 // R-OBS — the rpg flight recorder's SHAPES: the compose mints ONE recorder when tracing is enabled and wires
 // its `sink` into the rpg compose deps; `/api/_debug/rpg/traces` reads its ring through the foundation
 // `RpgTraceInspector` port (which never learns an rpg type — the records serialize straight to JSON).
-export type { RpgRoundsAssemblyDeps as RpgRoundsDeps } from "./contract/rounds.ts";
+export type { RpgRoundsAssemblyDeps } from "./contract/rounds.ts";
 export type {
-  RpgAssemblyContext as RpgContext,
+  RpgAssemblyContext,
   RpgPostNarratorMessage,
   RpgResolveViewerVisibility,
   RpgService,

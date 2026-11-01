@@ -81,8 +81,6 @@ import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
 
-export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
-
 /** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context) and is
  *  NEVER reset — it counts host-fn IMPLEMENTATIONS that have STARTED and not yet SETTLED, which is the only
  *  reading under which "≤32 concurrent host calls" is a bound on WORK rather than on promises.

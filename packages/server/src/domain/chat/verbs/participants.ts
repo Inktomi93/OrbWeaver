@@ -18,6 +18,7 @@ import type {
   ClaimChatOp,
   DurableChatBusEvent,
   GroupConfig,
+  HostTierRegexAllow,
   MessageView,
   ParticipantData,
   SetGroupConfigParams,
@@ -71,7 +72,6 @@ import type {
   SetToolRecurseLimitParams,
 } from "../contract/params.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
-import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";

@@ -2,8 +2,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { StartWorkloadParams, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 
-export type { StartWorkloadParams } from "@orb/contracts/workloads";
-
 // domain/workloads/contract/params — verb argument + result shapes. Every verb carries
 // caller: Principal | null — the authorization subject the verb gates on. null = a trusted
 // system/scheduler/agent-env trigger (no gate); a non-null caller is IDOR-scoped to their own ownerId
@@ -28,8 +26,6 @@ export interface CancelWorkloadParams {
   readonly id: WorkloadId;
   readonly caller: Principal | null;
 }
-
-export type { CancelWorkloadResult } from "@orb/contracts/workloads";
 
 export interface RetryWorkloadParams {
   readonly id: WorkloadId;

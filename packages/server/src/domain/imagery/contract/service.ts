@@ -68,8 +68,6 @@ interface ImageryCard extends CharacterCard {
   readonly contentHash: string;
 }
 
-export type { GeneratedImage } from "@orb/inference";
-
 /** The text→image request the domain hands the sealed executor. Free mode fills the connection/prompt/
  *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4).
  *  Structural over contract/kit types (no `#infra`) — the widened twin of the infra `ImageGenerateRequest`

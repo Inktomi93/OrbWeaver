@@ -7,7 +7,7 @@ import { worldBooks } from "@orb/db";
 import type { CreateBookParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
 
-export function createCreate(ctx: WorldInfoContext): WorldInfoService["createBook"] {
+export function createCreateBook(ctx: WorldInfoContext): WorldInfoService["createBook"] {
   return async ({ principal, input }: CreateBookParams) => {
     const ownerId = principal.userId;
     const at = ctx.now();

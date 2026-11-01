@@ -25,7 +25,7 @@ import ts from "typescript";
 import type { LiteralRole, Site, ValueUse } from "./classify.ts";
 import { isProductionFile, literalRoleAt, Sources, siteKey, valueUseAt } from "./classify.ts";
 import { ServiceWorld, serviceReferences } from "./language-service.ts";
-import { constituents, declarationKeys, NativeWorld } from "./native.ts";
+import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import { valueIndex } from "./occurrences.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
@@ -267,6 +267,7 @@ interface FirstPass {
 function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sources): FirstPass {
   const found = new Map<string, { readonly tuple: Tuple; readonly references: Map<string, Site> }>();
   const literals = new Map<string, LiteralSite>();
+  const homes = homeFiles(worlds, NativeWorld.fileLists(options.root, worlds));
   for (const config of worlds) {
     using world = NativeWorld.open(options.root, config);
     const local = tuples(world);
@@ -274,7 +275,7 @@ function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sou
       const seen = literals.get(siteKey(literal.site));
       literals.set(siteKey(literal.site), seen?.holds === true ? seen : literal);
     }
-    const index = valueIndex(world);
+    const index = valueIndex(world, homes.get(config));
     for (const tuple of local) {
       const entry = found.get(tuple.key) ?? { tuple, references: new Map<string, Site>() };
       for (const site of sitesOf(index, tuple.keys, tuple.site)) {

@@ -11,7 +11,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import { MS_PER_MINUTE } from "@orb/kit/time";
-import type { ScheduleTickDeps } from "#domain/workloads";
+import type { ScheduleTickAssemblyDeps } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
@@ -23,7 +23,7 @@ const LOG_COMPONENT = "workload-schedule-scheduler";
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_MINUTE;
 
 // `tickWorkloadSchedules` — advance every due schedule and enqueue its workload (front door).
-type TickSchedulesOp = (deps: ScheduleTickDeps) => Promise<void>;
+type TickSchedulesOp = (deps: ScheduleTickAssemblyDeps) => Promise<void>;
 
 /** The DI bundle the scheduler driver closes over — the tick op and its deps (db + clock + `start`) + the
  *  timer, all injected at entry/. */
@@ -33,7 +33,7 @@ export interface WorkloadScheduleSchedulerDeps {
   readonly tick: TickSchedulesOp;
   readonly db: DatabaseHandle;
   readonly now: Clock;
-  readonly start: ScheduleTickDeps["start"];
+  readonly start: ScheduleTickAssemblyDeps["start"];
   readonly scheduleInterval: ScheduleOp;
   readonly checkIntervalMs?: number;
 }
@@ -46,7 +46,7 @@ export interface WorkloadScheduleSchedulerDeps {
 export function startWorkloadScheduleScheduler(deps: WorkloadScheduleSchedulerDeps): () => void {
   const log = getLog(deps.logger).child({ component: LOG_COMPONENT });
   const checkMs = deps.checkIntervalMs ?? DEFAULT_CHECK_INTERVAL_MS;
-  const tickDeps: ScheduleTickDeps = { logger: deps.logger, db: deps.db, now: deps.now, start: deps.start };
+  const tickDeps: ScheduleTickAssemblyDeps = { logger: deps.logger, db: deps.db, now: deps.now, start: deps.start };
 
   const safeTick = (): void => {
     const completion = deps.tick(tickDeps).catch((err: unknown) => {
