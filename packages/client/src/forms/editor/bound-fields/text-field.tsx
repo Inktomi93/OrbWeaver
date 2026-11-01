@@ -23,6 +23,10 @@ export interface TextFieldProps extends BoundFieldShellProps {
   /** Autofill hint forwarded to the native input (`"new-password"` on the admin password fields so a
    *  browser never offers the ADMIN'S saved login inside another user's form). */
   readonly autoComplete?: string;
+  /** A failure the form does not validate (a rejected fetch): the field reads as invalid. */
+  readonly invalid?: boolean;
+  /** The id of the element that states that failure; the input points at it. */
+  readonly describedBy?: string;
 }
 
 export function TextField(props: TextFieldProps): ReactElement {
@@ -30,7 +34,7 @@ export function TextField(props: TextFieldProps): ReactElement {
   const [revealed, setRevealed] = useState(false);
   const canReveal = props.type === "password" && props.revealable === true;
   return (
-    <Field {...fieldProps}>
+    <Field {...fieldProps} {...(props.invalid === undefined ? {} : { invalid: props.invalid })}>
       <Row gap="field" align="center">
         <Input
           value={field.state.value}
@@ -41,6 +45,7 @@ export function TextField(props: TextFieldProps): ReactElement {
           placeholder={props.placeholder}
           type={canReveal && revealed ? "text" : (props.type ?? "text")}
           autoComplete={props.autoComplete}
+          {...(props.describedBy === undefined ? {} : { "aria-describedby": props.describedBy })}
           disabled={props.disabled}
           className="flex-1 min-inline-0"
         />

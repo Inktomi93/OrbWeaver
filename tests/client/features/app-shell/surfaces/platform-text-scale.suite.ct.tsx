@@ -689,6 +689,30 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
   });
 }
 
+// The 300% layout on a phone leaves the stacked footer little else: a character row must stay in view above it.
+for (const [viewport, scale] of [[PHONE, LAYOUT_300]] as const) {
+  test.describe(`New chat footer at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("leaves a whole character row in view above the footer", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const footerTop = await dialog
+        .getByRole("button", { name: BLANK_CHAT_NAME, exact: true })
+        .evaluate((button) => (button.parentElement ?? button).getBoundingClientRect().top);
+      await expect
+        .poll(async () => {
+          const boxes = await dialog.getByRole("option").evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect()));
+          return boxes.some((box) => box.top >= 0 && box.bottom <= footerTop);
+        })
+        .toBe(true);
+    });
+  });
+}
+
 for (const [viewport, scale] of QUALIFIED.listPanel) {
   test.describe(`list panel at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });

@@ -1,6 +1,6 @@
 import type { FieldControlProps as BaseFieldControlProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
-import type { ComponentPropsWithRef, ReactElement } from "react";
+import type { ComponentPropsWithRef, CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, variantProps } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
@@ -66,7 +66,9 @@ export function Textarea({
   // the fold — a refusal the author cannot see is a save that silently stopped working. A max-height in
   // the same line-box unit turns the overflow into the textarea's own scroll, so the text stays fully
   // reachable and the affordances under the box stay where the author is looking.
-  const rowsCeiling = maxRows === undefined ? undefined : { maxHeight: lineBoxHeight(maxRows, chrome === "bare") };
+  // The ceiling rides a custom property that primitives.css turns into `max-block-size`, never an inline `max-height`: an
+  // inline size beats every stylesheet regime, so a short room could not cap a wrapped composer field.
+  const rowsCeiling = maxRows === undefined ? undefined : ({ "--textarea-ceiling": lineBoxHeight(maxRows, chrome === "bare") } as CSSProperties);
   return (
     <BaseField.Control
       // Field.Control owns `onValueChange` natively (value + ChangeEventDetails) — ride it rather than

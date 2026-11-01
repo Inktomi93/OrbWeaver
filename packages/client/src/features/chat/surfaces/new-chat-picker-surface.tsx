@@ -197,7 +197,7 @@ export function NewChatPicker(): ReactElement {
       {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
-      <Row align="center" className="sticky inset-be-0 flex-wrap" divider="top" gap="field" ground="popover" justify="end" padding="block">
+      <Row align="center" className="sticky inset-be-0 flex-wrap @max-cq-20:static" divider="top" gap="field" ground="popover" justify="end" padding="block">
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>

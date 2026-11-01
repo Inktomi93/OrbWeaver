@@ -97,7 +97,19 @@
   }
 }
 
+/* The `maxRows` ceiling a Textarea writes inline; `none` until it does. */
+@property --textarea-ceiling {
+  syntax: "<length> | none";
+  inherits: false;
+  initial-value: none;
+}
+
 @layer ui {
+  /* It sits in a layer so a stylesheet regime rule can cap the field lower than the inline ceiling. */
+  [data-slot="textarea-root"] {
+    max-block-size: var(--textarea-ceiling);
+  }
+
   .orb-art-band[data-art-image="false"] {
     --art-feather-start: 55%;
     --art-feather-end: 100%;

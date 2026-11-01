@@ -16,6 +16,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { ManualTarget } from "../lib/manual-targets.ts";
+import { slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ManualRewriteDialogProps {
   readonly open: boolean;
@@ -84,7 +85,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
     <FormDialog onOpenChange={onOpenChange} open={open} size="lg" title="Hand-edit the scoped fields">
       <Stack gap="row">
         <Text voice="gloss">
-          Your edit lands as a rewrite ROUND, not a card write — analyze can judge it against the original, and nothing touches the card until you apply.
+          Your edit lands as a rewrite round, not a card write — analyze can judge it against the original, and nothing touches the card until you apply.
           Untouched fields stay out of the round.
         </Text>
         {targets.map((target) => {
@@ -92,7 +93,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
           return (
             <Stack gap="tight" key={keyOf(target)}>
               <Row align="center" gap="row">
-                <Text voice="label">{keyOf(target)}</Text>
+                <Text voice="label">{slotLabelOf(target.field, target.greetingIndex)}</Text>
                 <Row align="center" gap="field">
                   <Checkbox checked={draft.cleared} onCheckedChange={(cleared: boolean): void => patch(target, { cleared })} />
                   <Text voice="gloss">empty this field</Text>
@@ -103,7 +104,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
                   {target.field === "greetings" ? "This greeting slot will be removed — later greetings shift up." : "This field will be emptied."}
                 </Text>
               ) : (
-                <Field label={`New text for ${keyOf(target)}`}>
+                <Field label={`New text for ${slotLabelOf(target.field, target.greetingIndex)}`}>
                   <Textarea onChange={(e): void => patch(target, { text: e.target.value })} rows={4} value={draft.text} />
                 </Field>
               )}

@@ -28,6 +28,7 @@ import type { RefineryContextState } from "#lib";
 import { testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
+import { BUILT_IN_SCHEMA_LINE } from "../lib/schema-line.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -259,8 +260,18 @@ export function SetupTab({
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
           does. Each stage carries its own "Edit" → the editor at that stage; the body resolves
           edit-vs-author. */}
-      <SetupRow action="Edit" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
-      <SetupRow action="Edit" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
+      <SetupRow
+        action={scoreSchemaLine === BUILT_IN_SCHEMA_LINE ? "Create" : "Edit"}
+        k="Score schema"
+        onAction={(): void => onEditSchema("score")}
+        v={scoreSchemaLine}
+      />
+      <SetupRow
+        action={analyzeSchemaLine === BUILT_IN_SCHEMA_LINE ? "Create" : "Edit"}
+        k="Analyze schema"
+        onAction={(): void => onEditSchema("analyze")}
+        v={analyzeSchemaLine}
+      />
       <SetupRow k="Stage modes" v={stageModesLine} />
       <SetupRow action="Edit" k="Guidance" onAction={(): void => onOpenDoor("guidance")} v={guidanceLine} />
     </Stack>

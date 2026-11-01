@@ -131,6 +131,7 @@ export function DatabankLibraryRow({
       // still first and still intact at the 320px floor; the remedy is what clips, and it clips into the
       // subtitle's own `title=` (ListRow) and into the row's `aria-describedby`, where a clip is not a loss.
       subtitle={remedy === null ? documentSubtitle(document) : `${documentSubtitle(document)} · ${remedy}`}
+      subtitleStep="label"
       title={document.name}
       {...(showsPhaseChip(phase)
         ? {

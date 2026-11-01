@@ -65,7 +65,10 @@ export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reas
   { path: "packages/client/src/features/refinery/components/accept-review.tsx", reason: "discards a rewrite that was never applied" },
   { path: "packages/client/src/features/refinery/components/apply-outcome.tsx", reason: "discards a refused rewrite that was never applied" },
   { path: "packages/client/src/features/preset/components/staleness-row.tsx", reason: "Clear removes stored values the model ignores, so they are inert" },
-  { path: "packages/client/src/features/config/components/config-teacher.tsx", reason: "resets one setting to the default its row shows beside the value" },
+  {
+    path: "packages/client/src/features/config/components/config-teacher.tsx",
+    reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast",
+  },
 ];
 
 export const UI_FEATURE_RESTRICTIONS = [
