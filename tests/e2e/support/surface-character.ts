@@ -47,6 +47,7 @@ import {
   characterBulkTagTitle,
 } from "#client/features/character/lib/character-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
+import { greetingOrdinalLabel } from "#client/features/character/lib/greeting-copy.ts";
 import { CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
@@ -364,7 +365,7 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
   await walkDoor(flow, {
     id: "greeting-edit",
     trigger: greeting.getByRole("button", { name: "Edit", exact: true }),
-    body: greeting.getByRole("textbox", { name: /^Opening \d+$/u }),
+    body: greeting.getByRole("textbox", { name: greetingOrdinalLabel(1), exact: true }),
     exit: greeting.getByRole("button", { name: DIALOG_VERBS.done, exact: true }),
   });
   await walkDoor(flow, {
@@ -445,7 +446,7 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
   const generated = flow.run.generation.completionText;
   const formBefore = characterCardFormFromDetail(before);
   const acceptedGreetings = characterUpdateDiff({ ...formBefore, greetings: [...formBefore.greetings, { text: generated }] }, before).greetings;
-  const openingName = `Opening ${formBefore.greetings.length + 1}`;
+  const openingName = greetingOrdinalLabel(formBefore.greetings.length + 1);
   await attachNativeFile(flow.info, flow.info, "characters-greeting-before", {
     body: JSON.stringify({
       originalId,

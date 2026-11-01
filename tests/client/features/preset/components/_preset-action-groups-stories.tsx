@@ -8,11 +8,13 @@ import type { ReactElement } from "react";
 type PresetActionProps = { readonly width: number; readonly appearance: AppearanceSettings } & (
   | { readonly subject: "editor"; readonly presetId: PresetId }
   | { readonly subject: "list" }
+  | { readonly subject: "section" }
 );
 
 export function PresetActionGroupsStory(props: PresetActionProps): ReactElement {
-  if (typeof presetsSection.list !== "function") {
-    throw new Error("The production Presets section must provide its library");
+  const { list, content } = presetsSection;
+  if (typeof list !== "function" || typeof content !== "function") {
+    throw new Error("The production Presets section must provide its library and editor");
   }
   return (
     <CtClientProviders>
@@ -22,9 +24,9 @@ export function PresetActionGroupsStory(props: PresetActionProps): ReactElement 
             <Stack className="px-section block-full min-block-0">
               <PresetEditorSurface presetId={props.presetId} />
             </Stack>
-          ) : (
-            presetsSection.list()
-          )}
+          ) : null}
+          {props.subject === "editor" ? null : list()}
+          {props.subject === "section" ? content() : null}
         </Container>
       </CtAppearanceChannels>
     </CtClientProviders>
