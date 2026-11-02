@@ -68,6 +68,6 @@ The value is the recipe default, a boolean `false` that is the absent state, or 
 
 background-video.rounded and crossfade-image.rounded are `rounded` values (the other lane's axis). Everything in the "unresolved uses: not claimable" table is out of scope until its spreads and props resolve.
 
-## Owner ruling (2026-11-02)
+## Owner ruling
 
 Delete each unused value unless it has a home. Check each value in `packages/ui` first: delete it when nothing uses it, and keep it only with a real internal writer or CSS keyed on it, with the reason recorded. The `rounded` and `shadow` axes take the same test. Drawer left and right get no exception.
