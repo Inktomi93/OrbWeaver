@@ -12,9 +12,6 @@ export const TAIL_MESSAGES = 6;
 export const READING_ROLES = ["user", "assistant"] as const;
 const LONG_REPLY_PARAGRAPHS = 40;
 const GAME_PROCEDURES = ["rpg.getGame", "rpg.listTurnToolCalls"] as const;
-// The corpus clock is frozen, so the harness's rate-limit window never rolls: every room a suite opens and every
-// read its pages make bill one bucket. The suite is not about throttling; lift the cap so it cannot trip under load.
-const UNTHROTTLED_REQUESTS = "100000";
 const FILLER = "The lamp burned low while the rain kept time on the shutters.";
 
 export interface ReadingRoom {
@@ -37,7 +34,7 @@ function currentRoom(): ReadingRoom {
 
 /** Extends actual room messages so the same speakers cross the sticky reading boundary in each suite. */
 export async function createReadingRoom(): Promise<ReadingRoom> {
-  const root = await createCorpusHarness(undefined, { env: { ["RATE_LIMIT_AUTHED"]: UNTHROTTLED_REQUESTS } });
+  const root = await createCorpusHarness();
   try {
     const caller = await root.internalCallerFor(root.ownerId);
     for (const row of (await caller.chat.listChats({ limit: 100 })).items) {

@@ -5,6 +5,7 @@ import { CopyButtonFallback, CopyButtonRoot, CopyButtonStatus, CopyButtonSubject
 import { CircleAlert, Icon, Info, TriangleAlert } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
+import { LENGTH_BASE_PX } from "#tokens";
 import { logViewerVariants } from "./variants.ts";
 
 const LOG_LEVELS = ["info", "warn", "error"] as const;
@@ -42,8 +43,9 @@ function levelOf(line: LogLine): LogLevel | undefined {
 // plain `<div>`; a typical short log stays on the plain path and skips the bounded-height requirement.
 const VIRTUALIZE_THRESHOLD = 200;
 
-// Initial per-row size guess (px) — rows re-measure themselves after mount.
-const ESTIMATED_LINE_HEIGHT_PX = 24;
+// A single line's box is the root's `leading-label-relaxed` line height. A guess off by even 4px moved the reader's
+// lines after every scroll that revealed rows, as each one measured and virtual-core corrected scrollTop.
+const ESTIMATED_LINE_HEIGHT_PX = LENGTH_BASE_PX["leading.label-relaxed"];
 
 interface LogLineRowProps {
   readonly line: LogLine;
