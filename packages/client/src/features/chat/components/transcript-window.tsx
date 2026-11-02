@@ -30,6 +30,9 @@ export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
 }
 
 const EARLIER_MESSAGES_LABEL = CHAT_EARLIER_MESSAGES_NAME;
+// Both arms put their paging chrome in one group before the transcript: the short room rule (styles/globals.css) keys on
+// this slot and that order to scroll the chrome away above the list.
+const TRANSCRIPT_WINDOW_SLOT = "transcript-window";
 
 function mergePages(pages: readonly CanonPage[]): CanonPage {
   return {
@@ -71,24 +74,28 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
   }, [bridging, hasNextPage, isFetching, fetchNextPage]);
   const historyAvailable = pages.hasPreviousPage || pages.data.pages.length > 1;
   return (
-    <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching}>
-      {historyAvailable ? (
-        <Row className="print:hidden" gap="field" align="center">
-          <Button
-            aria-describedby={description}
-            variant="ghost"
-            size="sm"
-            disabled={!pages.hasPreviousPage || pages.isFetching}
-            onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
-          >
-            {EARLIER_MESSAGES_LABEL}
-          </Button>
-          <Text id={description} className="sr-only" role="status">
-            {pages.hasPreviousPage ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
-          </Text>
-        </Row>
+    <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching} data-slot={TRANSCRIPT_WINDOW_SLOT}>
+      {historyAvailable || pages.isError ? (
+        <Stack gap="field">
+          {historyAvailable ? (
+            <Row className="print:hidden" gap="field" align="center">
+              <Button
+                aria-describedby={description}
+                variant="ghost"
+                size="sm"
+                disabled={!pages.hasPreviousPage || pages.isFetching}
+                onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
+              >
+                {EARLIER_MESSAGES_LABEL}
+              </Button>
+              <Text id={description} className="sr-only" role="status">
+                {pages.hasPreviousPage ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
+              </Text>
+            </Row>
+          ) : null}
+          {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
+        </Stack>
       ) : null}
-      {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
       {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false, settling: bridging })}
@@ -148,37 +155,39 @@ function AnchoredThread({
       ? { earlier: fallback.data.previousCursor !== null, later: false, settling: false }
       : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
   return (
-    <Stack className="block-full min-block-0" gap="field">
-      <Row className="flex-wrap print:hidden" gap="field">
-        <Button
-          aria-describedby={pagingDescription}
-          variant="ghost"
-          size="sm"
-          disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
-          onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
-        >
-          {EARLIER_MESSAGES_LABEL}
-        </Button>
-        <Button
-          aria-describedby={pagingDescription}
-          variant="ghost"
-          size="sm"
-          disabled={!pages.hasNextPage || pages.isFetchingNextPage}
-          onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
-        >
-          Later messages
-        </Button>
-        <Button variant="ghost" size="sm" onClick={clearChatMoment}>
-          Latest messages
-        </Button>
-        <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
-          Back to Corpus
-        </Button>
-      </Row>
-      <Text className="print:hidden" id={pagingDescription} voice="gloss">
-        Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
-      </Text>
-      {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
+    <Stack className="block-full min-block-0" gap="field" data-slot={TRANSCRIPT_WINDOW_SLOT}>
+      <Stack gap="field">
+        <Row className="flex-wrap print:hidden" gap="field">
+          <Button
+            aria-describedby={pagingDescription}
+            variant="ghost"
+            size="sm"
+            disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
+            onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
+          >
+            {EARLIER_MESSAGES_LABEL}
+          </Button>
+          <Button
+            aria-describedby={pagingDescription}
+            variant="ghost"
+            size="sm"
+            disabled={!pages.hasNextPage || pages.isFetchingNextPage}
+            onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
+          >
+            Later messages
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearChatMoment}>
+            Latest messages
+          </Button>
+          <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
+            Back to Corpus
+          </Button>
+        </Row>
+        <Text className="print:hidden" id={pagingDescription} voice="gloss">
+          Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
+        </Text>
+        {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
+      </Stack>
       {props.render(messagesPage, initial, edges)}
     </Stack>
   );

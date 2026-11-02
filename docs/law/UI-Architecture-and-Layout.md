@@ -359,7 +359,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 ### 4b. Responsive doctrine — the FOUR axes (code once; desktop · widescreen · mobile from one build)
 
-"Mobile just works" is NOT one technique — it's the RIGHT tool per axis instead of a `max-width` ladder. **The code-once guarantee: a feature author writes ONLY axis 1; axes 2–4 live once in the shell/token/primitive layer.** There is no separate mobile build.
+"Mobile just works" is NOT one technique — it's the RIGHT tool per axis instead of a `max-width` ladder. **The code-once guarantee: a feature author writes ONLY axis 1; axes 2–4 live once in the shell/token/primitive layer.**
 
 | Axis | What varies | Tool | Where it's written |
 | - | - | - | - |
@@ -370,14 +370,13 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer`/`inModal`/`isMobile`/`narrow` prop (`orb/no-layout-context-props` refuses them on JSX in `packages/client/src` and `packages/ui/src`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
-**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet.
-
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free.
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 36px · `control-lg` 40px · icon 36px — emitted as a token-layer `pointer: fine` override. An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4).
 
 The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`/`hover-capable:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a primitive prop: `hiddenAt` uses `packages/ui/src/lib/pointer-visibility.ts`; `Row reveal` and `inertUntilHover` use `packages/ui/src/lib/hover-reveal.ts`. The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. The `POINTER_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) enforces this on class strings in features outside `app-shell`; a reasoned line exception follows D321#3.
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 
-- **`dvh`/`svh` units, not `vh`** (with a `vh` fallback line) — `svh` where above-fold must stay visible, `dvh` for the adaptive shell.
-- **The keyboard gotcha (verified):** `dvh`/`svh` are NOT shrunk by the virtual keyboard → set **`interactive-widget=resizes-content`** in the viewport meta so the composer reflows above the keyboard; `visualViewport` API only for precise composer-pinning if ever needed.
-- **`env(safe-area-inset-*)`** padding on shell + composer; **`overscroll-behavior: contain`** on every scroll region; `inputmode`/`type=` on inputs (Base UI fields set these).
+- **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
+- **The keyboard:** no viewport unit shrinks for it and WebKit ignores `interactive-widget=resizes-content`, so the shell subtracts the `visualViewport` inset (`packages/ui/src/lib/keyboard-inset.ts`).
+- **The short room:** under the `shell-main` cq-28 height step, chrome above the transcript scrolls away with it and the room opens on the transcript and composer (`packages/client/src/styles/globals.css`).
+- **`env(safe-area-inset-*)`** on shell and composer; **`overscroll-behavior: contain`** on every scroll region but a short room's, which chains into its chrome; `inputmode`/`type=` on inputs.

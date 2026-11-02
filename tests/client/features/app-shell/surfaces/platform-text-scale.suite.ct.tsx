@@ -76,8 +76,8 @@ const READING_SHARE = 0.4;
 const SPLIT_WORD_SHARE = 0.03;
 const LONG_REPLY = Array.from({ length: 24 }, () => "The traveller witnesses the orbital loom and walks the long gallery beside the keeper.").join(" ");
 const TYPED_DRAFT = "A draft long enough to fill the field past its second line, so the line being typed is the last one.";
-// A keyboard that leaves the phone about 500px: the room's field must stay above it.
-const PHONE_KEYBOARD = 340;
+// Keyboards that leave the phone about 500px and the narrow phone 308px: the room's field and Send must stay above them.
+const KEYBOARD_HEIGHT: Partial<Record<Viewport["name"], number>> = { [PHONE.name]: 340, [NARROW.name]: 260 };
 
 const QUALIFIED = {
   readingWindow: EVERY_CELL,
@@ -85,7 +85,7 @@ const QUALIFIED = {
   contextHeader: EVERY_CELL,
   roomContext: [...EVERY_CELL, NARROW_CELL],
   gameRoomMembers: EVERY_CELL,
-  focusedField: EVERY_CELL,
+  focusedField: [...EVERY_CELL, NARROW_CELL],
   screenName: [...EVERY_CELL, NARROW_CELL],
   importOpen: EVERY_CELL,
   newChat: EVERY_CELL,
@@ -411,6 +411,13 @@ function coverOf(button: Element): string | null {
   return (top !== null && button.contains(top)) || inert ? null : `${top?.getAttribute("data-slot") ?? top?.tagName ?? "nothing"} ${top?.className ?? ""}`;
 }
 
+/** Whether a control paints whole inside the visual viewport, the part of the screen a soft keyboard leaves. */
+function aboveKeyboard(control: Element, subpixel: number): boolean {
+  const box = control.getBoundingClientRect();
+  const top = visualViewport?.offsetTop ?? 0;
+  return box.top >= top - subpixel && box.bottom <= top + (visualViewport?.height ?? innerHeight) + subpixel;
+}
+
 /** The share of the transcript left to read once a pinned header has taken its place, scrolled into the long reply. */
 function readableShare(list: Element, subpixel: number): number {
   const rows = [...list.querySelectorAll('[data-slot="message-bubble"]')];
@@ -610,21 +617,16 @@ for (const [viewport, scale] of QUALIFIED.focusedField) {
       const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       await expect(input).toBeVisible();
       await scaleRoot(page, scale.factor);
-      await input.scrollIntoViewIfNeeded();
       await input.focus();
-      if (viewport.touch) {
-        await emulateSoftKeyboard(page, PHONE_KEYBOARD);
-      }
+      const keyboard = KEYBOARD_HEIGHT[viewport.name] ?? 0;
+      await emulateSoftKeyboard(page, keyboard);
       await input.fill(TYPED_DRAFT);
       await expect.poll(() => findings(page.locator('[data-slot="composer"]'))).toEqual([]);
-      await input.scrollIntoViewIfNeeded();
-      await expect(input).toBeInViewport({ ratio: 1 });
+      // Measured against the visual viewport, which the keyboard shortens; the layout viewport keeps its full height under it.
+      // Nothing is scrolled first: the room has to open the composer above the keyboard by itself.
       const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
-      await send.scrollIntoViewIfNeeded();
-      await expect(send).toBeInViewport({ ratio: 1 });
-      if (viewport.touch) {
-        await emulateSoftKeyboard(page, 0);
-      }
+      await expect.poll(() => Promise.all([input.evaluate(aboveKeyboard, SUBPIXEL), send.evaluate(aboveKeyboard, SUBPIXEL)])).toEqual([true, true]);
+      await emulateSoftKeyboard(page, 0);
     });
   });
 }
@@ -742,7 +744,7 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
   });
 }
 
-// Every width the footer has to hold at. The short cells stand at 20rem of height or less, tall cells above it, and the
+// Every width the footer has to hold at. The short cells stand at 24rem of height or less, tall cells above it, and the
 // normal-size cells prove the short step never fires for an unscaled reader.
 const NARROW_300 = { name: "320 phone", touch: true, size: { width: 320, height: 568 } } as const;
 const PHONE_360 = { name: "360 phone", touch: true, size: { width: 360, height: 800 } } as const;

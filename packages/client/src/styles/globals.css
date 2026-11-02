@@ -197,16 +197,55 @@
     justify-self: end;
   }
 
+  /* The short room (UI-Architecture-and-Layout.md §4b axis 4): a landscape phone, an open keyboard or enlarged text. Chrome
+   * above a scroller scrolls away with it. The room and the transcript window each scroll from their end
+   * (`column-reverse`), where the body and the list fill the box, so the room opens on the transcript and the composer
+   * with Send in view, and a swipe past the list's top carries on into the paging chrome and the member strip. The
+   * transcript keeps its floor, above the end when the composer leaves less. 28rem is the `container.cq-28` token's
+   * value: a query cannot read a var, and a landscape phone's 390px is over the 24rem step. */
+  @container shell-main (height <= 28rem) {
+    [data-slot="chat-room-surface"],
+    [data-slot="transcript-window"] {
+      flex-direction: column-reverse;
+    }
+    [data-slot="chat-room-surface"] > *,
+    [data-slot="chat-room-body"] > *,
+    [data-slot="transcript-window"] > * {
+      flex-shrink: 0;
+    }
+    /* The scrolling part is the end of its box. `order` puts it there without reversing the chrome above it. */
+    [data-slot="chat-room-body"],
+    [data-slot="transcript-window"] > :last-child {
+      order: -1;
+    }
+    [data-slot="chat-room-body"] {
+      flex: none;
+      min-block-size: 100%;
+    }
+    /* A zero basis keeps the transcript's own content out of the body's height, which only the floor and the composer set. */
+    [data-slot="chat-room-body"] > :has(> [data-slot="chat-room-flank-row"]) {
+      flex: 1 1 0;
+      min-block-size: var(--height-scroll-sm);
+    }
+    [data-slot="transcript-window"] {
+      overflow-y: auto;
+      /* Its only overflow is the chrome a swipe or Tab reaches; a second bar beside the list's own would read as two lists. */
+      scrollbar-width: none;
+    }
+    [data-slot="transcript-window"] > :last-child {
+      block-size: 100%;
+    }
+    [data-slot="message-list-scroll"] {
+      overscroll-behavior-block: auto;
+    }
+  }
   /* A two-row composer in a room this short keeps its height, because squeezed its controls lie on the text being typed. */
   @container shell-main (height <= 20rem) {
     [data-slot="composer-input"][data-field-wrapped] {
       flex: none;
     }
-    [data-slot="chat-room-surface"] > :has([data-slot="composer-input"][data-field-wrapped]) {
-      flex-shrink: 0;
-    }
     /* The field scrolls its own text past this, so the tools, the field and Send can share what a keyboard leaves. */
-    [data-slot="composer-input"][data-field-wrapped] textarea {
+    [data-slot="composer-input"] textarea {
       max-block-size: var(--dimension-chrome-row);
     }
   }

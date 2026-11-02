@@ -186,6 +186,34 @@ test.describe("on the corpus owner's own settings", () => {
     await expect.poll(() => scrollPopupToEnd(page)).toBe(true);
   });
 
+  test.describe("on a landscape phone", () => {
+    test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+    test("New chat opens on its list's first row, whole and clear of the pinned footer", async ({ mount, page }) => {
+      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      const row = dialog.getByRole("option").first();
+      await expect(row).toBeVisible();
+      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expect
+        .poll(() =>
+          row.evaluate((option) => {
+            const list = option.closest('[data-slot="command-list"]');
+            const popup = option.closest('[data-slot="dialog-popup"]');
+            const box = option.getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 2);
+            return {
+              listScrollTop: list?.scrollTop,
+              popupScrollTop: popup?.scrollTop,
+              wholeInList: list !== null && box.top >= list.getBoundingClientRect().top && box.bottom <= list.getBoundingClientRect().bottom,
+              footClear: hit !== null && option.contains(hit),
+            };
+          }),
+        )
+        .toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
+    });
+  });
+
   for (const modalId of MODAL_SLOT_IDS) {
     test(`the ${modalId} modal keeps the document still and its header put, whatever its body's height`, async ({ mount, page }) => {
       await page.setViewportSize({ width: 1024, height: 320 });
