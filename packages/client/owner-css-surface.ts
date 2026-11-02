@@ -547,7 +547,6 @@ export const OWNER_CSS_SLOTS = [
   "prompt-cache-warning",
   "provenance",
   "provenance-empty",
-  "provenance-error",
   "provenance-prompt",
   "query-boundary-settled",
   "query-boundary-status",
