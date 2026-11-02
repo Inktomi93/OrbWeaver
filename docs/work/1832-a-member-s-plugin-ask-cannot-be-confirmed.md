@@ -10,21 +10,36 @@ area: plugin
 
 ## What
 
-The change, in a sentence.
+A plugin ask runs on the yes of the host its card was raised to. At raise, the ask records that host and the installer's membership instance (`joinSeq` and `joinedAt`). The confirm re-check and the chat-change void sweep require both to be unchanged, so a handoff, a departure or a removal voids the ask, even when the installer is invited back first. The installer need not host. The rule origin still requires its author to host. The confirmed turn skips the bridge's direct-call host gate. Chat's own present-initiator check still applies. The recorded host is read through chat's own `loadPresentHostUserId`, injected at compose, and re-checked through `can()`. The card event carries the installer's handle as its own `installerHandle` field; the band draws it as a byline apart from the plugin-named title, so a plugin name cannot imitate it. The card carries a turn's whole steer in its `detail` body.
 
 ## Why
 
-The symptom or the ruling behind it.
+`assertPluginStillLive` in `packages/server/src/domain/automation/verbs/confirm-suggestion.ts` required the installer to hold host. A member's plugin can only ask, because a member has no standing write authority. So every member ask failed with `SuggestionRefusedError`. The void sweep in `packages/server/src/domain/automation/substrate/handle-event.ts` also dropped a member's ask on any chat change, such as a title edit. The confirmed turn then met `requireHost(installer)` in `packages/server/src/domain/plugin/substrate/bridge.ts`.
 
 ## Done when
 
-The observable bar a verifier can check.
+- A member's plugin ask, raised through the real guest, runs a turn when the host confirms it, including after a title edit.
+- A demoted host's plugin ask runs when the new host confirms it.
+- The installer cannot confirm their own ask, and the ask stays open for the host.
+- A removed installer, an installer who left, and a disabled plugin leave no executable ask.
+- A host handoff voids a member's open ask.
+- An installer removed and invited back before the sweep runs gets no act from the old ask.
+- The card names the installer in its own field and holds the whole steer. A plugin name written to read as another attribution does not change the installer field.
+- A component test renders a plugin turn card: the title, the installer byline, and the closed steer disclosure the keyboard reaches and opens.
+- The ruling has a law line: `docs/law/Spine-Identity-and-Auth.md` §2e.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-1. Member plugin asks cannot be confirmed. `assertPluginStillLive` in `packages/server/src/domain/automation/verbs/confirm-suggestion.ts` requires the installer to hold host, but `canWrite: false` means a member doesn't, so POSTURE 2 raises cards that always fail with `SuggestionRefusedError`. Fails closed, product defect. Blocked: owner ruling on what a member's ask means. Done: a test drives a member ask through confirm.
+- `tests/server/domain/automation/verbs/plugin-ask-confirm.int.test.ts`. On the first source, the three positive cases failed: the sweep voided the ask after a title edit, and the other two refused with "the plugin's installer no longer hosts this room".
+- Review follow-up, red on the first fix: the handoff and the removed-then-reinvited confirms both resolved and ran the act. The card's summary did not name the installer. The reinvite case holds automation's event handler, so the confirm runs before the removal is swept.
+- Second review follow-up, red on the previous fix: the card event had no installer field, so both installer cases failed. One of them installs a plugin whose name reads as an attribution of the host.
+- All eleven cases pass after the fix.
+- `tests/client/features/automation/components/suggestion-card-steer.ct.tsx` renders the real card event, raised by a real member guest, through the production band. It fails when the band stops drawing the byline, and when the steer detail renders nothing.
+- Control checks:
+  - With the plugin arm of `askActorStillStands` forced true, the removed and left cases fail. The act reaches chat's present-initiator check and fails as `automation_suggestion_act_failed` instead of a voided ask.
+  - With the membership-instance comparison disabled, the reinvite case fails.
+  - With the host re-check disabled, the handoff case fails.
+- Floor: `pnpm --filter @orb/showcase-plugins build`, then `pnpm test` on `tests/server/domain/automation`, `tests/server/infra/plugin-host`, `tests/server/domain/plugin`, `tests/showcase-plugins/guest-boundaries.int.test.ts` and `tests/support/node/corpus-plugin-host.int.test.ts`.
 
 ## Owner ruling (2026-11-02)
 

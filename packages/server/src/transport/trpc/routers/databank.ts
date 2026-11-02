@@ -12,6 +12,7 @@ import {
   activeChatDocumentViewSchema,
   bankHealthViewSchema,
   DATABANK_NAME_MAX,
+  databankTextDocumentSchema,
   documentAttachmentsViewSchema,
   documentDestinationSchema,
   documentDetailViewSchema,
@@ -30,14 +31,10 @@ import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-const TEXT_MIN = 1;
-
 export const databankRouter = t.router({
   createFromText: authedProcedure
     .output(uploadResultSchema)
-    .input(
-      z.strictObject({ name: z.string().min(1).max(DATABANK_NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }),
-    )
+    .input(databankTextDocumentSchema.extend({ destination: documentDestinationSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text, destination: input.destination }),
     ),

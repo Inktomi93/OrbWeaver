@@ -486,14 +486,14 @@ export interface PluginIdentity {
  *  deliberately no second proposal system — one store, one TTL, one sweep, one card surface, one host answer.
  *
  *  It takes the plugin's identity + installer because the STORE holds them: they are what the confirm re-check
- *  re-reads (still installed? installer still hosts?) and what the executor rebuilds the bridge from. The
- *  guest supplies only the act. */
+ *  re-reads (still installed? installer still on the same membership?) and what the executor rebuilds the
+ *  bridge from. The guest supplies only the act. Resolves once the ask is stored; rejects when it cannot be. */
 export type RaisePluginSuggestion = (req: {
   readonly plugin: PluginIdentity;
   readonly installerUserId: UserId;
   readonly chatId: ChatId;
   readonly act: PluginSuggestedAct;
-}) => void;
+}) => Promise<void>;
 
 /** VOID every pending ask of one plugin — the deactivate/uninstall sweep. Wired at compose to the shared
  *  store's `voidPlugin`. The confirm-time liveness re-check is what makes a stale card SAFE; this is what

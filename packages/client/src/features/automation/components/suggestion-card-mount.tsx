@@ -23,11 +23,13 @@
 // renders the newest card and discloses the rest as "+N pending" — this source publishes oldest-first and
 // lets the band own that law.
 
+import type { SuggestionCardDetail } from "@orb/contracts/automation";
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { AutomationSuggestionId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { DiffView } from "@orb/ui/diff";
 import { ScrollArea } from "@orb/ui/scroll-area";
+import { Text } from "@orb/ui/text";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useBusRoom, useInvalidation, useTRPC } from "#data";
@@ -41,6 +43,11 @@ import { useConfirmSuggestion, useDismissSuggestion } from "../lib/suggestion-mu
  *  named, so its verb is the plain yes; an invitation asks about a rate-capped rule, so its verb names what
  *  the confirm actually does — one fresh run, now. */
 const CONFIRM_LABEL = { confirm: "Do it", invitation: "Run now" } as const;
+
+/** The host's own statement of who installed an asking plugin, drawn apart from the plugin-named title. */
+function installerByline(handle: string): string {
+  return `Installed by ${handle}`;
+}
 
 /** Publish an empty list once when the source has nothing live (retiring anything it had raised). */
 const NO_ASKS: readonly PendingAsk[] = [];
@@ -80,6 +87,36 @@ function RewriteDetail({ before, after }: { readonly before: string; readonly af
       </CollapsiblePanel>
     </Collapsible>
   );
+}
+
+/** A plugin turn's whole steer behind the same closed disclosure. The title cuts the steer to one line; the host
+ *  pays for the turn the full text drives, so the full text is one click away before they answer. */
+function SteerDetail({ text }: { readonly text: string }): ReactNode {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger>Show the full steer</CollapsibleTrigger>
+      <CollapsiblePanel>
+        <ScrollArea viewportClassName="max-block-(--height-scroll-md)" wrapContent={true}>
+          <Text as="div" className="whitespace-pre-wrap" data-slot="suggestion-steer">
+            {text}
+          </Text>
+        </ScrollArea>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+function cardDetail(detail: SuggestionCardDetail): ReactNode {
+  switch (detail.kind) {
+    case "rewrite":
+      return <RewriteDetail before={detail.before} after={detail.after} />;
+    case "steer":
+      return <SteerDetail text={detail.text} />;
+    default: {
+      const exhaustive: never = detail;
+      throw new Error(`unhandled suggestion card detail ${JSON.stringify(exhaustive)}`);
+    }
+  }
 }
 
 export function AutomationSuggestionMount({ state, publish }: ChatControlSourceMountProps): ReactNode {
@@ -150,10 +187,11 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
       kind: "card" as const,
       id: ask.id,
       title: ask.summary,
+      ...(ask.installerHandle === undefined ? {} : { byline: installerByline(ask.installerHandle) }),
       // The band does NOT compare `detail` across publishes (it compares kind/id/title/actions), which is
       // safe here for the reason the contract names: a card's detail is a pure function of its ask, and an
       // ask that changes gets a new `id` from the server.
-      ...(ask.detail === undefined ? {} : { detail: <RewriteDetail before={ask.detail.before} after={ask.detail.after} /> }),
+      ...(ask.detail === undefined ? {} : { detail: cardDetail(ask.detail) }),
       actions: [
         {
           id: ask.id,

@@ -1,5 +1,6 @@
 // Plugin feedback names only admitted participants; quick replies remain member-editable compose chips.
 
+import { QUICK_REPLY_LABEL_MAX, QUICK_REPLY_MAX_CHOICES, QUICK_REPLY_SEND_MAX } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -27,7 +28,17 @@ export function createPluginFeedbackOps(input: DbAssemblyInput<PluginFeedbackDep
         }),
       );
     },
-    surfaceQuickReply: ({ pluginId, chatId, choices }): ReturnType<PluginFeedbackOps["surfaceQuickReply"]> => {
+    surfaceQuickReply: async ({ pluginId, chatId, choices }): ReturnType<PluginFeedbackOps["surfaceQuickReply"]> => {
+      // The caps a rule's chips carry at authoring, so a guest cannot push more chip text to every member than
+      // a host-written rule can. Refused whole, never trimmed, so the guest learns its chips did not surface.
+      if (
+        choices.length > QUICK_REPLY_MAX_CHOICES ||
+        choices.some(({ label, sendText }) => label.length > QUICK_REPLY_LABEL_MAX || sendText.length > QUICK_REPLY_SEND_MAX)
+      ) {
+        throw new Error(
+          `plugin host: chat.surfaceQuickReply takes at most ${QUICK_REPLY_MAX_CHOICES} choices, each label up to ${QUICK_REPLY_LABEL_MAX} characters and each text up to ${QUICK_REPLY_SEND_MAX}`,
+        );
+      }
       // `mode` is pinned to `compose` for the PLUGIN emitter: the guest's `surfaceQuickReply` capability
       // carries no mode field (widening it is the plugin program's own row), and compose is the fail-safe
       // half of the axis — the member owns and edits guest-authored text before it becomes their message,
@@ -35,7 +46,7 @@ export function createPluginFeedbackOps(input: DbAssemblyInput<PluginFeedbackDep
       // `createRule`) declares its mode per choice and defaults to `send`.
       const projected = choices.map((c) => ({ label: c.label, sendText: c.sendText, mode: "compose" as const }));
       automationNotify({ type: "quickReplySurfaced", chatId, source: { kind: "plugin", pluginId }, choices: projected });
-      return Promise.resolve();
+      await Promise.resolve();
     },
   };
 }

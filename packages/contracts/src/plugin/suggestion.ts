@@ -61,19 +61,19 @@ export type PluginSuggestedAct =
  *  these kinds are camelCase, so a Record trips no naming-convention suppression).
  *
  *  Each reads as a question about a CONCRETE act, never a capability label, and it NAMES THE PLUGIN — a host
- *  answering "should this happen" is entitled to know who is asking, and a plugin ask is the one card class
- *  whose requester is not a rule the host wrote themselves. */
-const PLUGIN_ACT_QUESTION: Record<PluginSuggestedActKind, (act: PluginSuggestedAct, pluginName: string) => string> = {
-  requestTurn: (act, pluginName) => {
+ *  answering "should this happen" is entitled to know who is asking. The member who installed it is NOT named
+ *  here: the plugin name is free text, so the card carries the installer as its own field and renders it
+ *  apart from this question, where the name cannot imitate it. */
+const PLUGIN_ACT_QUESTION: Record<PluginSuggestedActKind, (act: PluginSuggestedAct, asker: string) => string> = {
+  requestTurn: (act, asker) => {
     const steer = act.kind === "requestTurn" ? (act.guided ?? "").trim() : "";
-    return steer.length === 0 ? `“${pluginName}” wants to take a turn in the room. Allow it?` : `“${pluginName}” wants to take a turn: “${steer}”. Allow it?`;
+    return steer.length === 0 ? `${asker} wants to take a turn in the room. Allow it?` : `${asker} wants to take a turn: “${steer}”. Allow it?`;
   },
-  worldInfoUpsert: (act, pluginName) =>
-    `“${pluginName}” wants to save a lore entry for “${act.kind === "worldInfoUpsert" ? act.entry.entryKey : ""}”. Allow it?`,
-  generatePicture: (act, pluginName) => `“${pluginName}” wants to illustrate the scene (${act.kind === "generatePicture" ? act.args.mode : ""}). Allow it?`,
+  worldInfoUpsert: (act, asker) => `${asker} wants to save a lore entry for “${act.kind === "worldInfoUpsert" ? act.entry.entryKey : ""}”. Allow it?`,
+  generatePicture: (act, asker) => `${asker} wants to illustrate the scene (${act.kind === "generatePicture" ? act.args.mode : ""}). Allow it?`,
 };
 
 /** Render the ask. The caller caps it to the shared suggestion-summary length. */
 export function summarizePluginAct(act: PluginSuggestedAct, pluginName: string): string {
-  return PLUGIN_ACT_QUESTION[act.kind](act, pluginName);
+  return PLUGIN_ACT_QUESTION[act.kind](act, `“${pluginName}”`);
 }
