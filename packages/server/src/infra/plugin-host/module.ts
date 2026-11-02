@@ -22,8 +22,24 @@ type WasmMemoryOption = NonNullable<Parameters<typeof newVariant>[1]["wasmMemory
 // `bundler` the mismatch was invisible; nodenext surfaces it (tsx-shedding stage 4). Normalize here, at
 // the single seam, rather than weakening the program: take `.default` when the CJS namespace shape shows
 // up, else the value itself.
-const variant: QuickJSSyncVariant =
-  (variantModule as unknown as { readonly default?: QuickJSSyncVariant }).default ?? (variantModule as unknown as QuickJSSyncVariant);
+function isSyncVariant(value: unknown): value is QuickJSSyncVariant {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Reflect.get(value, "type") === "sync" &&
+    typeof Reflect.get(value, "importFFI") === "function" &&
+    typeof Reflect.get(value, "importModuleLoader") === "function"
+  );
+}
+
+function loadedVariant(loaded: unknown): QuickJSSyncVariant {
+  const nested: unknown = typeof loaded === "object" && loaded !== null ? Reflect.get(loaded, "default") : undefined;
+  const candidate = nested ?? loaded;
+  if (!isSyncVariant(candidate)) {
+    throw new Error("plugin host: the QuickJS-ng sync variant did not load");
+  }
+  return candidate;
+}
 
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
 
@@ -70,7 +86,7 @@ export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
   if (modulePromise === undefined) {
     const memory = createWebAssemblyMemory();
     modulePromise = newQuickJSWASMModuleFromVariant(
-      newVariant(variant, {
+      newVariant(loadedVariant(variantModule), {
         // The published Emscripten loader otherwise defaults to maximum:32768 pages (2 GiB). QuickJS's
         // setMemoryLimit accounts live guest allocations and does not constrain that allocator high-water mark.
         // One module lives in one recyclable Worker, so this WebAssembly-native maximum is both per guest and

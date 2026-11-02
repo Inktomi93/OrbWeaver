@@ -68,6 +68,7 @@ import type { RateLimiter } from "#src/transport/rate-limit.ts";
 import { createRateLimiter } from "#src/transport/rate-limit.ts";
 import type { LiveBuses, SocketRegistry } from "#transport/trpc";
 import { readSessionCookie } from "../auth/index.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -176,7 +177,7 @@ function sanitizeOidcErrorCode(raw: string | null | undefined): string {
 /** Narrow a thrown grant error to openid-client's `AuthorizationResponseError`-shaped `.error` carrier
  *  without importing the class — the code is still sanitized before it reaches the response. */
 function hasOidcErrorCode(err: unknown): err is { readonly error: string } {
-  return typeof err === "object" && err !== null && "error" in err && typeof (err as { error: unknown }).error === "string";
+  return typeof err === "object" && err !== null && "error" in err && typeof err.error === "string";
 }
 
 type OidcExchangeResult =
@@ -682,7 +683,7 @@ const csrfGuard: MiddlewareHandler = (c, next) =>
 
 /** Register `POST /api/auth/login` (local mode only): CSRF belt → body cap → per-IP throttle → per-HANDLE
  *  throttle → verify → mint cookie. The two throttle axes are independent and BOTH must pass (B1). */
-function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
+function registerLoginRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
   const { trustedProxies } = deps;
   // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttles then cap
   // brute-force + scrypt-CPU-flood.
@@ -728,7 +729,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
  *  owner credential that is already set (the claim is null-guarded and atomic). The CSRF belt is NOT redundant
  *  with the peer gate — the owner's own browser is a loopback peer, so only the header stops a cross-origin
  *  page the owner visits from driving the owner-password set (see {@link csrfGuard}). */
-function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
+function registerFirstRunRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
   const { trustedProxies } = deps;
   const limiter = loginThrottler(deps);
   app.post(FIRST_RUN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
@@ -823,7 +824,7 @@ async function readSignupRequest(c: Context): Promise<unknown> {
  * vector floor and the join announcement. The cookie is written only for a batch whose every RETURNING
  * came back, so a refused or partial signup never leaves a session.
  */
-function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRouteDeps): void {
+function registerSignupRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, signup: SignupRouteDeps): void {
   const { trustedProxies } = deps;
   const addressLimiter = loginThrottler(deps);
   const inviteLimiter = createRateLimiter(deps.db, {
@@ -873,7 +874,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
  * preview. It spends no per-invite bucket, like the pre-check, and writes nothing.
  */
 function registerSignupPreviewRoute(
-  app: Hono,
+  app: Hono<PrincipalEnv>,
   signup: SignupRouteDeps,
   addressLimiter: RateLimiter,
   deps: Pick<AuthRoutesDeps, "discreetLogin" | "trustedProxies" | "logger">,
@@ -965,7 +966,7 @@ async function admitSignupAttempt(
 
 /** Register the auth mint routes on `app`. Logout is always present; local login / first-run / signup / OIDC
  *  are registered only when their injected op is supplied. */
-export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
+export function registerAuthRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps): void {
   const { trustedProxies } = deps;
   const authenticate = deps.authenticate;
   if (authenticate !== undefined) {
@@ -1123,7 +1124,7 @@ function misconfiguredCallback(configured: URL, transport: RequestTransport): st
 }
 
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
-function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
+function registerOidcRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
   const { trustedProxies } = deps;
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
     const transport = requestTransport(c, trustedProxies);
@@ -1388,7 +1389,7 @@ async function admitPendingConfirm(
  * row, inserts the account, spends a use, seats it and audits it, or does none of that. A session mints only
  * after that batch, and only for an enabled account: under OIDC_REQUIRE_APPROVAL the account waits disabled.
  */
-function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
+function registerOidcPendingJoin(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
   const { trustedProxies } = deps;
   const addressLimiter = loginThrottler(deps);
   const bodyCap = bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
@@ -1441,7 +1442,12 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
  *  without an actionable key would tell the IdP logout succeeded while leaving the session live. Returns
  *  200 on success, 400 on validation or unsupported-token failure (per spec), always no-store.
  *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). */
-function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>): void {
+function registerBackchannelLogout(
+  app: Hono<PrincipalEnv>,
+  deps: AuthRoutesDeps,
+  oidc: OidcRoutesDeps,
+  bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>,
+): void {
   app.post(
     OIDC_BACKCHANNEL_LOGOUT_ROUTE,
     bodyLimit({ maxSize: OIDC_BACKCHANNEL_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),

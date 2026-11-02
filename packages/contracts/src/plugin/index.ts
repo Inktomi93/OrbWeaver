@@ -62,6 +62,8 @@ export {
   PLUGIN_QUIET_IMAGES_MAX,
   PLUGIN_READ_CONTENT_MAX_CHARS,
   PLUGIN_SEARCH_RESULTS_MAX,
+  pluginQuietOptionsSchema,
+  pluginWorldEntryUpsertSchema,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";

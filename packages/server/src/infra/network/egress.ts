@@ -628,7 +628,7 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
   return (hostname, options, resolved): void => {
     context.firewallLookup(hostname, options, (err, address, family): void => {
       if (err) {
-        resolved(err, address as string, family as number);
+        resolved(err, address, family);
         return;
       }
       const addresses = Array.isArray(address) ? address.map((one) => one.address) : [address];
@@ -646,10 +646,10 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
             : "security: egress SSRF blocked (private or unreadable address)",
           context.log,
         );
-        resolved(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
+        resolved(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address, family);
         return;
       }
-      resolved(null, address as string, family);
+      resolved(null, address, family);
     });
   };
 }
