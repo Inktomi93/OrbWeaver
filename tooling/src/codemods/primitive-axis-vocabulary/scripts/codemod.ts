@@ -1,6 +1,6 @@
-// Rewrites the literal colour, fill and size axes of the @orb/ui primitives into the D336 vocabulary by the css-system
-// plan's mapping tables. An element whose mapped axis is an expression or a spread value is left for a hand edit, and so
-// is a literal the tables do not map; tsc refuses what is left, so nothing is silently half-moved.
+// Rewrites the literal colour, fill and size axes of the @orb/ui primitives into the D336 vocabulary by an exact
+// map. An element whose mapped axis is an expression or a spread value is left for a hand edit, and so
+// is a literal the map does not name; tsc refuses what is left, so nothing is silently half-moved.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";

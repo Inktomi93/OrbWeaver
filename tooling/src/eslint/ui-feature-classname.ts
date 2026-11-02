@@ -1,5 +1,4 @@
-// A feature's `className` on a primitive is layout only, and a class string is never built (css-system plan, item
-// 1316). Layout is decided by the CSS a token compiles to, never by a list of class names.
+// A feature's `className` on a primitive is layout only, and a class string is never built (item 1316). Layout is decided by the CSS a token compiles to, never by a list of class names.
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";

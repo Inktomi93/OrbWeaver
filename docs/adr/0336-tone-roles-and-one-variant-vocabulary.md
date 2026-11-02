@@ -12,8 +12,6 @@ Each primitive hand-mixes its own intent tints with opacity modifiers, so one me
 
 ## Decision
 
-The [css-system plan](../plans/css-system/design.md) records its build order and mapping.
-
 Tones. A tone is an intent color: `primary`, `neutral`, `destructive`, `warning`, `success`, `info`. The intent tokens keep their names and stay hand-tuned `light-dark()` bases under D71. `secondary` is not a tone, because its fill is the neutral ramp.
 
 Roles. Every tone has the roles `solid`, `solid-hover`, `solid-active`, `text`, `text-on-tint`, `tint`, `tint-active`, `edge` and the paired `foreground`. A colored tone derives them from its base `B`, its foreground token and the scope's colors:
@@ -46,7 +44,7 @@ Vocabulary. Every primitive spells color as `tone`, fill style as `variant` and 
 - Text, Icon and the fill-less Button variants take `tone` for intent color and `ink` for the named inks: `muted`, `foreground`, `accolade`, the transcript inks, `prose`, `toneForeground` and `inherit`. The prop types make `ink` and a non-neutral `tone` exclusive, except `toneForeground`, which names the tone it is the ink of.
 - State keys off `data-disabled`, `data-pressed`, `data-open`, `data-selected`, `aria-busy`, `aria-invalid`, `aria-current` and `aria-expanded`. No boolean prop restates one.
 - Button `variant="solid" tone="primary"` is the focal action under CD3 and draws the CTA lift unless the call site passes `focal={false}`. It is the default Button.
-- Use-specific values leave Card, Text, Button, ListRow, Badge and the layout boxes for named components. The plan's mapping table is the list.
+- Use-specific values leave Card, Text, Button, ListRow, Badge and the layout boxes for named components. Each primitive's `variants.ts` holds its subset.
 
 This amends D62 P5. A bordered secondary action is `variant="outline" tone="neutral"`. `outline` is a variant of every pressable primitive. `ghost` inherits its host ink unless the call site names an `ink`. It also amends the primitive axis table in [UI-Density-Law](../law/UI-Density-Law.md) §4.3 for these primitives.
 
