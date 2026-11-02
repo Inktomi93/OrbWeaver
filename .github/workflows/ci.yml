@@ -25,13 +25,38 @@ jobs:
       - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm lint:eslint
       - run: pnpm lint:css
       - run: pnpm depcruise
       - name: Check unused files, exports and dependencies
         run: pnpm knip
       - name: Check that production exports have production consumers
         run: pnpm knip:prod
+
+  # One type-aware program over the whole tree outgrew one runner's memory, so each part lints on its
+  # own runner. The parts are the same split `scripts/eslint-box.ts` runs sequentially on the box.
+  eslint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: packages
+            args: packages
+          - name: tests
+            args: tests
+          - name: tooling
+            args: tooling
+          - name: root
+            args: . --ignore-pattern packages/ --ignore-pattern tests/ --ignore-pattern tooling/
+    name: eslint (${{ matrix.part.name }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @orb/showcase-plugins build
+      - run: pnpm lint:eslint ${{ matrix.part.args }}
 
   node:
     runs-on: ubuntu-24.04
@@ -102,7 +127,7 @@ jobs:
   ci-ok:
     name: CI
     if: always()
-    needs: [static, node, ct, e2e-smoke]
+    needs: [static, eslint, node, ct, e2e-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
