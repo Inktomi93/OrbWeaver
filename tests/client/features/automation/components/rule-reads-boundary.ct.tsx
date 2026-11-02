@@ -177,11 +177,11 @@ test("a held selected-character read shows the loading skeleton, a failed one th
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("Couldn't load the selected character.", { exact: true })).toBeVisible();
+  await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toBeVisible();
   await expect(editor.getByText(`Speaker: ${character.id}`, { exact: true })).toBeVisible();
   read.recover();
   await editor.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(editor.getByText("Couldn't load the selected character.", { exact: true })).toHaveCount(0);
+  await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toHaveCount(0);
   await expect(editor.getByText(`Speaker: ${character.name}`, { exact: true })).toBeVisible();
 });
 

@@ -7,7 +7,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 
 /** A selected character is read by identity, never searched for in the first library page. */
 export function RuleCharacterField({
@@ -34,7 +34,9 @@ export function RuleCharacterField({
                 {label}: {value}
               </Text>
               <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
-              <QueryErrorState label="the selected character" onRetry={retry} />
+              <Button variant="ghost" className="justify-start" onClick={retry}>
+                Retry
+              </Button>
             </Stack>
           )}
         >

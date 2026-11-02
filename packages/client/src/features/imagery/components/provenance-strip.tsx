@@ -1,33 +1,33 @@
 // The lightbox's provenance detail strip — `imagery.readProvenance`
 // over the viewed asset. Owner-scoped by construction (the verb joins through `assets.ownerId`); a stranger
 // or a non-generated image reads `null`, which is a first-class DATA state ("no details"), never an error.
-// The three honest arms are all load-bearing: pending → skeleton, error → a retryable line, null/loaded →
-// the strip. Non-suspending (`useQuery`) so the modal's image paints immediately and the strip fills in.
+// The three honest arms: pending → skeleton, error → the shared retryable block, null/loaded → the strip.
+// The read suspends under its own boundary so the modal's image paints immediately and the strip fills in.
 
 import type { AssetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { SkeletonRows, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 // One cost voice for the whole feature (#623) — the imagine modal's read receipt writes a spend the same way.
 import { formatCost } from "../lib/format-cost.ts";
 
 export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): ReactElement {
-  const trpc = useTRPC();
-  const { data, isPending, isError } = useQuery(trpc.imagery.readProvenance.queryOptions({ assetId }));
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={2} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this image's details" onRetry={retry} />}
+    >
+      <LoadedProvenance assetId={assetId} />
+    </QueryBoundary>
+  );
+}
 
-  if (isPending) {
-    return <SkeletonRows count={2} shape="line" />;
-  }
-  if (isError) {
-    return (
-      <Text voice="gloss" data-slot="provenance-error">
-        Couldn't load this image's details.
-      </Text>
-    );
-  }
+function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.imagery.readProvenance.queryOptions({ assetId }));
   if (data === null) {
     return (
       <Text voice="gloss" data-slot="provenance-empty">

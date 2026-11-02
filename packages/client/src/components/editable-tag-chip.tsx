@@ -4,14 +4,14 @@ import { Button } from "@orb/ui/button";
 import { Icon, Pencil, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverClose, PopoverPopup, PopoverTitle, PopoverTrigger } from "@orb/ui/popover";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS } from "#lib";
 import { selectLabel, setActiveSection, setCorpusMode } from "#state";
+import { QueryBoundary } from "./query-boundary.tsx";
 import { TagEditorBody } from "./tag-editor-body.tsx";
 
 export function EditableTagChip({
@@ -30,6 +30,7 @@ export function EditableTagChip({
   const [navigating, setNavigating] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const triggerId = useId();
+  // Value read only (the trigger name); the popup's own read suspends in TagChipBody under the boundary.
   const library = useQuery({ ...trpc.tag.listTagsWithUsage.queryOptions(), enabled: open });
   const row = library.data?.find((item) => item.id === tag.id);
   const name = row?.name ?? tag.name;
@@ -40,23 +41,6 @@ export function EditableTagChip({
     }
     setOpen(next);
   };
-  let body: ReactElement;
-  if (library.isError) {
-    body = (
-      <QueryErrorState
-        label="this tag"
-        onRetry={async (): Promise<void> => {
-          await library.refetch();
-        }}
-      />
-    );
-  } else if (library.data === undefined) {
-    body = <Skeleton className="block-(--height-row-placeholder) inline-full" />;
-  } else if (row === undefined) {
-    body = <Text voice="gloss">This tag was deleted.</Text>;
-  } else {
-    body = <TagEditorBody onMerged={(): void => changeOpen(false)} key={row.id} tag={row} others={library.data.filter((item) => item.id !== row.id)} />;
-  }
   return (
     <Popover
       modal={true}
@@ -115,7 +99,14 @@ export function EditableTagChip({
               }
             />
           </Row>
-          {body}
+          {open ? (
+            <QueryBoundary
+              fallback={<SkeletonRows count={1} />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="this tag" onRetry={retry} />}
+            >
+              <TagChipBody tagId={tag.id} onMerged={(): void => changeOpen(false)} />
+            </QueryBoundary>
+          ) : null}
 
           <Button
             variant="outline"
@@ -136,4 +127,14 @@ export function EditableTagChip({
       </PopoverPopup>
     </Popover>
   );
+}
+
+function TagChipBody({ tagId, onMerged }: { readonly tagId: TagView["id"]; readonly onMerged: () => void }): ReactElement {
+  const trpc = useTRPC();
+  const { data: library } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  const row = library.find((item) => item.id === tagId);
+  if (row === undefined) {
+    return <Text voice="gloss">This tag was deleted.</Text>;
+  }
+  return <TagEditorBody onMerged={onMerged} key={row.id} tag={row} others={library.filter((item) => item.id !== row.id)} />;
 }

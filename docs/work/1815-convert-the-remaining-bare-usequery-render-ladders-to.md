@@ -24,9 +24,7 @@ One visual system: every surface shows the same loading, error and retry states.
 
 ## Evidence
 
-Rulings applied: a typed refusal (FORBIDDEN) renders through the boundary's error render; only the read-dependent part sits in the boundary; a knob change keeps the settled rows on screen through a deferred value. A second lane owns databank, automation, tag, credentials, imagery, plugin, refinery, rpg and stats.
-
-Converted in the preset, discovery and chat features. Every CT holds the read, fails it and retries. Where the old ladder already printed the same states, the CT passes on the old source too and only locks the shared states.
+Rulings applied: a typed refusal (FORBIDDEN) renders through the boundary's error render; only the read-dependent part sits in the boundary; a knob change keeps the settled rows on screen through a deferred value. Converted in the preset, discovery, chat, databank, automation, stats, tag, plugin, imagery, refinery, rpg and credentials features. Every CT holds the read, fails it and retries. Where the old ladder already printed the same states, the CT passes on the old source too and only locks the shared states.
 
 | site | CT |
 | - | - |
@@ -55,13 +53,36 @@ Non-ladder reads in the three features. Each reads a value or hands state to a c
 | `chat/components/chat-import-dialog.tsx`, `reattribute-from-here.tsx`, `choice-send-provider.tsx`, `composer-guided-cluster.tsx`, `chat/surfaces/new-chat-picker-surface.tsx` | the `isPending` matches are mutation states |
 | `discovery/surfaces/corpus-home-surface.tsx` keywords and workloads reads | feed the derived analysis state the readiness rail renders; no ladder of their own |
 
-Still a ladder, or not yet judged. None of these cites section 10 or a ruling.
+Converted in the final pass. Every CT holds the read, fails it and retries unless the row says otherwise.
 
-| site | note |
+| site | CT |
 | - | - |
-| `chat/components/transcript-window.tsx` AnchoredThread | skipped: a sibling lane edits this file |
-| `chat/components/variant-wire-viewer.tsx` | the same dialog shape as the member card; converts the same way. Needs a CT that opens a message variant's wire viewer |
-| `chat/components/chat-recall-indicator.tsx` (line 199), `chat-list-character-filter.tsx`, `composer-next-turn-line.tsx` | pending and error arms; not converted |
-| `preset/surfaces/preset-editor-surface.tsx` capability query, `preset/components/readout/capability-panel.tsx` and `readout-parts.tsx` EffectiveProfile, `preset/components/logit-bias-editor.tsx` word lookup | the capability panel hands `.data` and `.error` to a child that owns the ladder, and its Select must survive a target change; needs a design call on where the boundary goes |
-| `chat/components/chat-documents-section.tsx` | hook state; the five matches name a slot state, not a render ladder; needs a read to confirm |
-| the 1762 rows outside these three features | owned by the second lane |
+| `components/editable-tag-chip.tsx` popover, `components/tag-picker-dialog.tsx` (suspending child mounted only while open) | `tests/client/components/tag-reads-boundary.ct.tsx` |
+| `features/plugin/components/plugin-dialog-body.tsx` (no subject is the gone state) | `tests/client/features/plugin/components/plugin-dialog-boundary.ct.tsx` |
+| `features/imagery/components/provenance-strip.tsx` | `tests/client/features/imagery/components/provenance-boundary.ct.tsx` |
+| `features/refinery/components/context-tabs.tsx` VersionsTab (the error wins over "No versions yet") | `tests/client/features/refinery/components/versions-boundary.ct.tsx` |
+| `features/rpg/components/rpg-journal-tab.tsx` card archive | `tests/client/features/rpg/components/rpg-journal-boundary.ct.tsx` |
+| `features/credentials/components/connection-account.tsx` AccountCreditsBlock (provider message kept) | `tests/client/features/credentials/components/account-credits-boundary.ct.tsx`; the corpus responders can only fail or delay, so Retry is not proved to recover |
+| `features/chat/components/variant-wire-viewer.tsx`, `chat-list-character-filter.tsx` faces strip | `tests/client/features/chat/components/chat-reads-boundary.ct.tsx` |
+| `features/chat/components/chat-recall-indicator.tsx` RecallHostDetail | no CT: the recall state is fed only by a bus event, and a story may not write `chatStream` |
+| `features/automation/components/rule-character-field.tsx` | keeps the unavailable note and a Retry control, drops the shared block (ruling); `rule-reads-boundary.ct.tsx` |
+
+Non-ladder, read in the final pass.
+
+| site | why it is not a ladder |
+| - | - |
+| `features/credentials/components/connection-editor-essential.tsx` ModelField | derives a `source` value for the shared `ModelPicker`, which owns the states; a failed catalog degrades to the typed-id field and a boundary would blank the editable field. The save-correction effect also needs the settled answer |
+| `features/chat/components/chat-documents-section.tsx` | the list read already suspends; `useSlotState` is a hook returning a named state for an advisory warning with its own "Check again" line |
+| `features/app-shell/hooks/use-selected-theme.ts`, `features/character/hooks/use-library-scope.ts`, `features/plugin/hooks/use-extensions-empty.ts`, `features/roster-preset/hooks/use-saved-rosters.ts` | hooks that return a named state to a caller |
+| `features/user-admin/components/about-section.tsx` | a manual `enabled: false` refetch behind a button; the verdict slot is the result, not a pending or error ladder |
+| `features/preset/components/preset-library-welcome.tsx`, `features/character/surfaces/character-library-surface.tsx` (settings and favorites reads), `features/chat/hooks/use-guided-actions.ts`, `features/rpg/hooks/use-rpg-context-state.ts`, `features/regex/hooks/use-regex-collection.ts`, `features/roster-preset/hooks/use-roster-collection.ts`, `features/world-info/hooks/use-world-info-collection.ts`, `components/imported-chats-memory-offer.tsx`, `features/persona/anchors/first-run-persona-dialog.tsx`, `features/imagery/components/imagine-body.tsx`, `features/notifications/components/notification-inbox-row.tsx` | read in the final pass: the status words are mutation states, a `data-ready` flag, or a value handed to a caller |
+| `features/chat/components/transcript-window.tsx`, `composer-next-turn-line.tsx` | open: a sibling lane edits composer and transcript files |
+
+Open.
+
+| site | reason |
+| - | - |
+| `features/plugin/surfaces/extensions-page-surface.tsx` with `hooks/use-plugin-pages.ts` | the pending and error arms render in the surface from the hook's flags; the hook is shared with the list header, so it needs a split |
+| `features/preset/surfaces/preset-editor-surface.tsx` capability query, `readout/capability-panel.tsx` with `readout-parts.tsx` EffectiveProfile | the resolve error is a typed state (no chat model) that the profile discriminates; needs a call on whether the typed refusal renders through the boundary's error render, with the Select outside and a deferred target |
+| `features/preset/components/logit-bias-editor.tsx` word lookup | an inline per-entry annotation beside an editable key, with `keepPreviousData`; a boundary cannot sit inline |
+| `features/chat/components/chat-recall-indicator.tsx`, `corpus` rows listed above as converted without a CT | no held-read CT yet |

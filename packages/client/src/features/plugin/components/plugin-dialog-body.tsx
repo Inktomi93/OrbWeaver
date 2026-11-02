@@ -16,9 +16,9 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { openConfigTo, usePluginDialogSubject } from "#state";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
@@ -28,55 +28,54 @@ import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 const GONE_TITLE = "That dialog is no longer available";
 const GONE_BODY = "Its plugin was disabled or removed while it was open.";
 
+function GoneDialog(): ReactElement {
+  return (
+    <Stack align="center" justify="center">
+      <EmptyState
+        // The next step is real and specific: the plugin can be turned back on in Plugins. A modal whose body
+        // says only "gone" strands a person inside a dialog they have to guess their way out of.
+        action={
+          <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
+            Open Plugins
+          </Button>
+        }
+        description={GONE_BODY}
+        icon={<Icon icon={Blocks} size="md" />}
+        title={GONE_TITLE}
+      />
+    </Stack>
+  );
+}
+
 export function PluginDialogBody(): ReactElement {
   const subject = usePluginDialogSubject();
-  const trpc = useTRPC();
-  // Not a suspense read: the modal is already open when this mounts, and suspending a modal body behind a
-  // spinner is exactly the bare-spinner state the three-states law refuses. The cache is warm in every path
-  // that can open this (an action on a surface, or a command whose menu already read the catalog).
-  const surfacesQuery = useQuery(trpc.plugin.listSurfaces.queryOptions());
-  const pluginsQuery = useQuery(trpc.plugin.list.queryOptions());
-  const surfaces = surfacesQuery.data;
-  const plugins = pluginsQuery.data;
-  if (subject !== undefined && (surfacesQuery.isPending || pluginsQuery.isPending)) {
-    return (
-      <Stack gap="block" role="status">
-        <Text voice="label">Loading plugin dialog…</Text>
-        <SkeletonRows count={2} shape="line" />
-      </Stack>
-    );
+  if (subject === undefined) {
+    return <GoneDialog />;
   }
-  if (subject !== undefined && (surfacesQuery.isError || pluginsQuery.isError)) {
-    return (
-      <QueryErrorState
-        label="this plugin dialog"
-        onRetry={(): void => {
-          void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]).catch((error: unknown) => globalThis.reportError(error));
-        }}
-      />
-    );
-  }
-  const surface = (surfaces ?? []).find(
-    (candidate) => candidate.pluginId === subject?.pluginId && candidate.id === subject.surfaceId && candidate.anchor === "dialog",
+  return (
+    <QueryBoundary
+      fallback={
+        <Stack gap="block" role="status">
+          <Text voice="label">Loading plugin dialog…</Text>
+          <SkeletonRows count={2} shape="line" />
+        </Stack>
+      }
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin dialog" onRetry={retry} />}
+    >
+      <ResolvedPluginDialog subject={subject} />
+    </QueryBoundary>
   );
-  const plugin = (plugins ?? []).find((candidate) => candidate.id === subject?.pluginId);
-  if (subject === undefined || surface === undefined || plugin === undefined) {
-    return (
-      <Stack align="center" justify="center">
-        <EmptyState
-          // The next step is real and specific: the plugin can be turned back on in Plugins. A modal whose body
-          // says only "gone" strands a person inside a dialog they have to guess their way out of.
-          action={
-            <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
-              Open Plugins
-            </Button>
-          }
-          description={GONE_BODY}
-          icon={<Icon icon={Blocks} size="md" />}
-          title={GONE_TITLE}
-        />
-      </Stack>
-    );
+}
+
+// Resolves the spec off the same cache the opener read, so a plugin disabled between the ask and the paint is the gone line.
+function ResolvedPluginDialog({ subject }: { readonly subject: NonNullable<ReturnType<typeof usePluginDialogSubject>> }): ReactElement {
+  const trpc = useTRPC();
+  const { data: surfaces } = useSuspenseQuery(trpc.plugin.listSurfaces.queryOptions());
+  const { data: plugins } = useSuspenseQuery(trpc.plugin.list.queryOptions());
+  const surface = surfaces.find((candidate) => candidate.pluginId === subject.pluginId && candidate.id === subject.surfaceId && candidate.anchor === "dialog");
+  const plugin = plugins.find((candidate) => candidate.id === subject.pluginId);
+  if (surface === undefined || plugin === undefined) {
+    return <GoneDialog />;
   }
   // U7 FRAME (#787) — a `dialog`-anchored frame draws the plugin's OWN document in the isolated iframe, inside
   // the house modal shell. `PluginFrame` draws its own (panel-scale) attribution band, so an un-minted frame
@@ -84,9 +83,7 @@ export function PluginDialogBody(): ReactElement {
   if (surface.tier === "frame") {
     return <PluginFrame anchor="dialog" pluginId={subject.pluginId} pluginName={plugin.name} surfaceId={surface.id} title={surface.title} />;
   }
-  const scriptedIds = (surfaces ?? [])
-    .filter((candidate) => candidate.pluginId === subject.pluginId && candidate.tier === "scripted")
-    .map((candidate) => candidate.id);
+  const scriptedIds = surfaces.filter((candidate) => candidate.pluginId === subject.pluginId && candidate.tier === "scripted").map((candidate) => candidate.id);
   let body: ReactElement | null;
   if (surface.tier === "scripted") {
     body = (
