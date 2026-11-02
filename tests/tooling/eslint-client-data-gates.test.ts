@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
@@ -20,14 +21,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: config?.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );
@@ -154,6 +155,47 @@ const CASES = [
   ["orb/config-group-definition-home", "a group declared in state", "export const g: ConfigGroupDefinition = { id: 'x' };", STATE, 1],
   ["orb/config-group-definition-home", "a group in the feature lib", "const g: ConfigGroupDefinition = { id: 'x' };", FEATURE_LIB, 0],
   ["orb/config-group-definition-home", "a modal is another vocabulary", "const m: ModalDefinition = { id: 'x' };", STATE, 0],
+  // mutation-vars-derived
+  [
+    "orb/mutation-vars-derived",
+    "a literal variables type",
+    "export const useRename = createEntityMutation<{ readonly chatId: string; readonly title: string }, unknown>({ options });",
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/mutation-vars-derived",
+    "variables derived from the procedure",
+    "export const useStar = createEntityMutation<StarVars, unknown>({ options });",
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/mutation-vars-derived",
+    "a literal response type beside derived variables",
+    "export const useStar = createEntityMutation<StarVars, { readonly ok: boolean }>({ options });",
+    FEATURE,
+    0,
+  ],
+  ["orb/mutation-vars-derived", "a literal type on another generic", "export const x = wrap<{ readonly a: string }, unknown>({ options });", FEATURE, 0],
+  // trpc-error-code-via-helper
+  [
+    "orb/trpc-error-code-via-helper",
+    "a hand cast reading the code",
+    'export const conflict = (error as { data?: { code?: string } }).data?.code === "CONFLICT";',
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/trpc-error-code-via-helper",
+    "a nullable hand cast",
+    "export const code = (error as { data?: { code?: string } } | null | undefined)?.data?.code;",
+    FEATURE,
+    1,
+  ],
+  ["orb/trpc-error-code-via-helper", "the helper", 'export const conflict = trpcErrorCode(error) === "CONFLICT";', FEATURE, 0],
+  ["orb/trpc-error-code-via-helper", "a cast of a data field that is not a code", "export const d = (error as { data: unknown }).data;", FEATURE, 0],
+  ["orb/trpc-error-code-via-helper", "a cast of another nested field", "export const r = (error as { data?: { reason?: string } }).data?.reason;", FEATURE, 0],
   // the queryKey selector
   ["no-restricted-syntax", "a hand-built queryKey", 'export const o = { queryKey: ["chat", id], queryFn };', FEATURE, 1],
   ["no-restricted-syntax", "a hand-built queryKey in data", 'export const o = queryOptions({ queryKey: ["auth", "me"], queryFn });', DATA, 1],
@@ -206,17 +248,17 @@ async function effectFindings(source: string, path: string, plantedTree: (files:
     [`${CLIENT}state/index.ts`]: STATE_BARREL,
     [path]: `${HEADER}${source}`,
   });
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: root }).verify(
     `${HEADER}${source}`,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: root, ecmaFeatures: { jsx: true } },
       },
-      rules: { [EFFECT_RULE]: config?.rules?.[EFFECT_RULE] ?? "off" },
+      rules: { [EFFECT_RULE]: config.rules[EFFECT_RULE] ?? "off" },
     },
     { filename: join(root, path) },
   );

@@ -47,7 +47,16 @@ import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_RPG_ROUND_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import {
+  CASE_LIVE_LOOP_MS,
+  CASE_LIVE_TURN_MS,
+  CASE_STREAM_MS,
+  WAIT_LIVE_TURN_MS,
+  WAIT_RPG_ROUND_MS,
+  WAIT_SETTLE_MS,
+  WAIT_STREAM_MS,
+  WAIT_SURFACE_MS,
+} from "./support/timeouts.ts";
 import type { TrackerDefInput, TrpcClientOutput } from "./support/trpc.ts";
 import {
   abortTurn,
@@ -162,7 +171,7 @@ async function seedGame(
 test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB consistent", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-hand"));
   try {
     // ── BORN-DEFAULT (no-born-seed synthesis): a freeform lite game starts with NO snapshot row, so the read
@@ -353,7 +362,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
 test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the next turn's reminder", {
   tag: "@live",
 }, async ({ page: _page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(CASE_LIVE_TURN_MS);
   const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-lock"));
   try {
     const view = await getTrackerView(chatId);
@@ -394,7 +403,7 @@ const STATE_CHANGE_NARRATION =
 test("rpg-lite (born default): a live character turn + state capture moves the snapshot and re-renders the panel", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"));
   try {
     // Pre-seed a KNOWN state so the reminder carries it into the turn's prompt (the steering proof): the model
@@ -501,7 +510,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
 test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without corrupting canon", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"));
   try {
     await setExtractionMode(chatId, "cheap");
@@ -539,7 +548,7 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
 test("rpg-lite: the tracker view is swipe-consistent — every plane resolves from ONE current snapshot", {
   tag: "@live",
 }, async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(WAIT_STREAM_MS);
   const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-swipe"));
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
@@ -571,7 +580,7 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
 test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)", {
   tag: "@live",
 }, async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(CASE_STREAM_MS);
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-checkpoint"));
   try {
     await editSnapshot(chatId, { location: "The Old Chapel", recentEvents: ["Lit the first candle"] });
@@ -600,7 +609,7 @@ test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)"
 test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idle abort is a clean no-op", {
   tag: "@live",
 }, async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(CASE_STREAM_MS);
   const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-sad"));
   try {
     // Hand-edit posts narrator rows; a subsequent read must stay well-formed after we delete one.
@@ -643,7 +652,7 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
 test("rpg-lite (readonly): a capability-absent connection is born read-only but hand-steering still lands", {
   tag: "@live",
 }, async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(CASE_STREAM_MS);
   // seedGame binds `chat` to the local engine; we UNBIND it for THIS spec, then rely on cleanup's
   // binding-restore. A fresh game read with no chat connection resolves readonly-by-construction.
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-readonly"));

@@ -103,7 +103,7 @@ globalThis.addEventListener("vite:preloadError", () => {
 
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
 // whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
-const toastManager = createToastManager();
+const toastManager = createToastManager<object>();
 bindNotify(createToastNotify(toastManager));
 
 // "Report a bug" reads this ring in every build, so it is installed before the first render. It keeps no

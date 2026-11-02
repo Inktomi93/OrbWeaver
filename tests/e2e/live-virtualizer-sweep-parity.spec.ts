@@ -17,7 +17,7 @@ import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
-import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_LOOP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { listCanon, listCharacters, sendTurn, startChat, trpc } from "./support/trpc.ts";
 import { assertVirtualListMatchesCanon, collectVirtualRows } from "./support/virtualizer.ts";
 
@@ -26,7 +26,7 @@ const TURN_COUNT = 12;
 test("collectVirtualRows sweeps a transcript longer than the viewport and matches canon exactly", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
 
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");

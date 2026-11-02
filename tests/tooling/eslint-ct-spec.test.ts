@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const STORY_ID = "orb/testid-typed-only-stories";
@@ -17,7 +18,7 @@ const CONFIG_LOAD = { timeout: scaledBudget(CONFIG_LOAD_BASE_MS) };
 
 async function ordinary(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(filename);
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }), filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,

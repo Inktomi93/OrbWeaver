@@ -2,7 +2,6 @@
 // and centres the row a keyboard pick lands on; a refused save puts focus on its inline failure; a saved connection
 // hands focus to the Add connection button that replaces the one the empty state drew.
 import { modelListingSchema, providerDisplayLabel } from "@orb/contracts/inference";
-import type { trpcHold } from "@orb/testkit/ct";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -122,8 +121,9 @@ test("a saved first connection hands focus to the Add connection button that rep
   const { caller, label, providers } = await scenario();
   // The corpus owner already holds connections; the list stays empty until the create the test makes lands.
   const served = serveCorpusProcedures(caller, ["connection.list", "connection.create"]);
-  // A served responder is the hold marker the server's answer settles; the union it is typed as also admits plain values.
-  const answer = <Marker,>(route: unknown, input: unknown): Marker => Reflect.apply(route as (input: unknown) => Marker, undefined, [input]);
+  // A served route is typed as a responder or a plain value; the served one is always a responder.
+  const serveList = served["connection.list"];
+  const serveCreate = served["connection.create"];
   let created = false;
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
@@ -134,10 +134,15 @@ test("a saved first connection hands focus to the Add connection button that rep
       "credentials.storageStatus",
       "connection.draftCatalogModels",
     ]),
-    "connection.list": (input) => (created ? answer<ReturnType<typeof trpcHold<"connection.list">>>(served["connection.list"], input) : []),
+    "connection.list": (input) => {
+      if (!created) {
+        return [];
+      }
+      return typeof serveList === "function" ? serveList(input) : serveList;
+    },
     "connection.create": (input) => {
       created = true;
-      return answer<ReturnType<typeof trpcHold<"connection.create">>>(served["connection.create"], input);
+      return typeof serveCreate === "function" ? serveCreate(input) : serveCreate;
     },
     "connection.providersAvailable": () => providers,
   });

@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/tooling";
 
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const SERVER_SRC = "packages/server/src";
@@ -458,7 +459,7 @@ const HANDLE_KEY_ROWS: readonly Row[] = [
 ];
 
 test.for([...SUBJECT_ROWS, ...HANDLE_KEY_ROWS])("identity writers: $name", { timeout: scaledBudget(30_000) }, async (row, { repoRoot }) => {
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }).calculateConfigForFile(join(repoRoot, row.path));
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), join(repoRoot, row.path));
   const messages = new Linter({ cwd: repoRoot }).verify(
     row.source,
     {

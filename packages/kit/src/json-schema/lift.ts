@@ -297,7 +297,7 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
   if (required !== undefined && !(Array.isArray(required) && required.every((r) => typeof r === "string"))) {
     throw new JsonSchemaLiftError("required (not a string array)", path);
   }
-  const requiredSet = new Set<string>(Array.isArray(required) ? (required as string[]) : []);
+  const requiredSet = new Set<string>(Array.isArray(required) ? required : []);
 
   const shape: Record<string, RuntimeGeneratedSchema> = {};
   for (const [key, propNode] of Object.entries(properties)) {

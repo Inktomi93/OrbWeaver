@@ -17,7 +17,6 @@
 // features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
-import type { WorkloadKind } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -73,12 +72,12 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ScheduleItem | null>(null);
 
-  const handleByUserId = new Map(users.map((user) => [user.id as string, user.handle as string]));
+  const handleByUserId = new Map<string, string>(users.map((user) => [user.id, user.handle]));
   const ownerHandleFor = (schedule: ScheduleItem): string | null => {
     if (schedule.ownerId === viewer.userId) {
       return null;
     }
-    return handleByUserId.get(schedule.ownerId as string) ?? null;
+    return handleByUserId.get(schedule.ownerId) ?? null;
   };
 
   return (
@@ -150,7 +149,7 @@ function ScheduleRow({
   readonly onEdit: () => void;
   readonly onDelete: () => void;
 }): ReactElement {
-  const kindLabel = WORKLOAD_KIND_LABELS[schedule.kind as WorkloadKind];
+  const kindLabel = WORKLOAD_KIND_LABELS[schedule.kind];
   const cadence = SCHEDULE_CADENCE_LABELS[schedule.cadence];
   // ONE CADENCE VOCABULARY (side-eye 2026-08-08 P3). `formatRelative` flips to an absolute date past its
   // horizon, so two adjacent rows read "Next in 6d" and "Next Sep 7, 2026" — the same field in two

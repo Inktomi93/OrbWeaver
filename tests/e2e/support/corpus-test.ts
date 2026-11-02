@@ -39,7 +39,7 @@ export const test = base.extend({
     await use(context);
   },
   page: async ({ page, baseURL }, use, info) => {
-    const selected = info.project.metadata["chatStyle"];
+    const selected: unknown = info.project.metadata["chatStyle"];
     if (selected === undefined) {
       await use(page);
       return;

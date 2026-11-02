@@ -237,7 +237,7 @@ function parseExtraValue(raw: string): unknown {
   }
   // a parse probe, not an operation: non-JSON text is the answer, and `raw` is the string arm that `extrasFromRows` saves as the extra's value and `rowWithReadValue` leaves as typed. Ends if this catch ever writes or reports rather than classifies.
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch {
     return raw;
   }

@@ -11,6 +11,7 @@ import type { ArtifactRef } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { readMember } from "../../../floor/instrument/member.ts";
 import type { VerdictDenominator } from "../../../floor/verdict/evidence.ts";
 import { ARMS } from "../../contract/arm-vocabulary.ts";
 import type {
@@ -178,11 +179,11 @@ export function pageArms(): readonly (readonly [Arm, ArmPageLifecycle])[] {
 /** Runtime twin of ArmPageLifecycle's required total members. A future cast/JS row cannot quietly skip
  * the refusal fold merely because TypeScript normally checks the registry. */
 export function assertPageArmLifecycle(arm: Arm, candidate: unknown): asserts candidate is ArmPageLifecycle {
-  if (typeof candidate !== "object" || candidate === null || Reflect.get(candidate, "at") !== "page") {
+  if (typeof candidate !== "object" || candidate === null || readMember(candidate, "at") !== "page") {
     throw new Error(`INSTRUMENT ERROR: page arm "${arm}" produced no page lifecycle`);
   }
   for (const member of ["enabled", "run", "pairs", "evidence", "facts", "failures", "exit"] as const) {
-    if (typeof Reflect.get(candidate, member) !== "function") {
+    if (typeof readMember(candidate, member) !== "function") {
       throw new Error(`INSTRUMENT ERROR: page arm "${arm}" omitted required lifecycle member "${member}"`);
     }
   }
@@ -203,7 +204,7 @@ function mergeArmFailures(parts: readonly (readonly [Arm, ArmFailureCounts])[]):
       merged.set(field, count);
     }
   }
-  return Object.fromEntries(merged) as ArmFailureCounts;
+  return Object.fromEntries(merged);
 }
 
 /** THE RUN ARMS AS ONE SURFACE. `ops/run.ts` gains no branch per arm: every member below is total and
@@ -246,7 +247,7 @@ export function assertRunArmInstance(arm: Arm, candidate: unknown): asserts cand
     "facts",
     "exit",
   ] as const) {
-    if (typeof Reflect.get(candidate, member) !== "function") {
+    if (typeof readMember(candidate, member) !== "function") {
       throw new Error(`INSTRUMENT ERROR: run arm "${arm}" omitted required lifecycle member "${member}"`);
     }
   }

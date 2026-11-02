@@ -26,8 +26,9 @@ test("guided Templates rows resolve the defaults used by their actual actions", 
 });
 
 test("adapted format and compaction defaults stay out of prose storage", () => {
+  const defaults: Readonly<Record<string, string>> = DEFAULT_FORMAT_STRINGS;
   for (const [key, slot] of Object.entries(PRESET_FORMAT_SLOT_IDS)) {
-    expect(resolveProseText(slot, {}), key).toBe(DEFAULT_FORMAT_STRINGS[key as keyof typeof DEFAULT_FORMAT_STRINGS]);
+    expect(resolveProseText(slot, {}), key).toBe(defaults[key]);
     expect(isPresetProseSlotId(slot), key).toBe(false);
   }
   expect(resolveProseText("preset.compaction.instructions", {})).toBe(DEFAULT_COMPACT_INSTRUCTIONS);

@@ -20,7 +20,7 @@ function quotedIdsIn(body: string): readonly string[] {
 }
 
 function healKeysIn(body: string): readonly string[] {
-  return [...body.matchAll(/^\s*(?<key>[A-Za-z0-9_$]+):/gmu)].map((m) => m.groups?.["key"] ?? "");
+  return [...body.matchAll(/^[ \t]*(?<key>[A-Za-z0-9_$]+):/gmu)].map((m) => m.groups?.["key"] ?? "");
 }
 
 /** Every URL segment `resolveSectionPath` accepts: the live `SECTION_IDS` plus the retired ids that heal
@@ -54,5 +54,5 @@ export function serverRouteSegments(): readonly string[] {
   if (proxy === undefined) {
     throw new Error(`${VITE_CONFIG_PATH}: SERVER_PROXY not found — the reader rotted`);
   }
-  return [...proxy.matchAll(/^\s*"\/(?<segment>[^"/]+)": \{/gmu)].map((m) => m.groups?.["segment"] ?? "");
+  return [...proxy.matchAll(/^[ \t]*"\/(?<segment>[^"/]+)": \{/gmu)].map((m) => m.groups?.["segment"] ?? "");
 }

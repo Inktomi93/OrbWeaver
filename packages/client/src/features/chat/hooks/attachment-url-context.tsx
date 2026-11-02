@@ -24,6 +24,7 @@ const EMPTY: ReadonlyMap<AssetId, ResolvedAttachment> = new Map<AssetId, Resolve
 /** The row-scoped `assetId → {blobUrl, mime}` map for inline attachments (default empty for a
  *  provider-less mount). */
 export const AttachmentUrlContext = createContext<ReadonlyMap<AssetId, ResolvedAttachment>>(EMPTY);
+AttachmentUrlContext.displayName = "AttachmentUrlContext";
 
 /** The resolved `{blobUrl, mime}` for one inline attachment (#67/#317), or `undefined` while unresolved /
  *  provider-less (→ the row renders the placeholder). Consumed by `MessageMediaBlock`'s asset arm. */

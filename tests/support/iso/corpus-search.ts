@@ -144,7 +144,7 @@ export function publishCorpusSearch(section: CorpusSearchLibrary): z.output<type
     viewerUserId: section.viewerUserId,
     ids: section.ids,
     rooms: section.rooms.map((room) => room.output),
-    reads: Object.fromEntries(Object.entries(section.reads).map(([name, read]) => [name, read.output])),
+    reads: Object.fromEntries(Object.entries({ ...section.reads }).map(([name, read]) => [name, read.output])),
   });
 }
 

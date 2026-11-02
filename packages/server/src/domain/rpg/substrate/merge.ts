@@ -165,7 +165,7 @@ const UNARBITRATED: MergeArbitration = { locks: null, sink: null };
  *  `would` is the value the merge WOULD have produced with no lock at or below this path — computed by
  *  re-resolving with `locks: null`, because resolving with the locks in hand returns the base unchanged and
  *  would report nothing at all. Duplicate paths are collapsed: one lock, one line in the trail. */
-function reportSuppression(sink: SuppressionSink, path: string, baseValue: unknown, would: unknown | typeof SKIP): void {
+function reportSuppression(sink: SuppressionSink, path: string, baseValue: unknown, would: unknown): void {
   if (sink === null || would === SKIP || deepEqual(would, baseValue)) {
     return;
   }
@@ -202,7 +202,7 @@ function mergeKeyedArray(args: {
 }): unknown[] {
   const { baseArr, patchArr, plane, arb, fieldPath } = args;
   const keyOf = plane.keyOf;
-  const baseById = new Map<string, unknown>();
+  const baseById = new Map<string>();
   for (const el of baseArr) {
     const id = keyOf(el);
     if (id !== undefined) {
@@ -257,7 +257,7 @@ function resolveKeyedElement(base: unknown, el: unknown, arb: MergeArbitration, 
 }
 
 /** Resolve ONE patch value against its base per the [merge-clear] contract (locks handled by the caller). */
-function resolveValue(baseValue: unknown, value: unknown, arb: MergeArbitration, path: string): unknown | typeof SKIP {
+function resolveValue(baseValue: unknown, value: unknown, arb: MergeArbitration, path: string): unknown {
   if (value === undefined) {
     return SKIP; // omit = keep
   }

@@ -8,6 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
+import { z } from "zod";
 import { signedInMember } from "../../../entry/_auth-roots.ts";
 import {
   AFTER_JOIN,
@@ -108,7 +109,7 @@ test("a from-join member attaching while the host rerolls a pre-join row gets no
   const first = room.send();
   await room.tokensLogged();
   room.reply().release();
-  const outcome = (await first) as { readonly messages: readonly { readonly id: string; readonly role: string }[] };
+  const outcome = z.object({ messages: z.array(z.object({ id: z.string(), role: z.string() })) }).parse(await first);
   const target = outcome.messages.find((message) => message.role === "assistant");
   if (target === undefined) {
     throw new Error("the first turn committed no assistant row");
@@ -162,7 +163,7 @@ test("a swipe in flight reaches a joiner as a swipe of its target, carrying only
   const first = room.send();
   await room.tokensLogged();
   room.reply().release();
-  const outcome = (await first) as { readonly messages: readonly { readonly id: string; readonly role: string }[] };
+  const outcome = z.object({ messages: z.array(z.object({ id: z.string(), role: z.string() })) }).parse(await first);
   const target = outcome.messages.find((message) => message.role === "assistant");
   if (target === undefined) {
     throw new Error("the first turn committed no assistant row");

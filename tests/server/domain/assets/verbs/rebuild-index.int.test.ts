@@ -5,6 +5,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
 import { dispatch, openBox, store, workloadRow } from "../gc-box.ts";
@@ -64,7 +65,7 @@ test("a member cannot start the rebuild, which is bulk-only like the garbage col
 test("an unknown asset kind is refused at the door", async () => {
   const box = await openBox();
   const owner = await box.root.internalCallerFor(box.root.ownerId);
-  await expect(owner.workloads.start({ input: { kind: "assets-rebuild-index", params: { kind: "nonsense" } } as never, mode: "bulk" })).toThrowTRPCError(
+  await expect(owner.workloads.start({ input: forged<never>({ kind: "assets-rebuild-index", params: { kind: "nonsense" } }), mode: "bulk" })).toThrowTRPCError(
     "BAD_REQUEST",
   );
 });

@@ -11,6 +11,7 @@ import { configureCustomProvider, loginLocal, ownerActor } from "./support/actor
 import { ALL_ADMITTED, bugReportStatus, debugOutcomes, describeDebugTokenStates, gateRefusalReason, operatorToken, RELAYED } from "./support/debug-gate.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
+import { CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 
 const ADMIN_PASSWORD = "debug-gate-admin-password";
 const WIRE_CAPTURES = "/api/_debug/wire/captures";
@@ -53,7 +54,7 @@ test("the narrowing is the GATE, not one route — a delegated admin is refused 
 
 test.describe("D17: a DELEGATED admin is not the box operator — the wire ring is the worst case", () => {
   test("an ADMIN session cookie cannot read another user's provider wire bytes; the OWNER and the operator token can", async ({ baseURL }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(CASE_LIVE_TURN_MS);
     const origin = baseURL ?? "";
     const owner = ownerActor(origin);
     const promptMarker = marker("debug-gate-foreign-prompt");

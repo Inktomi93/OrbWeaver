@@ -14,6 +14,7 @@
 import { actorRefKey } from "@orb/contracts/rpg";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -105,13 +106,9 @@ function applySheetPatch(old: TrackerView | undefined, vars: inferInput<Trpc["rp
  *  survived one round-trip and then snapped back. `null` is patch vocabulary only: a cleared attribute is an
  *  ABSENT key in the view, which is what the sheet contract says a read must treat as unset. */
 function mergeAttributes(current: Readonly<Record<string, number>>, patch: Readonly<Record<string, number | null>>): Record<string, number> {
-  const next: Record<string, number> = { ...current };
+  let next: Record<string, number> = { ...current };
   for (const [key, value] of Object.entries(patch)) {
-    if (value === null) {
-      delete next[key];
-    } else {
-      next[key] = value;
-    }
+    next = value === null ? omitKey(next, key) : { ...next, [key]: value };
   }
   return next;
 }

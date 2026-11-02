@@ -877,7 +877,7 @@ const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
 const bundleAssetPathSchema = z.string().regex(PLUGIN_UI_ASSET_ENTRY_RE);
 
 /** Give a parsed array its contract's readonly OUTPUT type without freezing or cloning the runtime value. */
-function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonly Item[], z.input<typeof schema>> {
+function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonly Item[]> {
   return schema.transform((items): readonly Item[] => items);
 }
 

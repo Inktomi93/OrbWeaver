@@ -9,7 +9,7 @@ const DEV_SERVE_ENV: ConfigEnv = { command: "serve", mode: "development" };
 const repoRoot = join(import.meta.dirname, "..", "..");
 
 function configFor(env: ConfigEnv): UserConfig {
-  return viteConfig(env) as UserConfig;
+  return viteConfig(env);
 }
 
 test("the gallery builds playwright/index.html into an owned cache directory and keeps no dev optimizer scan", () => {

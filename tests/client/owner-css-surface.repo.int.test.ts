@@ -162,7 +162,7 @@ test("every runtime-built slot name is spelled at the site that builds it", () =
 
 test("theme.css serves every manifest token variable and no ramp primitive", async () => {
   const served = (await compile(readFileSync(THEME_CSS, "utf8"))).build([]);
-  const declared = new Set([...served.matchAll(/(--[a-z0-9-]+):/gu)].flatMap((match) => (match[1] === undefined ? [] : [match[1]])));
+  const declared = new Set([...served.matchAll(/(?<!-)(--[a-z0-9-]+):/gu)].flatMap((match) => (match[1] === undefined ? [] : [match[1]])));
   const appearanceProperties = new Set(APPEARANCE_CHANNEL_ROWS.filter((row) => row.kind === "property").map((row) => row.name));
   expect(OWNER_CSS_TOKEN_VARS.length).toBeGreaterThan(0);
   // The appearance properties are registered by appearance-channel.gen.css, not served by theme.css.

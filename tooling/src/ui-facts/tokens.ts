@@ -15,7 +15,7 @@ export interface LengthTokens {
 
 /** The first px or rem length in a token value, in pixels; `round(up, 0.25rem, 1px)` reads as its first argument. */
 export function pxOf(value: string): number | null {
-  const match = /(-?\d*\.?\d+)\s*(px|rem|em)\b/u.exec(value);
+  const match = /(?<![\d.])(-?\d*\.?\d+)\s*(px|rem|em)\b/u.exec(value);
   if (match?.[1] === undefined) {
     return null;
   }
@@ -26,7 +26,7 @@ export function pxOf(value: string): number | null {
 export function loadLengthTokens(root: string): LengthTokens {
   const css = readFileSync(join(root, THEME), "utf8");
   const byPx = new Map<number, string[]>();
-  for (const match of css.matchAll(/^\s*(--(?:spacing|size|radius|width|border-width)-[a-z0-9-]+):\s*([^;]+);/gmu)) {
+  for (const match of css.matchAll(/^[ \t]*(--(?:spacing|size|radius|width|border-width)-[a-z0-9-]+):\s*([^;]+);/gmu)) {
     const [, name, value] = match;
     const px = value === undefined ? null : pxOf(value);
     if (name !== undefined && px !== null && px > 0) {

@@ -108,7 +108,7 @@ function parseIpv6(ip: string): bigint | null {
   if (compressed && zeroGroups < 0) {
     return null;
   }
-  const groups = compressed ? [...left, ...new Array(zeroGroups).fill("0"), ...right, ...tailGroups] : [...left, ...tailGroups];
+  const groups = compressed ? [...left, ...new Array<string>(zeroGroups).fill("0"), ...right, ...tailGroups] : [...left, ...tailGroups];
   if (groups.length !== V6_GROUPS) {
     return null;
   }

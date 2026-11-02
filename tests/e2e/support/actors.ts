@@ -3,6 +3,7 @@ import type { AuthMe } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import type { ChatId, Handle } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { expect } from "@playwright/test";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -186,7 +187,7 @@ export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Pr
  *  present participant and every member-gated read (`listMessages`/`replayChatEvents`) resolves for them.
  *  The `member` client must already be logged in (`loginLocal`). */
 export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: ChatId, memberHandle: string): Promise<void> {
-  const invite = await host.trpc.invites.createInvite.mutate({ chatId, input: { invitedHandle: memberHandle } });
+  const invite = await host.trpc.invites.createInvite.mutate({ chatId, input: { invitedHandle: brandedId("Handle").parse(memberHandle) } });
   await member.trpc.invites.redeemInvite.mutate({ token: invite.token });
 }
 

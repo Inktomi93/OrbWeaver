@@ -166,7 +166,7 @@ function toView(contributions: WorkloadContributions, row: WorkloadDecodedRow): 
   let params: Record<string, unknown>;
   // owned by the poison flag: the catch returns the row with poison true, and the Jobs list reads it (workload-row.tsx renders the Unreadable badge). Ends if no consumer reads poison.
   try {
-    params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
+    params = contributions[row.kind].params.parse(row.params);
   } catch {
     return { ...base, kind: row.kind, params: null, result, poison: true };
   }
@@ -580,7 +580,7 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
     .select({ kind: workloads.kind, params: WORKLOAD_READ_COLUMNS.params })
     .from(workloads)
     .where(inArray(workloads.status, [...ACTIVE_WORKLOAD_STATUSES]));
-  return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) as unknown }));
+  return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
 }
 
 /** Put an orphaned in-flight row BACK IN THE QUEUE (#529) — the resumable disposition of the boot reclaim.

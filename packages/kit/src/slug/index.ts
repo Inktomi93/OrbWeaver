@@ -122,7 +122,7 @@ export function slugifyHandle(name: string): string {
   }
   // Cut on CODE POINTS, never UTF-16 units: `"あ".length` is 1 but `"\u{13000}".length` is 2, so a unit slice
   // through a non-BMP letter leaves half a surrogate pair behind (#1525).
-  const points = [...folded];
+  const points = Array.from(folded);
   if (points.length > MAX_FOLDED_POINTS) {
     return `${trimHandleEdges(points.slice(0, MAX_FOLDED_POINTS).join(""))}-${nameTag(name)}`;
   }

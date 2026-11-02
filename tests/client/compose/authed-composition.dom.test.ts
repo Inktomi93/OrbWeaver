@@ -5,6 +5,7 @@ import type { ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
+import { z } from "zod";
 
 const CLIENT_SRC = fileURLToPath(new URL("../../../packages/client/src", import.meta.url));
 const SINGLETON_PLACEMENT = "mobile-tab" satisfies ModalDefinition["trigger"]["placement"];
@@ -88,7 +89,7 @@ async function modalHomeExports(): Promise<readonly HomeExport[]> {
   const files = readdirSync(CLIENT_SRC, { recursive: true, encoding: "utf8" }).filter((path) => /^features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/u.test(path));
   const loaded = await Promise.all(
     files.map(async (file) => {
-      const module: Record<string, unknown> = await import(join(CLIENT_SRC, file));
+      const module = z.record(z.string(), z.unknown()).parse(await import(join(CLIENT_SRC, file)));
       return Object.entries(module).map(([name, value]) => ({ file, name, value }));
     }),
   );

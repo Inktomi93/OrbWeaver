@@ -294,7 +294,7 @@ let openResult: OpenResult | null = null;
  *  bare UA, or the POST body a connect-RPC hub wants). `null` for EVERY failure shape — non-2xx, a body
  *  that is not JSON, the host's own refusals (off-allowlist, the hourly egress floor, the 5 s deadline, the
  *  byte cap). The CALLER folds the failure into the status line; nothing here ever throws into a handler. */
-async function getJson(url: string, init?: NetInit): Promise<unknown | null> {
+async function getJson(url: string, init?: NetInit): Promise<unknown> {
   try {
     const res = await host.net.fetch(url, init);
     if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
@@ -310,7 +310,7 @@ async function getJson(url: string, init?: NetInit): Promise<unknown | null> {
 }
 
 /** POST a JSON body (the connect-RPC / token-mint dialect) — the same failure fold as {@link getJson}. */
-function postJson(url: string, body: Readonly<Record<string, unknown>>, headers?: Record<string, string>): Promise<unknown | null> {
+function postJson(url: string, body: Readonly<Record<string, unknown>>, headers?: Record<string, string>): Promise<unknown> {
   return getJson(url, {
     method: "POST",
     // biome-ignore lint/style/useNamingConvention: an HTTP header name is a wire token.
@@ -764,7 +764,7 @@ function decodeDataRoute(json: unknown): Record<string, unknown> | null {
     return null;
   }
   for (let i = json["nodes"].length - 1; i >= 0; i -= 1) {
-    const node = json["nodes"][i];
+    const node: unknown = json["nodes"][i];
     if (isObj(node) && Array.isArray(node["data"])) {
       const root = unflattenDevalue(node["data"]);
       return isObj(root) ? root : null;
@@ -1662,7 +1662,7 @@ const SOURCES = {
       const cardJson = raw["chara_card_v2_json"];
       if (typeof cardJson === "string" && cardJson.length > 0) {
         try {
-          const parsed = JSON.parse(cardJson);
+          const parsed: unknown = JSON.parse(cardJson);
           if (isObj(parsed)) {
             return Promise.resolve(parsed);
           }
@@ -1730,7 +1730,7 @@ async function dcMint(): Promise<string | null> {
 
 /** GET a datacat API path with the session token; ONE re-mint on a 401/403 (an expired anonymous session),
  *  then the standard null fold. Uses `host.net.fetch` directly — it needs the STATUS, which getJson folds. */
-async function dcGet(path: string): Promise<unknown | null> {
+async function dcGet(path: string): Promise<unknown> {
   try {
     let token = dcTokenCache;
     if (token === null) {
@@ -2194,7 +2194,7 @@ async function publishBrowse(status: string, sourceKey?: SourceKey, loading = fa
   await host.ui.setState("atlas_page", {
     stage: "browse",
     status,
-    loading: loading === true,
+    loading,
     // The pager's buttons are disabled until a search has produced a session to page.
     noSearch: session === null,
     sortOptions: SOURCES[menuKey].sortOptions,

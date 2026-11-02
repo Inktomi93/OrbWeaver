@@ -89,7 +89,7 @@ function selectInteractionEntries(entries: readonly PerformanceEntry[], seen: Se
   const ungrouped: EventTimingEntry[] = [];
   for (const raw of entries) {
     if (raw.duration >= MOTION_BUDGETS.interactionMs) {
-      collectInteractionEntry(raw as EventTimingEntry, grouped, ungrouped, seen);
+      collectInteractionEntry(raw, grouped, ungrouped, seen);
     }
   }
   if (seen.size + grouped.size > SEEN_INTERACTION_CAP) {

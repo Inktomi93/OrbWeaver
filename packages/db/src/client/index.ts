@@ -71,14 +71,16 @@ const TUNING_PRAGMAS = [
   "temp_store = MEMORY",
 ] as const;
 
-// drizzle's returned handle carries `$client` at runtime; `Db` (the public type) intentionally hides it.
-// This local (non-exported) accessor is the one place we reach it — for `close()`, which has no
-// drizzle-level equivalent.
-interface WithClient {
-  readonly $client: Client;
-}
+// `Db` (the public type) intentionally hides the driver client. `createDb` records it here for the operations
+// with no drizzle-level equivalent, such as `close()`.
+const driverClients = new WeakMap<Db, Client>();
+
 function clientOf(db: Db): Client {
-  return (db as unknown as WithClient).$client;
+  const client = driverClients.get(db);
+  if (client === undefined) {
+    throw new Error("@orb/db: this handle was not built by createDb");
+  }
+  return client;
 }
 
 /** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */
@@ -135,7 +137,9 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
         );
       }
     }
-    return drizzle(client, { schema });
+    const db = drizzle(client, { schema });
+    driverClients.set(db, client);
+    return db;
   } catch (err) {
     base.close();
     throw err;

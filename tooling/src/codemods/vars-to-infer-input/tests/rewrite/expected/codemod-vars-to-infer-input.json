@@ -1,12 +1,55 @@
 {
   "sites": [
-    { "file": "chat.ts", "type": "StarVars" },
-    { "file": "chat.ts", "type": "RenameVars" },
-    { "file": "chat.ts", "type": "ReadVars" },
-    { "file": "chat.ts", "type": "ReadVars0" },
-    { "file": "chat.ts", "type": "KeepVars" },
-    { "file": "asserted.ts", "type": "SendVars" },
-    { "file": "bare.ts", "type": "PinVars" }
+    {
+      "file": "literal.ts",
+      "type": "{ readonly id: string }",
+      "proved": "Trpc[\"thing\"][\"touch\"]"
+    },
+    {
+      "file": "chat.ts",
+      "type": "StarVars",
+      "proved": "Trpc[\"chat\"][\"star\"]"
+    },
+    {
+      "file": "chat.ts",
+      "type": "RenameVars",
+      "proved": "Trpc[\"chat\"][\"rename\"]"
+    },
+    {
+      "file": "chat.ts",
+      "type": "ReadVars",
+      "proved": "Trpc[\"chat\"][\"read\"]"
+    },
+    {
+      "file": "chat.ts",
+      "type": "ReadVars0",
+      "proved": "Trpc[\"chat\"][\"read0\"]"
+    },
+    {
+      "file": "chat.ts",
+      "type": "KeepVars",
+      "proved": "Trpc[\"chat\"][\"keep\"]"
+    },
+    {
+      "file": "asserted.ts",
+      "type": "SendVars",
+      "proved": "Trpc[\"chat\"][\"send\"]"
+    },
+    {
+      "file": "bare.ts",
+      "type": "PinVars",
+      "proved": "Trpc[\"chat\"][\"pin\"]"
+    },
+    {
+      "file": "shared.ts",
+      "type": "{ readonly id: string }",
+      "proved": "Trpc[\"thing\"][\"touch\"]"
+    }
   ],
-  "skip": [{ "type": "RuleActionVars", "reason": "carries a client-only chatId beside the procedure input" }]
+  "skip": [
+    {
+      "type": "RuleActionVars",
+      "reason": "carries a client-only chatId beside the procedure input"
+    }
+  ]
 }

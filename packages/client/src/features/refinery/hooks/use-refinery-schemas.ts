@@ -16,6 +16,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import type { Trpc, TrpcReadError } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { useDebouncedValue } from "#lib";
@@ -36,6 +37,8 @@ export function useRefineryPreflight(sessionId: RefinerySessionId | null): UseQu
   const trpc = useTRPC();
   return useGatedQuery(sessionId, (id) => trpc.refinery.preflight.queryOptions({ sessionId: id }));
 }
+
+const draftSchema = z.record(z.string(), z.unknown());
 
 /** How long a draft must stay unchanged before its plan is asked. */
 const SCHEMA_PLAN_SETTLE_MS = 400;
@@ -66,7 +69,7 @@ export function useRefinerySchemaPlan(schema: Record<string, unknown>, stage: Re
       }
     };
     mutate(
-      { schema: JSON.parse(settled) as Record<string, unknown>, stage },
+      { schema: draftSchema.parse(JSON.parse(settled)), stage },
       { onSuccess: (plan) => answer({ state: "answered", plan }), onError: () => answer({ state: "failed" }) },
     );
     return (): void => {

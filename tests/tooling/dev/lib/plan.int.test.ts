@@ -40,9 +40,8 @@ setInterval(() => {}, 1000);`,
 spawn(process.execPath, [${JSON.stringify(descendant)}], { detached: true, stdio: "ignore" }).unref();
 setInterval(() => {}, 1000);`,
       );
-      const env: NodeJS.ProcessEnv = { ...inheritedProcessEnv() };
+      const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([name]) => name !== RUN_MARKER_ENV));
       env["NODE_OPTIONS"] = `--no-warnings --import=${pathToFileURL(preload).href}`;
-      delete env[RUN_MARKER_ENV];
       writeFileSync(join(scratch, "package.json"), JSON.stringify({ private: true, scripts: { dev: "node leader.mjs" } }));
       const invocation = pnpmInvocation({ ambient: inheritedProcessEnv(), platform: process.platform, nodePath: process.execPath, args: ["run", "dev"] });
       if (invocation.kind === "refused") {

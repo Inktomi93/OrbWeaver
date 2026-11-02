@@ -150,8 +150,7 @@ export type ChunkParamsWire = z.infer<typeof chunkParamsSchema>;
 //  below (an UNREFERENCED conditional type is never evaluated, so the pin only bites when read).
 type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams extends ChunkParamsWire ? true : never) : never;
 /** Forces tsc to EVALUATE {@link ChunkParamsPin}: a wire/kit drift makes the pin `never` and this `= true` fails. */
-const _chunkParamsHolds: ChunkParamsPin = true;
-void _chunkParamsHolds;
+const [_chunkParamsHolds]: [ChunkParamsPin] = [true];
 
 // ── retrieval settings (the user-setting blob) ────────────────────────────────────────────────────────────
 export const databankRetrievalSettingsSchema = z.object({

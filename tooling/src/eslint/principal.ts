@@ -1,6 +1,7 @@
 import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import { isValueWrapper } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
@@ -32,7 +33,7 @@ const PRINCIPAL_MINT_CALLERS = [
 const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
 
 const isPrincipalFunction = (node: TSESTree.Node): node is TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression =>
-  node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression";
+  node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
 
 const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
 
@@ -40,20 +41,20 @@ const PRINCIPAL_LITERAL_MESSAGE =
   "D1/D40: an object literal in a Principal position is a hand-built identity; tsc accepts it only when the literal is any-typed or asserted past the brand. Receive the caller's Principal or resolve one through the entry mint.";
 
 const isPrincipalType = (type: TSESTree.Node | undefined): boolean =>
-  type?.type === "TSTypeReference" &&
-  ((type.typeName.type === "Identifier" && type.typeName.name === "Principal") ||
-    (type.typeName.type === "TSQualifiedName" && type.typeName.right.name === "Principal"));
+  type?.type === AST_NODE_TYPES.TSTypeReference &&
+  ((type.typeName.type === AST_NODE_TYPES.Identifier && type.typeName.name === "Principal") ||
+    (type.typeName.type === AST_NODE_TYPES.TSQualifiedName && type.typeName.right.name === "Principal"));
 
 function principalFunctionName(fn: TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression): string | null {
-  if (fn.type !== "ArrowFunctionExpression" && fn.id?.type === "Identifier") {
+  if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.id?.type === AST_NODE_TYPES.Identifier) {
     return fn.id.name;
   }
   const { parent } = fn;
-  if (parent.type === "VariableDeclarator") {
-    return parent.id.type === "Identifier" ? parent.id.name : null;
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator) {
+    return parent.id.type === AST_NODE_TYPES.Identifier ? parent.id.name : null;
   }
-  const keyed = parent.type === "Property" || parent.type === "MethodDefinition" || parent.type === "PropertyDefinition";
-  return keyed && parent.key.type === "Identifier" ? parent.key.name : null;
+  const keyed = parent.type === AST_NODE_TYPES.Property || parent.type === AST_NODE_TYPES.MethodDefinition || parent.type === AST_NODE_TYPES.PropertyDefinition;
+  return keyed && parent.key.type === AST_NODE_TYPES.Identifier ? parent.key.name : null;
 }
 
 function inPrincipalSite(context: OrbRuleContext, node: TSESTree.Node, sites: readonly { path: string; name: string }[]): boolean {
@@ -67,35 +68,35 @@ function principalLiterals(expression: TSESTree.Node | null | undefined): TSESTr
   if (expression === null || expression === undefined) {
     return [];
   }
-  if (expression.type === "ObjectExpression") {
+  if (expression.type === AST_NODE_TYPES.ObjectExpression) {
     return [expression];
   }
-  if (expression.type === "SequenceExpression") {
+  if (expression.type === AST_NODE_TYPES.SequenceExpression) {
     return [...principalLiterals(expression.expressions[0]), ...principalLiterals(expression.expressions.at(-1))];
   }
   switch (expression.type) {
-    case "TSAsExpression":
-    case "TSSatisfiesExpression":
-    case "TSTypeAssertion":
-    case "TSNonNullExpression":
-    case "TSInstantiationExpression":
-    case "ChainExpression":
+    case AST_NODE_TYPES.TSAsExpression:
+    case AST_NODE_TYPES.TSSatisfiesExpression:
+    case AST_NODE_TYPES.TSTypeAssertion:
+    case AST_NODE_TYPES.TSNonNullExpression:
+    case AST_NODE_TYPES.TSInstantiationExpression:
+    case AST_NODE_TYPES.ChainExpression:
       return principalLiterals(expression.expression);
-    case "AwaitExpression":
+    case AST_NODE_TYPES.AwaitExpression:
       return principalLiterals(expression.argument);
-    case "AssignmentExpression":
+    case AST_NODE_TYPES.AssignmentExpression:
       return principalLiterals(expression.right);
-    case "ConditionalExpression":
+    case AST_NODE_TYPES.ConditionalExpression:
       return [expression.test, expression.consequent, expression.alternate].flatMap(principalLiterals);
-    case "LogicalExpression":
+    case AST_NODE_TYPES.LogicalExpression:
       return [expression.left, expression.right].flatMap(principalLiterals);
-    case "BinaryExpression":
+    case AST_NODE_TYPES.BinaryExpression:
       return principalLiterals(expression.left);
-    case "MemberExpression":
+    case AST_NODE_TYPES.MemberExpression:
       return principalLiterals(expression.object);
-    case "CallExpression":
+    case AST_NODE_TYPES.CallExpression:
       return principalLiterals(expression.callee);
-    case "TaggedTemplateExpression":
+    case AST_NODE_TYPES.TaggedTemplateExpression:
       return principalLiterals(expression.tag);
     default:
       return [];
@@ -156,8 +157,8 @@ const principalMintSiteRule: OrbRule = {
       [`Identifier[name='${PRINCIPAL_MINT_NAME}']`](node: TSESTree.Identifier): void {
         // A plain import is the edge dependency-cruiser's principal-mint-owners judges; an alias hides later calls.
         const plainImport =
-          node.parent.type === "ImportSpecifier" &&
-          node.parent.imported.type === "Identifier" &&
+          node.parent.type === AST_NODE_TYPES.ImportSpecifier &&
+          node.parent.imported.type === AST_NODE_TYPES.Identifier &&
           node.parent.imported.name === PRINCIPAL_MINT_NAME &&
           node.parent.local.name === PRINCIPAL_MINT_NAME;
         if (!plainImport) {
@@ -251,28 +252,28 @@ const PRINCIPAL_ALIAS_MESSAGE =
   "D1/D40: every Principal rule keys on the name `Principal`, so a renamed spelling would walk past all of them. Name the type `Principal` where it is used.";
 
 const isPrincipalName = (node: TSESTree.Node | undefined): boolean =>
-  (node?.type === "Identifier" && node.name === PRINCIPAL_NAME) || (node?.type === "Literal" && node.value === PRINCIPAL_NAME);
+  (node?.type === AST_NODE_TYPES.Identifier && node.name === PRINCIPAL_NAME) || (node?.type === AST_NODE_TYPES.Literal && node.value === PRINCIPAL_NAME);
 
 const isPrincipalExpression = (node: TSESTree.Node | undefined): boolean =>
-  isPrincipalName(node) || (node?.type === "MemberExpression" && isPrincipalName(node.property));
+  isPrincipalName(node) || (node?.type === AST_NODE_TYPES.MemberExpression && isPrincipalName(node.property));
 
 function namesPrincipal(type: TSESTree.Node | undefined): boolean {
   switch (type?.type) {
-    case "TSTypeReference":
+    case AST_NODE_TYPES.TSTypeReference:
       return isPrincipalType(type) || (type.typeArguments?.params ?? []).some(namesPrincipal);
-    case "TSUnionType":
-    case "TSIntersectionType":
+    case AST_NODE_TYPES.TSUnionType:
+    case AST_NODE_TYPES.TSIntersectionType:
       return type.types.some(namesPrincipal);
-    case "TSTupleType":
+    case AST_NODE_TYPES.TSTupleType:
       return type.elementTypes.some(namesPrincipal);
-    case "TSArrayType":
-    case "TSNamedTupleMember":
-    case "TSOptionalType":
-    case "TSRestType":
-      return namesPrincipal(type.type === "TSOptionalType" || type.type === "TSRestType" ? type.typeAnnotation : type.elementType);
-    case "TSTypeOperator":
+    case AST_NODE_TYPES.TSArrayType:
+    case AST_NODE_TYPES.TSNamedTupleMember:
+    case AST_NODE_TYPES.TSOptionalType:
+    case AST_NODE_TYPES.TSRestType:
+      return namesPrincipal(type.type === AST_NODE_TYPES.TSOptionalType || type.type === AST_NODE_TYPES.TSRestType ? type.typeAnnotation : type.elementType);
+    case AST_NODE_TYPES.TSTypeOperator:
       return namesPrincipal(type.typeAnnotation);
-    case "TSIndexedAccessType":
+    case AST_NODE_TYPES.TSIndexedAccessType:
       return namesPrincipal(type.objectType);
     default:
       return false;
@@ -283,7 +284,7 @@ function principalTypedBinding(context: OrbRuleContext, identifier: TSESTree.Ide
   for (let scope: TSESLint.Scope.Scope | null = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
     if (variable !== undefined) {
-      return variable.defs.some((def) => namesPrincipal(def.name.type === "Literal" ? undefined : def.name.typeAnnotation?.typeAnnotation));
+      return variable.defs.some((def) => namesPrincipal(def.name.type === AST_NODE_TYPES.Literal ? undefined : def.name.typeAnnotation?.typeAnnotation));
     }
   }
   return false;

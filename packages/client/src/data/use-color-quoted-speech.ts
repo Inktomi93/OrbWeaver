@@ -17,5 +17,5 @@ import { useTRPC } from "./trpc.ts";
 export function useColorQuotedSpeech(): boolean {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
-  return (data?.config.appearance ?? DEFAULT_APPEARANCE_SETTINGS).colorQuotedSpeech !== false;
+  return (data?.config.appearance ?? DEFAULT_APPEARANCE_SETTINGS).colorQuotedSpeech;
 }

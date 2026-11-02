@@ -219,7 +219,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       />
       {galleryCharacterName === undefined ? null : (
         <Field label={`Add to ${galleryCharacterName}'s gallery`} orientation="inline">
-          <Checkbox checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next === true)} />
+          <Checkbox checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next)} />
         </Field>
       )}
       <GeneratingNotice pending={generate.isPending} />

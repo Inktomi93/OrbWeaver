@@ -4,8 +4,19 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgSnapshotId, UserConnectionId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type {
+  ChatId,
+  MessageId,
+  MessageVariantId,
+  PresetId,
+  RpgCheckpointId,
+  RpgGameId,
+  RpgJournalId,
+  RpgQuestId,
+  RpgSnapshotId,
+  UserConnectionId,
+} from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroViewSchema } from "#preset";
 import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor.ts";
@@ -156,7 +167,7 @@ export interface RpgTrackerEntry {
 /** A quest in the tracker view — the goal line + its `n/m` objective completion (served from the RESOLVED
  *  snapshot's array, §2.5 — swipe-consistent by construction). */
 export interface RpgQuestView {
-  readonly id: string;
+  readonly id: RpgQuestId;
   readonly name: string;
   readonly status: string;
   readonly description: string;
@@ -210,7 +221,7 @@ export interface RpgTrackerView {
 
 /** A single journal entry in the paged `listJournal` view — lineage-filtered server-side (§2.5). */
 export interface RpgJournalEntryView {
-  readonly id: string;
+  readonly id: RpgJournalId;
   readonly type: string;
   /** R4c — the free gloss on a `custom`-typed entry (""/absent on the seven built-ins). */
   readonly label: string;
@@ -432,7 +443,7 @@ const rpgTrackerEntrySchema = z.strictObject({
   value: trackerValueViewSchema.nullable(),
 }) satisfies z.ZodType<RpgTrackerEntry>;
 const rpgQuestViewSchema = z.strictObject({
-  id: z.string(),
+  id: brandedId("RpgQuestId"),
   name: z.string(),
   status: z.string(),
   description: z.string(),
@@ -466,7 +477,7 @@ export const rpgTrackerViewSchema = z.strictObject({
   lockedPaths: z.array(z.string()).readonly(),
 }) satisfies z.ZodType<RpgTrackerView>;
 export const rpgJournalEntryViewSchema = z.strictObject({
-  id: z.string(),
+  id: typeIdSchema(ID_PREFIX.rpgJournal),
   type: z.string(),
   label: z.string(),
   title: z.string(),

@@ -17,6 +17,7 @@ import type { SaveLifecycleState } from "#state";
 import { clearSectionSaveStatus, reportSectionSaveStatus } from "#state";
 
 export const SaveStatusHostContext = createContext<boolean>(false);
+SaveStatusHostContext.displayName = "SaveStatusHostContext";
 
 /** Is an aggregate save-status host mounted above this section? */
 export function useSaveStatusHosted(): boolean {
@@ -41,6 +42,7 @@ export function useSaveStatusHosted(): boolean {
  * never be persisted, which they are entitled to be told BEFORE they type.
  */
 export const SaveUnwritableContext = createContext<boolean>(false);
+SaveUnwritableContext.displayName = "SaveUnwritableContext";
 
 /** Is every write from this subtree structurally refused? (`SaveUnwritableContext`). */
 export function useSaveUnwritable(): boolean {

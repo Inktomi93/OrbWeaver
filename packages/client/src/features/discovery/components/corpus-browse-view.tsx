@@ -53,7 +53,7 @@ const SKELETON_ROW_COUNT = 5;
 /** The row's first-paint height guess (avatar + title + subtitle); every row re-measures after mount. */
 const ESTIMATED_ROW_PX = 60;
 
-const SORT_ITEMS: SelectItems<string> = [
+const SORT_ITEMS: SelectItems = [
   { value: ANY_VALUE, label: "Default" },
   { value: "recent", label: "Recent" },
   { value: "name", label: "Name" },
@@ -207,6 +207,6 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
   );
 }
 
-function toSelectItems(allLabel: string, values: readonly { readonly value: string; readonly count: number }[]): SelectItems<string> {
+function toSelectItems(allLabel: string, values: readonly { readonly value: string; readonly count: number }[]): SelectItems {
   return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: `${v.value} (${v.count})` }))];
 }

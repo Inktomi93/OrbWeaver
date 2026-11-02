@@ -6,10 +6,10 @@ import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 
 function capture(run: () => number): { readonly code: number; readonly stdout: string } {
   let stdout = "";
-  const write = vi.spyOn(process.stdout, "write").mockImplementation(((chunk: string | Uint8Array) => {
+  const write = vi.spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
     stdout += String(chunk);
     return true;
-  }) as typeof process.stdout.write);
+  });
   try {
     return { code: run(), stdout };
   } finally {

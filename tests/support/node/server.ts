@@ -380,8 +380,9 @@ async function closeHarnessGraph(
       failures.push(result.reason instanceof Error ? result.reason : new Error("server harness graph disposal failed", { cause: result.reason }));
     }
   }
-  if (failures.length === 1) {
-    throw failures[0];
+  const [only] = failures;
+  if (only !== undefined && failures.length === 1) {
+    throw only;
   }
   if (failures.length > 1) {
     throw new AggregateError(failures, "server harness graph disposal failed");

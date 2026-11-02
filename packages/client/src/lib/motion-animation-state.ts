@@ -127,7 +127,7 @@ function installElementAnimateFlagger(): void {
     keyframes: Keyframe[] | PropertyIndexedKeyframes | null,
     options?: number | KeyframeAnimationOptions,
   ): Animation {
-    const animation = Reflect.apply(nativeAnimate, this, options === undefined ? [keyframes] : [keyframes, options]) as Animation;
+    const animation = options === undefined ? nativeAnimate.call(this, keyframes) : nativeAnimate.call(this, keyframes, options);
     if (frameDropTrackingPaused || isExternalDevtoolsElement(this) || !hasVisibleDuration(animation)) {
       return animation;
     }
@@ -143,7 +143,7 @@ function installElementAnimateFlagger(): void {
     animation.addEventListener("finish", retire, { once: true });
     animation.addEventListener("cancel", retire, { once: true });
     return animation;
-  } as typeof Element.prototype.animate;
+  };
 }
 
 /** Install start/end accounting once. Counts preserve overlapping transition properties on one node. */

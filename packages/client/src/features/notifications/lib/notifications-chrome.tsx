@@ -29,6 +29,8 @@ const MENU_FORMS: readonly OverflowMenuForm[] = [
   { id: "notifications-bell", label: "Notifications", icon: Bell, onSelect: (): void => inboxRequests.request() },
 ];
 
+const menuForms = (): readonly OverflowMenuForm[] => MENU_FORMS;
+
 export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",
   label: "Notifications",
@@ -59,6 +61,6 @@ export const notificationsChrome: ChromeEntry = {
     kind: "widget",
     body: (presentation): ReactElement => <NotificationBell presentation={presentation} />,
     // The menu entry opens the bell's own popover.
-    useMenuForms: (): readonly OverflowMenuForm[] => MENU_FORMS,
+    useMenuForms: menuForms,
   },
 };

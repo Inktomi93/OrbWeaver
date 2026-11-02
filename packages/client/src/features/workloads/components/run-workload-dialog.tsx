@@ -9,6 +9,8 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
+import type { WorkloadId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -16,6 +18,7 @@ import type { SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { z } from "zod";
 import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
@@ -42,8 +45,10 @@ const RUN_LABEL = "Run job";
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** A candidate for the `dependsOn` gate — one of the viewer's currently in-flight (queued/running) runs. */
+const dependsOnSchema = z.array(typeIdSchema(ID_PREFIX.workload));
+
 interface DependencyCandidate {
-  readonly id: string;
+  readonly id: WorkloadId;
   readonly kind: string;
   readonly createdAt: number;
 }
@@ -89,9 +94,9 @@ function RunWorkloadFormBody({
   const start = useStartWorkload({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
 
-  const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
+  const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id, label: user.handle }));
 
-  const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map((candidate) => ({
+  const dependencyItems: readonly SelectOption[] = dependencyCandidates.map((candidate) => ({
     value: candidate.id,
     label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
   }));
@@ -105,10 +110,14 @@ function RunWorkloadFormBody({
     const bulkOn = isMaintenance || bulkToggleOn;
     const needsTarget = !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
     const scheduledAt = parseRunAt(values.runAt);
+    const target = needsTarget ? users.find((user) => user.id === values.targetOwnerId)?.id : undefined;
+    // Parsed, never re-read from the candidates: they are the live active runs, and one that fails while this form is open
+    // leaves them, where dropping it would start a paid run unconditionally. The server's gate judges the id.
+    const dependsOn = dependsOnSchema.parse(values.dependsOn);
     const scope = {
       input: buildStartInput(values.kind, values),
       mode: bulkOn ? "bulk" : "singular",
-      ...(needsTarget ? { targetOwnerId: values.targetOwnerId } : {}),
+      ...(target === undefined ? {} : { targetOwnerId: target }),
     } satisfies WorkloadRunScope;
     await paidRun.confirmThen({
       title: `Run ${WORKLOAD_KIND_LABELS[values.kind]}?`,
@@ -118,7 +127,7 @@ function RunWorkloadFormBody({
         await start.mutateAsync({
           ...scope,
           ...(scheduledAt === undefined ? {} : { scheduledAt }),
-          ...(values.dependsOn.length > 0 ? { dependsOn: [...values.dependsOn] } : {}),
+          ...(dependsOn.length > 0 ? { dependsOn } : {}),
         });
         onDone();
       },

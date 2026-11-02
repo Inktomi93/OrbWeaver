@@ -308,9 +308,13 @@ async function messageLeafName(item: Locator): Promise<string> {
   return label;
 }
 
+function menuLeaves(menu: Locator): Locator {
+  return menu.getByRole("menuitem").or(menu.getByRole("menuitemcheckbox")).or(menu.getByRole("menuitemradio"));
+}
+
 async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, message: MessageView): Promise<void> {
   const chat = await flow.client.chat.getChat.query({ chatId: message.chatId });
-  for (const item of await menu.locator("[role=menuitem], [role=menuitemcheckbox], [role=menuitemradio]").all()) {
+  for (const item of await menuLeaves(menu).all()) {
     const label = await messageLeafName(item);
     const id = `${name}/leaf/${label}`;
     expectSubject(flow, id, "message-menu-leaf");
@@ -352,7 +356,7 @@ async function inspectMenu(
 ): Promise<void> {
   const { depth, message } = options;
   await expect(menu).toBeVisible();
-  const items = menu.locator('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]');
+  const items = menuLeaves(menu);
   await expect(items.first()).toBeVisible();
   await attachNativeFile(flow.info, flow.info, `${name}-items`, { body: await menu.ariaSnapshot(), contentType: "text/plain" });
   const enabled = menu.locator('[role^="menuitem"]:not([aria-disabled="true"]):not([disabled])');
@@ -1036,7 +1040,16 @@ async function reachMessage(flow: Journey, message: MessageView, direction: -1 |
               hit: hit?.outerHTML.slice(0, 500),
               rows: [...element.querySelectorAll<HTMLElement>("[data-message-id]")].map((node) => ({
                 id: node.getAttribute("data-message-id"),
-                rect: node.getBoundingClientRect().toJSON(),
+                rect: ((bounds) => ({
+                  x: bounds.x,
+                  y: bounds.y,
+                  width: bounds.width,
+                  height: bounds.height,
+                  top: bounds.top,
+                  right: bounds.right,
+                  bottom: bounds.bottom,
+                  left: bounds.left,
+                }))(node.getBoundingClientRect()),
               })),
             };
           }),
@@ -1113,7 +1126,16 @@ async function readingChrome(flow: Journey, row: Locator, viewport: Locator, sub
       sticky: element.hasAttribute("data-sticky"),
       pinned: element.hasAttribute("data-pinned"),
       placement: element.getAttribute("data-placement"),
-      rect: element.getBoundingClientRect().toJSON(),
+      rect: ((frame) => ({
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height,
+        top: frame.top,
+        right: frame.right,
+        bottom: frame.bottom,
+        left: frame.left,
+      }))(element.getBoundingClientRect()),
     })),
   );
   await attachNativeFile(flow.info, flow.info, `reading-${name}-identity`, {
@@ -1636,7 +1658,16 @@ async function messageOperationMenu(flow: Journey, message: MessageView): Promis
             return {
               tag: node.tagName,
               slot: node.getAttribute("data-slot"),
-              rect: node.getBoundingClientRect().toJSON(),
+              rect: ((bounds) => ({
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+                top: bounds.top,
+                right: bounds.right,
+                bottom: bounds.bottom,
+                left: bounds.left,
+              }))(node.getBoundingClientRect()),
               position: style.position,
               zIndex: style.zIndex,
               pointerEvents: style.pointerEvents,
@@ -2243,7 +2274,8 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
           .click();
         await pluginContextReady(flow);
         const frame = activeContext(flow).locator("iframe").filter({ visible: true });
-        const arcade = frame.and(flow.page.getByTitle(new RegExp(`^${RegExp.escape(plugin.name)}(?: — ${RegExp.escape(surface.title)})?$`, "u")));
+        const titles = [plugin.name, `${plugin.name} — ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
+        const arcade = frame.and(flow.page.locator(titles.join(", ")));
         await expect(arcade).toHaveCount(1);
         await expect(arcade).toBeVisible();
         const guest = arcade.contentFrame();

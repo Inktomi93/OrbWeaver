@@ -272,6 +272,6 @@ test.describe("the byte-ingest guards key CSRF on every ambient credential", () 
     expect(await owner.trpc.workloads.list.query({ kind: "import-bundle" })).toEqual(before);
     const passed = await fetch(`${origin}${BUNDLE_ROUTE}`, { method: "POST", headers: CSRF, body: zip });
     expect(passed.status).toBe(202);
-    expect((await owner.trpc.workloads.list.query({ kind: "import-bundle" })).length).toBe(before.length + 1);
+    expect(await owner.trpc.workloads.list.query({ kind: "import-bundle" })).toHaveLength(before.length + 1);
   });
 });

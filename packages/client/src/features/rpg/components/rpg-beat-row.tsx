@@ -12,6 +12,7 @@
 // (D66 A4 — there are no Save/Discard buttons in this product), so the editor commits on blur and Escape
 // abandons the draft.
 
+import type { RpgJournalId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
@@ -28,15 +29,15 @@ import { BeatLine, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
 export interface BeatEdit {
-  readonly onEditTitle: (entryId: string, next: string) => void;
-  readonly onEditContent: (entryId: string, next: string) => void;
-  readonly onDelete: (entryId: string) => void;
+  readonly onEditTitle: (entryId: RpgJournalId, next: string) => void;
+  readonly onEditContent: (entryId: RpgJournalId, next: string) => void;
+  readonly onDelete: (entryId: RpgJournalId) => void;
 }
 
 export interface BeatRowProps {
   /** The stored entry projected onto the row (`key` = the entry id — the edit/delete verbs' address). */
   readonly beat: {
-    readonly key: string;
+    readonly key: RpgJournalId;
     readonly type: string;
     readonly label: string;
     readonly title: string;

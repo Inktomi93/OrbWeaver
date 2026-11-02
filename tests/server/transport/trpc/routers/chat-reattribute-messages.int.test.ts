@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/chat/verbs/edit.ts
 // @subject packages/server/src/domain/chat/persistence/retained-canon.ts
 // A re-voice lands only on a present seat of the room. Every refused stamp leaves the row, the bus and the rollups alone.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { REATTRIBUTE_MESSAGES_MAX, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
@@ -11,10 +12,12 @@ import { closeDb } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { decodeStreamChunk, forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ChatRoot, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createChatRoot, freshHeldDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { textProvider, textRoom, wireBodies, wireText } from "../../../domain/chat/scenario-physical.ts";
 
 const LOCAL_ENV = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
@@ -177,7 +180,7 @@ test("the wire refuses a persona id, an unknown key, an empty list and an over-l
   const persona = h.root.idSource.typeId(ID_PREFIX.persona);
   const input = { chatId: h.chatId, messageIds: [firstReply], characterId: bex };
   await expect(h.caller.chat.reattributeMessages({ ...input, characterId: castId<CharacterId>(persona) })).toThrowTRPCError("BAD_REQUEST");
-  await expect(h.caller.chat.reattributeMessages({ ...input, personaId: persona } as typeof input)).toThrowTRPCError("BAD_REQUEST");
+  await expect(h.caller.chat.reattributeMessages(forged<typeof input>({ ...input, personaId: persona }))).toThrowTRPCError("BAD_REQUEST");
   await expect(h.caller.chat.reattributeMessages({ ...input, messageIds: [] })).toThrowTRPCError("BAD_REQUEST");
   const overLong = Array.from({ length: REATTRIBUTE_MESSAGES_MAX + 1 }, () => firstReply);
   await expect(h.caller.chat.reattributeMessages({ ...input, messageIds: overLong })).toThrowTRPCError("BAD_REQUEST");
@@ -343,7 +346,7 @@ test("a re-voice of a row under a member's floor reaches the host and never the 
       if (next.done) {
         throw new Error("the subscription ended before its delivery barrier");
       }
-      bytes += decoder.decode(next.value, { stream: true });
+      bytes += decodeStreamChunk(decoder, next.value);
     }
   };
   try {
@@ -389,7 +392,7 @@ test("the export names the new speaker", async () => {
     (exported?.text ?? "")
       .split("\n")
       .filter((line) => line !== "")
-      .map((line) => JSON.parse(line) as { readonly mes?: string; readonly name?: string })
+      .map((line) => z.object({ mes: z.string().optional(), name: z.string().optional() }).parse(JSON.parse(line)))
       .map((line) => [line.mes, line.name]),
   );
   expect(speakers.get(SECOND_REPLY)).toBe(BEX.name);

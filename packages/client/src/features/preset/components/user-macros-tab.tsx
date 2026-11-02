@@ -15,7 +15,6 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { notify, withUserMacros } from "#lib";
@@ -68,13 +67,9 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
               );
             }}
             renderEditor={(index): ReactElement => (
-              // The shared dialog binds only `userMacros[*]`, which PromptConfig carries; TanStack form
-              // instances are invariant in their value type, so narrowing this PromptConfig form to the
-              // dialog's minimal `UserMacrosFormValues` shape needs one cast (the RegexEditorDialog
-              // precedent — a library-invariance escape, never an Id launder; the field paths exist).
               <UserMacroEditorDialog
                 key={values.macroRowIds[index]?.id}
-                form={form as unknown as AppFormInstance<UserMacrosFormValues>}
+                form={form}
                 index={index}
                 onClose={(): void => setEditId(null)}
                 // A macro body completes against the preset's OWN macros too (they compose — one macro

@@ -20,7 +20,7 @@ import type {
 import { ProviderError } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { createSeededIds, DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
+import { createSeededIds, DEFAULT_EMBED_MODEL, forged } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { seedRecallRoom } from "@orb/testkit/node/composed";
@@ -316,11 +316,13 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
   const executor = root.app.runtime.executor;
   const turn =
     options.omitChatIdAtRuntime === true
-      ? await Reflect.apply(Reflect.get(executor, "runChatTurn"), executor, [
-          // Deliberately bypass the compile-time contract to prove each backend's runtime backstop. Reflect
-          // keeps the malformed value untyped instead of laundering it through a `ChatRequest` assertion.
-          (({ chatId: _chatId, ...withoutChatId }): object => withoutChatId)(request),
-        ])
+      ? forged<Awaited<ReturnType<typeof executor.runChatTurn>>>(
+          await Reflect.apply(Reflect.get(executor, "runChatTurn"), executor, [
+            // Deliberately bypass the compile-time contract to prove each backend's runtime backstop. Reflect
+            // keeps the malformed value untyped instead of laundering it through a `ChatRequest` assertion.
+            (({ chatId: _chatId, ...withoutChatId }): object => withoutChatId)(request),
+          ]),
+        )
       : await executor.runChatTurn(request);
   const response = await root.http.request(`/api/_debug/wire/captures?chatId=${chatId}`);
   if (response.status !== 200) {

@@ -11,10 +11,10 @@ import { blankText } from "@orb/kit/strings";
 
 const FENCE_PATTERN = /^\s*(```|~~~)/u;
 const FRONTMATTER_FENCE = "---";
-const INLINE_CODE_PATTERN = /(`+)([\s\S]*?[^`])\1(?!`)/gu;
+const INLINE_CODE_PATTERN = /(?<!`)(`+)([\s\S]*?[^`])\1(?!`)/gu;
 const OWNER_VOICE_OPEN = "<!-- owner-voice -->";
 const OWNER_VOICE_CLOSE = "<!-- /owner-voice -->";
-const MARKDOWN_LINK_PATTERN = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu;
+const MARKDOWN_LINK_PATTERN = /(?<!\[)\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu;
 /** The `(target)` half of a markdown link, matched on its own so `proseFindings` can blank it: an
  *  archived plan's folder carries a date in its path, and a path is not prose. */
 const LINK_TARGET_PATTERN = /\]\(([^)\s]+)(?:\s+"[^"]*")?\)/gu;
@@ -124,7 +124,7 @@ export function markdownLinkTargets(source: string): readonly { readonly line: n
       if (raw.startsWith("#") || /^[a-z][a-z0-9+.-]*:/iu.test(raw)) {
         continue;
       }
-      targets.push({ line: index + 1, target: raw.replace(/#.*$/u, "") });
+      targets.push({ line: index + 1, target: raw.replace(/#.*/su, "") });
     }
   });
   return targets;
@@ -153,8 +153,8 @@ function backtickedPaths(source: string, prefixes: readonly string[]): readonly 
     for (const match of line.matchAll(INLINE_CODE_PATTERN)) {
       const span = (match[2] ?? "")
         .trim()
-        .replace(/(?::\d+(?:[-,]\d+)*)+$/u, "")
-        .replace(/#.*$/u, "");
+        .replace(/^(.*?)(?::\d+(?:[-,:]\d+)*)?$/su, "$1")
+        .replace(/#.*/su, "");
       if (NOT_A_PATH.test(span) || !prefixes.some((prefix) => span.startsWith(prefix))) {
         continue;
       }

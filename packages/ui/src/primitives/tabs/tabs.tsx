@@ -29,8 +29,9 @@ export interface TabsListProps extends BaseTabsListProps {
   fold?: boolean;
 }
 
-export interface TabsTabProps extends BaseTabsTabProps, Pick<TabsAxes, "layout" | "quiet"> {
+export interface TabsTabProps extends Omit<BaseTabsTabProps, "value">, Pick<TabsAxes, "layout" | "quiet"> {
   className?: string;
+  value: unknown;
 }
 
 export type TabsIndicatorProps = Omit<BaseTabsIndicatorProps, "className">;

@@ -140,7 +140,7 @@ function AddConnectionGate({ trpc, invalidation, purpose, onSaved, onCancel }: G
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
   // Read once, at open: the list refetches the moment this form's own row lands, and the question is about before.
   const [hadChatModel] = useState(() => connections.some((connection) => connection.tasks.includes("chat")));
-  const providers = new Map(available.map((row) => [row.provider.id as string, row.provider]));
+  const providers = new Map<string, (typeof available)[number]["provider"]>(available.map((row) => [row.provider.id, row.provider]));
   return (
     <AddConnectionFormBody
       trpc={trpc}

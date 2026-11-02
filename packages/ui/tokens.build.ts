@@ -620,7 +620,7 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
   const contract = assertTokenContract(uiRoot, join(uiRoot, "../.."));
   // Runs on RAW sources, before resolution: references remain distinguishable from independent literals,
   // and the split polarity values can still be judged as one two-arm decision.
-  assertNoNearDuplicateColors(source as unknown as Record<string, unknown>, { lightSource });
+  assertNoNearDuplicateColors(source, { lightSource });
   const sd = new StyleDictionary({
     tokens: source,
     usesDtcg: true,

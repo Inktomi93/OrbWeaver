@@ -13,7 +13,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import type { PluginId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginCrashedError } from "@orb/server/domain/plugin";
-import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
+import { forged, makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness, makePluginBundle, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -129,7 +129,7 @@ test("an invalid provider row is refused at install and leaves nothing offered",
   const who = await owner(root);
   const valid = makePluginBundle(manifestOf({}), GUEST, root.clock.now());
   // The refusal path needs a wire the manifest type cannot spell, so the one field is cast to feed it bad input.
-  const row = { ...endpointProvider("Acme"), wire: "guest-backend" as never };
+  const row = { ...endpointProvider("Acme"), wire: forged<never>("guest-backend") };
   const bad = makePluginBundle({ ...manifestOf({}), providers: [row] }, GUEST, root.clock.now());
   await expect(root.services.plugin.install({ caller: who, bundle: bad, grant: [] })).rejects.toBeInstanceOf(ManifestInvalidError);
   expect(await root.services.plugin.list({ caller: who })).toEqual([]);

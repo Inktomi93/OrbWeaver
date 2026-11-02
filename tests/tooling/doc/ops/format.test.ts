@@ -118,8 +118,7 @@ test("RENDER FIDELITY: the well-formed corpus shapes are accepted, so the refusa
 });
 
 test("SOURCE FIDELITY: a template literal nested inside single-backtick code delimiters is REFUSED", ({ scratch }) => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
-  const body = `${FRONTMATTER}The guard is \`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`, not a prefix guess.\n`;
+  const body = `${FRONTMATTER}The guard is \`startsWith(\`prefix \${EXEMPT_DIR}/\`)\`, not a prefix guess.\n`;
 
   const { bytes, outcome } = format(scratch, "nested-backtick.md", body);
 
@@ -132,8 +131,7 @@ test("SOURCE FIDELITY: a template literal nested inside single-backtick code del
 });
 
 test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary adjacent code spans remain valid", ({ scratch }) => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
-  const body = `${FRONTMATTER}The guard is \`\`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`\`, beside \`left\` and \`right\`.\n`;
+  const body = `${FRONTMATTER}The guard is \`\`startsWith(\`prefix \${EXEMPT_DIR}/\`)\`\`, beside \`left\` and \`right\`.\n`;
 
   const { bytes, outcome } = format(scratch, "nested-backtick-ok.md", body);
 
@@ -142,8 +140,7 @@ test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary 
 });
 
 test("SOURCE FIDELITY: contiguous code-template-code fragments are conservatively refused, with a content-preserving canonical spelling", ({ scratch }) => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
-  const ambiguous = `${FRONTMATTER}The pieces are \`left\`${"${NAME}"}\`right\`.\n`;
+  const ambiguous = `${FRONTMATTER}The pieces are \`left\`\${NAME}\`right\`.\n`;
   const refused = format(scratch, "adjacent-template-fragments.md", ambiguous);
 
   expect(refused.bytes).toBe(ambiguous);

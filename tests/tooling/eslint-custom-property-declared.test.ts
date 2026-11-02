@@ -15,6 +15,7 @@ import {
   RUNTIME_CUSTOM_PROPERTIES,
   VENDOR_CUSTOM_PROPERTIES,
 } from "../../tooling/src/css-names/index.ts";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/custom-property-declared";
@@ -27,14 +28,14 @@ beforeAll(async () => {
 }, 120_000);
 
 async function findings(source: string, file = SOURCE): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, file));
+  const config = await resolvedConfig(eslint, join(ROOT, file));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: join(ROOT, file) },
   );

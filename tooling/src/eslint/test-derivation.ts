@@ -1,7 +1,8 @@
 // Tests derive values from production (Spine-Testing §3, §9): these rules refuse the hand-typed copy, the refusal that
 // never names its reason, the ambient id, the case table that can come up empty and the capture copied past custody.
 import type { RuleVisitor } from "@eslint/core";
-import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 
 const TITLED_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
@@ -19,22 +20,22 @@ const EXPECT = "expect";
 function staticName(member: TSESTree.MemberExpression): string | undefined {
   const { computed, property } = member;
   if (!computed) {
-    return property.type === "Identifier" ? property.name : undefined;
+    return property.type === AST_NODE_TYPES.Identifier ? property.name : undefined;
   }
-  if (property.type === "Literal" && typeof property.value === "string") {
+  if (property.type === AST_NODE_TYPES.Literal && typeof property.value === "string") {
     return property.value;
   }
-  return property.type === "TemplateLiteral" && property.expressions.length === 0 ? (property.quasis[0]?.value.cooked ?? undefined) : undefined;
+  return property.type === AST_NODE_TYPES.TemplateLiteral && property.expressions.length === 0 ? (property.quasis[0]?.value.cooked ?? undefined) : undefined;
 }
 
 // `a?.b`, `a!.b`, `a as T` and `a satisfies T` read the same value as `a`.
 function unwrapped(node: TSESTree.Node): TSESTree.Node {
   let current = node;
   while (
-    current.type === "ChainExpression" ||
-    current.type === "TSNonNullExpression" ||
-    current.type === "TSAsExpression" ||
-    current.type === "TSSatisfiesExpression"
+    current.type === AST_NODE_TYPES.ChainExpression ||
+    current.type === AST_NODE_TYPES.TSNonNullExpression ||
+    current.type === AST_NODE_TYPES.TSAsExpression ||
+    current.type === AST_NODE_TYPES.TSSatisfiesExpression
   ) {
     current = current.expression;
   }
@@ -43,10 +44,10 @@ function unwrapped(node: TSESTree.Node): TSESTree.Node {
 
 function rootName(callee: TSESTree.Node): string | undefined {
   let node = unwrapped(callee);
-  while (node.type === "MemberExpression" || node.type === "CallExpression") {
-    node = unwrapped(node.type === "MemberExpression" ? node.object : node.callee);
+  while (node.type === AST_NODE_TYPES.MemberExpression || node.type === AST_NODE_TYPES.CallExpression) {
+    node = unwrapped(node.type === AST_NODE_TYPES.MemberExpression ? node.object : node.callee);
   }
-  return node.type === "Identifier" ? node.name : undefined;
+  return node.type === AST_NODE_TYPES.Identifier ? node.name : undefined;
 }
 
 function constInitOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESLint.Scope.Definition | undefined {
@@ -54,7 +55,9 @@ function constInitOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESL
     const variable = scope.set.get(identifier.name);
     if (variable !== undefined) {
       const [definition] = variable.defs;
-      return variable.defs.length === 1 && definition?.type === "Variable" && definition.parent.kind === "const" ? definition : undefined;
+      return variable.defs.length === 1 && definition?.type === TSESLint.Scope.DefinitionType.Variable && definition.parent.kind === "const"
+        ? definition
+        : undefined;
     }
   }
   return undefined;
@@ -73,7 +76,7 @@ export interface CssVocabulary {
 // A brace marks stylesheet text or a token-reference placeholder: the input of a parser, not a read of a token.
 const CSS_TEXT = /[{}]/u;
 // A Tailwind arbitrary value stays one literal so the class scanner can see it.
-const ARBITRARY_VALUE = /\[[^\]\s]*var\(/u;
+const ARBITRARY_VALUE = /(?<!\[)\[[^\]\s]*var\(/u;
 const VAR_READ = /var\(\s*(--[\w-]+)(?=\s*[,)])/gu;
 // `--name: value` outside a block; a class string's `[--name:value]` stays one literal for the scanner.
 const DECLARED_NAME = /(?<![\w[-])(--[a-z][a-z0-9-]*)\s*:/gu;
@@ -92,17 +95,20 @@ const mediaMessage = (condition: string, key: string | undefined): string =>
 // `expect(value, "message")` and `expect.soft(value, "message")`; the arguments of a matcher chained on it are values.
 function isExpectCall(call: TSESTree.CallExpression): boolean {
   const callee = unwrapped(call.callee);
-  if (callee.type === "Identifier") {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
     return callee.name === EXPECT;
   }
   return (
-    callee.type === "MemberExpression" && staticName(callee) === "soft" && rootName(callee.object) === EXPECT && unwrapped(callee.object).type === "Identifier"
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    staticName(callee) === "soft" &&
+    rootName(callee.object) === EXPECT &&
+    unwrapped(callee.object).type === AST_NODE_TYPES.Identifier
   );
 }
 
 function isNarration(node: TSESTree.Node): boolean {
   const call = node.parent;
-  if (call?.type !== "CallExpression") {
+  if (call?.type !== AST_NODE_TYPES.CallExpression) {
     return false;
   }
   const index = call.arguments.indexOf(node as TSESTree.CallExpressionArgument);
@@ -151,7 +157,7 @@ export function noHandTypedCssTokenRule(vocabulary: CssVocabulary): OrbRule {
       return {
         "Literal[value]"(node: TSESTree.Literal): void {
           const text = stringOf(node);
-          if (text !== undefined && node.parent.type !== "TSLiteralType" && !isNarration(node)) {
+          if (text !== undefined && node.parent.type !== AST_NODE_TYPES.TSLiteralType && !isNarration(node)) {
             report(node, textFindings(text, vocabulary));
           }
         },
@@ -178,25 +184,28 @@ const MATCH_ALL_PATTERNS = new Set(["", ".", ".*", ".+", "(?:)", "[\\s\\S]*"]);
 function isAsymmetric(node: TSESTree.CallExpression, name: string): boolean {
   const callee = unwrapped(node.callee);
   return (
-    callee.type === "MemberExpression" && staticName(callee) === name && unwrapped(callee.object).type === "Identifier" && rootName(callee.object) === EXPECT
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    staticName(callee) === name &&
+    unwrapped(callee.object).type === AST_NODE_TYPES.Identifier &&
+    rootName(callee.object) === EXPECT
   );
 }
 
 function isReasonlessClass(node: TSESTree.Node | undefined): boolean {
-  return node?.type === "Identifier" && REASONLESS_CLASSES.has(node.name);
+  return node?.type === AST_NODE_TYPES.Identifier && REASONLESS_CLASSES.has(node.name);
 }
 
 function isReasonlessExpected(node: TSESTree.CallExpressionArgument): boolean {
-  if (node.type === "Identifier") {
+  if (node.type === AST_NODE_TYPES.Identifier) {
     return node.name === "undefined" || isReasonlessClass(node);
   }
-  if (node.type === "Literal") {
+  if (node.type === AST_NODE_TYPES.Literal) {
     return node.value === "" || ("regex" in node && MATCH_ALL_PATTERNS.has(node.regex.pattern));
   }
-  if (node.type === "TemplateLiteral") {
+  if (node.type === AST_NODE_TYPES.TemplateLiteral) {
     return node.expressions.length === 0 && node.quasis[0]?.value.cooked === "";
   }
-  return node.type === "CallExpression" && (isAsymmetric(node, "anything") || (isAsymmetric(node, "any") && isReasonlessClass(node.arguments[0])));
+  return node.type === AST_NODE_TYPES.CallExpression && (isAsymmetric(node, "anything") || (isAsymmetric(node, "any") && isReasonlessClass(node.arguments[0])));
 }
 
 function isBareRefusal(args: readonly TSESTree.CallExpressionArgument[]): boolean {
@@ -208,14 +217,14 @@ function isBareRefusal(args: readonly TSESTree.CallExpressionArgument[]): boolea
 function expectChain(member: TSESTree.MemberExpression): { readonly rejected: boolean } | undefined {
   let rejected = false;
   let node = unwrapped(member.object);
-  while (node.type === "MemberExpression") {
+  while (node.type === AST_NODE_TYPES.MemberExpression) {
     if (staticName(node) === NEGATION) {
       return undefined;
     }
     rejected ||= staticName(node) === REJECTS;
     node = unwrapped(node.object);
   }
-  return node.type === "CallExpression" && rootName(node.callee) === EXPECT ? { rejected } : undefined;
+  return node.type === AST_NODE_TYPES.CallExpression && rootName(node.callee) === EXPECT ? { rejected } : undefined;
 }
 
 function isEmptyRejection(name: string, args: readonly TSESTree.CallExpressionArgument[]): boolean {
@@ -232,14 +241,14 @@ export const noBareThrowAssertionRule: OrbRule = {
         const callee = unwrapped(call.callee);
         if (
           isAsymmetric(call, "any") &&
-          call.arguments[0]?.type === "Identifier" &&
+          call.arguments[0]?.type === AST_NODE_TYPES.Identifier &&
           call.arguments[0].name === "Error" &&
           !THROW_MATCHERS.has(calledName(parentCallee(call)) ?? "")
         ) {
           context.report({ node: call, message: REASONLESS_CLASS_MESSAGE });
           return;
         }
-        if (callee.type !== "MemberExpression") {
+        if (callee.type !== AST_NODE_TYPES.MemberExpression) {
           return;
         }
         const name = staticName(callee) ?? "";
@@ -259,15 +268,15 @@ const UNSEEDED_ID_MESSAGE =
   "`mintTypeId(prefix)` draws an ambient uuidv7, so the run differs each time (Spine-Testing §3). Use `ids.typeId(prefix)` from the fixture or `createSeededIds(FIXTURE_ID_CURSOR)` (`@orb/testkit/iso`), or `root.idSource.typeId(prefix)`.";
 
 function parentCallee(call: TSESTree.CallExpression): TSESTree.Node {
-  return call.parent.type === "CallExpression" ? call.parent.callee : call.parent;
+  return call.parent.type === AST_NODE_TYPES.CallExpression ? call.parent.callee : call.parent;
 }
 
 function calledName(callee: TSESTree.Node): string | undefined {
   const value = unwrapped(callee);
-  if (value.type === "MemberExpression") {
+  if (value.type === AST_NODE_TYPES.MemberExpression) {
     return staticName(value);
   }
-  return value.type === "Identifier" ? value.name : undefined;
+  return value.type === AST_NODE_TYPES.Identifier ? value.name : undefined;
 }
 
 /** Refuse a `mintTypeId` call with no generator. */
@@ -277,7 +286,10 @@ export const noUnseededTypeIdRule: OrbRule = {
     return {
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
         const generator = call.arguments[1];
-        if (calledName(call.callee) === "mintTypeId" && (generator === undefined || (generator.type === "Identifier" && generator.name === "undefined"))) {
+        if (
+          calledName(call.callee) === "mintTypeId" &&
+          (generator === undefined || (generator.type === AST_NODE_TYPES.Identifier && generator.name === "undefined"))
+        ) {
           context.report({ node: call, message: UNSEEDED_ID_MESSAGE });
         }
       },
@@ -294,15 +306,20 @@ function holdsFilter(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree
     return false;
   }
   seen.add(value);
-  if (value.type === "Identifier") {
+  if (value.type === AST_NODE_TYPES.Identifier) {
     const init = constInitOf(sourceCode, value)?.node;
-    return init?.type === "VariableDeclarator" && init.id.type === "Identifier" && init.init !== null && holdsFilter(sourceCode, init.init, seen);
+    return (
+      init?.type === AST_NODE_TYPES.VariableDeclarator &&
+      init.id.type === AST_NODE_TYPES.Identifier &&
+      init.init !== null &&
+      holdsFilter(sourceCode, init.init, seen)
+    );
   }
-  if (value.type !== "CallExpression") {
+  if (value.type !== AST_NODE_TYPES.CallExpression) {
     return false;
   }
   const callee = unwrapped(value.callee);
-  return callee.type === "MemberExpression" && (staticName(callee) === "filter" || holdsFilter(sourceCode, callee.object, seen));
+  return callee.type === AST_NODE_TYPES.MemberExpression && (staticName(callee) === "filter" || holdsFilter(sourceCode, callee.object, seen));
 }
 
 const TEST_MEMBERS_THAT_REGISTER_NOTHING = new Set(["step", "info", "use", "setTimeout", "slow", "beforeEach", "beforeAll", "afterEach", "afterAll"]);
@@ -314,14 +331,14 @@ function isCaseRegistration(call: TSESTree.CallExpression): boolean {
 // Direct statements only: a function body runs later, so a loop inside a case asserts rather than registers.
 function registersCases(statement: TSESTree.Statement): boolean {
   switch (statement.type) {
-    case "BlockStatement":
+    case AST_NODE_TYPES.BlockStatement:
       return statement.body.some(registersCases);
-    case "ForOfStatement":
+    case AST_NODE_TYPES.ForOfStatement:
       return registersCases(statement.body);
-    case "IfStatement":
+    case AST_NODE_TYPES.IfStatement:
       return registersCases(statement.consequent) || (statement.alternate !== null && registersCases(statement.alternate));
-    case "ExpressionStatement":
-      return statement.expression.type === "CallExpression" && isCaseRegistration(statement.expression);
+    case AST_NODE_TYPES.ExpressionStatement:
+      return statement.expression.type === AST_NODE_TYPES.CallExpression && isCaseRegistration(statement.expression);
     default:
       return false;
   }
@@ -342,7 +359,7 @@ export const noFilteredCaseTableRule: OrbRule = {
         const [table] = call.arguments;
         if (
           table !== undefined &&
-          callee.type === "MemberExpression" &&
+          callee.type === AST_NODE_TYPES.MemberExpression &&
           CASE_TABLE_METHODS.has(staticName(callee) ?? "") &&
           CASE_TABLE_ROOTS.has(rootName(callee) ?? "") &&
           holdsFilter(context.sourceCode, table)
@@ -362,24 +379,29 @@ const CAPTURE_SET = "reads";
 // `x.reads[path]`, `x.reads.path` and either of them with an index.
 function isCaptureRead(node: TSESTree.Node): boolean {
   const value = unwrapped(node);
-  if (value.type !== "MemberExpression") {
+  if (value.type !== AST_NODE_TYPES.MemberExpression) {
     return false;
   }
   const object = unwrapped(value.object);
-  if (object.type === "MemberExpression" && staticName(object) === CAPTURE_SET) {
+  if (object.type === AST_NODE_TYPES.MemberExpression && staticName(object) === CAPTURE_SET) {
     return true;
   }
-  const indexed = value.computed && value.property.type === "Literal" && typeof value.property.value === "number";
+  const indexed = value.computed && value.property.type === AST_NODE_TYPES.Literal && typeof value.property.value === "number";
   return indexed && isCaptureRead(object);
 }
 
 function isCapture(sourceCode: Source, node: TSESTree.Node): boolean {
   const value = unwrapped(node);
-  if (value.type !== "Identifier") {
+  if (value.type !== AST_NODE_TYPES.Identifier) {
     return isCaptureRead(value);
   }
   const declarator = constInitOf(sourceCode, value)?.node;
-  return declarator?.type === "VariableDeclarator" && declarator.init !== null && declarator.id.type !== "ObjectPattern" && isCaptureRead(declarator.init);
+  return (
+    declarator?.type === AST_NODE_TYPES.VariableDeclarator &&
+    declarator.init !== null &&
+    declarator.id.type !== AST_NODE_TYPES.ObjectPattern &&
+    isCaptureRead(declarator.init)
+  );
 }
 
 /** Refuse `{ ...corpus.reads[path] }`, and the same spread through a `const` holding the capture. */

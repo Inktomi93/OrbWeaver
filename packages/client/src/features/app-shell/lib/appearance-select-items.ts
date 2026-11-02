@@ -27,14 +27,14 @@ const OS_PREFERENCE_LABELS: Record<OsPreferenceMode, string> = {
   on: "On",
   off: "Off",
 };
-export const OS_PREFERENCE_ITEMS: readonly SelectOption<string>[] = OS_PREFERENCE_MODES.map((value) => ({ value, label: OS_PREFERENCE_LABELS[value] }));
+export const OS_PREFERENCE_ITEMS: readonly SelectOption[] = OS_PREFERENCE_MODES.map((value) => ({ value, label: OS_PREFERENCE_LABELS[value] }));
 
 // surfaceTexture — the opt-in film-grain overlay. It hosts on the WHOLE SHELL (`.shell-grid::after`,
 // client globals.css), reading column included — ratified by the owner 2026-08-22 (#435) after this line
 // spent its life claiming "chrome/cards only, never the reading surface", which the shipped selector never
 // did. The measurement that carried the ruling: sub-12/255 peak contribution over prose at 0.04 under
 // `soft-light`, and `prefers-contrast: more` drops the overlay entirely.
-export const SURFACE_TEXTURE_ITEMS: readonly SelectOption<string>[] = [
+export const SURFACE_TEXTURE_ITEMS: readonly SelectOption[] = [
   { value: "none", label: "None" },
   { value: "grain", label: "Film grain" },
 ] satisfies readonly { value: AppearanceSettings["surfaceTexture"]; label: string }[];
@@ -46,7 +46,7 @@ const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], st
   messages: "Messages (reading surface — use sparingly)",
   modals: "Dialogs",
 };
-export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES.map((value) => ({
+export const BLUR_SURFACE_ITEMS: readonly SelectOption[] = BLUR_SURFACES.map((value) => ({
   value,
   label: BLUR_SURFACE_LABELS[value],
 }));
@@ -60,7 +60,7 @@ const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string>
   center: "Center (actual size)",
   stretch: "Stretch (distort to fill)",
 };
-export const BACKGROUND_FIT_ITEMS: readonly SelectOption<string>[] = APPEARANCE_BACKGROUND_FITS.map((value) => ({
+export const BACKGROUND_FIT_ITEMS: readonly SelectOption[] = APPEARANCE_BACKGROUND_FITS.map((value) => ({
   value,
   label: BACKGROUND_FIT_LABELS[value],
 }));

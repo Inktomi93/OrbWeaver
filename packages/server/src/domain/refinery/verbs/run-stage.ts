@@ -387,7 +387,7 @@ async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<Refin
       sourceRunId: null,
       stage: "score" as const,
       payloadConfig: resolution.runConfig,
-      payload: turn.payload as Record<string, unknown>,
+      payload: turn.payload,
       strippedKeys: [...turn.strippedKeys],
     };
     await ctx.db.insert(refineryRuns).values(view);
@@ -490,7 +490,7 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: Pri
       sourceRunId: rewrite?.id ?? null,
       stage: "analyze" as const,
       payloadConfig: resolution.runConfig,
-      payload: turn.payload as Record<string, unknown>,
+      payload: turn.payload,
       strippedKeys: [...turn.strippedKeys],
     };
     await ctx.db.insert(refineryRuns).values(view);

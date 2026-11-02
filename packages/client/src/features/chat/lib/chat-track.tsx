@@ -60,11 +60,12 @@ export type TrackProps<Props extends Carrier> = Props & {
 
 /** Renders `of` on the room's chat track or the composer's track. A feature className may not import or build a class
  *  string, so every carrier goes through this component and the strings above stay in this file. */
-export function Track<Props extends Carrier>({ of: Primitive, track, className, ...props }: TrackProps<Props>): ReactElement {
-  // TypeScript cannot narrow the rest of a generic intersection back to `Props` once `of` and `track` leave it.
+export function Track<Props extends Carrier>(props: TrackProps<Props>): ReactElement;
+// The generic signature ties `of` to its props for the caller; the body only forwards what it does not read.
+export function Track({ of: Primitive, track, className, ...props }: TrackProps<Carrier>): ReactElement {
   return (
     <Primitive
-      {...(props as unknown as Props)}
+      {...props}
       className={cn(
         track === "chat" ? CHAT_TRACK : undefined,
         track === "composer" ? COMPOSER_TRACK : undefined,

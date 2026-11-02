@@ -111,7 +111,7 @@ function scriptedChatTitle(stopped: boolean): string {
 }
 
 for (const stopped of [false, true]) {
-  test(`${scriptedChatTitle(stopped)}`, { tag: "@smoke" }, async ({ page, baseURL }) => {
+  test(scriptedChatTitle(stopped), { tag: "@smoke" }, async ({ page, baseURL }) => {
     test.setTimeout(budget(SCRIPTED_CHAT_CASE_BASE_MS));
     const host = ownerActor(baseURL ?? "");
     let restoreProvider: (() => Promise<void>) | undefined;

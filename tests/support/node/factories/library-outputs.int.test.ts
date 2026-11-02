@@ -88,6 +88,7 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(views.personaBooks.output).toMatchObject([{ id: library.world.book.id, role: null }]);
   expect(views.globalBooks.output).toMatchObject([{ id: library.world.book.id, role: null }]);
   expect(views.chatBooks.output).toMatchObject([{ id: library.world.book.id, role: null }]);
+  expect(views.inheritedBooks.output).toHaveLength(4);
   expect(views.inheritedBooks.output).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ id: library.world.book.id, inherited: { source: "global", name: null } }),
@@ -122,6 +123,7 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.after.output.map((script) => script.id)).toEqual([views.second.id, views.first.id]);
   expect(views.ordered.output).toEqual({ reordered: 2 });
   expect(views.displayOff.output).toEqual([]);
+  expect(views.displayOn.output).toHaveLength(views.after.output.length);
   expect(views.displayOn.output).toEqual(expect.arrayContaining([...views.after.output]));
   expect(views.list.output.find((script) => script.id === views.first.id)).toMatchObject({
     enabled: true,

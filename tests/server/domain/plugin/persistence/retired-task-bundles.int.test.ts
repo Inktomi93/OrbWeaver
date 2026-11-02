@@ -9,6 +9,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { assets, plugins } from "@orb/db";
 import { ManifestInvalidError } from "@orb/server/domain/plugin";
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
@@ -38,7 +39,7 @@ const sdkManifest = (): PluginManifest =>
 // A bundle authored before a task retired. The manifest type cannot spell a retired task, so `serves` is cast to feed it.
 function retiredSdkManifest(): PluginManifest {
   const manifest = sdkManifest();
-  return { ...manifest, providers: manifest.providers?.map((row) => ({ ...row, serves: [...RETIRED_SERVES] as never })) };
+  return { ...manifest, providers: manifest.providers?.map((row) => ({ ...row, serves: forged<never>([...RETIRED_SERVES]) })) };
 }
 
 test("a new upload that names a retired task is refused, and an installed bundle that names one reactivates without it", {

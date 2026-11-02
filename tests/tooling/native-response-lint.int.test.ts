@@ -41,7 +41,7 @@ test.for(RESPONSE_PATHS)(
     const [qualified] = await eslint.lintText(source + UNRELATED_DEPRECATED_CALL, { filePath, warnIgnored: true });
     expect(qualified?.fatalErrorCount).toBe(0);
     expect(qualified?.messages.filter(({ ruleId }) => ruleId === DEPRECATED_RULE)).toHaveLength(1);
-    const unqualified = source.replace(/^\s*\/\/ eslint-disable-next-line @typescript-eslint\/no-deprecated --[^\n]*\n/gmu, "");
+    const unqualified = source.replace(/^[ \t]*\/\/ eslint-disable-next-line @typescript-eslint\/no-deprecated --[^\n]*\n/gmu, "");
     expect(unqualified).not.toBe(source);
     const [control] = await eslint.lintText(unqualified + UNRELATED_DEPRECATED_CALL, { filePath, warnIgnored: true });
     expect(control?.fatalErrorCount).toBe(0);

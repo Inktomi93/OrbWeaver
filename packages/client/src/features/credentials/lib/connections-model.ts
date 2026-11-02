@@ -30,8 +30,8 @@ const AUTH_GROUP_ORDER: readonly ProviderAuth[] = ["apiKey", "endpoint", "oauthT
  *  renders DISABLED with its reason as the gloss, never hidden (§5.3a: "`runtime-missing` is a cause, not a
  *  sentence a person can act on" — the reason IS the sentence). A plugin row names its plugin, so a manifest
  *  label can never pass as a built-in provider. */
-export function providerPickerItems(available: readonly ProviderAvailability[]): SelectItems<string> {
-  const groups: SelectOptionGroup<string>[] = [];
+export function providerPickerItems(available: readonly ProviderAvailability[]): SelectItems {
+  const groups: SelectOptionGroup[] = [];
   for (const auth of AUTH_GROUP_ORDER) {
     const rows = available.filter((row) => row.provider.auth === auth);
     if (rows.length === 0) {

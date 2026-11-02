@@ -139,10 +139,10 @@ test("setup and repeated calls cannot renew an expired native caller timeout or 
   counted.queries.reset();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const failure = await settleCorpusWorkloads(root, caller, [admitted]).catch((error: unknown) => error);
-    expect(failure).toMatchObject({ message: expect.stringContaining("timed out"), cause: { timeout: workloadExecutionSignal.reason } });
     if (!(failure instanceof Error) || typeof failure.cause !== "object" || failure.cause === null || !("timeout" in failure.cause)) {
       throw new Error("The native caller timeout lost its owned cause");
     }
+    expect(failure.message).toContain("timed out");
     expect(failure.cause.timeout).toBe(workloadExecutionSignal.reason);
   }
   expect(driver).not.toHaveBeenCalled();

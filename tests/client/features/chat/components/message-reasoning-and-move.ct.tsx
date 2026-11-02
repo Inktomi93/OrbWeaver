@@ -1,6 +1,7 @@
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { TrpcWireOutput } from "@orb/testkit/ct";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -124,9 +125,11 @@ async function memberRoom(
   return { chatId, viewer, ownLine: ownLine.id, hostLine: hostLine.id };
 }
 
+type NeighbourAnswer = TrpcWireOutput<"chat.listMessages"> | ReturnType<typeof trpcError>;
+
 /** Serve the browser's reads and writes from `viewer`'s own caller, so the room answers as that principal. With
  *  `neighbourRead`, the one-row cursor read a Move arrow makes for an unloaded neighbour gets that answer instead. */
-async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?: () => unknown): Promise<void> {
+async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?: () => NeighbourAnswer): Promise<void> {
   const auth = await root.http.request("/api/auth/config");
   const authBody = await auth.text();
   await routeAuthConfig(page, authBody);
@@ -138,7 +141,7 @@ async function serveAs(root: Harness, page: Page, viewer: Caller, neighbourRead?
   await routeTrpc(page, {
     ...served,
     "chat.listMessages": (input) =>
-      neighbourRead !== undefined && input.limit === 1 && input.cursor?.kind === "before" ? (neighbourRead() as never) : listMessages(input),
+      neighbourRead !== undefined && input.limit === 1 && input.cursor?.kind === "before" ? neighbourRead() : listMessages(input),
   });
 }
 
@@ -224,9 +227,9 @@ test("the first loaded row moves up when older history exists beyond the loaded 
 
 // The neighbour read is the one step of a move that can fail before the server's own refusal path; it must tell the reader.
 const NEIGHBOUR_READ_FAILURES = [
-  { name: "fails", toast: MESSAGE_MOVE_FAILED, answer: (): unknown => trpcError() },
+  { name: "fails", toast: MESSAGE_MOVE_FAILED, answer: (): NeighbourAnswer => trpcError() },
   // A real server page for a cursor before the first row: the neighbour is gone since the row rendered.
-  { name: "comes back empty", toast: MESSAGE_MOVE_NEIGHBOUR_GONE, answer: (empty: unknown): unknown => empty },
+  { name: "comes back empty", toast: MESSAGE_MOVE_NEIGHBOUR_GONE, answer: (empty: NeighbourAnswer): NeighbourAnswer => empty },
 ] as const;
 
 for (const failure of NEIGHBOUR_READ_FAILURES) {
@@ -237,8 +240,8 @@ for (const failure of NEIGHBOUR_READ_FAILURES) {
     if (predecessor === undefined) {
       throw new Error("The paged room has no row before its first loaded row");
     }
-    const beforeStart = JSON.parse(JSON.stringify(await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 }))) as unknown;
-    expect((beforeStart as { readonly messages: readonly unknown[] }).messages).toEqual([]);
+    const beforeStart = await host.chat.listMessages({ chatId, cursor: { kind: "before", seq: 0 }, limit: 1 });
+    expect(beforeStart.messages).toEqual([]);
     await serveAs(root, page, host, () => failure.answer(beforeStart));
     await corpusMedia();
     await mount<typeof RoomTranscriptStory>(STORY, storyProps(chatId));

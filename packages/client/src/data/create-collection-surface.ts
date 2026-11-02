@@ -56,7 +56,7 @@ export interface CollectionSurface<TItem> {
   readonly isPending: boolean;
   /** True while showing the PREVIOUS params' rows (grey them; gate forward-nav on it — §10). */
   readonly isPlaceholderData: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly isEmpty: boolean;
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;

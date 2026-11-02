@@ -43,7 +43,8 @@ test("a failed index refresh after manual auto-disable preserves the committed r
           }
           return (...args: readonly unknown[]): unknown => {
             const text = statementText(args[0]);
-            if (armed && text !== null && /select distinct .* from "automation_rules"/u.test(text)) {
+            const readsRules = armed && text !== null && /select distinct .* from "automation_rules"/u.test(text);
+            if (readsRules) {
               refreshReads += 1;
               if (refreshReads === 1) {
                 return Promise.reject(new Error("synthetic index read refusal"));

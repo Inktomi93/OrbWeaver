@@ -130,7 +130,7 @@ export function characterUpdateDiff(values: CharacterCardFormValues, card: Chara
       patch[key] = desired[key];
     }
   }
-  return patch as UpdateCharacterInput;
+  return patch;
 }
 
 /** A structural equality for the diff's field values. File-local — the compared shapes are plain JSON

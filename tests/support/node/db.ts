@@ -21,8 +21,8 @@ import { sql } from "drizzle-orm";
 
 /** Diff the live schema against empty and apply the CREATE statements (see the header). */
 async function pushLiveSchema(db: Db): Promise<void> {
-  const empty = await generateSQLiteDrizzleJson({});
-  const current = await generateSQLiteDrizzleJson(schema as Record<string, unknown>);
+  const empty: unknown = await generateSQLiteDrizzleJson({});
+  const current: unknown = await generateSQLiteDrizzleJson(schema);
   const statements = await generateSQLiteMigration(empty, current);
   for (const statement of statements) {
     await db.run(sql.raw(statement));

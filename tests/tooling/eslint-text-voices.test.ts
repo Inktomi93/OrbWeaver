@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/text-voice-only";
@@ -10,14 +11,14 @@ const UI = "packages/ui/src/primitives/text/text.tsx";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 async function findings(source: string, path = CLIENT): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [RULE]: config?.rules?.[RULE] ?? "off" },
+      rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );

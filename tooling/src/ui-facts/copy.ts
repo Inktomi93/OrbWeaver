@@ -45,7 +45,7 @@ function singleWordCase(word: string): string {
 function caseOf(text: string): string {
   // Only the first sentence sets the case; a later sentence opens with a capital by rule.
   const words = (text.split(/(?<=[a-z]{2})[.!?]\s/u)[0] ?? text)
-    .replace(/(?:…|\.\.\.|[.:?!])+$/u, "")
+    .replace(/(?<![….:?!])[….:?!]+$/u, "")
     .split(/\s+/u)
     .filter((word) => /[A-Za-z]/u.test(word));
   const first = words[0];

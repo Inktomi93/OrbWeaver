@@ -145,7 +145,7 @@ if (host.grants.includes("plugin_events")) {
   host.pubsub.on("oracle-deck", "draw", async (event) => {
     try {
       const cards = Array.isArray(event.data["cards"]) ? event.data["cards"] : [];
-      const last = cards.length > 0 ? cards.at(-1) : null;
+      const last: unknown = cards.length > 0 ? cards.at(-1) : null;
       if (typeof last !== "string") {
         return;
       }

@@ -34,7 +34,7 @@ async function resolveCloneParams(
     return { params: (await loadRawWorkloadParams(ctx.db, original.id)) ?? {}, admissionKey: DEFAULT_ADMISSION_KEY };
   }
   return {
-    params: original.params as Record<string, unknown>,
+    params: original.params,
     admissionKey: resolveAdmissionKey(contributions, original.kind, original.params),
   };
 }

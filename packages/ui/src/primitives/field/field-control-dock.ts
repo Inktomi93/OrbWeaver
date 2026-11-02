@@ -5,6 +5,7 @@
 import { createContext, use } from "react";
 
 export const FieldControlDockContext = createContext(false);
+FieldControlDockContext.displayName = "FieldControlDockContext";
 
 /** Is this control docked at the end of a horizontal `<Field>` row? */
 export function useFieldControlDocksEnd(): boolean {

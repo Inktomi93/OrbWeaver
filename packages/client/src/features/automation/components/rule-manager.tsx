@@ -76,7 +76,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
         handle={true}
         disabled={reorder.isPending}
         aria-label="Rule order"
-        onReorder={(ids): void => reorder.mutate({ chatId, orderedIds: ids.map(String) })}
+        onReorder={(ids): void => reorder.mutate({ chatId, orderedIds: ids.flatMap((id) => rules.filter((rule) => rule.id === id).map((rule) => rule.id)) })}
         renderItem={(rule): ReactElement | null => (
           <RuleRow chatId={chatId} rule={rule} {...(ready ? { onEdit: (trigger: HTMLButtonElement): void => openRule(rule, trigger) } : {})} />
         )}

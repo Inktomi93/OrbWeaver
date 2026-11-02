@@ -3,6 +3,7 @@ import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
+import type { TrpcRecorder } from "@orb/testkit/ct";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
@@ -30,7 +31,7 @@ async function prepare(
   page: Page,
   subject: Subject,
   enlarged: boolean,
-): Promise<{ readonly appearance: ReturnType<typeof appearanceSettingsSchema.parse>; readonly calls: Awaited<ReturnType<typeof routeTrpc>> }> {
+): Promise<{ readonly appearance: ReturnType<typeof appearanceSettingsSchema.parse>; readonly calls: TrpcRecorder }> {
   const appearance = appearanceSettingsSchema.parse(enlarged ? { fontScale: ENLARGED_APPEARANCE_SETTINGS.fontScale } : {});
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });

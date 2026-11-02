@@ -1,6 +1,7 @@
 // The shell's motion on the production panes and a corpus room: what each door's FLIP holds on its first painted
 // frame and keeps inside its corridor, what reduced motion does instead, the phone's cancel, and the scoped section
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
+
 import { spawn } from "node:child_process";
 import { contextToggleLabel } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
@@ -9,9 +10,11 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
+import { z } from "zod";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -44,7 +47,7 @@ const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "com
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
 // What an open room offers a door to read, and what a section without a room offers.
-const ROOM_BOXES = Object.keys(DOOR_BOXES) as DoorBox[];
+const ROOM_BOXES = keysOf(DOOR_BOXES);
 const SECTION_BOXES: readonly DoorBox[] = ["main", "trail", "listPanel"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;
@@ -176,22 +179,25 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
         }
         return element.getBoundingClientRect();
       };
+      const sample = (): Record<string, number> => {
+        const frame: Record<string, number> = {};
+        for (const [name, selector] of Object.entries(selectors)) {
+          frame[name] = Math.round(read(name, selector).x * 10) / 10;
+        }
+        for (const [name, selector] of Object.entries(widths)) {
+          frame[name] = Math.round(read(name, selector).width);
+        }
+        return frame;
+      };
       const tick = (): void => {
         if (ring.length > limit) {
           return;
         }
         try {
-          const frame: Record<string, number> = {};
-          for (const [name, selector] of Object.entries(selectors)) {
-            frame[name] = Math.round(read(name, selector).x * 10) / 10;
-          }
-          for (const [name, selector] of Object.entries(widths)) {
-            frame[name] = Math.round(read(name, selector).width);
-          }
-          ring.push(frame);
+          ring.push(sample());
           requestAnimationFrame(tick);
         } catch (error) {
-          Reflect.set(globalThis, "__shellFramesError", (error as Error).message);
+          Reflect.set(globalThis, "__shellFramesError", error instanceof Error ? error.message : String(error));
         }
       };
       requestAnimationFrame(tick);
@@ -201,10 +207,13 @@ function startSampler(page: Page, boxes: readonly DoorBox[]): Promise<void> {
 }
 
 async function readSamples(page: Page): Promise<Frame[]> {
-  const { frames, error } = await page.evaluate(() => ({
-    frames: Reflect.get(globalThis, "__shellFrames") as Record<string, number>[],
-    error: Reflect.get(globalThis, "__shellFramesError") as string | null,
-  }));
+  const { frames, error } = z.object({ frames: z.array(z.record(z.string(), z.number())), error: z.string().nullable() }).parse(
+    await page.evaluate((): unknown => {
+      const recorded: unknown = Reflect.get(globalThis, "__shellFrames");
+      const failure: unknown = Reflect.get(globalThis, "__shellFramesError");
+      return { frames: recorded, error: failure };
+    }),
+  );
   if (error !== null) {
     throw new Error(error);
   }
@@ -282,40 +291,50 @@ function recordAnimationStarts(page: Page): Promise<void> {
 
 /** The FLIPs among them: a pane's own scroll fade starts an animation too, and it is no door's motion. */
 async function animationStarts(page: Page): Promise<string[]> {
-  const names = await page.evaluate(() => Reflect.get(globalThis, "__animationStarts") as string[]);
+  const names = z.array(z.string()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__animationStarts")));
   return names.filter((name) => name.endsWith("-flip"));
 }
 
 /** Sum every layout shift the browser scores from now on. A click drives each case, so recent input is not filtered. */
 function recordLayoutShift(page: Page): Promise<void> {
   return page.evaluate(() => {
-    const total = { value: 0 };
+    const values: number[] = [];
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        total.value += (entry as PerformanceEntry & { value: number }).value;
+        if ("value" in entry && typeof entry.value === "number") {
+          values.push(entry.value);
+        }
       }
     });
     observer.observe({ type: "layout-shift" });
-    Reflect.set(globalThis, "__shift", { observer, total });
+    Reflect.set(globalThis, "__shiftObserver", observer);
+    Reflect.set(globalThis, "__shiftValues", values);
   });
 }
 
 /** The scored total after two painted frames, with the observer's queued entries taken rather than waited for. */
-function layoutShift(page: Page): Promise<number> {
-  return page.evaluate(
+async function layoutShift(page: Page): Promise<number> {
+  const scored = await page.evaluate(
     () =>
-      new Promise<number>((resolve) => {
+      new Promise<unknown>((resolve) => {
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
-            const { observer, total } = Reflect.get(globalThis, "__shift") as { observer: PerformanceObserver; total: { value: number } };
-            for (const entry of observer.takeRecords()) {
-              total.value += (entry as PerformanceEntry & { value: number }).value;
+            const observer: unknown = Reflect.get(globalThis, "__shiftObserver");
+            const values: unknown = Reflect.get(globalThis, "__shiftValues");
+            const taken = observer instanceof PerformanceObserver ? observer.takeRecords() : [];
+            const fresh = taken.flatMap((entry) => ("value" in entry && typeof entry.value === "number" ? [entry.value] : []));
+            if (Array.isArray(values)) {
+              values.push(...fresh);
             }
-            resolve(total.value);
+            resolve(values);
           }),
         );
       }),
   );
+  return z
+    .array(z.number())
+    .parse(scored)
+    .reduce((sum, value) => sum + value, 0);
 }
 
 /** The instrument's positive control: push the content region's children down by one chrome row, a shift the browser must score. */
@@ -350,7 +369,7 @@ function recordFlipKeyframes(page: Page): Promise<void> {
     document.addEventListener("animationstart", (event) => {
       const animation =
         event.target instanceof Element
-          ? event.target.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === event.animationName)
+          ? event.target.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === event.animationName)
           : undefined;
       const translate = animation?.effect instanceof KeyframeEffect ? animation.effect.getKeyframes()[0]?.["translate"] : undefined;
       // A `calc()` with a percentage (the trail's counter reads its own width) has no px to read before it resolves, so it is not recorded.
@@ -363,7 +382,7 @@ function recordFlipKeyframes(page: Page): Promise<void> {
 }
 
 function flipKeyframes(page: Page): Promise<Record<string, number>> {
-  return page.evaluate(() => ({ ...(Reflect.get(globalThis, "__flipKeyframes") as Record<string, number>) }));
+  return page.evaluate((): unknown => Reflect.get(globalThis, "__flipKeyframes")).then((keyframes) => z.record(z.string(), z.number()).parse(keyframes));
 }
 
 test.describe("the list door on Chats", () => {
@@ -389,7 +408,11 @@ test.describe("the list door on Chats", () => {
       const pushStyle = getComputedStyle(main);
       const paneStyle = getComputedStyle(pane);
       // A timing function holds commas of its own, so the transition lists split only on top-level commas.
-      const arms = (list: string): string[] => list.split(/,\s*(?![^(]*\))/u);
+      const arms = (list: string): string[] =>
+        list
+          .replace(/(?<!\()\([^)]*\)/gu, (group) => group.replaceAll(",", "\u{e000}"))
+          .split(",")
+          .map((part) => part.trim().replaceAll("\u{e000}", ","));
       const arm = arms(paneStyle.transitionProperty).indexOf("transform");
       return {
         push: { duration: pushStyle.animationDuration, easing: pushStyle.animationTimingFunction },
@@ -541,9 +564,9 @@ test.describe("a section swap", () => {
       await expect(grid).toHaveAttribute("data-section", id);
       await page.waitForFunction(() => !document.documentElement.matches(":active-view-transition"));
     }
-    const seen = await page.evaluate(
-      () => Reflect.get(globalThis, "__viewTransitions") as { pseudos: string[]; groupMorphs: boolean; fit: string; anchor: string; oldReturns: boolean }[],
-    );
+    const seen = z
+      .array(z.object({ pseudos: z.array(z.string()), groupMorphs: z.boolean(), fit: z.string(), anchor: z.string(), oldReturns: z.boolean() }))
+      .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__viewTransitions")));
     expect(seen.length).toBeGreaterThan(0);
     const pseudos = seen.flatMap((transition) => transition.pseudos);
     expect(pseudos).toContain("::view-transition-new(orb-section-content)");
@@ -695,7 +718,7 @@ async function holdDoorClock(page: Page, button: string, selector: string, anima
         const animation = document
           .querySelector(target)
           ?.getAnimations()
-          .find((candidate) => (candidate as CSSAnimation).animationName === name);
+          .find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === name);
         return animation?.playState === "running" && Number(animation.currentTime) > phase;
       },
       { target: selector, name: animationName, phase: 2 * PHASE_TOLERANCE_MS },
@@ -717,7 +740,9 @@ test.describe("a row mounted mid-door", () => {
     await waitForShellIdle(page);
     // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
     await page.evaluate(() => {
-      Reflect.set(globalThis, "__tracksAtRest", new Set(document.querySelectorAll(".orb-chat-track")));
+      for (const track of document.querySelectorAll(".orb-chat-track")) {
+        track.setAttribute("data-ct-at-rest", "");
+      }
     });
     await using _clock = await holdDoorClock(page, "Hide list panel", ".shell-main", "shell-main-flip");
     const read = await page.evaluate(async () => {
@@ -726,9 +751,8 @@ test.describe("a row mounted mid-door", () => {
       if (scroller === null) {
         throw new Error("The transcript scroller is absent");
       }
-      const atRest = Reflect.get(globalThis, "__tracksAtRest") as Set<Element>;
       const flip = (element: Element | null, name: string): Animation | undefined =>
-        element?.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === name);
+        element?.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === name);
       const reference = flip(document.querySelector(".shell-main"), "shell-main-flip");
       if (reference === undefined) {
         throw new Error("The held list door animation is absent");
@@ -737,11 +761,11 @@ test.describe("a row mounted mid-door", () => {
       let newcomers: Element[] = [];
       while (reference.playState === "running" && newcomers.length === 0) {
         await frame();
-        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       }
       // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
       await frame();
-      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !atRest.has(track));
+      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       return {
         reference: reference.playState === "running" ? Number(reference.currentTime) : null,
         newcomers: mounted.map((track) => {
@@ -777,7 +801,7 @@ test.describe("a row mounted mid flank door", () => {
       // Read the row fresh each time: the room may re-render it across the door.
       const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
       const flip = (element: Element): Animation | undefined =>
-        element.getAnimations().find((candidate) => (candidate as CSSAnimation).animationName === "room-flank-centre-flip");
+        element.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "room-flank-centre-flip");
       const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
       const reference = (): Animation | undefined =>
@@ -898,7 +922,11 @@ test.describe("on a phone", () => {
     await page.evaluate(() => {
       const deliveries: (string | null)[][] = [];
       Reflect.set(globalThis, "__flipStamps", deliveries);
-      new MutationObserver((records) => deliveries.push(records.map((record) => record.oldValue))).observe(document.querySelector(".shell-grid") as Element, {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        throw new Error("The shell grid is absent");
+      }
+      new MutationObserver((records) => deliveries.push(records.map((record) => record.oldValue))).observe(grid, {
         attributeFilter: ["data-list-flip"],
         attributeOldValue: true,
       });
@@ -907,7 +935,9 @@ test.describe("on a phone", () => {
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     // The phone arms no FLIP, so nothing would ever end one: the stamp is released in the commit that wrote it.
     await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
-    expect(await page.evaluate(() => Reflect.get(globalThis, "__flipStamps") as (string | null)[][])).toStrictEqual([[null, "in"]]);
+    expect(z.array(z.array(z.string().nullable())).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__flipStamps")))).toStrictEqual([
+      [null, "in"],
+    ]);
     const names = await page
       .locator(`${DOOR_BOXES.main}, ${DOOR_BOXES.trail}, ${LIST}, ${CONTEXT}`)
       .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationName));
@@ -970,7 +1000,7 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
   await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
   await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
   await waitForShellIdle(page);
-  const tops = await page.evaluate(() => Reflect.get(globalThis, "__sheetTops") as number[]);
+  const tops = z.array(z.number()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetTops")));
   expect(tops.length).toBeGreaterThan(3);
   expect(tops.filter((top) => top !== openTop)).toStrictEqual([]);
 });

@@ -62,8 +62,15 @@ function echoRule(old: RuleList | undefined, row: RuleList[number]): RuleList | 
 }
 
 /** Custom creation is strict; only its canonical wire body reaches the transport. */
+/** A rule write: the procedure's own input plus the client-only keys its settle invalidates by. */
+interface RuleWriteVars<TInput> {
+  readonly cacheOwnerId: UserId;
+  readonly chatId: ChatId | null;
+  readonly input: TInput;
+}
+
 export const useCreateRule = createEntityMutation<
-  { readonly cacheOwnerId: UserId; readonly chatId: ChatId | null; readonly input: inferInput<Trpc["automation"]["createRule"]> },
+  RuleWriteVars<inferInput<Trpc["automation"]["createRule"]>>,
   inferOutput<Trpc["automation"]["createRule"]>,
   RuleList
 >({
@@ -80,7 +87,7 @@ export const useCreateRule = createEntityMutation<
 
 /** Cache scope is local metadata, explicitly excluded from the strict update payload. */
 export const useUpdateRule = createEntityMutation<
-  { readonly cacheOwnerId: UserId; readonly chatId: ChatId | null; readonly input: inferInput<Trpc["automation"]["updateRule"]> },
+  RuleWriteVars<inferInput<Trpc["automation"]["updateRule"]>>,
   inferOutput<Trpc["automation"]["updateRule"]>,
   RuleList
 >({

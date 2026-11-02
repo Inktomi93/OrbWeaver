@@ -72,7 +72,7 @@ for (const coarse of [false, true]) {
         const row = component.locator(`[data-step="${step}"]`);
         await expect(row).toBeVisible();
         const { heights, distinct, token } = await readRow(row, TOKENS[STEP_TOKEN[step]].cssVar);
-        expect(heights.length, `${step}: every control rendered`).toBe(10);
+        expect(heights, `${step}: every control rendered`).toHaveLength(10);
         expect.soft(distinct, `${step}: ${heights.join(", ")}`).toEqual([token]);
       }
     });

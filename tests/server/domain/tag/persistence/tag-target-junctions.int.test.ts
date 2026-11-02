@@ -5,6 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { TAG_TARGET_TYPES } from "@orb/contracts/tag";
 import { characterTags, chatTags } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 
@@ -21,7 +22,7 @@ test("tag mutation ingress refuses malformed and wrong-kind target ids without c
   expect(before).toMatchObject([{ characterId: character.id, tagId: tag.id, status: "accepted" }]);
 
   for (const targetType of TAG_TARGET_TYPES) {
-    for (const targetId of ["not-a-type-id", tag.id]) {
+    for (const targetId of [forged<never>("not-a-type-id"), forged<never>(tag.id)]) {
       await expect(caller.tag.attachTag({ tagId: tag.id, targetType, targetId })).rejects.toMatchObject({ code: "BAD_REQUEST" });
       await expect(caller.tag.detachTag({ tagId: tag.id, targetType, targetId })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     }

@@ -600,7 +600,6 @@ function forkMetadataWithoutGame(meta: ChatMetadata | null): ChatMetadata | null
     return meta;
   }
   const { rpg: _droppedGamePointer, ...rest } = meta;
-  void _droppedGamePointer;
   return rest;
 }
 
@@ -771,7 +770,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       })),
     ];
 
-    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, links, posture: { stripHidden: forkerReadsHidden === false, stripReasoning } });
+    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, links, posture: { stripHidden: !forkerReadsHidden, stripReasoning } });
     const forkMetadata = forkMetadataWithoutGame(source.metadata);
     const stmts: BatchStmt[] = [
       batchStmt(

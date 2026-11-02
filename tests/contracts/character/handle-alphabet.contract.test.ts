@@ -16,7 +16,8 @@ function d257Unseen(): readonly string[] {
   const out: string[] = [];
   for (let point = 0; point <= MAX_CODE_POINT; point += 1) {
     const char = point >= SURROGATES.first && point <= SURROGATES.last ? "" : String.fromCodePoint(point);
-    if (char !== "" && D257_UNSEEN.test(char)) {
+    const unseen = char !== "" && D257_UNSEEN.test(char);
+    if (unseen) {
       out.push(char);
     }
   }

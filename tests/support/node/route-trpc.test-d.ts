@@ -1,6 +1,8 @@
 /* eslint-disable orb/ct-responder-reads-input -- the subject is the responder type contract, so each route value is a compile-time witness that never runs */
+
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { AssetId, PluginId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expectTypeOf, test } from "vitest";
 import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
@@ -21,19 +23,22 @@ const completeSettingsOutput = {
   configUnreadable: null,
 } satisfies TrpcWireOutput<"settings.getUserSettings">;
 
+declare const pluginId: PluginId;
+declare const assetId: AssetId;
+
 const recursivePluginSurfaceOutput = [
   {
     id: "surface_recursive",
     anchor: "settings",
     title: "Recursive surface",
     tier: "static",
-    pluginId: "plugin_recursive",
+    pluginId,
     spec: { kind: "stack", children: [{ kind: "text", value: "healthy child" }] },
   },
 ] satisfies TrpcWireOutput<"plugin.listSurfaces">;
 
 const completeAssetRow = {
-  assetId: "asset_wire_id",
+  assetId,
   hash: "hash_wire",
   kind: "gallery",
   mime: "image/png",
@@ -44,7 +49,7 @@ const completeAssetRow = {
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 const pageSurfaceRow = (): PluginSurfaceRow => ({
-  pluginId: "plugin_page",
+  pluginId,
   id: "surface_page",
   anchor: "page",
   title: "Page surface",

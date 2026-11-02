@@ -58,7 +58,7 @@ test("the dev container installs the pinned pnpm and gives every workspace packa
   // Node 26 has no corepack; the sandbox installs pnpm with npm at the version package.json pins.
   expect(read(repoRoot, ".devcontainer/Dockerfile")).not.toMatch(/^RUN .*corepack/mu);
   const tools = z.object({ dependencies: z.record(z.string(), z.string()) }).parse(JSON.parse(read(repoRoot, ".devcontainer/tools/package.json")));
-  expect(tools.dependencies["pnpm"]).toBe(packageManager.replace(/^pnpm@/u, "").replace(/\+.*$/u, ""));
+  expect(tools.dependencies["pnpm"]).toBe(packageManager.replace(/^pnpm@/u, "").replace(/\+.*/su, ""));
   // A package without a volume makes pnpm write its node_modules into the bind-mounted host checkout.
   const config = read(repoRoot, ".devcontainer/devcontainer.json");
   const packages = readdirSync(join(repoRoot, "packages"), { withFileTypes: true })
@@ -189,7 +189,7 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(compose.match(/^ {2}[a-z][\w-]*:$/gmu)).toEqual(["  orbweaver:"]);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(compose).toContain('"${ORB_BIND:-127.0.0.1}:${ORB_PORT:-8788}:8788"');
-  expect(compose).not.toMatch(/^\s*- "8788:8788"/mu);
+  expect(compose).not.toMatch(/^[ \t]*- "8788:8788"/mu);
   // the tracked defaults: no-login single-user, safe ONLY because the port is loopback-published — the
   // trusted bridge ranges are the docker-NAT counterpart of a loopback peer, and the entrypoint refuses the
   // mode on a non-loopback ORB_BIND (pinned below).
@@ -220,7 +220,7 @@ const COMPOSE_HARDENING: readonly (readonly [string, (service: Record<string, un
   ["cap_drop", (s): boolean => JSON.stringify(s["cap_drop"]) === JSON.stringify(["ALL"])],
   // Exactly what the entrypoint's one-time chown and privilege drop use as root; nothing else comes back.
   ["cap_add", (s): boolean => Array.isArray(s["cap_add"]) && [...(s["cap_add"] as string[])].sort().join() === "CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID"],
-  ["security_opt", (s): boolean => Array.isArray(s["security_opt"]) && (s["security_opt"] as unknown[]).includes("no-new-privileges:true")],
+  ["security_opt", (s): boolean => Array.isArray(s["security_opt"]) && s["security_opt"].includes("no-new-privileges:true")],
   ["init", (s): boolean => s["init"] === true],
   ["restart", (s): boolean => s["restart"] === "unless-stopped"],
   [
@@ -243,7 +243,8 @@ test("the shipped compose carries every runtime hardening key, and dropping any 
   // Control: a copy with each key removed in turn must be flagged for exactly that key.
   for (const [key] of COMPOSE_HARDENING) {
     const doc = parse(compose) as { services: { orbweaver: Record<string, unknown> } };
-    delete doc.services.orbweaver[key];
+    // JSON.stringify drops an undefined value, so the key is absent from the serialized compose.
+    doc.services.orbweaver[key] = undefined;
     expect(hardeningMisses(JSON.stringify(doc)), key).toEqual([key]);
   }
 });
@@ -263,8 +264,8 @@ test("the entrypoint exports generated file paths, keeps the data volume private
   expect(shim).toContain('chmod go-rwx "${data_dir}"');
   // The privilege drop takes numeric ids (the rootfs is read-only, so /etc/passwd cannot be edited for another
   // PUID) and sets no_new_privs itself, so a bare `docker run` without compose's security_opt still gets it.
-  expect(shim).toMatch(/^\s*exec setpriv --reuid="\$\{puid\}" --regid="\$\{pgid\}" --clear-groups --no-new-privs --inh-caps=-all /mu);
-  expect(shim).not.toMatch(/^\s*(groupmod|usermod)\b/mu);
+  expect(shim).toMatch(/^[ \t]*exec setpriv --reuid="\$\{puid\}" --regid="\$\{pgid\}" --clear-groups --no-new-privs --inh-caps=-all /mu);
+  expect(shim).not.toMatch(/^[ \t]*(groupmod|usermod)\b/mu);
   // single-user's only credential is the owner fallback; the schema refuses the deny pairing
   expect(shim).toContain("export AUTH_FALLBACK=owner");
   // the no-login default must not survive a non-loopback publication

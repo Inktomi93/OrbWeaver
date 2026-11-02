@@ -80,8 +80,8 @@ async function expectIndependentDisclosure(subject: ReadingSubject, others: read
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(trigger).toBeFocused();
   // All caveats remain accessible above; full paragraphs must leave the reading flow when closed.
-  await expect(notice.getByText(PRICES, { exact: true })).not.toBeVisible();
-  await expect(notice.getByText(OMITTED, { exact: true })).not.toBeVisible();
+  await expect(notice.getByText(PRICES, { exact: true })).toBeHidden();
+  await expect(notice.getByText(OMITTED, { exact: true })).toBeHidden();
   await expect(notice.getByText(SUMMARY, { exact: true })).toBeVisible();
   await expect.poll(() => contentPosition(scroller, following)).toBeLessThan(expandedPosition);
   const geometry = await actionGroupGeometry(pane, [trigger]);

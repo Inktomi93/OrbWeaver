@@ -327,6 +327,27 @@ export interface CorpusProviderServer extends AsyncDisposable {
   readonly requests: readonly string[];
 }
 
+/** The request body's chunks, or null once it passes the limit. */
+async function readBoundedBody(body: ReadableStream<unknown> | null): Promise<readonly Uint8Array[] | null> {
+  const chunks: Uint8Array[] = [];
+  if (body === null) {
+    return chunks;
+  }
+  let length = 0;
+  const reader = body.getReader();
+  for (let part = await reader.read(); !part.done; part = await reader.read()) {
+    if (!(part.value instanceof Uint8Array)) {
+      throw new Error("Corpus provider request body yielded a non-byte chunk");
+    }
+    length += part.value.byteLength;
+    if (length > CORPUS_PROVIDER_BODY_LIMIT_BYTES) {
+      return null;
+    }
+    chunks.push(part.value);
+  }
+  return chunks;
+}
+
 /** Bind only a dynamically allocated loopback socket; errors never echo request bodies or credentials. */
 export async function createCorpusProviderServer(createExecution: (baseUrl: string) => Promise<CorpusProviderExecution>): Promise<CorpusProviderServer> {
   let execution: CorpusProviderExecution | undefined;
@@ -337,16 +358,9 @@ export async function createCorpusProviderServer(createExecution: (baseUrl: stri
       if (execution === undefined) {
         return new Response("Corpus provider is starting", { status: 503 });
       }
-      const chunks: Uint8Array[] = [];
-      let length = 0;
-      if (request.body !== null) {
-        for await (const chunk of request.body) {
-          length += chunk.byteLength;
-          if (length > CORPUS_PROVIDER_BODY_LIMIT_BYTES) {
-            return new Response("Corpus provider request is too large", { status: 413 });
-          }
-          chunks.push(chunk);
-        }
+      const chunks = await readBoundedBody(request.body);
+      if (chunks === null) {
+        return new Response("Corpus provider request is too large", { status: 413 });
       }
       return await execution.execute(request.url, {
         method: request.method,

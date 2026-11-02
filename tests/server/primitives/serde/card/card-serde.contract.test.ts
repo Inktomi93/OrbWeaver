@@ -23,10 +23,11 @@ import {
 } from "@orb/server/primitives/serde/card";
 import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
+import { z } from "zod";
 
 const FALLBACK = "From the filename";
 
-const json = (text: string): Record<string, unknown> => JSON.parse(text) as Record<string, unknown>;
+const json = (text: string): Record<string, unknown> => z.record(z.string(), z.unknown()).parse(JSON.parse(text));
 
 /** A wire card around `dataJson`, spelled the way SillyTavern writes it. */
 const wireCard = (dataJson: string, spec = "chara_card_v3", version = "3.0"): Record<string, unknown> =>

@@ -148,7 +148,8 @@ function imageUrls(body: string): string[] {
     if (typeof node !== "object" || node === null) {
       return;
     }
-    for (const [key, value] of Object.entries(node)) {
+    const members: [string, unknown][] = Object.entries(node);
+    for (const [key, value] of members) {
       if (key === "image_url" && typeof value === "object" && value !== null && "url" in value && typeof value.url === "string") {
         urls.push(value.url);
       } else {

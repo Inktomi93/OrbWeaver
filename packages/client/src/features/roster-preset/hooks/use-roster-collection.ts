@@ -70,7 +70,7 @@ export function useRosterMemberTitle(memberId: string): string | undefined {
 /** The create runner. A roster is authored BY EXAMPLE (D61/B10 — snapshot a room you host; a from-scratch
  *  form would need a character multi-select the saved-rosters modal already IS), so create opens the
  *  authoring door rather than minting an empty row a min-1-member schema would refuse. */
-export function useCreateRosterMember(): () => void {
+export function rosterCreateRunner(): () => void {
   return (): void => {
     openModal("savedRosters");
   };

@@ -127,7 +127,12 @@ for (const regime of REGIMES) {
         if (parent === null) {
           throw new Error("The warning has no owning row");
         }
-        return { text: node.getBoundingClientRect().toJSON(), row: parent.getBoundingClientRect().toJSON() };
+        const textBox = node.getBoundingClientRect();
+        const rowBox = parent.getBoundingClientRect();
+        return {
+          text: { x: textBox.x, y: textBox.y, width: textBox.width, height: textBox.height },
+          row: { x: rowBox.x, y: rowBox.y, width: rowBox.width, height: rowBox.height },
+        };
       });
       await test.info().attach("diverged-warning-bounds", { body: JSON.stringify({ floor, measure, boxes }), contentType: "application/json" });
       expect(boxes.text.width).toBeGreaterThanOrEqual(Math.min(floor, boxes.row.width) - 1);

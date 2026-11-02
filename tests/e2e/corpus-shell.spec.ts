@@ -134,7 +134,7 @@ async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Pro
 
 /** The last value each `<html>` attribute held before React first wrote into `#root`. */
 async function htmlBeforeMount(page: Page): Promise<ReadonlyMap<string, string | null>> {
-  const trail = z.array(bootEventSchema).parse(await page.evaluate((name) => Reflect.get(globalThis, name), BOOT_TRAIL));
+  const trail = z.array(bootEventSchema).parse(await page.evaluate((name): unknown => Reflect.get(globalThis, name), BOOT_TRAIL));
   const mounted = trail.findIndex((event) => event.kind === "mount");
   expect(mounted, "React never wrote into #root").toBeGreaterThanOrEqual(0);
   const before = new Map<string, string | null>();
@@ -320,7 +320,7 @@ test.describe("committed corpus shell", () => {
     });
     await openHome(page);
     await expect(page.getByRole("main", { name: "Home content" })).toBeVisible();
-    expect(await page.evaluate(() => Reflect.get(globalThis, "__shellFocusTrail"))).toEqual([]);
+    expect(await page.evaluate((): unknown => Reflect.get(globalThis, "__shellFocusTrail"))).toEqual([]);
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: SKIP_LINK, exact: true })).toBeFocused();
   });

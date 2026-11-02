@@ -39,6 +39,9 @@ test("hyphenated browser fixtures execute React hook diagnostics in their owning
   const [broken] = await eslint.lintText("function Probe({ enabled }) { if (enabled) useState(0); return null; }\n", { filePath, warnIgnored: true });
   expect(broken?.fatalErrorCount).toBe(0);
   expect(broken?.messages.map(({ ruleId }) => ruleId)).toContain("react-hooks/rules-of-hooks");
-  const [valid] = await eslint.lintText("function Probe() { useState(0); return null; }\n", { filePath, warnIgnored: true });
+  const [valid] = await eslint.lintText('import { useState } from "react";\n\nfunction Probe() { useState(0); return null; }\n', {
+    filePath,
+    warnIgnored: true,
+  });
   expect(valid?.messages).toEqual([]);
 });

@@ -18,6 +18,7 @@ export interface ChoiceSend {
 
 /** Null = no send capability in this tree (provider-less mount) — options render disabled. */
 export const ChoiceSendContext = createContext<ChoiceSend | null>(null);
+ChoiceSendContext.displayName = "ChoiceSendContext";
 
 /** The room-scoped choice-send capability, or null when none is provided. */
 export function useChoiceSend(): ChoiceSend | null {

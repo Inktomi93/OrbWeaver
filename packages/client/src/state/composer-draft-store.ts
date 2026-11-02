@@ -26,6 +26,7 @@
 //     canon (#11 autosave doctrine), and must never brick the composer.
 
 import { isPlainObject } from "@orb/kit/guards";
+import { omitKey } from "@orb/kit/objects";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
 // How many rooms' drafts survive a reload, least-recently-typed evicted first. Rooms a user typed in and
@@ -77,9 +78,7 @@ export type ComposerDraftWrite = (text: string) => void;
 /** Replace a room's draft text (the composer's `onChange`). The touched key is RE-SEATED at the end of the
  *  map (delete-then-insert) so key order is most-recently-typed-last — the order the cap evicts by. */
 export function setComposerDraft(scopeKey: string, text: string): void {
-  const next = { ...useComposerDraftStore.getState().drafts };
-  delete next[scopeKey];
-  next[scopeKey] = text;
+  const next = { ...omitKey(useComposerDraftStore.getState().drafts, scopeKey), [scopeKey]: text };
   useComposerDraftStore.setState({ drafts: next, revision: useComposerDraftStore.getState().revision + 1 }, false, "composerDraft/set");
 }
 

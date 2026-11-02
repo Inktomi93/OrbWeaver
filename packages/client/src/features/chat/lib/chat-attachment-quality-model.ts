@@ -5,8 +5,8 @@ import type { ConfigSubcategory } from "#state";
 
 const IMAGE_LABELS: Record<ImageDetail, string> = { auto: "Auto", low: "Low", high: "High" };
 const VIDEO_LABELS: Record<VideoMaxResolution, string> = { original: "Original", "1080": "1080p", "720": "720p", "480": "480p" };
-export const IMAGE_DETAIL_ITEMS: readonly SelectOption<string>[] = IMAGE_DETAILS.map((value) => ({ value, label: IMAGE_LABELS[value] }));
-export const VIDEO_RESOLUTION_ITEMS: readonly SelectOption<string>[] = VIDEO_MAX_RESOLUTIONS.map((value) => ({ value, label: VIDEO_LABELS[value] }));
+export const IMAGE_DETAIL_ITEMS: readonly SelectOption[] = IMAGE_DETAILS.map((value) => ({ value, label: IMAGE_LABELS[value] }));
+export const VIDEO_RESOLUTION_ITEMS: readonly SelectOption[] = VIDEO_MAX_RESOLUTIONS.map((value) => ({ value, label: VIDEO_LABELS[value] }));
 export const ATTACHMENT_QUALITY_LABELS: Record<keyof AttachmentQuality, string> = {
   imageDetail: "Image detail",
   videoMaxResolution: "Video maximum resolution",

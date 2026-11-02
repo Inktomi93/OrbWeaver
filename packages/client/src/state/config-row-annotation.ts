@@ -32,6 +32,7 @@ export interface ConfigRowAnnotation {
 }
 
 const ConfigRowAnnotationContext = createContext<ConfigRowAnnotation | null>(null);
+ConfigRowAnnotationContext.displayName = "ConfigRowAnnotationContext";
 
 /** The provider element type — `SettingRow` publishes with it, and re-publishes `null` around the
  *  secondary content of a composite row so one address never renders its gloss twice. */

@@ -140,9 +140,9 @@ test("a failed token-authenticated identity probe rejects instead of falling bac
 
 test("kill-zero classifies only ESRCH as absent, keeps EPERM live, and surfaces other probe failures", () => {
   let code = "ESRCH";
-  const kill = vi.spyOn(process, "kill").mockImplementation((() => {
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => {
     throw Object.assign(new Error(`planted ${code} kill failure`), { code });
-  }) as typeof process.kill);
+  });
   try {
     expect(processAlive(123)).toBe(false);
     code = "EPERM";

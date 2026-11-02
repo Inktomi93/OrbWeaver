@@ -16,9 +16,9 @@ export function deepMergeAppSettings(base: AppSettings, patch: AppSettings): App
       continue;
     }
     const baseValue = merged[key];
-    merged[key] = isPlainObject(value) && isPlainObject(baseValue) ? deepMergeAppSettings(baseValue as AppSettings, value as AppSettings) : value;
+    merged[key] = isPlainObject(value) && isPlainObject(baseValue) ? deepMergeAppSettings(baseValue, value as AppSettings) : value;
   }
-  return merged as AppSettings;
+  return merged;
 }
 
 /** Untyped deep-merge for a UserSettings section patch (caller re-validates through the lenient parser after). */

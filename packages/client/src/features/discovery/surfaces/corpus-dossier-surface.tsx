@@ -382,7 +382,7 @@ function AskAnswer({
 }: {
   readonly isPending: boolean;
   readonly hasQuestion: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly data: AskCardAnswer | null;
 }): ReactElement | null {
   if (!hasQuestion) {

@@ -38,7 +38,7 @@ async function openFreshHusk(page: Page): Promise<void> {
   const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }) });
   await chatRow.hover();
   await chatRow.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }).click();
-  await expect(page.locator('[role="status"]', { hasText: "Loaded chat" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("status").filter({ hasText: "Loaded chat" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
@@ -69,7 +69,7 @@ test("start click mounts the real room surface and the first row write claims th
 
     // There is no draft-specific twin: the real greeting row, composer, and committed-room menu all mount.
     await expect(page.locator('[data-slot="message-row"]').first()).toContainText(DRAFT_GREETING, { timeout: WAIT_SURFACE_MS });
-    await expect(page.locator('[data-testid="composer-send"]')).toBeVisible();
+    await expect(page.getByTestId("composer-send")).toBeVisible();
     await openChatOptions(page);
     await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME })).toBeEnabled();
     await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME })).toBeEnabled();

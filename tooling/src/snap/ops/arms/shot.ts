@@ -187,11 +187,11 @@ async function growViewportToScrollContainers(page: Page, opts: Args): Promise<O
     return null;
   }
   // A string expression: tooling compiles without the DOM lib.
-  const device = (await page.evaluate("({ width: screen.width, height: screen.height, deviceScaleFactor: devicePixelRatio })")) as {
+  const device = await page.evaluate<{
     readonly width: number;
     readonly height: number;
     readonly deviceScaleFactor: number;
-  };
+  }>("({ width: screen.width, height: screen.height, deviceScaleFactor: devicePixelRatio })");
   const metrics: OwnerMetrics = {
     viewport: original,
     screen: { width: device.width, height: device.height },

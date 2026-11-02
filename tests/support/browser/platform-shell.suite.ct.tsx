@@ -54,8 +54,8 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
     await page.setViewportSize(viewport);
     await mount<typeof ShellAmbientStory>(STORY, {});
     await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
-    const frame = await page.evaluate(() => ({
-      grid: (document.querySelector(".shell-grid") as Element).getBoundingClientRect().height,
+    const frame = await page.locator(".shell-grid").evaluate((grid) => ({
+      grid: grid.getBoundingClientRect().height,
       viewport: innerHeight,
       overscroll: getComputedStyle(document.documentElement).overscrollBehaviorY,
       overflow: getComputedStyle(document.documentElement).overflowY,
@@ -74,8 +74,8 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
       });
       await mount<typeof ShellAmbientStory>(STORY, {});
       await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
-      const paid = await page.evaluate(() => {
-        const grid = getComputedStyle(document.querySelector(".shell-grid") as Element);
+      const paid = await page.locator(".shell-grid").evaluate((element) => {
+        const grid = getComputedStyle(element);
         return { top: grid.paddingTop, right: grid.paddingRight, left: grid.paddingLeft, overflowX: document.documentElement.scrollWidth - innerWidth };
       });
       // The bottom edge is not asserted: the grid reads the static `safe-area-max-inset-bottom`, which the Chromium
@@ -96,17 +96,18 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
     // !important: the appearance writer owns the inline value and rewrites it after boot.
     await setRootFontScale(page, FONT_SCALE_PROPERTY, TEXT_SCALE_200);
     await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
-    const fit = await page.evaluate(() => {
-      const rail = document.querySelector("nav[aria-label=Primary]") as HTMLElement;
+    const main = page.locator(".shell-main");
+    const mainInline = await main.evaluate((element) => element.getBoundingClientRect().width);
+    const fit = await page.locator("nav[aria-label=Primary]").evaluate((rail, mainWidth) => {
       const railBox = rail.getBoundingClientRect();
       return {
         rootPx: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
         overflowX: document.documentElement.scrollWidth - innerWidth,
         railInside: railBox.right <= innerWidth && railBox.bottom <= innerHeight,
         railClips: rail.scrollWidth - rail.clientWidth,
-        mainInline: (document.querySelector(".shell-main") as HTMLElement).getBoundingClientRect().width,
+        mainInline: mainWidth,
       };
-    });
+    }, mainInline);
     expect(fit.rootPx).toBeGreaterThanOrEqual(32);
     expect(fit.overflowX).toBeLessThanOrEqual(0);
     expect(fit.railInside).toBe(true);
@@ -136,7 +137,7 @@ for (const [viewport, short] of [
       row.dataset["slot"] = "chat-room-flank-row";
       anchor.append(row);
       surface.append(anchor);
-      (document.querySelector(".shell-main") as Element).append(surface);
+      document.querySelector(".shell-main")?.append(surface);
       const floor = getComputedStyle(anchor).minBlockSize;
       surface.remove();
       return floor;
@@ -150,9 +151,9 @@ test("a printed page drops the chrome, stops clipping the grid and uses the ligh
   await page.emulateMedia({ ...CLEAN_MEDIA, media: "print" });
   await mount<typeof ShellAmbientStory>(STORY, {});
   await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeHidden();
-  const printed = await page.evaluate(() => ({
-    gridOverflow: getComputedStyle(document.querySelector(".shell-grid") as Element).overflowY,
-    gridDisplay: getComputedStyle(document.querySelector(".shell-grid") as Element).display,
+  const printed = await page.locator(".shell-grid").evaluate((grid) => ({
+    gridOverflow: getComputedStyle(grid).overflowY,
+    gridDisplay: getComputedStyle(grid).display,
     scheme: getComputedStyle(document.documentElement).colorScheme,
   }));
   expect(printed).toEqual({ gridOverflow: "visible", gridDisplay: "block", scheme: "light" });

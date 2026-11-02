@@ -5,6 +5,7 @@
 // drives this; presence in the map IS the edit-mode flag (undefined = not editing).
 
 import type { MessageId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import { createGatedStore } from "./create-gated-store.ts";
 
 /** One row's in-progress edit. The reserved sizes are #245's FOOTPRINT: the content column's width and height,
@@ -61,8 +62,7 @@ export function setMessageEditDraft(messageId: MessageId, text: string): void {
 /** Exit edit mode (Esc, a successful save, or an explicit Cancel) — clears the draft entirely so a
  *  later re-edit reseeds fresh from the (possibly now-different) canonical content. */
 export function cancelEditingMessage(messageId: MessageId): void {
-  const drafts = { ...useMessageEditDraftStore.getState().drafts };
-  delete drafts[messageId];
+  const drafts = omitKey(useMessageEditDraftStore.getState().drafts, messageId);
   useMessageEditDraftStore.setState({ ...useMessageEditDraftStore.getState(), drafts }, true, "edit-draft/cancel");
 }
 
@@ -79,8 +79,7 @@ export function setReasoningEditDraft(messageId: MessageId, text: string): void 
 
 /** Leave reasoning-edit mode (Escape, Cancel or a saved edit), dropping the draft. */
 export function cancelEditingReasoning(messageId: MessageId): void {
-  const reasoningDrafts = { ...useMessageEditDraftStore.getState().reasoningDrafts };
-  delete reasoningDrafts[messageId];
+  const reasoningDrafts = omitKey(useMessageEditDraftStore.getState().reasoningDrafts, messageId);
   useMessageEditDraftStore.setState({ ...useMessageEditDraftStore.getState(), reasoningDrafts }, true, "edit-draft/cancel-reasoning");
 }
 

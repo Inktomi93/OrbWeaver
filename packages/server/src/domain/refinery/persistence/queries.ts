@@ -331,7 +331,7 @@ function customRunViewOf(
   if (!payload.success) {
     return healedRun(stage);
   }
-  const data = payload.data as Record<string, unknown>;
+  const data = payload.data;
   return stage === "score"
     ? { ...base, stage: "score", payloadConfig: config, payload: data }
     : { ...base, stage: "analyze", payloadConfig: config, payload: data };

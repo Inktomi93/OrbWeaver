@@ -9,6 +9,7 @@
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
 import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
+import type { RefineryRunId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -76,7 +77,7 @@ export interface RunsTabProps {
   readonly onView: (run: RunView) => void;
   /** Arm a rewrite run for the NEXT apply/analyze (operate-back) — null clears back to latest. */
   readonly armedRewriteId: string | null;
-  readonly onArmRewrite: (runId: string | null) => void;
+  readonly onArmRewrite: (runId: RefineryRunId | null) => void;
   readonly onGoToScore: () => void;
 }
 
@@ -91,7 +92,7 @@ function RunRow({
   viewed: boolean;
   armed: boolean;
   onView: (run: RunView) => void;
-  onArmRewrite: (runId: string | null) => void;
+  onArmRewrite: (runId: RefineryRunId | null) => void;
 }): ReactElement {
   const verdict = verdictOf(run);
   const modelTitle = economicsModelTitle(run);

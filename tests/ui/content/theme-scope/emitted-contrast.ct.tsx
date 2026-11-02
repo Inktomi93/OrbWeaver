@@ -9,6 +9,7 @@ import {
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { keysOf } from "@orb/testkit/iso";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
@@ -45,7 +46,7 @@ import {
   SPEAKER_DIALOGUE,
 } from "./contrast-cases.ts";
 
-const SEED_THEMES = Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[];
+const SEED_THEMES = keysOf(SEED_THEME_VALUE_SETS);
 
 /** Every shipped palette, then a custom scope on each contrast-case base: the per-palette sweep of the neutral ink pairs. */
 const SEMANTIC_CASES = [
@@ -373,7 +374,7 @@ test("a seed palette nested inside a custom mid-grey scope paints its own tone r
     page
       .locator(`[data-nest="${nest}"] [data-role-sample]`)
       .evaluateAll((samples) =>
-        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample"), getComputedStyle(sample).backgroundColor])),
+        Object.fromEntries(samples.map((sample) => [sample.getAttribute("data-role-sample") ?? "", getComputedStyle(sample).backgroundColor] as const)),
       );
   const onPage = await painted("page");
   expect(Object.keys(onPage).length).toBeGreaterThan(0);
@@ -397,7 +398,10 @@ test("a seed palette nested inside a carried scope resolves its own value for ev
         Object.fromEntries(
           probes.map((probe) => {
             const style = getComputedStyle(probe);
-            return [probe.getAttribute("data-seed-probe"), Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()]))];
+            return [
+              probe.getAttribute("data-seed-probe") ?? "",
+              Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name).trim()] as const)),
+            ] as const;
           }),
         ),
       palette,

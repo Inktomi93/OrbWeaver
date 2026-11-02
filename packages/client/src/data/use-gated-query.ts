@@ -13,7 +13,7 @@ type GatedOptions<TQueryData, TSelected, TError, TKey extends QueryKey> = Pick<
 >;
 
 /** The stable "disabled" key — one constant so gated-off queries share a single inert cache slot. */
-const GATED_OFF_KEY = ["__gated__", "off"] as const;
+const GATED_OFF_KEY: QueryKey = ["__gated__", "off"];
 
 /**
  * `useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }))` — the options
@@ -25,7 +25,7 @@ export function useGatedQuery<TId, TQueryData, TSelected = TQueryData, TError = 
   optionsFor: (id: TId) => GatedOptions<TQueryData, TSelected, TError, TKey>,
 ): UseQueryResult<TSelected, TError> {
   return useQuery<TQueryData, TError, TSelected, TKey>(
-    id === null || id === undefined ? { queryKey: GATED_OFF_KEY as unknown as TKey, queryFn: skipToken } : optionsFor(id),
+    id === null || id === undefined ? { queryKey: GATED_OFF_KEY as TKey, queryFn: skipToken } : optionsFor(id),
   );
 }
 

@@ -218,8 +218,8 @@ function deepMergePatch(base: AppSettings, patch: AppSettings): AppSettings {
     const baseValue = out[key];
     out[key] =
       value !== null && typeof value === "object" && !Array.isArray(value) && baseValue !== null && typeof baseValue === "object" && !Array.isArray(baseValue)
-        ? deepMergePatch(baseValue as AppSettings, value as AppSettings)
+        ? deepMergePatch(baseValue, value as AppSettings)
         : value;
   }
-  return out as AppSettings;
+  return out;
 }

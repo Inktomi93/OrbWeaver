@@ -190,11 +190,9 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
       code: "reasoning_dropped_for_prefill",
       message: "thinking disabled for this turn: a content prefill with thinking on yields an empty reply on this server",
     });
-    out[CHAT_TEMPLATE_KWARGS_KEY] = { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false };
     // The user's own effort stays: vLLM's template kwarg outranks it, so the off still holds.
-    if (!owned.has(REASONING_EFFORT_KEY)) {
-      delete out[REASONING_EFFORT_KEY];
-    }
+    const kept = owned.has(REASONING_EFFORT_KEY) ? out : Object.fromEntries(Object.entries(out).filter(([key]) => key !== REASONING_EFFORT_KEY));
+    return { ...kept, [CHAT_TEMPLATE_KWARGS_KEY]: { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false } };
   }
   return out;
 }
@@ -205,7 +203,7 @@ function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, u
   if (args.templateThinking === undefined || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY || userThinking) {
     return body;
   }
-  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? body[CHAT_TEMPLATE_KWARGS_KEY] : {};
   if (kwargs[ENABLE_THINKING_KEY] === false) {
     return body;
   }
@@ -235,7 +233,7 @@ function applyPreserveReasoning(body: Record<string, unknown>, args: ShapeArgs, 
   ) {
     return body;
   }
-  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? body[CHAT_TEMPLATE_KWARGS_KEY] : {};
   return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...kwargs, [PRESERVE_REASONING_KEY]: false } };
 }
 

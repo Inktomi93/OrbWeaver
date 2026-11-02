@@ -71,7 +71,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
 
   const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () => trpc.admin.listUsers.queryOptions());
   const users = usersQuery.data ?? [];
-  const handleByUserId = new Map(users.map((user) => [user.id as string, user.handle as string]));
+  const handleByUserId = new Map<string, string>(users.map((user) => [user.id, user.handle]));
 
   const cancelWorkload = useCancelWorkload({ trpc, invalidation });
   const retryWorkload = useRetryWorkload({ trpc, invalidation });
@@ -108,7 +108,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
       return null;
     }
     // The handle list can lag or miss a removed account; a job that is not the viewer's is still labelled as someone else's.
-    return handleByUserId.get(workload.ownerId as string) ?? "another user";
+    return handleByUserId.get(workload.ownerId) ?? "another user";
   };
 
   return (
@@ -176,7 +176,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
           dependencyCandidates={workloads
             .filter((workload) => isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId)
             .map((workload) => ({
-              id: workload.id as string,
+              id: workload.id,
               kind: workload.kind,
               createdAt: workload.createdAt,
             }))}

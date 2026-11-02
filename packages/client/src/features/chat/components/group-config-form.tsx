@@ -38,19 +38,19 @@ type UtilityModel = ReturnType<typeof useUtilityModel>;
 type RerankModel = ReturnType<typeof useRerankModel>;
 
 // Smart picks with the reranker by default, so it needs no Utility model; only its opt-in upgrade does.
-const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({ value, label: GROUP_POLICY_LABELS[value] }));
+const POLICY_ITEMS: SelectItems = GROUP_POLICIES.map((value) => ({ value, label: GROUP_POLICY_LABELS[value] }));
 
 /** Why a Narrator room cannot pick Smart, shown under the disabled option. */
 const NARRATOR_SMART_REASON = "Not in Narrator: one message voices everyone, so there is no next speaker to pick.";
 
 /** A Narrator room cannot hold Smart (the contract heals it to Natural), so the option is disabled and says why. */
-const NARRATOR_POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) =>
+const NARRATOR_POLICY_ITEMS: SelectItems = GROUP_POLICIES.map((value) =>
   value === "smart"
     ? { value, label: GROUP_POLICY_LABELS[value], disabled: true, description: NARRATOR_SMART_REASON }
     : { value, label: GROUP_POLICY_LABELS[value] },
 );
 
-function policyItemsFor(output: GroupOutput): SelectItems<string> {
+function policyItemsFor(output: GroupOutput): SelectItems {
   return output === "narrator" ? NARRATOR_POLICY_ITEMS : POLICY_ITEMS;
 }
 
@@ -151,7 +151,7 @@ const VISIBILITY_LABELS: Record<MemberCardVisibility, string> = {
   "sheet+lore": "Sheet + lore",
   full: "Full card",
 };
-const VISIBILITY_ITEMS: SelectItems<string> = MEMBER_CARD_VISIBILITY_LEVELS.map((value) => ({
+const VISIBILITY_ITEMS: SelectItems = MEMBER_CARD_VISIBILITY_LEVELS.map((value) => ({
   value,
   label: VISIBILITY_LABELS[value],
 }));

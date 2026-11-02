@@ -5,25 +5,24 @@
 //
 // There is no autosave section-patch here any more. The library is ROWS, so the surface issues real CRUD.
 
-import type { CreateRegexScriptInput, ImportScriptFileResult, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
-import type { RegexScriptId } from "@orb/kit/ids";
+import type { ImportScriptFileResult, RegexScriptRow } from "@orb/contracts/regex";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-export const useCreateRegexScript = createEntityMutation<{ readonly input: CreateRegexScriptInput }, RegexScriptRow>({
+export const useCreateRegexScript = createEntityMutation<inferInput<Trpc["regex"]["createScript"]>, RegexScriptRow>({
   options: (trpc) => trpc.regex.createScript.mutationOptions(),
   busDriven: true, // createScript emits regexChanged → the invalidation map covers regex.pathFilter().
   errorToast: "Couldn't create that regex script.",
 });
 
-export const useUpdateRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId; readonly input: UpdateRegexScriptInput }, RegexScriptRow>({
+export const useUpdateRegexScript = createEntityMutation<inferInput<Trpc["regex"]["updateScript"]>, RegexScriptRow>({
   options: (trpc) => trpc.regex.updateScript.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't save that regex script.",
 });
 
-export const useRemoveRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId }, void>({
+export const useRemoveRegexScript = createEntityMutation<inferInput<Trpc["regex"]["removeScript"]>, void>({
   options: (trpc) => trpc.regex.removeScript.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't delete that regex script.",
@@ -31,19 +30,19 @@ export const useRemoveRegexScript = createEntityMutation<{ readonly scriptId: Re
 
 /** The row kebab's Duplicate — a fresh unattached "<name> (copy)" row (the server verb detaches at every
  *  scope, so a copy never silently inherits the original's global/preset/character/room membership). */
-export const useDuplicateRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId }, RegexScriptRow>({
+export const useDuplicateRegexScript = createEntityMutation<inferInput<Trpc["regex"]["duplicateScript"]>, RegexScriptRow>({
   options: (trpc) => trpc.regex.duplicateScript.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't duplicate that regex script.",
 });
 
-export const useAttachRegexGlobal = createEntityMutation<{ readonly scriptId: RegexScriptId }, void>({
+export const useAttachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"]["attachGlobal"]>, void>({
   options: (trpc) => trpc.regex.attachGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't make that script global.",
 });
 
-export const useDetachRegexGlobal = createEntityMutation<{ readonly scriptId: RegexScriptId }, { readonly detached: boolean }>({
+export const useDetachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"]["detachGlobal"]>, { readonly detached: boolean }>({
   options: (trpc) => trpc.regex.detachGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't clear that script's global scope.",
@@ -89,7 +88,7 @@ export const useBulkRemoveRegexScripts = createEntityMutation<inferInput<Trpc["r
 /** The single-entity IMPORT door's mutation (REGX2 · D121-D `band=Import`) — the file's TEXT, through the
  *  same thin-arm verb the backup bundle calls. `created:false` ⇒ it deduped onto a script already in the
  *  library, which is a success, not a failure. */
-export const useImportRegexScriptFile = createEntityMutation<{ readonly fileText: string }, ImportScriptFileResult>({
+export const useImportRegexScriptFile = createEntityMutation<inferInput<Trpc["regex"]["importScriptFile"]>, ImportScriptFileResult>({
   options: (trpc) => trpc.regex.importScriptFile.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't import that script.",

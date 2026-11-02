@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { CssSupportIndex } from "@orb/tooling/browser-support";
 import { refusedDeclaration } from "@orb/tooling/browser-support";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import type { CandidatesToCss } from "./ui-feature-classname.ts";
 
 interface Refusal {
@@ -14,13 +15,13 @@ interface Refusal {
 }
 
 const CLASS_TOKEN = /^[!\w@[\]:&>*()/.%#,'"=~-]+$/u;
-const DECLARATION = /^\s*([a-z][\w-]*)\s*:\s*([^{;]*);\s*$/gmu;
+const DECLARATION = /^[ \t]*([a-z][\w-]*)\s*:\s*([^{;]*);[ \t]*$/gmu;
 const CLASS_HOLDERS = "JSXAttribute[name.name=/^(className|class)$/][value], CallExpression[callee.name=/^(cva|cn|clsx|cx|tv|twMerge)$/]";
 
 function childNodes(node: TSESTree.Node): TSESTree.Node[] {
   return Object.entries(node)
     .filter(([key]) => key !== "parent")
-    .flatMap(([, child]) => (Array.isArray(child) ? child : [child]))
+    .flatMap(([, child]): unknown[] => (Array.isArray(child) ? child : [child]))
     .filter((item): item is TSESTree.Node => typeof item === "object" && item !== null && "type" in item);
 }
 
@@ -28,17 +29,17 @@ function childNodes(node: TSESTree.Node): TSESTree.Node[] {
 export type ConstantText = (identifier: TSESTree.Identifier) => string | undefined;
 
 const isPropertyName = (node: TSESTree.Identifier): boolean =>
-  (node.parent.type === "MemberExpression" && node.parent.property === node && !node.parent.computed) ||
-  (node.parent.type === "Property" && node.parent.key === node && !node.parent.computed);
+  (node.parent.type === AST_NODE_TYPES.MemberExpression && node.parent.property === node && !node.parent.computed) ||
+  (node.parent.type === AST_NODE_TYPES.Property && node.parent.key === node && !node.parent.computed);
 
 /** Every string a class holder carries: literals, template pieces, named `const` strings and whatever they nest in (variant maps, ternaries, arrays). */
 function* stringsIn(node: TSESTree.Node, constantText: ConstantText): Generator<{ readonly site: TSESTree.Node; readonly text: string }> {
-  const named = node.type === "Identifier" && !isPropertyName(node) ? constantText(node) : undefined;
+  const named = node.type === AST_NODE_TYPES.Identifier && !isPropertyName(node) ? constantText(node) : undefined;
   if (named !== undefined) {
     yield { site: node, text: named };
-  } else if (node.type === "Literal" && typeof node.value === "string") {
+  } else if (node.type === AST_NODE_TYPES.Literal && typeof node.value === "string") {
     yield { site: node, text: node.value };
-  } else if (node.type === "TemplateElement") {
+  } else if (node.type === AST_NODE_TYPES.TemplateElement) {
     yield { site: node, text: node.value.cooked ?? node.value.raw };
   } else {
     for (const child of childNodes(node)) {

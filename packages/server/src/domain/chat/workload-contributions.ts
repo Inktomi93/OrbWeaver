@@ -74,8 +74,10 @@ async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, si
   report({
     message:
       `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
-      `${counts.segmentsSkippedOverWindow > 0 ? `, ${counts.segmentsSkippedOverWindow} blocks TOO LARGE EVEN TO CHUNK for the embed model (skipped whole, NOT truncated — see the warn log)` : ""}` +
-      `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
+      (counts.segmentsSkippedOverWindow > 0
+        ? `, ${counts.segmentsSkippedOverWindow} blocks TOO LARGE EVEN TO CHUNK for the embed model (skipped whole, NOT truncated — see the warn log)`
+        : "") +
+      (counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""),
   });
   // THE SWEEP'S TERMINAL — record `embed_space_state`'s `memory` completion for the scope this run
   // actually covered; the promotion lands once cards, memory and documents all name the same target

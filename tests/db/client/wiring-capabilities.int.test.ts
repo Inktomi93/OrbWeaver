@@ -13,6 +13,7 @@ import {
   statementForOwner,
   statementToken,
 } from "@orb/db/wiring-owner";
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { freshDb } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
@@ -74,7 +75,7 @@ test("a boot grant is a distinct inert identity over the same admitted connectio
     expect(databaseForOwner(plain)).toBe(db);
     expect(bootDatabaseForOwner(boot)).toBe(db);
     // A cast is the forgery a request route could write; the grant registry refuses it at recovery.
-    expect(() => bootDatabaseForOwner(databaseHandle(db) as BootDatabaseHandle)).toThrow("boot wiring handle is not granted");
+    expect(() => bootDatabaseForOwner(forged<BootDatabaseHandle>(databaseHandle(db)))).toThrow("boot wiring handle is not granted");
     expect(() => bootDatabaseForOwner({ ...boot })).toThrow("boot wiring handle is not granted");
     const copy: DatabaseHandle = { ...boot };
     expect(() => databaseForOwner(copy)).toThrow("database wiring handle is not registered");

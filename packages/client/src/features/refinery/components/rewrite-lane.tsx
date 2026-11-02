@@ -151,10 +151,12 @@ function RewriteBody({
   );
 }
 
+const NONE: readonly never[] = [];
+
 export function RewriteLane({
   run,
   entries,
-  unapplicable = [],
+  unapplicable = NONE,
   decided,
   onDecide,
   running,

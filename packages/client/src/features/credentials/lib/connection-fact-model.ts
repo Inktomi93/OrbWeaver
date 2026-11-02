@@ -43,7 +43,7 @@ import {
   TOKENIZE_APIS,
 } from "@orb/contracts/inference";
 import { isPrimitive } from "@orb/kit/guards";
-
+import { omitKey } from "@orb/kit/objects";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
@@ -104,22 +104,15 @@ function erasePath(root: Record<string, unknown>, path: string): Record<string, 
   if (head === undefined || !(head in root)) {
     return root;
   }
-  const next = { ...root };
   if (rest.length === 0) {
-    delete next[head];
-    return next;
+    return omitKey(root, head);
   }
-  const child = next[head];
+  const child = root[head];
   if (typeof child !== "object" || child === null || Array.isArray(child)) {
     return root;
   }
   const pruned = erasePath(child as Record<string, unknown>, rest.join("."));
-  if (Object.keys(pruned).length === 0) {
-    delete next[head];
-    return next;
-  }
-  next[head] = pruned;
-  return next;
+  return Object.keys(pruned).length === 0 ? omitKey(root, head) : { ...root, [head]: pruned };
 }
 
 /** The raw value an Override control's text produces, by control kind. */
@@ -189,7 +182,7 @@ export function withDeclaredOverride(declared: DeclaredCapability | null, row: F
   for (const [siblingPath, siblingValue] of Object.entries(row.siblings)) {
     next = writePath(next, siblingPath, siblingValue);
   }
-  return writePath(next, row.path, value) as DeclaredCapability;
+  return writePath(next, row.path, value);
 }
 
 /** Drop ONE fact override; `null` once the block states nothing at all (the column's "nothing declared"). */
@@ -202,7 +195,7 @@ export function withoutDeclaredOverride(declared: DeclaredCapability | null, row
     // A sibling only exists because the leaf needed it; it goes with the leaf.
     next = erasePath(next, siblingPath);
   }
-  return Object.keys(next).length === 0 ? null : (next as DeclaredCapability);
+  return Object.keys(next).length === 0 ? null : next;
 }
 
 /** The layer a resolved value came from, named the way a reader can act on. */

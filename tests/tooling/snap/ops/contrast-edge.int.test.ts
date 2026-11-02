@@ -80,7 +80,7 @@ test("the WORST side carries the verdict, and a borderless subject is refused ra
     expect(split.outcome.failed).toBe(true);
     const splitReceipt =
       split.evidence.status !== "ok" ||
-      (split.evidence.passed === false &&
+      (!split.evidence.passed &&
         split.outcome.line.includes("worst side bottom") &&
         split.outcome.line.includes("top:") &&
         split.outcome.line.includes("bottom:"));
@@ -115,13 +115,13 @@ test("a page.screenshot() failure retries once, and a persisting failure is an i
     // A LONE transient failure — the shape a real `Protocol error (Page.captureScreenshot)` takes under
     // contention — recovers silently through the retry: the SAME per-side verdict as an unpatched run.
     let calls = 0;
-    page.screenshot = (async (options) => {
+    page.screenshot = async (options): Promise<Buffer> => {
       calls += 1;
       if (calls === 1) {
         throw new Error("Protocol error (Page.captureScreenshot): Target closed.");
       }
       return await real(options);
-    }) as typeof page.screenshot;
+    };
     const recovered = await measureEdgeContrast(page, "#clear", VIEWPORT);
     expect(calls).toBe(2);
     expect(recovered.evidence.status).toBe("ok");
@@ -130,7 +130,7 @@ test("a page.screenshot() failure retries once, and a persisting failure is an i
     // A PERSISTENT failure (both attempts) is an INSTRUMENT fault — never folded into the "edge
     // unmeasurable" domain-refusal family, so a reason-string pin on that family cannot red on this CDP
     // message. The run still FAILS (never a silent green), and the line names the real capture error.
-    page.screenshot = ((): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."))) as typeof page.screenshot;
+    page.screenshot = (): Promise<never> => Promise.reject(new Error("Protocol error (Page.captureScreenshot): Target closed."));
     const persisted = await measureEdgeContrast(page, "#clear", VIEWPORT);
     expect(persisted.evidence.status).toBe("instrument-error");
     expect(persisted.evidence.ratio).toBeNull();

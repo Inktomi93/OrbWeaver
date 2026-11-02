@@ -4,6 +4,7 @@
 import type { Rgb } from "@orb/kit/theme-derivation";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { z } from "zod";
 
 interface ShortcutInit {
   readonly altKey?: boolean;
@@ -83,10 +84,14 @@ export async function seedShellState(page: Page, state: { readonly activeSection
 
 /** The shell store's persisted panel overrides, or `null` before its first write. */
 export function persistedOverrides(page: Page): Promise<unknown> {
-  return page.evaluate((key) => {
-    const raw = globalThis.localStorage.getItem(key);
-    return raw === null ? null : ((JSON.parse(raw) as { state?: { panelOverrides?: unknown } }).state?.panelOverrides ?? null);
-  }, UNBOUND_SHELL_KEY);
+  return page
+    .evaluate((key) => globalThis.localStorage.getItem(key), UNBOUND_SHELL_KEY)
+    .then((raw) => {
+      if (raw === null) {
+        return null;
+      }
+      return z.object({ state: z.object({ panelOverrides: z.unknown() }).optional() }).parse(JSON.parse(raw)).state?.panelOverrides ?? null;
+    });
 }
 
 /** A length custom property resolved to px by laying a box out at it; a computed custom property is only its token stream. */

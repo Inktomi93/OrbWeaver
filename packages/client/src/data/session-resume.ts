@@ -17,6 +17,7 @@
 // is tab-scoped for the same reason, and it clears when the join dialog takes it, when the visitor
 // dismisses the offer, and on sign-out.
 
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -64,8 +65,12 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
   }
   // a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
   try {
-    const parsed = JSON.parse(raw) as { readonly chatId?: unknown };
-    return { chatId: typeof parsed.chatId === "string" ? castId<ChatId>(parsed.chatId) : null };
+    const parsed: unknown = JSON.parse(raw);
+    if (!isPlainObject(parsed)) {
+      return null;
+    }
+    const { chatId } = parsed;
+    return { chatId: typeof chatId === "string" ? castId<ChatId>(chatId) : null };
   } catch {
     return null; // a corrupt blob is discarded, never trusted (#11 autosave doctrine)
   }

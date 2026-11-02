@@ -552,7 +552,7 @@ function scrubKeywords(node: Record<string, unknown>, walk: Walk, position: Walk
   // Null prototype here and in walkNameMap: schema keys and property names are authored data, and a `__proto__`
   // key copied into `{}` would re-parent the node instead of staying a key.
   const out: Record<string, unknown> = { __proto__: null };
-  const stripped = new Map<string, unknown>();
+  const stripped = new Map<string>();
   noteNode(node, walk, position);
   for (const [key, value] of Object.entries(node)) {
     if (strips(walk.subset, key, node)) {
@@ -690,7 +690,11 @@ export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mo
     refLocations: new Map(),
     root: schema,
   };
-  const scrubbed = walkNode(schema, walk, { path: "", location: LOCAL_REF_PREFIX, required: true, definitionRoot: undefined }) as S;
+  const walked = walkNode(schema, walk, { path: "", location: LOCAL_REF_PREFIX, required: true, definitionRoot: undefined });
+  if (!isPlainObject(walked)) {
+    throw new Error("wire schema scrub: the root stopped being an object");
+  }
+  const scrubbed = walked as S;
   if (walk.subset.refuseRecursion === true) {
     for (const ref of recursiveRefs(walk.refLocations)) {
       refuse(walk, "recursive $ref", ref === LOCAL_REF_PREFIX ? "" : ref);

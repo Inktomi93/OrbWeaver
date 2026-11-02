@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const UI = "packages/ui/src/charts/histogram/option.tsx";
@@ -12,14 +13,14 @@ const THEME = "orb/theme-override-only-via-scope";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
 async function findings(rule: string, source: string, path = UI): Promise<readonly string[]> {
-  const config = await eslint.calculateConfigForFile(join(ROOT, path));
+  const config = await resolvedConfig(eslint, join(ROOT, path));
   const messages = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      plugins: config?.plugins ?? {},
+      plugins: config.plugins,
       languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-      rules: { [rule]: config?.rules?.[rule] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },
   );
@@ -94,7 +95,7 @@ test("gradient syntax is not an easing token", async () => {
 });
 
 test("a runtime gradient cannot hide a source-authored hex color", async () => {
-  const source = (start: string): string => `export const C = ({color}) => <div style={{background: \`linear-gradient(${start}, ${"$"}{color})\`}} />;`;
+  const source = (start: string): string => `export const C = ({color}) => <div style={{background: \`linear-gradient(${start}, \${color})\`}} />;`;
   expect(await findings(RAW, source("#fff"))).toHaveLength(1);
   expect(await findings(RAW, source("var(--color-primary)"))).toEqual([]);
   expect(await findings(RAW, 'export const C = ({width}) => <div style={{width: width + "px"}} />;')).toEqual([]);

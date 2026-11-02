@@ -3,6 +3,7 @@
 // @subject packages/server/src/infra/plugin-host/process-protocol.ts
 
 import { spawn } from "node:child_process";
+import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
@@ -69,7 +70,7 @@ const guestValues = MARKER_SHAPES.flatMap(({ marker, shape }) => [
   { name: `${marker} marker`, value: shape },
   { name: `${marker} marker inside an object`, value: { outer: { inner: shape } } },
   { name: `${marker} marker inside a list`, value: [1, [shape]] },
-  { name: `${marker} marker beside another key`, value: { ...(typeof shape === "object" ? shape : {}), sibling: 1 } },
+  { name: `${marker} marker beside another key`, value: { ...(isPlainObject(shape) ? shape : {}), sibling: 1 } },
   { name: `${marker} marker key holding a non-marker value`, value: { [onlyKey(shape)]: false } },
   { name: `${marker} marker already in its escaped wire form`, value: encodeProcessValue(shape) },
   { name: `${marker} marker escaped twice`, value: encodeProcessValue(encodeProcessValue(shape)) },

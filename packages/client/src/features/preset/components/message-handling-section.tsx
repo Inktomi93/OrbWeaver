@@ -51,7 +51,7 @@ function floorConstrains(floor: RoleHandling | undefined): floor is RoleHandling
 
 /** The Select's items: "Model default" (unset ⇒ the floor), then every user level this model can run. A
  *  pending capability read offers the whole user vocabulary. */
-function roleHandlingItems(floor: RoleHandling | undefined): SelectItems<string> {
+function roleHandlingItems(floor: RoleHandling | undefined): SelectItems {
   const levels = floor === undefined ? USER_ROLE_HANDLING : userRoleHandlingOptions(floor);
   return [
     { value: "", label: "Model default" },

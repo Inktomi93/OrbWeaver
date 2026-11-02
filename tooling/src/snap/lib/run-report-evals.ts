@@ -2,6 +2,7 @@
 // A present malformed artifact is an instrument failure, not an empty measurement.
 import { readFile } from "node:fs/promises";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { SnapRunIndex } from "../contract/run-index.ts";
 import type { SnapEvalValue } from "../contract/types.ts";
 
@@ -11,10 +12,10 @@ function evalRow(value: unknown): SnapEvalValue | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const page = Reflect.get(value, "page");
-  const expression = Reflect.get(value, "expression");
-  const text = Reflect.get(value, "value");
-  const error = Reflect.get(value, "error");
+  const page = readMember(value, "page");
+  const expression = readMember(value, "expression");
+  const text = readMember(value, "value");
+  const error = readMember(value, "error");
   if (!Number.isInteger(page) || typeof expression !== "string") {
     return null;
   }
@@ -41,7 +42,7 @@ export function evalArtifactPaths(index: SnapRunIndex): readonly string[] {
 
 export async function readSnapEvalValues(path: string): Promise<readonly SnapEvalValue[]> {
   const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
-  const rows = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "evals") : undefined;
+  const rows = typeof parsed === "object" && parsed !== null ? readMember(parsed, "evals") : undefined;
   if (!Array.isArray(rows)) {
     throw new Error(`${path} is not snap-eval-values-v1 (no eval population)`);
   }

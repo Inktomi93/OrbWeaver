@@ -1,3 +1,4 @@
+import { toError } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import type { OrbSeedHandle, SeedProfile } from "../../lib/agent-bridge.ts";
 
@@ -37,7 +38,7 @@ export class GameSeedFlights {
       try {
         this.inFlight.assertMatches(profile, title);
       } catch (error) {
-        return Promise.reject(error);
+        return Promise.reject(toError(error));
       }
       return this.inFlight.promise;
     }

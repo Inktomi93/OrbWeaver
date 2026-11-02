@@ -187,7 +187,7 @@ function parseDriveFailure(path: string, value: unknown): DriveFailure {
   if (!valid) {
     throw new Error(`${path} has a malformed drive-failure row`);
   }
-  return { index: Number(index), kind, flag, subject: subject as string | null, reason };
+  return { index: Number(index), kind, flag, subject, reason };
 }
 
 function driveFailureRows(path: string, capture: Readonly<Record<string, unknown>> | null): readonly DriveFailure[] {

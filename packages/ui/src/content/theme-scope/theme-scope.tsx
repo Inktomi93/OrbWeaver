@@ -40,6 +40,7 @@ export interface ThemeScopeProps {
  * that carried that background painted it (D336), which an accent-only descendant solves its primary on.
  */
 const AmbientBaseContext = createContext<AmbientBase | null>(null);
+AmbientBaseContext.displayName = "AmbientBaseContext";
 
 interface AmbientBase {
   readonly pixel: string;
@@ -55,6 +56,7 @@ interface AmbientBase {
  * card (that field's contract states the algebra).
  */
 const AmbientAccentContext = createContext<string | null>(null);
+AmbientAccentContext.displayName = "AmbientAccentContext";
 
 // The ONLY sanctioned path for a ThemeOverride to reach the DOM — values are parsed + clamped by
 // clampThemeTokens, so a hostile `accent: "url(//x)"` is dropped, not applied.

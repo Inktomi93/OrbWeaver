@@ -92,9 +92,22 @@ for (const recent of [true, false]) {
           clientHeight: element.clientHeight,
           scrollHeight: element.scrollHeight,
           scrollTop: element.scrollTop,
-          box: element.getBoundingClientRect().toJSON(),
+          box: {
+            x: element.getBoundingClientRect().x,
+            y: element.getBoundingClientRect().y,
+            width: element.getBoundingClientRect().width,
+            height: element.getBoundingClientRect().height,
+          },
         })),
-        row: await picked.evaluate((element: HTMLElement) => ({ offsetHeight: element.offsetHeight, box: element.getBoundingClientRect().toJSON() })),
+        row: await picked.evaluate((element: HTMLElement) => ({
+          offsetHeight: element.offsetHeight,
+          box: {
+            x: element.getBoundingClientRect().x,
+            y: element.getBoundingClientRect().y,
+            width: element.getBoundingClientRect().width,
+            height: element.getBoundingClientRect().height,
+          },
+        })),
       });
     await testInfo.attach("model-recent-geometry-initial", { body: await geometry(), contentType: "application/json" });
     try {

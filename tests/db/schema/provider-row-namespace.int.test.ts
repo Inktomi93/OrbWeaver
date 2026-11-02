@@ -21,7 +21,9 @@ test("the table refuses an admin row on a plugin id and a plugin row on a bare i
   await expect(db.run(insert(`${PLUGIN_PROVIDER_ID_PREFIX}acme/squat`, "admin"))).rejects.toMatchObject({
     cause: { message: expect.stringContaining("provider_rows_namespace_check") },
   });
-  await expect(db.run(insert("bare-id", "plugin"))).rejects.toMatchObject({ cause: { message: expect.stringContaining("provider_rows_namespace_check") } });
+  await expect(db.run(insert("bare-id", "plugin"))).rejects.toMatchObject({
+    cause: { message: expect.stringContaining("provider_rows_namespace_check") },
+  });
   const stored = await db.all<{ id: string }>(sql`select id from provider_rows order by id`);
   expect(stored.map((row) => row.id)).toEqual(["acme-endpoint", PLUGIN_ROW]);
 });

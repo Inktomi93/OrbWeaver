@@ -3,7 +3,7 @@
 // attached; picking "None" just detaches. The M:N junction still supports many books server-side — the
 // UI just never offers more than one at a time.
 
-import type { PersonaId, WorldBookId } from "@orb/kit/ids";
+import type { PersonaId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -47,16 +47,15 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
   // pre-redesign state, the others are simply not shown/touched until the user picks again).
   const current = attached[0];
 
-  const items: SelectItems<string> = [{ value: NONE_VALUE, label: "None" }, ...library.map((book) => ({ value: book.id, label: book.name }))];
+  const items: SelectItems = [{ value: NONE_VALUE, label: "None" }, ...library.map((book) => ({ value: book.id, label: book.name }))];
 
   const onChange = (value: string | null): void => {
-    // `book.id` is already the branded `WorldBookId` (tRPC-inferred) — no re-cast.
     const previous = current?.id;
-    const next = value ?? NONE_VALUE;
-    if (next !== NONE_VALUE) {
-      attach.mutate({ personaId, bookId: next as WorldBookId });
+    const picked = library.find((book) => book.id === value)?.id;
+    if (picked !== undefined) {
+      attach.mutate({ personaId, bookId: picked });
     }
-    if (previous !== undefined && previous !== next) {
+    if (previous !== undefined && previous !== picked) {
       detach.mutate({ personaId, bookId: previous });
     }
   };

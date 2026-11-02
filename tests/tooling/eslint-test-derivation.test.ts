@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const CONFIG_LOAD_TIMEOUT = { timeout: 120_000 };
 
@@ -19,7 +20,7 @@ const NODE_TEST = "tests/server/domain/probe/probe.int.test.ts";
 
 async function findings(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }).calculateConfigForFile(filename);
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }), filename);
   expect(config).toBeDefined();
   const found = new Linter().verify(
     source,

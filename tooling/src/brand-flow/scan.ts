@@ -51,7 +51,7 @@ const count = (values: readonly string[]): Record<string, number> => {
 };
 
 // The name a slot is declared under: `param` in `callee(param)`, `prop` in `Owner.prop` or `<Tag prop>`, else the last word.
-const slotWord = (slotName: string): string | null => /([A-Za-z_]\w*)[)>]*(?: return)?$/u.exec(slotName.replace(/\(\) return$/u, ""))?.[1] ?? null;
+const slotWord = (slotName: string): string | null => /\b([A-Za-z_]\w*)[)>]*(?: return)?$/u.exec(slotName.replace(/\(\) return$/u, ""))?.[1] ?? null;
 
 function renarrowsOf(mints: readonly MintSite[], compares: readonly CompareCandidate[], widens: readonly WidenSite[]): RenarrowSite[] {
   const bySlot = new Map<string, string[]>();

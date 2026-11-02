@@ -630,7 +630,9 @@ test("an owner clone generates only through its disposable scripted connection a
     const pending = chat.send({ principal, chatId: cancelling.chat.id, content: server.generation.cancelCue, timeZone: UTC_TIME_ZONE });
     try {
       await Promise.race([
-        expect.poll(async () => (await evidence()).some(({ requestId, event }) => requestId > cursor && event === "held")).toBe(true),
+        (async (): Promise<void> => {
+          await expect.poll(async () => (await evidence()).some(({ requestId, event }) => requestId > cursor && event === "held")).toBe(true);
+        })(),
         pending.then(() => {
           throw new Error("The actual turn completed before its held physical stream");
         }),

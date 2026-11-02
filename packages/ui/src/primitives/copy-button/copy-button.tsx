@@ -41,6 +41,7 @@ interface CopyContextValue {
 }
 
 const CopyContext = createContext<CopyContextValue | null>(null);
+CopyContext.displayName = "CopyContext";
 
 function useCopyContext(part: string): CopyContextValue {
   const context = use(CopyContext);

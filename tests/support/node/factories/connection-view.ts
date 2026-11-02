@@ -1,5 +1,6 @@
 // Saved hosted-connection snapshots may lack a credential; a read model is not execution authority.
 
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
@@ -14,11 +15,11 @@ export function makeConnectionRow(overrides: Partial<ConnectionRowWire> = {}): C
     id: ids.typeId(ID_PREFIX.userConnection),
     ownerId: ids.userId(),
     label: "Everyday chat",
-    providerId: "openrouter",
+    providerId: providerIdSchema.parse("openrouter"),
     providerLabel: "OpenRouter",
     credentialId: null,
     baseUrl: null,
-    model: "openai/gpt-5-mini",
+    model: modelIdSchema.parse("openai/gpt-5-mini"),
     api: "auto",
     declared: null,
     extras: null,

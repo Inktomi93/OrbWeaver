@@ -16,6 +16,7 @@ import { createContext, use } from "react";
 
 /** True for every descendant of a QueryBoundary. */
 export const QueryBoundaryScope = createContext(false);
+QueryBoundaryScope.displayName = "QueryBoundaryScope";
 
 let enforced = false;
 

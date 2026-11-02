@@ -169,7 +169,7 @@ export function ConnectionRoleSlot({
     { label: unsetText, value: UNSET_VALUE },
     ...compatible.map((connection) => {
       const refusal = bindRefusal(connection, row.task);
-      return { label: connectionSummary(connection), value: connection.id as string, ...(refusal === null ? {} : { disabled: true, description: refusal }) };
+      return { label: connectionSummary(connection), value: connection.id, ...(refusal === null ? {} : { disabled: true, description: refusal }) };
     }),
   ];
 

@@ -236,6 +236,8 @@ function buildPackEdit(
   };
 }
 
+const NONE: readonly never[] = [];
+
 /** The pinned party-purse line — totals per currency + the "N on <actor>" carried note.
  *
  *  `carried`/`actorName` are OMITTED for a subject whose coin is not in the total (an npc — see the call
@@ -243,7 +245,7 @@ function buildPackEdit(
  *  of what `partyTotals` counted, and the reader has no way to tell which number lied. */
 function PurseLine({
   totals,
-  carried = [],
+  carried = NONE,
   actorName,
 }: {
   readonly totals: ReadonlyMap<string, number>;

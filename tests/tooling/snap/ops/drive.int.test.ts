@@ -1,6 +1,5 @@
 // Navigation keeps the first document's verdict; a later healthy document cannot erase its failure.
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium, devices } from "@playwright/test";
@@ -10,6 +9,7 @@ import { navigate } from "../../../../tooling/src/snap/ops/drive.ts";
 import { driveActions } from "../../../../tooling/src/snap/ops/drive-actions.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { listeningAddress } from "../../_server-address.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(120_000);
 const SETTLED_DOCUMENT =
@@ -26,7 +26,7 @@ async function stageServer(
     response.end(documents > unsettledDocuments ? SETTLED_DOCUMENT : DEGRADED_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     documents: (): number => documents,
@@ -106,7 +106,7 @@ async function notFoundServer(): Promise<{ readonly base: string; readonly docum
     response.end(NOT_FOUND_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     documents: (): number => documents,
@@ -205,7 +205,7 @@ async function touchFixtureServer(): Promise<{ readonly base: string; readonly c
     response.end(TOUCH_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address() as AddressInfo;
+  const address = listeningAddress(server);
   return {
     base: `http://127.0.0.1:${String(address.port)}`,
     close: async (): Promise<void> => {
@@ -299,7 +299,7 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
     response.end(SWIPE_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const base = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
@@ -347,7 +347,7 @@ async function driveGestureFixture(argv: readonly string[]): Promise<GestureRead
     response.end(GESTURE_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const base = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
@@ -358,7 +358,7 @@ async function driveGestureFixture(argv: readonly string[]): Promise<GestureRead
     return {
       stepFailures: failures.stepFailures,
       scrollLeft: Number(await page.evaluate("document.getElementById('strip').scrollLeft")),
-      holdMs: (await page.evaluate("window.__hold")) as number | null,
+      holdMs: await page.evaluate<number | null>("window.__hold"),
       spotTaps: Number(await page.evaluate("window.__spotTaps")),
     };
   } finally {
@@ -416,7 +416,7 @@ test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize and sc
     response.end(KEYBOARD_DOCUMENT);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const base = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
@@ -441,7 +441,7 @@ test("--soft-keyboard shrinks the visual viewport iOS-style, fires resize and sc
     expect(args.errors).toEqual([]);
     const failures = await driveActions({ page, actions: args.actions });
     expect(failures.stepFailures).toBe(0);
-    const seen = (await page.evaluate("window.__seen")) as readonly { readonly type: string; readonly inner: number; readonly inset: number }[];
+    const seen = await page.evaluate<readonly { readonly type: string; readonly inner: number; readonly inset: number }[]>("window.__seen");
     // Open: the layout viewport keeps its height (WebKit) and the inset is the keyboard band. Close: the
     // inset returns to rest. Each state reached BOTH listeners; a listener may hear a state more than once,
     // as on a real phone, so the distinct readings per event type are what is asserted.

@@ -266,7 +266,7 @@ function collectCastWidens(world: NativeWorld, reader: TypeReader, found: Gather
 function collectWidens(world: NativeWorld, reader: TypeReader, found: Gathered): WidenSite[] {
   const probes = brandedProbes(world, reader, found.handed);
   const contexts = world.contextualTypes(probes.map(({ handed }) => handed.value as Expression));
-  const slotted = probes.flatMap((probe, at) => (contexts[at] === undefined ? [] : [{ probe, context: contexts[at] as Type }]));
+  const slotted = probes.flatMap((probe, at) => (contexts[at] === undefined ? [] : [{ probe, context: contexts[at] }]));
   const slotTypes = slotted.map(({ context }) => context);
   const direct = reader.read(slotTypes);
   const held = elementFacts(world, reader, slotTypes, (at) => slotted[at]?.probe.element === true);

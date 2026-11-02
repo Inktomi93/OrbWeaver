@@ -6,6 +6,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
 import { openDevice, openRoom, textOf, typesOf } from "../../../transport/trpc/stream/_held-room.ts";
 
 test("a turn a restart killed names no open turn, and a resume does not reopen it", async () => {
@@ -61,7 +62,7 @@ test("a round whose first speaker ended and whose second died does not revive th
     token("The second speaker's lost line."),
   ] as const;
   for (const [offset, payload] of rows.entries()) {
-    const type = (payload as { readonly type: string }).type;
+    const { type } = z.object({ type: z.string() }).parse(payload);
     await room.root.db.run(
       sql`insert into chat_events (id, chat_id, seq, type, payload) values (${room.root.ids.typeId(ID_PREFIX.chatEvent)}, ${room.chatId}, ${901 + offset}, ${type}, ${JSON.stringify(payload)})`,
     );

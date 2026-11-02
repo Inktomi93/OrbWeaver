@@ -336,9 +336,9 @@ test("settings use the same attributed block for native scripted and frame regis
   let frameUrl: string | null = null;
   try {
     await expect(page.getByText("Native scripted settings", { exact: true })).toBeVisible();
-    const frame = page.locator('iframe[title="Settings tier witness — Frame preferences"]');
-    await frame.scrollIntoViewIfNeeded();
-    frameUrl = await frame.getAttribute("src");
+    const witness = page.locator('iframe[title="Settings tier witness — Frame preferences"]');
+    await witness.scrollIntoViewIfNeeded();
+    frameUrl = await witness.getAttribute("src");
     await expect(
       page.frameLocator('iframe[title="Settings tier witness — Frame preferences"]').getByText("Native frame settings", { exact: true }),
     ).toBeVisible();

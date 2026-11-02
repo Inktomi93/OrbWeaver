@@ -200,9 +200,7 @@ async function highlightAsync(code: string, language: string): Promise<ShikiHigh
     themes: { light: ORB_LIGHT, dark: ORB_DARK },
     defaultColor: "light",
   });
-  // Structural cast: shiki's TokensResult and Streamdown's HighlightResult are independently
-  // declared but field-identical. No runtime transform needed, just re-typing at the seam.
-  return result as unknown as ShikiHighlightResult;
+  return result;
 }
 
 /**
@@ -214,7 +212,7 @@ export const MARKDOWN_SHIKI_PLUGIN = {
   name: "shiki",
   type: "code-highlighter",
   getThemes: (): typeof THEMES => THEMES,
-  getSupportedLanguages: (): ReturnType<CodeHighlighterPlugin["getSupportedLanguages"]> => Object.keys(LANGUAGE_LOADERS) as never[],
+  getSupportedLanguages: (): ReturnType<CodeHighlighterPlugin["getSupportedLanguages"]> => Object.keys(LANGUAGE_LOADERS),
   supportsLanguage: (language): boolean => language in LANGUAGE_LOADERS,
   highlight(options: HighlightOptions, callback?: (result: ShikiHighlightResult) => void): ShikiHighlightResult | null {
     // the unfired callback is the

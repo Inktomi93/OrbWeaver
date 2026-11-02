@@ -201,6 +201,6 @@ export function identityFilters(trpc: Trpc): readonly InvalidateQueryFilters[] {
 export function allUserRootFilters(trpc: Trpc): readonly InvalidateQueryFilters[] {
   return (Object.keys(USER_BUS_EVENT_TYPES) as UserBusEvent["type"][]).flatMap((type) => {
     const handler = USER_BUS_FILTERS[type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
-    return handler({ type } as UserBusEvent, trpc);
+    return handler({ type }, trpc);
   });
 }

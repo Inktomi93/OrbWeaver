@@ -1,6 +1,7 @@
 // The room's plugin column as an overlay: its keyboard exit, the focus Undo hands back, and the room entry that must not
 // stamp a glide. Two synthetic plugins register static chat-flank panels, both selected as sidecars, so the production
 // column, edge control and hide toast run unchanged.
+
 import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
@@ -10,6 +11,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { z } from "zod";
 import { CHAT_PANEL_HIDE_LABEL, CHAT_PANEL_UNDO_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
 
@@ -110,7 +112,7 @@ test("a room entered with the column collapsed stamps no glide when its panels a
     Reflect.set(globalThis, "__flankStamps", stamps);
     new MutationObserver((records) => {
       for (const record of records) {
-        stamps.push(`${record.attributeName}=${(record.target as Element).getAttribute(record.attributeName ?? "")}`);
+        stamps.push(`${record.attributeName}=${record.target instanceof Element ? record.target.getAttribute(record.attributeName ?? "") : null}`);
       }
     }).observe(document, { attributes: true, subtree: true, attributeFilter: ["data-flank-flip", "data-flank-settle"] });
   });
@@ -118,5 +120,5 @@ test("a room entered with the column collapsed stamps no glide when its panels a
   await mount<typeof PluginHideFocusStory>(ROOM_STORY, { chatId: roomId });
   await expect(page.locator(COLUMN)).toHaveAttribute("data-flank-sheet", "parked");
   await expect(page.locator(EDGE)).toBeVisible();
-  expect(await page.evaluate(() => Reflect.get(globalThis, "__flankStamps") as string[])).toEqual([]);
+  expect(z.array(z.string()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__flankStamps")))).toEqual([]);
 });

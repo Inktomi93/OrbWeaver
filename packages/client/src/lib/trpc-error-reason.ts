@@ -3,28 +3,24 @@
 // structured fields, never on message text.
 
 function errorData(error: unknown): unknown {
-  return typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
+  return typeof error === "object" && error !== null && "data" in error ? error.data : null;
 }
 
 /** The refusal reason off a tRPC error's `data.reason`, else `""`. */
 export function trpcErrorReason(error: unknown): string {
   const data = errorData(error);
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
+  return typeof data === "object" && data !== null && "reason" in data && typeof data.reason === "string" ? (data as { reason: string }).reason : "";
 }
 
 /** The tRPC error code (`CONFLICT`, `BAD_REQUEST`, …) off `data.code`, else `undefined` for any other value. */
 export function trpcErrorCode(error: unknown): string | undefined {
   const data = errorData(error);
-  return typeof data === "object" && data !== null && "code" in data && typeof (data as { code: unknown }).code === "string"
-    ? (data as { code: string }).code
-    : undefined;
+  return typeof data === "object" && data !== null && "code" in data && typeof data.code === "string" ? (data as { code: string }).code : undefined;
 }
 
 function detailValue(error: unknown, key: string): unknown {
   const data = errorData(error);
-  const detail = typeof data === "object" && data !== null && "detail" in data ? (data as { detail: unknown }).detail : null;
+  const detail = typeof data === "object" && data !== null && "detail" in data ? data.detail : null;
   return typeof detail === "object" && detail !== null && key in detail ? (detail as Record<string, unknown>)[key] : null;
 }
 

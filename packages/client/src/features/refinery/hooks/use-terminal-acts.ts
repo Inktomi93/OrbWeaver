@@ -2,8 +2,7 @@
 // by the foot row's buttons and the refused-apply recovery: one pending flag disables every terminal control,
 // and `run` refuses re-entry, so a double press can never send two writes (a copy has no server fence).
 
-import type { RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import { useRef } from "react";
 import type { Trpc } from "#data";
@@ -36,7 +35,7 @@ export interface TerminalActs {
 
 export function useTerminalActs(args: {
   readonly sessionId: RefinerySessionId;
-  readonly armedRewriteId: string | null;
+  readonly armedRewriteId: RefineryRunId | null;
   readonly onOutcome: (outcome: OutcomeState) => void;
 }): TerminalActs {
   const { sessionId, armedRewriteId, onOutcome } = args;
@@ -55,7 +54,7 @@ export function useTerminalActs(args: {
     const release = (): void => {
       inFlight.current = false;
     };
-    const input = { sessionId, accepts: [...accepts], ...(armedRewriteId === null ? {} : { rewriteRunId: castId(armedRewriteId) }) };
+    const input = { sessionId, accepts: [...accepts], ...(armedRewriteId === null ? {} : { rewriteRunId: armedRewriteId }) };
     // The armed (older) rewrite stays armed through a refusal: the recovery re-applies THAT rewrite.
     const settle = (outcome: OutcomeState): void => {
       onOutcome(outcome);

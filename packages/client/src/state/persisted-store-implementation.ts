@@ -4,7 +4,6 @@ import type { PersistOptions, StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
-import type { DurableLocalPersistApi } from "./durable-local.ts";
 import { durableLocalKey, durableLocalWritesAllowed, registerDurableLocalStore } from "./durable-local.ts";
 import { PERSISTED_STORE_PREFIX } from "./durable-local-keys.ts";
 
@@ -86,11 +85,11 @@ export function createPersistedStore<T, TPersisted = T>(
   registerDurableLocalStore({
     prefix: PERSISTED_STORE_PREFIX,
     name,
-    api: hook as unknown as DurableLocalPersistApi,
+    api: hook,
     reset: (): void => {
       hook.setState(hook.getInitialState(), true);
     },
   });
 
-  return hook as GatedStoreHook<T>;
+  return hook;
 }

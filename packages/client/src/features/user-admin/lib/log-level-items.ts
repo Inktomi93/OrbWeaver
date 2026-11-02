@@ -17,7 +17,7 @@ const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
 };
 
 /** The log-level Select options (derived from the ONE `LOG_LEVELS` tuple — never a hand-kept mirror). */
-export const LOG_LEVEL_ITEMS: SelectItems<string> = LOG_LEVELS.map((value) => ({
+export const LOG_LEVEL_ITEMS: SelectItems = LOG_LEVELS.map((value) => ({
   value,
   label: LOG_LEVEL_LABELS[value],
 }));

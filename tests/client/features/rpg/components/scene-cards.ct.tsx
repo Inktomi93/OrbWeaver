@@ -149,7 +149,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   await expect(focused).toHaveAccessibleName(/\S/);
   await expect(archive.getByRole("status").filter({ hasText: /\S/ })).toHaveCount(1);
   const settledText = await focused.textContent();
-  expect(await page.evaluate((key) => Reflect.get(globalThis, key), FOCUSED_STATUS_KEY)).toBe(settledText);
+  expect(await page.evaluate((key): unknown => Reflect.get(globalThis, key), FOCUSED_STATUS_KEY)).toBe(settledText);
 });
 
 // Where focus sits once the empty archive has settled: the recovery status, or the page after a click on blank space.

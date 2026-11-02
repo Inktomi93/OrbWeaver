@@ -132,7 +132,7 @@ export function PluginFrame({
     // The wire carries arguments as a JSON document, positional like the scripted guest's. An absent or null
     // `args` is a no-argument call. Encoding runs inside the promise, so an unencodable value (a cycle, a
     // BigInt) becomes a refusal rather than a throw out of the message listener.
-    const relay = async (): Promise<unknown> => JSON.parse(await hostCall(call.fn, JSON.stringify(call.args ?? []))) as unknown;
+    const relay = async (): Promise<unknown> => JSON.parse(await hostCall(call.fn, JSON.stringify(call.args ?? [])));
     // a rejected relay answers the frame through `refuse`, an `ok: false`
     // result the frame script reads; the reason stays out by contract (PLUGIN_FRAME_CALL_REFUSED, contracts/plugin/frame.ts).
     // Ends if `refuse` stops replying.

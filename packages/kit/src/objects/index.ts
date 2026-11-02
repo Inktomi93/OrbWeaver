@@ -41,6 +41,11 @@ export function readOwnKey<T>(record: Readonly<Record<string, T>>, key: string):
   return Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
+/** A copy of `record` without `key`, keeping the key order. */
+export function omitKey<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([name]) => name !== key));
+}
+
 /** Set `value` as `record`'s own enumerable property at `key`. The writer for a record that must hold every
  *  key, {@link PROTO_KEY} included: `record[key] = value` on `__proto__` runs the inherited setter, creates no
  *  own property and drops the value from `Object.entries` and JSON.

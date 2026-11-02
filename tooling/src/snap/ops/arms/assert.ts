@@ -98,7 +98,7 @@ async function runMatchedAssertion(
   }
   if (assertion.kind === "focus") {
     const pass = await first.evaluate((element) => {
-      const matches = Reflect.get(element, "matches");
+      const matches: unknown = Reflect.get(element, "matches");
       return typeof matches === "function" && Reflect.apply(matches, element, [":focus"]) === true;
     });
     return judged(`ASSERT focus ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, !pass);

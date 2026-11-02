@@ -247,7 +247,7 @@ export function planMember(context: PlanContext, node: Indexed): PlannedTarget |
   };
   const concept = conceptOf(member);
   if (concept !== null) {
-    const name = concept.type.replace(/\[.*$/u, "");
+    const name = concept.type.replace(/\[.*/su, "");
     return {
       ...base,
       kind: "concept",

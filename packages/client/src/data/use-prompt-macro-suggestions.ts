@@ -24,6 +24,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { withUserMacros } from "#lib";
+import { seedPresetId } from "./seed-preset-id.ts";
 import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
 
@@ -46,7 +47,7 @@ export function usePromptMacroSuggestions(): ReturnType<typeof withUserMacros> {
   // Both reads are cache-first and already warm on any real session (the settings blob is read by half the
   // shell; the preset by the preset surfaces) — this adds a cache hit, not a round trip, on the common path.
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
+  const activePresetId = seedPresetId(settings.data?.config.seeds.defaultPresetId);
   // `null` means the BUILT-IN default is active, which declares no user macros. No PresetId is manufactured:
   // the gated options builder is never called and the builtin catalog is already the complete answer.
   const preset = useGatedQuery(activePresetId, (id) => trpc.preset.get.queryOptions({ id }));

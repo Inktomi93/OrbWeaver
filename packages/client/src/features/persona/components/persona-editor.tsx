@@ -43,7 +43,7 @@ function positionLabel(position: PersonaDescriptionPosition): string {
   }
   return position === "at_depth" ? "At a depth in history" : "In the prompt (default)";
 }
-const POSITION_ITEMS: SelectItems<string> = PERSONA_DESCRIPTION_POSITIONS.map((value) => ({
+const POSITION_ITEMS: SelectItems = PERSONA_DESCRIPTION_POSITIONS.map((value) => ({
   value,
   label: positionLabel(value),
 }));

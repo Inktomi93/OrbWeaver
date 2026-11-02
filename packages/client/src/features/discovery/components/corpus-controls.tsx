@@ -21,7 +21,7 @@ export function ParamSelect({
 }: {
   readonly label: string;
   readonly value: string;
-  readonly items: SelectItems<string>;
+  readonly items: SelectItems;
   readonly onValueChange: (value: string) => void;
 }): ReactElement {
   return (

@@ -57,11 +57,20 @@ export interface DiagnosticAnnotation {
 
 const ANNOTATION_LINE = /^%c\d{2}:\d{2}:\d{2}\.\d{3} \[([a-z]+)\]%c\s+(.*)$/su;
 /** Trailing `color:#c60;font-weight:bold color:#888` — the `%c` arguments, never content. */
-const CSS_ARGUMENTS = /(?:\s(?:color|font-weight|background|font-style):\S+)+\s*$/gu;
+const CSS_ARGUMENT = /^(?:color|font-weight|background|font-style):\S+$/u;
 const MEASURED_VALUE = /(\d+(?:\.\d+)?)(ms\b)?/u;
 const BUDGET = /budget (\d+(?:\.\d+)?)(ms)?/u;
 /** A segment that names WHERE: a selector, a element, a region/route label, or a script attribution. */
 const SUBJECT_SEGMENT = /^(?:[[<.#]|region:|route |@ |[a-z]+\[)/u;
+
+/** Drops the trailing `%c` argument tokens; the first token is content even when it looks like one. */
+function withoutCssArguments(text: string): string {
+  const tokens = text.trimEnd().split(/\s+/u);
+  while (tokens.length > 1 && CSS_ARGUMENT.test(tokens.at(-1) ?? "")) {
+    tokens.pop();
+  }
+  return tokens.join(" ");
+}
 
 export function annotationOf(text: string): DiagnosticAnnotation | null {
   const match = ANNOTATION_LINE.exec(text);
@@ -70,7 +79,7 @@ export function annotationOf(text: string): DiagnosticAnnotation | null {
   if (tag === undefined || rest === undefined) {
     return null;
   }
-  const body = rest.replace(CSS_ARGUMENTS, "").replace(/\s+/gu, " ").trim();
+  const body = withoutCssArguments(rest).replace(/\s+/gu, " ").trim();
   const segments = body.split(" · ");
   const head = segments[0] ?? body;
   const measured = MEASURED_VALUE.exec(head);

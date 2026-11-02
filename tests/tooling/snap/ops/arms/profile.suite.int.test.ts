@@ -9,7 +9,6 @@
 import { readFile, stat, symlink } from "node:fs/promises";
 import type { RequestListener } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -19,6 +18,7 @@ import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { vi } from "vitest";
 import { REACT_PROFILE_SUPPORTED_MINOR } from "../../../../../tooling/src/snap/contract/react-profile.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
+import { listeningAddress } from "../../../_server-address.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(180_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
@@ -212,7 +212,7 @@ async function startFixture(repoRoot: string, plantedTree: (files: Readonly<Reco
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  const { port } = server.address() as AddressInfo;
+  const { port } = listeningAddress(server);
   const close = async (): Promise<void> => {
     await new Promise<void>((resolve) => {
       server.close(() => resolve());

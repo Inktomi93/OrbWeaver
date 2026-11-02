@@ -4,6 +4,7 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import process from "node:process";
+import { toError } from "@orb/kit/error-message";
 import crossSpawn from "cross-spawn";
 import { budget } from "../host/load-budget.ts";
 import { processGroup } from "../host/process-tree.ts";
@@ -433,7 +434,7 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
         child.stdout.destroy();
         child.stderr.destroy();
         child.unref();
-        rejectPromise(error);
+        rejectPromise(toError(error));
       }
     }, opts.timeoutMs ?? budget(DEFAULT_TIMEOUT_BASE_MS));
     child.on("error", (e) => {

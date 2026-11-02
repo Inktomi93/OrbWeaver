@@ -1,6 +1,7 @@
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
 
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CDPSession, Page } from "@playwright/test";
 import { networkRecordsForPages, selectNetworkBodies, wirePageNetwork } from "../../../../tooling/src/floor/browser/browser-network.ts";
@@ -37,7 +38,7 @@ function pageOwner(page: Page): { readonly contexts: readonly { readonly pages: 
 }
 
 async function installed(cdp = new FakeCdp(), bodyReadTimeoutMs?: number): Promise<{ readonly cdp: FakeCdp; readonly page: Page }> {
-  const page = {} as Page;
+  const page = forged<Page>({});
   await wirePageNetwork(
     // eslint-disable-next-line orb/no-test-fabrication -- Controlled CDP on/send events preserve malformed, omitted and hung protocol inputs for normalization/refusal assertions. Ends when native protocol injection supplies those cases.
     cdp as unknown as CDPSession,

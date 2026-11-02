@@ -28,7 +28,8 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
     );
     const child = spawn(process.execPath, [script], { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
     try {
-      const [bytes] = await once(child.stdout, "data");
+      const chunks: unknown[] = await once(child.stdout, "data");
+      const [bytes] = chunks;
       const { port } = z.object({ port: z.number().int().positive() }).parse(JSON.parse(String(bytes)));
       const context = stackContext(
         checkout,
@@ -72,7 +73,8 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
     );
     const child = spawn(process.execPath, [script], { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
     try {
-      const [bytes] = await once(child.stdout, "data");
+      const chunks: unknown[] = await once(child.stdout, "data");
+      const [bytes] = chunks;
       const { port } = z.object({ port: z.number().int().positive() }).parse(JSON.parse(String(bytes)));
       const siblingPort = port === PLANTED_PORTS.vite ? PLANTED_PORTS.server : PLANTED_PORTS.vite;
       const context = stackContext(

@@ -175,13 +175,15 @@ function rowMarkers({
   );
 }
 
+const NONE: readonly never[] = [];
+
 /** One chat-summary row: portrait/initials avatar · title · participants subtitle · relative-time stamp ·
  *  star + archived markers, plus an optional trailing `menu`. The clickable body calls `onSelect(chat.id)`. */
 export function ChatSummaryRow({
   chat,
   onSelect,
   selected = false,
-  portraits = [],
+  portraits = NONE,
   menu,
   onToggleStar,
   actionName,

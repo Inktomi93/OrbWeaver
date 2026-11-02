@@ -80,7 +80,7 @@ async function expectIdentity(masthead: Locator, title: string, deferred: boolea
     return painted;
   }, CARD_NAME);
   await test.info().attach("masthead-card-identity-paint", { body: JSON.stringify({ title, deferred, facts }), contentType: "application/json" });
-  expect(facts.length).toBe(deferred ? 0 : 1);
+  expect(facts).toHaveLength(deferred ? 0 : 1);
   await expect(masthead.getByRole("group", { name: REFINERY_SESSION_STATE_NAME, exact: true })).toBeVisible();
   await expect(masthead.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true })).toBeVisible();
   await expect(masthead.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true })).toBeVisible();

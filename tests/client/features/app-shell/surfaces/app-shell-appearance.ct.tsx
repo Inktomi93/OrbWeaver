@@ -3,8 +3,7 @@
 
 import { crc32, deflateSync } from "node:zlib";
 import { contextToggleLabel } from "@orb/client/lib";
-import type { StoredAsset } from "@orb/contracts/assets";
-import { BLOB_ROUTE } from "@orb/contracts/assets";
+import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
@@ -251,7 +250,7 @@ async function blackArtRoot(page: Page): Promise<Root> {
   if (!uploaded.ok) {
     throw new Error(`the black wallpaper upload failed (${String(uploaded.status)})`);
   }
-  const stored = (await uploaded.json()) as StoredAsset;
+  const stored = storedAssetSchema.parse(await uploaded.json());
   const caller = await art.internalCallerFor(art.ownerId);
   await caller.settings.updateUserSettingsSection({
     section: "appearance",

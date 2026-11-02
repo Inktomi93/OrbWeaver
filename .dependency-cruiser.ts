@@ -527,6 +527,13 @@ const SERVER_TEST_REACHES = {
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 
+// From the first dot of the last segment, so `.int.test.ts` goes whole: generated rule names read the bare suite.
+function withoutExtension(path: string): string {
+  const name = path.lastIndexOf("/") + 1;
+  const dot = path.indexOf(".", name);
+  return dot === -1 ? path : path.slice(0, dot);
+}
+
 function serverTestMirrorRules(): IForbiddenRuleType[] {
   const reachers = Object.keys(SERVER_TEST_REACHES).map((path) => `^${RegExp.escape(path)}$`);
   const mirror = (name: string, comment: string, from: string, own: string): IForbiddenRuleType[] => [
@@ -547,10 +554,7 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
       const mirrored = own.replaceAll(/\$(\d)/gu, (_, index: string) => RegExp.escape(groups[Number(index)] ?? ""));
       return [
         {
-          name: `${name}-listed-${path
-            .replace(/^tests\/server\//u, "")
-            .replace(/\.[^/]*$/u, "")
-            .replaceAll("/", "-")}`,
+          name: `${name}-listed-${withoutExtension(path.replace(/^tests\/server\//u, "")).replaceAll("/", "-")}`,
           comment,
           severity: "error",
           from: { path: `^${RegExp.escape(path)}$` },
@@ -825,10 +829,7 @@ function withListedCopies(pkg: string, rule: MirrorRule): IForbiddenRuleType[] {
     ),
     ...listed.map(([path, files]) =>
       mirrorRule({
-        name: `${rule.name}-listed-${path
-          .replace(/^tests\/[^/]+\//u, "")
-          .replace(/\.[^/]*$/u, "")
-          .replaceAll("/", "-")}`,
+        name: `${rule.name}-listed-${withoutExtension(path.replace(/^tests\/[^/]+\//u, "")).replaceAll("/", "-")}`,
         comment: rule.comment,
         from: `^${RegExp.escape(path)}$`,
         to: rule.to,

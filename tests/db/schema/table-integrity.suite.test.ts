@@ -25,16 +25,19 @@ interface TableView {
   readonly name: string;
   readonly config: TableConfig;
   /** Maps each column object to the JS property key the schema author wrote. */
-  readonly keyOf: ReadonlyMap<SQLiteColumn, string>;
+  readonly keyOf: ReadonlyMap<unknown, string>;
 }
 
 function tableViews(exports: Readonly<Record<string, unknown>>): readonly TableView[] {
   const tables = new Set(Object.values(exports).filter((value): value is SQLiteTable => is(value, SQLiteTable)));
-  return [...tables].map((table) => ({
-    name: getTableConfig(table).name,
-    config: getTableConfig(table),
-    keyOf: new Map(Object.entries(table).flatMap(([key, value]) => (is(value, SQLiteColumn) ? [[value, key] as const] : []))),
-  }));
+  return [...tables].map((table) => {
+    const members: [string, unknown][] = Object.entries(table);
+    return {
+      name: getTableConfig(table).name,
+      config: getTableConfig(table),
+      keyOf: new Map<unknown, string>(members.flatMap(([key, value]) => (is(value, SQLiteColumn) ? [[value, key] as const] : []))),
+    };
+  });
 }
 
 const REAL = tableViews(schema);
@@ -57,7 +60,7 @@ function leadingColumns({ indexes, primaryKeys, uniqueConstraints }: TableConfig
   return leading;
 }
 
-function label({ name, keyOf }: TableView, column: SQLiteColumn): string {
+function label({ name, keyOf }: TableView, column: { readonly name: string }): string {
   return `${name}.${keyOf.get(column) ?? column.name}`;
 }
 
@@ -100,11 +103,17 @@ const ID_COLUMN_TYPES: ReadonlySet<string> = new Set(["SQLiteText", "SQLiteTextJ
 /** An id-shaped column (its JS key ends `Id`) with no foreign key: the shape D24 outlaws. */
 function softReferences(views: readonly TableView[]): readonly string[] {
   return views.flatMap((view) => {
-    const foreignChildren = new Set(view.config.foreignKeys.flatMap((key) => key.reference().columns));
+    const foreignChildren = new Set<unknown>(view.config.foreignKeys.flatMap((key) => key.reference().columns));
     return view.config.columns
       .filter((column) => {
         const key = view.keyOf.get(column);
-        return key?.endsWith("Id") === true && ID_COLUMN_TYPES.has(column.columnType) && !column.primary && !foreignChildren.has(column);
+        return (
+          key?.endsWith("Id") === true &&
+          typeof column.columnType === "string" &&
+          ID_COLUMN_TYPES.has(column.columnType) &&
+          !column.primary &&
+          !foreignChildren.has(column)
+        );
       })
       .map((column) => label(view, column));
   });

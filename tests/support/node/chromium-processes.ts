@@ -10,6 +10,10 @@ import { runMarkerArg } from "@orb/tooling/floor/process/run-marker";
 const DEFAULT_SAMPLE_MS = 50;
 const CHROMIUM_RE = /headless_shell|chrome|chromium/u;
 
+function isChromiumCmdline(cmdline: string | undefined): cmdline is string {
+  return cmdline !== undefined && CHROMIUM_RE.test(cmdline);
+}
+
 export interface ChromiumIdentity {
   readonly pid: number;
   /** The command line as launched; with the run marker in it, unique per browser process. */
@@ -40,9 +44,9 @@ export function chromiumDescendantIdentities(rootPid: number): ChromiumIdentity[
       }
       seen.add(child);
       queue.push(child);
-      const entry = byPid.get(child);
-      if (entry !== undefined && CHROMIUM_RE.test(entry.cmdline)) {
-        identities.push({ pid: child, cmdline: entry.cmdline });
+      const cmdline = byPid.get(child)?.cmdline;
+      if (isChromiumCmdline(cmdline)) {
+        identities.push({ pid: child, cmdline });
       }
     }
   }

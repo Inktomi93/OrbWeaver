@@ -19,7 +19,7 @@
 import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { charactersRailButton, typeAndSend } from "./support/chat-room.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;
@@ -31,7 +31,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
 }, async ({ page }) => {
   // Real generation goes through the Agent SDK subprocess — give the whole flow room (cold model spin-up
   // + the streamed turn) well beyond Playwright's 30s default.
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
   await page.goto("/");
 
@@ -92,7 +92,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
 test("draft promotion: after the first send completes, the composer returns to Send and a second message sends", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(CASE_TWO_LIVE_TURNS_MS);
 
   await page.goto("/");
   const charactersNav = charactersRailButton(page);
@@ -116,7 +116,7 @@ test("draft promotion: after the first send completes, the composer returns to S
   // THE RECOVERY (the bug): the turn is done, so the composer MUST return to Send — the Stop button gone,
   // the primary Send present, and the input re-enabled. Before the fix this stuck on "Stop generating"
   // indefinitely (input + Send disabled), recoverable only by a page reload.
-  const sendButton = page.locator('[data-testid="composer-send"]');
+  const sendButton = page.getByTestId("composer-send");
   await expect(sendButton).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByRole("button", { name: CHAT_STOP_NAME })).toHaveCount(0);
   await expect(composer).toBeEnabled();

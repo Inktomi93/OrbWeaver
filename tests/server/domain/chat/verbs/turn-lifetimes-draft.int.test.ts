@@ -16,7 +16,7 @@ test("a draft consumer's return closes its actual native request without leaving
     try {
       const first = await iter.next();
       expect(first.done).toBe(false);
-      expect(first.value?.delta).toBe("first");
+      expect(first.value).toMatchObject({ delta: "first" });
       expect(peer.stopped()).toBe(false);
       await finish(undefined);
       await expect.poll(peer.stopped).toBe(true);

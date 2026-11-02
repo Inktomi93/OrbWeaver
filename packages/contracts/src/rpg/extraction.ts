@@ -156,13 +156,13 @@ function constrainInventoryTargetRef(root: JsonSchemaNode, values: readonly stri
 // an arm no live def needs is REMOVED, never left as an empty-enum husk the model burns attention on).
 function removeField(node: unknown, field: string): void {
   const props = propsOf(node);
-  if (props === undefined) {
+  if (props === undefined || !isPlainObject(node)) {
     return;
   }
-  delete props[field];
-  const req = (node as JsonSchemaNode)["required"];
+  node["properties"] = Object.fromEntries(Object.entries(props).filter(([key]) => key !== field));
+  const req = node["required"];
   if (Array.isArray(req)) {
-    (node as JsonSchemaNode)["required"] = (req as string[]).filter((k) => k !== field);
+    node["required"] = req.filter((k: unknown) => k !== field);
   }
 }
 
@@ -283,7 +283,7 @@ function requireField(node: unknown, field: string): void {
  *   • `trackers[]`                ⟵ gameTrackerKeys (R6 — the game-subject write surface, pruned when empty)
  */
 export function constrainExtractionSchema<S extends Record<string, unknown>>(schema: S, refs: ExtractionRefs): S {
-  const clone = cloneNode(schema as JsonSchemaNode);
+  const clone = cloneNode(schema);
   constrainPartyPlane(clone, refs);
   constrainGameTrackerPlane(clone, refs);
   constrainInventoryTargetRef(clone, refs.actorRefs);
@@ -664,7 +664,7 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
   }
   for (const [plane, schema] of EXTRACTION_ARRAY_PLANES) {
     // The plane key names an array field; each surviving entry parsed through that plane's own arg schema.
-    dropped.push(...salvageArrayPlane({ raw: record[plane], plane, schema, out: extraction[plane] as unknown[], stripped }));
+    dropped.push(...salvageArrayPlane({ raw: record[plane], plane, schema, out: extraction[plane], stripped }));
   }
   const scene = record["scene"];
   if (scene !== undefined && scene !== null) {
@@ -768,7 +768,7 @@ export function salvagePopulate(value: unknown): RpgPopulateSalvage {
  * them. Returns a fresh schema (never mutates the cached projection).
  */
 export function constrainPopulateSchema<S extends Record<string, unknown>>(schema: S, targetRef: string): S {
-  const clone = cloneNode(schema as JsonSchemaNode);
+  const clone = cloneNode(schema);
   constrainInventoryTargetRef(clone, [targetRef]);
   const sheetNode = propsOf(clone)?.["sheet"];
   requireField(clone, "sheet");

@@ -19,7 +19,7 @@ interface AddressBar {
 }
 
 function addressBar(): AddressBar {
-  return globalThis as typeof globalThis & AddressBar;
+  return { location: Reflect.get(globalThis, "location") };
 }
 
 // The inbound `?join=<token>` handoff, or null.

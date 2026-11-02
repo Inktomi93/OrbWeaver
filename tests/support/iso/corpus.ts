@@ -75,7 +75,6 @@ export type { CorpusRead } from "./corpus-read.ts";
 
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
-  absent: (): undefined => undefined,
   notificationInbox: (): CorpusRead<"notifications.list">["input"] => ({}),
   documentList: (): CorpusRead<"databank.list">["input"] => ({}),
   ownerLatency: (): CorpusRead<"stats.latency">["input"] => ({ kind: "owner" }),
@@ -245,7 +244,7 @@ export function hydrateCorpusWire(input: CorpusWireInput): CorpusWire {
 }
 
 function inputless<T>(output: T): { readonly input: undefined; readonly output: T } {
-  return { input: corpusReadInput.absent(), output };
+  return { input: undefined, output };
 }
 
 function publishInbox(section: CorpusNotificationInbox): z.output<typeof notificationInboxSchema> {
@@ -370,12 +369,12 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
                 ownerActive: plugins.ownerActive,
                 recipientActive: plugins.recipientActive,
                 ownerDisabled: plugins.ownerDisabled,
-              }).map(([name, stage]) => [name, Object.fromEntries(Object.entries(stage.reads).map(([key, read]) => [key, request(read.input)]))]),
+              }).map(([name, stage]) => [name, Object.fromEntries(Object.entries({ ...stage.reads }).map(([key, read]) => [key, request(read.input)]))]),
             ),
             ownerFinal: request(plugins.ownerFinal.read.input),
             distribution: request(plugins.distribution.read.input),
           },
-    searchLibrary: Object.fromEntries(Object.entries(wire.searchLibrary?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
+    searchLibrary: Object.fromEntries(Object.entries({ ...wire.searchLibrary?.reads }).map(([name, read]) => [name, request(read.input)])),
     searchRooms: wire.searchLibrary?.rooms.map((room) => request(room.input)) ?? [],
     libraryRelations: Object.fromEntries(Object.entries(wire.libraryRelations?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),
     shellAmbient: Object.fromEntries(Object.entries(wire.shellAmbient?.reads ?? {}).map(([name, read]) => [name, request(read.input)])),

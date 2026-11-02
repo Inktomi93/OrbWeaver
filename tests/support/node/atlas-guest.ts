@@ -69,7 +69,7 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
   const fetched: string[] = [];
   const toasts: AtlasToast[] = [];
   const ingests: string[] = [];
-  const cardData = new Map<string, unknown>();
+  const cardData = new Map<string>();
   const kv = new Map<string, string>(Object.entries(options.kv ?? {}));
   let onAction: NonNullable<Parameters<PluginHostV1["ui"]["register"]>[0]["onAction"]> | null = null;
   const ingest = options.ingest;
@@ -199,5 +199,5 @@ export async function bootAtlasDates(): Promise<{ readonly epochMs: (value: unkn
   if (typeof epochMs !== "function" || typeof fmtDate !== "function") {
     throw new Error("card-atlas bundle has no private date engine");
   }
-  return { epochMs: (value): unknown => epochMs(value), fmtDate: (ms): unknown => fmtDate(ms) };
+  return { epochMs: (value): unknown => Reflect.apply(epochMs, undefined, [value]), fmtDate: (ms): unknown => Reflect.apply(fmtDate, undefined, [ms]) };
 }

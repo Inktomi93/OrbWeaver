@@ -113,23 +113,23 @@ interface TriggerShared {
  * text step — the one-union-plus-mapped-Record discipline the spine asks of every dispatch axis.
  */
 const TRIGGER_BOX = {
-  glyph: (shared, glyph) => (
-    <GlyphButton {...shared} glyph="lg">
+  glyph: ({ ref, ...shared }, glyph) => (
+    <GlyphButton ref={ref} {...shared} glyph="lg">
       {glyph}
     </GlyphButton>
   ),
-  icon: (shared, glyph) => (
-    <Button {...shared} square={true}>
+  icon: ({ ref, ...shared }, glyph) => (
+    <Button ref={ref} {...shared} square={true}>
       {glyph}
     </Button>
   ),
-  inline: (shared, glyph) => (
-    <InlineAction {...shared} step="label">
+  inline: ({ ref, ...shared }, glyph) => (
+    <InlineAction ref={ref} {...shared} step="label">
       {glyph}
     </InlineAction>
   ),
-  sm: (shared, glyph) => (
-    <Button {...shared} size="sm" square={true}>
+  sm: ({ ref, ...shared }, glyph) => (
+    <Button ref={ref} {...shared} size="sm" square={true}>
       {glyph}
     </Button>
   ),

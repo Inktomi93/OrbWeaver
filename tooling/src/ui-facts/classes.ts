@@ -46,7 +46,7 @@ function fact(kind: string, literal: string | null = null, px: number | null = n
 }
 
 function arbitraryFact(base: string): TokenFact | null {
-  const bracket = /\[([^\]]*)\]/u.exec(base);
+  const bracket = /(?<!\[)\[([^\]]*)\]/u.exec(base);
   if (bracket?.[1] === undefined) {
     return null;
   }

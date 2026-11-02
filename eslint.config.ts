@@ -327,7 +327,48 @@ const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfi
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
 
+// Flat config replaces a rule's options per block, so this record is spread into each block that carries type
+// information (SOURCE below and ASYNC_SAFETY_RULES).
+const TYPE_SAFETY_RULES: Linter.RulesRecord = {
+  "@typescript-eslint/no-unsafe-call": "error",
+  "@typescript-eslint/no-unsafe-assignment": "error",
+  "@typescript-eslint/no-unsafe-return": "error",
+  "@typescript-eslint/no-unsafe-argument": "error",
+  "@typescript-eslint/no-unsafe-member-access": "error",
+  "@typescript-eslint/no-explicit-any": "error",
+  "@typescript-eslint/no-for-in-array": "error",
+  "@typescript-eslint/no-array-delete": "error",
+  "@typescript-eslint/no-unsafe-unary-minus": "error",
+  "@typescript-eslint/no-unsafe-function-type": "error",
+  "@typescript-eslint/no-unnecessary-type-constraint": "error",
+  "@typescript-eslint/no-non-null-asserted-optional-chain": "error",
+  "@typescript-eslint/no-unsafe-enum-comparison": "error",
+  "@typescript-eslint/no-unnecessary-type-assertion": "error",
+  "@typescript-eslint/no-unnecessary-type-arguments": "error",
+  "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+  "@typescript-eslint/no-meaningless-void-operator": "error",
+  "@typescript-eslint/no-unnecessary-template-expression": "error",
+  "@typescript-eslint/no-dynamic-delete": "error",
+  "@typescript-eslint/no-redundant-type-constituents": "error",
+  "@typescript-eslint/no-unnecessary-type-parameters": "error",
+  // The router throws its own control-flow objects, and a tRPC error rethrown to a boundary is typed as an interface.
+  "@typescript-eslint/only-throw-error": [
+    "error",
+    {
+      allow: [
+        { from: "package", name: ["Redirect", "NotFoundError"], package: "@tanstack/router-core" },
+        { from: "package", name: "TRPCClientErrorLike", package: "@trpc/client" },
+      ],
+    },
+  ],
+  "@typescript-eslint/prefer-promise-reject-errors": "error",
+  "@typescript-eslint/no-misused-spread": "error",
+  // Arrow shorthand stays legal so `onClick={() => setX()}` reads as written; only a void value used as a value reports.
+  "@typescript-eslint/no-confusing-void-expression": ["error", { ignoreArrowShorthand: true }],
+};
+
 const ASYNC_SAFETY_RULES: Linter.RulesRecord = {
+  ...TYPE_SAFETY_RULES,
   "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
   "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
   "@typescript-eslint/await-thenable": "error",
@@ -556,12 +597,16 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       ...Object.fromEntries(
         Object.entries(regexp.configs["flat/recommended"].rules)
           .filter(([id]) => id.startsWith("regexp/"))
-          .map(([id, setting]) => [id, Array.isArray(setting) ? ["error", ...setting.slice(1)] : "error"]),
+          .map(([id, setting]) => {
+            const [, ...options] = Array.isArray(setting) ? setting : [];
+            return [id, Array.isArray(setting) ? ["error", ...options] : "error"];
+          }),
       ),
       // Spelling and unused-capture suggestions are not semantic correctness policies.
       "regexp/prefer-w": "off",
       "regexp/use-ignore-case": "off",
       "regexp/no-unused-capturing-group": "off",
+      "regexp/no-super-linear-move": "error",
     },
   },
   {
@@ -573,6 +618,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     files: SOURCE,
     ignores: ["**/*.d.ts"],
     rules: {
+      ...TYPE_SAFETY_RULES,
       "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
       // JSX event handlers may return a Promise; non-JSX void callbacks still require correct handling.
       "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
@@ -616,6 +662,50 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
     // Async test doubles implement Promise contracts without asynchronous work.
     rules: ASYNC_SAFETY_RULES,
+  },
+  {
+    // The patched plugin of the old config under-reported these two on literal operands; without the patch they report less.
+    files: ["tests/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "as", objectLiteralTypeAssertions: "never", arrayLiteralTypeAssertions: "never" },
+      ],
+      "@typescript-eslint/no-unsafe-type-assertion": "error",
+    },
+  },
+  {
+    files: ["tests/**/*.test-d.ts"],
+    rules: {
+      // The generic under test is the subject of a type assertion, so a single-use type parameter is the point.
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      // A negative assertion calls a member the type removed; the unresolved call is the subject.
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+    },
+  },
+  {
+    // Generic bridges between a runtime value and a conditional or mapped testkit type; an assertion is the only way to build the target.
+    files: [
+      "tests/support/node/ct-corpus-procedures.ts",
+      "tests/support/iso/corpus-admission.ts",
+      "tests/support/node/route-trpc.ts",
+      "tests/support/node/corpus-capture.ts",
+      "tests/support/node/corpus-procedure.ts",
+      "tests/support/node/sdk-process-control.ts",
+      "tests/support/node/route-orb-socket.ts",
+    ],
+    rules: { "@typescript-eslint/no-unsafe-type-assertion": "off", "@typescript-eslint/consistent-type-assertions": "off" },
+  },
+  {
+    // The one home of the deliberately invalid input cast.
+    files: ["tests/support/iso/forged.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-type-assertion": "off",
+      "@typescript-eslint/consistent-type-assertions": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+    },
   },
   {
     files: NODE_TOOL_SOURCE,
@@ -676,6 +766,14 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "react-x/no-children-map": "error",
       "react-x/no-children-only": "error",
       "react-x/no-class-component": "error",
+      "react-x/no-missing-context-display-name": "error",
+      "react-x/no-unstable-default-props": "error",
+      "react-x/no-implicit-children": "error",
+      "react-x/no-implicit-ref": "error",
+      "react-x/no-unnecessary-use-prefix": "error",
+      "react-x/no-children-to-array": "error",
+      "react-x/no-set-state-in-component-did-update": "error",
+      "react-you-might-not-need-an-effect/no-pass-live-state-to-parent": "error",
       "react-you-might-not-need-an-effect/no-derived-state": "error",
       "react-you-might-not-need-an-effect/no-chain-state-updates": "error",
       "react-you-might-not-need-an-effect/no-adjust-state-on-prop-change": "error",
@@ -717,7 +815,9 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "@tanstack/query/prefer-query-options": "error",
       "@tanstack/query/mutation-property-order": "error",
       "@tanstack/query/infinite-query-property-order": "error",
+      "@tanstack/query/no-rest-destructuring": "error",
       "@tanstack/router/create-route-property-order": "error",
+      "@tanstack/router/route-param-names": "error",
     },
   },
   ...(
@@ -813,6 +913,15 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "vitest/warn-todo": "error",
       "vitest/no-interpolation-in-snapshots": "error",
       "vitest/require-local-test-context-for-concurrent-snapshots": "error",
+      "vitest/no-focused-tests": "error",
+      "vitest/no-identical-title": "error",
+      "vitest/no-commented-out-tests": "error",
+      "vitest/no-conditional-expect": "error",
+      "vitest/no-duplicate-hooks": "error",
+      "vitest/valid-expect-in-promise": "error",
+      "vitest/require-awaited-expect-poll": "error",
+      "vitest/no-conditional-tests": "error",
+      "vitest/prefer-strict-boolean-matchers": "error",
     },
   },
   {
@@ -832,6 +941,27 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "playwright/no-unused-locators": "error",
       "playwright/no-unsafe-references": "error",
       "playwright/valid-expect": "error",
+      "playwright/missing-playwright-await": "error",
+      "playwright/no-focused-test": "error",
+      "playwright/no-wait-for-timeout": "error",
+      "playwright/no-wait-for-selector": "error",
+      "playwright/no-wait-for-navigation": "error",
+      "playwright/no-networkidle": "error",
+      "playwright/no-element-handle": "error",
+      "playwright/no-page-pause": "error",
+      "playwright/no-eval": "error",
+      "playwright/no-identical-title": "error",
+      "playwright/no-useless-await": "error",
+      "playwright/valid-expect-in-promise": "error",
+      "playwright/prefer-to-have-length": "error",
+      "playwright/prefer-native-locators": "error",
+      "playwright/no-useless-not": "error",
+      "playwright/no-magic-timeouts": "error",
+      "playwright/no-action-timeout": "error",
+      "playwright/no-force-option": "error",
+      "playwright/no-get-by-title": "error",
+      "playwright/no-conditional-expect": "error",
+      "playwright/prefer-locator": "error",
     },
   },
 ];
@@ -1425,7 +1555,18 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       },
     },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/trpc-payload-declared-keys": "error" } },
-    { files: ["packages/server/src/**/*.ts", "packages/inference/src/**/*.ts"], rules: { "orb/trpc-output-declared-keys": "error" } },
+    {
+      files: [
+        "packages/server/src/**/*.ts",
+        "packages/inference/src/**/*.ts",
+        "packages/client/src/**/*.{ts,tsx}",
+        "packages/kit/src/**/*.ts",
+        "packages/ui/src/**/*.{ts,tsx}",
+      ],
+      rules: { "orb/trpc-output-declared-keys": "error" },
+    },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error" } },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
@@ -2175,6 +2316,11 @@ export default [
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
     rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, FILESYSTEM_MODULE_MOCK_RESTRICTION] },
+  },
+  {
+    files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
+    // Tooling tests read subprocess reports and fake OS-level protocol faults whose shapes have no production schema.
+    rules: { "@typescript-eslint/no-unsafe-type-assertion": "off" },
   },
   {
     files: ["tests/**/*.{ts,tsx}"],

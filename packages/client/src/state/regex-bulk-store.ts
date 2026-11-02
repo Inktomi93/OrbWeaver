@@ -14,6 +14,7 @@
 // Presence in `selectedIds` IS selection.
 
 import type { RegexScriptId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import type { BulkSelectionState } from "./bulk-selection-state.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
@@ -34,12 +35,7 @@ export function exitRegexBulkMode(): void {
 /** Toggle one script's membership in the selection (a row's checkbox, or a row click while in bulk mode). */
 export function toggleRegexScriptSelected(scriptId: RegexScriptId): void {
   const { selectedIds } = useRegexBulkStore.getState();
-  const next: Record<string, true> = { ...selectedIds };
-  if (next[scriptId] === true) {
-    delete next[scriptId];
-  } else {
-    next[scriptId] = true;
-  }
+  const next: Record<string, true> = selectedIds[scriptId] === true ? omitKey(selectedIds, scriptId) : { ...selectedIds, [scriptId]: true };
   useRegexBulkStore.setState({ selectedIds: next }, false, "regex-bulk/toggle");
 }
 

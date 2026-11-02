@@ -135,7 +135,7 @@ function expiryLabel(expiry: string): string {
 
 /** The expiry presets. A sign-up link offers only the presets inside its cap; the rest stay listed, disabled, with the
  *  reason under each. */
-export function inviteExpiryItems(signup: boolean): SelectItems<string> {
+export function inviteExpiryItems(signup: boolean): SelectItems {
   return INVITE_EXPIRY_KEYS.map((key) =>
     signup && !fitsSignupTtl(key)
       ? { label: EXPIRY_LABELS[key], value: key, disabled: true, description: SIGNUP_EXPIRY_REASON }

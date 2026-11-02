@@ -1,5 +1,5 @@
 import type { ChangeEvent, ReactElement, ReactNode } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 
 export interface FileTriggerRenderProps {
   /** Opens the native OS file picker. Does nothing while `disabled`. */
@@ -21,24 +21,14 @@ export interface FileTriggerProps {
  * `<input type="file">` driven by a render-prop `open()` the caller wires to its own trigger element.
  */
 export function FileTrigger({ accept, multiple = false, disabled = false, onFilesSelected, children }: FileTriggerProps): ReactElement {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  // State, not a ref: `open` is handed to the render prop, and a ref read there trips react-hooks/refs.
+  const [input, setInput] = useState<HTMLInputElement | null>(null);
   const inputId = useId();
-  // A monotonic nonce (not a boolean) so back-to-back opens without an intervening change still re-fire.
-  // `open()` bumps it instead of reading `inputRef.current` itself (would trip react-hooks/refs).
-  const [openRequest, setOpenRequest] = useState(0);
-
   const open = (): void => {
-    if (disabled) {
-      return;
+    if (!disabled) {
+      input?.click();
     }
-    setOpenRequest((n) => n + 1);
   };
-
-  useEffect(() => {
-    if (openRequest > 0) {
-      inputRef.current?.click();
-    }
-  }, [openRequest]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     onFilesSelected(Array.from(event.target.files ?? []));
@@ -53,7 +43,7 @@ export function FileTrigger({ accept, multiple = false, disabled = false, onFile
           keeps its native "Choose File" affordance out of the a11y tree so it never announces as a
           second, unlabeled control beside the real trigger. */}
       <input
-        ref={inputRef}
+        ref={setInput}
         accept={accept}
         aria-hidden={true}
         className="sr-only"

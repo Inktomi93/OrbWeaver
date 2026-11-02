@@ -80,7 +80,7 @@ test("native SDK Query keeps idle ownership while its physical stream is active 
   let child: ChildProcessWithoutNullStreams | undefined;
   let readPending = (): number => -1;
   let atOutput = -1;
-  const spawn: AgentSdkSpawn = vi.fn((options) => {
+  const spawn: AgentSdkSpawn = vi.fn<AgentSdkSpawn>((options) => {
     child = execute(options);
     child.once("close", () => closed.resolve());
     child.stdout.once("data", () => {

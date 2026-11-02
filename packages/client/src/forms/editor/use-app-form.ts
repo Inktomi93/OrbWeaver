@@ -46,7 +46,7 @@ export const { useAppForm } = createFormHook({
 // for these escape hatches). Plain `Parameters<typeof useAppForm>[0]` collapses every generic to
 // `unknown`, which isn't assignable back into a real call — this is what the two editor factories need.
 // biome-ignore lint/suspicious/noExplicitAny: type-extraction-only instantiation of TanStack's own generic escape hatch (see comment above) — never a runtime value, never flows into app logic.
-type Wildcard = any;
+type Wildcard = any; // eslint-disable-line @typescript-eslint/no-explicit-any -- the same type-extraction-only escape hatch as the note above.
 
 declare function pinAppFormOptions<TValues extends object>(
   opts: Parameters<typeof useAppForm<TValues, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard>>[0],

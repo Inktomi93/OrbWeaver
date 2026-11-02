@@ -136,7 +136,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
     onEditAmbient: (field, next): void => {
       const patch = ambientPatch(field, next, tracker.ambient?.clock?.day ?? 1);
       if (patch !== null) {
-        editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
+        editSnapshot.mutate({ chatId, patch });
       }
     },
     // EVERY cast edit is an OP on the actor's own row — identity and volatile alike — never a whole-plane image

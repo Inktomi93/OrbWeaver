@@ -30,7 +30,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList } from "./support/chat-room.ts";
-import { WAIT_STREAM_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_LOOP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import {
   claudeSubConnection,
   createPreset,
@@ -61,7 +61,7 @@ const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
 test("managed compaction fires on the bound model, the divider carries the compaction fact + peek, and the marker carries forward", { tag: "@live" }, async ({
   page,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(CASE_TWO_LIVE_TURNS_MS);
 
   const characterId = await mintFreshCharacter(
     castId<CharacterHandle>("e2e-managed-compaction"),
@@ -165,7 +165,7 @@ test("managed compaction fires on the bound model, the divider carries the compa
 test("STABLE-cap leg: managed compaction drops the covered turns from a stable-cap session's shaped history (session clears at this ceiling)", {
   tag: "@live",
 }, async ({}) => {
-  test.setTimeout(300_000);
+  test.setTimeout(CASE_LIVE_LOOP_MS);
 
   const characterId = await mintFreshCharacter(
     castId<CharacterHandle>("e2e-compaction-resume"),

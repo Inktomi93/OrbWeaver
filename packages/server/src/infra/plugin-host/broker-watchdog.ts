@@ -56,11 +56,11 @@ function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
   if (typeof message !== "object" || message === null) {
     return null;
   }
-  const kind = Reflect.get(message, "kind");
-  const rssBytes = Reflect.get(message, "rssBytes");
-  const peakPhysicalWorkers = Reflect.get(message, "peakPhysicalWorkers");
-  const execArgv = Reflect.get(message, "execArgv");
-  const nodeOptions = Reflect.get(message, "nodeOptions");
+  const kind: unknown = Reflect.get(message, "kind");
+  const rssBytes: unknown = Reflect.get(message, "rssBytes");
+  const peakPhysicalWorkers: unknown = Reflect.get(message, "peakPhysicalWorkers");
+  const execArgv: unknown = Reflect.get(message, "execArgv");
+  const nodeOptions: unknown = Reflect.get(message, "nodeOptions");
   return kind === "plugin-broker-memory" &&
     typeof rssBytes === "number" &&
     Number.isSafeInteger(rssBytes) &&

@@ -6,6 +6,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { seedCorpusConnections, seedPreset } from "@orb/testkit/node/composed";
@@ -194,11 +195,11 @@ test("a host cannot read another room's stored prompt by naming its variant, and
     .catch((error: unknown) => error);
   const unknown = await h.root.services.chat
     // An id no row holds: the cast feeds the refusal path a well-formed but absent id.
-    .getVariantWire({ principal: h.owner, chatId: mine, variantId: "variant_nope" as MessageVariantId })
+    .getVariantWire({ principal: h.owner, chatId: mine, variantId: h.root.idSource.typeId(ID_PREFIX.messageVariant) })
     .catch((error: unknown) => error);
   expect(crossed).toBeInstanceOf(DomainNotFoundError);
   expect(unknown).toBeInstanceOf(DomainNotFoundError);
-  expect((crossed as Error).message).toBe((unknown as Error).message);
+  expect(crossed instanceof Error && unknown instanceof Error && crossed.message === unknown.message).toBe(true);
 
   // The same belt on the sibling list: another room's slot is unreachable through this room, and answers through its own.
   await expect(h.root.services.chat.listMessageVariants({ principal: h.owner, chatId: mine, messageId: theirLine.id })).rejects.toThrow(DomainNotFoundError);

@@ -23,6 +23,7 @@ import { ensureSeedThemes, healLegacyBackgroundPins } from "@orb/server/domain/s
 import { reconcileOwnersMissingTimeline } from "@orb/server/domain/stats";
 import { reclaimInFlightOnBoot } from "@orb/server/domain/workloads";
 import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
+import { forged } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
@@ -104,10 +105,10 @@ async function rootWithStaleSeat(): Promise<ServerHarness> {
 test.for(VERBS)("$name refuses a plain handle cast to the boot grant and leaves every row unchanged", async (verb) => {
   await using root = await rootWithStaleSeat();
   // The cast is the forgery a request route could write; only a grant the mint registered may cross owners.
-  const forged = databaseHandle(root.db) as BootDatabaseHandle;
+  const forgery = forged<BootDatabaseHandle>(databaseHandle(root.db));
   const before = await snapshotRows(root.db);
 
-  await expect(verb.run(forged, root)).rejects.toThrow("boot wiring handle is not granted");
+  await expect(verb.run(forgery, root)).rejects.toThrow("boot wiring handle is not granted");
   expect(await snapshotRows(root.db)).toStrictEqual(before);
 });
 

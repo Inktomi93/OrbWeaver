@@ -54,6 +54,7 @@ export interface ConfigTeachScopeValue {
 }
 
 const TeachScopeContext = createContext<ConfigTeachScopeValue | null>(null);
+TeachScopeContext.displayName = "TeachScopeContext";
 
 /** The section-level half of the seam — provided ONCE per knob section, from the same nav const the
  *  contribution registers (one spelling, so a row can never publish an address its section does not own). */

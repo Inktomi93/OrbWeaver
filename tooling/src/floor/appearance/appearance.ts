@@ -87,7 +87,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
       let current: unknown;
       // a malformed boot hint holds no readable state, so it reads as absent and the setItem below rewrites it with the requested axes. Ends if the hint is read for anything but this overwrite.
       try {
-        current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
+        current = JSON.parse(localStorage.getItem(key) ?? "null");
       } catch {
         current = null;
       }

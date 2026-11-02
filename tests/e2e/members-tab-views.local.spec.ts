@@ -25,6 +25,7 @@ import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
+import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const MEMBERS_PANEL = "[data-testid=members-panel]";
 const INVITE_BUTTON = "[data-testid=invite-people-button]";
@@ -74,10 +75,10 @@ async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): P
 }
 
 test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host gestures absent for the member)", async ({ baseURL, browser }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const api = ownerActor(origin);
-  const characterIds: string[] = [];
+  const characterIds: CharacterId[] = [];
   for (const card of CAST) {
     characterIds.push(await freshCharacter(api, card));
   }

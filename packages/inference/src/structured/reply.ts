@@ -35,10 +35,18 @@ function segmentsOf(path: string): readonly Segment[] {
     if (match === null || match[1] === undefined) {
       throw new Error(`structured reply: unreadable reshaped path "${path}"`);
     }
-    segments.push({ kind: "name", name: quoted === null ? match[1] : (JSON.parse(match[1]) as string) });
+    segments.push({ kind: "name", name: quoted === null ? match[1] : unquoted(match[1], path) });
     rest = rest.slice(match[0].length);
   }
   return segments;
+}
+
+function unquoted(literal: string, path: string): string {
+  const name: unknown = JSON.parse(literal);
+  if (typeof name !== "string") {
+    throw new Error(`structured reply: unreadable reshaped path "${path}"`);
+  }
+  return name;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

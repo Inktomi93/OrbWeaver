@@ -42,7 +42,7 @@ import type { ReactElement } from "react";
 import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { seedPresetId, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName, trpcErrorCode } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
@@ -84,7 +84,7 @@ function isUnresolvablePreset(error: unknown): boolean {
 function useSlotState(): { readonly slot: SlotState; readonly recheck: () => void } {
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const activePresetId = settings.data?.config.seeds.defaultPresetId ?? null;
+  const activePresetId = seedPresetId(settings.data?.config.seeds.defaultPresetId);
   const preset = useGatedQuery(settings.data === undefined ? null : activePresetId, (id) => trpc.preset.get.queryOptions({ id }));
   const recheck = (): void => {
     if (activePresetId === null) {

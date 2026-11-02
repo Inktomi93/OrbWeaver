@@ -2,7 +2,8 @@
 // index over character-card text fields, fuzzy + prefix, with per-field boosts. Cache is TTL + LRU capped,
 // graph-owned (single-replica assumption); nowMs is always the caller's injected clock.
 
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import { characterIdSchema } from "@orb/contracts/assets";
+import type { UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
 import type { FieldIndexCache, FieldIndexCard } from "../contract/field-index.ts";
 import type { FieldIndexResult, SearchSuggestion } from "../contract/results.ts";
@@ -147,7 +148,7 @@ export function createFieldIndexCache(): FieldIndexCache {
 function queryFields(index: MiniSearch<FieldIndexCard>, query: string, topN: number): FieldIndexResult {
   const matches = index.search(query);
   return {
-    hits: matches.slice(0, topN).map((row) => ({ characterId: row.id as CharacterId, score: row.score })),
+    hits: matches.slice(0, topN).map((row) => ({ characterId: characterIdSchema.parse(row.id), score: row.score })),
     coverage: { requestLimit: topN, indexedCharacters: index.documentCount, matchingCharacters: matches.length },
   };
 }

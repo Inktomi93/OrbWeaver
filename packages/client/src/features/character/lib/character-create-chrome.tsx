@@ -36,6 +36,8 @@ import { useActiveSection, useMobileViewport, useSectionListMode } from "#state"
 import { CharacterCreateActions } from "../components/character-create-actions.tsx";
 import { CHARACTER_DOOR_FORMS } from "./character-door-forms.ts";
 
+const characterDoorForms = (): readonly OverflowMenuForm[] => CHARACTER_DOOR_FORMS;
+
 export const characterCreateChrome: ChromeEntry = {
   id: "character-create",
   label: "New character",
@@ -54,5 +56,5 @@ export const characterCreateChrome: ChromeEntry = {
   },
   // The same cluster in both lenses — this entry is never curated `mobile: "sheet"`, so `body("sheet")` is
   // unreachable and `presentation` has nothing to branch on.
-  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions />, useMenuForms: (): readonly OverflowMenuForm[] => CHARACTER_DOOR_FORMS },
+  behavior: { kind: "widget", body: (): ReactElement => <CharacterCreateActions />, useMenuForms: characterDoorForms },
 };

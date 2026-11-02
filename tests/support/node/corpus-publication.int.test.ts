@@ -69,9 +69,9 @@ test("portable plugin stages preserve native viewers and finite requests while r
   expect(() => createCorpusViewerReadResponder("plugin.getSurfaceState", recipient.id, state)).toThrow("snapshot viewer does not match");
   expect(() => respond(library.recipientActive.reads.state.input)).toThrow("Uncaptured corpus read");
   // Decoded malformed input must not collapse to an inputless native request.
-  expect(() => Reflect.apply(createCorpusReadResponder("plugin.list", root.ownerId, [active.reads.plugins]), undefined, [{}])).toThrow(
-    "Uncaptured corpus read",
-  );
+  expect(() => {
+    Reflect.apply(createCorpusReadResponder("plugin.list", root.ownerId, [active.reads.plugins]), undefined, [{}]);
+  }).toThrow("Uncaptured corpus read");
   expect(() => createCorpusReadResponder("plugin.getLog", root.ownerId, [active.reads.log])({ ...active.reads.log.input, limit: 1 })).toThrow(
     "Uncaptured corpus read",
   );
@@ -163,10 +163,12 @@ test("portable stats publish final native owner reads with exact request recipes
   expect(latency({ kind: "owner" })).toEqual(await caller.stats.latency({ kind: "owner" }));
   expect(parsed.reads["stats.latency"].map(({ input }) => input)).toEqual([{ kind: "owner" }]);
   expect(() => latency({ kind: "character", characterId: library.character.id })).toThrow("Uncaptured corpus read");
-  expect(() => Reflect.apply(latency, undefined, [null])).toThrow("Uncaptured corpus read");
-  expect(() => Reflect.apply(createCorpusReadResponder("stats.overview", root.ownerId, parsed.reads["stats.overview"]), undefined, [null])).toThrow(
-    "Uncaptured corpus read",
-  );
+  expect(() => {
+    Reflect.apply(latency, undefined, [null]);
+  }).toThrow("Uncaptured corpus read");
+  expect(() => {
+    Reflect.apply(createCorpusReadResponder("stats.overview", root.ownerId, parsed.reads["stats.overview"]), undefined, [null]);
+  }).toThrow("Uncaptured corpus read");
   expect(() => createCorpusReadResponder("stats.byModel", root.ownerId, parsed.reads["stats.byModel"])({})).toThrow("Uncaptured corpus read");
   const changed = structuredClone(wire);
   Object.assign(changed.reads["stats.latency"][0] ?? {}, { input: { kind: "character", characterId: library.character.id } });
@@ -282,7 +284,9 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   );
   const respond = createCorpusViewerReadResponder("notifications.list", result.reader.userId, snapshots.readerRaised);
   expect(() => respond(undefined)).toThrow("Uncaptured corpus read");
-  expect(() => Reflect.apply(respond, undefined, [null])).toThrow("Uncaptured corpus read");
+  expect(() => {
+    Reflect.apply(respond, undefined, [null]);
+  }).toThrow("Uncaptured corpus read");
   const mixed = structuredClone(snapshots);
   Object.assign(mixed.readerRaised, { read: mixed.foreignBefore.read });
   expect(() => serializeCorpusWire({ ...wire, notificationInbox: mixed }, secrets)).toThrow("recipient mismatch");
@@ -347,7 +351,9 @@ test("portable member snapshots retain held, completed and cancelled native mess
   }
   const respond = createCorpusViewerReadResponder("chat.listMessages", actors.secondUserId, snapshots.heldCompleted);
   expect(() => respond({ chatId: snapshots.abortedCompleted.chatId })).toThrow("Uncaptured corpus read");
-  expect(() => Reflect.apply(respond, undefined, [null])).toThrow("Uncaptured corpus read");
+  expect(() => {
+    Reflect.apply(respond, undefined, [null]);
+  }).toThrow("Uncaptured corpus read");
   expect(() => createCorpusViewerReadResponder("chat.listMessages", root.ownerId, snapshots.heldCompleted)).toThrow("snapshot viewer does not match");
   expect(() => createCorpusReadResponder("chat.listMessages", actors.secondUserId, [snapshots.heldDuring.read, snapshots.heldCompleted.read])).toThrow(
     "Conflicting corpus captures",
@@ -456,7 +462,9 @@ test("a real document credential echo refuses while a clean sibling retains exac
     ...wire,
     reads: { ...wire.reads, "settings.getUserSettings": wire.reads["settings.getUserSettings"].map((capture) => ({ input: null, output: capture.output })) },
   };
-  expect(() => Reflect.apply(serializeCorpusWire, undefined, [malformed, secrets])).toThrow("Corpus request does not match its publication recipe");
+  expect(() => {
+    Reflect.apply(serializeCorpusWire, undefined, [malformed, secrets]);
+  }).toThrow("Corpus request does not match its publication recipe");
   expect(serializeCorpusWire(wire, secrets)).toBe(publicBytes);
 });
 
@@ -482,11 +490,11 @@ test("known native credential values cannot escape through malformed publication
     expect(diagnostic).not.toContain(PRIVATE_KEY);
     expect(diagnostic).not.toContain(JSON.stringify(PRIVATE_KEY).slice(1, -1));
   }
-  expect(() => Reflect.apply(serializeCorpusWire, undefined, [{ ...wire, health: { ...wire.health, publicExtra: true } }, secrets])).toThrow(
-    "Unrecognized key",
-  );
-  expect(() => Reflect.apply(serializeCorpusWire, undefined, [{ ...wire, health: { ...wire.health, status: "invalid-public-status" } }, secrets])).toThrow(
-    "Invalid discriminator value",
-  );
+  expect(() => {
+    Reflect.apply(serializeCorpusWire, undefined, [{ ...wire, health: { ...wire.health, publicExtra: true } }, secrets]);
+  }).toThrow("Unrecognized key");
+  expect(() => {
+    Reflect.apply(serializeCorpusWire, undefined, [{ ...wire, health: { ...wire.health, status: "invalid-public-status" } }, secrets]);
+  }).toThrow("Invalid discriminator value");
   expect(serializeCorpusWire(wire, secrets)).toBe(clean);
 });

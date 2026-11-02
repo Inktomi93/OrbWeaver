@@ -120,6 +120,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   override componentDidUpdate(prev: BoundaryProps): void {
     const changed = prev.resetKeys.length !== this.props.resetKeys.length || prev.resetKeys.some((key, i) => key !== this.props.resetKeys[i]);
     if (this.state.failed && changed) {
+      // eslint-disable-next-line react-x/no-set-state-in-component-did-update -- the latch clears after commit, so a deterministic failure re-throws and latches in that same commit.
       this.setState({ failed: false });
     }
   }

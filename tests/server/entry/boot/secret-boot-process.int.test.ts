@@ -12,12 +12,12 @@ import { fileURLToPath } from "node:url";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DATA_LAYOUT_DIRS, DATABASE_URL_KEY, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import type { EnvKey } from "@orb/server/foundation/env/record";
 import { APP_SECRET_ENV_KEYS } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { onTestFinished } from "vitest";
+import { z } from "zod";
 
 const ENTRY = fileURLToPath(new URL("../../../../packages/server/src/entry/index.ts", import.meta.url));
 const INHERITED_CONTROL = "ORB_CHILD_ENV_CONTROL";
@@ -73,7 +73,10 @@ async function bootOnce(env: NodeJS.ProcessEnv): Promise<BootOutcome> {
   };
   child.stdout.on("data", capture);
   child.stderr.on("data", capture);
-  const [code] = (await closed) as [number | null];
+  const [code] = z
+    .tuple([z.number().nullable()])
+    .rest(z.unknown())
+    .parse(await closed);
   return { listened, code, output };
 }
 
@@ -118,9 +121,12 @@ test("a booted server starts its children without one app secret in their inheri
 
   const reported = once(child, "message");
   child.send("report");
-  const [inherited] = (await reported) as [readonly string[]];
+  const [inherited] = z
+    .tuple([z.array(z.string())])
+    .rest(z.unknown())
+    .parse(await reported);
   expect(inherited).toContain(INHERITED_CONTROL);
-  expect(inherited.filter((key) => APP_SECRET_ENV_KEYS.includes(key as EnvKey))).toEqual([]);
+  expect(inherited.filter((key) => APP_SECRET_ENV_KEYS.some((secret) => secret === key))).toEqual([]);
   expect(inherited).not.toContain(DATABASE_URL_KEY);
 });
 

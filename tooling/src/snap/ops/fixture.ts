@@ -24,6 +24,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { httpJsonSync, httpOkSync } from "../../floor/http/http-probe.ts";
 import { SESSION_COOKIE_MINTED } from "../../floor/http/session-cookie.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
@@ -66,9 +67,9 @@ function authConfig(value: unknown): AuthConfig | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return null;
   }
-  const mode = Reflect.get(value, "mode");
-  const localEnabled = Reflect.get(value, "localEnabled");
-  const multiHumanCapable = Reflect.get(value, "multiHumanCapable");
+  const mode = readMember(value, "mode");
+  const localEnabled = readMember(value, "localEnabled");
+  const multiHumanCapable = readMember(value, "multiHumanCapable");
   if (
     !(
       (mode === undefined || typeof mode === "string") &&

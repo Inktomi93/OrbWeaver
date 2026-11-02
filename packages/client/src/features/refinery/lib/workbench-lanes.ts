@@ -40,6 +40,7 @@
 // ANALYZE is never the focal: it is a verdict readout, not a step the user is being sent to.
 
 import type { RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRunId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
@@ -74,7 +75,7 @@ export interface LanePins {
   /** The CONTEXT Runs tab's view-back pin (a run id at any stage). */
   readonly viewedRunId: string | null;
   /** The armed rewrite the accept work targets (operate-back), when one is armed. */
-  readonly armedRewriteId: string | null;
+  readonly armedRewriteId: RefineryRunId | null;
 }
 
 /** Which stages have a call in flight right now. */

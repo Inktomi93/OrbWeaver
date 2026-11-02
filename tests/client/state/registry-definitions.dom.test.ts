@@ -5,6 +5,7 @@ import { assembleChrome, CONFIG_GROUP_IDS, HOME_TILE_IDS, isCollectionGroup, MOD
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
 import { expect, test } from "@orb/testkit/node";
 import ts from "typescript";
+import { z } from "zod";
 import { chromeWidgets } from "#client/compose/contributors.ts";
 import { homeTiles } from "#client/compose/home-tiles.ts";
 
@@ -65,7 +66,7 @@ test("every collection body file is registered by a group", async () => {
   const files = [...globSync("*/lib/*-collection.ts", { cwd: FEATURES }), ...globSync("*/lib/*-collection.tsx", { cwd: FEATURES })];
   expect(files.length).toBeGreaterThan(0);
   for (const file of files) {
-    const exported: Record<string, unknown> = await import(/* @vite-ignore */ `${FEATURES}/${file}`);
+    const exported = z.record(z.string(), z.unknown()).parse(await import(/* @vite-ignore */ `${FEATURES}/${file}`));
     expect(
       Object.values(exported).some((value) => registered.has(value)),
       `${file} is exported but no group's body.collection is it`,
@@ -218,7 +219,7 @@ const realFiles = (slot: string): readonly string[] => [
   ...globSync(`*/lib/*-${slot}.ts`, { cwd: FEATURES }),
   ...globSync(`*/lib/*-${slot}.tsx`, { cwd: FEATURES }),
 ];
-const realLoad: KindInput["load"] = async (file) => await import(/* @vite-ignore */ `${FEATURES}/${file}`);
+const realLoad: KindInput["load"] = async (file) => z.record(z.string(), z.unknown()).parse(await import(/* @vite-ignore */ `${FEATURES}/${file}`));
 const realInput = (slot: string): Pick<KindInput, "files" | "read" | "load"> => ({
   files: realFiles(slot),
   read: (file) => readFileSync(`${FEATURES}/${file}`, "utf8"),

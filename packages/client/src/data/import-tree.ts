@@ -26,14 +26,9 @@ import { throwHttpError } from "./http-error.ts";
  *  Chromium extension the DOM lib types as always-`string` — jsdom (and any spec-faithful `File`) doesn't
  *  implement it at all, so it's genuinely `undefined` at runtime despite the type. Read it through
  *  `unknown` so TS can't "prove" the always-present lie away. */
-interface WithRelativePath {
-  readonly webkitRelativePath?: string;
-}
-
 /** The browser's directory-relative path for a picked file (`characters/Aria.png`), or its bare name. */
 export function relativePathOf(file: File): string {
-  const rel = (file as unknown as WithRelativePath).webkitRelativePath;
-  return rel !== undefined && rel.length > 0 ? rel : file.name;
+  return "webkitRelativePath" in file && file.webkitRelativePath.length > 0 ? file.webkitRelativePath : file.name;
 }
 
 /** POST one upload's files (each carrying its `webkitRelativePath`) to the tree-import route; resolve the

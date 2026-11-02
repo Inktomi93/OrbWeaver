@@ -65,7 +65,8 @@ forEachNonEmpty(keysOfKind("slot"), "slot keys", (key) => {
     const layout = resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: `/explicit/${key}` });
     expect([...layout.explicit]).toEqual([key]);
     // Exactly one slot differs from the derived tree, and it is the one the key names.
-    const differing = Object.entries(layout).filter(([field, value]) => field !== "explicit" && field !== "skip" && value !== Reflect.get(base, field));
+    const layoutEntries: [string, unknown][] = Object.entries(layout);
+    const differing = layoutEntries.filter(([field, value]) => field !== "explicit" && field !== "skip" && value !== Reflect.get(base, field));
     expect(differing.map(([, value]) => value)).toEqual([`/explicit/${key}`]);
     expect(resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", [key]: "" })).toEqual(base);
   });

@@ -7,6 +7,7 @@ import { useFieldLabelled } from "./field-labelled.ts";
 
 /** The wrapping Field's own name (absent when the caller gave none), for the inputs Base UI does not name itself (a number field's visible input). */
 export const FieldNameContext = createContext<string | undefined>(undefined);
+FieldNameContext.displayName = "FieldNameContext";
 
 interface FieldIdentity {
   readonly id?: string;

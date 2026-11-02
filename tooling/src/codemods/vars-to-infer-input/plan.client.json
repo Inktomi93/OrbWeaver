@@ -1,18 +1,57 @@
 {
   "sites": [
-    { "file": "data/use-start-chat.ts", "type": "StartChatVars" },
-    { "file": "features/chat/lib/reaction-mutations.ts", "type": "ToggleReactionVars" },
-    { "file": "features/chat/hooks/use-send-message.ts", "type": "SendVars" },
-    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "UpdateTitleVars" },
-    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "StarChatVars" },
-    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "ArchiveChatVars" },
-    { "file": "features/chat/hooks/use-chat-row-mutations.ts", "type": "DeleteChatVars" },
-    { "file": "features/chat/hooks/use-guided-actions.ts", "type": "GuidedTurnVars" },
-    { "file": "features/config/hooks/use-theme-mutations.ts", "type": "CreateThemeInput" },
-    { "file": "features/character/hooks/use-promote-theme.ts", "type": "PromoteThemeInput" },
-    { "file": "features/user-admin/hooks/use-share-mutations.ts", "type": "IpCertificateSetting" },
-    { "file": "features/discovery/hooks/use-readiness-passes.ts", "type": "StartWorkloadWire" },
-    { "file": "features/discovery/hooks/use-understanding-pass.ts", "type": "StartWorkloadWire" }
+    {
+      "file": "data/use-start-chat.ts",
+      "type": "StartChatVars"
+    },
+    {
+      "file": "features/chat/lib/reaction-mutations.ts",
+      "type": "ToggleReactionVars"
+    },
+    {
+      "file": "features/chat/hooks/use-send-message.ts",
+      "type": "SendVars"
+    },
+    {
+      "file": "features/chat/hooks/use-chat-row-mutations.ts",
+      "type": "UpdateTitleVars"
+    },
+    {
+      "file": "features/chat/hooks/use-chat-row-mutations.ts",
+      "type": "StarChatVars"
+    },
+    {
+      "file": "features/chat/hooks/use-chat-row-mutations.ts",
+      "type": "ArchiveChatVars"
+    },
+    {
+      "file": "features/chat/hooks/use-chat-row-mutations.ts",
+      "type": "DeleteChatVars"
+    },
+    {
+      "file": "features/chat/hooks/use-guided-actions.ts",
+      "type": "GuidedTurnVars"
+    },
+    {
+      "file": "features/config/hooks/use-theme-mutations.ts",
+      "type": "CreateThemeInput"
+    },
+    {
+      "file": "features/character/hooks/use-promote-theme.ts",
+      "type": "PromoteThemeInput"
+    },
+    {
+      "file": "features/user-admin/hooks/use-share-mutations.ts",
+      "type": "IpCertificateSetting"
+    },
+    {
+      "file": "features/discovery/hooks/use-readiness-passes.ts",
+      "type": "StartWorkloadWire"
+    },
+    {
+      "file": "features/discovery/hooks/use-understanding-pass.ts",
+      "type": "StartWorkloadWire"
+    }
   ],
   "skip": [
     {
@@ -50,6 +89,10 @@
     {
       "type": "SetChatBackgroundVars",
       "reason": "Hand-written interface; the equality check against chat.setChatBackground input failed."
+    },
+    {
+      "type": "ApplyRegexScopeOrderVars",
+      "reason": "The router infers `scope` unbranded; the contract union is what keeps scopeReadKey exhaustive and stays assignable to the input."
     }
   ]
 }

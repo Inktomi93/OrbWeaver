@@ -3,6 +3,7 @@
 import type { ToneHost } from "@orb/kit/theme-derivation";
 import { oklabDistance, srgbToOklch, TONE_HOSTS, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
+import { keysOf } from "@orb/testkit/iso";
 import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { ToneHostStory } from "./_tone-host-stories.tsx";
@@ -16,7 +17,7 @@ const TINTS = '[data-badge], [data-slot="message-dice-chip"]';
 
 const CASES = [
   { name: "hearth seed" },
-  ...(Object.keys(SEED_THEME_VALUE_SETS) as (keyof typeof SEED_THEME_VALUE_SETS)[]).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
   ...BASES.map(({ name, background }) => ({ name: `custom ${name}`, background })),
 ] as const;
 

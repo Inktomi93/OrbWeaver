@@ -57,14 +57,12 @@ for (const mode of ["synchronous", "asynchronous"] as const) {
   test(`detached ${mode} failure closes its own root and reports exactly once`, async ({ ids }) => {
     const requestId = `detached-${mode}:${ids.uuid()}`;
     const failure = new Error(`detached-${mode}-error`);
-    expect(
-      superviseDetached(requestId, REJECTION_SPAN, { operationKind: OPERATION_KIND }, () => {
-        if (mode === "synchronous") {
-          throw failure;
-        }
-        return span(REJECTION_CHILD, () => Promise.reject(failure));
-      }),
-    ).toBeUndefined();
+    superviseDetached(requestId, REJECTION_SPAN, { operationKind: OPERATION_KIND }, () => {
+      if (mode === "synchronous") {
+        throw failure;
+      }
+      return span(REJECTION_CHILD, () => Promise.reject(failure));
+    });
     await expect.poll(() => rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`))).toHaveLength(1);
     expect(rings.traces.get(requestId)).toMatchObject({ requestId, rootName: REJECTION_SPAN, status: "error" });
     const lines = rings.logs.recent(100).filter((line) => line.includes(`"requestId":"${requestId}"`));

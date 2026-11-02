@@ -3,6 +3,8 @@
 
 import { EventEmitter, on } from "node:events";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
+import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import type { RpgEventBus } from "./contract/bus.ts";
 
@@ -10,11 +12,18 @@ const channelFor = (chatId: ChatId): string => `rpg:${chatId}`;
 
 // Process-local; unbounded listeners (one per connected device/member — many concurrent SSE streams).
 
-// `on()` yields the raw emit-args array (`[event]`); EventEmitter is untyped, so the element is unwrapped and
-// annotated at this single boundary (the `bus-channel.ts` liveEntries pattern).
+// `on()` yields the raw emit-args array (`[event]`) from an untyped EventEmitter, so the element is checked at
+// this single boundary: only `publish` emits on these channels, and an unknown discriminator is dropped.
+function isRpgBusEvent(value: unknown): value is RpgBusEvent {
+  return isPlainObject(value) && RPG_BUS_EVENT_TYPES.some((type) => type === value["type"]);
+}
+
 async function* liveEntries(source: AsyncIterable<unknown[]>): AsyncGenerator<RpgBusEvent> {
   for await (const args of source) {
-    yield args[0] as RpgBusEvent;
+    const [event] = args;
+    if (isRpgBusEvent(event)) {
+      yield event;
+    }
   }
 }
 

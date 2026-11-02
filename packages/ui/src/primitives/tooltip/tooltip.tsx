@@ -58,6 +58,7 @@ interface TooltipDescriptionApi {
 }
 
 const TooltipDescriptionContext = createContext<TooltipDescriptionApi | undefined>(undefined);
+TooltipDescriptionContext.displayName = "TooltipDescriptionContext";
 
 /** Collapse the whitespace an accessible-name computation collapses, so "Send  message" and "Send message"
  *  are the same string to this comparison. */
@@ -96,6 +97,7 @@ function knowableTriggerName(props: Readonly<Record<string, unknown>>): string |
 // it, which took the whole mount down. The seal's own wrappers therefore degrade here: the arrow is pure
 // decoration and renders nothing, the viewport is a transition container and renders its children bare.
 const TooltipDescriptionCopyContext = createContext(false);
+TooltipDescriptionCopyContext.displayName = "TooltipDescriptionCopyContext";
 
 /** Shares hover delay/timeout across a subtree so adjacent tooltips open instantly. */
 export function TooltipProvider(props: BaseProviderProps): ReactElement {
@@ -112,7 +114,7 @@ export interface TooltipProps<Payload = unknown> extends BaseRootProps<Payload> 
   readonly describesTrigger?: boolean;
 }
 
-export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }: TooltipProps<Payload>): ReactElement {
+export function Tooltip<Payload = unknown>({ describesTrigger = true, children, ...props }: TooltipProps<Payload>): ReactElement {
   const id = useId();
   // THE NAME/TEXT COMPARISON, AND WHY IT LIVES IN THE ROOT (#2455, owner ruling 2026-09-19). Announcing a
   // control's own name as its description is a real a11y defect — `composer-guided-buttons.tsx`'s
@@ -140,7 +142,7 @@ export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }
   };
   return (
     <TooltipDescriptionContext value={api}>
-      <BaseTooltip.Root {...props} />
+      <BaseTooltip.Root {...props}>{children}</BaseTooltip.Root>
     </TooltipDescriptionContext>
   );
 }

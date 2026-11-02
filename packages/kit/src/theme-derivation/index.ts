@@ -765,7 +765,16 @@ function rampRetraction(arm: RampDeltas, projected: RampDeltas): number {
 }
 
 function mirroredArm(arm: RampDeltas): RampDeltas {
-  return Object.fromEntries(Object.entries(arm).map(([role, delta]) => [role, -delta])) as unknown as RampDeltas;
+  return {
+    sidebar: -arm.sidebar,
+    surfaceRaised: -arm.surfaceRaised,
+    card: -arm.card,
+    popover: -arm.popover,
+    accent: -arm.accent,
+    sidebarAccent: -arm.sidebarAccent,
+    secondary: -arm.secondary,
+    muted: -arm.muted,
+  };
 }
 
 /**

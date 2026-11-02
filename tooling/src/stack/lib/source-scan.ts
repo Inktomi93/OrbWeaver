@@ -14,7 +14,7 @@ export interface SourceEntry {
 
 /** The external filesystem operations behind source freshness observations. */
 export interface SourceScanReads {
-  readonly readDirectory: (path: string) => readonly Dirent<string>[];
+  readonly readDirectory: (path: string) => readonly Dirent[];
   readonly stat: (path: string) => Pick<Stats, "mtimeMs">;
 }
 
@@ -37,7 +37,7 @@ function safeMtimeMs(path: string, readStat: SourceScanReads["stat"]): number | 
 function walk(path: string, accept: (path: string) => boolean, into: SourceEntry[], reads: SourceScanReads): void {
   // `Dirent<string>`, not `ReturnType<typeof readdirSync>`: that alias resolves to the BUFFER overload
   // (`Dirent<NonSharedBuffer>`) under node's current typings, and `entry.name` then isn't a string.
-  let entries: readonly Dirent<string>[];
+  let entries: readonly Dirent[];
   try {
     entries = reads.readDirectory(path);
   } catch (error) {

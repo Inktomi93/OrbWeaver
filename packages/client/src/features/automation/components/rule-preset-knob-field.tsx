@@ -155,7 +155,7 @@ function ChoiceKnobField({
 }: KnobFieldProps & { readonly descriptor: RulePresetChoiceKnobDescriptor }): ReactElement {
   return (
     <KnobRow knob={knob} issue={showIssue ? knobIssue(descriptor, value) : null}>
-      <Select<string>
+      <Select
         aria-label={knob.label}
         // The descriptor's OWN labels (#655) — `options` are wire values (`ask`/`write`,
         // `scenario`/`background`), and rendering them raw put three unexplained lowercase words in front
@@ -223,7 +223,7 @@ function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }
       </KnobRow>
     );
   }
-  const items: SelectItems<string> = books.data.map((book) => ({ value: book.id, label: book.name }));
+  const items: SelectItems = books.data.map((book) => ({ value: book.id, label: book.name }));
   if (items.length === 0) {
     return (
       <KnobRow knob={knob} issue={null}>
@@ -236,13 +236,7 @@ function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }
   }
   return (
     <KnobRow knob={knob} issue={issue}>
-      <Select<string>
-        aria-label={knob.label}
-        items={items}
-        placeholder="Choose a world book…"
-        value={chosen}
-        onValueChange={(next): void => onChange(next ?? "")}
-      />
+      <Select aria-label={knob.label} items={items} placeholder="Choose a world book…" value={chosen} onValueChange={(next): void => onChange(next ?? "")} />
     </KnobRow>
   );
 }

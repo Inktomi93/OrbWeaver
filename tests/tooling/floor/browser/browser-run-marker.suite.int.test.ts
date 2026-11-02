@@ -10,6 +10,7 @@
 // the sweep uses — whether a NEW process carrying this run's marker appeared. Against the pre-#1848
 // launcher no such process exists, because the browser inherited no marker; that is the red. Closing the
 // session must then take it away again, which is the control that says the arm can tell the two apart.
+
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -39,6 +40,7 @@ import {
 } from "@orb/tooling/floor/process/run-marker";
 import { chromium } from "@playwright/test";
 import { afterAll, vi } from "vitest";
+import { spawnedPid } from "../../_child-pid.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // A real Chromium launch under a contended parallel lane — the same ceiling browser.int.test.ts sets.
@@ -144,7 +146,7 @@ function plantOwner(): ReturnType<typeof spawn> {
 async function retireOwner(owner: ReturnType<typeof spawn>): Promise<void> {
   owner.kill("SIGKILL");
   await once(owner, "exit");
-  expect(pidAlive(owner.pid as number), "the planted owner must really be gone before a sweep is asked").toBe(false);
+  expect(pidAlive(spawnedPid(owner)), "the planted owner must really be gone before a sweep is asked").toBe(false);
 }
 
 /** A sweep scoped to exactly the pids this test planted — never the whole box (`listPids`/`identitiesOf` are
@@ -182,7 +184,7 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
   // liveness. What separates these two markers is the PID and the crypto nonce, so the subject here is
   // identity, never elapsed time, and a `test-determinism` waiver would have recorded a false reason.
   const owner = plantOwner();
-  const retiringOwnerMarker = mintRunMarker(owner.pid as number, FROZEN_AT_MS);
+  const retiringOwnerMarker = mintRunMarker(spawnedPid(owner), FROZEN_AT_MS);
   const liveOwnerMarker = mintRunMarker(process.pid, FROZEN_AT_MS);
   const abandonedPid = await spawnLeakChromium("marked-abandoned", retiringOwnerMarker);
   const liveOwnedPid = await spawnLeakChromium("marked-live", liveOwnerMarker);
@@ -238,7 +240,7 @@ test("a chromium whose LEASE owner is gone is reaped even while its outer run li
   const liveOuter = mintRunMarker(process.pid, FROZEN_AT_MS);
   const liveLease = mintRunMarker(process.pid, FROZEN_AT_MS);
   const owner = plantOwner();
-  const ownedLease = mintRunMarker(owner.pid as number, FROZEN_AT_MS);
+  const ownedLease = mintRunMarker(spawnedPid(owner), FROZEN_AT_MS);
   const abandoned = await spawnLeasedChromium("lease-abandoned", liveOuter, ownedLease);
   const held = await spawnLeasedChromium("lease-held", liveOuter, liveLease);
   try {

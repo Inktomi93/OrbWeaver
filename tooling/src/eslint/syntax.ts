@@ -52,7 +52,7 @@ export function restrictionRule({
           const libReferences = globalScope.variables.filter(({ defs }) => defs.length === 0).flatMap(({ references }) => references);
           for (const reference of [...globalScope.through, ...libReferences]) {
             const banned = globals.find(({ name }) => name === reference.identifier.name);
-            if (banned !== undefined && reference.isValueReference !== false) {
+            if (banned !== undefined && reference.isValueReference) {
               context.report({ node: reference.identifier, message: banned.message });
             }
           }

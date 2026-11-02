@@ -99,7 +99,7 @@ test("running the asset index rebuild without choosing a kind sends nothing", as
 
   await expect(dialog.getByRole("combobox", { name: "What to rebuild", exact: true })).toHaveAttribute("aria-invalid", "true");
   expect(sent).toEqual([]);
-  expect((await caller.workloads.list({ kind: "assets-rebuild-index" })).length).toBe(0);
+  expect(await caller.workloads.list({ kind: "assets-rebuild-index" })).toHaveLength(0);
 });
 
 test("scheduling the asset index rebuild offers the asset kind and saves the one picked", async ({ mount, page }) => {

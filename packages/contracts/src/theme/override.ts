@@ -146,5 +146,5 @@ export function cardEmbeddableSubset(override: ThemeOverride): CardEmbeddableThe
       subset[key] = value;
     }
   }
-  return subset as CardEmbeddableTheme;
+  return subset;
 }

@@ -36,12 +36,13 @@ for (const [name, type] of [
       const installed = await page.evaluate(() => {
         const frame = document.createElement("iframe");
         document.body.append(frame);
-        const ForeignDomException: typeof DOMException = Reflect.get(frame.contentWindow ?? {}, "DOMException");
+        const foreign: unknown = Reflect.get(frame.contentWindow ?? {}, "DOMException");
+        const foreignError: unknown = typeof foreign === "function" ? Reflect.construct(foreign, ["x"]) : null;
         const renamed = Object.assign(new Error("x"), { [Symbol.toStringTag]: "Renamed" });
         return {
           instant: typeof globalThis.Temporal.Now.instant().toString(),
           escaped: RegExp.escape("a.b"),
-          isError: [new Error("x"), new ForeignDomException("x"), renamed, { [Symbol.toStringTag]: "Error" }].map((value) => Error.isError(value)),
+          isError: [new Error("x"), foreignError, renamed, { [Symbol.toStringTag]: "Error" }].map((value) => Error.isError(value)),
         };
       });
       expect(installed).toEqual({ instant: "string", escaped: String.raw`\x61\.b`, isError: [true, true, true, false] });

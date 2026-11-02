@@ -80,7 +80,7 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
     return null;
   }
 
-  const items: SelectItems<string> = [
+  const items: SelectItems = [
     { value: NO_KEYWORD, label: "Explore a keyword…" },
     ...top.map((row) => ({ value: row.keyword, label: `${row.keyword} (${row.count})` })),
   ];

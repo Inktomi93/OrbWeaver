@@ -135,7 +135,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   // The honest-refusal gate (#54) folds into `idle`: an unserveable connection idles EVERY fire action (they
   // all fire a doomed turn). `reasonFor` then lets the send cause WIN over the phase reason (both persistent):
   // a disabled icon on an off engine reads "Local engine is off…", not "needs a reply first".
-  const anyBusy = guided.isPending || busy === true;
+  const anyBusy = guided.isPending || busy;
   const { unavailable: sendUnavailable, reason: sendUnavailableReason } = sendAvailability;
   const idle = !(anyBusy || sendUnavailable);
   // IMP-2 — a LIVE impersonate stream is the honest off-cause while it runs: it idles every icon, but nothing

@@ -5,6 +5,7 @@
 
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import { createGatedStore } from "./create-gated-store.ts";
 
 interface RpgRoundState {
@@ -14,12 +15,8 @@ interface RpgRoundState {
 const useRpgRoundStore = createGatedStore<RpgRoundState>("rpg-round", (): RpgRoundState => ({ pendingByChat: {} }));
 
 function writePending(chatId: ChatId, next: readonly ChatTurnId[], action: string): void {
-  const pendingByChat = { ...useRpgRoundStore.getState().pendingByChat };
-  if (next.length === 0) {
-    delete pendingByChat[chatId];
-  } else {
-    pendingByChat[chatId] = next;
-  }
+  const current = useRpgRoundStore.getState().pendingByChat;
+  const pendingByChat = next.length === 0 ? omitKey(current, chatId) : { ...current, [chatId]: next };
   useRpgRoundStore.setState({ pendingByChat }, true, action);
 }
 

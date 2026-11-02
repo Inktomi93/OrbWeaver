@@ -13,7 +13,7 @@ interface ReducedMotionDocument {
   readonly documentElement?: ReducedMotionRoot;
 }
 interface ReducedMotionObserver {
-  readonly observe: (target: unknown, options: { readonly attributes: true; readonly attributeFilter: readonly string[] }) => void;
+  readonly observe: (target: unknown, options: { readonly attributes: true; readonly attributeFilter: string[] }) => void;
   readonly disconnect: () => void;
 }
 interface ReducedMotionObserverConstructor {
@@ -21,7 +21,7 @@ interface ReducedMotionObserverConstructor {
 }
 const matchMediaFn = (globalThis as { matchMedia?: (query: string) => MatchMediaListView }).matchMedia;
 const reducedMotionDocument = (globalThis as { document?: ReducedMotionDocument }).document;
-const ReducedMotionObserver = Reflect.get(globalThis, "MutationObserver") as unknown as ReducedMotionObserverConstructor | undefined;
+const ReducedMotionObserver = Reflect.get(globalThis, "MutationObserver") as ReducedMotionObserverConstructor | undefined;
 
 // Read once at module load and cached — the query's `.matches` stays live. `null` where matchMedia
 // doesn't exist (SSR / non-browser test runners); every consumer below degrades to `false`.

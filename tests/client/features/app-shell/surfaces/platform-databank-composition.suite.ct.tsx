@@ -2,6 +2,7 @@ import { renameActionName } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
@@ -41,7 +42,7 @@ async function prepare(
 ): Promise<{
   readonly caller: Caller;
   readonly document: Awaited<ReturnType<Caller["databank"]["get"]>>;
-  readonly calls: Awaited<ReturnType<typeof routeTrpc>>;
+  readonly calls: TrpcRecorder;
 }> {
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
@@ -122,7 +123,12 @@ for (const regime of REGIMES) {
         if (parent === null) {
           throw new Error("The maintenance hint has no action row");
         }
-        return { hint: node.getBoundingClientRect().toJSON(), row: parent.getBoundingClientRect().toJSON() };
+        const hintBox = node.getBoundingClientRect();
+        const rowBox = parent.getBoundingClientRect();
+        return {
+          hint: { x: hintBox.x, y: hintBox.y, width: hintBox.width, height: hintBox.height },
+          row: { x: rowBox.x, y: rowBox.y, width: rowBox.width, height: rowBox.height },
+        };
       });
       await test.info().attach("maintenance-composition", { body: JSON.stringify({ floor, boxes }), contentType: "application/json" });
       expect(boxes.hint.width).toBeGreaterThanOrEqual(Math.min(floor, boxes.row.width) - 1);

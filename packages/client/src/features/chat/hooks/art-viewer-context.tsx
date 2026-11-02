@@ -12,6 +12,7 @@ export interface ArtViewer {
 }
 
 export const ArtViewerContext = createContext<ArtViewer | null>(null);
+ArtViewerContext.displayName = "ArtViewerContext";
 
 export function useArtViewer(): ArtViewer | null {
   return use(ArtViewerContext);

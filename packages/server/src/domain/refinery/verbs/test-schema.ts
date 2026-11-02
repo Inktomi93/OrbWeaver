@@ -72,7 +72,7 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     };
     try {
       const payload = await runStructuredTurn({ payloadSchema: parse.schema, run, onRetry: traceStructuredRetry("refine-schema-test") });
-      return payload as Record<string, unknown>;
+      return payload;
     } catch (err) {
       if (err instanceof StructuredOutputError) {
         throw new RefineryRunFailedError("The test run returned nothing usable under that schema. Try again or adjust the schema.", { cause: err });

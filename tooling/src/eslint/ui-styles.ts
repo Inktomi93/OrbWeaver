@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { lexicalVariable } from "./general.ts";
 import {
@@ -158,22 +159,22 @@ function styleTexts(context: OrbRuleContext, node: TSESTree.Node, seen = new Set
     return [{ value: exact, complete: true }];
   }
   const next = (child: TSESTree.Node): readonly StyleText[] => styleTexts(context, child, new Set(seen));
-  if (value.type === "TemplateLiteral") {
+  if (value.type === AST_NODE_TYPES.TemplateLiteral) {
     let texts: readonly StyleText[] = [{ value: value.quasis[0]?.value.cooked ?? "", complete: true }];
     value.expressions.forEach((expression, index) => {
       texts = joinStyleText(joinStyleText(texts, next(expression)), [{ value: value.quasis[index + 1]?.value.cooked ?? "", complete: true }]);
     });
     return texts;
   }
-  if (value.type === "BinaryExpression" && value.operator === "+") {
+  if (value.type === AST_NODE_TYPES.BinaryExpression && value.operator === "+") {
     return joinStyleText(next(value.left), next(value.right));
   }
-  if (value.type === "ArrayExpression") {
-    return value.elements.flatMap((element) => (element === null || element.type === "SpreadElement" ? [] : next(element)));
+  if (value.type === AST_NODE_TYPES.ArrayExpression) {
+    return value.elements.flatMap((element) => (element === null || element.type === AST_NODE_TYPES.SpreadElement ? [] : next(element)));
   }
-  if (value.type === "Identifier") {
+  if (value.type === AST_NODE_TYPES.Identifier) {
     const binding = lexicalVariable(context, value)?.defs[0]?.name;
-    if (binding?.parent.type === "AssignmentPattern" && binding.parent.left === binding) {
+    if (binding?.parent.type === AST_NODE_TYPES.AssignmentPattern && binding.parent.left === binding) {
       return next(binding.parent.right);
     }
   }
@@ -191,7 +192,7 @@ function editorThemeFactory(context: OrbRuleContext, value: TSESTree.MemberExpre
 }
 
 function chartOptionType(context: OrbRuleContext, node: TSESTree.TypeNode | undefined): boolean {
-  if (node?.type !== "TSTypeReference") {
+  if (node?.type !== AST_NODE_TYPES.TSTypeReference) {
     return false;
   }
   const imported = importedSymbol(context, node.typeName);
@@ -204,18 +205,22 @@ function chartOptionType(context: OrbRuleContext, node: TSESTree.TypeNode | unde
 
 function chartStyleObject(context: OrbRuleContext, node: TSESTree.ObjectExpression): boolean {
   let returned = false;
-  for (let current: TSESTree.Node = node; current.type !== "Program"; current = current.parent) {
+  for (let current: TSESTree.Node = node; current.type !== AST_NODE_TYPES.Program; current = current.parent) {
     const parent = current.parent;
-    if (parent.type === "CallExpression") {
+    if (parent.type === AST_NODE_TYPES.CallExpression) {
       return false;
     }
-    if (parent.type === "VariableDeclarator") {
+    if (parent.type === AST_NODE_TYPES.VariableDeclarator) {
       return chartOptionType(context, parent.id.typeAnnotation?.typeAnnotation);
     }
-    if (parent.type === "ReturnStatement") {
+    if (parent.type === AST_NODE_TYPES.ReturnStatement) {
       returned = true;
     }
-    if (parent.type === "ArrowFunctionExpression" || parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
+    if (
+      parent.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+      parent.type === AST_NODE_TYPES.FunctionExpression ||
+      parent.type === AST_NODE_TYPES.FunctionDeclaration
+    ) {
       return (returned || parent.body === current) && chartOptionType(context, parent.returnType?.typeAnnotation);
     }
   }
@@ -315,7 +320,11 @@ function moduleLevelBinding(context: OrbRuleContext, identifier: TSESTree.Identi
   if (variable === undefined) {
     return true;
   }
-  return variable.defs[0]?.type === "ImportBinding" || variable.scope.type === "module" || variable.scope.type === "global";
+  return (
+    variable.defs[0]?.type === TSESLint.Scope.DefinitionType.ImportBinding ||
+    variable.scope.type === TSESLint.Scope.ScopeType.module ||
+    variable.scope.type === TSESLint.Scope.ScopeType.global
+  );
 }
 
 /** True when `node` can only evaluate to the same thing on every render: built from literals, module-level names,
@@ -327,41 +336,41 @@ function isStaticValue(context: OrbRuleContext, node: TSESTree.Node, depth = 0):
   const expression = unwrapTsValue(node);
   const next = (child: TSESTree.Node): boolean => isStaticValue(context, child, depth + 1);
   switch (expression.type) {
-    case "Literal":
+    case AST_NODE_TYPES.Literal:
       return true;
-    case "Identifier": {
+    case AST_NODE_TYPES.Identifier: {
       if (moduleLevelBinding(context, expression)) {
         return true;
       }
       const variable = lexicalVariable(context, expression);
       const binding = variable?.defs[0]?.name;
-      if (binding?.parent.type === "AssignmentPattern" && binding.parent.left === binding) {
+      if (binding?.parent.type === AST_NODE_TYPES.AssignmentPattern && binding.parent.left === binding) {
         return next(binding.parent.right);
       }
       const initializer = constantInitializer(context, expression);
       return initializer !== undefined && next(initializer);
     }
-    case "TemplateLiteral":
+    case AST_NODE_TYPES.TemplateLiteral:
       return expression.expressions.every(next);
-    case "MemberExpression": {
+    case AST_NODE_TYPES.MemberExpression: {
       const options = staticValueOptions(context, expression);
       return options.length > 0 ? options.every(next) : next(expression.object) && (!expression.computed || next(expression.property));
     }
-    case "CallExpression":
-      return next(expression.callee) && expression.arguments.every((argument) => argument.type !== "SpreadElement" && next(argument));
-    case "UnaryExpression":
+    case AST_NODE_TYPES.CallExpression:
+      return next(expression.callee) && expression.arguments.every((argument) => argument.type !== AST_NODE_TYPES.SpreadElement && next(argument));
+    case AST_NODE_TYPES.UnaryExpression:
       return next(expression.argument);
-    case "BinaryExpression":
-    case "LogicalExpression":
+    case AST_NODE_TYPES.BinaryExpression:
+    case AST_NODE_TYPES.LogicalExpression:
       return next(expression.left) && next(expression.right);
-    case "ConditionalExpression":
+    case AST_NODE_TYPES.ConditionalExpression:
       return next(expression.test) && next(expression.consequent) && next(expression.alternate);
-    case "ObjectExpression":
+    case AST_NODE_TYPES.ObjectExpression:
       return expression.properties.every((property) =>
-        property.type === "SpreadElement" ? next(property.argument) : (!property.computed || next(property.key)) && next(property.value),
+        property.type === AST_NODE_TYPES.SpreadElement ? next(property.argument) : (!property.computed || next(property.key)) && next(property.value),
       );
-    case "ArrayExpression":
-      return expression.elements.every((element) => element !== null && element.type !== "SpreadElement" && next(element));
+    case AST_NODE_TYPES.ArrayExpression:
+      return expression.elements.every((element) => element !== null && element.type !== AST_NODE_TYPES.SpreadElement && next(element));
     default:
       return false;
   }
@@ -370,12 +379,15 @@ function isStaticValue(context: OrbRuleContext, node: TSESTree.Node, depth = 0):
 /** A value that sets nothing: omitting a property is a runtime choice, not a static style. */
 const isAbsentValue = (node: TSESTree.Node): boolean => {
   const value = unwrapTsValue(node);
-  return (value.type === "Identifier" && value.name === "undefined") || (value.type === "Literal" && (value.value === null || value.value === false));
+  return (
+    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") ||
+    (value.type === AST_NODE_TYPES.Literal && (value.value === null || value.value === false))
+  );
 };
 
 function staticObjectEntries(context: OrbRuleContext, object: TSESTree.ObjectExpression, depth: number): readonly TSESTree.Node[] {
   return object.properties.flatMap((property): readonly TSESTree.Node[] => {
-    if (property.type === "SpreadElement") {
+    if (property.type === AST_NODE_TYPES.SpreadElement) {
       return isStaticValue(context, property.argument) ? [property] : staticStyleEntries(context, property.argument, depth + 1);
     }
     const keyFixed = !property.computed || isStaticValue(context, property.key);
@@ -394,22 +406,22 @@ function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth:
     return [];
   }
   switch (expression.type) {
-    case "ObjectExpression":
+    case AST_NODE_TYPES.ObjectExpression:
       return staticObjectEntries(context, expression, depth);
-    case "ConditionalExpression":
+    case AST_NODE_TYPES.ConditionalExpression:
       return [...staticStyleEntries(context, expression.consequent, depth + 1), ...staticStyleEntries(context, expression.alternate, depth + 1)];
-    case "LogicalExpression":
+    case AST_NODE_TYPES.LogicalExpression:
       return staticStyleEntries(context, expression.right, depth + 1);
-    case "Identifier": {
+    case AST_NODE_TYPES.Identifier: {
       const initializer = constantInitializer(context, expression);
       if (initializer === undefined) {
         return moduleLevelBinding(context, expression) ? [expression] : [];
       }
       return staticStyleEntries(context, initializer, depth + 1).length === 0 ? [] : [expression];
     }
-    case "MemberExpression":
+    case AST_NODE_TYPES.MemberExpression:
       return isStaticValue(context, expression) ? [expression] : [];
-    case "CallExpression":
+    case AST_NODE_TYPES.CallExpression:
       return memoStyleEntries(context, expression, depth);
     default:
       return [];
@@ -418,31 +430,33 @@ function staticStyleEntries(context: OrbRuleContext, node: TSESTree.Node, depth:
 
 function memoStyleEntries(context: OrbRuleContext, call: TSESTree.CallExpression, depth: number): readonly TSESTree.Node[] {
   const callee = call.callee;
-  const member = callee.type === "MemberExpression" ? accessedName(context, callee) : undefined;
-  const hook = callee.type === "Identifier" ? callee.name : member;
+  const member = callee.type === AST_NODE_TYPES.MemberExpression ? accessedName(context, callee) : undefined;
+  const hook = callee.type === AST_NODE_TYPES.Identifier ? callee.name : member;
   const callback = call.arguments[0];
-  if (hook !== "useMemo" || (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression")) {
+  if (hook !== "useMemo" || (callback?.type !== AST_NODE_TYPES.ArrowFunctionExpression && callback?.type !== AST_NODE_TYPES.FunctionExpression)) {
     return [];
   }
   const results =
-    callback.body.type === "BlockStatement"
-      ? callback.body.body.flatMap((statement) => (statement.type === "ReturnStatement" && statement.argument !== null ? [statement.argument] : []))
+    callback.body.type === AST_NODE_TYPES.BlockStatement
+      ? callback.body.body.flatMap((statement) =>
+          statement.type === AST_NODE_TYPES.ReturnStatement && statement.argument !== null ? [statement.argument] : [],
+        )
       : [callback.body];
   return results.flatMap((result) => staticStyleEntries(context, result, depth + 1));
 }
 
 function cssPropertiesObject(context: OrbRuleContext, node: TSESTree.ObjectExpression): boolean {
   const parent = node.parent;
-  const wrapped = parent.type === "TSAsExpression" || parent.type === "TSSatisfiesExpression" ? parent.typeAnnotation : undefined;
-  const annotation = parent.type === "VariableDeclarator" ? parent.id.typeAnnotation?.typeAnnotation : wrapped;
-  if (annotation?.type === "TSTypeReference" && annotation.typeName.type === "Identifier") {
+  const wrapped = parent.type === AST_NODE_TYPES.TSAsExpression || parent.type === AST_NODE_TYPES.TSSatisfiesExpression ? parent.typeAnnotation : undefined;
+  const annotation = parent.type === AST_NODE_TYPES.VariableDeclarator ? parent.id.typeAnnotation?.typeAnnotation : wrapped;
+  if (annotation?.type === AST_NODE_TYPES.TSTypeReference && annotation.typeName.type === AST_NODE_TYPES.Identifier) {
     const definition = lexicalVariable(context, annotation.typeName)?.defs[0];
     if (
-      definition?.type === "ImportBinding" &&
-      definition.node.type === "ImportSpecifier" &&
-      definition.node.imported.type === "Identifier" &&
+      definition?.type === TSESLint.Scope.DefinitionType.ImportBinding &&
+      definition.node.type === AST_NODE_TYPES.ImportSpecifier &&
+      definition.node.imported.type === AST_NODE_TYPES.Identifier &&
       definition.node.imported.name === "CSSProperties" &&
-      definition.parent.type === "ImportDeclaration" &&
+      definition.parent.type === AST_NODE_TYPES.ImportDeclaration &&
       definition.parent.source.value === "react"
     ) {
       return true;
@@ -489,7 +503,7 @@ export const noStaticStylePropRule: OrbRule = {
 const COLOR_TOKEN_PREFIX = "--color-";
 
 const keyHead = (context: OrbRuleContext, property: TSESTree.Property): string | null | undefined =>
-  property.computed && property.key.type === "TemplateLiteral" ? property.key.quasis[0]?.value.cooked : staticKeyName(context, property);
+  property.computed && property.key.type === AST_NODE_TYPES.TemplateLiteral ? property.key.quasis[0]?.value.cooked : staticKeyName(context, property);
 
 function overridesColorToken(context: OrbRuleContext, node: TSESTree.Node): boolean {
   return staticObjectProperties(context, node).some((property) => (keyHead(context, property) ?? "").startsWith(COLOR_TOKEN_PREFIX));
@@ -588,13 +602,13 @@ function joinedText(context: OrbRuleContext, node: TSESTree.Node, depth = 0): st
   const expression = unwrapTsValue(node);
   const next = (child: TSESTree.Node): string => joinedText(context, child, depth + 1);
   switch (expression.type) {
-    case "Literal":
+    case AST_NODE_TYPES.Literal:
       return typeof expression.value === "string" || typeof expression.value === "number" ? String(expression.value) : UNREAD_TEXT;
-    case "TemplateLiteral":
+    case AST_NODE_TYPES.TemplateLiteral:
       return expression.quasis.map((quasi, index) => quasi.value.cooked + (expression.expressions[index] ? next(expression.expressions[index]) : "")).join("");
-    case "BinaryExpression":
+    case AST_NODE_TYPES.BinaryExpression:
       return expression.operator === "+" ? next(expression.left) + next(expression.right) : UNREAD_TEXT;
-    case "Identifier": {
+    case AST_NODE_TYPES.Identifier: {
       const initializer = depth >= STATIC_CONST_DEPTH ? undefined : constantInitializer(context, expression);
       const text = initializer === undefined ? UNREAD_TEXT : next(initializer);
       return spellsDarkVariant(text) ? UNREAD_TEXT : text;
@@ -611,7 +625,9 @@ function isOutermostText(node: TSESTree.Expression): boolean {
     current = parent;
     parent = current.parent;
   }
-  const joined = (parent.type === "BinaryExpression" && parent.operator === "+") || (parent.type === "TemplateLiteral" && parent.expressions.includes(current));
+  const joined =
+    (parent.type === AST_NODE_TYPES.BinaryExpression && parent.operator === "+") ||
+    (parent.type === AST_NODE_TYPES.TemplateLiteral && parent.expressions.includes(current));
   return !joined;
 }
 

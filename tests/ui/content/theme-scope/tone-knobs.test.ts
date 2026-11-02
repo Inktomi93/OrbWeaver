@@ -19,7 +19,7 @@ import {
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
-import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
@@ -63,7 +63,17 @@ function emittedMix(vars: Readonly<Record<string, string>>, tone: Tone): Readonl
     const emitted = own ?? scope;
     return emitted === undefined ? TONE_MIX_DEFAULTS[name] : Number.parseFloat(emitted);
   };
-  return Object.fromEntries(TONE_MIX_KNOBS.map((name) => [name, knob(name)])) as Record<ToneMixKnob, number>;
+  return {
+    hover: knob("hover"),
+    active: knob("active"),
+    "neutral-hover": knob("neutral-hover"),
+    "neutral-active": knob("neutral-active"),
+    text: knob("text"),
+    "text-on-tint": knob("text-on-tint"),
+    tint: knob("tint"),
+    "tint-active": knob("tint-active"),
+    edge: knob("edge"),
+  } satisfies Record<ToneMixKnob, number>;
 }
 
 /** The roles a soft fill paints: the tints the separation floor holds off the page and off each other. */

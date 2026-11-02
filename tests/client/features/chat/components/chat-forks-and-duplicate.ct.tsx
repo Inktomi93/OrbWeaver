@@ -63,9 +63,9 @@ async function hostRoom(root: Harness): Promise<{ readonly chatId: ChatId; reado
   throw new Error("The corpus has no short room the owner hosts");
 }
 
-async function serveAs(root: Harness, page: Page, viewer: Caller, procedures: readonly string[]): Promise<void> {
+async function serveAs(root: Harness, page: Page, viewer: Caller, procedures: Parameters<typeof serveCorpusProcedures>[1]): Promise<void> {
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
-  await routeTrpc(page, serveCorpusProcedures(viewer, procedures as never));
+  await routeTrpc(page, serveCorpusProcedures(viewer, procedures));
 }
 
 test("the message menu's Duplicate copies the row to a new slot at the end of the chat", async ({ mount, page, corpusMedia }) => {
@@ -129,7 +129,12 @@ test("the message menu's Duplicate is disabled with its reason while a turn is g
   await expect(item).toHaveAttribute("aria-disabled", "true");
   await expect(page.getByText(MESSAGE_DUPLICATE_GENERATING, { exact: true })).toBeVisible();
   const shown = await rows.count();
-  await item.click({ force: true });
+  // Playwright's click waits for an enabled target and aria-disabled never is, so the press is a real pointer click at the item.
+  const box = await item.boundingBox();
+  if (box === null) {
+    throw new Error("The Duplicate item has no box to press");
+  }
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(rows).toHaveCount(shown);
   expect((await host.chat.listMessages({ chatId })).messages).toHaveLength(ids.length);
 });

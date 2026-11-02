@@ -31,9 +31,11 @@ const ROWS: readonly PaletteCommandRow[] = CORPUS_MODES.map((mode) => ({
   },
 }));
 
+const corpusModeRows = (): readonly PaletteCommandRow[] => ROWS;
+
 export const corpusModePaletteSource: CommandPaletteSource = {
   id: "corpus-modes",
   heading: CORPUS_SECTION_LABEL,
   icon: Library,
-  useRows: () => ROWS,
+  useRows: corpusModeRows,
 };

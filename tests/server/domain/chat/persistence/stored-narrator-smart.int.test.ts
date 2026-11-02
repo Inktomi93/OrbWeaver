@@ -32,7 +32,7 @@ test("an actual stored narrator and Smart combination heals to Natural without c
   expect((await h.root.services.connection.get({ principal: h.owner, connectionId })).promptCache?.enabled).toBe(false);
   expect(await h.root.services.chat.getGroupConfigForChat(params)).toMatchObject({ output: "narrator", policy: "natural" });
   expect((await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "summarize")?.binding).toMatchObject({
-    connectionId: expect.any(String),
+    connectionId,
   });
   const events: ChatBusEvent[] = [];
   using subscription = new DisposableStack();

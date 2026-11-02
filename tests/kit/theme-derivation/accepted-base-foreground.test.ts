@@ -49,7 +49,7 @@ function assertBase(base: Oklch): { readonly inputProjected: boolean; readonly r
   for (const surface of shared) {
     assertContrast(sharedInk, oklchToSrgb(surface), target, `${label}: shared`);
   }
-  for (const [role, delta] of Object.entries(deltas)) {
+  for (const [role, delta] of Object.entries({ ...deltas })) {
     const surface = rampSurface(base, delta);
     assertContrast(oklchToSrgb({ l: derivedForegroundLightness(surface), c: 0, h }), oklchToSrgb(surface), attainableTarget(surface), `${label}: ${role}`);
   }

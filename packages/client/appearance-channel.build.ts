@@ -77,7 +77,7 @@ function leafShape(key: string, leaf: SchemaNode): LeafShape {
   return { kind: "values", values: enumValues(node, key) };
 }
 
-const SHAPE: Readonly<Record<string, SchemaNode>> = appearanceSettingsSchema.unwrap().shape as unknown as Readonly<Record<string, SchemaNode>>;
+const SHAPE: Readonly<Record<string, SchemaNode>> = appearanceSettingsSchema.unwrap().shape;
 const DEFAULTS: Readonly<Record<string, unknown>> = appearanceSettingsSchema.parse({});
 
 function shapeOf(row: AppearanceChannelRow): LeafShape {

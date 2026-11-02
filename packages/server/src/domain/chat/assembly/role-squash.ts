@@ -20,6 +20,14 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  client pass (the `INJECT-NAMED-AS-PLAYER` defect). */
 export const MERGE_SEPARATOR = "\n\n";
 
+/** The fields the adjacency rule reads from a history row. */
+export interface SquashRow {
+  role: MessageRole;
+  content: string;
+  name?: string;
+  messageId?: MessageId | undefined;
+}
+
 /**
  * The adjacency RUNS the squash forms over `history`: one entry per DELIVERED row, listing the INPUT INDICES
  * that fold into it. Empty/whitespace-only inputs are dropped and appear in no run, so `Σ run.length` can be
@@ -34,8 +42,8 @@ export const MERGE_SEPARATOR = "\n\n";
  * `canonApart`: a run holds at most one stored row (a row with a `messageId`); the next stored row opens a new
  * run. Injections and cues still join the stored row beside them.
  */
-export function squashRuns<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
-  history: readonly T[],
+export function squashRuns(
+  history: readonly SquashRow[],
   opts: { readonly canonApart: boolean; readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined } = { canonApart: false },
 ): readonly (readonly number[])[] {
   const runs: number[][] = [];
@@ -67,7 +75,7 @@ export function squashRuns<T extends { role: MessageRole; content: string; name?
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
  *  `name` fields are not merged. `system` rows (capability-kept depth-0 injections) merge only with each
  *  other — a system row never folds into a user/assistant neighbor. `canonApart` is {@link squashRuns}'s. */
-export function squashSameRole<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+export function squashSameRole<T extends SquashRow>(
   history: readonly T[],
   opts: { readonly canonApart: boolean; readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined } = { canonApart: false },
 ): T[] {

@@ -88,7 +88,7 @@ export function createApplyImportedAppearance(
       // out-of-range `font_scale`) heals to that field's default on the next read rather than ever rendering.
       const at = ctx.now();
       const nextAppearance = { ...current.appearance, ...claimed, backgroundLibrary };
-      await writeUserConfig(ctx.db, ownerId, { ...current, [APPEARANCE]: nextAppearance } as UserSettings, at);
+      await writeUserConfig(ctx.db, ownerId, { ...current, [APPEARANCE]: nextAppearance }, at);
       await ctx.audit(
         {
           actorUserId: ownerId,

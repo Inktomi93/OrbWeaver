@@ -6,7 +6,8 @@ import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 
-const raw = { reached: new Error("controlled raw dial reached"), calls: [] as string[] };
+const rawCalls: string[] = [];
+const raw = { reached: new Error("controlled raw dial reached"), calls: rawCalls };
 
 // Only the physical connector is scripted. The production lookup callback makes the actual address judgment.
 const scriptedConnector: ScopedEgressOptions["buildConnector"] = (options) => {

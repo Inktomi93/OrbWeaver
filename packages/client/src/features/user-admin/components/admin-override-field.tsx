@@ -122,7 +122,7 @@ export interface AdminOverrideSelectProps {
   readonly label: string;
   readonly hint?: string;
   readonly value: string;
-  readonly items: SelectItems<string>;
+  readonly items: SelectItems;
   readonly overridden: boolean;
   readonly floorLabel: string | null;
   readonly onSet: (next: string) => void;

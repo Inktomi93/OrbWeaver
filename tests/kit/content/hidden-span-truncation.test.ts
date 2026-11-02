@@ -74,7 +74,7 @@ test.each([
   expect(projectBodyForPreview(body)).not.toContain(SECRET_LETTERS);
   expect(scanHiddenSpans(body).length).toBeGreaterThan(0);
   expect(tokenizeContent(body, { committed: true }).map(contentSpanRaw).join("")).toBe(body);
-  const splits = [...Array.from({ length: body.length + 1 }, (_, at) => [body.slice(0, at), body.slice(at)]), [...body]];
+  const splits = [...Array.from({ length: body.length + 1 }, (_, at) => [body.slice(0, at), body.slice(at)]), Array.from(body)];
   for (const deltas of splits) {
     const scrubber = createHiddenSpanStreamScrubber();
     expect(deltas.map((delta) => scrubber.push(delta)).join("") + scrubber.flush(), deltas.join("|")).toBe(visible);

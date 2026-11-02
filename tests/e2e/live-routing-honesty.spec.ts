@@ -25,7 +25,7 @@ import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
-import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { getChatBindingRow, listCanon, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
@@ -40,7 +40,7 @@ async function genPostCount(): Promise<number> {
 test("the chat Model role is what's stored AND what the turn actually rides (local vLLM)", {
   tag: "@live",
 }, async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
   // ── 1. STORED — the pin globalSetup wrote is present (the seed hasn't drifted). The binding names the
   // row; the persisted resolve says the row still answers as the local openai-compat wire. ──

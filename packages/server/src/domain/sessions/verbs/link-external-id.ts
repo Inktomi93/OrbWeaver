@@ -58,8 +58,9 @@ export function createLinkExternalId(ctx: SessionsContext): Pick<SessionsService
     }
     if (failure !== undefined) {
       // Durable state does not explain the rejection, so it was NOT an identity refusal — preserve the real
-      // database error (a broken audit insert riding the same batch reaches here).
-      throw failure;
+      // database error (a broken audit insert riding the same batch reaches here). A non-Error rejection rides as
+      // `cause` only: this message never assembles a value nobody reviewed, the rule `normalizeThrownErrors` keeps.
+      throw Error.isError(failure) ? failure : new Error("linkExternalId: the claim batch rejected with a non-Error value", { cause: failure });
     }
     throw new Error("linkExternalId: conditional subject claim missed without a settled competing state");
   }

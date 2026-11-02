@@ -24,7 +24,12 @@ function parsed(color: string): ParsedOklch {
 }
 
 function emittedKnobs(vars: Readonly<Record<string, string>>): Readonly<Record<string, number>> {
-  return Object.fromEntries(Object.entries(vars).flatMap(([name, value]) => (KNOB_VARS.has(name) ? [[KNOB_VARS.get(name), Number.parseFloat(value)]] : [])));
+  return Object.fromEntries(
+    Object.entries(vars).flatMap(([name, value]) => {
+      const knob = KNOB_VARS.get(name);
+      return knob === undefined ? [] : [[knob, Number.parseFloat(value)] as const];
+    }),
+  );
 }
 
 test("a scope with no carried background emits no tone knob, so the cascade keeps the outer solve", () => {
@@ -34,8 +39,9 @@ test("a scope with no carried background emits no tone knob, so the cascade keep
 test("a dark carried base emits every solved knob at its default", () => {
   const knobs = emittedKnobs(clampThemeTokens({ background: DARK_BASE }, undefined, HEARTH_ACCENT).vars);
   expect(Object.keys(knobs).length).toBeGreaterThan(0);
+  const defaults: Readonly<Record<string, number>> = TONE_MIX_DEFAULTS;
   for (const [knob, percent] of Object.entries(knobs)) {
-    expect(percent, knob).toBe(TONE_MIX_DEFAULTS[knob as keyof typeof TONE_MIX_DEFAULTS]);
+    expect(percent, knob).toBe(defaults[knob]);
   }
 });
 
@@ -44,9 +50,8 @@ test("a mid-tone carried base emits the solved knobs, and the roles they spell c
   const knobs = emittedKnobs(vars);
   const scheme = carriedToneScheme(carriedPaletteOf(parsed(MID_BASE)));
   const sources = carriedToneSources(scheme, parsed(vars[TOKENS["color.primary"].cssVar] ?? ""));
-  expect(knobs).toEqual(
-    Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solveCarriedToneMix(scheme, sources).scope[knob as keyof typeof TONE_MIX_DEFAULTS]])),
-  );
+  const solved: Readonly<Record<string, number>> = solveCarriedToneMix(scheme, sources).scope;
+  expect(knobs).toEqual(Object.fromEntries(Object.keys(knobs).map((knob) => [knob, solved[knob]] as const)));
   expect(knobs["text"]).toBeLessThan(TONE_MIX_DEFAULTS.text);
   expect(knobs["neutral-active"]).toBeGreaterThan(TONE_MIX_DEFAULTS["neutral-active"]);
 });

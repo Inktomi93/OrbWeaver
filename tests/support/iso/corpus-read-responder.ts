@@ -3,13 +3,13 @@ import { stableStringify } from "@orb/kit/stable-stringify";
 import { readCorpusCapture } from "./corpus-playback.ts";
 import type { CorpusCapture, CorpusPlaybackRead, CorpusPlaybackViewerRead, CorpusProcedurePath, CorpusRead } from "./corpus-read.ts";
 
-function captureKey<T>(value: T): string | undefined {
+function captureKey(value: unknown): string | undefined {
   // The canonical JSON stringifier collapses undefined into null; request input presence must survive.
   return value === undefined ? undefined : stableStringify(value);
 }
 
 // tRPC's infinite client stamps `direction` on every page; it selects no data, so a capture of the plain read answers it.
-function requestKey<T>(input: T): string | undefined {
+function requestKey(input: unknown): string | undefined {
   if (typeof input === "object" && input !== null && "direction" in input) {
     const { direction: _direction, ...request } = input;
     return captureKey(request);

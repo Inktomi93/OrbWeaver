@@ -197,7 +197,7 @@ async function pixelEvidence(
   const results = await captureContrastEvidence(page, selectors, true, opts.device === null ? opts.viewport : (page.viewportSize() ?? opts.viewport));
   const evidence = {
     sampled: results.reduce((sum, result) => sum + result.evidence.sampled, 0),
-    passed: results.length === selectors.length && results.every((result) => result.evidence.status === "ok" && result.evidence.passed === true),
+    passed: results.length === selectors.length && results.every((result) => result.evidence.status === "ok" && result.evidence.passed),
     actual: results.map((result) => result.outcome.line).join(" | "),
   };
   const summary = row.id === "opposite-os-app-prepaint" ? { "theme-pixel-identity": evidence } : { "composited-contrast": evidence };

@@ -4,6 +4,7 @@
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { keysOf, undeclaredKeys } from "./type-keys.ts";
@@ -79,15 +80,15 @@ export const trpcPayloadKeysRule: OrbRule = {
     return {
       CallExpression: (node: TSESTree.CallExpression): void => {
         const [payload] = node.arguments;
-        if (payload?.type === "ObjectExpression") {
+        if (payload?.type === AST_NODE_TYPES.ObjectExpression) {
           judgeFactory(payload);
         }
         const callee = node.callee;
         if (
           payload !== undefined &&
-          payload.type !== "SpreadElement" &&
-          callee.type === "MemberExpression" &&
-          callee.property.type === "Identifier" &&
+          payload.type !== AST_NODE_TYPES.SpreadElement &&
+          callee.type === AST_NODE_TYPES.MemberExpression &&
+          callee.property.type === AST_NODE_TYPES.Identifier &&
           TRPC_PAYLOAD_METHODS.has(callee.property.name)
         ) {
           judgeCall(payload);

@@ -15,8 +15,8 @@ import { alertDialogVariants } from "./variants.ts";
 const slots = alertDialogVariants();
 
 // Unlike Dialog, intentionally NOT dismissible by backdrop click — a destructive action needs an explicit choice.
-export function AlertDialog<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
-  return <BaseAlertDialog.Root {...props} />;
+export function AlertDialog<Payload = unknown>({ children, ...props }: BaseRootProps<Payload>): ReactElement {
+  return <BaseAlertDialog.Root {...props}>{children}</BaseAlertDialog.Root>;
 }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog. */

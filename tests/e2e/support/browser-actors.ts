@@ -22,6 +22,7 @@ import type { ViewerView } from "@orb/contracts/identity";
 import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { z } from "zod";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { SESSION_COOKIE } from "./actors.ts";
@@ -121,5 +122,7 @@ export async function browserActorRequestHeaders(context: BrowserContext, baseUr
  *  which an undocked panel would not: it mounts at zero size. `title` must be unique on the shared DB. */
 export async function openMembersTab(page: Page, title: string): Promise<void> {
   await openChatByTitle(page, title);
-  await page.locator(MEMBERS_ENTRY).first().click({ timeout: READY_TIMEOUT_MS });
+  const entry = page.locator(MEMBERS_ENTRY).first();
+  await expect(entry).toBeVisible({ timeout: READY_TIMEOUT_MS });
+  await entry.click();
 }

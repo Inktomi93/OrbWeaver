@@ -115,7 +115,7 @@ test.describe("on the corpus owner's own settings", () => {
       const strip = buttons.at(-1)?.parentElement;
       return buttons.filter((button) => button.parentElement === strip).map((button) => button.textContent);
     });
-    expect(modes.length).toBe(3);
+    expect(modes).toHaveLength(3);
     const arms: { strip: number; footerGap: number; regionShort: number; cancels: number }[] = [];
     for (const label of modes) {
       await dialog.getByRole("button", { name: label, exact: true }).click();

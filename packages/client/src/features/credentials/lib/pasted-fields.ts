@@ -30,7 +30,7 @@ export function looksLikeFields(text: string): boolean {
 // Not strict JSON is an answer, not a failure: the text goes on to the lenient reader.
 function tryJson(text: string): PastedParse<unknown> {
   try {
-    return { ok: true, value: JSON.parse(text) as unknown };
+    return { ok: true, value: JSON.parse(text) };
   } catch {
     return { ok: false, reason: FORMATS_HINT };
   }

@@ -1,5 +1,6 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { lexicalVariable } from "./general.ts";
 import { accessedName, constantInitializer, STATIC_CONST_DEPTH, staticTextValue, unwrapTsValue } from "./static-values.ts";
@@ -20,7 +21,7 @@ const INVOCATIONS = new Set(["call", "apply"]);
 
 function resolved(context: OrbRuleContext, node: TSESTree.Node, depth = 0): TSESTree.Node {
   const expression = unwrapTsValue(node);
-  const initializer = expression.type === "Identifier" && depth < STATIC_CONST_DEPTH ? constantInitializer(context, expression) : undefined;
+  const initializer = expression.type === AST_NODE_TYPES.Identifier && depth < STATIC_CONST_DEPTH ? constantInitializer(context, expression) : undefined;
   return initializer === undefined ? expression : resolved(context, initializer, depth + 1);
 }
 
@@ -32,17 +33,21 @@ interface MemberCapability {
 function destructuredMember(context: OrbRuleContext, identifier: TSESTree.Identifier): MemberCapability | undefined {
   const variable = lexicalVariable(context, identifier);
   const definition = variable?.defs[0];
-  if (definition?.type !== "Variable" || definition.node.id.type !== "ObjectPattern" || definition.node.init === null) {
+  if (
+    definition?.type !== TSESLint.Scope.DefinitionType.Variable ||
+    definition.node.id.type !== AST_NODE_TYPES.ObjectPattern ||
+    definition.node.init === null
+  ) {
     return undefined;
   }
   if (variable?.references.every((reference) => !reference.isWrite() || reference.init === true) !== true) {
     return undefined;
   }
-  const property = definition.node.id.properties.find((entry) => entry.type === "Property" && entry.value === definition.name);
-  if (property?.type !== "Property") {
+  const property = definition.node.id.properties.find((entry) => entry.type === AST_NODE_TYPES.Property && entry.value === definition.name);
+  if (property?.type !== AST_NODE_TYPES.Property) {
     return undefined;
   }
-  const name = property.key.type === "Identifier" && !property.computed ? property.key.name : staticTextValue(context, property.key);
+  const name = property.key.type === AST_NODE_TYPES.Identifier && !property.computed ? property.key.name : staticTextValue(context, property.key);
   return { object: definition.node.init, name: typeof name === "string" ? name : undefined };
 }
 
@@ -52,14 +57,18 @@ export function calledMember(context: OrbRuleContext, node: TSESTree.Node, depth
     return undefined;
   }
   const expression = resolved(context, node);
-  if (expression.type === "Identifier") {
+  if (expression.type === AST_NODE_TYPES.Identifier) {
     return destructuredMember(context, expression);
   }
-  if (expression.type === "MemberExpression") {
+  if (expression.type === AST_NODE_TYPES.MemberExpression) {
     const name = accessedName(context, expression);
     return INVOCATIONS.has(name ?? "") ? calledMember(context, expression.object, depth + 1) : { object: expression.object, name };
   }
-  if (expression.type === "CallExpression" && expression.callee.type === "MemberExpression" && accessedName(context, expression.callee) === "bind") {
+  if (
+    expression.type === AST_NODE_TYPES.CallExpression &&
+    expression.callee.type === AST_NODE_TYPES.MemberExpression &&
+    accessedName(context, expression.callee) === "bind"
+  ) {
     return calledMember(context, expression.callee.object, depth + 1);
   }
   return undefined;
@@ -67,9 +76,9 @@ export function calledMember(context: OrbRuleContext, node: TSESTree.Node, depth
 
 function staticArrayElements(context: OrbRuleContext, array: TSESTree.ArrayExpression, depth = 0): readonly (TSESTree.Node | null)[] {
   return array.elements.flatMap((element): readonly (TSESTree.Node | null)[] => {
-    if (element?.type === "SpreadElement" && depth < STATIC_CONST_DEPTH) {
+    if (element?.type === AST_NODE_TYPES.SpreadElement && depth < STATIC_CONST_DEPTH) {
       const spread = resolved(context, element.argument);
-      if (spread.type === "ArrayExpression") {
+      if (spread.type === AST_NODE_TYPES.ArrayExpression) {
         return staticArrayElements(context, spread, depth + 1);
       }
     }
@@ -80,24 +89,24 @@ function staticArrayElements(context: OrbRuleContext, array: TSESTree.ArrayExpre
 /** Resolve static argument arrays without shifting holes or unresolved spreads into known argument positions. */
 export function effectiveArguments(context: OrbRuleContext, call: TSESTree.CallExpression, depth = 0): readonly (TSESTree.Node | null)[] {
   const callee = resolved(context, call.callee);
-  if (callee.type === "MemberExpression") {
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
     const method = accessedName(context, callee);
     if (method === "call") {
       return call.arguments.slice(1);
     }
     const argument = call.arguments[1];
     const applied = argument === undefined ? undefined : resolved(context, argument);
-    if (method === "apply" && applied?.type === "ArrayExpression") {
+    if (method === "apply" && applied?.type === AST_NODE_TYPES.ArrayExpression) {
       return staticArrayElements(context, applied);
     }
   }
   if (
     depth < STATIC_CONST_DEPTH &&
-    callee.type === "CallExpression" &&
-    callee.callee.type === "MemberExpression" &&
+    callee.type === AST_NODE_TYPES.CallExpression &&
+    callee.callee.type === AST_NODE_TYPES.MemberExpression &&
     accessedName(context, callee.callee) === "bind"
   ) {
-    if (callee.arguments[0]?.type === "SpreadElement") {
+    if (callee.arguments[0]?.type === AST_NODE_TYPES.SpreadElement) {
       return callee.arguments;
     }
     return [...effectiveArguments(context, callee, depth + 1).slice(1), ...call.arguments];
@@ -108,20 +117,24 @@ export function effectiveArguments(context: OrbRuleContext, call: TSESTree.CallE
 type FunctionNode = TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration;
 
 function functionName(node: FunctionNode): string | undefined {
-  if (node.type !== "ArrowFunctionExpression" && node.id !== null) {
+  if (node.type !== AST_NODE_TYPES.ArrowFunctionExpression && node.id !== null) {
     return node.id.name;
   }
   const parent = node.parent;
-  if (parent.type === "VariableDeclarator" && parent.id.type === "Identifier") {
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator && parent.id.type === AST_NODE_TYPES.Identifier) {
     return parent.id.name;
   }
-  return parent.type === "Property" && parent.key.type === "Identifier" ? parent.key.name : undefined;
+  return parent.type === AST_NODE_TYPES.Property && parent.key.type === AST_NODE_TYPES.Identifier ? parent.key.name : undefined;
 }
 
 function functionPath(node: TSESTree.Node): string {
   const names: string[] = [];
   for (let current: TSESTree.Node | undefined | null = node.parent; current; current = current.parent) {
-    if (current.type === "ArrowFunctionExpression" || current.type === "FunctionExpression" || current.type === "FunctionDeclaration") {
+    if (
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+      current.type === AST_NODE_TYPES.FunctionExpression ||
+      current.type === AST_NODE_TYPES.FunctionDeclaration
+    ) {
       const name = functionName(current);
       if (name !== undefined) {
         names.unshift(name);
@@ -233,7 +246,7 @@ export const classListWriteRule: OrbRule = {
         }
       },
       AssignmentExpression: (node: TSESTree.AssignmentExpression): void => {
-        if (node.left.type !== "MemberExpression") {
+        if (node.left.type !== AST_NODE_TYPES.MemberExpression) {
           return;
         }
         const name = accessedName(context, node.left);

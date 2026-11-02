@@ -9,6 +9,7 @@ import { artifactDir, registerInstrumentArtifact } from "../../floor/artifacts/a
 import { aggregateScope, evidenceWindowId, exactScope, notApplicableScope } from "../../floor/artifacts/artifact-scope.ts";
 import { DIAGNOSTIC_LEVELS, DIAGNOSTIC_ORIGINS } from "../../floor/browser/browser-contract.ts";
 import type { BrowserDiagnostic, OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
+import { readMember } from "../../floor/instrument/member.ts";
 import type { DiskSafeBrowserDiagnostic, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
 import { NETWORK_LIMIT_KINDS } from "../contract/har-redaction.ts";
 import type { SnapRunArtifact, SnapRunDiagnosticCompleteness, SnapRunIndex } from "../contract/run-index.ts";
@@ -32,7 +33,7 @@ interface SnapDiagnosticArtifact {
 const DIAGNOSTIC_CAPTURE_LIMIT = 500;
 
 function isFileExistsError(error: unknown): boolean {
-  return error instanceof Error && Reflect.get(error, "code") === "EEXIST";
+  return error instanceof Error && readMember(error, "code") === "EEXIST";
 }
 
 /** The daemon and one-shot host both call this inside the active/adopted slot, once per capture. The
@@ -97,12 +98,12 @@ function isLimitReceipt(value: unknown): value is DiskSafeLimitReceipt {
   if (typeof value !== "object" || value === null) {
     return false;
   }
-  const policy = Reflect.get(value, "policy");
-  const events = Reflect.get(value, "events");
+  const policy = readMember(value, "policy");
+  const events = readMember(value, "events");
   const validPolicy =
     typeof policy === "object" &&
     policy !== null &&
-    ["maxDepth", "maxFields", "maxStringBytes", "maxBodyBytes", "maxEntries", "maxUrlBytes"].every((field) => nonnegativeInteger(Reflect.get(policy, field)));
+    ["maxDepth", "maxFields", "maxStringBytes", "maxBodyBytes", "maxEntries", "maxUrlBytes"].every((field) => nonnegativeInteger(readMember(policy, field)));
   return (
     validPolicy &&
     Array.isArray(events) &&
@@ -110,11 +111,11 @@ function isLimitReceipt(value: unknown): value is DiskSafeLimitReceipt {
       (event) =>
         typeof event === "object" &&
         event !== null &&
-        NETWORK_LIMIT_KINDS.some((kind) => kind === Reflect.get(event, "kind")) &&
-        typeof Reflect.get(event, "path") === "string" &&
-        nullableNonnegativeInteger(Reflect.get(event, "original")) &&
-        nullableNonnegativeInteger(Reflect.get(event, "retained")) &&
-        nullableNonnegativeInteger(Reflect.get(event, "omitted")),
+        NETWORK_LIMIT_KINDS.some((kind) => kind === readMember(event, "kind")) &&
+        typeof readMember(event, "path") === "string" &&
+        nullableNonnegativeInteger(readMember(event, "original")) &&
+        nullableNonnegativeInteger(readMember(event, "retained")) &&
+        nullableNonnegativeInteger(readMember(event, "omitted")),
     )
   );
 }
@@ -123,17 +124,17 @@ function isDiagnosticRecord(value: unknown): value is DiskSafeBrowserDiagnostic 
   return (
     typeof value === "object" &&
     value !== null &&
-    DIAGNOSTIC_ORIGINS.some((origin) => origin === Reflect.get(value, "origin")) &&
-    typeof Reflect.get(value, "source") === "string" &&
-    DIAGNOSTIC_LEVELS.some((level) => level === Reflect.get(value, "level")) &&
-    typeof Reflect.get(value, "text") === "string" &&
-    typeof Reflect.get(value, "timestamp") === "number" &&
-    Number.isFinite(Reflect.get(value, "timestamp")) &&
-    Number(Reflect.get(value, "timestamp")) >= 0 &&
-    nonnegativeInteger(Reflect.get(value, "contextIndex")) &&
-    nonnegativeInteger(Reflect.get(value, "pageIndex")) &&
-    nonnegativeInteger(Reflect.get(value, "evidenceWindow")) &&
-    isLimitReceipt(Reflect.get(value, "_orbMeasuredLimit"))
+    DIAGNOSTIC_ORIGINS.some((origin) => origin === readMember(value, "origin")) &&
+    typeof readMember(value, "source") === "string" &&
+    DIAGNOSTIC_LEVELS.some((level) => level === readMember(value, "level")) &&
+    typeof readMember(value, "text") === "string" &&
+    typeof readMember(value, "timestamp") === "number" &&
+    Number.isFinite(readMember(value, "timestamp")) &&
+    Number(readMember(value, "timestamp")) >= 0 &&
+    nonnegativeInteger(readMember(value, "contextIndex")) &&
+    nonnegativeInteger(readMember(value, "pageIndex")) &&
+    nonnegativeInteger(readMember(value, "evidenceWindow")) &&
+    isLimitReceipt(readMember(value, "_orbMeasuredLimit"))
   );
 }
 
@@ -150,8 +151,8 @@ export async function readSnapDiagnosticArtifact(path: string): Promise<Diagnost
     throw new Error(`${path} is a corrupt browser-diagnostics artifact (${error instanceof Error ? error.message : String(error)})`, { cause: error });
   }
   const records =
-    typeof parsed === "object" && parsed !== null && Reflect.get(parsed, "v") === DIAGNOSTIC_ARTIFACT_VERSION ? Reflect.get(parsed, "records") : null;
-  const batchLimit = typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "_orbMeasuredLimit") : null;
+    typeof parsed === "object" && parsed !== null && readMember(parsed, "v") === DIAGNOSTIC_ARTIFACT_VERSION ? readMember(parsed, "records") : null;
+  const batchLimit = typeof parsed === "object" && parsed !== null ? readMember(parsed, "_orbMeasuredLimit") : null;
   if (!(Array.isArray(records) && records.every(isDiagnosticRecord) && isLimitReceipt(batchLimit))) {
     throw new Error(`${path} is not browser-diagnostics artifact v${String(DIAGNOSTIC_ARTIFACT_VERSION)}`);
   }

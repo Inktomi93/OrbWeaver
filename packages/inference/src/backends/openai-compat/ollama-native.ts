@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { ProviderError } from "#contract";
 import type { NativeThink } from "../../contract/openai-backend.ts";
-import { serverRootOf } from "../http/fetch-json.ts";
+import { bodyByteReader, serverRootOf } from "../http/fetch-json.ts";
 import { encodeSseData, SSE_DONE_LINE } from "../http/sse.ts";
 
 const CHAT_COMPLETIONS_SUFFIX = "/chat/completions";
@@ -79,7 +79,7 @@ function parsedArguments(raw: unknown): unknown {
     return raw ?? {};
   }
   try {
-    return JSON.parse(raw) as unknown;
+    return JSON.parse(raw);
   } catch (cause) {
     throw notJson("invalid", "a replayed tool call carries arguments that are not JSON", cause);
   }
@@ -453,7 +453,7 @@ async function cappedText(res: Response): Promise<string> {
   if (res.body === null) {
     return "";
   }
-  const reader = res.body.getReader();
+  const reader = bodyByteReader(res.body);
   const decoder = new TextDecoder();
   let out = "";
   for (;;) {

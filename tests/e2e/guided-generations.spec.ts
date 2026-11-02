@@ -267,7 +267,7 @@ test.describe("guided generations on the live local stack", () => {
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.variantCount ?? 0, { timeout: LIVE_TIMEOUT_MS }).toBe(2);
       const after = await canonMessage(chat.id, tailId);
       expect(after?.selectedVariantIdx).toBe(1);
-      expect((await listCanon(chat.id)).filter((m) => m.role === "assistant").length).toBe(1);
+      expect((await listCanon(chat.id)).filter((m) => m.role === "assistant")).toHaveLength(1);
 
       // The ORIGINAL variant is intact — stepping the selection pointer back to idx 0 returns exactly the
       // pre-rewrite content (selectVariant is a pure pointer move, no generation).

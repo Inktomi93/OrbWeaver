@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "server-address-narrow"
+version: "0.1.0"
+description: "Replace a server.address() as AddressInfo assertion with the listeningAddress reader that checks the TCP arm."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

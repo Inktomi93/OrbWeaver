@@ -16,10 +16,11 @@ const CONTRACT = "packages/server/src/domain/probe/contract/results.ts";
 const CONTRACT_SOURCE = [
   "export interface ProbeView { readonly id: string; readonly name: string }",
   "export interface ProbeResult { readonly deleted: boolean; readonly newDefaultId: string | null }",
+  "export interface ProbePorts { readonly name: string; readonly load: () => Promise<void> }",
 ].join("\n");
 
 const DECLARATIONS = [
-  'import type { ProbeResult, ProbeView } from "./contract/results.ts";',
+  'import type { ProbePorts, ProbeResult, ProbeView } from "./contract/results.ts";',
   "export interface Row { readonly id: string; readonly name: string; readonly ownerId: string }",
   "export interface Schema<T> { readonly shape: T }",
   "export interface Procedure<T> { query(resolver: () => T | Promise<T>): void; mutation(resolver: (input: unknown) => T | Promise<T>): void }",
@@ -33,13 +34,14 @@ const DECLARATIONS = [
   'export declare const branchOut: Schema<({ readonly over: "a" } & ProbeView) | { readonly over: "b"; readonly hits: readonly string[] }>;',
   "export declare const row: Row;",
   "export declare const view: ProbeView;",
+  "export declare const wide: { readonly name: string; readonly load: () => Promise<void>; readonly extra: number };",
   "export declare const seeds: { readonly defaultPersonaId: string | null; readonly defaultMoved: boolean };",
   "export declare function loadRow(): Promise<Row>;",
   "export declare function loadView(): Promise<ProbeView>;",
 ].join("\n");
 
 const IMPORTS =
-  'import type { ProbeResult, ProbeView } from "../contract/results.ts";\nimport { branchOut, listOut, loadRow, loadView, procedure, recordOut, resultOut, row, seeds, unionOut, view, viewOut, voidOut } from "../procedures.ts";';
+  'import type { ProbePorts, ProbeResult, ProbeView } from "../contract/results.ts";\nimport { branchOut, listOut, loadRow, loadView, procedure, recordOut, resultOut, row, seeds, unionOut, view, viewOut, voidOut, wide } from "../procedures.ts";';
 
 function lint(root: string, source: string): readonly string[] {
   const options: ts.CompilerOptions = {
@@ -119,11 +121,29 @@ test.for([
     keys: ["`ownerId`"],
   },
   { name: "a mapped callback spreading a view into a contract array", source: "export const rows: ProbeView[] = [view].map((one) => ({ ...one }));", keys: [] },
+  { name: "a spread bound to an annotated contract variable", source: "export const made: ProbeView = { ...row };", keys: ["`ownerId`"] },
   {
-    name: "a spread handed to a contract-typed argument or variable",
-    source: "export const sink: ProbeView[] = [];\nsink.push({ ...row });\nexport const made: ProbeView = { ...row };",
+    name: "a spread pushed onto a contract-typed array",
+    source: "export const sink: ProbeView[] = [];\nsink.push({ ...row });",
+    keys: ["`ownerId`"],
+  },
+  {
+    name: "a spread handed to a contract-typed call argument",
+    source: "declare function take(view: ProbeView): void;\ntake({ ...row });",
     keys: [],
   },
+  {
+    name: "a spread pushed onto a non-array with a push method",
+    source: "declare const bag: { push(view: ProbeView): void };\nbag.push({ ...row });",
+    keys: [],
+  },
+  {
+    name: "a wider dependency bundle spread into a contract type that carries functions",
+    source: "export const made: ProbePorts = { ...wide };",
+    keys: [],
+  },
+  { name: "a view-shaped spread bound to a contract variable", source: "export const made: ProbeView = { ...view };", keys: [] },
+  { name: "an unannotated variable holding a wider spread", source: "export const made = { ...row };", keys: [] },
   {
     name: "a spread into an intersection branch of a union output",
     source: 'procedure.output(branchOut).query(() => ({ over: "a" as const, ...row }));',

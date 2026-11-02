@@ -187,7 +187,7 @@ test("every actual mounted input parser and public contract schema retains expli
   let contractLimits = 0;
   for (const subpath of Object.keys(manifest.exports)) {
     const specifier = `@orb/contracts${subpath === "." ? "" : subpath.slice(1)}`;
-    const exported: object = await import(specifier);
+    const exported = z.record(z.string(), z.unknown()).parse(await import(specifier));
     for (const value of Object.values(exported).filter(objectValue)) {
       contractLimits += inspectSchemaValues(value);
     }

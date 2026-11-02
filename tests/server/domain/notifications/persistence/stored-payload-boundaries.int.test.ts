@@ -193,7 +193,7 @@ test("refused stored recipient bytes never reach the real recipient-keyed public
   try {
     const control = stream.next();
     await delivery.emit(actors.bobInvite);
-    expect((await control).value?.view.payload).toEqual(actors.bobInvite);
+    expect(z.object({ view: z.object({ payload: z.unknown() }) }).parse((await control).value).view.payload).toEqual(actors.bobInvite);
     const own = await harness.services.notifications.record({ event: actors.aliceInvite });
     await corruptPayload(harness.db, own.id, JSON.stringify(actors.bobInvite));
     const publication = Promise.allSettled([stream.next()]);

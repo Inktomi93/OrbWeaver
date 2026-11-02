@@ -30,6 +30,8 @@ import { makeConfigContext } from "./config-context.tsx";
 import { CONFIG_SECTION_LABEL } from "./config-copy.ts";
 import { useConfigSelectionTitle } from "./config-selection-title.ts";
 
+const configListHeader = (): { readonly title: string } => ({ title: CONFIG_SECTION_LABEL });
+
 /**
  * The section's `SectionSelection` seam — the shell's mobile ONE-SHELL input, and its BACK stack.
  *
@@ -104,7 +106,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     // ruling is untouched; only the create's address changed, which is the same sentence the members'
     // address change is.
     listSearch: "required",
-    useListHeader: () => ({ title: CONFIG_SECTION_LABEL }),
+    useListHeader: configListHeader,
     selection: makeSelectionSeam(),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
     content: () => <ConfigContentSurface groups={groups} hostContentRef={contentRef} />,
