@@ -28,9 +28,9 @@ const HEX = /#[0-9a-fA-F]{3,8}\b/u;
 const COLOR_FUNCTION = /\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch)\s*\(|(?<![\w-])color\s*\(/u;
 const TRANSFORM_PROPERTIES = new Set(["transform", "translate", "scale"]);
 const ANIMATING_AT_RULE = /^(?:keyframes|starting-style)\b/u;
-const STATE_SELECTOR = /\[[^=\]]*=[^\]]*\]|:hover|:focus|:active|:checked|:disabled|:target|:open|:popover-open/u;
-const FRACTIONAL_PX = /-?\d*\.\d+px/u;
-const PERCENTAGE = /-?(?:\d+(?:\.\d+)?|\.\d+)%/u;
+const STATE_SELECTOR = /(?<!\[)\[[^=\]]*=[^\]]*\]|:hover|:focus|:active|:checked|:disabled|:target|:open|:popover-open/u;
+const FRACTIONAL_PX = /(?<!\d)-?\d*\.\d+px/u;
+const PERCENTAGE = /(?<!\d)-?(?:\d+(?:\.\d+)?|\.\d+)%/u;
 
 /** `stylelint.utils.ruleMessages` keyed by message name; stylelint's own return type is an index signature. */
 function messagesOf<const T extends Record<string, string>>(ruleName: string, messages: T): { readonly [K in keyof T]: string } {
@@ -237,7 +237,7 @@ restRule.messages = REST_MESSAGES;
 
 // Authored CSS names a condition through a generated `@variant` and a value through a semantic token: a raw
 // `@media` re-spells a query the vault owns, and a `--primitive-*` reference skips the semantic tier.
-const CONTAINER_LENGTH = /(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
+const CONTAINER_LENGTH = /(?<!\d)(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
 
 /** A container condition cannot read a variable, so its lengths are bound to the container steps by lint instead. */
 function containerLengthsOffLadder(params: string, steps: ReadonlySet<number>): boolean {
@@ -376,7 +376,7 @@ const SHELL_MESSAGES = messagesOf(SHELL, {
   slot: "A shell region selector names only a data-slot the shell owns or coordinates; a component's skin lives with the component",
   class: "A shell region selector names only .shell-* classes or a listed coordination class; an @orb/ui class belongs to its component",
 });
-const ATTRIBUTE_SELECTOR = /\[[^\]]*\]/gu;
+const ATTRIBUTE_SELECTOR = /(?<!\[)\[[^\]]*\]/gu;
 const SLOT_SELECTOR = /\[data-slot\s*[~|^$*]?=\s*["']?(?<slot>[^"'\]\s]+)/gu;
 const CLASS_SELECTOR = /\.(?<name>-?[_a-zA-Z][\w-]*)/gu;
 // A relative colour whose origin is a served `--color-*` token, passed through unchanged: its three colour channels are
@@ -726,7 +726,7 @@ function declaredOnRoot(declaration: Declaration): boolean {
   if (owner?.type !== "rule") {
     return false;
   }
-  const rule = owner as StyleRule;
+  const rule = owner;
   let ancestor: unknown = rule.parent;
   while (typeof ancestor === "object" && ancestor !== null) {
     if ((ancestor as { type?: unknown }).type === "rule") {

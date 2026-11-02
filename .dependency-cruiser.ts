@@ -527,9 +527,11 @@ const SERVER_TEST_REACHES = {
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 
+// From the first dot of the last segment, so `.int.test.ts` goes whole: generated rule names read the bare suite.
 function withoutExtension(path: string): string {
-  const dot = path.lastIndexOf(".");
-  return dot > path.lastIndexOf("/") ? path.slice(0, dot) : path;
+  const name = path.lastIndexOf("/") + 1;
+  const dot = path.indexOf(".", name);
+  return dot === -1 ? path : path.slice(0, dot);
 }
 
 function serverTestMirrorRules(): IForbiddenRuleType[] {

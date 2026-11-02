@@ -6,7 +6,7 @@ import { expect as vitestExpect } from "vitest";
 declare const MATCHER: unique symbol;
 
 /** A matcher only the equality assertions (`toEqual`, `toMatchObject`, `toHaveBeenCalledWith`) read. */
-export interface AsymmetricMatcher {
+interface AsymmetricMatcher {
   readonly [MATCHER]: true;
 }
 

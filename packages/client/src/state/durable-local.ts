@@ -62,7 +62,7 @@ function legacyKey(prefix: string, name: string): string {
  *  before assigning `api.persist` (verified in the installed `zustand/esm/middleware.mjs`). A store in that
  *  state persists nothing, so there is nothing to re-key; treating it as absent is the honest reading, and
  *  the alternative is a boot crash on a browser that merely refused storage. */
-export interface DurableLocalPersistApi {
+interface DurableLocalPersistApi {
   readonly persist?:
     | {
         /** zustand MERGES these over the live options, so either field alone is a legal call: `name`
