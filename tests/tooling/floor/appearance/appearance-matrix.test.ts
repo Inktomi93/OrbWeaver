@@ -1,3 +1,4 @@
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
 import type { RuntimeAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { appearancePatchForAssignment, appearanceReachReceipt } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
@@ -43,7 +44,7 @@ test("Appearance reach refuses stale, unregistered, and same-count sample substi
   expect(() => appearanceReachReceipt(runtimeContract({ rows: [{ ...baseRow, samples: [] }] }))).toThrow("samples do not reconcile");
 });
 
-test("seeded background arm receives a real catalog id without promoting its dependency to an axis", () => {
+test("seeded background arm receives a real catalog id without promoting its dependency to an axis", ({ ids }) => {
   const axes = [
     {
       id: "appearance.backgroundImageKind",
@@ -57,11 +58,11 @@ test("seeded background arm receives a real catalog id without promoting its dep
   // The LIVE background capability — one entry of the authenticated account's own `backgroundLibrary`. The
   // `asset` arm cannot be completed from a constant the way the retired `seeded` catalog slug could, which
   // is why the projection takes it as an argument instead of reading a static list.
-  const background = { assetId: "asset_matrix", assetHash: "hash_matrix", mime: "image/jpeg" };
+  const background = { assetId: ids.typeId(ID_PREFIX.asset), assetHash: "hash_matrix", mime: "image/jpeg" };
 
   expect(appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"asset"' }, background)).toMatchObject({
     backgroundImageKind: "asset",
-    backgroundAssetId: "asset_matrix",
+    backgroundAssetId: background.assetId,
     backgroundAssetHash: "hash_matrix",
     backgroundAssetMime: "image/jpeg",
   });

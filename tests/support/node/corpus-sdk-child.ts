@@ -1,7 +1,10 @@
 // Physical CLI protocol only; native Query imports seed bytes and owns transcript mirroring.
+
 import { once } from "node:events";
 import { join } from "node:path";
 import process from "node:process";
+import type { AgentSdkSessionId } from "@orb/inference";
+import { sdkSessionIdOf } from "./contract/sdk-process.ts";
 import {
   CORPUS_SDK_DEFER_EXIT,
   CORPUS_SDK_EMPTY,
@@ -20,11 +23,11 @@ function write(value: SdkOutputFrame): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-async function importedSeed(config: string, resume: string | null, sessionId: string): Promise<{ file: string; frames: unknown[] }> {
+async function importedSeed(config: string, resume: string | null, sessionId: AgentSdkSessionId): Promise<{ file: string; frames: unknown[] }> {
   if (resume === null) {
     return { file: join(config, "projects", "physical-corpus", `${sessionId}.jsonl`), frames: [] };
   }
-  return await readSdkResumeTranscript(config, resume);
+  return await readSdkResumeTranscript(config, sdkSessionIdOf(resume));
 }
 
 function promptOf(input: SdkUserInput): string {

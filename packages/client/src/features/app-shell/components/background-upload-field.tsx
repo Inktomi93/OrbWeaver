@@ -14,6 +14,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
+import { backgroundEntryIdSchema } from "@orb/contracts/settings";
 import { Avatar } from "@orb/ui/avatar";
 import { Field } from "@orb/ui/field";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
@@ -77,7 +78,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
     try {
       const stored = await upload(file, "background");
       onUploaded({
-        entryId: ids.uuid(),
+        entryId: backgroundEntryIdSchema.parse(ids.uuid()),
         assetId: stored.assetId,
         assetHash: stored.hash,
         // Best-effort from the picked file (blank for a type-less pick ⇒ the image layer, the documented

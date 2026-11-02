@@ -65,6 +65,7 @@ import {
   pluginSurfaceRegistrationMetaSchema,
   pluginWorldEntryUpsertSchema,
 } from "@orb/contracts/plugin";
+import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
@@ -907,7 +908,7 @@ function parsePreconditions(raw: unknown): readonly VariablePrecondition[] | und
 
 /** Project the guest-supplied `chat.requestTurn` hints to the JSON-safe `{speakerCharacterId?, guided?}` shape.
  *  Only string fields are honored; optional fields stay ABSENT (exactOptionalPropertyTypes), never `undefined`. */
-function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: string; readonly guided?: string } {
+function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: SandboxWireId<CharacterId>; readonly guided?: string } {
   const p = (typeof raw === "object" && raw !== null ? raw : {}) as { speakerCharacterId?: unknown; guided?: unknown };
   const speakerCharacterId = typeof p.speakerCharacterId === "string" ? p.speakerCharacterId : undefined;
   const guided = typeof p.guided === "string" ? p.guided : undefined;

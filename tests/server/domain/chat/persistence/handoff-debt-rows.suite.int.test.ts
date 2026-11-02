@@ -9,6 +9,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { chatLocks, closeDb, pendingTurns, rpgSnapshots } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -31,7 +32,7 @@ async function canon(room: SpeakerRoom): Promise<MessageView[]> {
 }
 
 // The room's host seats as the wire roster shows them to a present viewer.
-async function hostSeats(h: Pick<ChatRoot, "root" | "chatId">, viewer: Principal): Promise<{ readonly userId: string | null }[]> {
+async function hostSeats(h: Pick<ChatRoot, "root" | "chatId">, viewer: Principal): Promise<{ readonly userId: UserId | null }[]> {
   const { participants } = await (await h.root.internalCallerFor(viewer.userId)).chat.getChat({ chatId: h.chatId });
   return participants.filter(({ role }) => role === "host");
 }

@@ -19,7 +19,7 @@
 // `cost`) + upstreamUsd (the provider's charge)`; on a passthrough turn `totalUsd` is OR's `cost` and the two
 // are absent.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { Branded, ModelId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
@@ -30,12 +30,16 @@ import { wireSchema } from "./wires.ts";
 
 const usd = z.number().nonnegative();
 
+/** The provider's own billing handle for one generation, never an Orbweaver identity. */
+export type ProviderGenerationId = Branded<"ProviderGenerationId">;
+export const providerGenerationIdSchema = brandedId("ProviderGenerationId");
+
 const RESPONSE_CACHE_STATUSES = ["hit", "miss"] as const;
 export const responseCacheSchema = z.strictObject({
   status: z.enum(RESPONSE_CACHE_STATUSES),
   ageSeconds: z.int().nonnegative().nullable(),
   ttlSeconds: z.int().nonnegative().nullable(),
-  sourceGenerationId: brandedId("ProviderGenerationId").nullable(),
+  sourceGenerationId: providerGenerationIdSchema.nullable(),
 });
 export type ResponseCache = z.infer<typeof responseCacheSchema>;
 
@@ -111,7 +115,7 @@ export const generationUsageLegSchema = generationUsageSchema.extend({
   finishReason: normalizedFinishReasonSchema.nullable(),
   stopReason: z.string().nullable(),
   terminalReason: z.string().nullable(),
-  generationId: brandedId("ProviderGenerationId").nullable(),
+  generationId: providerGenerationIdSchema.nullable(),
 });
 export type GenerationUsageLeg = z.infer<typeof generationUsageLegSchema>;
 

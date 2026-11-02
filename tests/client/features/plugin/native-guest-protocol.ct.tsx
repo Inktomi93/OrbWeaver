@@ -1,5 +1,6 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
 import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -13,7 +14,7 @@ import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-co
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
-function knownPlugin<const T>(pluginId: string, answer: T): (input: { readonly pluginId: string }) => T | ReturnType<typeof trpcError> {
+function knownPlugin<const T>(pluginId: PluginId, answer: T): (input: { readonly pluginId: PluginId }) => T | ReturnType<typeof trpcError> {
   return (input) => (input.pluginId === pluginId ? answer : trpcError({ code: "NOT_FOUND" }));
 }
 

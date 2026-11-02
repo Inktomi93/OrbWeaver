@@ -3,7 +3,7 @@
 // @subject packages/kit/src/rerank/index.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
+import { modelIdSchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -21,7 +21,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-const RERANK_MODEL = "corpus-rerank";
+const RERANK_MODEL = modelIdSchema.parse("corpus-rerank");
 const WIDE_WINDOW_TOKENS = 2048;
 /** Too small to reach a closing that sits hundreds of tokens into an item. */
 const NARROW_WINDOW_TOKENS = 512;

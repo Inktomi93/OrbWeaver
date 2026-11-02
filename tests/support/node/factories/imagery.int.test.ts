@@ -1,8 +1,10 @@
 // @subject tests/support/node/factories/rows/imagery.ts
 // @subject packages/server/src/domain/imagery/persistence/queries.ts
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GeneratePictureParams } from "@orb/contracts/imagery";
 import { generationProvenanceSchema } from "@orb/contracts/imagery";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -15,7 +17,7 @@ import { makeGenerationProvenance } from "./imagery-view.ts";
 import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./rows/imagery.ts";
 
 const ENDPOINT = "http://127.0.0.1:8703/v1";
-const MODEL = "corpus-image-model";
+const MODEL = modelIdSchema.parse("corpus-image-model");
 
 test("default provenance is parsed by the canonical required-field contract without a shadow shape", () => {
   const provenance = makeGenerationProvenance();

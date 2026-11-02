@@ -1,7 +1,15 @@
 // Resolved-connection fixtures; reusable capability defaults live in the ISO builder home.
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
-import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnectionView, ResolvedConnectionView, Task } from "@orb/contracts/inference";
+import type {
+  CachePolicy,
+  Capability,
+  GenerationCapability,
+  ProviderId,
+  ResolvedCacheConnectionView,
+  ResolvedConnectionView,
+  Task,
+} from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -31,7 +39,7 @@ export const TEST_CONNECTION_ID: UserConnectionId = viewIds.typeId(ID_PREFIX.use
 export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId" | "credential">> {
   readonly task?: T | undefined;
   /** A built-in registry id (the row is looked up; the brand is applied here). */
-  readonly providerId?: string | undefined;
+  readonly providerId?: ProviderId | undefined;
   /** The chat-shaped capability (a shorthand for `capability: { kind: "generation", generation }`). */
   readonly generation?: Partial<GenerationCapability> | undefined;
   readonly capability?: Capability | undefined;

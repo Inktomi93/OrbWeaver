@@ -4,6 +4,7 @@
 // reads through the same persisted resolve (`useRerankModel`), for Smart's default picker.
 
 import type { Capability, RoutableTask } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -30,7 +31,7 @@ function useRoleModel(task: RoutableTask): RoleModelState<{ readonly capability:
     return { kind: "unknown" };
   }
   const rows = connections.data ?? [];
-  const rowOf = (connectionId: string): (typeof rows)[number] | undefined => rows.find((row) => row.id === connectionId);
+  const rowOf = (connectionId: UserConnectionId): (typeof rows)[number] | undefined => rows.find((row) => row.id === connectionId);
   const view = views.find((candidate) => candidate.task === task) ?? null;
   const status = roleStatus(view);
   if (status === "unset") {

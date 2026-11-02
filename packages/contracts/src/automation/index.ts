@@ -5,8 +5,22 @@
 // are typed-but-refused at `createRule` until their domains land.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, PluginId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type {
+  AssetId,
+  AutomationFireId,
+  AutomationRuleId,
+  AutomationSuggestionId,
+  CharacterId,
+  ChatId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  PluginId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
+import { ID_PREFIX, sandboxWireIdSchema, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -742,17 +756,14 @@ export const automationActionsSchema = z
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
 const triggerFactPayloadSchema = z.strictObject({
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  chatId: z.string().nullable(),
+  chatId: sandboxWireIdSchema<ChatId>().nullable(),
   // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
     .strictObject({
-      id: z.string(),
+      id: sandboxWireIdSchema<MessageId>(),
       role: z.enum(MESSAGE_ROLES),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      authorUserId: z.string().nullable(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      characterId: z.string().nullable(),
+      authorUserId: sandboxWireIdSchema<UserId>().nullable(),
+      characterId: sandboxWireIdSchema<CharacterId>().nullable(),
       seq: z.number(),
       content: z.string(),
     })
@@ -765,14 +776,13 @@ const triggerFactPayloadSchema = z.strictObject({
       // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
       provider: z.string(),
       model: z.string(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      speakerCharacterId: z.string().nullable(),
+      speakerCharacterId: sandboxWireIdSchema<CharacterId>().nullable(),
       abortReason: z.string().optional(), // turnAborted only
       automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
     })
     .optional(),
   // worldInfoActivated
-  worldInfo: z.strictObject({ entryIds: z.array(z.string()).readonly() }).optional(),
+  worldInfo: z.strictObject({ entryIds: z.array(sandboxWireIdSchema<WorldEntryId>()).readonly() }).optional(),
   /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
    *
    *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
@@ -783,17 +793,15 @@ const triggerFactPayloadSchema = z.strictObject({
    *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
   reaction: z
     .strictObject({
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      messageId: z.string(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      variantId: z.string(),
+      messageId: sandboxWireIdSchema<MessageId>(),
+      variantId: sandboxWireIdSchema<MessageVariantId>(),
       emoji: z.string(),
       added: z.boolean(),
     })
     .optional(),
   // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
   // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
-  persona: z.strictObject({ from: z.string().nullable(), to: z.string().nullable() }).optional(),
+  persona: z.strictObject({ from: sandboxWireIdSchema<PersonaId>().nullable(), to: sandboxWireIdSchema<PersonaId>().nullable() }).optional(),
   // domain-bus members
   /** character.updated. NESTED because it carries TWO fields, which is the same reason `message`/`turn`/
    *  `worldInfo` nest and `assetId` does not.
@@ -806,13 +814,10 @@ const triggerFactPayloadSchema = z.strictObject({
    *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
    *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
    *  demands. */
-  character: z.strictObject({ id: z.string(), contentChanged: z.boolean() }).optional(),
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  assetId: z.string().optional(), // asset.created
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
+  character: z.strictObject({ id: sandboxWireIdSchema<CharacterId>(), contentChanged: z.boolean() }).optional(),
+  assetId: sandboxWireIdSchema<AssetId>().optional(), // asset.created
+  personaId: sandboxWireIdSchema<PersonaId>().optional(), // persona.updated (S7) — the persona whose CONTENT changed
+  worldBookId: sandboxWireIdSchema<WorldBookId>().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
 export const triggerFactSchema = z.discriminatedUnion("bus", [
   triggerFactPayloadSchema.extend({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),

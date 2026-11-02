@@ -1,6 +1,7 @@
 // Wire automation and plugin onto the same effect ports, feedback registries and enforcement belts.
 // Author and installer Principals are row-derived through the injected entry resolver.
 
+import { toolCallIdSchema } from "@orb/contracts/chat";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
@@ -199,7 +200,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     toolUse: deps.toolUse,
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
-    newToolCallId: () => `automation_${newOpaqueId()}`,
+    newToolCallId: () => toolCallIdSchema.parse(`automation_${newOpaqueId()}`),
   });
   const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });

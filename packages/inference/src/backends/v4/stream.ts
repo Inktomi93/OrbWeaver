@@ -16,6 +16,9 @@ import type {
   SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
+import { toolCallIdSchema } from "@orb/contracts/chat";
+import type { ProviderGenerationId } from "@orb/contracts/inference";
+import { providerGenerationIdSchema } from "@orb/contracts/inference";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
@@ -58,7 +61,7 @@ interface Accumulator {
   finish: LanguageModelV4FinishReason | undefined;
   usage: LanguageModelV4Usage | undefined;
   providerMetadata: SharedV4ProviderMetadata | undefined;
-  responseId: string | undefined;
+  responseId: ProviderGenerationId | undefined;
   servedModel: string | undefined;
 }
 
@@ -159,7 +162,7 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
       acc.toolMetadata.set(acc.toolCalls.length, part.providerMetadata);
     }
     acc.toolCalls.push({
-      toolCallId: part.toolCallId,
+      toolCallId: toolCallIdSchema.parse(part.toolCallId),
       name: part.toolName,
       arguments: part.input,
       atChars: acc.reply.length,
@@ -190,7 +193,8 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, lab
   if (part.type === "stream-start") {
     acc.warnings.push(...part.warnings);
   } else if (part.type === "response-metadata") {
-    acc.responseId = part.id ?? acc.responseId;
+    const id = providerGenerationIdSchema.safeParse(part.id);
+    acc.responseId = id.success ? id.data : acc.responseId;
     acc.servedModel = part.modelId ?? acc.servedModel;
   } else if (part.type === "finish") {
     acc.finish = part.finishReason;

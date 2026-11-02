@@ -2,13 +2,12 @@ import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
 
 function backgroundAssetId(metadata: ChatMetadata | null): AssetId | undefined {
   const source = metadata?.background;
-  return source?.kind === "asset" && source.assetId.length > 0 ? castId<AssetId>(source.assetId) : undefined;
+  return source?.kind === "asset" && source.assetId !== "" ? source.assetId : undefined;
 }
 
 /** Keeps a carried JSON asset reference and the asset row in one SQLite write-serialization decision. */

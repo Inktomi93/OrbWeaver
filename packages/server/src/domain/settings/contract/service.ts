@@ -10,13 +10,14 @@ import type {
   GetUserSettingsOp,
   GlobalSettingView,
   LoadUserSettings,
+  NewBackgroundEntryId,
   UserSettingsView,
 } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp, Theme } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { IdSource, ThemeId, UserId } from "@orb/kit/ids";
+import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { Clock } from "@orb/kit/time";
 import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
@@ -59,7 +60,7 @@ export interface SettingsContext {
    *  from infra + assets.store; drives `addExternalBackground`. */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
-  readonly newBackgroundEntryId: IdSource["uuid"];
+  readonly newBackgroundEntryId: NewBackgroundEntryId;
   /** This process's frozen build identity (`#foundation/version` at the root). Injected rather than imported
    *  so the update-check verdict table is drivable from a spec without a checkout on disk. */
   readonly versionIdentity: SettingsServiceDeps["versionIdentity"];
@@ -95,7 +96,7 @@ export interface SettingsServiceDeps {
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
   readonly materializeBackground: MaterializeBackgroundOp;
-  readonly newBackgroundEntryId: IdSource["uuid"];
+  readonly newBackgroundEntryId: NewBackgroundEntryId;
   readonly versionIdentity: () => VersionIdentity;
   readonly probeUpstream: UpstreamProbes;
   /** Hands the resolved private-endpoint allowlist to the egress guard after every reload, boot included. The

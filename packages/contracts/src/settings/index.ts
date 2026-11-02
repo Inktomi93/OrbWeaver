@@ -35,10 +35,19 @@ import type { SettingsImportOutcome } from "./import-results.ts";
 // whole `UserSettings` tree and its prose tables (#448). Ownership is unchanged — the section is settings',
 // and shared appearance shapes and operations are re-exported here for `@orb/contracts/settings` consumers.
 // The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
-export type { AppearanceBackgroundFit, AppearanceSettings, BackgroundLibraryEntry, BlurSurface, OsPreferenceMode } from "./appearance.ts";
+export type {
+  AppearanceBackgroundFit,
+  AppearanceSettings,
+  BackgroundEntryId,
+  BackgroundLibraryEntry,
+  BlurSurface,
+  NewBackgroundEntryId,
+  OsPreferenceMode,
+} from "./appearance.ts";
 export {
   APPEARANCE_BACKGROUND_FITS,
   BLUR_SURFACES,
+  backgroundEntryIdSchema,
   backgroundLibraryEntrySchema,
   OS_PREFERENCE_MODES,
 } from "./appearance.ts";
@@ -365,8 +374,7 @@ export const USER_SETTINGS_SCHEMA_VERSION = 10;
 export const ROLE_PRESET_CHOICE_KINDS = { sameAsChat: "same-as-chat", preset: "preset" } as const;
 const rolePresetChoiceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.sameAsChat) }),
-  // eslint-disable-next-line orb/no-raw-id -- Lenient settings choice; stale or unowned preset pointers degrade to task defaults at consumption.
-  z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: z.string().min(1) }),
+  z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: typeIdSchema(ID_PREFIX.preset) }),
 ]);
 export type RolePresetChoice = z.infer<typeof rolePresetChoiceSchema>;
 
@@ -410,22 +418,19 @@ const HUB_FRACTION_CEIL = 1;
 
 const themeSettingsSchema = z
   .object({
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted themes degrade to the default palette at resolution.
-    selectedThemeId: z.string().nullable().catch(null).default(null),
+    // A stale or deleted theme degrades to the default palette at resolution; a malformed pointer heals to null here.
+    selectedThemeId: typeIdSchema(ID_PREFIX.theme).nullable().catch(null).default(null),
   })
   .strip()
   .prefault({});
 
 const seedsSchema = z
   .object({
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted persona IDs degrade at consumption, not this blob boundary.
-    defaultPersonaId: z.string().nullable().catch(null).default(null),
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted persona IDs degrade at consumption, not this blob boundary.
-    currentPersonaId: z.string().nullable().catch(null).default(null),
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted character IDs degrade at consumption, not this blob boundary.
-    welcomeAssistantCharacterId: z.string().nullable().catch(null).default(null),
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or unowned presets degrade to the system default at consumption.
-    defaultPresetId: z.string().nullable().catch(null).default(null),
+    // Stale or deleted rows degrade at consumption, not at this blob boundary; a malformed pointer heals to null here.
+    defaultPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().catch(null).default(null),
+    currentPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().catch(null).default(null),
+    welcomeAssistantCharacterId: typeIdSchema(ID_PREFIX.character).nullable().catch(null).default(null),
+    defaultPresetId: typeIdSchema(ID_PREFIX.preset).nullable().catch(null).default(null),
     summarizePreset: rolePresetChoiceSchema.nullable().catch(null).default(null),
   })
   .strip()
@@ -707,8 +712,8 @@ const onboardingSchema = z
 
 const profileSchema = z
   .object({
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted avatar asset IDs degrade at consumption.
-    avatarAssetId: z.string().nullable().optional(),
+    // A stale or deleted avatar degrades at consumption; a malformed pointer heals to null here.
+    avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional().catch(null),
     // Plugins whose chat panels this user hid, in every room. Element-wise: one stale element costs itself only.
     hiddenChatPluginIds: tolerantArray(typeIdSchema(ID_PREFIX.plugin), []).default([]),
     sidecarChatPluginSurfaces: tolerantArray(z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema }).strip(), []).default([]),

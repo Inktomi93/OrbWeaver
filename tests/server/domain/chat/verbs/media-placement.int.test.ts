@@ -8,6 +8,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { assetIdsInContent, contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, ChatId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -29,7 +30,7 @@ import {
 import { onTestFinished } from "vitest";
 
 const PNG = "image/png";
-const IMAGE_MODEL = "placement-image-v1";
+const IMAGE_MODEL = modelIdSchema.parse("placement-image-v1");
 const REPLY = "The keeper studies the ledger.";
 /** The host's turn cue: it picks this turn's request out of every chat completion the box sends. */
 const TURN_CUE = "Describe what the room has shown you.";

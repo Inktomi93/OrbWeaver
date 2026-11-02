@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
@@ -30,7 +31,7 @@ import { onTestFinished } from "vitest";
 
 export const PNG = "image/png";
 const WORKLOAD_DEADLINE_MS = 30_000;
-export const GC_IMAGE_MODEL = "gc-image-v1";
+export const GC_IMAGE_MODEL = modelIdSchema.parse("gc-image-v1");
 /** The remote art host a guest's `net.fetchAsset` reaches; the box serves one image there. */
 export const COVER_HOST = "covers.example.test";
 export const COVER_URL = `https://${COVER_HOST}/cover.png`;

@@ -24,7 +24,7 @@ import { sessionEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { SessionEntryWriter } from "@orb/inference";
+import type { AgentSdkSessionId, SessionEntryWriter } from "@orb/inference";
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, ne, notExists, or, sql } from "drizzle-orm";
@@ -38,7 +38,7 @@ const lineage = alias(sessionEntries, "lineage");
 export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntryId: () => SessionEntryId): SessionEntryWriter {
   const db = databaseForOwner(handle);
   /** Demote the connection's current seat in `chatId`, unless `sdkSessionId` is already owned elsewhere. */
-  function demoteSeat(chatId: SQL<ChatId | null>, connectionId: UserConnectionId, sdkSessionId: string): BatchStmt {
+  function demoteSeat(chatId: SQL<ChatId | null>, connectionId: UserConnectionId, sdkSessionId: AgentSdkSessionId): BatchStmt {
     return db
       .update(sessionEntries)
       .set({ isPrimary: false })
@@ -59,7 +59,7 @@ export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntry
   }
 
   /** The chat that owns `sdkSessionId` under `connectionId`, as a scalar subquery (NULL when none does). */
-  function ownerChatOf(connectionId: UserConnectionId, sdkSessionId: string): SQL<ChatId | null> {
+  function ownerChatOf(connectionId: UserConnectionId, sdkSessionId: AgentSdkSessionId): SQL<ChatId | null> {
     return sql<ChatId | null>`(${db
       .select({ chatId: lineage.chatId })
       .from(lineage)

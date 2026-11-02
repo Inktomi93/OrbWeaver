@@ -20,6 +20,7 @@
 // `parseChatMetadata` posture.
 
 // Strip mode: these schemas also read imported files, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** The decorative-background source kind — the ONE home (viewer `appearance` + the carried twin). `asset`
@@ -49,10 +50,9 @@ export const themeBackgroundSchema = z
       .refine((s) => s === "" || z.url().safeParse(s).success, { error: "must be empty or a URL" })
       .catch("")
       .default(""),
-    // eslint-disable-next-line orb/no-raw-id -- Lenient carried-background pointer admits an empty sentinel; the owned-asset consumer validates live IDs.
+    // The empty string is the no-pick sentinel; the owned-asset consumer validates a live id.
     assetId: z
-      .string()
-      .regex(/^(asset_[a-z0-9]+)?$/u)
+      .union([typeIdSchema(ID_PREFIX.asset), z.literal("")])
       .catch("")
       .default(""),
     // The immutable content hash for the `asset` kind — the SYNC url resolver builds `blobUrl(hash)` from it.

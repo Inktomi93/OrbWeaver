@@ -1,7 +1,9 @@
 // The owned peer supplies native vendor bytes; the real root owns admission, identity and turn policy.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { PromptCacheSettings, RoutableTask } from "@orb/contracts/inference";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { createSeededIds } from "@orb/testkit/iso";
@@ -18,9 +20,9 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-export const B_CHAT_MODEL = "speaker-chat";
-export const B_UTILITY_MODEL = "speaker-utility";
-const B_RERANK_MODEL = "speaker-rerank";
+export const B_CHAT_MODEL = modelIdSchema.parse("speaker-chat");
+export const B_UTILITY_MODEL = modelIdSchema.parse("speaker-utility");
+const B_RERANK_MODEL = modelIdSchema.parse("speaker-rerank");
 export const B_RERANK_WINDOW_TOKENS = 512;
 export const B_HOST_KEY = "owned-speaker-host-key";
 

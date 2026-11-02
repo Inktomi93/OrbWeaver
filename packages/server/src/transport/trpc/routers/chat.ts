@@ -46,6 +46,7 @@ import {
   shapeTraceSchema,
   startChatSchema,
   TOOL_CALL_EDIT_ACTIONS,
+  toolCallIdSchema,
   turnOutcomeSchema,
   userMacroPicksViewSchema,
   variablePicksViewSchema,
@@ -240,8 +241,7 @@ const editToolCallSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
-  // eslint-disable-next-line orb/no-raw-id -- Provider-emitted opaque call handle; the host identifies occurrences separately by turn and ordinal.
-  toolCallId: z.string(),
+  toolCallId: toolCallIdSchema,
   action: z.enum(TOOL_CALL_EDIT_ACTIONS),
 });
 

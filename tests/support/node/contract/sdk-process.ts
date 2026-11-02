@@ -1,5 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
-import type { AgentSdkSpawn } from "@orb/inference";
+import type { AgentSdkSessionId, AgentSdkSpawn } from "@orb/inference";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
 export type SdkScriptSpawn = (options: Parameters<AgentSdkSpawn>[0]) => ChildProcessWithoutNullStreams;
@@ -7,9 +8,15 @@ export type SdkScriptSpawn = (options: Parameters<AgentSdkSpawn>[0]) => ChildPro
 export interface SdkScriptInput {
   readonly lines: AsyncIterable<string>;
   /** The agent SDK's own session uuid (its `--resume` value), never an Orbweaver session row. */
-  readonly sdkSessionId: string;
+  readonly sdkSessionId: AgentSdkSessionId;
   readonly frameId: (name: string) => string;
 }
+
+// A child reads the brand off kit, not the inference door: importing that door would load the whole runtime per child.
+const sdkSessionIdSchema = brandedId("AgentSdkSessionId");
+
+/** The SDK protocol's session text, parsed into the brand the product reads it as. */
+export const sdkSessionIdOf = (text: string): AgentSdkSessionId => sdkSessionIdSchema.parse(text);
 
 export const SDK_SCRIPT_FRAME_NAMES = [
   "init",

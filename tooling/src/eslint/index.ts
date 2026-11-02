@@ -4,13 +4,14 @@ import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
-import { assumesSingleReplicaRule, commentedCodeRule, rawIdRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
+import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
 import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
+import { rawIdRule } from "./raw-id.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
   IDENTITY_WRITER_RESTRICTIONS,

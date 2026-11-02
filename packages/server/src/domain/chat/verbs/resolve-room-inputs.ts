@@ -12,17 +12,17 @@ import type { ChatRoomInputDeps, ChatRoomInputs } from "../contract/room-inputs.
 /** Resolve turn configuration without replacing a failed foreign read with a default. */
 
 export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
-  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: string | null): Promise<{ config: PromptConfig; name: string | null }> => {
+  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: PresetId | null): Promise<{ config: PromptConfig; name: string | null }> => {
     if (defaultPresetId === null) {
       return { config: DEFAULT_PROMPT_CONFIG, name: null };
     }
-    const detail = await deps.loadOptionalPreset(runAsUserId, castId<PresetId>(defaultPresetId));
+    const detail = await deps.loadOptionalPreset(runAsUserId, defaultPresetId);
     return detail === null ? { config: DEFAULT_PROMPT_CONFIG, name: null } : { config: detail.config, name: detail.name };
   };
   const resolvePromptConfigWithOverride = async (
     runAsUserId: UserId,
     presetOverride: PresetId | undefined,
-    defaultPresetId: string | null,
+    defaultPresetId: PresetId | null,
   ): Promise<{ config: PromptConfig; presetId: PresetId | null; presetName: string | null }> => {
     if (presetOverride !== undefined) {
       const detail = await deps.loadOptionalPreset(runAsUserId, presetOverride);
@@ -31,7 +31,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
       }
     }
     const { config, name } = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
-    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null), presetName: name };
+    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : defaultPresetId, presetName: name };
   };
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
   // ⇒ no declared variables.

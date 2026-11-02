@@ -1,6 +1,7 @@
 // Native guest returns are retained in private plugin KV, never projected into the portable corpus.
 
 import { characterCardV3Schema } from "@orb/contracts/character";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { JsonValue } from "@orb/kit/json";
@@ -33,7 +34,7 @@ export const CORPUS_PLUGIN_HOST_IMAGE_URL = "https://plugin.example.test/ledger.
 export const CORPUS_PLUGIN_HOST_REPLY = "Native host funded witness.";
 export const CORPUS_PLUGIN_HOST_MACRO = "Native macro witness";
 export const CORPUS_PLUGIN_HOST_DRAFT = "Native resident turn";
-export const CORPUS_PLUGIN_HOST_IMAGE_MODEL = "corpus-host-image-v1";
+export const CORPUS_PLUGIN_HOST_IMAGE_MODEL = modelIdSchema.parse("corpus-host-image-v1");
 
 export const CORPUS_PLUGIN_HOST_MANIFEST = pluginManifestSchema.parse({
   id: CORPUS_PLUGIN_HOST_SLUG,

@@ -1,4 +1,5 @@
 import type { PromptCacheTtl } from "@orb/contracts/inference";
+import type { AgentSdkSessionId } from "./identity.ts";
 
 /** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
  *  own zod schema at the call site; this is the structural minimum the pin needs. */
@@ -56,7 +57,7 @@ export interface AgentSdkTurnFacts {
   readonly cacheCreation1hTokens: number | null;
   readonly webSearchRequests: number;
   readonly warmSpareClaimed: boolean | null;
-  readonly sdkSessionId: string | null;
+  readonly sdkSessionId: AgentSdkSessionId | null;
   readonly servedModel: string | null;
   readonly durationApiMs: number | null;
   readonly numTurns: number;

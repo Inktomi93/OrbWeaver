@@ -5,6 +5,7 @@
 
 import type { ProviderAuth, ProviderAvailability, ProviderDef, RoutableTask, Task } from "@orb/contracts/inference";
 import { bindingTaskOf, canFund, providerDisplayLabel } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select/items";
 // Direct, not through `#lib`: this module stays barrel-free because node-side CT specs import it.
 import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
@@ -89,8 +90,8 @@ export function sweepRebindsEmbedder(connection: { readonly allowBackground: boo
  *  the shipped description is correct and unquantified, and a user cannot decide without knowing whether
  *  they are breaking one role or five). Reads the persisted BINDINGS, not the row's capability. */
 export function boundRoleLabels(
-  connectionId: string,
-  views: readonly { readonly task: RoutableTask; readonly binding: { readonly connectionId: string | null } | null }[],
+  connectionId: UserConnectionId,
+  views: readonly { readonly task: RoutableTask; readonly binding: { readonly connectionId: UserConnectionId | null } | null }[],
 ): readonly string[] {
   const bound = new Set(views.filter((view) => view.binding?.connectionId === connectionId).map((view) => view.task));
   return ROLE_ROWS_ORDERED.filter((row) => bound.has(row.task)).map((row) => row.label);

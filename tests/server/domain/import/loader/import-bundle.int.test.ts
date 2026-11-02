@@ -16,6 +16,7 @@ import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { CHARACTER_HANDLE_WIRE_KEY, characterCardV3Schema, characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { exportCharacterPath, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
@@ -455,7 +456,8 @@ test("user settings restore onto the background art the fresh box already seeded
   const outcome = await restoreBundle(target, bundle);
   const appearance = (await target.services.settings.getUserSettings({ principal: await target.principalFor(target.ownerId) })).config.appearance;
   /** The bytes an id names on the target, or null when it names no asset there. */
-  const hashOf = async (assetId: string): Promise<string | null> => (await target.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null;
+  const hashOf = async (assetId: AssetId | ""): Promise<string | null> =>
+    assetId === "" ? null : ((await target.services.assets.assetCasRefById(assetId))?.hash ?? null);
 
   expect({
     status: outcome.status,
@@ -533,8 +535,8 @@ test("a full library restore into a fresh box reports no failures and leaves no 
   const caller = await target.internalCallerFor(target.ownerId);
   const [character] = (await caller.character.list({})).items.filter((item) => item.name === CHARACTER_NAME);
   const [room] = character === undefined ? [] : (await caller.chat.listChats({ characterId: character.id })).items;
-  const hashOf = async (assetId: string | undefined): Promise<string | null> =>
-    assetId === undefined ? null : ((await target.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  const hashOf = async (assetId: AssetId | "" | undefined): Promise<string | null> =>
+    assetId === undefined || assetId === "" ? null : ((await target.services.assets.assetCasRefById(assetId))?.hash ?? null);
   /** What the restored room's background and inline attachment resolve to on the target, or nulls without a room. */
   const restoredRoom = async (
     chatId: ChatId,
@@ -597,7 +599,7 @@ const DOCUMENT_TEXT = "The orbital ledger keeps its own counsel.";
 const TEXT_MIME = "text/plain";
 const documentFileSchema = z.object({ sourceAssetId: typeIdSchema(ID_PREFIX.asset).nullable() }).loose();
 
-const IMAGE_MODEL = "ledger-image-v1";
+const IMAGE_MODEL = modelIdSchema.parse("ledger-image-v1");
 
 /** A provider that answers each image generation with the next of `pictures`, over the loopback corpus endpoint. */
 /** Generate one picture through the owner's own image binding, so the box holds native imagery history. */
@@ -631,8 +633,8 @@ async function referrerHashes(
   root: ServerTestHarness,
   ownerId: UserId,
 ): Promise<{ readonly documents: readonly (string | null)[]; readonly imagery: readonly (string | null)[] }> {
-  const hashOf = async (assetId: string | null): Promise<string | null> =>
-    assetId === null ? null : ((await root.services.assets.assetCasRefById(castId(assetId)))?.hash ?? null);
+  const hashOf = async (assetId: AssetId | null): Promise<string | null> =>
+    assetId === null ? null : ((await root.services.assets.assetCasRefById(assetId))?.hash ?? null);
   const files = async (kind: PortableKind): Promise<unknown[]> => {
     const descriptor = root.app.portability.find((entity) => entity.kind === kind);
     if (descriptor === undefined) {

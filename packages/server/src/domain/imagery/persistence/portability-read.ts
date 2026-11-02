@@ -6,7 +6,7 @@ import { imageryImportSourceSchema } from "@orb/contracts/imagery";
 import { costDetailsSchema, generationUsageDetailsSchema, responseCacheSchema, tokenDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
 
 function projectedCall(row: typeof imageryGenerations.$inferSelect, subjectHandle: string | null, assetHash: string): PortableImageryCall {
@@ -52,7 +52,7 @@ export async function readOwnedImageryCalls(db: Db, ownerId: UserId, nativeOnly 
     .leftJoin(characters, and(eq(characters.id, imageryGenerations.subjectCharacterId), eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
     .where(and(eq(assets.ownerId, ownerId), nativeOnly ? isNull(imageryGenerations.importSource) : undefined))
     .orderBy(asc(imageryGenerations.createdAt), asc(imageryGenerations.id));
-  const calls: { readonly key: string; readonly call: PortableImageryCall }[] = [];
+  const calls: { readonly key: ImageryCallId | ImageryGenerationId; readonly call: PortableImageryCall }[] = [];
   for (const { generation: row, subjectHandle, assetHash } of rows) {
     const key = row.callId ?? row.id;
     // The handle the subject's exported card carries, so the restore re-links to the card it restored.

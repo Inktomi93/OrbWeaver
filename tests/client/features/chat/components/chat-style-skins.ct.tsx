@@ -3,7 +3,7 @@
 // reveal and the pinned header bar. Each expected value comes from the style's skin row and the resolved design tokens.
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { ChatId, ThemeId } from "@orb/kit/ids";
+import type { ChatId, MessageId, ThemeId } from "@orb/kit/ids";
 import { beginReading, resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -391,7 +391,7 @@ for (const [chatStyle, hook] of OWNER_FIT_HOOKS) {
 }
 
 /** Hide the room's first tail reply from the model, run `body` on its id, then show it again. */
-async function withHiddenReply(body: (messageId: string) => Promise<void>): Promise<void> {
+async function withHiddenReply(body: (messageId: MessageId) => Promise<void>): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   const reply = (await caller.chat.listMessages({ chatId: roomId, limit: TAIL_MESSAGES })).messages.find((message) => message.role === "assistant");
   if (reply === undefined) {

@@ -23,7 +23,8 @@
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { FONT_SCALE } from "@orb/kit/font-scale";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { Branded } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
 // the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
@@ -102,6 +103,13 @@ function liftReducedMotion(stored: unknown): unknown {
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 
+/** A background-library row's own key: a client UUID or a deterministic `asset:index` backfill, never an entity TypeID.
+ *  @remarks Byte-identical uploads share one `assetId`, so the row needs a key of its own. */
+export type BackgroundEntryId = Branded<"BackgroundEntryId">;
+export const backgroundEntryIdSchema = brandedId("BackgroundEntryId");
+/** The one mint of a {@link BackgroundEntryId}, injected wherever a library row is created. */
+export type NewBackgroundEntryId = () => BackgroundEntryId;
+
 // A saved background-library entry (BG-D) — the per-user list of uploaded backgrounds the picker chooses
 // from. Lives in settings (the backgrounds concept's ONE home, D63), NOT a relational table: a flat
 // per-user list of dozens with names and zero relational joins. Every entry's `assetId` is GC-rooted by
@@ -113,8 +121,7 @@ export const backgroundLibraryEntrySchema = z
     // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
     // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
     // stays the content pointer; `entryId` identifies the row.
-    // eslint-disable-next-line orb/no-raw-id -- Blob-local UI row key admits client UUIDs and deterministic asset:index backfills, not entity TypeIDs.
-    entryId: z.string(),
+    entryId: backgroundEntryIdSchema,
     assetId: typeIdSchema(ID_PREFIX.asset),
     assetHash: z.string(),
     mime: z.string(),
@@ -202,10 +209,9 @@ export const appearanceSettingsSchema = z
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
     // paintable external field (the BG-C invariant, side-eye F-P0-2). The kind enum keeps `external` only as a
     // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer admits an empty sentinel and stale IDs; the consumer resolves owned assets.
+    // The empty string is the no-pick sentinel; a stale id degrades where the consumer resolves owned assets.
     backgroundAssetId: z
-      .string()
-      .regex(/^(asset_[a-z0-9]+)?$/u)
+      .union([typeIdSchema(ID_PREFIX.asset), z.literal("")])
       .catch("")
       .default(""),
     // The immutable content hash for the `asset` kind — the SYNC `resolveBackgroundUrl` builds

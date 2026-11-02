@@ -46,7 +46,7 @@ import type { AuthModeSource, Principal } from "@orb/contracts/identity";
 import type { BindingActor } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
-import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
+import { backgroundEntryIdSchema, CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -585,7 +585,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newThemeId: minter(ID_PREFIX.theme, idSource),
     emitUserEvent: publishUserEvent,
     materializeBackground,
-    newBackgroundEntryId: newOpaqueId,
+    newBackgroundEntryId: () => backgroundEntryIdSchema.parse(newOpaqueId()),
     versionIdentity,
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.

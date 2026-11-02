@@ -11,6 +11,7 @@
 
 import { characterHandleSchema, createCharacterSchema } from "@orb/contracts/character";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { characters, chatParticipants, imageryGenerations } from "@orb/db";
@@ -33,7 +34,7 @@ const LEGACY_HANDLE = castId<CharacterHandle>("..");
 const NAME = "Wanderer";
 const DOCUMENT_NAME = "Ring survey";
 const TEXT_MIME = "text/plain";
-const IMAGE_MODEL = "ring-image-v1";
+const IMAGE_MODEL = modelIdSchema.parse("ring-image-v1");
 const ROUND_TRIP_KINDS = ["character", "assets", "gallery", "databank", "imagery"] as const satisfies readonly PortableKind[];
 const documentFileSchema = z.object({ characterHandles: z.array(z.string()) }).loose();
 

@@ -4,7 +4,7 @@ import type { PluginQuietSchema } from "@orb/contracts/plugin";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling } from "@orb/inference";
-import type { AssetId, UserId } from "@orb/kit/ids";
+import type { AssetId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { PluginHostOps } from "../contract/ops.ts";
@@ -31,7 +31,7 @@ export function buildPluginQuietLlm(deps: PluginQuietLlmDeps): PluginHostOps["ll
    *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
    *  silently imageless captioning call would be answered confidently about nothing). Absent/empty ⇒ `[]`, the
    *  byte-identical arm every text-only quiet call takes. */
-  const resolveQuietImages = async (installerUserId: UserId, assetIds: readonly string[] | undefined): Promise<ImageInput[]> => {
+  const resolveQuietImages = async (installerUserId: UserId, assetIds: readonly SandboxWireId<AssetId>[] | undefined): Promise<ImageInput[]> => {
     if (assetIds === undefined || assetIds.length === 0) {
       return [];
     }

@@ -164,29 +164,6 @@ export const sideGenSamplingRule: OrbRule = {
   },
 };
 
-const ZOD_MODULE = /^zod(?:\/|$)/u;
-
-const ZOD_STRING_BUILDER = "string";
-
-const ZOD_COERCE = "coerce";
-
-const ZOD_OBJECT_NAMES = new Set(["z", "*", "default"]);
-
-function zodImportName(context: OrbRuleContext, identifier: TSESTree.Identifier): string | undefined {
-  const definition = lexicalVariable(context, identifier)?.defs[0];
-  if (definition?.type !== TSESLint.Scope.DefinitionType.ImportBinding || !ZOD_MODULE.test((definition.parent as TSESTree.ImportDeclaration).source.value)) {
-    return;
-  }
-  const specifier = definition.node;
-  if (specifier.type === AST_NODE_TYPES.ImportNamespaceSpecifier) {
-    return "*";
-  }
-  if (specifier.type === AST_NODE_TYPES.ImportSpecifier) {
-    return specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : specifier.imported.value;
-  }
-  return "default";
-}
-
 export function singleInitializer(context: OrbRuleContext, identifier: TSESTree.Node): TSESTree.Expression | undefined {
   const variable = identifier.type === AST_NODE_TYPES.Identifier ? lexicalVariable(context, identifier) : undefined;
   const [definition] = variable?.defs ?? [];
@@ -194,80 +171,6 @@ export function singleInitializer(context: OrbRuleContext, identifier: TSESTree.
   const unwritten = variable?.references.every((reference) => !reference.isWrite() || reference.init === true) === true;
   return declarator?.id.type === AST_NODE_TYPES.Identifier && declarator.init !== null && unwritten ? declarator.init : undefined;
 }
-
-function isZodObject(context: OrbRuleContext, node: TSESTree.Node): boolean {
-  if (node.type === AST_NODE_TYPES.Identifier) {
-    return ZOD_OBJECT_NAMES.has(zodImportName(context, node) as string);
-  }
-  return (
-    staticMemberName(node) === "z" &&
-    (node as TSESTree.MemberExpression).object.type === AST_NODE_TYPES.Identifier &&
-    ZOD_OBJECT_NAMES.has(zodImportName(context, (node as TSESTree.MemberExpression).object as TSESTree.Identifier) as string)
-  );
-}
-
-function isZodCoerce(context: OrbRuleContext, node: TSESTree.Node): boolean {
-  if (node.type === AST_NODE_TYPES.Identifier) {
-    return zodImportName(context, node) === ZOD_COERCE;
-  }
-  return staticMemberName(node) === ZOD_COERCE && isZodObject(context, (node as TSESTree.MemberExpression).object);
-}
-
-const ZOD_ALIAS_HOPS = 4;
-
-function isZodStringBuilder(context: OrbRuleContext, node: TSESTree.Node, hops: number = ZOD_ALIAS_HOPS): boolean {
-  if (node.type === AST_NODE_TYPES.Identifier) {
-    if (zodImportName(context, node) === ZOD_STRING_BUILDER) {
-      return true;
-    }
-    const initializer = hops > 0 ? singleInitializer(context, node) : undefined;
-    return initializer !== undefined && isZodStringBuilder(context, initializer, hops - 1);
-  }
-  return (
-    staticMemberName(node) === ZOD_STRING_BUILDER &&
-    (isZodObject(context, (node as TSESTree.MemberExpression).object) || isZodCoerce(context, (node as TSESTree.MemberExpression).object))
-  );
-}
-
-function builderRoot(node: TSESTree.Node): TSESTree.CallExpression | undefined {
-  let current = node;
-  while (current.type === AST_NODE_TYPES.CallExpression) {
-    const receiver = current.callee.type === AST_NODE_TYPES.MemberExpression ? current.callee.object : undefined;
-    if (receiver?.type !== AST_NODE_TYPES.CallExpression) {
-      break;
-    }
-    current = receiver;
-  }
-  return current.type === AST_NODE_TYPES.CallExpression ? current : undefined;
-}
-
-function staticPropertyKey(property: TSESTree.Property): string {
-  if (property.computed) {
-    return "";
-  }
-  if (property.key.type === AST_NODE_TYPES.Identifier) {
-    return property.key.name;
-  }
-  return typeof property.key.value === "string" ? property.key.value : "";
-}
-
-export const rawIdRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
-  create(context: OrbRuleContext): RuleVisitor {
-    return {
-      "ObjectExpression > Property"(property: TSESTree.Property): void {
-        const name = staticPropertyKey(property);
-        const root = name.endsWith("Id") ? builderRoot(property.value) : undefined;
-        if (root !== undefined && isZodStringBuilder(context, root.callee)) {
-          context.report({
-            node: property.key,
-            message: "An id-named Zod field is a raw string; use typeIdSchema(ID_PREFIX.x) or brandedId(label) so the validated output preserves identity.",
-          });
-        }
-      },
-    };
-  },
-};
 
 const JSON_METHOD = "json";
 

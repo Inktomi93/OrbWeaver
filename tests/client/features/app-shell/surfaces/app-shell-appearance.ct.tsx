@@ -7,7 +7,7 @@ import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ThemeId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -75,7 +75,7 @@ const SHIMMER_CLASS = "orb-weave-shimmer";
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
 let root: Root;
-let lightThemeId: string;
+let lightThemeId: ThemeId;
 test.beforeAll(async () => {
   root = await createCorpusHarness();
   const themes = await (await root.internalCallerFor(root.ownerId)).settings.listThemes();
@@ -103,7 +103,7 @@ test.afterAll(async () => {
 function appearanceSettings(
   corpus: CorpusPlayback,
   appearance: Partial<AppearanceSettings>,
-  selectedThemeId?: string,
+  selectedThemeId?: ThemeId,
 ): CorpusPlayback["reads"]["settings.getUserSettings"][number]["output"] {
   const [captured] = corpus.reads["settings.getUserSettings"];
   if (captured === undefined) {
@@ -115,7 +115,7 @@ function appearanceSettings(
 }
 
 /** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
-async function routeAppearance(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings>, selectedThemeId?: string): Promise<void> {
+async function routeAppearance(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings>, selectedThemeId?: ThemeId): Promise<void> {
   await routeLiveAppearance(page, corpus, () => ({ appearance, selectedThemeId }));
 }
 
@@ -123,7 +123,7 @@ async function routeAppearance(page: Page, corpus: CorpusPlayback, appearance: P
 async function routeLiveAppearance(
   page: Page,
   corpus: CorpusPlayback,
-  read: () => { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined },
+  read: () => { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: ThemeId | undefined },
 ): Promise<void> {
   await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
@@ -298,7 +298,7 @@ async function landedMutedContrast(page: Page, surface: Locator, label: string, 
 }
 
 /** The selected theme for a case: the corpus default for dark, the seeded Light theme for light. */
-function themeIdFor(theme: "dark" | "light"): string | undefined {
+function themeIdFor(theme: "dark" | "light"): ThemeId | undefined {
   return theme === "light" ? lightThemeId : undefined;
 }
 
@@ -982,7 +982,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
     mount,
     page,
   }) => {
-    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: ThemeId | undefined } = {
       appearance: { ...wallpaper(corpus), blurSurfaces: ["panels"] },
       selectedThemeId: lightThemeId,
     };
@@ -1025,7 +1025,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
     mount,
     page,
   }) => {
-    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: ThemeId | undefined } = {
       appearance: { ...wallpaper(corpus), blurSurfaces: ["modals"] },
       selectedThemeId: lightThemeId,
     };
@@ -1038,7 +1038,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
       { name: "lightPlain", appearance: { blurSurfaces: ["modals"] }, selectedThemeId: lightThemeId },
       { name: "darkArt", appearance: { ...wallpaper(corpus), blurSurfaces: ["modals"] }, selectedThemeId: undefined },
       { name: "darkPlain", appearance: { blurSurfaces: ["modals"] }, selectedThemeId: undefined },
-    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: string | undefined }[]) {
+    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: ThemeId | undefined }[]) {
       state = arm;
       const mounted = await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
       await expect(dialog).toBeVisible();
@@ -1061,7 +1061,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
     mount,
     page,
   }) => {
-    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: string | undefined } = {
+    let state: { readonly appearance: Partial<AppearanceSettings>; readonly selectedThemeId?: ThemeId | undefined } = {
       appearance: {},
     };
     await seedShellState(page, { activeSection: "chats" });
@@ -1073,7 +1073,7 @@ test.describe("the light arm's plate over a wallpaper", () => {
       { name: "light", appearance: { ...wallpaper(corpus), blurSurfaces: ["composer", "messages"] }, selectedThemeId: lightThemeId },
       { name: "darkArt", appearance: { ...wallpaper(corpus), blurSurfaces: ["composer", "messages"] }, selectedThemeId: undefined },
       { name: "darkPlain", appearance: { blurSurfaces: ["composer", "messages"] }, selectedThemeId: undefined },
-    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: string | undefined }[]) {
+    ] satisfies readonly { name: string; appearance: Partial<AppearanceSettings>; selectedThemeId: ThemeId | undefined }[]) {
       state = arm;
       const mounted = await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
       await roomReady(page);

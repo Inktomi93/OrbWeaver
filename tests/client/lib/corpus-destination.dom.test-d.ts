@@ -6,6 +6,7 @@ import { expectTypeOf, test } from "vitest";
 test("public selection retains the canonical destination payload instead of accepting reserved kinds or incomplete scenes", () => {
   expectTypeOf<Parameters<typeof selectCorpusArtifact>[0]>().toEqualTypeOf<CorpusDestination>();
   expectTypeOf<"scheme">().not.toExtend<CorpusDestination["kind"]>();
+  // eslint-disable-next-line orb/no-raw-id -- The probe is the plain string the brand refuses (Spine-TypeScript law 4).
   expectTypeOf<{ readonly kind: "scene"; readonly characterId: string }>().not.toExtend<CorpusDestination>();
   expectTypeOf<Extract<CorpusDestination, { kind: "scene" }>["hit"]>().toEqualTypeOf<DiscoverSegment>();
 });

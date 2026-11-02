@@ -7,6 +7,7 @@
 
 import type { HookInput, HookJSONOutput, McpSdkServerConfigWithInstance, Options } from "@anthropic-ai/claude-agent-sdk";
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
+import { toolCallIdSchema } from "@orb/contracts/chat";
 import { JsonSchemaLiftError, liftJsonSchema } from "@orb/kit/json-schema";
 import type { ZodRawShape } from "zod";
 import type { ToolCallInput, WireTool } from "#contract";
@@ -89,5 +90,5 @@ export function toTerminalCall(block: { readonly id: string; readonly name: stri
   if (name === null) {
     return null;
   }
-  return { toolCallId: block.id, name, arguments: JSON.stringify(block.input ?? {}) };
+  return { toolCallId: toolCallIdSchema.parse(block.id), name, arguments: JSON.stringify(block.input ?? {}) };
 }

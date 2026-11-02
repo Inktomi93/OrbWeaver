@@ -1,12 +1,13 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
-  BindingActorKind,
+  BindingActorKey,
   ConnectionApi,
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
   DeclaredCapability,
   ModelCheck,
   PromptCacheSettings,
+  ProviderGenerationId,
   ResolveTaskParams as ResolveAuthority,
   ResolveChatCapabilityParams,
   RoutableTask,
@@ -70,10 +71,7 @@ export interface RemoveConnectionParams extends ActorParams {
 
 /** The actor as the STORE spells it: a kind + the id column that kind sets (the persistence-side pair the
  *  runtime's `BindingStore.lookup` uses; the caller-side shape is `BindingActorInput` below). */
-export interface StoredActor {
-  readonly actorKind: BindingActorKind;
-  readonly actorId: string;
-}
+export type StoredActor = BindingActorKey;
 
 /** The actor a binding belongs to, from the caller's side: absent ⇒ the caller's own `user` bindings. */
 export type BindingActorInput =
@@ -136,7 +134,7 @@ export interface ConnectionDiagnosticParams extends ActorParams {
 export interface GenerationCostParams extends ConnectionDiagnosticParams {
   /** OpenRouter's UPSTREAM generation handle (THEIR id namespace, opaque to us) — deliberately NOT a
    *  branded orbweaver id. */
-  readonly generationId: string;
+  readonly generationId: ProviderGenerationId;
 }
 
 export interface ProvidersAvailableParams extends ActorParams {}

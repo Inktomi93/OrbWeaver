@@ -2,7 +2,7 @@ import { readdir, readFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
-import type { AgentSdkQuery } from "@orb/inference";
+import type { AgentSdkQuery, AgentSdkSessionId } from "@orb/inference";
 
 export { readSdkProcessInput } from "./sdk-process.ts";
 
@@ -35,7 +35,7 @@ export function sdkUserPromptText(message: SdkUserInput): string {
 }
 
 /** Inspect only the actual query-owned materialized resume; no fixture chooses a project key or seed identity. */
-export async function readSdkResumeTranscript(runtime: unknown, sessionId: string): Promise<{ file: string; frames: unknown[] }> {
+export async function readSdkResumeTranscript(runtime: unknown, sessionId: AgentSdkSessionId): Promise<{ file: string; frames: unknown[] }> {
   if (typeof runtime !== "string") {
     throw new Error("native history inspection received no captured runtime");
   }

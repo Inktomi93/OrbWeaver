@@ -3,8 +3,10 @@
 // @subject packages/server/src/domain/search/verbs/images.ts
 // @subject packages/server/src/domain/embeddings/verbs/runtime-connection.ts
 // @subject packages/inference/src/backends/openai-compat/image-embed.ts
+
 import { readFile } from "node:fs/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -19,7 +21,7 @@ import {
 import { z } from "zod";
 
 const QUERY = "a silver-haired archivist";
-const RERANK_MODEL = "image-rerank-model";
+const RERANK_MODEL = modelIdSchema.parse("image-rerank-model");
 const rerankBodySchema = z.object({ query: z.string() });
 const conversationSchema = z.array(z.object({ role: z.string(), content: z.array(z.object({ type: z.string(), text: z.string().optional() })) }));
 
