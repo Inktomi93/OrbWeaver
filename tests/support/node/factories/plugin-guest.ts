@@ -42,6 +42,8 @@ h.ui.registerCommand({ name: ${JSON.stringify(COMMAND)}, describe: "Run one host
 
 interface GuestPlugin {
   readonly slug: string;
+  /** The manifest's display name; the slug when omitted. */
+  readonly name?: string;
   readonly capabilities: readonly PluginCapability[];
   readonly netHosts?: readonly string[];
 }
@@ -51,7 +53,7 @@ export async function installGuest(root: ServerTestHarness, caller: Principal, p
   const capabilities: PluginCapability[] = ["ui.surface", ...plugin.capabilities];
   const manifest = pluginManifestSchema.parse({
     id: plugin.slug,
-    name: plugin.slug,
+    name: plugin.name ?? plugin.slug,
     version: "1.0.0",
     hostVersion: PLUGIN_HOST_VERSIONS[0],
     entry: PLUGIN_MAIN_ENTRY,

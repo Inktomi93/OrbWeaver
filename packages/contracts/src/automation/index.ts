@@ -964,6 +964,10 @@ export type AutomationBusEvent =
       /** The injected-clock deadline the pending record dies at — the client drops its card on the same
        *  edge the server sweeps, so a stale card never sits offering an ask that would refuse. */
       expiresAt: number;
+      /** The handle of the member who installed the asking plugin; present exactly for a plugin-origin ask. It is
+       *  its own field, never part of `summary`: the summary carries the plugin's own name, which is free text,
+       *  so an attribution inside it could be imitated by that text. */
+      installerHandle?: string;
       /** OPTIONAL structured body ({@link SuggestionCardDetail}) — present only for the ask classes whose card
        *  shows more than a question (C3's rewrite diff, a plugin turn's steer). Absent ⇒ the card is title +
        *  actions. */

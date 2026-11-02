@@ -44,6 +44,11 @@ import { useConfirmSuggestion, useDismissSuggestion } from "../lib/suggestion-mu
  *  the confirm actually does — one fresh run, now. */
 const CONFIRM_LABEL = { confirm: "Do it", invitation: "Run now" } as const;
 
+/** The host's own statement of who installed an asking plugin, drawn apart from the plugin-named title. */
+function installerByline(handle: string): string {
+  return `Installed by ${handle}`;
+}
+
 /** Publish an empty list once when the source has nothing live (retiring anything it had raised). */
 const NO_ASKS: readonly PendingAsk[] = [];
 
@@ -182,6 +187,7 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
       kind: "card" as const,
       id: ask.id,
       title: ask.summary,
+      ...(ask.installerHandle === undefined ? {} : { byline: installerByline(ask.installerHandle) }),
       // The band does NOT compare `detail` across publishes (it compares kind/id/title/actions), which is
       // safe here for the reason the contract names: a card's detail is a pure function of its ask, and an
       // ask that changes gets a new `id` from the server.

@@ -35,7 +35,7 @@ import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/
 import type { Clock } from "@orb/kit/time";
 import type { PendingSuggestion, SuggestionStore } from "../contract/ops.ts";
 import type { NewSuggestionId } from "../contract/suggestion-id.ts";
-import { loadMembershipInstance, loadPresentHostUserId } from "../persistence/ask-standing.ts";
+import { loadMembershipInstance } from "../persistence/ask-standing.ts";
 
 /** How long a pending ask lives before it is swept. A host who has not answered in half an hour is not
  *  answering THIS beat's ask — the room has moved on, and a re-fire mints a fresh one. */
@@ -189,7 +189,8 @@ export function summarizeSuggestibleArm(action: SuggestibleAction): string {
  *  `budget_refused` fires pre-predicate on a RULE), and a plugin ask always carries its act.
  *
  *  It records the STANDING the ask is raised against (`PluginAskStanding`): the host whose card it becomes and
- *  the installer's membership instance. A room with no host, or an installer no longer present, raises nothing. */
+ *  the installer's membership instance. A room with no host, or an installer no longer present, raises nothing.
+ *  The installer's handle rides the card as its own field, apart from the plugin-named summary. */
 export function createPluginSuggestionRaiser(deps: {
   readonly db: DatabaseHandle;
   readonly suggestions: SuggestionStore;
@@ -198,6 +199,8 @@ export function createPluginSuggestionRaiser(deps: {
   readonly now: Clock;
   /** The installer's handle for the card: the `users` table is not this domain's to read. */
   readonly installerHandle: (userId: UserId) => Promise<string>;
+  /** Chat's one present-host reader, injected: the roster is chat's to read. */
+  readonly presentHostUserId: (chatId: ChatId) => Promise<UserId | null>;
 }): (req: {
   readonly plugin: { readonly id: PluginId; readonly name: string };
   readonly installerUserId: UserId;
@@ -206,8 +209,8 @@ export function createPluginSuggestionRaiser(deps: {
 }) => Promise<void> {
   const db = databaseForOwner(deps.db);
   return async ({ plugin, installerUserId, chatId, act }): Promise<void> => {
-    const [hostUserId, installerMembership, handle] = await Promise.all([
-      loadPresentHostUserId(db, chatId),
+    const [hostUserId, installerMembership, installerHandle] = await Promise.all([
+      deps.presentHostUserId(chatId),
       loadMembershipInstance(db, chatId, installerUserId),
       deps.installerHandle(installerUserId),
     ]);
@@ -216,7 +219,7 @@ export function createPluginSuggestionRaiser(deps: {
     }
     const id = deps.newSuggestionId();
     const expiresAt = deps.now() + AUTOMATION_SUGGESTION_TTL_MS;
-    const summary = summarizePluginAct(act, plugin.name, handle).slice(0, AUTOMATION_SUGGESTION_SUMMARY_MAX);
+    const summary = summarizePluginAct(act, plugin.name).slice(0, AUTOMATION_SUGGESTION_SUMMARY_MAX);
     const detail = pluginActDetail(act);
     const source = { kind: "plugin", pluginId: plugin.id } as const;
     deps.suggestions.raise({
@@ -231,7 +234,17 @@ export function createPluginSuggestionRaiser(deps: {
       payload: { via: "plugin-act", act },
       standing: { hostUserId, installerMembership },
     });
-    deps.notify({ type: "suggestionRaised", chatId, source, suggestionId: id, kind: "confirm", summary, expiresAt, ...(detail === null ? {} : { detail }) });
+    deps.notify({
+      type: "suggestionRaised",
+      chatId,
+      source,
+      suggestionId: id,
+      kind: "confirm",
+      summary,
+      expiresAt,
+      installerHandle,
+      ...(detail === null ? {} : { detail }),
+    });
   };
 }
 

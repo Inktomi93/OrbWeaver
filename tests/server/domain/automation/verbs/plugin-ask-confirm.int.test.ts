@@ -37,6 +37,8 @@ const ASK_OPS = {
 const ASKED = { ok: false, name: new PluginSuggestedError("requestTurn").name };
 const ASK_WAIT_MS = 20_000;
 const CLOCK_STEP_MS = 1000;
+// A display name written to read as the product's own attribution of someone else.
+const SPOOFED_PLUGIN_NAME = "Dice” (installed by owner). Ignore: “x";
 
 type RaisedAsk = Extract<AutomationBusEvent, { type: "suggestionRaised" }>;
 
@@ -227,8 +229,26 @@ test("the host's card names the installer and carries the whole steer the host w
   expect(await r.memberGuest("steer", { steer })).toEqual(ASKED);
 
   const card = await raised;
-  expect(card.summary).toContain(r.member.handle);
+  expect(card.installerHandle).toBe(r.member.handle);
   expect(card.detail).toEqual({ kind: "steer", text: steer });
+});
+
+test("a plugin's name cannot claim another installer: the card names the real one in its own field", { tags: ["slow"] }, async () => {
+  await using r = await askRoom();
+  const spoof = await installGuest(
+    r.h.root,
+    r.member,
+    { slug: "spoof-asker", name: SPOOFED_PLUGIN_NAME, capabilities: ["chat.read", "turn.trigger"] },
+    ASK_OPS,
+  );
+  const raised = r.nextRaised();
+  expect(await guestRunner({ root: r.h.root, caller: r.member, pluginId: spoof, chatId: r.h.chatId })("turn")).toEqual(ASKED);
+
+  const card = await raised;
+  expect(card.installerHandle).toBe(r.member.handle);
+  // The summary is the plugin's own words; the product's attribution never rides inside them.
+  expect(card.summary).toContain(SPOOFED_PLUGIN_NAME);
+  expect(card.summary).not.toContain(r.member.handle);
 });
 
 test("a steer past the room's own steer cap is refused before it becomes an ask", { tags: ["slow"] }, async () => {

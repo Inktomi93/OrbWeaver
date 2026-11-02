@@ -10,7 +10,7 @@ area: plugin
 
 ## What
 
-A plugin ask runs on the yes of the host its card was raised to. At raise, the ask records that host and the installer's membership instance (`joinSeq` and `joinedAt`). The confirm re-check and the chat-change void sweep require both to be unchanged, so a handoff, a departure or a removal voids the ask, even when the installer is invited back first. The installer need not host. The rule origin still requires its author to host. The confirmed turn skips the bridge's direct-call host gate. Chat's own present-initiator check still applies. The card names the installer's handle and carries a turn's whole steer in its `detail` body.
+A plugin ask runs on the yes of the host its card was raised to. At raise, the ask records that host and the installer's membership instance (`joinSeq` and `joinedAt`). The confirm re-check and the chat-change void sweep require both to be unchanged, so a handoff, a departure or a removal voids the ask, even when the installer is invited back first. The installer need not host. The rule origin still requires its author to host. The confirmed turn skips the bridge's direct-call host gate. Chat's own present-initiator check still applies. The recorded host is read through chat's own `loadPresentHostUserId`, injected at compose, and re-checked through `can()`. The card event carries the installer's handle as its own `installerHandle` field; the band draws it as a byline apart from the plugin-named title, so a plugin name cannot imitate it. The card carries a turn's whole steer in its `detail` body.
 
 ## Why
 
@@ -24,20 +24,22 @@ A plugin ask runs on the yes of the host its card was raised to. At raise, the a
 - A removed installer, an installer who left, and a disabled plugin leave no executable ask.
 - A host handoff voids a member's open ask.
 - An installer removed and invited back before the sweep runs gets no act from the old ask.
-- The card names the installer and holds the whole steer.
+- The card names the installer in its own field and holds the whole steer. A plugin name written to read as another attribution does not change the installer field.
+- A component test renders a plugin turn card: the title, the installer byline, and the closed steer disclosure the keyboard reaches and opens.
 - The ruling has a law line: `docs/law/Spine-Identity-and-Auth.md` §2e.
 
 ## Evidence
 
 - `tests/server/domain/automation/verbs/plugin-ask-confirm.int.test.ts`. On the first source, the three positive cases failed: the sweep voided the ask after a title edit, and the other two refused with "the plugin's installer no longer hosts this room".
 - Review follow-up, red on the first fix: the handoff and the removed-then-reinvited confirms both resolved and ran the act. The card's summary did not name the installer. The reinvite case holds automation's event handler, so the confirm runs before the removal is swept.
-- All ten cases pass after the fix.
+- Second review follow-up, red on the previous fix: the card event had no installer field, so both installer cases failed. One of them installs a plugin whose name reads as an attribution of the host.
+- All eleven cases pass after the fix.
+- `tests/client/features/automation/components/suggestion-card-steer.ct.tsx` renders the real card event, raised by a real member guest, through the production band. It fails when the band stops drawing the byline, and when the steer detail renders nothing.
 - Control checks:
   - With the plugin arm of `askActorStillStands` forced true, the removed and left cases fail. The act reaches chat's present-initiator check and fails as `automation_suggestion_act_failed` instead of a voided ask.
   - With the membership-instance comparison disabled, the reinvite case fails.
-  - With the host comparison disabled, the handoff case fails.
+  - With the host re-check disabled, the handoff case fails.
 - Floor: `pnpm --filter @orb/showcase-plugins build`, then `pnpm test` on `tests/server/domain/automation`, `tests/server/infra/plugin-host`, `tests/server/domain/plugin`, `tests/showcase-plugins/guest-boundaries.int.test.ts` and `tests/support/node/corpus-plugin-host.int.test.ts`.
-- Not rendered-checked: the client's steer disclosure in `packages/client/src/features/automation/components/suggestion-card-mount.tsx`. No component test mounts the suggestion band.
 
 ## Owner ruling (2026-11-02)
 

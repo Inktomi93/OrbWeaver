@@ -9,7 +9,7 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AuthorityDeps, PendingSuggestion } from "../contract/ops.ts";
-import { loadMembershipInstance, loadPresentHostUserId } from "../persistence/ask-standing.ts";
+import { loadMembershipInstance } from "../persistence/ask-standing.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 
 /** C5 — the OWNER-GLOBAL twin of {@link holdsChatHostAuthority}: may this author's chat-less rules still act?
@@ -51,7 +51,8 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
  *
  *  - RULE: the author must still host. The ask was "may THIS author's rule act here".
  *  - PLUGIN: the installer need not host, because the authority is the yes of the host who saw the card. So the
- *    host recorded at raise must still host, and the installer must still hold the SAME membership: a removal
+ *    host recorded at raise must still host (re-proved through `can()`, like every host check here), and the
+ *    installer must still hold the SAME membership: a removal
  *    followed by a re-invite reuses the row, and only the recorded instance tells the two stays apart. The
  *    plugin's installed-and-enabled half is the confirm verb's injected `isPluginLive` read.
  *
@@ -63,11 +64,9 @@ export async function askActorStillStands(deps: AuthorityDeps, ask: PendingSugge
     return await holdsChatHostAuthority(deps, ask.chatId, ask.actorUserId);
   }
   const { hostUserId, installerMembership } = ask.standing;
-  const [host, membership] = await Promise.all([loadPresentHostUserId(deps.db, ask.chatId), loadMembershipInstance(deps.db, ask.chatId, ask.actorUserId)]);
-  return (
-    host === hostUserId &&
-    membership !== undefined &&
-    membership.joinSeq === installerMembership.joinSeq &&
-    membership.joinedAt === installerMembership.joinedAt
-  );
+  const [stillHosts, membership] = await Promise.all([
+    holdsChatHostAuthority(deps, ask.chatId, hostUserId),
+    loadMembershipInstance(deps.db, ask.chatId, ask.actorUserId),
+  ]);
+  return stillHosts && membership !== undefined && membership.joinSeq === installerMembership.joinSeq && membership.joinedAt === installerMembership.joinedAt;
 }

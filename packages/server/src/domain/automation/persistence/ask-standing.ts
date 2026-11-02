@@ -1,5 +1,5 @@
-// The two roster reads a plugin ask's standing is recorded from and re-checked against. Neither decodes a role or
-// decides a permission: one names who hosts, the other which membership a user holds.
+// The membership read a plugin ask's standing is recorded from and re-checked against. It decodes no role and
+// decides no permission: it names which stay in the room a user holds.
 
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
@@ -18,15 +18,4 @@ export async function loadMembershipInstance(db: Db, chatId: ChatId, userId: Use
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
   return rows[0];
-}
-
-/** The room's present host — a roster lookup naming WHO hosts, never a permission decision (that is `can()`'s).
- *  `null` for a hostless room. */
-export async function loadPresentHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
-  const rows = await db
-    .select({ userId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-    .limit(LIMIT_ONE);
-  return rows[0]?.userId ?? null;
 }

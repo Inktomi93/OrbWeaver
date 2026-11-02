@@ -38,7 +38,9 @@ export interface PendingAsk {
   readonly kind: AutomationSuggestionKind;
   readonly summary: string;
   readonly expiresAt: number;
-  /** The optional structured body (C3's rewrite before/after). Absent ⇒ the card is title + actions. */
+  /** The member who installed the asking plugin, shown apart from the plugin-named summary. Plugin asks only. */
+  readonly installerHandle?: string;
+  /** The optional structured body (a rewrite diff, a plugin turn's steer). Absent ⇒ the card is title + actions. */
   readonly detail?: SuggestionCardDetail;
 }
 
@@ -67,6 +69,7 @@ const AUTOMATION_EVENT_ARMS: AutomationEventArms = {
       kind: event.kind,
       summary: event.summary,
       expiresAt: event.expiresAt,
+      ...(event.installerHandle === undefined ? {} : { installerHandle: event.installerHandle }),
       ...(event.detail === undefined ? {} : { detail: event.detail }),
     },
   ],

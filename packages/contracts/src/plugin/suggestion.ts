@@ -60,9 +60,10 @@ export type PluginSuggestedAct =
  *  question fails `tsc` here (the `summarizeSuggestibleArm` precedent, in the shape that file could not use:
  *  these kinds are camelCase, so a Record trips no naming-convention suppression).
  *
- *  Each reads as a question about a CONCRETE act, never a capability label. It NAMES THE PLUGIN AND THE MEMBER
- *  WHO INSTALLED IT — a host answering "should this happen" is entitled to know who is asking, and a plugin
- *  ask is the one card class whose requester is not a rule the host wrote themselves. */
+ *  Each reads as a question about a CONCRETE act, never a capability label, and it NAMES THE PLUGIN — a host
+ *  answering "should this happen" is entitled to know who is asking. The member who installed it is NOT named
+ *  here: the plugin name is free text, so the card carries the installer as its own field and renders it
+ *  apart from this question, where the name cannot imitate it. */
 const PLUGIN_ACT_QUESTION: Record<PluginSuggestedActKind, (act: PluginSuggestedAct, asker: string) => string> = {
   requestTurn: (act, asker) => {
     const steer = act.kind === "requestTurn" ? (act.guided ?? "").trim() : "";
@@ -73,6 +74,6 @@ const PLUGIN_ACT_QUESTION: Record<PluginSuggestedActKind, (act: PluginSuggestedA
 };
 
 /** Render the ask. The caller caps it to the shared suggestion-summary length. */
-export function summarizePluginAct(act: PluginSuggestedAct, pluginName: string, installerHandle: string): string {
-  return PLUGIN_ACT_QUESTION[act.kind](act, `“${pluginName}” (installed by ${installerHandle})`);
+export function summarizePluginAct(act: PluginSuggestedAct, pluginName: string): string {
+  return PLUGIN_ACT_QUESTION[act.kind](act, `“${pluginName}”`);
 }
