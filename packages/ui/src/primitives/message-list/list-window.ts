@@ -42,6 +42,18 @@ export function usePrinting(): boolean {
   return useSyncExternalStore(subscribePrinting, () => printing);
 }
 
+/**
+ * The row ref while printing: it places the row where the screen expects it, as the virtualizer's `position` mode
+ * does, but never measures it. A screen behind a print dialog still paints, and an unplaced row piles at the top.
+ */
+export const placeWithoutMeasure =
+  (start: number) =>
+  (node: HTMLLIElement | null): void => {
+    if (node !== null) {
+      node.style.top = `${String(start)}px`;
+    }
+  };
+
 /** Paper has no scroll window: every row prints. */
 export const everyRow = (count: number): (() => number[]) => {
   const all = Array.from({ length: count }, (_, index) => index);

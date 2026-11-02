@@ -7,7 +7,7 @@ import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefers
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
-import { composeRangeExtractor, everyRow, updateEdgeFades, usePrinting } from "./list-window.ts";
+import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -392,8 +392,8 @@ export function MessageList<T>({
           <li
             key={virtualItem.key}
             // Nothing is measured while printing: the first measure of a row mounted for paper above a scrolled-up reader
-            // re-places every row below it, and paper flows rows statically, so the screen keeps its sizes and offsets.
-            ref={printing ? undefined : virtualizer.measureElement}
+            // re-places every row below it. Rows are still placed at their screen offset; paper flows them statically.
+            ref={printing ? placeWithoutMeasure(virtualItem.start) : virtualizer.measureElement}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}

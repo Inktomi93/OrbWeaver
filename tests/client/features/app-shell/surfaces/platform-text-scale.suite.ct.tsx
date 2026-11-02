@@ -1058,6 +1058,10 @@ test.describe("printing a room", () => {
       return document.querySelectorAll('[data-slot="message-list-row"]').length;
     });
     expect(mountedForPaper).toBe(messages.length);
+    // A print dialog shows the screen behind it, so the rows mounted for paper must sit in order there, not in a pile.
+    const behindDialog = await list.evaluate(printedRowTops);
+    expect(behindDialog.tops).toEqual(behindDialog.tops.toSorted((a, b) => a - b));
+    expect(new Set(behindDialog.tops).size).toBe(behindDialog.tops.length);
     await page.emulateMedia({ media: "print", reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none", contrast: "no-preference" });
     const paper = await list.evaluate((node) => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right, sheet: innerWidth }));
     expect(paper.left).toBeLessThanOrEqual(SUBPIXEL);
