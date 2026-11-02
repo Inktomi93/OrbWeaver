@@ -3,7 +3,7 @@
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
 import { trimEndWhile } from "@orb/kit/strings";
@@ -332,16 +332,12 @@ export const characterHandleSchema = z
   .min(HANDLE_MIN)
   .max(HANDLE_MAX)
   .regex(SLUG_HANDLE_PATTERN)
-  .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
+  .pipe(brandedId("CharacterHandle")) satisfies z.ZodType<CharacterHandle>;
 
 /** A handle as a READ projects it: length only, never the alphabet. The synthetic `__group__*` rows sit
  *  outside the alphabet by design, and a row stored before the alphabet was enforced must keep reading;
  *  anything that writes such a value somewhere else derives it through {@link portableCharacterHandle}. */
-export const storedCharacterHandleSchema = z
-  .string()
-  .min(HANDLE_MIN)
-  .max(HANDLE_MAX)
-  .transform((value) => castId<CharacterHandle>(value)) satisfies z.ZodType<CharacterHandle>;
+export const storedCharacterHandleSchema = z.string().min(HANDLE_MIN).max(HANDLE_MAX).pipe(brandedId("CharacterHandle")) satisfies z.ZodType<CharacterHandle>;
 
 /** True when `value` is a handle {@link characterHandleSchema} admits. */
 function isCharacterHandle(value: string): boolean {

@@ -74,21 +74,6 @@ export const UNSAFE_CAST_HOMES = [
     reason: "unified hands the transformer an untyped hast tree; the local node type is the subset the walk reads",
   },
   {
-    file: "packages/contracts/src/character/index.ts",
-    site: "value",
-    reason: `${MINT_RULING}: the handle schemas brand a value only after their own checks passed`,
-  },
-  {
-    file: "packages/contracts/src/inference/model-schema.ts",
-    site: "value",
-    reason: `${MINT_RULING}: \`modelIdSchema\` brands a value only after it trimmed and checked it`,
-  },
-  {
-    file: "packages/contracts/src/inference/provider-id.ts",
-    site: "value",
-    reason: `${MINT_RULING}: \`providerIdSchema\` brands a value only after its pattern matched`,
-  },
-  {
     file: "packages/kit/src/handle-key/index.ts",
     site: "keyPass(keyPass(text, data), data)",
     reason: `${MINT_RULING}: \`handleKey\` is the one mint of a comparison key, and an empty handle keys to an empty key`,
@@ -274,12 +259,15 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[], mintHomes: re
       };
       const castIdCall = (node: TSESTree.CallExpression): void => {
         const [raw] = node.arguments;
+        const { callee } = node;
+        // `castId(x)`, or `ids.castId(x)` through a namespace import; `isKitCastId` proves the name is the kit's.
+        const name = callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed ? callee.property : callee;
         if (
           scope.mints ||
           raw === undefined ||
-          node.callee.type !== AST_NODE_TYPES.Identifier ||
+          name.type !== AST_NODE_TYPES.Identifier ||
           sites.has(context.sourceCode.getText(raw)) ||
-          !isKitCastId(checker, toTs.get(node.callee))
+          !isKitCastId(checker, toTs.get(name))
         ) {
           return;
         }

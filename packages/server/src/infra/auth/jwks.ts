@@ -186,14 +186,19 @@ async function jwtVerifyOrNull(
   }
 }
 
-/** Map a verified JWT payload to a ForwardJwtClaims. `handle` is `preferred_username` (undefined when
- *  absent — the seam's fail-closed point 4 rejects that); `externalId` is `sub`; `email` the standard
- *  claim; groups tolerate array or separator-joined string. */
-function claimsFromPayload(payload: JWTPayload): ForwardJwtClaims {
+/** Map a verified JWT payload to a ForwardJwtClaims, or null for a present `sub` that does not parse. `handle` is
+ *  `preferred_username` (undefined when absent — the seam's fail-closed point 4 rejects that); `externalId` is `sub`;
+ *  `email` the standard claim; groups tolerate array or separator-joined string. */
+function claimsFromPayload(payload: JWTPayload, log: Logger): ForwardJwtClaims | null {
   const handle = handleSchema.safeParse(payload["preferred_username"]).data;
   // The verified JWT's `sub` IS the stable SSO external id (the ExternalId brand's own definition); this parse
-  // is the one place the wire string becomes the branded value.
-  const externalId = externalIdSchema.safeParse(payload.sub).data ?? null;
+  // is the one place the wire string becomes the branded value. SECURITY: a present `sub` that does not parse
+  // refuses the token. Read as "no subject", it would skip the bind-once mismatch check against a bound row.
+  const externalId = payload.sub === undefined ? null : externalIdSchema.safeParse(payload.sub).data;
+  if (externalId === undefined) {
+    securityEvent("jwt_subject_unparseable", {}, "security: forwarded JWT verified but its sub claim does not parse — rejecting", log);
+    return null;
+  }
   const rawEmail = payload["email"];
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {
@@ -217,7 +222,7 @@ export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"], log:
       if (payload === null) {
         return null;
       }
-      return claimsFromPayload(payload);
+      return claimsFromPayload(payload, log);
     },
   };
 }

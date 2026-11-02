@@ -42,6 +42,7 @@ const importsFor = (file: string): string => {
   return [
     `import type { ProbeId } from "${from(KIT)}";`,
     `import { castId, castId as toId, probeIdOf } from "${from(KIT)}";`,
+    `import * as ids from "${from(KIT)}";`,
     `import type { ProbeView } from "${from(CONTRACT)}";`,
     `import type { ProbeRow } from "${from(ROWS)}";`,
     "declare const raw: string;",
@@ -109,6 +110,7 @@ test.for([
   { name: "a string literal cast to a brand", source: 'export const a = "probe_1" as ProbeId;', found: "plain string named as a brand" },
   { name: "a plain string passed to castId", source: "export const a = castId<ProbeId>(raw);", found: "plain string named as a brand" },
   { name: "castId under an import alias", source: "export const a = toId<ProbeId>(raw);", found: "plain string named as a brand" },
+  { name: "castId through a namespace import", source: "export const a = ids.castId<ProbeId>(raw);", found: "plain string named as a brand" },
   { name: "castId of a value already branded", source: "export const a = castId<ProbeId>(id);", found: "already carries the brand" },
   { name: "an unknown value named as a local interface", source: "export const a = loose as Shape;", found: "named as an object type" },
   { name: "an any value named as an inline object type", source: "export const a = anything as { readonly n: number };", found: "named as an object type" },
@@ -141,6 +143,11 @@ test.for([
   {
     name: "a local function that shadows castId",
     source: "export function a(castId: (value: string) => ProbeId): ProbeId {\n  return castId(raw);\n}",
+    found: null,
+  },
+  {
+    name: "a castId method on an object that is not the kit id module",
+    source: "declare const other: { castId(value: string): ProbeId };\nexport const a = other.castId(raw);",
     found: null,
   },
   { name: "an unknown value erased to never", source: "export const a = loose as never;", found: null },

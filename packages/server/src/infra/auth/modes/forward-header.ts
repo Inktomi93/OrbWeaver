@@ -27,49 +27,43 @@ function groupsFromClaim(claim: unknown): string[] {
   return [];
 }
 
-// Order: custom override, then authentik, then Authelia, then generic X-Forwarded-User. Returns null
-// when no known user header is set.
+// SECURITY: a PRESENT header is the proxy's word even when it is empty. A value that does not parse refuses the whole
+// identity. It must never defer to a lower-precedence header, which a client may supply through the proxy, and a
+// subject that does not parse must never become "no subject", which would skip the bind-once mismatch check.
+function identityFrom(rawHandle: string, rawUid: string | null, groups: string[], email: string | null): ResolvedIdentity | null {
+  const handle = handleSchema.safeParse(rawHandle).data;
+  const externalId = rawUid === null ? null : externalIdSchema.safeParse(rawUid).data;
+  return handle === undefined || externalId === undefined ? null : { externalId, handle, groups, email };
+}
+
+// Order, by header presence: custom override, then authentik, then Authelia, then generic X-Forwarded-User. Returns
+// null when no known user header is set or the selected one does not parse.
 function readUnsignedIdentity(headers: Headers, config: AuthConfig): ResolvedIdentity | null {
   if (config.forwardUserHeader !== undefined) {
-    const handle = handleSchema.safeParse(headers.get(config.forwardUserHeader)).data;
-    if (handle === undefined) {
+    const handle = headers.get(config.forwardUserHeader);
+    if (handle === null) {
       return null;
     }
     const externalId = config.forwardUidHeader !== undefined ? headers.get(config.forwardUidHeader) : null;
     const groups = config.forwardGroupsHeader !== undefined ? groupsFromClaim(headers.get(config.forwardGroupsHeader)) : [];
-    return {
-      externalId: externalIdSchema.safeParse(externalId).data ?? null,
-      handle,
-      groups,
-      email: emailFromHeader(config.forwardEmailHeader, headers),
-    };
+    return identityFrom(handle, externalId, groups, emailFromHeader(config.forwardEmailHeader, headers));
   }
-  const authentik = handleSchema.safeParse(headers.get("x-authentik-username")).data;
-  if (authentik !== undefined) {
-    return {
-      externalId: externalIdSchema.safeParse(headers.get("x-authentik-uid")).data ?? null,
-      handle: authentik,
-      groups: groupsFromClaim(headers.get("x-authentik-groups")),
-      email: emailFromHeader("x-authentik-email", headers),
-    };
+  const authentik = headers.get("x-authentik-username");
+  if (authentik !== null) {
+    return identityFrom(
+      authentik,
+      headers.get("x-authentik-uid"),
+      groupsFromClaim(headers.get("x-authentik-groups")),
+      emailFromHeader("x-authentik-email", headers),
+    );
   }
-  const authelia = handleSchema.safeParse(headers.get("remote-user")).data;
-  if (authelia !== undefined) {
-    return {
-      externalId: null,
-      handle: authelia,
-      groups: groupsFromClaim(headers.get("remote-groups")),
-      email: emailFromHeader("remote-email", headers),
-    };
+  const authelia = headers.get("remote-user");
+  if (authelia !== null) {
+    return identityFrom(authelia, null, groupsFromClaim(headers.get("remote-groups")), emailFromHeader("remote-email", headers));
   }
-  const forwardedUser = handleSchema.safeParse(headers.get("x-forwarded-user")).data;
-  if (forwardedUser !== undefined) {
-    return {
-      externalId: null,
-      handle: forwardedUser,
-      groups: groupsFromClaim(headers.get("x-forwarded-groups")),
-      email: emailFromHeader("x-forwarded-email", headers),
-    };
+  const forwardedUser = headers.get("x-forwarded-user");
+  if (forwardedUser !== null) {
+    return identityFrom(forwardedUser, null, groupsFromClaim(headers.get("x-forwarded-groups")), emailFromHeader("x-forwarded-email", headers));
   }
   return null;
 }

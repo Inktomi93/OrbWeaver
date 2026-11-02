@@ -10,7 +10,7 @@ import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useEmbedCharacterCard, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
@@ -50,11 +50,13 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
   const embed = useEmbedCharacterCard({ trpc, invalidation });
   const [characterId, setCharacterId] = useState("");
   const [done, setDone] = useState(false);
+  const hintId = useId();
   const trimmed = characterId.trim();
+  // An empty or malformed id names no character, so the button stays disabled; a typed one that does not parse says why.
+  const parsed = typeIdSchema(ID_PREFIX.character).safeParse(trimmed).data;
+  const malformed = parsed === undefined && trimmed !== "";
 
   const onEmbed = (): void => {
-    // An empty or malformed id names no character, so there is nothing to embed.
-    const parsed = typeIdSchema(ID_PREFIX.character).safeParse(trimmed).data;
     if (parsed === undefined) {
       return;
     }
@@ -79,10 +81,21 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
               setDone(false);
             }}
           />
-          <Button variant="outline" size="sm" disabled={trimmed === "" || embed.isPending} onClick={onEmbed}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={parsed === undefined || embed.isPending}
+            aria-describedby={malformed ? hintId : undefined}
+            onClick={onEmbed}
+          >
             Embed card
           </Button>
         </Row>
+        {malformed ? (
+          <Text tone="destructive" id={hintId} voice="gloss">
+            {`That is not a character id. A character id starts with "${ID_PREFIX.character}_".`}
+          </Text>
+        ) : null}
         {done ? (
           <Text voice="gloss" role="status">
             Card embedded.
