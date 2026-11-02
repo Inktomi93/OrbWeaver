@@ -94,10 +94,9 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
             <Stack gap="tight" key={keyOf(target)}>
               <Row align="center" gap="row">
                 <Text voice="label">{slotLabelOf(target.field, target.greetingIndex)}</Text>
-                <Row align="center" gap="field">
+                <Field label={`Empty ${slotLabelOf(target.field, target.greetingIndex)}`} orientation="inline">
                   <Checkbox checked={draft.cleared} onCheckedChange={(cleared: boolean): void => patch(target, { cleared })} />
-                  <Text voice="gloss">empty this field</Text>
-                </Row>
+                </Field>
               </Row>
               {draft.cleared ? (
                 <Text voice="gloss">

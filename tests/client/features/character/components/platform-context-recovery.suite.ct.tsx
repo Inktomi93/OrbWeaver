@@ -224,8 +224,11 @@ test("Overview does not claim you never spoke while its newest-thread read is he
     await pending.requested;
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context.getByText("Never", { exact: true })).toHaveCount(0);
+    await expect(context.locator('[data-slot="character-context-band-tokens"]')).toBeVisible();
+    await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveCount(0);
     pending.release();
     await expect(context.getByText("Never", { exact: true })).toBeVisible();
+    await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveText("0 chats");
   } finally {
     pending.release();
   }
@@ -439,8 +442,11 @@ test("Overview: a failed read for one character does not stick on the next", asy
   await openCharacterContext(page, "Overview");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(context.locator('[data-slot="character-context-band-tokens"]')).toBeVisible();
+  await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveCount(0);
   await selectCharacter(page, other);
   await showContextTab(page, "Overview");
+  await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveText("0 chats");
   await expect(context.getByText("Never", { exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
 });

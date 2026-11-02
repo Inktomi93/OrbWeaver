@@ -56,7 +56,6 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
     );
   }
 
-  const chatCount = chats?.totalCount ?? 0;
   const tokens = totalTokenCount(characterCardFormFromDetail(detail), RESTING_GREETING);
   return (
     <Row gap="block" align="center" data-slot="character-context-band" className="min-inline-0">
@@ -77,9 +76,12 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
             item and scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
         <Row gap="field" align="center" className="overflow-x-auto min-inline-0">
           <OwnLookMark themeOverride={detail.themeOverride} />
-          <Badge size="sm" data-slot="character-context-band-chats">
-            {chatCount === 1 ? "1 chat" : `${chatCount} chats`}
-          </Badge>
+          {/* No chip until the read lands: a pending or failed read has no count, and 0 would be a false one. */}
+          {chats === undefined ? null : (
+            <Badge size="sm" data-slot="character-context-band-chats">
+              {chats.totalCount === 1 ? "1 chat" : `${chats.totalCount} chats`}
+            </Badge>
+          )}
           <Badge size="sm" data-slot="character-context-band-tokens">
             {/* GROUPED: a four-digit run with no separator reads as an id, not a magnitude. `groupThousands`
                 is the ONE house grouper (`@orb/kit/strings`; `.toLocaleString()` stays banned repo-wide), so
