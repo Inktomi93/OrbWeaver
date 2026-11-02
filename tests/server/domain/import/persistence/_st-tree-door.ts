@@ -23,12 +23,22 @@ const JOB_TABLES = new Set(["workloads"]);
 type Bytes = Uint8Array | string;
 export type Files = Readonly<Record<string, Bytes>>;
 
-export function harness(): Promise<ServerTestHarness> {
-  return createServerHarness({
+// The owner's default content seeds in the background after the first authed request. Settling it here keeps a
+// test's before/after row deltas from racing the seed.
+export async function harness(): Promise<ServerTestHarness> {
+  const root = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
+  try {
+    await (await post(root, {}, ["refused"])).arrayBuffer();
+    await root.settleBackground();
+  } catch (error) {
+    await root[Symbol.asyncDispose]();
+    throw error;
+  }
+  return root;
 }
 
 // SillyTavern wire text is snake_case by spec, so the fixtures are raw JSON text.
