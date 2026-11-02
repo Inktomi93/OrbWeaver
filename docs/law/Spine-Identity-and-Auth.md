@@ -230,6 +230,12 @@ review re-flags something already ruled.
   working. A finding must name which option (§2c) was bypassed, or it is not a leak.
 - **The `permitsHost`/`viewerReadsHidden` split is two classes, not two spellings** (§2c). Do not
   "unify" them.
+- **A confirmed ask runs as its actor, and the room's host authorizes it.** The confirmer must host the ask's
+  room. A rule's ask also requires its author to still host; a host handoff voids it, with no re-mint and no
+  transfer. A plugin's ask runs on the host's yes alone: the plugin must still be installed and enabled, and
+  its installer must still be a present member. The installer need not host, and a demoted host counts as a
+  member. An installer who leaves or is removed leaves no executable ask. `askActorStillStands` in
+  `packages/server/src/domain/automation/substrate/authority.ts` holds both actor checks.
 
 ## 3. Construction
 

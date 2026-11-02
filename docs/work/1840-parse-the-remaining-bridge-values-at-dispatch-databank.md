@@ -10,17 +10,18 @@ area: security
 
 ## What
 
-The change, in a sentence.
+The app-side bridge dispatch in `packages/server/src/infra/plugin-host/bridge-rpc.ts` parses `databank.ingest` with `databankTextDocumentSchema` and `chat.requestTurn` hints with the turn-hint schema its ask arm already used. `databankTextDocumentSchema` moved from the tRPC router into `packages/contracts/src/databank/index.ts`, so the router and the bridge share it.
+
+Also in this item: a guest variable write the realm cannot serialize refuses. The QuickJS `dump` returns a string fallback when the realm's own `JSON.stringify` fails, so an 11 MiB op list reached the membrane as a string. `chat.applyVariableOps` read the string as no ops and answered `applied`. The membrane now refuses an object argument that reads back as a string, and it refuses a non-list op argument.
 
 ## Why
 
-The symptom or the ruling behind it.
+A forged broker frame could hand the databank a non-text name, and chat a non-id speaker. The dispatch is the trust boundary for broker data, so each value must parse there with its owning schema. A write that silently applies nothing tells the guest a write landed.
 
 ## Done when
 
-The observable bar a verifier can check.
+A forged frame with a non-text document name, or with a non-id speaker hint, is refused at dispatch with `TypeError`. An 11 MiB value and a non-list op argument both refuse, and the room keeps its earlier variables.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-Remaining unparsed bridge values. `databank.ingest` in `bridge-rpc.ts` casts `recordAt` to `{ name, text }`; `chat.requestTurn` passes `recordAt` through as hints, so a non-string `speakerCharacterId` is not parsed there. Done: both parse at dispatch or are justified.
+`tests/server/infra/plugin-host/bridge-call-parsing.int.test.ts`. On the old source: the forged name ingested a document, the forged speaker reached chat and failed as `ChatNotFoundError`, and the 11 MiB write returned `applied` with nothing written. All pass after the fix. With only the dump guard, the 11 MiB case refuses and the non-list case still applies. With only the list guard, the 11 MiB case refuses, which shows the argument arrived as a string.

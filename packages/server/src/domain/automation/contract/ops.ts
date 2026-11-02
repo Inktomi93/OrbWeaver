@@ -560,9 +560,9 @@ interface PendingSuggestionBase {
   readonly chatId: ChatId;
   /** The identity a confirmed execution runs AS: the rule AUTHOR, or the plugin's INSTALLER. The confirmer is
    *  the AUTHORIZER only (§3-S4: ownership, funding and the variable namespace all key off this user, never
-   *  off who clicked) — and it is the user whose HOST authority the confirm re-check re-runs, which is the
-   *  whole of the ruled host-handoff wall: an actor who lost host cannot have their pending ask executed by
-   *  the new host. Fail-closed, no re-mint, no transfer (owner ruling 2026-08-24). */
+   *  off who clicked). It is also the user whose standing the confirm re-check and the void sweep re-prove,
+   *  per origin (`substrate/authority.ts::askActorStillStands`): a rule author must still host, a plugin
+   *  installer must still be a present member. */
   readonly actorUserId: UserId;
   readonly expiresAt: number;
 }

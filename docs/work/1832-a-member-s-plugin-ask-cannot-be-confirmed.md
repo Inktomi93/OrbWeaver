@@ -10,21 +10,25 @@ area: plugin
 
 ## What
 
-The change, in a sentence.
+A plugin ask runs on the host's yes. The confirm re-check and the chat-change void sweep require the plugin's installer to be a present member, not the host. The rule origin still requires its author to host. The confirmed turn skips the bridge's direct-call host gate. Chat's own present-initiator check still applies.
 
 ## Why
 
-The symptom or the ruling behind it.
+`assertPluginStillLive` in `packages/server/src/domain/automation/verbs/confirm-suggestion.ts` required the installer to hold host. A member's plugin can only ask, because a member has no standing write authority. So every member ask failed with `SuggestionRefusedError`. The void sweep in `packages/server/src/domain/automation/substrate/handle-event.ts` also dropped a member's ask on any chat change, such as a title edit. The confirmed turn then met `requireHost(installer)` in `packages/server/src/domain/plugin/substrate/bridge.ts`.
 
 ## Done when
 
-The observable bar a verifier can check.
+- A member's plugin ask, raised through the real guest, runs a turn when the host confirms it, including after a title edit.
+- A demoted host's plugin ask runs when the new host confirms it.
+- The installer cannot confirm their own ask, and the ask stays open for the host.
+- A removed installer, an installer who left, and a disabled plugin leave no executable ask.
+- The ruling has a law line: `docs/law/Spine-Identity-and-Auth.md` §2e.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-1. Member plugin asks cannot be confirmed. `assertPluginStillLive` in `packages/server/src/domain/automation/verbs/confirm-suggestion.ts` requires the installer to hold host, but `canWrite: false` means a member doesn't, so POSTURE 2 raises cards that always fail with `SuggestionRefusedError`. Fails closed, product defect. Blocked: owner ruling on what a member's ask means. Done: a test drives a member ask through confirm.
+- `tests/server/domain/automation/verbs/plugin-ask-confirm.int.test.ts`. On the old source, the three positive cases failed: the sweep voided the ask after a title edit, and the other two refused with "the plugin's installer no longer hosts this room". All six cases pass after the fix.
+- Control check: with the plugin arm of `askActorStillStands` forced true, the removed and left cases fail. The act then reaches chat's present-initiator check and fails as `automation_suggestion_act_failed` instead of a voided ask.
+- Floor: `pnpm test` on `tests/server/domain/automation`, `tests/server/infra/plugin-host`, `tests/server/domain/plugin`, `tests/showcase-plugins/guest-boundaries.int.test.ts` and `tests/support/node/corpus-plugin-host.int.test.ts`, all green.
 
 ## Owner ruling (2026-11-02)
 

@@ -198,7 +198,7 @@ export function createPluginSuggestionRaiser(deps: {
       chatId,
       source,
       // The INSTALLER is the actor: the confirmed act runs as them, on their budget, in their namespace —
-      // and it is their host authority the confirm re-check re-runs. The confirmer authorizes, never
+      // and it is their membership the confirm re-check re-proves. The confirmer authorizes, never
       // substitutes.
       actorUserId: installerUserId,
       expiresAt,

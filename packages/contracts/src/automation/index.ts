@@ -376,8 +376,9 @@ const TRANSFORM_TEMPLATE_MAX = 8192;
 const WI_ENTRY_KEY_MAX = 256;
 const WI_KEYS_MAX = 16;
 const WI_CONTENT_MAX = 8192;
-const QUICK_REPLY_LABEL_MAX = 80;
-const QUICK_REPLY_SEND_MAX = 2048;
+/** Quick-reply chip caps, shared by the rule arm's authoring schema and the plugin emitter. */
+export const QUICK_REPLY_LABEL_MAX = 80;
+export const QUICK_REPLY_SEND_MAX = 2048;
 const QUICK_REPLY_MIN_CHOICES = 1;
 export const QUICK_REPLY_MAX_CHOICES = 4;
 const NOTIFICATION_MESSAGE_MAX = 200;

@@ -23,7 +23,7 @@ import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { runDispatch } from "../engine/dispatch.ts";
 import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules.ts";
-import { holdsChatHostAuthority } from "./authority.ts";
+import { askActorStillStands } from "./authority.ts";
 import { resolveTrigger } from "./fact-resolver.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
 import { automationChatLaneKey, automationDomainLaneKey } from "./serial-lanes.ts";
@@ -78,14 +78,15 @@ function loadMatchedRules(
 }
 
 /** RULED (§8, VOID-ALL on host handoff) — "authority died, its pending asks die with it; a re-fire under the
- *  new host mints fresh". This is where that ruling meets the tree.
+ *  new host mints fresh". This is where that ruling meets the tree, for RULE asks. A PLUGIN ask's authority is
+ *  the host's yes, so a handoff leaves it open; it dies when its installer leaves the room.
  *
  *  THE EDGE IT RIDES: `chatUpdated`. `acceptHostHandoff` (chat's roster verb) emits it after the atomic role
  *  swap, and the automation domain has no other sight of a handoff — there is no `hostChanged` member, and
  *  inventing one on the FROZEN chat bus to serve this sweep would be a bus edit for an in-RAM map. So the
- *  sweep is stated as what it actually checks: on any chat-row change, RE-PROVE each pending ask's author
- *  still holds host, and drop the ones that fail. A handoff is the case that fails; a title edit costs one
- *  role read per pending ask and voids nothing.
+ *  sweep is stated as what it actually checks: on any chat-row change, RE-PROVE each pending ask's actor
+ *  still stands, and drop the ones that fail. A handoff or a kick is the case that fails; a title edit costs
+ *  one role read per pending ask and voids nothing.
  *
  *  It runs BEFORE the enabled-rule pre-check on purpose: a pending ask outlives its rule's enablement (a
  *  host can disable the rule and the ask is voided by that verb, but the reverse — a chat whose last rule was
@@ -96,10 +97,9 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
     return;
   }
   const pending = ctx.suggestions.listForChat(chatId, ctx.now());
-  // `actorUserId` is the rule AUTHOR or the plugin INSTALLER — one field, because the sweep asks the same
-  // question of both: does the identity this ask would EXECUTE AS still hold host here? A plugin's card dies
-  // on a handoff exactly as a rule's does (owner ruling 2026-08-24: fail-closed, no re-mint, no transfer).
-  const held = await Promise.all(pending.map((ask) => holdsChatHostAuthority(ctx, chatId, ask.actorUserId)));
+  // The sweep and the confirm re-check ask ONE question per origin (`askActorStillStands`): a rule's card dies
+  // when its author stops hosting, a plugin's card when its installer leaves the room.
+  const held = await Promise.all(pending.map((ask) => askActorStillStands(ctx, ask)));
   pending.forEach((ask, i) => {
     if (held[i] !== true) {
       ctx.suggestions.drop(ask.id, ctx.now());
