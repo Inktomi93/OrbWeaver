@@ -22,7 +22,6 @@
 // compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
 // table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
 // above: a cross-game library ROW and a scene-only extra are two different addresses.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import { stripHiddenSpans } from "@orb/kit/content";
 
@@ -105,6 +104,7 @@ export function rpgNpcSlug(name: string): string {
   return points === "" ? NPC_SLUG_FALLBACK : `${NPC_SLUG_FALLBACK}${NPC_SLUG_FALLBACK_MARK}${points}`;
 }
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** A durable/scene actor identity. `character`/`user` = participant identities; `cast` = a scene-only NPC by
  *  its stable {@link rpgNpcSlug} `key`. Full ADDS `{kind:"libraryNpc"}` — the reserved cross-game library
  *  arm (additive — `assertNever` consumers error).
@@ -131,6 +131,7 @@ export const rpgNpcRefSchema = z
  *  refine above already takes). The union below is composed FROM this, never a second spelling of the arm. */
 export type RpgNpcRef = z.infer<typeof rpgNpcRefSchema>;
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }).strip(),
   z.object({ kind: z.literal("user"), userId: brandedId("UserId") }).strip(),
@@ -150,6 +151,7 @@ export function actorRefKey(ref: RpgActorRef): string {
   return `npc:${ref.npcKey}`;
 }
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** An inventory item — `type` taxonomy ships for display + full's equip/filter future, minus any wallet
  *  coupling (§2.6). */
 export const rpgInventoryItemSchema = z
@@ -168,6 +170,7 @@ export const rpgInventoryItemSchema = z
   .strip();
 export type RpgInventoryItem = z.infer<typeof rpgInventoryItemSchema>;
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The full-engine condition slot, born whole (`stat`/`turnsLeft` are full-engine fields lite ignores). */
 const rpgConditionSchema = z
   .object({
@@ -178,6 +181,7 @@ const rpgConditionSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** A present character's RELATIONSHIP — a first-class field on the actor's IDENTITY half,
  *  NOT a `customFields` entry. `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token
  *  level); `label` is the free gloss used ONLY when `kind === "custom"` (empty otherwise). The default reading
@@ -240,6 +244,7 @@ export function clampActorCardName(name: string): { readonly value: string; read
   return { value: `${out}${NAME_CLAMP_ELLIPSIS}`, truncated: true };
 }
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const rpgActorIdentitySchema = z
   .object({
     name: z.string().min(1),
@@ -302,6 +307,7 @@ export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
   return lines.join("\n");
 }
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `wallet` is
  *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker
  *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the npc row's
@@ -325,6 +331,7 @@ export const rpgActorVolatileSchema = z
   .strip();
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
 
+// Strip mode: also reads imported files, model output and stored rows.
 /** THE actor row on the snapshot's `actorState` plane (R2) — one person, both halves, one lifecycle. `identity`
  *  is present for `npc` actors and absent for participant ones (see {@link rpgActorIdentitySchema}); `volatile` is
  *  always whole. The plane is keyed by {@link actorRefKey} over `actorRef` (the merge engine's computed element

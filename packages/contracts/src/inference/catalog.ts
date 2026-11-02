@@ -4,11 +4,11 @@
 // `/v1/models` yields ids (+ a window when the server reports one) into the same shape with the rest null;
 // `AgentSdkModel` is the daemon's `supportedModels()` row, a SEPARATE snapshot never co-mingled.
 
-// Upstream responses keep zod strip mode: a provider or SDK adds fields this app does not read.
 import { z } from "zod";
 import { effortLevelSchema } from "./capability/generation.ts";
 import { modelKindSchema } from "./kinds.ts";
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const googleModelInfoSchema = z
   .object({
     thinking: z.boolean().optional(),
@@ -18,6 +18,7 @@ const googleModelInfoSchema = z
   })
   .strip();
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const modelCatalogEntrySchema = z
   .object({
     google: googleModelInfoSchema.optional(),
@@ -67,6 +68,7 @@ export const modelListingSchema = z.discriminatedUnion("listed", [
 ]);
 export type ModelListing = z.infer<typeof modelListingSchema>;
 
+// Strip mode: also reads upstream responses.
 export const agentSdkModelSchema = z
   .object({
     /** The alias the daemon accepts (`sonnet`/`opus`/`haiku`, or a version-only id). */

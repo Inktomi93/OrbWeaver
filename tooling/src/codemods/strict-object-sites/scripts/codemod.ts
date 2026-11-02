@@ -51,10 +51,12 @@ function chainedMethod(call: SgNode<TS>): { readonly name: string; readonly call
 // Edits never span the call's arguments, so a nested site's own edit stays disjoint from its parent's.
 function editsFor(call: SgNode<TS>, property: SgNode<TS>, mode: ObjectMode, site: string): readonly Edit[] {
   const chained = chainedMethod(call);
-  if (mode === "strict") {
-    return [property.replace("strictObject")];
-  }
   const end = call.range().end.index;
+  if (mode === "strict") {
+    // A site that already declared `.strip()` drops it: the strict constructor is the whole declaration.
+    const dropStrip = chained?.name === "strip" ? [{ startPos: end, endPos: chained.call.range().end.index, insertedText: "" }] : [];
+    return [property.replace("strictObject"), ...dropStrip];
+  }
   if (mode === "strip") {
     return chained?.name === "strip" ? [] : [{ startPos: end, endPos: end, insertedText: ".strip()" }];
   }

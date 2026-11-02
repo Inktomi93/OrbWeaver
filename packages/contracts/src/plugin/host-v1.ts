@@ -8,7 +8,7 @@
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 
-// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
+// Strip mode: these schemas also read plugin guest data, which can carry keys this release does not declare.
 import type { AssetId, Branded, CharacterId, ChatId, DocumentId, MessageId, SandboxWireId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";

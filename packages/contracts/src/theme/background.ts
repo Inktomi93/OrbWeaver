@@ -18,8 +18,8 @@
 // Fault isolation: every field is lenient (`.catch`/`.default`) so a malformed carried blob heals to
 // `kind:"none"` (⇒ the viewer's own appearance wins) rather than throwing — the `themeOverrideSchema` and
 // `parseChatMetadata` posture.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** The decorative-background source kind — the ONE home (viewer `appearance` + the carried twin). `asset`

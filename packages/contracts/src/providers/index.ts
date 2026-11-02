@@ -3,6 +3,7 @@
 // ONLY result shapes — request shapes carry an `AbortSignal`/`ResolvedCredential` and stay infra-internal.
 // Vectors are `Float32Array` — the same binary format libSQL's `vector_idx` consumes.
 
+// Strip mode: these schemas also read upstream responses, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { responseCacheSchema } from "../inference/usage.ts";
 
@@ -12,105 +13,85 @@ const embedVectorSchema = z.instanceof(Float32Array);
 
 /** Token usage of one embed batch observation. `null` when the family doesn't report — in-process
  *  embedders don't meter. */
-export const embedUsageSchema = z
-  .object({
-    responseCache: responseCacheSchema.optional(),
-    /** Tokens billed. `null` when the family doesn't report. */
-    promptTokens: z.number().nullable(),
-    totalTokens: z.number().nullable(),
-  })
-  .strip();
+export const embedUsageSchema = z.strictObject({
+  responseCache: responseCacheSchema.optional(),
+  /** Tokens billed. `null` when the family doesn't report. */
+  promptTokens: z.number().nullable(),
+  totalTokens: z.number().nullable(),
+});
 
 // Cross-family TEXT embed result. One `vectors` entry per input (same order as the request `input`
 //  array; a single-string input produces a one-element array). `null` entries mark filtered inputs
 //  (empty/whitespace) — the local family filters; OpenRouter never emits `null`. Callers that always
 //  pass non-empty inputs can `.filter((v): v is Float32Array => v !== null)`.
-const embedResultSchema = z
-  .object({
-    vectors: z.array(embedVectorSchema.nullable()),
-    /** Which model actually served the embedding — provenance for the row's `model` column. */
-    model: z.string(),
-  })
-  .strip();
+const embedResultSchema = z.strictObject({
+  vectors: z.array(embedVectorSchema.nullable()),
+  /** Which model actually served the embedding — provenance for the row's `model` column. */
+  model: z.string(),
+});
 export type EmbedResult = z.infer<typeof embedResultSchema>;
 
 // A single rerank result — preserves the caller's id (NOT an array index), stable across
 //  reorderings; the caller looks up text via their own map rather than re-indexing the documents.
-const rerankHitSchema = z
-  .object({
-    /** The caller-supplied id from the request's `documents[].id`. */
-    id: z.string(),
-    /** Relevance score; higher = more relevant. Range is family-dependent (local: raw monotonic logit;
-     *  hosted: provider-normalized, often `[0, 1]`). */
-    score: z.number(),
-  })
-  .strip();
+const rerankHitSchema = z.strictObject({
+  /** The caller-supplied id from the request's `documents[].id`. */
+  id: z.string(),
+  /** Relevance score; higher = more relevant. Range is family-dependent (local: raw monotonic logit;
+   *  hosted: provider-normalized, often `[0, 1]`). */
+  score: z.number(),
+});
 export type RerankHit = z.infer<typeof rerankHitSchema>;
 
 // Cross-family rerank result. `hits` is sorted descending by score; length ≤ request `topN` (or the
 //  full scored-document count when `topN` was unset). Empty-text documents were filtered before
 //  scoring.
-const rerankResultSchema = z
-  .object({
-    hits: z.array(rerankHitSchema),
-  })
-  .strip();
+const rerankResultSchema = z.strictObject({
+  hits: z.array(rerankHitSchema),
+});
 export type RerankResult = z.infer<typeof rerankResultSchema>;
 
 // Cross-family joint-modality embed result. Vectors live in the SHARED image/text space defined by
 //  the model — an image embedding and a text embedding from the SAME model compare directly. Vectors
 //  from different models (or non-space-sharing modes) are NOT comparable; `model` is the provenance
 //  for catching cross-space bugs at the storage boundary. `null` entries mark filtered inputs.
-const imageEmbedResultSchema = z
-  .object({
-    vectors: z.array(embedVectorSchema.nullable()),
-    model: z.string(),
-  })
-  .strip();
+const imageEmbedResultSchema = z.strictObject({
+  vectors: z.array(embedVectorSchema.nullable()),
+  model: z.string(),
+});
 export type ImageEmbedResult = z.infer<typeof imageEmbedResultSchema>;
 
 // One summary per input (same order as request `inputs`).
-const summarizeResultItemSchema = z
-  .object({
-    /** The summary text — `<think>…</think>` blocks stripped at the runner boundary so callers never
-     *  see CoT scaffolding. */
-    text: z.string(),
-    usage: z
-      .object({
-        tokensIn: z.number().nullable(),
-        tokensOut: z.number().nullable(),
-        /** Generation cost in USD. `null` for local families (no metered cost). */
-        costUsd: z.number().nullable(),
-      })
-      .strip(),
-  })
-  .strip();
+const summarizeResultItemSchema = z.strictObject({
+  /** The summary text — `<think>…</think>` blocks stripped at the runner boundary so callers never
+   *  see CoT scaffolding. */
+  text: z.string(),
+  usage: z.strictObject({
+    tokensIn: z.number().nullable(),
+    tokensOut: z.number().nullable(),
+    /** Generation cost in USD. `null` for local families (no metered cost). */
+    costUsd: z.number().nullable(),
+  }),
+});
 export type SummarizeResultItem = z.infer<typeof summarizeResultItemSchema>;
 
 // Cross-family summarize result. `items` length matches `request.inputs`; index-aligned.
-const summarizeResultSchema = z
-  .object({
-    items: z.array(summarizeResultItemSchema),
-  })
-  .strip();
+const summarizeResultSchema = z.strictObject({
+  items: z.array(summarizeResultItemSchema),
+});
 export type SummarizeResult = z.infer<typeof summarizeResultSchema>;
 
 /** A hosted credential's account balance — the `accountCredits` surface returns it. Family-neutral:
  *  OpenRouter reports USD credits; `total` is the lifetime granted, `used` the cumulative spend. */
-export const accountCreditsSchema = z
-  .object({
-    total: z.number(),
-    used: z.number(),
-  })
-  .strip();
+export const accountCreditsSchema = z.strictObject({
+  total: z.number(),
+  used: z.number(),
+});
 export type AccountCredits = z.infer<typeof accountCreditsSchema>;
 
 /** The settled upstream cost of ONE generation. */
-export const generationCostSchema = z
-  .object({
-    totalCost: z.number(),
-  })
-  .strip();
+export const generationCostSchema = z.strictObject({
+  totalCost: z.number(),
+});
 export type GenerationCost = z.infer<typeof generationCostSchema>;
 
 /** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the request one chat

@@ -27,7 +27,7 @@
 //      embedder checks `event.source === iframe.contentWindow`; THIS file owns the other half, the payload, and
 //      it parses rather than trusts. Neither half is sufficient alone, which is why they are separated.
 
-// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
+// Strip mode: these schemas also read plugin guest data, which can carry keys this release does not declare.
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { cardFrameStyleTokensSchema } from "../chat/card-frame.ts";

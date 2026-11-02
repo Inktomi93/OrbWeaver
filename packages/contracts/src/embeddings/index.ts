@@ -1,7 +1,7 @@
 // The image-lens vocabulary owns the DB `image_embeddings.lens` column.
 // Text embeddings use distinct tables and do not contribute values to this column.
 
-// Model-authored output keeps zod strip mode: a model-invented key is dropped, never a refused call.
+// Strip mode: these schemas also read model output and stored rows, which can carry keys this release does not declare.
 import type { AssetId } from "@orb/kit/ids";
 import { z } from "zod";
 import { assetIdSchema } from "../assets/index.ts";

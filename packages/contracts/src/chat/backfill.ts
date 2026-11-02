@@ -3,7 +3,7 @@
 // domain). `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints
 // the synthetic group character for every >1-character room that lacks one (D38).
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** An import's scope handle: the server-clock span (epoch ms, both ends inclusive) in which the import wrote its

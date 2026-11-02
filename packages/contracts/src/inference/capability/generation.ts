@@ -5,8 +5,8 @@
 // simply ABSENT (no silent no-ops); the reasoning/sampling/verbosity/output/context/turns axes are kept
 // verbatim from the shape they replace. The axis tuples below are THE HOME — `@orb/contracts/connection`
 // re-exports them until it is deleted with the source axis.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 import { PROMPT_CACHE_FORMATS, PROMPT_CACHE_RETENTIONS, PROMPT_CACHE_TTLS } from "../prompt-cache.ts";

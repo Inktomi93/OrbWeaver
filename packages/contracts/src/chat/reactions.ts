@@ -22,7 +22,7 @@
 // fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
 // rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
-// Model-authored output keeps zod strip mode: a model-invented key is dropped, never a refused call.
+// Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";

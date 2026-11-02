@@ -10,7 +10,7 @@
 // the curated AND measured tiers) is the ONLY place it is compiled, beside `families.ts` — a prose fence today (no
 // gate on the tree spells it).
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { chatApiSchema } from "../apis.ts";
 import { evidenceTierSchema } from "../evidence.ts";

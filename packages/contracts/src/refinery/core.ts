@@ -1,7 +1,7 @@
 // Shared refinery rubric, critique bounds and analysis validators. Character and schema authoring consume
 // this leaf without importing the composing public root; it never imports character or that root.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 

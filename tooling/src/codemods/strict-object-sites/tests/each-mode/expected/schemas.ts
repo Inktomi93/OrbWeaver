@@ -6,3 +6,6 @@ export const pageInputSchema = z
   .optional();
 export const pairInputSchema = z.strictObject({ left: z.object({ a: z.string() }).strip(), right: z.strictObject({ b: z.string() }) });
 export const storedRowSchema = z.object({ kept: z.string() }).strip();
+export const reclassifiedSchema = z
+  .strictObject({ wireOnly: z.string() })
+  .optional();

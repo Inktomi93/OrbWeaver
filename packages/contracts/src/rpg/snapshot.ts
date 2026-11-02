@@ -8,7 +8,6 @@
 // The journal is NOT here — it is a variant-AWARE TABLE (unbounded archive; snapshot-copying it every
 // turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection (§2.5).
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RpgActorRef } from "./actor.ts";
@@ -18,6 +17,7 @@ import type { RPG_CHECKPOINT_TRIGGERS } from "./enums.ts";
 import { rpgQuestStatusSchema } from "./enums.ts";
 import { rpgTrackerValuesSchema } from "./tracker.ts";
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
 // RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same
 // machinery (a swipe rewinds the act with everything else). `act` is the 1-based CURRENT act into `acts`;
@@ -34,6 +34,7 @@ const rpgPlotActSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The snapshot-resident plot object. `act` indexes 1-based into `acts` (the applier keeps
  *  `acts.length >= act`, padding untitled acts, so the rail is total). */
 export const rpgPlotSchema = z
@@ -45,6 +46,7 @@ export const rpgPlotSchema = z
   .strip();
 export type RpgPlot = z.infer<typeof rpgPlotSchema>;
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** A quest objective — a stable-`id` line with a completion flag (`n/m` derives from these). The objective
  *  `id` is a plain in-blob string (`id` doesn't trip `orb/no-raw-id`; a per-objective brand buys nothing at
  *  this cardinality — the objective is addressed only within its quest). */
@@ -57,6 +59,7 @@ export const rpgQuestObjectiveSchema = z
   .strip();
 export type RpgQuestObjective = z.infer<typeof rpgQuestObjectiveSchema>;
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The SNAPSHOT-RESIDENT quest object (§2.5). `id` is a prefix-less branded nanoid (`RpgQuestId`) minted IN
  *  the blob (no table, no FK, no `ID_PREFIX` entry) — the type-safety-without-TypeID middle the spec's
  *  "plain string" call wanted, made a real brand so the id flows typed through the snapshot addressing
@@ -78,6 +81,7 @@ export type RpgQuest = z.infer<typeof rpgQuestSchema>;
 export const rpgFieldLocksSchema = z.record(z.string(), z.literal(true));
 export type RpgFieldLocks = z.infer<typeof rpgFieldLocksSchema>;
 
+// Strip mode: also reads imported files and stored rows.
 /** The full swipe-volatile snapshot STATE (the `rpg_snapshots` JSON columns, born whole — full grafts
  *  ZERO columns here). This is the shape the staging accumulator overlays and clone-forwards; `quests`
  *  rides INSIDE it (§2.5). The db table splits these into columns; this schema is the composed read shape

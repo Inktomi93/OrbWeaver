@@ -23,7 +23,6 @@
 // on the chat-vars read proc) and the `when` CEL visibility predicate (priced with the node that first needs
 // it). Adding those is a priced phase, not a widening of this file.
 
-// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -846,6 +845,7 @@ export type PluginSurfaceNode =
   | PluginIconNode
   | PluginTabsNode;
 
+// Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
 
 const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) }).strip();
@@ -882,6 +882,7 @@ function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonl
   return schema.transform((items): readonly Item[] => items);
 }
 
+// Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // The node schema. Recursive via `z.lazy` (the container arms reference this const by the time the thunk
 //  runs); the explicit `z.ZodType<PluginSurfaceNode>` annotation breaks TS7022/TS7024's circular inference and
 //  keeps the DECLARED union authoritative. The annotation is one-way, so the parity gate separately proves the
@@ -1253,6 +1254,7 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfa
   }
 });
 
+// Strip mode: also reads plugin guest data.
 // ── BOUND-TILE resolution (#774 ARM C — the `tilesFrom` arm's trust gate) ────────────────────────────────────
 
 // ONE bound tile as published state, validated at RESOLVE — the registration gate cannot see state, so this
@@ -1320,6 +1322,7 @@ function resolveBoundArray<T>(state: Record<string, unknown>, binding: PluginSta
   return out;
 }
 
+// Strip mode: also reads plugin guest data.
 // ONE bound select option as published state — the declared `PluginSelectOption` shape, judged at
 //  RESOLVE (the registration gate cannot see state).
 const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }).strip() satisfies z.ZodType<PluginSelectOption>;
@@ -1352,6 +1355,7 @@ export function resolvePluginBoundBoolean(state: Record<string, unknown>, value:
   return readBindingPath(state, value) === true;
 }
 
+// Strip mode: also reads plugin guest data.
 // ONE bound keyValue row as published state — key AND value are plain strings on this arm (the row set
 //  itself is data; a binding inside published state would be a hall of mirrors, the bound-tile rule).
 const pluginBoundKeyValueRowSchema = z.object({ key: labelSchema, value: z.string().max(LABEL_MAX) }).strip();
@@ -1397,6 +1401,7 @@ export const PLUGIN_TOOL_NAME_RE = new RegExp(`^[a-z][a-z0-9_]{0,${PLUGIN_TOOL_N
 /** The shell label line cap (`host.ui.register`'s `title`). */
 const PLUGIN_SURFACE_TITLE_MAX = 80;
 
+// Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The SERIALIZABLE part of a `host.ui.register` def — validated host-side at collection (the trust boundary)
  *  AND the exact descriptor `plugin.listSurfaces` projects to the client renderer. The `onAction` handler is NOT
  *  here (it is a guest function, kept as an opaque `PluginHandlerRef` on the collected
@@ -1502,6 +1507,7 @@ export interface PluginCommandPlacement {
   readonly label: string;
   readonly icon?: PluginIconName | undefined;
 }
+// Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const pluginCommandPlacementSchema = z
   .object({
     target: z.enum(PLUGIN_COMMAND_PLACEMENT_TARGETS),
@@ -1585,6 +1591,7 @@ function defaultFitsArg(type: PluginCommandArgType, value: PluginCommandArgValue
   return typeof value === type;
 }
 
+// Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
  *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
 const pluginCommandArgSpecBaseSchema = z
@@ -1610,6 +1617,7 @@ export const pluginCommandArgSpecSchema = z
     }
   }) satisfies z.ZodType<PluginCommandArgSpec>;
 
+// Strip mode: also reads plugin guest data.
 /** The SERIALIZABLE part of a `host.ui.registerCommand` def — validated host-side at collection (the trust
  *  boundary) and the exact descriptor `plugin.listCommands` projects to the client. The `onRun` handler is NOT
  *  here (it is a guest function kept as an opaque `PluginHandlerRef` on the collected registration).
@@ -1711,6 +1719,7 @@ function assertNever(value: never): never {
   throw new Error(`unhandled plugin command arg type: ${String(value)}`);
 }
 
+// Strip mode: also reads plugin guest data.
 /** The WIRE/MEMBRANE validator: a zod schema BUILT from a command's declared `specs` that parses the typed
  *  `values` bag the client sent. This is the trust boundary — the server re-derives it from the RESIDENT command's
  *  own specs (never anything the client claimed) and rejects a bag that omits a required arg, mistypes one, or

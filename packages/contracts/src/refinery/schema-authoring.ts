@@ -23,7 +23,6 @@
 // Custom REWRITE schemas do not exist (F-N3: the apply path's semantics ARE the fixed typed contract),
 // and there is no "any" stage: one schema serves one stage, because each stage pins its own core.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { JsonSchemaLiftError, liftJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { z } from "zod";
@@ -220,13 +219,12 @@ const rawSchemaNode = z.record(z.string(), z.unknown());
 /** A custom schema DOCUMENT — the whole authored artifact (name + NL description + stage + the schema).
  *  The ONE belt every write runs (and the client editor may run locally — same refusals, same paths). */
 export const refinerySchemaDocumentSchema = z
-  .object({
+  .strictObject({
     name: z.string().max(REFINERY_SCHEMA_NAME_MAX).regex(REFINERY_SCHEMA_NAME_PATTERN, "name must match ^[a-zA-Z_][a-zA-Z0-9_]*$"),
     description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
     stage: refinerySchemaStageSchema,
     schema: rawSchemaNode,
   })
-  .strip()
   .superRefine((doc, ctx) => {
     const issue = liftIssueOf(doc.schema) ?? walkTightenings(doc.schema, "#", 0) ?? coreIssueOf(doc.schema, doc.stage);
     if (issue !== null) {

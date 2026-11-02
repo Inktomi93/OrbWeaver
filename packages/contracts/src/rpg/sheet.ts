@@ -9,7 +9,7 @@
 // define/value/pin dance. Defs now home ONCE in `config.trackers[]`; what the sheet keeps is the per-actor
 // EXCEPTION pair — this actor's grants and revokes against the def-level carrier classes.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** The per-actor character sheet — identity-plane data. `attributes` keys off the game's `statProfile`

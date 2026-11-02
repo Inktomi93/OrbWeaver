@@ -4,7 +4,7 @@
 // projections (`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`) are re-homed HERE (not imported
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";

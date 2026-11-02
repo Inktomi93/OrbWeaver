@@ -1,8 +1,8 @@
 // The connection's prompt-cache settings: a user preference, so its own column (`user_connections.prompt_cache`),
 // never a `declared.features` line (a statement about the server). NULL on the row is `SHIPPED_PROMPT_CACHE`,
 // which is byte-identical to the wire before the settings existed.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** The user TTL vocabulary; a route may fix retention through its capability. Anthropic accepts both, spelled `{"type":"ephemeral","ttl":…}` with no `anthropic-beta`

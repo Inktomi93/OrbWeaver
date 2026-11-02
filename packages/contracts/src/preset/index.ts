@@ -8,7 +8,6 @@
 // Sibling module (D15 directory-module law: internals flat, this index re-exports):
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -446,6 +445,7 @@ const generationKnobSchemas = {
   compactionVerbatimTail: z.int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
 } as const satisfies GenerationKnobSchemas;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // `z.strictObject` rejects unknown keys (a typo'd knob is a real bug; `.catch({})` at the params field bounds
 // the blast radius). HISTORICAL NOTE: this site used `.strict()` on a plain `z.object` because an early Zod v4
 // `z.strictObject` inflated the inferred type with an index-signature tag that propagated through `.optional()`
@@ -665,6 +665,7 @@ const GREETING_NEW_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.greetingNe
 
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // A guided action carries its TEMPLATE + delivery role and NOTHING about sampling: the per-template
 // sampling override (temperature/topP/maxOutputTokens) was DELETED (owner ruling 2026-08-01) — a guided
 // generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
@@ -691,6 +692,7 @@ const guidedActionConfigSchema = z
   })
   .strip() satisfies z.ZodType<{ readonly prompt: string; readonly role: MessageRole; readonly depth?: number | undefined }>;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const guidedActionsSchema = z
   .object({
     response: guidedActionConfigSchema,
@@ -938,6 +940,7 @@ export const DEFAULT_CONTINUE_POSTFIX: ContinuePostfix = "none";
 /** A section's conditional gate (ST `injection_trigger`). Empty/absent ⇒ always fires. */
 const triggerSchema = z.array(z.enum(GENERATION_TYPES)).max(GENERATION_TYPES.length);
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** Absolute-depth placement (ST `injection_position: ABSOLUTE`). Depth 0 = the tail; N = N turns back.
  *  Ceiling shared with `@orb/kit/injection.MAX_INJECTION_DEPTH` (one source of truth). */
 const injectSchema = z
@@ -948,6 +951,7 @@ const injectSchema = z
   .strip();
 type SectionInject = z.infer<typeof injectSchema>;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const literalSection = z
   .object({
     type: z.literal("literal"),
@@ -961,6 +965,7 @@ const literalSection = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const plainMarkerSection = z
   .object({
     type: z.literal("marker"),
@@ -983,6 +988,7 @@ const plainMarkerSection = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const templatedMarkerSection = z
   .object({
     type: z.literal("marker"),
@@ -2266,6 +2272,7 @@ export const NARRATOR_MAIN_PROMPT_TEMPLATE =
   "Give each speaking character a distinct, consistent voice. " +
   "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
 // them as `{{getvar::<name>}}` / `{{<name>}}`.
 const choiceBlockOptionSchema = z
@@ -2274,6 +2281,7 @@ const choiceBlockOptionSchema = z
     value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
   })
   .strip();
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const choiceBlockSchema = z
   .object({
     name: z.string().min(MIN_ID_LENGTH).max(MAX_NAME_LENGTH),
@@ -2309,6 +2317,7 @@ export const MAX_USER_MACROS = 100;
 const MAX_USER_MACRO_ARGS = 16;
 const MAX_USER_MACRO_INPUTS = 16;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** One declared positional arg — kit's `MacroArgDef` authored (checkMacroArgs enforces it at render). */
 const userMacroArgSchema = z
   .object({
@@ -2320,6 +2329,7 @@ const userMacroArgSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const userMacroInputOptionSchema = z
   .object({
     label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
@@ -2327,6 +2337,7 @@ const userMacroInputOptionSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** One typed input (#24): a FLAT shape (kind + per-kind knobs, the ChoiceBlock editor idiom) — the
  *  semantics table lives on kit's `UserMacroInputDef` (resolveUserMacroInputs is the ONE resolution
  *  home). Every knob is defaulted so a stored def predating a knob self-heals at the parse seam. */
@@ -2343,6 +2354,7 @@ const userMacroInputSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** One user macro definition. `args` must declare optionals as a CONTIGUOUS SUFFIX (the arity model
  *  counts on it — the same shape rule the builtin metadata test pins). */
 export const userMacroSchema = z
@@ -2401,6 +2413,7 @@ const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
 const SCHEMA_VERSION_V8 = 8;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
  *  DEFAULT_PROMPT_CONFIG), so refusing on read would nuke an entire stored preset over one bad wrapper. The
@@ -2415,6 +2428,7 @@ const formatStringsSchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 export const promptConfigSchema = z
   .object({
     schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
@@ -3012,6 +3026,7 @@ const stPromptSchema = z.looseObject({
   forbid_overrides: z.boolean().optional(),
 });
 
+// Strip mode: also reads imported files.
 const stOrderEntrySchema = z
   .object({
     identifier: z.string(),
@@ -3019,6 +3034,7 @@ const stOrderEntrySchema = z
   })
   .strip();
 
+// Strip mode: also reads imported files.
 const stPresetSchema = z.looseObject({
   prompts: z.array(stPromptSchema).optional(),
   prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }).strip()).optional(),

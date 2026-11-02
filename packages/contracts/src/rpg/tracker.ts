@@ -19,8 +19,8 @@
 // CARRIER RESOLUTION IS ONE PURE FUNCTION ({@link carriesTracker}) — the effective carrier set is
 // `resolve(appliesTo) + grants − revokes`, and every consumer (the panel read, the reminder, the per-actor
 // write-schema assembly) derives from it rather than re-deciding who carries what.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import type { RpgTrackerCarrierClass } from "./enums.ts";
 import { rpgTrackerCarrierClassSchema, rpgTrackerShapeSchema, rpgTrackerSubjectSchema, rpgTrackerWriteSchema } from "./enums.ts";

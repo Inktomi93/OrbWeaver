@@ -4,7 +4,6 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -101,6 +100,7 @@ export interface ChatReasoningPart {
   readonly meta?: ReasoningPartMeta | undefined;
 }
 
+// Strip mode: also reads stored rows.
 /** The PARSE-ON-READ seam for `message_variants.reasoning_parts` (the `toolCalls` / `variableDelta` idiom — a
  *  malformed or absent blob degrades, never throws and never a drizzle `$type` cast). The provenance bodies
  *  stay `jsonValueSchema`-shaped: this layer re-serialises the provider's own bytes and never interprets
@@ -145,6 +145,7 @@ export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
  *  reasoning window because it enumerated the LIVE-TURN writer; the tree has two keys with readers. */
 export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
 
+// Strip mode: also reads stored rows and upstream responses.
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
  *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
  *
@@ -212,6 +213,7 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
     .strip(),
 ]);
 
+// Strip mode: also reads stored rows and upstream responses.
 /** A PLUGIN provider's arm. Its `provider` is a PATTERN (`plugin:<namespace>/<id>`), not a literal — plugin
  *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue` per §5.3c: storable
  *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture).
@@ -245,9 +247,11 @@ export const variantProviderMetadataSchema = z.union([namedProviderMetadataSchem
  *  narrows on. A plugin provider's arm carries `raw` and NO reader by key. */
 export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
 
+// Strip mode: also reads stored rows.
 /** Host-only replay provenance, matched against the selected variant's exact canonical content. */
 const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() }).strip();
 export type TextSignature = z.infer<typeof textSignatureSchema>;
+// Strip mode: also reads stored rows.
 const contentSignatureSnapshotSchema = z
   .object({
     content: z.string().optional(),
@@ -273,6 +277,7 @@ const contentSignatureSnapshotSchema = z
 const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 
+// Strip mode: also reads stored rows.
 // `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
 //  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
 //
@@ -332,6 +337,7 @@ export function legacyNotionalCostSamples(costUsd: number | null | undefined, me
   return costUsd !== null && costUsd !== undefined && (metadata?.usageLegs?.length ?? 0) === 0 && metadata?.providerMetadata?.provider === "claude-sub" ? 1 : 0;
 }
 
+// Strip mode: also reads plugin guest data, imported files and stored rows.
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
@@ -369,6 +375,7 @@ export interface VariablePrecondition {
   readonly key: string;
   readonly expected: string | null;
 }
+// Strip mode: also reads plugin guest data.
 const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }).strip() satisfies z.ZodType<VariablePrecondition>;
 export type VariablePreconditions = readonly VariablePrecondition[];
 export const variablePreconditionsSchema = z
@@ -386,6 +393,7 @@ export const variablePreconditionsSchema = z
  *  answer `applied`. */
 export type VariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
+// Strip mode: also reads stored rows.
 // One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
 //  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
 //  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`.
@@ -404,6 +412,7 @@ export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSch
 export const userMacroDrawsSchema = z.record(z.string(), z.record(z.string(), z.string()));
 export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** ONE volatile-macro occurrence frozen into a stored body — the read-parse boundary for
  *  `message_variants.macro_freezes`. `name` is the REGISTERED macro name (`roll`/`random`/`pick`/the clock
  *  family), `args` its delivered argument text when it took one (`{{roll::2d6}}` ⇒ `"2d6"`), `value` the
@@ -459,6 +468,7 @@ export interface ToolCallRecord {
   readonly textOffset?: number;
 }
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 const toolCallRecordInputSchema = z
   .object({
     turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),

@@ -21,7 +21,7 @@
 // Appearance (D294, UI-Theming-and-Content §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
 // territory, D53). Per-character COLOR theme layers on top; movingUI/waifuMode are OUT of scope here.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";

@@ -15,7 +15,6 @@
 // owner ratified; `upsert_quest`/`add_journal_entry` complete the lite set. `set_widget_value` became
 // `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
 // have been the only re-spell in the set.
-// Model tool args keep zod strip mode: a model-invented key is stripped and itemized, never a refused call (D112 (3)).
 
 import { PROTO_KEY } from "@orb/kit/objects";
 import { z } from "zod";
@@ -62,9 +61,11 @@ const trackerKeyField = z
   .min(1)
   .refine((key) => key !== PROTO_KEY, { message: `a tracker key cannot be ${PROTO_KEY}` });
 
+// Strip mode: also reads model output.
 /** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
 const trackerDeltaSchema = z.object({ key: trackerKeyField, delta: z.int() }).strip();
 
+// Strip mode: also reads model output.
 /** A `write:"set"` tracker write — record the new reading. `value` carries a `meter`'s number or a `text`
  *  tracker's string (the projection narrows it to the one type when this call's set-trackers are all one
  *  shape); `items` carries a `list` tracker's lines. Exactly one is meaningful per key; both omitted is a
@@ -77,6 +78,7 @@ const trackerSetSchema = z
   })
   .strip();
 
+// Strip mode: also reads model output.
 // A present-cast RELATIONSHIP write — `kind` rides the closed vocab (ENUM-constrained at the
 // token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
 // (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
@@ -88,6 +90,7 @@ const relationshipUpsertSchema = z
   })
   .strip();
 
+// Strip mode: also reads model output.
 // The AMBIENT WEATHER write (§2.7) — the SAME closed-enum + free-label shape as `relationship` above. `type`
 // is one of the eight states the panel's Waystone paints (an enum the token-level grammar binds under an
 // enforcing backend, §2.3), so the model can no longer emit "a light drizzle turning to sleet" and have it
@@ -102,6 +105,7 @@ const weatherUpsertSchema = z
   })
   .strip();
 
+// Strip mode: also reads model output.
 /** `update_party` — tracker writes, conditions, status on any party-side actor OR npc key.
  *
  *  `hpDelta` IS GONE (R3): health is an ordinary `meter` tracker now, so damage/healing rides `trackerDeltas`
@@ -123,6 +127,7 @@ export const updatePartyArgsSchema = z
   .strip();
 export type UpdatePartyArgs = z.infer<typeof updatePartyArgsSchema>;
 
+// Strip mode: also reads model output.
 /** `update_inventory` — add/update/remove items + `walletDeltas` (the STORED named-amount wallet, §2.6).
  *  `update` addresses an existing item by its model-visible name and patches only the fields the beat moved.
  *  Without this arm a story could put a carried key on a necklace while the tracker was structurally unable
@@ -160,6 +165,7 @@ export const updateInventoryArgsSchema = z
   .strip();
 export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
+// Strip mode: also reads model output.
 // The P5 PLOT patch (parity-plus — the snapshot-resident plot plane's model-facing write). Deliberately
 // FLAT (the small-model-robust arm, ruling #10): the model declares the CURRENT act number and/or the
 // current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
@@ -173,6 +179,7 @@ const plotPatchSchema = z
   })
   .strip();
 
+// Strip mode: also reads model output.
 /** `update_scene` — ambient fields (§2.7) + a present-cast PATCH (MA-4: omit = keep, null = clear). */
 export const updateSceneArgsSchema = z
   .object({
@@ -204,6 +211,7 @@ export const updateSceneArgsSchema = z
   .strip();
 export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
 
+// Strip mode: also reads model output.
 /** `set_tracker` — write a GAME-subject tracker (the retired `set_widget_value`, un-widgeted). Addressed by
  *  tracker `key` (never a label — a rename used to orphan every stored widget value); the `delta` arm serves a
  *  `write:"delta"` game tracker, `value`/`items` the `write:"set"` ones. The projection constrains `key` to
@@ -222,6 +230,7 @@ export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 // `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
 //  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards.
 const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
+// Strip mode: also reads model output.
 export const upsertQuestArgsSchema = z
   .object({
     name: z.string().min(1),
@@ -243,6 +252,7 @@ export const upsertQuestArgsSchema = z
   .strip();
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
+// Strip mode: also reads model output.
 /** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5).
  *
  *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — ruling #10 graceful-degrade). WHY:
@@ -306,6 +316,7 @@ export function journalTitleFor(args: { readonly title?: string | undefined; rea
   return head.length > DERIVED_TITLE_MAX ? `${head.slice(0, DERIVED_TITLE_MAX).trimEnd()}…` : head;
 }
 
+// Strip mode: also reads model output.
 /** `roll_dice` — bake-once, zero state (the ToolCallRecord on the variant IS the canon stamp). */
 export const rollDiceArgsSchema = z
   .object({
@@ -314,6 +325,7 @@ export const rollDiceArgsSchema = z
   })
   .strip();
 
+// Strip mode: also reads stored rows.
 /** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
  *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses
  *  `record.result` through THIS rather than re-spelling the shape inline (`no-inline-types`; same home as

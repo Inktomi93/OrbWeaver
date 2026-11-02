@@ -12,7 +12,7 @@
 
 // `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";

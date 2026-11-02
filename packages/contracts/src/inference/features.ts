@@ -11,8 +11,8 @@
 //
 // HOMED IN CONTRACTS, NOT THE PACKAGE: `BELT_OWNED_BODY_KEYS` has a live CLIENT reader (the Extras editor
 // greys the belt keys) and `@orb/inference` is node-only.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import type { SamplerKnob, SamplerStage } from "./capability/generation.ts";
 import { SAMPLER_KNOBS } from "./capability/generation.ts";

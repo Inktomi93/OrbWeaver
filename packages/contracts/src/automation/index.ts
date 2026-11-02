@@ -4,7 +4,7 @@
 // union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
 // are typed-but-refused at `createRule` until their domains land.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, PluginId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -75,8 +75,8 @@ export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 // A rule's trigger: `{bus, type}` where `type` is a member of that bus's source union — no third
 //  vocabulary. The db pairs the two columns with a bus↔tuple CHECK derived from the same tuples.
 const automationTriggerSchema = z.discriminatedUnion("bus", [
-  z.object({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }).strip(),
-  z.object({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }).strip(),
+  z.strictObject({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
+  z.strictObject({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
@@ -741,87 +741,79 @@ export const automationActionsSchema = z
  *  contract (the membrane may `.parse` a fact before cloning it into the guest); the TS type is DERIVED from
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
-const triggerFactPayloadSchema = z
-  .object({
-    // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-    chatId: z.string().nullable(),
-    // messageCommitted / messageEdited / variantSelected / messageHidden
-    message: z
-      .object({
-        id: z.string(),
-        role: z.enum(MESSAGE_ROLES),
-        // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-        authorUserId: z.string().nullable(),
-        // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-        characterId: z.string().nullable(),
-        seq: z.number(),
-        content: z.string(),
-      })
-      .strip()
-      .optional(),
-    // turnStarted / turnCompleted / turnAborted
-    turn: z
-      .object({
-        intent: z.string(),
-        api: z.string(),
-        // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
-        provider: z.string(),
-        model: z.string(),
-        // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-        speakerCharacterId: z.string().nullable(),
-        abortReason: z.string().optional(), // turnAborted only
-        automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
-      })
-      .strip()
-      .optional(),
-    // worldInfoActivated
-    worldInfo: z
-      .object({ entryIds: z.array(z.string()).readonly() })
-      .strip()
-      .optional(),
-    /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
-     *
-     *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
-     *  "somebody laughed at this" must be able to say `event.reaction.added`, or every un-react re-fires it.
-     *  `emoji` crosses as the raw token (never an enum): the vocabulary is open by design (the custom `:name:`
-     *  arm), so pinning it to today's tuple here would make the guest-marshalling contract lie the day it
-     *  widens. Ids cross UNBRANDED like every other id on this shape. The REACTOR is deliberately absent: a
-     *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
-    reaction: z
-      .object({
-        // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-        messageId: z.string(),
-        // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-        variantId: z.string(),
-        emoji: z.string(),
-        added: z.boolean(),
-      })
-      .strip()
-      .optional(),
-    // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
-    // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
-    persona: z.object({ from: z.string().nullable(), to: z.string().nullable() }).strip().optional(),
-    // domain-bus members
-    /** character.updated. NESTED because it carries TWO fields, which is the same reason `message`/`turn`/
-     *  `worldInfo` nest and `assetId` does not.
-     *
-     *  `contentChanged` is the source event's own discriminator (`@orb/contracts/events`'s
-     *  `CharacterUpdatedEvent`) and the resolver used to DROP it, which made the domain-bus character trigger
-     *  fire identically on a real card edit and on a star/archive toggle. A rule that reacts to library
-     *  content — the living-library preset is the catalogue's own case — then degenerated into an edit-burst
-     *  chore, firing on flags nobody thinks of as an edit. Carrying it is what lets a predicate say
-     *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
-     *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
-     *  demands. */
-    character: z.object({ id: z.string(), contentChanged: z.boolean() }).strip().optional(),
-    // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-    assetId: z.string().optional(), // asset.created
-    // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-    personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
-    // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-    worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
-  })
-  .strip();
+const triggerFactPayloadSchema = z.strictObject({
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+  chatId: z.string().nullable(),
+  // messageCommitted / messageEdited / variantSelected / messageHidden
+  message: z
+    .strictObject({
+      id: z.string(),
+      role: z.enum(MESSAGE_ROLES),
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+      authorUserId: z.string().nullable(),
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+      characterId: z.string().nullable(),
+      seq: z.number(),
+      content: z.string(),
+    })
+    .optional(),
+  // turnStarted / turnCompleted / turnAborted
+  turn: z
+    .strictObject({
+      intent: z.string(),
+      api: z.string(),
+      // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
+      provider: z.string(),
+      model: z.string(),
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+      speakerCharacterId: z.string().nullable(),
+      abortReason: z.string().optional(), // turnAborted only
+      automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
+    })
+    .optional(),
+  // worldInfoActivated
+  worldInfo: z.strictObject({ entryIds: z.array(z.string()).readonly() }).optional(),
+  /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
+   *
+   *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
+   *  "somebody laughed at this" must be able to say `event.reaction.added`, or every un-react re-fires it.
+   *  `emoji` crosses as the raw token (never an enum): the vocabulary is open by design (the custom `:name:`
+   *  arm), so pinning it to today's tuple here would make the guest-marshalling contract lie the day it
+   *  widens. Ids cross UNBRANDED like every other id on this shape. The REACTOR is deliberately absent: a
+   *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
+  reaction: z
+    .strictObject({
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+      messageId: z.string(),
+      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+      variantId: z.string(),
+      emoji: z.string(),
+      added: z.boolean(),
+    })
+    .optional(),
+  // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
+  // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
+  persona: z.strictObject({ from: z.string().nullable(), to: z.string().nullable() }).optional(),
+  // domain-bus members
+  /** character.updated. NESTED because it carries TWO fields, which is the same reason `message`/`turn`/
+   *  `worldInfo` nest and `assetId` does not.
+   *
+   *  `contentChanged` is the source event's own discriminator (`@orb/contracts/events`'s
+   *  `CharacterUpdatedEvent`) and the resolver used to DROP it, which made the domain-bus character trigger
+   *  fire identically on a real card edit and on a star/archive toggle. A rule that reacts to library
+   *  content — the living-library preset is the catalogue's own case — then degenerated into an edit-burst
+   *  chore, firing on flags nobody thinks of as an edit. Carrying it is what lets a predicate say
+   *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
+   *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
+   *  demands. */
+  character: z.strictObject({ id: z.string(), contentChanged: z.boolean() }).optional(),
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+  assetId: z.string().optional(), // asset.created
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+  personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
+  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
+  worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
+});
 export const triggerFactSchema = z.discriminatedUnion("bus", [
   triggerFactPayloadSchema.extend({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
   triggerFactPayloadSchema.extend({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),

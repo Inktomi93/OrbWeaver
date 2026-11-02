@@ -4,7 +4,7 @@
 // the tag. A vector is never padded. An MRL model is asked for exactly `dims` and only its longer vector is
 // cut to that width; any other width mismatch is refused, which is how a declared shorter width is honoured.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 

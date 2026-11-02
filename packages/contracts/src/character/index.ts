@@ -1,7 +1,6 @@
 // @orb/contracts/character — THE ONE canonical character card.
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -165,6 +164,7 @@ export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
 });
 export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // Derived pipeline signals (score + analysis) — not user-authored, absent from create/update. The
 // signals object is a CARD field (this file's home turf, like depthPrompt); the analysis half is the
 // refinery pipeline's TYPED analyze payload (per-run verdict/soul-check shape — `#refinery` owns it).
@@ -182,6 +182,7 @@ export const refinerySignalsSchema = z
   .strip();
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
 
+// Strip mode: also reads imported files.
 // one attached world-info book REFERENCE carried on a portable card — `{worldBookId, role}` mirrors
 // the `character_books` junction columns (`createdAt` is NOT carried — a re-link is a fresh attach). Books
 // are NEVER cloned/embedded through this channel: export bundles the references, import re-links each id it
@@ -206,6 +207,7 @@ export const CHARACTER_HANDLE_WIRE_KEY = "orbweaver_handle";
  *  by its content hash onto the importer's own asset; it is presentation, not part of the import identity. */
 export const CHARACTER_BACKGROUND_WIRE_KEY = "orbweaver_background";
 
+// Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // ── Greeting (V3 promotion Phase B) ─────────────────────────────────────────────────────────────────────
 // ONE greetings array folds the former three ST wire fields: `first_mes` (greetings[0].text), the
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
@@ -226,6 +228,7 @@ export type Greeting = z.infer<typeof greetingSchema>;
  *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
 export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
 const characterCardSchema = z
   .object({
@@ -380,6 +383,7 @@ export function deriveCharacterHandle(source: CharacterHandle, suffix: string): 
   return characterHandleSchema.parse(`${boundedSource}${suffix}`);
 }
 
+// Strip mode: also reads imported files and model output; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // The ONE schema the tRPC router AND the import normalizer validate against. Pipeline-derived `refinery`
 // is NOT here. null clears a field; omit to leave it unchanged.
 export const createCharacterSchema = z

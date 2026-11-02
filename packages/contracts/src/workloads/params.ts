@@ -10,8 +10,8 @@
 // Tunables are optional (no Zod `.default()`) — precedence (param → user setting → the owner's floor)
 // resolves inside the contribution's run body. A kind with no tunables keeps an explicit `z.object({})` so
 // every kind validates uniformly.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { assetKindSchema } from "#assets";
 import type { MemoryBackfillWorkloadParams } from "#chat";
@@ -155,7 +155,7 @@ export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; read
  * failure to a BAD_REQUEST domain error. A malformed blob is still rejected — one layer later, never
  * accepted.
  */
-export const startWorkloadEnvelope = z.object({ kind: workloadKindSchema, params: z.record(z.string(), z.unknown()) }).strip();
+export const startWorkloadEnvelope = z.strictObject({ kind: workloadKindSchema, params: z.record(z.string(), z.unknown()) });
 
 export type StartWorkloadEnvelope = z.infer<typeof startWorkloadEnvelope>;
 

@@ -31,7 +31,6 @@
 // directions, so "a depth field on a leg that cannot execute it" and "the depth-scoped leg with no depth
 // scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
 // `withDerivedTierFlags` precedent) rather than validating it in a form.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -65,6 +64,7 @@ function isRegexPlacement(value: string): value is RegexPlacement {
  *  the wire. */
 export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length) satisfies z.ZodType<RegexPlacement[]>;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
 //  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
 //  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:
@@ -81,6 +81,7 @@ const regexHistoryDepthSchema = z
     }
   }) satisfies z.ZodType<RegexHistoryDepth>;
 
+// Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** The behavior FIELDS, un-checked — the base every `.extend()`/`.partial()` derives from. The pairing
  *  check rides {@link regexScriptBehaviorSchema}; zod refuses `.partial()` on a refined object, so the
  *  patch schema has to descend from this one. */
@@ -307,6 +308,7 @@ export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: 
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 
+// Strip mode: also reads imported files.
 // twin: a portable/exported CARD carries orbweaver-namespaced REFERENCES to the library scripts it is
 // attached to, alongside the by-value `regex_scripts` ST payload. On a same-install re-import the references
 // re-link to the existing rows (zero duplicate rows); on a foreign install they resolve to nothing and the

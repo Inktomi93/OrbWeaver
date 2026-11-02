@@ -21,8 +21,8 @@
 // tightens the parse. Verified, not assumed (zod 4.4.3): `z.toJSONSchema` does NOT throw on a refined
 // string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
 // cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, CharacterSnapshotId, RefinerySessionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -208,12 +208,10 @@ export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
  * clobber. The verb re-parses the MERGED WHOLE through {@link refinerySelectionSchema}: this schema
  * validates the delta, that one stays the stored-shape belt.
  */
-export const refinerySelectionPatchSchema = z
-  .object({
-    fields: selectionFieldsSchema.optional(),
-    greetingIndexes: selectionGreetingIndexesSchema.nullable().optional(),
-  })
-  .strip();
+export const refinerySelectionPatchSchema = z.strictObject({
+  fields: selectionFieldsSchema.optional(),
+  greetingIndexes: selectionGreetingIndexesSchema.nullable().optional(),
+});
 export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema>;
 
 /** The session's loop-wide steering text ("keep her mean") — HOST-authored, but it is spliced into every
@@ -545,44 +543,42 @@ export interface RefineryScoreSweepResult {
 
 // Wire views compose character validators; the analysis dependency stays in the lower core leaf.
 
-const refineryRunBaseSchema = z
-  .object({
-    id: typeIdSchema(ID_PREFIX.refineryRun),
-    sessionId: typeIdSchema(ID_PREFIX.refinerySession),
-    /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
-    iteration: z.int().min(0),
-    /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
-     *  null beats a sentinel spelling (the anti-sniffing law). */
-    model: brandedId("ModelId").nullable(),
-    /** Provider-reported usage, or null when the backend reports none (stats parity). */
-    promptTokens: z.int().min(0).nullable(),
-    outputTokens: z.int().min(0).nullable(),
-    /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
-     *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
-     *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
-     *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
-    durationMs: z.int().min(0),
-    /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
-     *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
-     *  read no prior run.
-     *
-     *  WHY IT IS A COLUMN AND NOT AN INFERENCE: the
-     *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
-     *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
-     *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
-     *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
-     *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
-     *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
-     *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
-     *  the DAG edge is UNKNOWN, not that the child should vanish.] */
-    sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
-    /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
-     *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
-     *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
-    strippedKeys: z.array(z.string()),
-    createdAt: z.int(),
-  })
-  .strip();
+const refineryRunBaseSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.refineryRun),
+  sessionId: typeIdSchema(ID_PREFIX.refinerySession),
+  /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
+  iteration: z.int().min(0),
+  /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
+   *  null beats a sentinel spelling (the anti-sniffing law). */
+  model: brandedId("ModelId").nullable(),
+  /** Provider-reported usage, or null when the backend reports none (stats parity). */
+  promptTokens: z.int().min(0).nullable(),
+  outputTokens: z.int().min(0).nullable(),
+  /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
+   *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
+   *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
+   *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
+  durationMs: z.int().min(0),
+  /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
+   *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
+   *  read no prior run.
+   *
+   *  WHY IT IS A COLUMN AND NOT AN INFERENCE: the
+   *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
+   *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
+   *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
+   *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
+   *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
+   *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
+   *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
+   *  the DAG edge is UNKNOWN, not that the child should vanish.] */
+  sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
+  /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
+   *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
+   *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
+  strippedKeys: z.array(z.string()),
+  createdAt: z.int(),
+});
 
 /** A custom run's payload on the wire: shape-valid against its EMBEDDED schema at write AND at the read
  *  seam — the wire type is the honest "an object of the run's own schema" (the client renders it through

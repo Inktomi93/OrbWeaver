@@ -175,6 +175,22 @@ rows(WIRE_OBJECT, CONTRACTS, [
   ["the declared loose spelling", `${ZOD}export const s = z.looseObject({ a: z.string() });\n`, 0],
   ["the declared strip spelling", `${ZOD}export const s = z.object({ a: z.string() }).strip();\n`, 0],
   ["a declared strip with a later wrapper", `${ZOD}export const s = z\n  .object({ a: z.string() })\n  .strip()\n  .optional();\n`, 0],
+  ["an uncalled strip declares nothing", `${ZOD}export const s = z.object({ a: z.string() }).strip;\n`, 1],
+  ["an uncalled object builder", `${ZOD}export const make = z.object;\n`, 1],
+  ["a declared strip re-moded to loose", `${ZOD}export const s = z.object({ a: z.string() }).strip().loose();\n`, 1],
+  ["a strict constructor re-moded to loose", `${ZOD}export const s = z.strictObject({ a: z.string() }).loose();\n`, 1],
+  ["a loose constructor re-moded by passthrough", `${ZOD}export const s = z.looseObject({ a: z.string() }).passthrough();\n`, 1],
+  ["a computed builder member", `${ZOD}export const s = z["object"]({ a: z.string() });\n`, 1],
+  ["a destructured builder", `${ZOD}const { object } = z;\nexport const s = object({ a: z.string() });\n`, 1],
+  ["the namespace rebound to another name", `${ZOD}const y = z;\nexport const s = y.object({ a: z.string() });\n`, 1],
+  ["an aliased z import", 'import { z as zod } from "zod";\nexport const s = zod.object({ a: zod.string() });\n', 1],
+  ["a bare builder import", 'import { object, string } from "zod";\nexport const s = object({ a: string() });\n', 2],
+  ["a namespace import", 'import * as zod from "zod";\nexport const s = zod.object({ a: zod.string() });\n', 1],
+  ["a default import", 'import zod from "zod";\nexport const s = zod.object({ a: zod.string() });\n', 1],
+  ["an aliased z from a zod subpath", 'import { z as v4 } from "zod/v4";\nexport const s = v4.object({ a: v4.string() });\n', 1],
+  ["the house import from a zod subpath", 'import { z } from "zod/v4";\nexport const s = z.strictObject({ a: z.string() });\n', 0],
+  ["a type-only zod import", 'import type { ZodType } from "zod";\nexport type T = ZodType;\n', 0],
+  ["an inline type specifier beside z", 'import { type ZodType, z } from "zod";\nexport const s: ZodType = z.strictObject({ a: z.string() });\n', 0],
 ]);
 
 rows(WIRE_OBJECT, "packages/server/src/transport/trpc/probe.ts", [

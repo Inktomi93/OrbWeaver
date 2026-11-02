@@ -7,7 +7,6 @@
 // homed entity, the character-row theme column, `<ThemeScope>`) — first-consumer misfiling is the
 // `schema/search.ts` naming lie.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { themeOverrideSchema } from "./override.ts";
@@ -49,16 +48,14 @@ export const THEME_CSS_MAX = 65_536; // custom CSS is a text field, not a blob s
 //  `packages/server/src/domain/settings/constants.ts`, and identifying the row by its DISPLAY NAME instead
 //  is the #1667 defect this field exists to make impossible (one rename and the picker marks no card, or
 //  the wrong one).
-const themeSchema = z
-  .object({
-    id: typeIdSchema(ID_PREFIX.theme),
-    name: z.string().trim().min(1).max(THEME_NAME_MAX),
-    override: themeOverrideSchema,
-    css: z.string().max(THEME_CSS_MAX).nullable(),
-    isSeed: z.boolean(),
-    isDefault: z.boolean(),
-  })
-  .strip();
+const themeSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.theme),
+  name: z.string().trim().min(1).max(THEME_NAME_MAX),
+  override: themeOverrideSchema,
+  css: z.string().max(THEME_CSS_MAX).nullable(),
+  isSeed: z.boolean(),
+  isDefault: z.boolean(),
+});
 export type Theme = z.infer<typeof themeSchema>;
 
 export const createThemeInputSchema = z.strictObject({

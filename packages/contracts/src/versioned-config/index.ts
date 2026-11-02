@@ -49,7 +49,7 @@
 //     documented whole-group self-heal — they are re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 

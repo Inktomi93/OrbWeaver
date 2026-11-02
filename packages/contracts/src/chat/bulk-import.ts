@@ -10,7 +10,7 @@
 // (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
 // is separate row-44 residue and moves under its own row.
 
-// Imported files keep zod strip mode: a file from another release or tool may carry keys this one does not read.
+// Strip mode: these schemas also read imported files, which can carry keys this release does not declare.
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";

@@ -1,5 +1,4 @@
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
-
+// Strip mode: these schemas also read plugin guest data, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -227,14 +226,12 @@ export const MAX_NEGATIVE_CHARS = 1000;
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Free mode requires a nonempty prompt. `gallery` is the per-request opt-out of the auto-add: absent or
  *  `true` joins each picture to the room character's gallery, `false` keeps it out. */
-const generatePictureRequestFields = z
-  .object({
-    n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
-    size: sizePresetSchema.optional(),
-    negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
-    gallery: z.boolean().optional(),
-  })
-  .strip();
+const generatePictureRequestFields = z.strictObject({
+  n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
+  size: sizePresetSchema.optional(),
+  negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
+  gallery: z.boolean().optional(),
+});
 const freePromptSchema = z
   .string()
   .max(MAX_PROMPT_CHARS)

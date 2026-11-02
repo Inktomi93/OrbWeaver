@@ -54,7 +54,7 @@
 // exponentially for (Anthropic caps union-typed params at 16), and the raw-paste door still accepts one for
 // the belt to judge. The renderer keeps its union widget for those.
 
-// Model-authored output keeps zod strip mode: a model-invented key is dropped, never a refused call.
+// Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { PROTO_KEY, readOwnKey } from "@orb/kit/objects";
 import { z } from "zod";

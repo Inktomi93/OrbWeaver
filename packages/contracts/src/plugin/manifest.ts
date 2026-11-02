@@ -6,7 +6,7 @@
 // is refused before any guest code runs. A well-formed `hostVersion` is compatibility data: the lifecycle
 // funnel compares it with {@link PLUGIN_HOST_VERSIONS} and raises its distinct unserved-version refusal.
 
-// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { SEMVER_RE } from "@orb/kit/semver";

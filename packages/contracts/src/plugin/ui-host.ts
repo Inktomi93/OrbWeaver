@@ -1,5 +1,5 @@
 // Scripted UI relay arguments exclude room identity; the mount supplies membership-checked scope.
-// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
+// Strip mode: these schemas also read plugin guest data, which can carry keys this release does not declare.
 import { z } from "zod";
 import type { UiProxyableHostFunction } from "./host-v1.ts";
 

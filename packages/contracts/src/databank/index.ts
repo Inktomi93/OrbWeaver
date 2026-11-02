@@ -7,8 +7,8 @@
 // ChunkParams by `satisfies` — drift fails tsc HERE, not at a call site), the retrieval/settings blobs, and
 // the client-facing DocumentView. `extractedText` is deliberately NOT on DocumentView (list payloads would
 // haul megabytes — a dedicated `get` with `includeText` returns it).
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { ChunkParams } from "@orb/kit/chunk";
 import type { CharacterId, ChatId, DocumentId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -164,11 +164,9 @@ export const databankRetrievalSettingsSchema = z
   .strip();
 export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettingsSchema>;
 
-export const databankSettingsSchema = z
-  .object({
-    chunk: chunkParamsSchema,
-  })
-  .strip();
+export const databankSettingsSchema = z.strictObject({
+  chunk: chunkParamsSchema,
+});
 
 export type DatabankSettings = z.infer<typeof databankSettingsSchema>;
 
