@@ -12,6 +12,11 @@ import { useMultiHumanCapable, useSuspenseQueries, useTRPC } from "#data";
 import type { CommittedChatContext } from "#lib";
 import { useActiveChatId } from "#state";
 
+/** The open room, as the CONTEXT pane boundary's reset keys. */
+export function useChatContextResetKeys(): readonly unknown[] {
+  return [useActiveChatId()];
+}
+
 export function useChatContextState(): CommittedChatContext | null {
   const chatId = useActiveChatId();
   // #476's ONE read of this capability, hint-backed: a device that has been told answers in its FIRST

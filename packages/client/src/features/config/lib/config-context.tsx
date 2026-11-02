@@ -292,6 +292,11 @@ function drillState(drill: DrillInput): ConfigContextState | null {
   return { teach: focusLesson({ group, sub, settingId: address.setting }, sections, fallback, leafValue), member: null, roster: [] };
 }
 
+/** The Settings selection the context state reads, as the CONTEXT pane boundary's reset keys. */
+function useConfigContextResetKeys(): readonly unknown[] {
+  return [useActiveConfigGroup(), useActiveConfigSub(), useCollectionSelection(), useConfigFocus()];
+}
+
 /** Mint the Settings context definition over a door-frozen groups registry. */
 export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinition {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 mint pattern (registry-contracts.ts's own `useResolved` carve-out, the `makeCharactersSection` posture one level up) — `makeConfigContext` runs ONCE at the door, so this named hook has a stable identity; the closure is how the door-frozen groups registry reaches it without a second delivery channel.
@@ -332,6 +337,7 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
 
   return defineContextTabs<ConfigContextState>({
     useContextState: useConfigContextState,
+    useResetKeys: useConfigContextResetKeys,
     tabs: TEACHER_TAB_DEFS,
     header: (state): ReturnType<typeof TeacherBand> => <TeacherBand state={state} />,
     railLabel: CONFIG_SECTION_LABEL,
