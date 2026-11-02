@@ -63,3 +63,16 @@ export function TooltipCallerDescriptionStory({ refused }: { readonly refused: b
     </CtIsolation>
   );
 }
+
+export function TooltipOverNeighborStory(): ReactElement {
+  return (
+    <CtIsolation subject="Tooltip" isolates="Pointer hit-testing of an open popup needs no application services.">
+      <div className="pt-24">
+        <Tooltip>
+          <TooltipTrigger delay={0}>Owner</TooltipTrigger>
+          <TooltipPopup side="top">Owner hint</TooltipPopup>
+        </Tooltip>
+      </div>
+    </CtIsolation>
+  );
+}
