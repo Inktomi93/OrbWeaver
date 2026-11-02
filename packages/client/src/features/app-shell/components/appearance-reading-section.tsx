@@ -46,6 +46,7 @@ const READING_ENTITY_ID = "appearance-reading";
 export function AppearanceReadingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your reading settings" onRetry={retry} />}
     >

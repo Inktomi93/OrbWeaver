@@ -15,7 +15,7 @@ import { PluginAnchoredSurfaceList } from "./plugin-anchored-surfaces.tsx";
 /** Ordinary chat panels share Context; moved and hidden panels keep their return controls here. */
 export function PluginContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
-    <QueryBoundary fallback={<SkeletonRows count={3} />} reserveKey="plugin.contextPanels">
+    <QueryBoundary resetKeys={[chatId]} fallback={<SkeletonRows count={3} />} reserveKey="plugin.contextPanels">
       <ContextPanels chatId={chatId} />
     </QueryBoundary>
   );

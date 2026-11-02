@@ -187,6 +187,7 @@ function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; read
   // said as the refusal it is; any other failure gets the shared Retry.
   return (
     <QueryBoundary
+      resetKeys={[chatId, presetId]}
       fallback={<SkeletonRows count={RESOLVING_SKELETON_ROWS} shape="datum" />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (

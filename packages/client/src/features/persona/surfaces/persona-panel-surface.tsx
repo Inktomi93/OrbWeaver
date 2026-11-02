@@ -46,6 +46,7 @@ export function PersonaPanelSurface({ presentation }: PersonaPanelSurfaceProps):
     // DELIBERATELY UNRESERVED (#1098): both lenses are floating bodies, so nothing in page flow sits below
     // this to shift. The quiet fixed Avatar is the considered wait, and it never resizes.
     <QueryBoundary
+      resetKeys={[]}
       fallback={
         <Avatar fallbackDelay={0} size="md">
           <Icon icon={CircleUser} size="md" />

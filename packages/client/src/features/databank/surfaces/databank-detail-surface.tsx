@@ -68,6 +68,7 @@ export function DatabankDetailSurface(): ReactElement {
            (header, chips, chunk counts, sections) is the same shape for every document. The scroll box
            is the Stack ABOVE this boundary, so the measuring wrapper sits inside it. */
         <QueryBoundary
+          resetKeys={[documentId]}
           fallback={<SkeletonRows count={5} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this document" onRetry={retry} />}
           reserveKey="databank.detail"
@@ -277,6 +278,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
 function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[documentId]}
       fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the source text" onRetry={retry} />}
     >

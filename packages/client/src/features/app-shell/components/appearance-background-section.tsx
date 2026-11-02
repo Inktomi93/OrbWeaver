@@ -44,6 +44,7 @@ const BACKGROUND_ENTITY_ID = "appearance-background";
 export function AppearanceBackgroundSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your background settings" onRetry={retry} />}
     >

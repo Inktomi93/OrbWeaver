@@ -27,6 +27,7 @@ export function RuleCharacterField({
         <Text>{label}: Automatic</Text>
       ) : (
         <QueryBoundary
+          resetKeys={[value]}
           fallback={<SkeletonRows count={1} shape="line" />}
           renderError={(_error, retry): ReactElement => (
             <Stack gap="tight">

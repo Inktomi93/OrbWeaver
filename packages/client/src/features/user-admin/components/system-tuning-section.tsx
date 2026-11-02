@@ -106,6 +106,7 @@ export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId
   return (
     // RESERVED (#1098) — the other of the two LONGEST admin knob stacks.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

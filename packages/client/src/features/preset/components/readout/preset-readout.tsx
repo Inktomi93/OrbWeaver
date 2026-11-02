@@ -59,6 +59,7 @@ export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();
   return (
     <QueryBoundary
+      resetKeys={[presetId]}
       fallback={
         <Stack padding="block">
           <SkeletonRows count={READOUT_SKELETON_ROWS} shape="datum" />

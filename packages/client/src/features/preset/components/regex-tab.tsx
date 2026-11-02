@@ -60,6 +60,7 @@ export function RegexTab({ presetId, attachable }: { readonly presetId: PresetId
   }
   return (
     <QueryBoundary
+      resetKeys={[presetId]}
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
       reserveKey="preset.regexScripts"

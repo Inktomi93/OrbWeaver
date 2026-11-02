@@ -218,6 +218,7 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
           arm), not a failure. */}
       {open ? (
         <QueryBoundary
+          resetKeys={[chatId, variantId]}
           fallback={<SkeletonRows count={4} />}
           renderError={(error, retry): ReactElement =>
             isNotFound(error) ? (

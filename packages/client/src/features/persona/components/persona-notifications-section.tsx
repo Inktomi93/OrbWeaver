@@ -16,6 +16,7 @@ export function PersonaNotificationsSection({ anchorId }: { readonly anchorId: s
     <Section heading={PERSONA_NOTIFICATIONS_SUBCATEGORY.label} id={anchorId}>
       {/* A pending control reserves one row; the measured boundary retains its settled height on reopen. */}
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={1} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your persona settings" onRetry={retry} />}
         reserveKey="config.personas.notifications"

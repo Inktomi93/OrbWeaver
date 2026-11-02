@@ -50,6 +50,7 @@ export function CorpusNeverPlayedSection({ libraryCharacters }: { readonly libra
     // A BELOW-FOLD PENDING SECTION KEEPS ITS PLACE: `null`-while-pending lets the settled section pop in under
     // whatever the reader is looking at.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your never-played characters" onRetry={retry} />}
     >
@@ -176,6 +177,7 @@ function routeLabel(route: ModelRoute): string {
 export function CorpusModelEconomicsSection(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your model usage" onRetry={retry} />}
     >

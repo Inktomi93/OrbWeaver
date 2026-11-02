@@ -45,6 +45,7 @@ export function CorpusCompareTab(): ReactElement {
     // The bracket owns the stable viewport; the query boundary measures content without trapping scroll chaining.
     <Stack className="relative min-block-0" data-testid={testId("corpusCompareTab")}>
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
         reserveKey="corpus.compare"
@@ -148,6 +149,7 @@ export function CompareResult({
 }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[idA, idB]}
       fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="that comparison" onRetry={retry} />}
     >
@@ -193,6 +195,7 @@ function FacetDiff({
       <Section heading="Deep compare">
         {deep ? (
           <QueryBoundary
+            resetKeys={[idA, idB]}
             fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the narrative" onRetry={retry} />}
           >

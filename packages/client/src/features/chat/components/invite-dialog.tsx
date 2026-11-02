@@ -338,6 +338,7 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
 function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[chatId]}
       fallback={<SkeletonRows count={OUTSTANDING_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the outstanding invites" onRetry={retry} />}
     >

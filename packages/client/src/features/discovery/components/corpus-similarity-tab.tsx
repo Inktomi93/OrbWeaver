@@ -55,6 +55,7 @@ const MAX_NODES_ITEMS: SelectItems = [
 export function CorpusSimilarityTab(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="similarity" onRetry={retry} />}
       reserveKey="corpus.similarity"
@@ -100,6 +101,7 @@ function NearestPairs(): ReactElement {
           <ParamSelect items={MAX_NODES_ITEMS} label="Max nodes" onValueChange={setMaxNodes} value={maxNodes} />
         </Row>
         <QueryBoundary
+          resetKeys={[knobs.maxNodes, knobs.minSimilarity]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the similarity graph" onRetry={retry} />}
         >

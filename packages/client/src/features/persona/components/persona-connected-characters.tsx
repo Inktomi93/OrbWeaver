@@ -24,7 +24,7 @@ import { useConnectCharacter, useDisconnectCharacter } from "../hooks/use-person
 /** Keeps junction loading and retry local to the editor section. */
 export function PersonaConnectedCharacters(props: { readonly personaId: PersonaId }): ReactElement {
   return (
-    <QueryBoundary fallback={<SkeletonRows count={3} shape="avatar-row" />}>
+    <QueryBoundary resetKeys={[props.personaId]} fallback={<SkeletonRows count={3} shape="avatar-row" />}>
       <ConnectedCharactersBody {...props} />
     </QueryBoundary>
   );

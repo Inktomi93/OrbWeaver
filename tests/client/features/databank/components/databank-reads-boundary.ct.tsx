@@ -84,6 +84,28 @@ test("a deleted document is the gone state in the context rail, not the error bl
   await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
 });
 
+test("a gone document's state gives way to a live document picked next", async ({ mount, page, corpus }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const gone = await caller.databank.createFromText({ name: "Vanished notes", text: "Nothing to see." });
+  await prepare(root, page, corpus, (served) =>
+    serveCorpusProcedures(served, ["databank.get"], (input) => (input.id === gone.document.id ? trpcError({ code: "NOT_FOUND" }) : undefined)),
+  );
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await page
+    .getByRole("button", { name: /Vanished notes/u })
+    .first()
+    .click();
+  const context = await openContext(page);
+  await expect(context.getByText("Document not found", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: /Boundary notes/u })
+    .first()
+    .click();
+  await expect(context.getByText("Document not found", { exact: true })).toHaveCount(0);
+  await expect(context.getByText(DATABANK_USE_IN_EVERY_CHAT_NAME, { exact: true })).toBeVisible();
+});
+
 test("a held source text read shows the loading skeleton, a failed one the error block, and Retry shows the text", async ({ mount, page, corpus }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const hold = holdServed();

@@ -39,6 +39,7 @@ const REGEX_COLLECTION = "regex";
 export function CharacterRegexScriptsField({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[characterId]}
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
       reserveKey="character.regexScripts"

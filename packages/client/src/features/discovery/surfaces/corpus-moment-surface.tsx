@@ -38,6 +38,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
         </Section>
       ) : null}
       <QueryBoundary
+        resetKeys={[source.chatId, source.rowId]}
         reserveKey="corpus.sourceTranscript"
         fallback={<SkeletonRows count={3} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the source moment" onRetry={retry} />}
@@ -47,6 +48,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
       <Section heading="Related rooms">
         <Text voice="gloss">A preview from a bounded pool of recent indexed room passages. Older rooms can be absent.</Text>
         <QueryBoundary
+          resetKeys={[source.chatId]}
           reserveKey="corpus.relatedRooms"
           fallback={<SkeletonRows count={2} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="related rooms" onRetry={retry} />}
@@ -56,6 +58,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
       </Section>
       <Section heading="Alternate takes">
         <QueryBoundary
+          resetKeys={[source.chatId]}
           reserveKey="corpus.alternateTakes"
           fallback={<SkeletonRows count={2} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="alternate takes" onRetry={retry} />}

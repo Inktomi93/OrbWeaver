@@ -17,6 +17,7 @@ import { formatCost } from "../lib/format-cost.ts";
 export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[assetId]}
       fallback={<SkeletonRows count={2} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this image's details" onRetry={retry} />}
     >

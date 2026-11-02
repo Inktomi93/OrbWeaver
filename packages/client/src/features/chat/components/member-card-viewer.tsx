@@ -80,6 +80,7 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
       }
     >
       <QueryBoundary
+        resetKeys={[chatId, characterId]}
         fallback={<SkeletonRows count={5} shape="line" />}
         renderError={(thrown, retry): ReactElement =>
           isNotFound(thrown) ? (

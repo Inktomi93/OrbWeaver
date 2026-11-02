@@ -28,6 +28,7 @@ export function AdminLinkSsoSection({ anchorId }: { readonly anchorId: string })
   return (
     // RESERVED (#1098) — an admin section that settles into the linkable-account list.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

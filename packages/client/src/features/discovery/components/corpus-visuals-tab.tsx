@@ -62,6 +62,7 @@ const FACET_VIEWS = [
 export function CorpusVisualsTab(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
       reserveKey="corpus.visuals"
@@ -181,6 +182,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
 function FacetDrill({ facet, value }: { readonly facet: FacetKey; readonly value: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[facet, value]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="those avatars" onRetry={retry} />}
     >

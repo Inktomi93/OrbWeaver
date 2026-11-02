@@ -206,6 +206,7 @@ function ChatWorldInfoBookKnobField(props: KnobFieldProps & { readonly chatId: C
   // The knob's own boundary: a pending or failed read says so in this row and never takes the popover body with it.
   return (
     <QueryBoundary
+      resetKeys={[props.chatId]}
       fallback={
         <KnobRow knob={props.knob} issue={null}>
           <SkeletonRows count={1} shape="line" />

@@ -119,6 +119,7 @@ function BoundPricing({
   // failure keeps the estimates and adds the shared Retry.
   return (
     <QueryBoundary
+      resetKeys={[chatId, presetId]}
       fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (

@@ -137,6 +137,7 @@ function MomentProvenance({ destination }: { readonly destination: Extract<Corpu
       </Text>
       {destination.rank === null ? null : <Text voice="gloss">Result rank: {destination.rank}</Text>}
       <QueryBoundary
+        resetKeys={[source.chatId, source.rowId]}
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the source resolution" onRetry={retry} />}
       >

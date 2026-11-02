@@ -116,7 +116,11 @@ export function ParamsDeck({ form, capability, effective, samplerSpelling }: Par
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two
             are exhaustive and why the old connect-a-model empty state was a flash, not a state. */}
-        <QueryBoundary fallback={<CapabilityGatePending />} renderError={(error, retry): ReactElement => <CapabilityGate error={error} onRetry={retry} />}>
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<CapabilityGatePending />}
+          renderError={(error, retry): ReactElement => <CapabilityGate error={error} onRetry={retry} />}
+        >
           <ModelFedClusters effective={effective} form={form} samplerSpelling={samplerSpelling} />
         </QueryBoundary>
         <ParamsLimits capability={capability} effective={effective} form={form} />

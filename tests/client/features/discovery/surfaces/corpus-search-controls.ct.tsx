@@ -165,6 +165,30 @@ test("a failed search gives way to the next query's results without a Retry", as
   await expect(component.getByText("Couldn't load the search.", { exact: true })).toHaveCount(0);
 });
 
+test("a revisited query that failed reads again instead of re-throwing its cached error", async ({ mount, page, corpus }) => {
+  await using root = await seededHarness(true);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const asked: string[] = [];
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, ["search.search"], (input) => {
+      asked.push(input.query);
+      return input.query === "orb" && asked.filter((query) => query === "orb").length === 1 ? trpcError({ code: "BAD_REQUEST" }) : undefined;
+    }),
+  });
+  const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orb", targetId: "characters" });
+  const field = component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true });
+  await expect(component.getByText("Couldn't load the search.", { exact: true })).toBeVisible();
+  await field.press("End");
+  await field.pressSequentially("ital");
+  await expect(component.getByText("How search works")).toBeVisible();
+  await field.fill("orb");
+  await expect.poll(() => asked.filter((query) => query === "orb").length).toBe(2);
+  await expect(component.getByText("Couldn't load the search.", { exact: true })).toHaveCount(0);
+  await expect(component.getByText("How search works")).toBeVisible();
+});
+
 test("a stored rerank ask waits for the Rerank model read instead of searching twice", async ({ mount, page, corpus }) => {
   await using root = await seededHarness(true);
   const caller = await root.internalCallerFor(root.ownerId);

@@ -98,6 +98,7 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
           the same remembered box, the copy-paste failure the reservation gate's duplicate arm exists to red.
           What changed is that both owners now supply their own, the shape design §1.4 prescribed. */}
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
         {...(reserveKey === undefined ? {} : { reserveKey })}

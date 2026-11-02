@@ -54,6 +54,7 @@ export function PluginDialogBody(): ReactElement {
   }
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={
         <Stack gap="block" role="status">
           <Text voice="label">Loading plugin dialog…</Text>

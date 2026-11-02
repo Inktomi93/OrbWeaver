@@ -26,6 +26,10 @@ One visual system: every surface shows the same loading, error and retry states.
 
 Rulings applied: a typed refusal (FORBIDDEN) renders through the boundary's error render; only the read-dependent part sits in the boundary; a knob change keeps the settled rows on screen through a deferred value. Converted in the preset, discovery, chat, databank, automation, stats, tag, plugin, imagery, refinery, rpg and credentials features. Every CT holds the read, fails it and retries. Where the old ladder already printed the same states, the CT passes on the old source too and only locks the shared states.
 
+`QueryBoundary` takes a required `resetKeys`: the inputs its subtree's reads are keyed on, `[]` where they take none. A key change under a standing error, or a catch under keys that changed since the last settled commit (a revisited key re-throwing its cached error), resets the query errors and clears the catch, so the new key reads. CTs: the capability role switch and the preset switch (`tests/client/features/preset/components/preset-readout-boundary.ct.tsx`), the leaderboard search after a failure (`tests/client/features/stats/surfaces/leaderboard-boundary.ct.tsx`), the databank gone-then-live pick (`tests/client/features/databank/components/databank-reads-boundary.ct.tsx`), and the revisited query (`tests/client/features/discovery/surfaces/corpus-search-controls.ct.tsx`).
+
+Plain reads that item 1810's rule must allow: a control kept outside its boundary reads the same key as a value with a default, and the boundary beside it owns the loading and failure states. The reads are the faces strip's `isPending` (its reserved box), the member card header's `error` (its gone title), the tag picker's library (suggestions and the confirm's arm), the rule tool's catalog (argument guidance), the Journal All scope's transcript and chat reads, the capability panel's connection list and in-view resolve, and the preset editor's capability and effective reads. Each reads a flag or a value; none renders its own pending or error branch.
+
 | site | CT |
 | - | - |
 | `features/discovery/components/corpus-archetypes-tab.tsx` (catalog gate, art section, writing section) | `tests/client/features/discovery/components/corpus-context-tabs-boundary.ct.tsx` |
@@ -40,7 +44,7 @@ Converted without a held-read CT. Each needs a mount that opens the destination;
 | site | what is missing |
 | - | - |
 | `corpus-visuals-tab.tsx` facet drill, `corpus-home-charts.tsx` co-occurrence | no seeded facet value or keyword with a drill to open |
-| `corpus-search-results.tsx` (unified and text results) | the retry would run a real embedding search; needs a held search that recovers to a fixture. An empty query is not read (the contract refuses it), and the boundary's `resetKeys` clears a failed query's error when the query changes: `tests/client/features/discovery/surfaces/corpus-search-controls.ct.tsx` |
+| `corpus-search-results.tsx` (unified and text results) | the retry would run a real embedding search; needs a held search that recovers to a fixture. An empty query is not read (the contract refuses it): `tests/client/features/discovery/surfaces/corpus-search-controls.ct.tsx` |
 | `corpus-dossier-surface.tsx` Ask answer | the retry would call a model |
 | `corpus-artifact-surface.tsx` grouping check, `corpus-context-header.tsx` census | no CT opens a cluster artifact or reads the band census failure |
 
@@ -60,7 +64,7 @@ Converted in the final pass. Every CT holds the read, fails it and retries unles
 | `components/editable-tag-chip.tsx` popover | `tests/client/components/tag-reads-boundary.ct.tsx` |
 | `components/tag-picker-dialog.tsx`: the dialog shell and the field stay mounted and typeable; only the create-or-attach line sits under the boundary, and the suggestions and the `Create "x"` confirm wait for the library | `tests/client/features/character/components/tag-picker-boundary.ct.tsx` |
 | `features/plugin/components/plugin-dialog-body.tsx` (no subject is the gone state) | `tests/client/features/plugin/components/plugin-dialog-boundary.ct.tsx` |
-| `features/plugin/surfaces/extensions-page-surface.tsx`: `use-plugin-pages.ts` splits into `usePluginPages` (a value for the list header, roster and title) and `useSuspensePluginPages` (the picked page, under the pane's boundary) | `tests/client/features/plugin/surfaces/extensions-page-boundary.ct.tsx`; the old ladder printed the same states, so it passes on the old source too |
+| `features/plugin/surfaces/extensions-page-surface.tsx`: `use-plugin-pages.ts` splits into `usePluginPages` (a value for the list header, roster and title) and `useSuspensePluginPages` (the picked page, under the pane's boundary). One focus-target frame wraps every arm, so the mount focus survives the arms swapping | `tests/client/features/plugin/surfaces/extensions-page-boundary.ct.tsx`; the held-read states passed on the old source too, the focus test failed |
 | `features/imagery/components/provenance-strip.tsx` | `tests/client/features/imagery/components/provenance-boundary.ct.tsx` |
 | `features/refinery/components/context-tabs.tsx` VersionsTab (the error wins over "No versions yet") | `tests/client/features/refinery/components/versions-boundary.ct.tsx` |
 | `features/rpg/components/rpg-journal-tab.tsx` Cards scope. The All chronicle and the host's composer stay outside: its cards merge in only once the transcript settles, so an unread transcript never blanks the chronicle | `tests/client/features/rpg/components/rpg-journal-boundary.ct.tsx` |

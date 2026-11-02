@@ -82,7 +82,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
       title={ADD_DIALOG_COPY[step.kind].title}
     >
       {/* DELIBERATELY UNRESERVED (#1098): a dialog body sizes itself around its content. */}
-      <QueryBoundary fallback={<WebSpinner label="Checking key storage…" />}>
+      <QueryBoundary resetKeys={[step.kind]} fallback={<WebSpinner label="Checking key storage…" />}>
         {step.kind === "setup" ? (
           <FirstModelSetup
             chat={step.chat}

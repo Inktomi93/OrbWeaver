@@ -78,6 +78,7 @@ export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): 
     // RESERVED (#1098) — the Look tab settles into eleven colour rows plus the background field; a single
     // quiet line in their place resized the whole CONTEXT panel every time the card read landed.
     <QueryBoundary
+      resetKeys={[characterId]}
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
       reserveKey="character.context.look"

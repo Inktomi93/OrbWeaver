@@ -41,6 +41,7 @@ export function CorpusContextHeader(): ReactElement {
         // A FAILED CENSUS IS NOT A ZERO CENSUS: the failed arm states itself and carries the re-read. It is a
         // button rather than the shared block because a band has no room for one, and nothing shows while it pends.
         <QueryBoundary
+          resetKeys={[]}
           fallback={null}
           renderError={(_error, retry): ReactElement => (
             <Button variant="ghost" onClick={retry} size="sm" type="button">

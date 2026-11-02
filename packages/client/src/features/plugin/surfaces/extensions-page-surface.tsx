@@ -64,14 +64,12 @@ function reviewFirstWaiting(plugins: ExtensionsEmptyView["awaitingPlugins"]): vo
   }
 }
 
-/** Every non-page arm's frame: the pane's focus target, with the standard content inset. */
+/** Every non-page arm's frame, with the standard content inset, inside {@link PaneFrame}. */
 function InsetPane({
-  surfaceRef,
   children,
   className,
   ready,
 }: {
-  readonly surfaceRef: RefObject<HTMLDivElement | null>;
   readonly children: ReactNode;
   readonly className?: string;
   /** `data-ready` for an arm with no skeleton while its first read is out; absent for an arm that never waits. */
@@ -80,13 +78,21 @@ function InsetPane({
   return (
     <Stack
       className={cn("relative overflow-y-auto px-section block-full min-block-0", className)}
-      focusTarget={true}
-      data-testid={testId("extensionsContent")}
       {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
-      ref={surfaceRef}
-      tabIndex={-1}
     >
       <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>
+    </Stack>
+  );
+}
+
+/** The pane's ONE focus target, around every arm: the arms swap as the selection, the plugin list and the page read settle, and
+ *  a focus target that swapped with them would drop the mount focus to the document body.
+ *  NOT a `<Container>`: a page owns its whole CONTENT region and the page-scale shell paints the region's own edges (a pinned
+ *  band + a scrolling body), so a reading-width clamp here would inset a full-page surface inside a gutter it did not ask for. */
+function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
+  return (
+    <Stack className="block-full min-block-0" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+      {children}
     </Stack>
   );
 }
@@ -192,50 +198,49 @@ export function ExtensionsPageSurface(): ReactElement {
       .catch((error: unknown) => globalThis.reportError(error));
   };
 
+  let body: ReactElement;
   if (reviewed !== undefined) {
-    return (
-      <InsetPane className="py-section" surfaceRef={surfaceRef}>
+    body = (
+      <InsetPane className="py-section">
         <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
       </InsetPane>
     );
-  }
-  if (key === null) {
-    return (
-      <InsetPane ready={empty.settled} surfaceRef={surfaceRef}>
-        {pages.length === 0 ? <NoPages empty={empty} /> : <NoSelection empty={empty} />}
-      </InsetPane>
+  } else if (key === null) {
+    body = <InsetPane ready={empty.settled}>{pages.length === 0 ? <NoPages empty={empty} /> : <NoSelection empty={empty} />}</InsetPane>;
+  } else {
+    body = (
+      <QueryBoundary
+        resetKeys={[key]}
+        fallback={
+          <InsetPane>
+            <Stack gap="block" role="status">
+              <Text voice="label">Loading plugin page…</Text>
+              <SkeletonRows count={3} shape="line" />
+            </Stack>
+          </InsetPane>
+        }
+        renderError={(_error, retry): ReactElement => (
+          <InsetPane>
+            <QueryErrorState label="this plugin page" onRetry={retry} />
+          </InsetPane>
+        )}
+      >
+        <SelectedPage pageKey={key} />
+      </QueryBoundary>
     );
   }
-  return (
-    <QueryBoundary
-      fallback={
-        <InsetPane surfaceRef={surfaceRef}>
-          <Stack gap="block" role="status">
-            <Text voice="label">Loading plugin page…</Text>
-            <SkeletonRows count={3} shape="line" />
-          </Stack>
-        </InsetPane>
-      }
-      renderError={(_error, retry): ReactElement => (
-        <InsetPane surfaceRef={surfaceRef}>
-          <QueryErrorState label="this plugin page" onRetry={retry} />
-        </InsetPane>
-      )}
-    >
-      <SelectedPage pageKey={key} surfaceRef={surfaceRef} />
-    </QueryBoundary>
-  );
+  return <PaneFrame surfaceRef={surfaceRef}>{body}</PaneFrame>;
 }
 
 /** The selected page, read through the pane's boundary: the page itself, or the gone state when nothing resolves the key. */
-function SelectedPage({ pageKey, surfaceRef }: { readonly pageKey: PluginPageKey; readonly surfaceRef: RefObject<HTMLDivElement | null> }): ReactElement {
+function SelectedPage({ pageKey }: { readonly pageKey: PluginPageKey }): ReactElement {
   const page = useSuspensePluginPages().find((candidate) => candidate.key === pageKey);
   if (page === undefined) {
     // The drill outlived what it named — the plugin was disabled or removed while it was open. The honest line,
     // not a blank pane, and NO write from a render: a dead reference never self-heals by pruning itself (D138
     // rule 2), it just stops resolving until the person picks again.
     return (
-      <InsetPane surfaceRef={surfaceRef}>
+      <InsetPane>
         <CentredEmpty
           action={
             <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
@@ -248,22 +253,13 @@ function SelectedPage({ pageKey, surfaceRef }: { readonly pageKey: PluginPageKey
       </InsetPane>
     );
   }
-  const content =
-    page.tier === "frame" ? (
-      // U7 FRAME (#787) — the arbitrary-pixels arm at PAGE scale (§6.1/§9). `PluginFrame` draws its OWN
-      // page-scale attribution shell, so an un-minted frame contributes no orphaned band.
-      <PluginFrame anchor="page" pluginId={page.pluginId} pluginName={page.pluginName} scale="page" surfaceId={page.surfaceId} title={page.title} />
-    ) : (
-      <PluginSurfaceShell anchor="page" pluginId={page.pluginId} surfaceId={page.surfaceId} pluginName={page.pluginName} scale="page" title={page.title}>
-        <PageBody page={page} />
-      </PluginSurfaceShell>
-    );
-  return (
-    // NOT a `<Container>`: a page owns its whole CONTENT region and the page-scale shell paints the region's own
-    // edges (a pinned band + a scrolling body). A container's reading-width clamp here would inset a full-page
-    // surface inside a gutter it did not ask for — the shell IS the containment for this arm.
-    <Stack className="block-full min-block-0" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
-      {content}
-    </Stack>
+  return page.tier === "frame" ? (
+    // U7 FRAME (#787) — the arbitrary-pixels arm at PAGE scale (§6.1/§9). `PluginFrame` draws its OWN
+    // page-scale attribution shell, so an un-minted frame contributes no orphaned band.
+    <PluginFrame anchor="page" pluginId={page.pluginId} pluginName={page.pluginName} scale="page" surfaceId={page.surfaceId} title={page.title} />
+  ) : (
+    <PluginSurfaceShell anchor="page" pluginId={page.pluginId} surfaceId={page.surfaceId} pluginName={page.pluginName} scale="page" title={page.title}>
+      <PageBody page={page} />
+    </PluginSurfaceShell>
   );
 }

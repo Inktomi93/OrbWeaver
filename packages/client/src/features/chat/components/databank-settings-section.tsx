@@ -36,6 +36,7 @@ import { DATABANK_SETTINGS_SUBCATEGORY } from "../lib/databank-settings-section-
 export function DatabankSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your databank settings" onRetry={retry} />}
     >

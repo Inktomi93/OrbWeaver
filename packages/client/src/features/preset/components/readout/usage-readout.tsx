@@ -54,6 +54,7 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
   return (
     <Section data-slot="preset-usage" kicker="Used by">
       <QueryBoundary
+        resetKeys={[presetId]}
         fallback={<SkeletonRows count={USAGE_SKELETON_ROWS} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="what uses this preset" onRetry={retry} />}
       >

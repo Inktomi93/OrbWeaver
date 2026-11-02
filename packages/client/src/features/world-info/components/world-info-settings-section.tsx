@@ -33,6 +33,7 @@ export function WorldInfoSettingsSection({ anchorId, sectionId }: { readonly anc
     // chat-behavior pane when the settings read landed. Three `line` rows is the settled anatomy, and the
     // box re-fills the count once this device has measured the section.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world-info settings" onRetry={retry} />}
       reserveKey="config.worldInfo.settings"

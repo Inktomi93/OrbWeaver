@@ -22,6 +22,7 @@ const SKELETON_ROW_COUNT = 3;
 export function CorpusMapTab(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       fill={true}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the map" onRetry={retry} />}

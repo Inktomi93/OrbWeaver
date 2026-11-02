@@ -66,6 +66,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
               builds five different game tabs, and one literal here would hand all five the same box (the
               copy-paste collision the gate's duplicate arm exists to red). One label, one surface, one key. */}
           <QueryBoundary
+            resetKeys={[s.chatId]}
             fallback={<SkeletonRows count={3} shape="line" />}
             reserveKey={`rpg.tab.${label.toLowerCase()}`}
             // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
@@ -172,6 +173,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           // RESERVED (#1098) — the Game DOOR is ONE surface (host-committed, non-game or paused), unlike
           // the tab factory above, so it takes a literal key of its own.
           <QueryBoundary
+            resetKeys={[s.chatId]}
             fallback={<SkeletonRows count={3} shape="line" />}
             reserveKey="rpg.gameDoor"
             // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling

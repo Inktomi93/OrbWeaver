@@ -52,6 +52,8 @@ test("the tag picker field stays typeable in one dialog while the library is hel
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
   const field = dialog.getByRole("combobox", { name: TAG_NAME_FIELD_NAME });
   await field.fill("Pic");
+  // The field still describes what the confirm will do while the library is unknown.
+  await expect(field).toHaveAccessibleDescription(/Pic/u);
   const shell = await dialog.elementHandle();
   read.hold.fail();
   await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toBeVisible();

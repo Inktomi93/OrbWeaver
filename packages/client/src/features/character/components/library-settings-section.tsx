@@ -40,6 +40,7 @@ export function LibrarySettingsSection({ anchorId, sectionId }: { readonly ancho
     // list would claim rows that never arrive; the sentence is the honest wait. The key still earns its
     // place: this is a contributed section on the appearance pane, with every later section below it.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
       reserveKey="config.appearance.library"

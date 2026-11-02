@@ -69,6 +69,7 @@ export function DatabankContextBody(): ReactElement {
     // block and a settled commit of this rail is not a settled rail: no instant at which a measurement would
     // be honest.
     <QueryBoundary
+      resetKeys={[documentId]}
       fallback={<SkeletonRows count={3} shape="datum" />}
       renderError={(error, retry): ReactElement => (isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={retry} />)}
     >

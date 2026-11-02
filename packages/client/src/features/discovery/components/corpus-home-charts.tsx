@@ -67,6 +67,7 @@ export function KeywordExplorer(): ReactElement {
     // PENDING IS NOT ABSENCE: the block holds its place with the shared skeleton rather than materialising
     // under the reader's scroll position. A block with no data still renders nothing — the rail says why.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your top keywords" onRetry={retry} />}
     >
@@ -138,6 +139,7 @@ function KeywordExplorerRead(): ReactElement | null {
               Read keyword sources
             </Button>
             <QueryBoundary
+              resetKeys={[keyword]}
               fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="the cooccurrences" onRetry={retry} />}
             >
@@ -202,6 +204,7 @@ export function StoryThemeDrift(): ReactElement {
   const readLevel = useDeferredValue(level);
   return (
     <QueryBoundary
+      resetKeys={[readLevel]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="story-theme drift" onRetry={retry} />}
     >

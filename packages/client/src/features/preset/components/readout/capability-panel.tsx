@@ -78,6 +78,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
         <InViewLine model={inView?.model} row={connections.data?.find((row) => row.id === inView?.connectionId)} target={target} />
       </Section>
       <QueryBoundary
+        resetKeys={[presetId, targetValue(described)]}
         fallback={<EffectiveProfilePending />}
         renderError={(error, retry): ReactElement => <EffectiveProfileFailure error={error} onRetry={retry} />}
       >

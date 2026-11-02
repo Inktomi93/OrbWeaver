@@ -61,7 +61,11 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
   return (
     <>
       <FacesStripView characterFilter={characterFilter} chats={page?.items ?? []} pending={isPending} />
-      <QueryBoundary fallback={null} renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={null}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}
+      >
         <FacesSourceRead />
       </QueryBoundary>
     </>

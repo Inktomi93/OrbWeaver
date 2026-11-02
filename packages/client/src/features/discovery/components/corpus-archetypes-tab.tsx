@@ -57,6 +57,7 @@ const K_ITEMS: SelectItems = [
 export function CorpusArchetypesTab(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="archetypes" onRetry={retry} />}
     >
@@ -98,6 +99,7 @@ function ArchetypesBody(): ReactElement {
           The writing half loses nothing but its position — it has no door of its own to disappoint. */}
       <Section heading="Art archetypes">
         <QueryBoundary
+          resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the art archetypes" onRetry={retry} />}
         >
@@ -107,6 +109,7 @@ function ArchetypesBody(): ReactElement {
 
       <Section heading="Writing archetypes">
         <QueryBoundary
+          resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the writing archetypes" onRetry={retry} />}
         >

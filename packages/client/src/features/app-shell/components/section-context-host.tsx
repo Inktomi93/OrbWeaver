@@ -61,6 +61,7 @@ export function SectionContextHost({ definition, headerRef, dismissLabel, onDism
   }
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={
         <ContextTabsPanel
           headerRef={headerRef}

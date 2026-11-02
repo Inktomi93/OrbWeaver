@@ -11,6 +11,7 @@ import type { Page } from "@playwright/test";
 import type { PresetReadoutStory } from "./_preset-readout-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-readout-stories/PresetReadoutStory";
+const REFUSAL = "No chat model resolves for this role";
 const READOUT_READS = [
   ...SECTION_PROCEDURES,
   ...SHELL_MOUNT_PROCEDURES,
@@ -206,7 +207,7 @@ test("Params says a no-chat-model refusal through the profile's failure band bes
         phase = "refuse";
         return hold;
       }
-      return phase === "refuse" ? trpcError({ code: "BAD_REQUEST", message: "No chat model resolves for this role" }) : undefined;
+      return phase === "refuse" ? trpcError({ code: "BAD_REQUEST", message: REFUSAL }) : undefined;
     }),
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
@@ -215,11 +216,11 @@ test("Params says a no-chat-model refusal through the profile's failure band bes
   await expect(select).toBeVisible();
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   hold.fail();
-  await expect(page.getByText("No chat model resolves for this role", { exact: true })).toBeVisible();
+  await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
   await expect(select).toBeVisible();
   phase = "serve";
   await page.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(page.getByText("No chat model resolves for this role", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(/· chat role/u)).toBeVisible();
 });
 
@@ -243,6 +244,38 @@ test("Params keeps the settled profile on screen while a switched connection's p
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   hold.release();
   await expect(page.getByText(/· utility model role/u)).toBeVisible();
+});
+
+test("Params reads the Utility role after the Chat role's refusal instead of keeping the refusal", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { host, presetId } = await setup(root, page);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(host, READOUT_READS),
+    ...serveCorpusProcedures(host, ["preset.resolveEffective"], (input) =>
+      input.target?.kind === "role" && input.target.task === "chat" ? trpcError({ code: "BAD_REQUEST", message: REFUSAL }) : undefined,
+    ),
+  });
+  await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
+  await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Connection to describe", exact: true }).click();
+  await page.getByRole("option", { name: "Utility model role", exact: true }).click();
+  await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/· utility model role/u)).toBeVisible();
+});
+
+test("the readout reads a newly opened preset after the previous one failed", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { host, presetId } = await setup(root, page);
+  const other = await host.preset.create({ name: "Second witness", kind: "generation" });
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(host, READOUT_READS),
+    ...serveCorpusProcedures(host, ["preset.get"], (input) => (input.id === presetId ? trpcError({ code: "BAD_REQUEST" }) : undefined)),
+  });
+  const component = await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "data", chatId: null });
+  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
+  await component.update({ presetId: other.id, view: "data", chatId: null });
+  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toHaveCount(0);
+  await expect(page.locator('[data-slot="preset-usage"]')).toBeVisible();
 });
 
 test("Actions says a member cannot inspect a room they do not host, with no Retry", async ({ mount, page }) => {

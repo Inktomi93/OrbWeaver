@@ -94,6 +94,7 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
   return (
     <Stack ref={rowsRef} className="flex-1 min-block-0">
       <QueryBoundary
+        resetKeys={[sort, search]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
       >

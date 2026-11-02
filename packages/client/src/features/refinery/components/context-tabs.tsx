@@ -296,6 +296,7 @@ const SNAPSHOT_PENDING_ROWS = 3;
 export function VersionsTab({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[state.characterId]}
       fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this card's versions" onRetry={retry} />}
     >

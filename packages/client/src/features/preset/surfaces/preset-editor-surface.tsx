@@ -121,6 +121,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
           only the first-boot guess (the reserved box re-fills it). The scroll box is the Stack ABOVE this
           boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133). */}
       <QueryBoundary
+        resetKeys={[presetId]}
         fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
         reserveKey="preset.editor"

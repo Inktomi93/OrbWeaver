@@ -52,6 +52,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
   return (
     <Section kicker="Active in">
       <QueryBoundary
+        resetKeys={[documentId]}
         fallback={<SkeletonRows count={2} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="where this document is active" onRetry={retry} />}
       >

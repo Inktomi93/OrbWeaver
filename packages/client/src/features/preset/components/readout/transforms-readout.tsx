@@ -89,6 +89,7 @@ export function TransformsReadout({
   }
   return (
     <QueryBoundary
+      resetKeys={[presetId]}
       fallback={<Pipeline attached={{ kind: "pending" }} config={config} />}
       renderError={(_error, retry): ReactElement => (
         <Stack gap="section">

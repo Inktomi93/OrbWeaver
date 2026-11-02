@@ -37,6 +37,7 @@ export function RuleToolFields({
   return (
     <Stack gap="block">
       <QueryBoundary
+        resetKeys={[]}
         fallback={
           <Stack gap="tight">
             <SavedToolName name={action.name} />

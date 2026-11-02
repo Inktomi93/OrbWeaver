@@ -197,6 +197,7 @@ function RecallSummary({ recall }: { readonly recall: RecallState | null }): Rea
 function RecallHostDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[chatId]}
       fallback={<Text voice="gloss">Loading recall detail…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the recall detail" onRetry={retry} />}
     >

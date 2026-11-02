@@ -43,6 +43,21 @@ test("a held leaderboard read shows the loading skeleton, a failed one the share
   await expect(page.getByRole("list", { name: "Character leaderboard" })).toBeVisible();
 });
 
+test("a search typed after a failed read shows its rows instead of the standing error", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, ["stats.leaderboard"], (input) => (input?.search === undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined)),
+  });
+  await seedShellState(page, { activeSection: "analytics" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true }).fill("a");
+  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Character leaderboard" })).toBeVisible();
+});
+
 test("a search keystroke keeps the prior rows on screen while the next page is held", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);

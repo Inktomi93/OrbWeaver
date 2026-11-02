@@ -129,6 +129,7 @@ export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId
   return (
     // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

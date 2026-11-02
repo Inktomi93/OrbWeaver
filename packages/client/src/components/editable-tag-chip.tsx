@@ -101,6 +101,7 @@ export function EditableTagChip({
           </Row>
           {open ? (
             <QueryBoundary
+              resetKeys={[tag.id]}
               fallback={<SkeletonRows count={1} />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="this tag" onRetry={retry} />}
             >

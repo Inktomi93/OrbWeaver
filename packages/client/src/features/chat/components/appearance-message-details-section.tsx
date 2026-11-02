@@ -32,6 +32,7 @@ const MESSAGE_DETAILS_ENTITY_ID = "appearance-message-details";
 export function AppearanceMessageDetailsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your message-detail settings" onRetry={retry} />}
     >

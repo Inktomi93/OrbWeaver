@@ -63,6 +63,7 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
           a sentence between the list and the dossier. Neither this surface nor its body owns a scroll box
           (`corpus-content.tsx` does, above the boundary), so the measuring wrapper is layout-inert here. */}
       <QueryBoundary
+        resetKeys={[characterId]}
         fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
         reserveKey="corpus.dossier"
@@ -288,6 +289,7 @@ function SimilarArtSection({ characterId }: { readonly characterId: CharacterId 
 function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[characterId]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the similar art" onRetry={retry} />}
     >
@@ -371,6 +373,7 @@ function AskPanel({ characterId }: { readonly characterId: CharacterId }): React
         </Row>
         {question === null ? null : (
           <QueryBoundary
+            resetKeys={[characterId, question]}
             fallback={<SkeletonRows count={ANSWER_SKELETON_ROWS} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="that answer" onRetry={retry} />}
           >

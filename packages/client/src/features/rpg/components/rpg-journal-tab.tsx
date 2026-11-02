@@ -229,6 +229,7 @@ function CardArchive({
 }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[state.chatId]}
       fallback={<SkeletonRows count={JOURNAL_CARDS_PENDING_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
     >

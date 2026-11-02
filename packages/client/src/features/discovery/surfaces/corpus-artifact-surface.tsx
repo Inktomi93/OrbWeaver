@@ -87,6 +87,7 @@ function CorpusThemeSurface({ destination }: { readonly destination: Extract<Cor
   return (
     <CorpusArtifactFrame title={destination.row.name ?? "Unnamed story theme"}>
       <QueryBoundary
+        resetKeys={[destination.row.clusterIdx, destination.row.level]}
         reserveKey="corpus.themeDetail"
         fallback={<SkeletonRows count={3} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the story theme" onRetry={retry} />}
@@ -162,7 +163,11 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
         {destination.cluster.size} {destination.cluster.size === 1 ? "member" : "members"} · {destination.cluster.model}
       </Text>
       {/* The snapshot below needs no read; only the check that it is still current does, so it sits in its own boundary. */}
-      <QueryBoundary fallback={null} renderError={(_error, retry): ReactElement => <QueryErrorState label="the current grouping" onRetry={retry} />}>
+      <QueryBoundary
+        resetKeys={[destination.k]}
+        fallback={null}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the current grouping" onRetry={retry} />}
+      >
         {destination.visual ? <VisualGroupingCheck destination={destination} /> : <WritingGroupingCheck destination={destination} />}
       </QueryBoundary>
       <Stack gap="row" role="list">

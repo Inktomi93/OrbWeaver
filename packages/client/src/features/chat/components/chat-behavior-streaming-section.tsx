@@ -38,6 +38,7 @@ const STREAMING_ENTITY_ID = "chat-streaming";
 export function ChatStreamingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your streaming settings" onRetry={retry} />}
     >

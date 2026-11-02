@@ -8,9 +8,9 @@
 //
 // tag.listTagsWithUsage shares the management collection query key and runs only while open. Opening
 // beside a loaded roster is a cache hit; opening from the character library can require a fetch. The field
-// stays mounted and typeable while the library loads or fails: only the create-or-attach line sits under a
-// QueryBoundary, and the suggestions and the `Create "x"` confirm wait for a known library, so an
-// unresolved library never invites duplicate creation.
+// stays mounted and typeable while the library loads or fails, and a QueryBoundary beside it shows the
+// shared loading and error states. The suggestions, the create-or-attach line and the `Create "x"` confirm
+// wait for a known library, so an unresolved library never invites duplicate creation.
 //
 // Suggestions omit already attached tags, but the exact-name decision examines the whole library (#1488).
 // An attached exact match refuses both confirm and Enter and explains why. A case-insensitive existing
@@ -100,8 +100,8 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
       <Stack gap="field">
         <Autocomplete
           // The helper line carries the whole meaning of this dialog — which of create/attach the confirm
-          // is about to do — so the field points at it once it exists.
-          {...(claim === undefined ? {} : { "aria-describedby": helperId })}
+          // is about to do — and it was a bare paragraph nothing pointed at, so AT never heard any of it.
+          aria-describedby={helperId}
           aria-label={TAG_NAME_FIELD_NAME}
           inline={true}
           items={claim?.matches ?? NONE}
@@ -116,37 +116,28 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           placeholder="Search or create a tag…"
           value={name}
         />
+        {/* ONE live line across the read: `aria-live` because the create ⇄ attach flip happens while the user is
+            typing INTO the field it describes, and a describedby alone is only read on focus. */}
+        <Text aria-live="polite" id={helperId} voice="gloss">
+          {claim === undefined ? unknownLibraryText(trimmed) : helperText(claim, trimmed)}
+        </Text>
         <QueryBoundary
+          resetKeys={[]}
           fallback={<SkeletonRows count={1} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your tags" onRetry={retry} />}
         >
-          <LibraryHelper attachedNames={attachedNames} helperId={helperId} trimmed={trimmed} />
+          <LibraryRead />
         </QueryBoundary>
       </Stack>
     </FormDialog>
   );
 }
 
-/** The create-or-attach line, which states a fact about the library and so waits for it. */
-function LibraryHelper({
-  attachedNames,
-  helperId,
-  trimmed,
-}: {
-  readonly attachedNames: readonly string[];
-  readonly helperId: string;
-  readonly trimmed: string;
-}): ReactElement {
+/** Suspends on the library so its loading and failure reach the shared states; the line above states what it knows. */
+function LibraryRead(): null {
   const trpc = useTRPC();
-  const { data: library } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
-  const claim = libraryClaim(library, attachedNames, trimmed);
-  // `aria-live` because the create ⇄ attach flip happens while the user is typing INTO the field it
-  // describes — a describedby alone is only read on focus, so the one moment it matters would be silent.
-  return (
-    <Text aria-live="polite" id={helperId} voice="gloss">
-      {helperText(claim, trimmed)}
-    </Text>
-  );
+  useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  return null;
 }
 
 interface LibraryClaim {
@@ -211,6 +202,12 @@ const RESTING_COPY: Record<PickerState, string | null> = {
   // `ready` counts its candidates, so its sentence is built rather than stored.
   ready: null,
 };
+
+/** The line while the library is unknown: no create-or-attach FACT can be stated, so it states the OUTCOME both arms
+ *  share (the server folds case on create, so this holds either way). */
+function unknownLibraryText(trimmed: string): string {
+  return trimmed === "" ? "Type a tag name to apply." : `Applies the tag "${trimmed}".`;
+}
 
 /** The persistent line under the field — the library's state at rest, the confirm's sentence while typing.
  *  THREE typed arms, not two: create, attach, and the tag that is ALREADY on this target, whose honest

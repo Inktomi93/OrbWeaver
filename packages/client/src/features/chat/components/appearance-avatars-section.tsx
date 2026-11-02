@@ -32,6 +32,7 @@ const AVATARS_ENTITY_ID = "appearance-avatars";
 export function AppearanceAvatarsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your avatar settings" onRetry={retry} />}
     >

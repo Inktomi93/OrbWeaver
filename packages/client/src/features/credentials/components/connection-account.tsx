@@ -41,6 +41,7 @@ function AccountCreditsBlock({ connectionId, trpc }: { readonly connectionId: Us
     <Stack data-slot="connection-credits" gap="tight">
       <Text voice="label">Account credits</Text>
       <QueryBoundary
+        resetKeys={[connectionId]}
         fallback={<Text voice="gloss">Reading the balance…</Text>}
         renderError={(error, retry): ReactElement => (
           <>

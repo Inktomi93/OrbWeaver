@@ -112,6 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="block-full inline-full min-block-0" focusTarget={true}>
       <QueryBoundary
+        resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
         // own TRACK (`Track`, the chat track — the room's one answer to "where is the middle", #213) so the three
         // placeholder rows stand exactly where the rows they stand in for will, and it takes the

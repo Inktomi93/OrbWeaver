@@ -49,7 +49,13 @@ export function RpgHudBand(): ReactElement | null {
   return (
     <Surface tier="instrument">
       <Stack data-slot="rpg-hud-band" gap="row">
-        <QueryBoundary fallback={null} renderError={(): null => null} reserveBlock={RPG_HUD_BAND_FIRST_OPEN_PX} reserveKey={RPG_HUD_BAND_BOX}>
+        <QueryBoundary
+          resetKeys={[chatId]}
+          fallback={null}
+          renderError={(): null => null}
+          reserveBlock={RPG_HUD_BAND_FIRST_OPEN_PX}
+          reserveKey={RPG_HUD_BAND_BOX}
+        >
           <RpgHeaderBand chatId={chatId} />
         </QueryBoundary>
       </Stack>

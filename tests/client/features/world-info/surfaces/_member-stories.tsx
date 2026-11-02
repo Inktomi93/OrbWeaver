@@ -38,7 +38,7 @@ function Member({ bookId, entryId, context, phone = false }: MemberProps): React
   }
   return (
     <Container data-testid={storyTestId("widthProbe")}>
-      <QueryBoundary fallback={<Stack role="status">Loading book</Stack>}>
+      <QueryBoundary resetKeys={[]} fallback={<Stack role="status">Loading book</Stack>}>
         {context && collection.context.kind === "body"
           ? collection.context.render({ memberId: bookId })
           : collection.detail({ memberId: bookId, library: worldInfoGroup.label })}

@@ -120,6 +120,7 @@ export function CorpusHomeSurface(): ReactElement {
             not re-filled (declared limit: only `SkeletonRows` `line` inverts its pitch) — it simply paints
             inside the box this device measured last time. */}
         <QueryBoundary
+          resetKeys={[]}
           fallback={<CorpusHomeSkeleton />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
           reserveKey="corpus.home"

@@ -24,6 +24,7 @@ interface BookRow {
 export function RuleBookField(props: RuleBookFieldProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[props.chatId]}
       fallback={<SkeletonRows count={2} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
     >

@@ -70,10 +70,11 @@ export interface QueryBoundaryProps {
    */
   readonly renderError?: (error: unknown, retry: () => void) => ReactNode;
   /**
-   * The inputs the child's read is keyed on, for a boundary whose query key follows a prop. A change clears a
-   * caught error, so the new key reads instead of the old key's error standing until Retry.
+   * The inputs the child's reads are keyed on — every prop or value that changes which query the subtree reads; `[]` for a
+   * subtree whose reads take none. A change clears a caught error and resets the query errors, so the new key reads
+   * instead of the old key's error standing until Retry, and a revisited key refetches instead of re-throwing its cached error.
    */
-  readonly resetKeys?: readonly unknown[];
+  readonly resetKeys: readonly unknown[];
   readonly children: ReactNode;
 }
 
@@ -92,8 +93,6 @@ interface CatchState {
   readonly recovery: RecoveryPhase;
   /** True once a settled retry with no tab stop at commit has committed its recovered message; the focus hand-off waits for it. */
   readonly handoff: boolean;
-  /** The read keys the caught error belongs to, recorded on the render that catches it; `null` while nothing is caught. */
-  readonly caught: { readonly keys: readonly unknown[] | undefined } | null;
 }
 
 /** What the catch hands its render prop: the retry and hand-off flags, the settle and pending signals, and the focus landing. */
@@ -109,44 +108,52 @@ interface CatchProps {
   readonly onReset: () => void;
   readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
   readonly landing: RefObject<HTMLParagraphElement | null>;
-  readonly resetKeys: readonly unknown[] | undefined;
+  readonly resetKeys: readonly unknown[];
   readonly children: (phase: RetryPhase) => ReactNode;
 }
 
-function keysChanged(previous: readonly unknown[] | undefined, next: readonly unknown[] | undefined): boolean {
-  if (previous === next) {
-    return false;
-  }
-  if (previous === undefined || next === undefined || previous.length !== next.length) {
-    return true;
-  }
-  return previous.some((key, at) => !Object.is(key, next[at]));
+function keysChanged(previous: readonly unknown[], next: readonly unknown[]): boolean {
+  return previous.length !== next.length || previous.some((key, at) => !Object.is(key, next[at]));
 }
 
 class QueryErrorCatch extends Component<CatchProps, CatchState> {
-  override state: CatchState = { error: null, retried: false, recovery: "idle", handoff: false, caught: null };
+  override state: CatchState = { error: null, retried: false, recovery: "idle", handoff: false };
 
-  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "recovery" | "caught"> {
-    return { error, recovery: "idle", caught: null };
+  static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "recovery"> {
+    return { error, recovery: "idle" };
   }
 
-  // A new key is a new read, not a retry: the error clears without the retried focus hand-off. The render that catches records its
-  // keys first, because a render with new keys can be the one that failed. The new key's query holds no error, so no query reset is owed.
-  static getDerivedStateFromProps(props: CatchProps, state: CatchState): Partial<CatchState> | null {
-    if (state.error === null) {
-      return null;
+  // The keys of the last commit with no error standing, and the keys the standing error was caught under.
+  private settledKeys: readonly unknown[] = this.props.resetKeys;
+  private caughtKeys: readonly unknown[] = this.props.resetKeys;
+
+  // A new key is a new read, not a retry. A catch under keys that changed since the last settled commit is a revisited key
+  // re-throwing its cached error with no request (a fresh key suspends and settles first), and a key change under a standing
+  // error leaves it behind. Both reset the query errors first, so the read is made again, then clear the catch without the
+  // retried focus hand-off.
+  override componentDidUpdate(_previous: CatchProps, previousState: CatchState): void {
+    if (this.state.error === null) {
+      this.settledKeys = this.props.resetKeys;
+      return;
     }
-    if (state.caught === null) {
-      return { caught: { keys: props.resetKeys } };
+    const caughtNow = previousState.error === null;
+    if (caughtNow && !keysChanged(this.settledKeys, this.props.resetKeys)) {
+      this.caughtKeys = this.props.resetKeys;
+      return;
     }
-    return keysChanged(state.caught.keys, props.resetKeys) ? { error: null, recovery: "idle", caught: null } : null;
+    if (caughtNow || keysChanged(this.caughtKeys, this.props.resetKeys)) {
+      this.settledKeys = this.props.resetKeys;
+      this.props.onReset();
+      // eslint-disable-next-line react-x/no-set-state-in-component-did-update -- the error arm committed under the new keys; clearing it in the same commit means it never paints.
+      this.setState({ error: null, recovery: "idle" });
+    }
   }
 
   private readonly retry = (): void => {
     // Order matters: clear the QUERY error first (so the remount refetches instead of re-throwing
     // the cached error), then clear the boundary to remount the children.
     this.props.onReset();
-    this.setState({ error: null, retried: true, recovery: "reloading", handoff: false, caught: null });
+    this.setState({ error: null, retried: true, recovery: "reloading", handoff: false });
   };
 
   // One state update carries both, so the landing is focused only after it already says the settled message.
