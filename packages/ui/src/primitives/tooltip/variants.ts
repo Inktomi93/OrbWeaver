@@ -6,7 +6,9 @@ import { OVERLAY_ARROW, OVERLAY_MOTION, tv } from "#lib";
  */
 export const tooltipVariants = tv({
   slots: {
-    positioner: "z-(--z-tooltip)",
+    // `pointer-events-none` inherits to the popup: a tooltip is purely visual (aria-hidden, text only), and
+    // one opened by focus return sits over the neighbouring control and would otherwise swallow its clicks.
+    positioner: "pointer-events-none z-(--z-tooltip)",
     // The AT-REST description (#2455). `sr-only` is `position:absolute`, so this copy is out of flow: it
     // is not a flex/grid item anywhere a `<Tooltip>` is composed and costs its row no gap.
     description: "sr-only",
