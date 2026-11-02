@@ -16,7 +16,6 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectOption } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
@@ -147,20 +146,35 @@ export function CompareResult({
   readonly deep: boolean;
   readonly onDeep: () => void;
 }): ReactElement {
-  const trpc = useTRPC();
-  const diff = useQuery(trpc.discovery.compareCharacters.queryOptions({ idA, idB }));
-  const deepDiff = useQuery(trpc.discovery.compareCharactersDeep.queryOptions({ idA, idB }, { enabled: deep }));
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="that comparison" onRetry={retry} />}
+    >
+      <FacetDiff deep={deep} idA={idA} idB={idB} onDeep={onDeep} />
+    </QueryBoundary>
+  );
+}
 
-  if (diff.isPending) {
-    return <Text>Comparing…</Text>;
-  }
-  if (diff.error !== null) {
-    return <Text>Couldn't compare those two.</Text>;
-  }
-  if (diff.data === null) {
+const RESULT_SKELETON_ROWS = 3;
+
+function FacetDiff({
+  idA,
+  idB,
+  deep,
+  onDeep,
+}: {
+  readonly idA: CharacterId;
+  readonly idB: CharacterId;
+  readonly deep: boolean;
+  readonly onDeep: () => void;
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data: cmp } = useSuspenseQuery(trpc.discovery.compareCharacters.queryOptions({ idA, idB }));
+
+  if (cmp === null) {
     return <Text>One of those characters has no distilled facets yet.</Text>;
   }
-  const cmp = diff.data;
 
   return (
     <Stack gap="section">
@@ -178,7 +192,12 @@ export function CompareResult({
 
       <Section heading="Deep compare">
         {deep ? (
-          <DeepNarrative isPending={deepDiff.isPending} error={deepDiff.error} narrative={deepDiff.data?.narrative ?? null} />
+          <QueryBoundary
+            fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the narrative" onRetry={retry} />}
+          >
+            <DeepNarrativeRead idA={idA} idB={idB} />
+          </QueryBoundary>
         ) : (
           <Button size="sm" data-testid={testId("corpusCompareDeep")} onClick={onDeep}>
             <Icon icon={Sparkles} size="sm" />
@@ -194,21 +213,17 @@ export function CompareResult({
  *  schema twice, so `summary` is its RAW text and overlap/distinction are empty — rendering that as a finished
  *  narrative beside two blank sections is the lie the flag exists to stop. Degraded shows the raw reply
  *  LABELLED, and drops the two empty headings entirely. */
+function DeepNarrativeRead({ idA, idB }: { readonly idA: CharacterId; readonly idB: CharacterId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.discovery.compareCharactersDeep.queryOptions({ idA, idB }));
+  return <DeepNarrative narrative={data?.narrative ?? null} />;
+}
+
 function DeepNarrative({
-  isPending,
-  error,
   narrative,
 }: {
-  readonly isPending: boolean;
-  readonly error: unknown;
   readonly narrative: NonNullable<inferOutput<Trpc["discovery"]["compareCharactersDeep"]>>["narrative"] | null;
 }): ReactElement {
-  if (isPending) {
-    return <Text>Reading both characters…</Text>;
-  }
-  if (error !== null) {
-    return <Text>Couldn't generate the narrative.</Text>;
-  }
   if (narrative === null) {
     return <Text>No narrative available.</Text>;
   }

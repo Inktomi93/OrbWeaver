@@ -34,11 +34,11 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { useTRPC } from "#data";
-import { viewerTimeZone } from "#lib";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
+import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import { selectPresetSection } from "#state";
@@ -108,21 +108,46 @@ function BoundPromptReadout({
   readonly sections: readonly PromptSection[];
   readonly selectedSectionId: string | null;
 }): ReactElement {
-  const trpc = useTRPC();
-  const preview = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId, presetOverride: presetId, timeZone: viewerTimeZone() }));
-  const budget = preview.data?.budget;
-  const costs = budget === undefined ? null : new Map(budget.sections.map((cost) => [cost.sectionId, cost]));
-  return <PromptReadoutBody costs={costs} sections={sections} selectedSectionId={selectedSectionId} status={pendingStatus(costs, preview.isError)} />;
+  // Only the pricing suspends. The author-text estimates need no read, so they stay on screen while it pends and
+  // when it fails; `previewAssembly` is host-gated, so a member inspecting a room they do not host gets a typed
+  // FORBIDDEN, said as the refusal it is. Any other failure keeps the estimates and adds the shared Retry.
+  return (
+    <QueryBoundary
+      fallback={<PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
+      renderError={(error, retry): ReactElement =>
+        trpcErrorCode(error) === "FORBIDDEN" ? (
+          <PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={NOT_HOST_STATUS} />
+        ) : (
+          <Stack gap="section">
+            <QueryErrorState label="the bound chat's costs" onRetry={retry} />
+            <PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
+          </Stack>
+        )
+      }
+    >
+      <PricedPromptReadout chatId={chatId} presetId={presetId} sections={sections} selectedSectionId={selectedSectionId} />
+    </QueryBoundary>
+  );
 }
 
-/** WHY the bound arm is still showing estimates — stated, never silent. The refusal sentence is the Actions
- *  panel's, in this panel's vocabulary: `previewAssembly` is host-gated, so a member inspecting a room they do
- *  not host gets a real, nameable "no", not a spinner that never ends. */
-function pendingStatus(costs: MaterializedCosts | null, isError: boolean): string | null {
-  if (costs !== null) {
-    return null;
-  }
-  return isError ? "This chat cannot be priced — its host resolves the prompt, and you are not it." : "Pricing these rows against the bound chat…";
+const PRICING_STATUS = "Pricing these rows against the bound chat…";
+const NOT_HOST_STATUS = "This chat cannot be priced — its host resolves the prompt, and you are not it.";
+
+function PricedPromptReadout({
+  chatId,
+  presetId,
+  sections,
+  selectedSectionId,
+}: {
+  readonly chatId: ChatId;
+  readonly presetId: PresetId;
+  readonly sections: readonly PromptSection[];
+  readonly selectedSectionId: string | null;
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data: preview } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, presetOverride: presetId, timeZone: viewerTimeZone() }));
+  const costs = new Map(preview.budget.sections.map((cost) => [cost.sectionId, cost]));
+  return <PromptReadoutBody costs={costs} sections={sections} selectedSectionId={selectedSectionId} status={null} />;
 }
 
 /** WHICH budget the bars are showing, said in one line under them. The three arms are the three honest

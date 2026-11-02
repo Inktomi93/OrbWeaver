@@ -154,11 +154,9 @@ function CorpusHomeBody(): ReactElement {
   // the row needed both halves of its own state: what it produced, and whether it has ever run.
   // These are below-fold insights. Keeping them non-suspending lets the masthead, focal map, and
   // readiness rail settle from the four above-fold reads rather than making a 203-row list or routing
-  // table hold the whole CONTENT boundary. `KeywordExplorer` receives this result rather than reading
-  // `topKeywords` again, so one query owns both the rail's state and the below-fold explorer.
+  // table hold the whole CONTENT boundary. The keyword read feeds only the rail's derived state below; the
+  // explorer, never-played and model blocks each read their own entry under their own boundary.
   const keywords = useQuery(trpc.discovery.topKeywords.queryOptions());
-  const unused = useQuery(trpc.discovery.unusedCharacters.queryOptions());
-  const routing = useQuery(trpc.discovery.modelRouting.queryOptions());
 
   const state = deriveCorpusAnalysisState({
     characters: home.coverage.characters,
@@ -297,29 +295,11 @@ function CorpusHomeBody(): ReactElement {
 
       <CorpusThemeSection arcThemes={home.arcThemes} sceneThemes={home.sceneThemes} />
 
-      {keywords.error !== null ? (
-        // `refetch` takes an OPTIONS BAG, and `onRetry` is wired to a Button's onClick — passing the method
-        // by reference handed React's MouseEvent in as `RefetchOptions` (side-eye 2026-08-21). Every retry
-        // on this surface goes through a wrapper for that reason.
-        <QueryErrorState label="your top keywords" onRetry={(): void => void keywords.refetch().catch(globalThis.reportError)} />
-      ) : (
-        <KeywordExplorer pending={keywords.isPending} top={keywords.data} />
-      )}
+      <KeywordExplorer />
       <StoryThemeDrift />
 
-      <CorpusNeverPlayedSection
-        characters={unused.data}
-        failed={unused.error !== null}
-        libraryCharacters={home.coverage.characters}
-        onRetry={(): void => void unused.refetch().catch(globalThis.reportError)}
-        pending={unused.isPending}
-      />
-      <CorpusModelEconomicsSection
-        failed={routing.error !== null}
-        onRetry={(): void => void routing.refetch().catch(globalThis.reportError)}
-        pending={routing.isPending}
-        routes={routing.data}
-      />
+      <CorpusNeverPlayedSection libraryCharacters={home.coverage.characters} />
+      <CorpusModelEconomicsSection />
     </Stack>
   );
 }

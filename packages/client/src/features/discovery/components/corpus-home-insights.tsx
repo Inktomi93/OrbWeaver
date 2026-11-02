@@ -17,8 +17,9 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
 import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
@@ -42,30 +43,30 @@ function money(value: number): string {
   return `$${value.toFixed(MONEY_PRECISION)}`;
 }
 
-/** Never-played characters — a deferred read, so it owns a skeleton, an error, and an absence. */
-export function CorpusNeverPlayedSection({
-  characters,
+/** Never-played characters — a below-fold read under its own boundary, so it owns a skeleton, an error, and an absence
+ *  without holding the overview's boundary. */
+export function CorpusNeverPlayedSection({ libraryCharacters }: { readonly libraryCharacters: number }): ReactElement {
+  return (
+    // A BELOW-FOLD PENDING SECTION KEEPS ITS PLACE: `null`-while-pending lets the settled section pop in under
+    // whatever the reader is looking at.
+    <QueryBoundary
+      fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your never-played characters" onRetry={retry} />}
+    >
+      <NeverPlayedRead libraryCharacters={libraryCharacters} />
+    </QueryBoundary>
+  );
+}
+
+function NeverPlayedRead({
   libraryCharacters,
-  pending,
-  failed,
-  onRetry,
 }: {
-  readonly characters: readonly UnusedCharacter[] | undefined;
   /** The owned-character total this count is OUT OF — the base [P2-4] found missing. */
   readonly libraryCharacters: number;
-  readonly pending: boolean;
-  readonly failed: boolean;
-  readonly onRetry: () => void;
 }): ReactElement | null {
-  if (pending) {
-    // A BELOW-FOLD PENDING SECTION KEEPS ITS PLACE (side-eye 2026-08-21). `null`-while-pending is the
-    // sibling charts' old defect: the settled section pops in under whatever the reader is looking at.
-    return <SkeletonRows count={SKELETON_ROWS} shape="line" />;
-  }
-  if (failed) {
-    return <QueryErrorState label="your never-played characters" onRetry={onRetry} />;
-  }
-  if (characters === undefined || characters.length === 0) {
+  const trpc = useTRPC();
+  const { data: characters } = useSuspenseQuery(trpc.discovery.unusedCharacters.queryOptions());
+  if (characters.length === 0) {
     // The rail says what has not run; a section with nothing renders nothing (the surface's header).
     return null;
   }
@@ -172,24 +173,21 @@ function routeLabel(route: ModelRoute): string {
  * threw away the whole section's content to protect against a column of zeros that no longer exists (the
  * bars are generations; the dollars are a label on the routes that have them).
  */
-export function CorpusModelEconomicsSection({
-  routes,
-  pending,
-  failed,
-  onRetry,
-}: {
-  readonly routes: readonly ModelRoute[] | undefined;
-  readonly pending: boolean;
-  readonly failed: boolean;
-  readonly onRetry: () => void;
-}): ReactElement | null {
-  if (pending) {
-    return <SkeletonRows count={SKELETON_ROWS} shape="line" />;
-  }
-  if (failed) {
-    return <QueryErrorState label="your model usage" onRetry={onRetry} />;
-  }
-  if (routes === undefined || routes.length === 0) {
+export function CorpusModelEconomicsSection(): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your model usage" onRetry={retry} />}
+    >
+      <ModelEconomicsRead />
+    </QueryBoundary>
+  );
+}
+
+function ModelEconomicsRead(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: routes } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
+  if (routes.length === 0) {
     return null;
   }
   // The server orders by genre then generations, which is a BROWSING order and not this chart's rank —

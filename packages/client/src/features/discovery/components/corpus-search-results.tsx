@@ -7,12 +7,11 @@ import { Icon, Search } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEmbedderRebuild } from "#components";
+import { QueryBoundary, useEmbedderRebuild } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY, trpcErrorReason } from "#lib";
 import { openChatMoment, openConfigTo } from "#state";
 import { CORPUS_NO_RESULT_TEXT } from "../lib/corpus-control-names.ts";
@@ -73,34 +72,48 @@ function UnifiedResults({
   readonly rerank: boolean;
   readonly onTextInstead: (() => void) | undefined;
 }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+      renderError={(error, retry): ReactElement =>
+        trpcErrorReason(error) === SEARCH_SPACE_REINDEXING ? (
+          <SearchPaused over={over} onTextInstead={onTextInstead} />
+        ) : (
+          <QueryErrorState label="the search" onRetry={retry} />
+        )
+      }
+    >
+      <UnifiedResultsRead label={label} over={over} query={query} rerank={rerank} retainFinderScroll={retainFinderScroll} />
+    </QueryBoundary>
+  );
+}
+
+function UnifiedResultsRead({
+  query,
+  over,
+  label,
+  retainFinderScroll,
+  rerank,
+}: {
+  readonly query: string;
+  readonly over: UnifiedOver;
+  readonly label: string;
+  readonly retainFinderScroll: boolean;
+  readonly rerank: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
-  const result = useQuery(
-    trpc.search.search.queryOptions(
-      {
-        query: trimmed,
-        topN: CORPUS_SEARCH_TOP_N,
-        over,
-        scope: { kind: "owner" },
-        ...(rerank ? { rerank } : {}),
-        ...(over === "images" ? { lens: CORPUS_IMAGE_LENS } : {}),
-      },
-      { enabled: trimmed !== "" },
-    ),
+  const { data: shown } = useSuspenseQuery(
+    trpc.search.search.queryOptions({
+      query: trimmed,
+      topN: CORPUS_SEARCH_TOP_N,
+      over,
+      scope: { kind: "owner" },
+      ...(rerank ? { rerank } : {}),
+      ...(over === "images" ? { lens: CORPUS_IMAGE_LENS } : {}),
+    }),
   );
 
-  if (result.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
-  if (result.error !== null) {
-    return trpcErrorReason(result.error) === SEARCH_SPACE_REINDEXING ? (
-      <SearchPaused over={over} onTextInstead={onTextInstead} />
-    ) : (
-      <QueryErrorState label="the search" onRetry={result.refetch} />
-    );
-  }
-
-  const shown = result.data;
   const resultCount = shown.hits.length + (shown.over === "discover" ? shown.standaloneSegments.length : 0);
   if (resultCount === 0) {
     return (
@@ -210,21 +223,34 @@ function FieldsResults({
   readonly label: string;
   readonly retainFinderScroll: boolean;
 }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the text search" onRetry={retry} />}
+    >
+      <FieldsResultsRead label={label} query={query} retainFinderScroll={retainFinderScroll} />
+    </QueryBoundary>
+  );
+}
+
+function FieldsResultsRead({
+  query,
+  label,
+  retainFinderScroll,
+}: {
+  readonly query: string;
+  readonly label: string;
+  readonly retainFinderScroll: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
-  const hits = useQuery(trpc.search.fields.queryOptions({ query: trimmed, topN: CORPUS_SEARCH_TOP_N }, { enabled: trimmed !== "" }));
+  const { data: hits } = useSuspenseQuery(trpc.search.fields.queryOptions({ query: trimmed, topN: CORPUS_SEARCH_TOP_N }));
 
-  if (hits.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
-  if (hits.error !== null) {
-    return <QueryErrorState label="the text search" onRetry={hits.refetch} />;
-  }
-  if (hits.data.hits.length === 0) {
+  if (hits.hits.length === 0) {
     return (
       <>
         <Text voice="gloss">
-          Text searched {hits.data.coverage.indexedCharacters} indexed cards. Request limit: {hits.data.coverage.requestLimit}.
+          Text searched {hits.coverage.indexedCharacters} indexed cards. Request limit: {hits.coverage.requestLimit}.
         </Text>
         <NoMatches label={label} query={trimmed} lexical={true} />
       </>
@@ -236,12 +262,12 @@ function FieldsResults({
       {/* The lexical branch is never "nearest only": BM25 is an unbounded per-query score, not a
           similarity, so there is no band to compare it against (the same reason its rows print no percent). */}
       <Text voice="gloss">
-        Text matches card wording with prefix and fuzzy matching. Showing {hits.data.hits.length} of {hits.data.coverage.matchingCharacters} matching cards from{" "}
-        {hits.data.coverage.indexedCharacters} indexed cards; request limit {hits.data.coverage.requestLimit}.
+        Text matches card wording with prefix and fuzzy matching. Showing {hits.hits.length} of {hits.coverage.matchingCharacters} matching cards from{" "}
+        {hits.coverage.indexedCharacters} indexed cards; request limit {hits.coverage.requestLimit}.
       </Text>
-      <ResultsStatus count={hits.data.hits.length} label={label} nearestOnly={false} />
+      <ResultsStatus count={hits.hits.length} label={label} nearestOnly={false} />
       <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
-        {hits.data.hits.map((hit, index) => (
+        {hits.hits.map((hit, index) => (
           <Stack key={hit.characterId} role="listitem">
             <CharacterHitRow characterId={hit.characterId} name={hit.name} avatarHash={hit.avatarHash} genre={null} tone={null} pitch={null} rank={index + 1} />
           </Stack>

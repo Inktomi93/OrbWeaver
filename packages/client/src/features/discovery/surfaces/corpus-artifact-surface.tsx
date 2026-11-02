@@ -5,7 +5,6 @@ import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
@@ -154,11 +153,6 @@ function CorpusThemeBody({ destination }: { readonly destination: Extract<Corpus
 }
 
 function CorpusClusterSurface({ destination }: { readonly destination: Extract<CorpusDestination, { kind: "cluster" }> }): ReactElement {
-  const trpc = useTRPC();
-  const opts = destination.k === null ? {} : { k: destination.k };
-  const writing = useQuery(trpc.discovery.archetypes.queryOptions(opts, { enabled: !destination.visual }));
-  const visual = useQuery(trpc.discovery.visualArchetypes.queryOptions(opts, { enabled: destination.visual }));
-  const read = destination.visual ? visual : writing;
   const analysis = "analysedMembers" in destination.cluster ? corpusFamilyAnalysisLabel(destination.cluster) : null;
   return (
     <CorpusArtifactFrame title={destination.title}>
@@ -167,22 +161,10 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
       <Text>
         {destination.cluster.size} {destination.cluster.size === 1 ? "member" : "members"} · {destination.cluster.model}
       </Text>
-      {read.isSuccess &&
-      !read.data.some(
-        (cluster) =>
-          cluster.passId === destination.cluster.passId &&
-          cluster.members
-            .map((member) => member.characterId)
-            .toSorted()
-            .join("|") ===
-            destination.cluster.members
-              .map((member) => member.characterId)
-              .toSorted()
-              .join("|"),
-      ) ? (
-        <Text role="status">This grouping changed after recompute. Showing the selected membership snapshot.</Text>
-      ) : null}
-      {read.isError ? <QueryErrorState label="the current grouping" onRetry={read.refetch} /> : null}
+      {/* The snapshot below needs no read; only the check that it is still current does, so it sits in its own boundary. */}
+      <QueryBoundary fallback={null} renderError={(_error, retry): ReactElement => <QueryErrorState label="the current grouping" onRetry={retry} />}>
+        {destination.visual ? <VisualGroupingCheck destination={destination} /> : <WritingGroupingCheck destination={destination} />}
+      </QueryBoundary>
       <Stack gap="row" role="list">
         {destination.cluster.members.map((member) => (
           <Stack key={member.characterId} role="listitem">
@@ -192,6 +174,43 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
       </Stack>
     </CorpusArtifactFrame>
   );
+}
+
+type ClusterDestination = Extract<CorpusDestination, { kind: "cluster" }>;
+
+function WritingGroupingCheck({ destination }: { readonly destination: ClusterDestination }): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: current } = useSuspenseQuery(trpc.discovery.archetypes.queryOptions(destination.k === null ? {} : { k: destination.k }));
+  return <GroupingChangedNote current={current} destination={destination} />;
+}
+
+function VisualGroupingCheck({ destination }: { readonly destination: ClusterDestination }): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: current } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions(destination.k === null ? {} : { k: destination.k }));
+  return <GroupingChangedNote current={current} destination={destination} />;
+}
+
+interface GroupingSnapshot {
+  readonly passId: string;
+  readonly members: readonly { readonly characterId: string }[];
+}
+
+function GroupingChangedNote({
+  current,
+  destination,
+}: {
+  readonly current: readonly GroupingSnapshot[];
+  readonly destination: ClusterDestination;
+}): ReactElement | null {
+  const membership = (members: readonly { readonly characterId: string }[]): string =>
+    members
+      .map((member) => member.characterId)
+      .toSorted()
+      .join("|");
+  const unchanged = current.some(
+    (cluster) => cluster.passId === destination.cluster.passId && membership(cluster.members) === membership(destination.cluster.members),
+  );
+  return unchanged ? null : <Text role="status">This grouping changed after recompute. Showing the selected membership snapshot.</Text>;
 }
 
 function CorpusPairSurface({ destination }: { readonly destination: Extract<CorpusDestination, { kind: "pair" }> }): ReactElement {
