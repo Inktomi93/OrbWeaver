@@ -25,4 +25,3 @@ The observable bar a verifier can check.
 
 Filled at landing: what ran and where its output is.
 
-- `KEEP_BESIDE` in `tooling/src/eslint/ui-feature-policy.ts` has the same literal-only gap; fix it in this pass.
