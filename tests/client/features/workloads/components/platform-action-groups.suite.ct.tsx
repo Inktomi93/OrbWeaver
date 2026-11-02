@@ -178,7 +178,9 @@ for (const regime of REGIMES) {
       await picker.click();
       const reviewResponsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === PORTABILITY_ROUTES.importTreeReview);
       await (await chooserPromise).setFiles(folder);
-      await expect(picker).toBeFocused();
+      // The pick moves focus onto the preflight once the async plan stages it, so the picker only holds focus until then.
+      const preflight = page.getByRole("group", { name: "Import 2 files from the folder you picked?", exact: true });
+      await expect(preflight).toBeFocused();
       const reviewResponse = await reviewResponsePromise;
       expect(reviewResponse.status()).toBe(200);
       const reviewed = personaCollisionReviewSchema.parse(await reviewResponse.json());
@@ -201,7 +203,6 @@ for (const regime of REGIMES) {
       for (const radio of await review.getByRole("radio", { name: /^Merge into your existing persona/u }).all()) {
         await expect(radio).toBeChecked();
       }
-      const preflight = page.getByRole("group", { name: "Import 2 files from the folder you picked?", exact: true });
       await preflight.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect(preflight).toHaveCount(0);
       await expect(picker).toBeFocused();
