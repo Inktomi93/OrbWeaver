@@ -126,27 +126,36 @@ class QueryErrorCatch extends Component<CatchProps, CatchState> {
   // The keys of the last commit with no error standing, and the keys the standing error was caught under.
   private settledKeys: readonly unknown[] = this.props.resetKeys;
   private caughtKeys: readonly unknown[] = this.props.resetKeys;
+  // Every error this boundary has caught. A query keeps its error object in the cache, so a revisited key re-throws one of these.
+  private readonly seenErrors = new WeakSet<object>();
 
-  // A new key is a new read, not a retry. A catch under keys that changed since the last settled commit is a revisited key
-  // re-throwing its cached error with no request (a fresh key suspends and settles first), and a key change under a standing
-  // error leaves it behind. Both reset the query errors first, so the read is made again, then clear the catch without the
-  // retried focus hand-off.
+  // A new key is a new read, not a retry. Two catches reset: a key change under a standing error, and a revisited key
+  // re-throwing an error this boundary already caught, with no request. A fresh key that fails throws a new error, even when
+  // its render was deferred and its keys never committed, so it stands. Each reset records the keys first, so a key change
+  // gets at most one: a child that throws again under the same keys stands as the error arm.
   override componentDidUpdate(_previous: CatchProps, previousState: CatchState): void {
-    if (this.state.error === null) {
+    const { error } = this.state;
+    if (error === null) {
       this.settledKeys = this.props.resetKeys;
       return;
     }
-    const caughtNow = previousState.error === null;
-    if (caughtNow && !keysChanged(this.settledKeys, this.props.resetKeys)) {
-      this.caughtKeys = this.props.resetKeys;
+    if (previousState.error === null) {
+      const revisit = typeof error === "object" && this.seenErrors.has(error) && keysChanged(this.settledKeys, this.props.resetKeys);
+      if (typeof error === "object") {
+        this.seenErrors.add(error);
+      }
+      if (!revisit) {
+        this.caughtKeys = this.props.resetKeys;
+        return;
+      }
+    } else if (!keysChanged(this.caughtKeys, this.props.resetKeys)) {
       return;
     }
-    if (caughtNow || keysChanged(this.caughtKeys, this.props.resetKeys)) {
-      this.settledKeys = this.props.resetKeys;
-      this.props.onReset();
-      // eslint-disable-next-line react-x/no-set-state-in-component-did-update -- the error arm committed under the new keys; clearing it in the same commit means it never paints.
-      this.setState({ error: null, recovery: "idle" });
-    }
+    this.caughtKeys = this.props.resetKeys;
+    this.settledKeys = this.props.resetKeys;
+    this.props.onReset();
+    // eslint-disable-next-line react-x/no-set-state-in-component-did-update -- the error arm committed under the new keys; clearing it in the same commit means it never paints.
+    this.setState({ error: null, recovery: "idle" });
   }
 
   private readonly retry = (): void => {

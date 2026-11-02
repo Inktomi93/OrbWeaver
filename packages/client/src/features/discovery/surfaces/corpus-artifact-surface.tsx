@@ -164,7 +164,7 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
       </Text>
       {/* The snapshot below needs no read; only the check that it is still current does, so it sits in its own boundary. */}
       <QueryBoundary
-        resetKeys={[destination.k]}
+        resetKeys={[destination.visual, destination.k]}
         fallback={null}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the current grouping" onRetry={retry} />}
       >

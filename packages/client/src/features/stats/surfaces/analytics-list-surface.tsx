@@ -89,29 +89,29 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
   // windowed rows the moment `VirtualList` mounts them.
   const rowsRef = useRef<HTMLDivElement>(null);
   useLeaderboardRoving(rowsRef);
+  // A search keystroke re-keys the page. The deferred key keeps the prior rows on screen while the next page
+  // loads, so only the first load shows the boundary's skeleton; the boundary keys on the same deferred values.
+  const trimmed = useDeferredValue(search.trim());
+  const deferredSort = useDeferredValue(sort);
   // The bounded height is this wrapper's — `VirtualList` throws at mount on an unbounded scroll element — and
   // it is also the roving container (the Arrow-key contract over the windowed row bodies).
   return (
     <Stack ref={rowsRef} className="flex-1 min-block-0">
       <QueryBoundary
-        resetKeys={[sort, search]}
+        resetKeys={[deferredSort, trimmed]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
       >
-        <LeaderboardPageRows sort={sort} search={search} />
+        <LeaderboardPageRows sort={deferredSort} trimmed={trimmed} />
       </QueryBoundary>
     </Stack>
   );
 }
 
-function LeaderboardPageRows({ sort, search }: { readonly sort: SortId; readonly search: string }): ReactElement {
+function LeaderboardPageRows({ sort, trimmed }: { readonly sort: SortId; readonly trimmed: string }): ReactElement {
   const trpc = useTRPC();
   const selectedId = useSelectedAnalyticsCharacterId();
-  // A search keystroke re-keys the page. The deferred key keeps the prior rows on screen while the next page
-  // loads, so only the first load shows the boundary's skeleton.
-  const trimmed = useDeferredValue(search.trim());
-  const deferredSort = useDeferredValue(sort);
-  const { data: page } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort: deferredSort, ...(trimmed === "" ? {} : { search: trimmed }) }));
+  const { data: page } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort, ...(trimmed === "" ? {} : { search: trimmed }) }));
   return <LeaderboardBody page={page} selectedId={selectedId} trimmed={trimmed} />;
 }
 
