@@ -40,6 +40,7 @@ const WIDE_SHORT_VIEWPORTS = [
   { width: 844, height: 390 },
   { width: 1024, height: 420 },
 ] as const;
+const STACKED_SHORT_VIEWPORT = { width: 568, height: 320 } as const;
 const ENLARGED_LANDSCAPE_CELLS = [
   { width: 844, height: 390, factor: 2 },
   { width: 844, height: 390, factor: 3 },
@@ -297,6 +298,21 @@ test.describe("on the corpus owner's own settings", () => {
           await expect.poll(() => door.evaluate(takesPressAtCentre)).toBe(true);
         }
       });
+    });
+  });
+
+  // The smallest landscape phone: a dialog under the short step and narrow enough to stack, with touch-sized controls.
+  test.describe(`at ${String(STACKED_SHORT_VIEWPORT.width)}x${String(STACKED_SHORT_VIEWPORT.height)}`, () => {
+    test.use({ viewport: STACKED_SHORT_VIEWPORT, hasTouch: true, isMobile: true });
+
+    test("New chat opens on its list's first row, whole and clear of the pinned Start, with nothing scrolled", async ({ mount, page }) => {
+      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      const row = dialog.getByRole("option").first();
+      await expect(row).toBeVisible();
+      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
+      await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
     });
   });
 

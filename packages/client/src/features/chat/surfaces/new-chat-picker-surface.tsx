@@ -42,8 +42,8 @@
 // of the list (primitives.css has the steps). There the list drops its heading and inset, so its one-row floor is a whole
 // row; it stays a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains to the body.
 // A wide short dialog keeps Blank chat and Start in the pinned row and the saved-roster door in its own row above the
-// list, all on screen at open. A narrow one (`dialog-stacked`) keeps Start pinned and flows Blank chat and the roster door
-// after it. `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup
+// list, all on screen at open. A narrow one (`dialog-stacked`) keeps Start pinned, drops the row's inset so a touch-sized
+// Start clears the first row, and flows Blank chat and the roster door after it. `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup
 // scrolls as one sheet.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
@@ -224,7 +224,7 @@ export function NewChatPicker(): ReactElement {
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row
         align="center"
-        className="sticky inset-be-0 flex-wrap dialog-short:py-tight dialog-tiny:static"
+        className="sticky inset-be-0 flex-wrap dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static"
         data-slot="new-chat-actions"
         divider="top"
         gap="field"
