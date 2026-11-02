@@ -392,10 +392,13 @@ export const authMeSchema = z.strictObject({
 });
 export type AuthMe = z.infer<typeof authMeSchema>;
 
-/** Optional HTTP error-body content; malformed bodies still receive the caller's status fallback. */
-export const authErrorResponseSchema = z.object({ error: z.string().optional() });
+/** The host allowlist's 421 body for an `/api/*` request: the refusal sentence and the host it refused. */
+const misdirectedHostResponseSchema = z.strictObject({ error: z.string(), host: z.string() });
+export type MisdirectedHostResponse = z.infer<typeof misdirectedHostResponseSchema>;
+/** Optional HTTP error-body content, or the host allowlist's refusal; malformed bodies still receive the caller's status fallback. */
+export const authErrorResponseSchema = z.union([z.strictObject({ error: z.string().optional() }), misdirectedHostResponseSchema]);
 /** The upstream sign-out destination, or no destination for local sign-out. */
-export const authLogoutResultSchema = z.object({ endSessionUrl: z.string().nullable() });
+export const authLogoutResultSchema = z.strictObject({ endSessionUrl: z.string().nullable() });
 export type AuthLogoutResult = z.infer<typeof authLogoutResultSchema>;
 
 // The `can()` privilege-decision seam. Cross-boundary: admin's `can()` impl ARBITRATES, chat CALLS IN with

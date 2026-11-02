@@ -10,8 +10,8 @@
 // — only the base surface COLOR (`background`) stays a token (it feeds the neutral ramp).
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
 // carry into a room, and which stay the viewer's.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { isDeterministicColor, isRenderableColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
@@ -53,31 +53,33 @@ const deterministicColorToken = z
   .catch(undefined);
 // A bubble bg is a FILL with a foreground derived from it; .fg is retained for wire/serde compatibility
 // but the renderer ignores it. Only the derivation input needs the narrower deterministic contract.
-const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);
+const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).strip().optional().catch(undefined);
 
 /** The curated token-override subset. Every field optional; per-field failures degrade to undefined.
  *  `background` is the base surface color the neutral ramp derives from — the only background field
  *  here (the decorative photo trio moved to the `appearance` namespace). */
-export const themeOverrideSchema = z.object({
-  // Derived fills must denote one authored pixel before the UI computes a foreground/ramp/contrast.
-  // Contextual/system/CSS-wide colors remain legal below for inherited prose ink and direct borders.
-  accent: deterministicColorToken,
-  userBubble: bubble,
-  aiBubble: bubble,
-  systemBubble: bubble,
-  /** The speaker-name color. */
-  speaker: colorToken,
-  dialogueColor: colorToken,
-  narrationColor: colorToken,
-  bodyColor: colorToken,
-  font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
-  radius: z.enum(THEME_RADII).optional().catch(undefined),
-  background: deterministicColorToken,
-  /** An explicit UI border color (ST parity). When set it WINS; when unset, `--color-border` derives
-   *  from the base `background` surface (the ThemeScope clamp does the derivation). */
-  borderColor: colorToken,
-  density: z.enum(THEME_DENSITIES).optional().catch(undefined),
-});
+export const themeOverrideSchema = z
+  .object({
+    // Derived fills must denote one authored pixel before the UI computes a foreground/ramp/contrast.
+    // Contextual/system/CSS-wide colors remain legal below for inherited prose ink and direct borders.
+    accent: deterministicColorToken,
+    userBubble: bubble,
+    aiBubble: bubble,
+    systemBubble: bubble,
+    /** The speaker-name color. */
+    speaker: colorToken,
+    dialogueColor: colorToken,
+    narrationColor: colorToken,
+    bodyColor: colorToken,
+    font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
+    radius: z.enum(THEME_RADII).optional().catch(undefined),
+    background: deterministicColorToken,
+    /** An explicit UI border color (ST parity). When set it WINS; when unset, `--color-border` derives
+     *  from the base `background` surface (the ThemeScope clamp does the derivation). */
+    borderColor: colorToken,
+    density: z.enum(THEME_DENSITIES).optional().catch(undefined),
+  })
+  .strip();
 export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 
 // ── The CARD-EMBEDDABLE partition (TD §3) ────────────────────────────────────────────────────────────

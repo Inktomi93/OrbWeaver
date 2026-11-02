@@ -22,6 +22,7 @@
 // fingerprint — and a stale trio DEGRADES to whole-message rather than mis-attaching (MA-2 §2; the one
 // rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
+// Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -106,11 +107,13 @@ export const REACTION_SEGMENT_SNIPPET_MAX = 120;
 export const REACTION_SPEAKER_NAME_MAX = 200;
 
 /** Parsed model-facing reaction arguments carry names, never row ids. */
-export const reactToolArgsSchema = z.object({
-  character: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX),
-  emoji: reactionEmojiSchema,
-  toSpeaker: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX).optional(),
-});
+export const reactToolArgsSchema = z
+  .object({
+    character: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX),
+    emoji: reactionEmojiSchema,
+    toSpeaker: z.string().min(1).max(REACTION_SPEAKER_NAME_MAX).optional(),
+  })
+  .strip();
 export type ReactToolArgs = z.infer<typeof reactToolArgsSchema>;
 
 /** Character reactions answer legality as data; repeats retain their original attribution. */

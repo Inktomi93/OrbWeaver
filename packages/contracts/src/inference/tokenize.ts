@@ -10,14 +10,14 @@ export const TOKENIZE_WORDS_MAX = 64;
 export const TOKENIZE_WORD_CHARS_MAX = 64;
 
 const wordTokensSchema = z.discriminatedUnion("ok", [
-  z.object({ ok: z.literal(true), word: z.string(), ids: z.array(z.int().nonnegative()), pieces: z.array(z.string()).optional() }),
-  z.object({ ok: z.literal(false), word: z.string(), reason: z.string() }),
+  z.strictObject({ ok: z.literal(true), word: z.string(), ids: z.array(z.int().nonnegative()), pieces: z.array(z.string()).optional() }),
+  z.strictObject({ ok: z.literal(false), word: z.string(), reason: z.string() }),
 ]);
 export type WordTokens = z.infer<typeof wordTokensSchema>;
 
 /** One editor read: whether the connection's server has a tokenize endpoint at all (the editor offers word
  *  entries only where it does), and each asked word's tokens. An empty word list asks only the first. */
-export const tokenizeResultSchema = z.object({ available: z.boolean(), words: z.array(wordTokensSchema) });
+export const tokenizeResultSchema = z.strictObject({ available: z.boolean(), words: z.array(wordTokensSchema) });
 export type TokenizeResult = z.infer<typeof tokenizeResultSchema>;
 
 /** A logit-bias key that names a token id rather than a word. */

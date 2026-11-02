@@ -5,8 +5,8 @@
 // `no-circular` cycle (`#prose` → `#preset` → `#prose`). Consumers import `@orb/contracts/prose`, which
 // re-exports everything here — only the domain slot TABLES import this module directly.
 //
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
@@ -297,10 +297,12 @@ export function proseOverBy(text: string): number {
 
 // A stored host override. `baseVersion` = the slot `version` this edit was authored against; it is the
 //  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins.
-const proseOverrideSchema = z.object({
-  text: z.string().max(PROSE_MAX_CHARS),
-  baseVersion: z.int().positive(),
-});
+const proseOverrideSchema = z
+  .object({
+    text: z.string().max(PROSE_MAX_CHARS),
+    baseVersion: z.int().positive(),
+  })
+  .strip();
 export type ProseOverride = z.infer<typeof proseOverrideSchema>;
 
 /** The ONE override record shape all three storages produce, so `resolveProse` is home-agnostic and the

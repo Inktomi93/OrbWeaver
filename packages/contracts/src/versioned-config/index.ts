@@ -49,6 +49,7 @@
 //     documented whole-group self-heal — they are re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
@@ -132,7 +133,7 @@ export interface VersionedConfig<T> {
   parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
 }
 
-const versionProbeSchema = z.object({ schemaVersion: z.int().optional() });
+const versionProbeSchema = z.object({ schemaVersion: z.int().optional() }).strip();
 
 /**
  * The version the walk STARTS from: the externally-recorded version (a storage column) beats the in-blob

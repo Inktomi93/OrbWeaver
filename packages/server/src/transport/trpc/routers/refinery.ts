@@ -67,9 +67,7 @@ export const refineryRouter = t.router({
     .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
     .query(({ ctx, input }) => ctx.services.refinery.getSession({ principal: ctx.auth, sessionId: input.sessionId })),
 
-  listSessions: authedProcedure
-    .output(z.array(refinerySessionSummarySchema.strict()))
-    .query(({ ctx }) => ctx.services.refinery.listSessions({ principal: ctx.auth })),
+  listSessions: authedProcedure.output(z.array(refinerySessionSummarySchema)).query(({ ctx }) => ctx.services.refinery.listSessions({ principal: ctx.auth })),
 
   listRuns: authedProcedure
     .output(z.array(refineryRunViewSchema))
@@ -182,19 +180,17 @@ export const refineryRouter = t.router({
     .query(({ ctx, input }) => ctx.services.refinery.preflight({ principal: ctx.auth, sessionId: input.sessionId })),
 
   // ── the custom-schema library (R3/SF) ────────────────────────────────────────────────────────────────
-  listSchemas: authedProcedure
-    .output(z.array(refinerySchemaSummarySchema.strict()))
-    .query(({ ctx }) => ctx.services.refinery.listSchemas({ principal: ctx.auth })),
+  listSchemas: authedProcedure.output(z.array(refinerySchemaSummarySchema)).query(({ ctx }) => ctx.services.refinery.listSchemas({ principal: ctx.auth })),
 
   createSchema: authedProcedure
-    .output(refinerySchemaSummarySchema.strict())
+    .output(refinerySchemaSummarySchema)
     .input(z.strictObject({ name: z.string(), description: z.string(), stage: refinerySchemaStageSchema, schema: rawSchemaSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.createSchema({ principal: ctx.auth, name: input.name, description: input.description, stage: input.stage, schema: input.schema }),
     ),
 
   updateSchema: authedProcedure
-    .output(refinerySchemaSummarySchema.strict())
+    .output(refinerySchemaSummarySchema)
     .input(
       z.strictObject({
         schemaId: typeIdSchema(ID_PREFIX.refinerySchema),

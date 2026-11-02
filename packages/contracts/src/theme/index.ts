@@ -48,7 +48,7 @@ export const THEME_CSS_MAX = 65_536; // custom CSS is a text field, not a blob s
 //  `packages/server/src/domain/settings/constants.ts`, and identifying the row by its DISPLAY NAME instead
 //  is the #1667 defect this field exists to make impossible (one rename and the picker marks no card, or
 //  the wrong one).
-const themeSchema = z.object({
+const themeSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.theme),
   name: z.string().trim().min(1).max(THEME_NAME_MAX),
   override: themeOverrideSchema,

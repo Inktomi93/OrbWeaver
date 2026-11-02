@@ -10,6 +10,7 @@
 // the curated AND measured tiers) is the ONLY place it is compiled, beside `families.ts` — a prose fence today (no
 // gate on the tree spells it).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { chatApiSchema } from "../apis.ts";
 import { evidenceTierSchema } from "../evidence.ts";
@@ -33,14 +34,17 @@ const capabilityMatchSchema = z
      *  route take different request fields (D310). */
     nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   })
+  .strip()
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { error: "a match names `model` (a regex) or `ids`, not both" });
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
-const capabilityEvidenceSchema = z.object({
-  tier: evidenceTierSchema,
-  dated: z.string().min(1),
-  cite: z.string().min(1),
-});
+const capabilityEvidenceSchema = z
+  .object({
+    tier: evidenceTierSchema,
+    dated: z.string().min(1),
+    cite: z.string().min(1),
+  })
+  .strip();
 
 const deepPartialGeneration = generationCapabilitySchema.partial().extend({
   reasoning: generationCapabilitySchema.shape.reasoning.partial().optional(),
@@ -54,21 +58,25 @@ const deepPartialGeneration = generationCapabilitySchema.partial().extend({
 });
 
 /** How a built-in catalog presents the model in the picker: a readable name and one line on when to pick it. */
-const catalogPresentationSchema = z.object({
-  name: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
-});
+const catalogPresentationSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    description: z.string().min(1).optional(),
+  })
+  .strip();
 
-export const capabilityOverrideSchema = z.object({
-  match: capabilityMatchSchema.optional(),
-  catalog: catalogPresentationSchema.optional(),
-  kind: modelKindSchema.optional(),
-  generation: deepPartialGeneration.optional(),
-  embedding: embeddingCapabilitySchema.partial().optional(),
-  rerank: rerankCapabilitySchema.partial().optional(),
-  features: endpointFeaturesSchema.optional(),
-  evidence: capabilityEvidenceSchema.optional(),
-});
+export const capabilityOverrideSchema = z
+  .object({
+    match: capabilityMatchSchema.optional(),
+    catalog: catalogPresentationSchema.optional(),
+    kind: modelKindSchema.optional(),
+    generation: deepPartialGeneration.optional(),
+    embedding: embeddingCapabilitySchema.partial().optional(),
+    rerank: rerankCapabilitySchema.partial().optional(),
+    features: endpointFeaturesSchema.optional(),
+    evidence: capabilityEvidenceSchema.optional(),
+  })
+  .strip();
 export type CapabilityOverride = z.infer<typeof capabilityOverrideSchema>;
 /** The AUTHORING shape (`z.input`) — what a curated row module `satisfies`, so a typo is a `tsc` error before
  *  the zod parse ever runs. */

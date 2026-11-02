@@ -1566,6 +1566,10 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/trpc-output-declared-keys": "error" },
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error" } },
+    {
+      files: ["packages/contracts/src/**/*.{ts,tsx}", "packages/server/src/transport/**/*.{ts,tsx}"],
+      rules: { "orb/wire-object-declares-mode": "error" },
+    },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },

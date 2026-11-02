@@ -4,8 +4,8 @@
 // join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and the phase-independent
 // carried appearance (the true-solo composition both takeovers gate on). The
 // LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MS_PER_DAY } from "@orb/kit/time";
@@ -518,21 +518,23 @@ export interface MemberCardView {
  *  Message VARIANTS are deliberately absent from this shape: they are `messages`/`message_variants` rows
  *  keyed to THIS chat, so they transfer with the room by construction — there is nothing to copy and nothing
  *  to opt into. */
-export const handoffOfferSchema = z.object({
-  /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
-   *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
-   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
-   *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (#1739 — the executable
-   *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
-   *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
-   *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
-   *  which gates on the ROOM. */
-  copyCharacters: z.boolean(),
-  /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
-   *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
-   *  nominee cannot read is NULLED rather than left lying about the room's voice. */
-  copyGmPreset: z.boolean(),
-});
+export const handoffOfferSchema = z
+  .object({
+    /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
+     *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
+     *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
+     *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (#1739 — the executable
+     *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
+     *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
+     *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
+     *  which gates on the ROOM. */
+    copyCharacters: z.boolean(),
+    /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
+     *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
+     *  nominee cannot read is NULLED rather than left lying about the room's voice. */
+    copyGmPreset: z.boolean(),
+  })
+  .strip();
 /** Type twin of {@link handoffOfferSchema} — the `chats.pending_handoff_offer` column's `$type<>`,
  *  the `nominateHostHandoff` wire field, and the accept-side copy plan's input. */
 export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
@@ -560,17 +562,19 @@ export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPre
  *
  *  ZEROS ARE SENT, NOT OMITTED: "this gives you nothing" is a fact the nominee needs, and an absent field
  *  would make the confirm's silence ambiguous between "nothing" and "unknown". */
-export const handoffOfferContentsSchema = z.object({
-  /** Seated characters that would be copied — the old host's cards the nominee does not already own. */
-  characters: z.int().min(0),
-  /** Distinct world books that would be copied: the copied cards' attached lore plus the room's own books. */
-  worldBooks: z.int().min(0),
-  /** Chat-tier regex scripts that would be copied — EXECUTABLE find/replace over this room's text. */
-  regexScripts: z.int().min(0),
-  /** Would the game's GM voice preset be copied? False for a non-game room, an unset knob, an un-offered
-   *  preset, or one the nominee can already read (that knob is left alone rather than duplicated). */
-  gmPreset: z.boolean(),
-});
+export const handoffOfferContentsSchema = z
+  .object({
+    /** Seated characters that would be copied — the old host's cards the nominee does not already own. */
+    characters: z.int().min(0),
+    /** Distinct world books that would be copied: the copied cards' attached lore plus the room's own books. */
+    worldBooks: z.int().min(0),
+    /** Chat-tier regex scripts that would be copied — EXECUTABLE find/replace over this room's text. */
+    regexScripts: z.int().min(0),
+    /** Would the game's GM voice preset be copied? False for a non-game room, an unset knob, an un-offered
+     *  preset, or one the nominee can already read (that knob is left alone rather than duplicated). */
+    gmPreset: z.boolean(),
+  })
+  .strip();
 /** Type twin of {@link handoffOfferContentsSchema} — the `handoff-nominated` notification payload's
  *  `offer` field and the client confirm's read model. */
 export type HandoffOfferContents = z.infer<typeof handoffOfferContentsSchema>;

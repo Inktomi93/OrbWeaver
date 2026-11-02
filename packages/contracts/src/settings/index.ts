@@ -1,5 +1,4 @@
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
-
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -105,20 +104,22 @@ export function clampMemoryDefault(key: MemoryDefaultsBoundKey, raw: number): nu
   return b.max === null ? floored : Math.min(b.max, floored);
 }
 
-const memoryDefaultsSchema = z.object({
-  blockSize: memoryKnob("blockSize", "Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
-  verbatimWindow: memoryKnob("verbatimWindow", "Recent messages never digested — the protect zone / seam buffer (default 8)."),
-  queryWindow: memoryKnob("queryWindow", "Recent messages used as the retrieval query for mixB/mixC (default 2)."),
-  mode: memoryRetrievalModeSchema
-    .optional()
-    .describe("off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC."),
-  fanOut: memoryKnob("fanOut", "Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
-  maxTier: memoryKnob("maxTier", "Max consolidation depth; 0 = tier-0 only (default 3)."),
-  retrieveK: memoryKnob("retrieveK", "Vector candidate pool size for mixB/mixC (default 8)."),
-  rerankTo: memoryKnob("rerankTo", "Digests kept after cross-encoder rerank in mixC (default 3)."),
-  minScore: memoryKnob("minScore", "Minimum cosine similarity for a retrieved digest (default 0.25)."),
-  keywordMatch: z.boolean().optional().describe("Also match digest keywords whole-word against recent messages (default true)."),
-});
+const memoryDefaultsSchema = z
+  .object({
+    blockSize: memoryKnob("blockSize", "Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
+    verbatimWindow: memoryKnob("verbatimWindow", "Recent messages never digested — the protect zone / seam buffer (default 8)."),
+    queryWindow: memoryKnob("queryWindow", "Recent messages used as the retrieval query for mixB/mixC (default 2)."),
+    mode: memoryRetrievalModeSchema
+      .optional()
+      .describe("off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC."),
+    fanOut: memoryKnob("fanOut", "Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
+    maxTier: memoryKnob("maxTier", "Max consolidation depth; 0 = tier-0 only (default 3)."),
+    retrieveK: memoryKnob("retrieveK", "Vector candidate pool size for mixB/mixC (default 8)."),
+    rerankTo: memoryKnob("rerankTo", "Digests kept after cross-encoder rerank in mixC (default 3)."),
+    minScore: memoryKnob("minScore", "Minimum cosine similarity for a retrieved digest (default 0.25)."),
+    keywordMatch: z.boolean().optional().describe("Also match digest keywords whole-word against recent messages (default true)."),
+  })
+  .strip();
 export type MemoryDefaults = z.infer<typeof memoryDefaultsSchema>;
 
 // Every knob present + non-nullable — the resolved floor shape (the server `ResolvedMemoryConfig` mirror,
@@ -151,13 +152,15 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
 export const RATE_LIMIT_CAP_MIN = 5;
 const RATE_LIMIT_CAP_MAX = 100_000;
 const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
-const rateLimitsSchema = z.object({
-  aiTurn: rateLimitCap(),
-  publicIp: rateLimitCap(),
-  authed: rateLimitCap(),
-  // Per-IP login-attempt cap/min (backs the auth-route throttle — brute-force + scrypt-CPU-flood guard).
-  login: rateLimitCap(),
-});
+const rateLimitsSchema = z
+  .object({
+    aiTurn: rateLimitCap(),
+    publicIp: rateLimitCap(),
+    authed: rateLimitCap(),
+    // Per-IP login-attempt cap/min (backs the auth-route throttle — brute-force + scrypt-CPU-flood guard).
+    login: rateLimitCap(),
+  })
+  .strip();
 export type RateLimits = z.infer<typeof rateLimitsSchema>;
 
 /** Clamp a raw rate-limit cap to the schema bounds (integer, MIN..MAX), `null` for non-finite. The admin
@@ -271,7 +274,7 @@ const appSettingsShape = {
   promptCacheMinDepth: z.int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
 };
 
-export const appSettingsSchema = z.object(appSettingsShape);
+export const appSettingsSchema = z.object(appSettingsShape).strip();
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
@@ -410,6 +413,7 @@ const themeSettingsSchema = z
     // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer; stale or deleted themes degrade to the default palette at resolution.
     selectedThemeId: z.string().nullable().catch(null).default(null),
   })
+  .strip()
   .prefault({});
 
 const seedsSchema = z
@@ -424,6 +428,7 @@ const seedsSchema = z
     defaultPresetId: z.string().nullable().catch(null).default(null),
     summarizePreset: rolePresetChoiceSchema.nullable().catch(null).default(null),
   })
+  .strip()
   .prefault({});
 
 const worldInfoSchema = z
@@ -431,12 +436,14 @@ const worldInfoSchema = z
     scanDepth: z.int().min(SCAN_DEPTH_MIN).max(SCAN_DEPTH_MAX).catch(SCAN_DEPTH_DEFAULT).default(SCAN_DEPTH_DEFAULT),
     tokenBudget: z.int().min(WI_TOKEN_BUDGET_MIN).max(WI_TOKEN_BUDGET_MAX).catch(WI_TOKEN_BUDGET_DEFAULT).default(WI_TOKEN_BUDGET_DEFAULT),
   })
+  .strip()
   .prefault({});
 
 const memorySchema = z
   .object({
     enabled: z.boolean().catch(false).default(false),
   })
+  .strip()
   .prefault({});
 
 // The per-user databank tuning — the chunk params ingest uses (chunkText) + the
@@ -459,6 +466,7 @@ const databankSchema = z
       .catch(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT)
       .default(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT),
   })
+  .strip()
   .prefault({});
 
 // Stream-display scroll behavior (client-honored — the `@orb/ui/message-list` `scrollMode` prop).
@@ -499,6 +507,7 @@ const chatSchema = z
         // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
         maxRetries: z.int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
+      .strip()
       .prefault({}),
     // Element-wise (#1365): a non-string element costs THAT entry, not every stop string the user wrote.
     customStoppingStrings: tolerantArray(z.string(), []).default([]),
@@ -549,6 +558,7 @@ const chatSchema = z
     // value reads OFF, because this switch is a consent and a damaged consent must not run scripts.
     runCardScripts: z.boolean().catch(false).default(true),
   })
+  .strip()
   .prefault({});
 
 export type ChatSettings = z.infer<typeof chatSchema>;
@@ -564,6 +574,7 @@ const librarySchema = z
   .object({
     pageSize: z.int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
   })
+  .strip()
   .prefault({});
 
 // ⑫ per-user image-prompt-building overrides — each mode's extraction/caption instruction, authored by the
@@ -583,6 +594,7 @@ const imagerySchema = z
         scenario: imageryTemplateField(),
         background: imageryTemplateField(),
       })
+      .strip()
       .prefault({}),
     // The two MULTIMODAL vision-caption instructions (no macros — the image is the subject).
     captions: z
@@ -590,8 +602,10 @@ const imagerySchema = z
         character_multimodal: imageryTemplateField(),
         face_multimodal: imageryTemplateField(),
       })
+      .strip()
       .prefault({}),
   })
+  .strip()
   .prefault({});
 
 export type ImagerySettings = z.infer<typeof imagerySchema>;
@@ -618,6 +632,7 @@ const personaSchema = z
   .object({
     showNotifications: z.boolean().catch(true).default(true),
   })
+  .strip()
   .prefault({});
 
 const workloadsSchema = z
@@ -627,6 +642,7 @@ const workloadsSchema = z
     maxPairs: z.int().min(COOCCURRENCE_MAX_PAIRS_MIN).max(COOCCURRENCE_MAX_PAIRS_MAX).optional().catch(undefined),
     hubFraction: z.number().min(HUB_FRACTION_FLOOR).max(HUB_FRACTION_CEIL).optional().catch(undefined),
   })
+  .strip()
   .prefault({});
 
 const onboardingSchema = z
@@ -686,6 +702,7 @@ const onboardingSchema = z
     // find it back on their next request.
     distributedPluginsApplied: z.boolean().catch(false).default(false),
   })
+  .strip()
   .prefault({});
 
 const profileSchema = z
@@ -694,41 +711,44 @@ const profileSchema = z
     avatarAssetId: z.string().nullable().optional(),
     // Plugins whose chat panels this user hid, in every room. Element-wise: one stale element costs itself only.
     hiddenChatPluginIds: tolerantArray(typeIdSchema(ID_PREFIX.plugin), []).default([]),
-    sidecarChatPluginSurfaces: tolerantArray(z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema }), []).default([]),
+    sidecarChatPluginSurfaces: tolerantArray(z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema }).strip(), []).default([]),
     // The inline plugin flank is collapsed: the header icon folds the column away so the transcript takes its width.
     flankCollapsed: z.boolean().catch(false).default(false),
   })
+  .strip()
   .prefault({});
 
-export const userSettingsSchema = z.object({
-  // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
-  // value so a client can't spoof past a lift.
-  schemaVersion: z.int().positive().default(USER_SETTINGS_SCHEMA_VERSION),
-  seeds: seedsSchema,
-  worldInfo: worldInfoSchema,
-  memory: memorySchema,
-  databank: databankSchema,
-  chat: chatSchema,
-  library: librarySchema,
-  imagery: imagerySchema,
-  // PROSE-1 §4.2 — the per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
-  // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
-  // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
-  // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (§4.6: adapt, never
-  // duplicate) and are NOT mirrored here.
-  prose: proseOverridesSchema,
-  persona: personaSchema,
-  // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key
-  // is dropped before the strict arms see it, because this `.catch` would otherwise revert the user's saved
-  // room defaults to per-speaker — the chat blob's silent-reversal class, one tier up. The section's write
-  // path is deep-merge-and-re-validate through this same lenient parser by design, so no strict door moves.
-  groupDefaults: storedGroupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
-  onboarding: onboardingSchema,
-  workloads: workloadsSchema,
-  profile: profileSchema,
-  appearance: appearanceSettingsSchema,
-  theme: themeSettingsSchema,
-});
+export const userSettingsSchema = z
+  .object({
+    // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
+    // value so a client can't spoof past a lift.
+    schemaVersion: z.int().positive().default(USER_SETTINGS_SCHEMA_VERSION),
+    seeds: seedsSchema,
+    worldInfo: worldInfoSchema,
+    memory: memorySchema,
+    databank: databankSchema,
+    chat: chatSchema,
+    library: librarySchema,
+    imagery: imagerySchema,
+    // PROSE-1 §4.2 — the per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
+    // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
+    // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
+    // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (§4.6: adapt, never
+    // duplicate) and are NOT mirrored here.
+    prose: proseOverridesSchema,
+    persona: personaSchema,
+    // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key
+    // is dropped before the strict arms see it, because this `.catch` would otherwise revert the user's saved
+    // room defaults to per-speaker — the chat blob's silent-reversal class, one tier up. The section's write
+    // path is deep-merge-and-re-validate through this same lenient parser by design, so no strict door moves.
+    groupDefaults: storedGroupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
+    onboarding: onboardingSchema,
+    workloads: workloadsSchema,
+    profile: profileSchema,
+    appearance: appearanceSettingsSchema,
+    theme: themeSettingsSchema,
+  })
+  .strip();
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
 

@@ -4,6 +4,7 @@
 // projections (`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`) are re-homed HERE (not imported
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
@@ -529,19 +530,23 @@ export interface AssembledPrompt {
  * blob that fails degrades to `null` — an honest "nothing captured", never a throw or a half-typed object.
  * The `position`/`role` axes DERIVE their canonical tuples (§5.5, no inline re-spell).
  */
-export const sentPromptSchema = z.object({
-  static: z.string(),
-  dynamic: z.string(),
-  sendHistory: z.boolean(),
-  afterHistory: z.array(
-    z.object({
-      position: z.enum(CHAT_INJECTION_POSITIONS),
-      depth: z.int(),
-      role: messageRoleSchema,
-      content: z.string(),
-    }),
-  ),
-});
+export const sentPromptSchema = z
+  .object({
+    static: z.string(),
+    dynamic: z.string(),
+    sendHistory: z.boolean(),
+    afterHistory: z.array(
+      z
+        .object({
+          position: z.enum(CHAT_INJECTION_POSITIONS),
+          depth: z.int(),
+          role: messageRoleSchema,
+          content: z.string(),
+        })
+        .strip(),
+    ),
+  })
+  .strip();
 type SentPrompt = z.infer<typeof sentPromptSchema>;
 
 /**

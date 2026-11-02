@@ -2,6 +2,7 @@
 // resolves (the decision and its reason: `infra/auth/host-allowlist.ts`). The refusal names the host and the fix
 // for this install, and offers no in-app "allow" action: under single-user the rebinding page is the owner.
 
+import type { MisdirectedHostResponse } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { MiddlewareHandler } from "hono";
 import { html } from "hono/html";
@@ -66,7 +67,10 @@ export function hostAllowlist(deps: HostAllowlistDeps): MiddlewareHandler {
     }
     deps.notice(host);
     if (isApiPath(c.req.path)) {
-      return c.json({ error: `This server does not answer to ${host}. ${fixSentence(host, deps.inContainer)}`, host }, MISDIRECTED_REQUEST);
+      return c.json(
+        { error: `This server does not answer to ${host}. ${fixSentence(host, deps.inContainer)}`, host } satisfies MisdirectedHostResponse,
+        MISDIRECTED_REQUEST,
+      );
     }
     return c.html(refusalPage(host, deps.inContainer), MISDIRECTED_REQUEST);
   };

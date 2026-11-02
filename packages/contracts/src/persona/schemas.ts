@@ -17,23 +17,21 @@ const TITLE_MAX_LENGTH = 200;
 // `descriptionPosition` drives the in-prompt-vs-at-depth-vs-none decision. `sourceCharacterId` +
 // `swapMacros` are the non-lossy `createFromCharacter` provenance: a persona minted from a card can
 // re-derive its description if the card is edited.
-export const personaMetadataSchema = z
-  .object({
-    descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),
-    /** Depth + role for the `at_depth` placement — the shared injection directive (`@orb/kit/injection`). */
-    inject: injectionDirectiveSchema.optional(),
-    sourceCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-    swapMacros: z.boolean().optional(),
-    /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
-     *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
-     *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
-     *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
-     *  (#461). Personas carry no unique key by design (same-named personas are supported, #458), so the
-     *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
-     *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
-    seededDefault: z.boolean().optional(),
-  })
-  .loose();
+export const personaMetadataSchema = z.looseObject({
+  descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),
+  /** Depth + role for the `at_depth` placement — the shared injection directive (`@orb/kit/injection`). */
+  inject: injectionDirectiveSchema.optional(),
+  sourceCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+  swapMacros: z.boolean().optional(),
+  /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
+   *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
+   *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
+   *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
+   *  (#461). Personas carry no unique key by design (same-named personas are supported, #458), so the
+   *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
+   *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
+  seededDefault: z.boolean().optional(),
+});
 export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
 
 // Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when

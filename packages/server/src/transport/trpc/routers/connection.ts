@@ -184,7 +184,7 @@ export const connectionRouter = t.router({
 
   accountCredits: authedProcedure
     .input(z.strictObject({ connectionId }))
-    .output(accountCreditsSchema.strict())
+    .output(accountCreditsSchema)
     .query(({ ctx, input, signal }) => ctx.services.connection.accountCredits({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   generationCost: authedProcedure
@@ -195,7 +195,7 @@ export const connectionRouter = t.router({
         generationId: z.string().min(1),
       }),
     )
-    .output(generationCostSchema.strict())
+    .output(generationCostSchema)
     .query(({ ctx, input, signal }) =>
       ctx.services.connection.generationCost({ principal: ctx.auth, connectionId: input.connectionId, generationId: input.generationId, signal }),
     ),
