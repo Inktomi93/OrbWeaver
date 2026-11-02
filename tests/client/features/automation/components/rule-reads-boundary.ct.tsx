@@ -191,12 +191,7 @@ test("a held room world book read shows the loading skeleton in the preset knob,
 }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const rooms = (await caller.chat.listChats({ limit: 100 })).items;
-  const hosted = await Promise.all(rooms.map(async (room) => ((await caller.chat.getChat({ chatId: room.id })).viewerIsHost ? room.id : null)));
-  const chatId = hosted.find((id) => id !== null);
-  if (chatId === undefined || chatId === null) {
-    throw new Error("The corpus must contain a hosted room");
-  }
+  const chatId = await hostedRoomWithRule(caller);
   const read = heldThenFailing();
   await routeTrpc(page, {
     ...serveCorpusProcedures(caller, READS),
