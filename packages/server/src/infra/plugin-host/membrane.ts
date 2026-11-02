@@ -24,6 +24,7 @@ import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automat
 import type { VariablePrecondition } from "@orb/contracts/chat";
 import { variablePreconditionsSchema } from "@orb/contracts/chat";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
+import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import type { PluginNotificationRecipient } from "@orb/contracts/notifications";
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type {
@@ -788,10 +789,10 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
         // flood against §3-S4's one-visible-card budget. Full reasoning: `@orb/contracts/plugin/suggestion`.
         throw new Error("plugin host: chat.variables.write requires host authority on this chat");
       }
+      // Only inert data crosses here: the app's bridge dispatch parses every op before it can reach the delta log.
       const ops = Array.isArray(args[1]) ? (args[1] as readonly VarOp[]) : [];
-      // The OPTIONAL compare-and-set (#1555). Unlike `ops` — which the domain's own `applyVarOp` rejects
-      // member-by-member — a malformed precondition would silently WEAKEN the guard it was passed to
-      // strengthen, so it is PARSED, and a shape that does not parse is a loud refusal of the call (the
+      // The OPTIONAL compare-and-set (#1555). A malformed precondition would silently WEAKEN the guard it was
+      // passed to strengthen, so it is PARSED, and a shape that does not parse is a loud refusal of the call (the
       // forged-handle arm's posture) rather than a write that quietly skipped its own check.
       const expect = parsePreconditions(args[2]);
       // The result is DATA the guest branches on — a lost race must not spend a crash strike (see the
@@ -926,6 +927,17 @@ function parseWorldEntry(raw: unknown): PluginWorldEntryUpsert {
   return parsed.data;
 }
 
+/** Parse the guest's picture args before they become a spend or an ask, the {@link parseWorldEntry} posture: the
+ *  host's card quotes `mode`, so an unparsed string would put guest text in the question. Absent args are the
+ *  schema's own defaults. */
+function parsePictureArgs(raw: unknown): GenerateImageActionArgs {
+  const parsed = generateImageActionArgsSchema.safeParse(raw ?? {});
+  if (!parsed.success) {
+    throw new Error("plugin host: imagery.generatePicture args do not match the generate_image action");
+  }
+  return parsed.data;
+}
+
 /** worldInfo.upsertEntry — capability worldinfo.write + host authority (room-state writes are host
  *  authority). The guest entry crosses as a JSON object; the authority-agnostic bridge maps it onto the shared
  *  lore writer under the installer. */
@@ -1056,12 +1068,13 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     impl: async (args, signal) => {
       requireCapability(runtime, "imagery.generatePicture");
       const scope = resolveChat(runtime, args[0]);
+      const pictureArgs = parsePictureArgs(args[1]);
       if (!scope.canWrite) {
         // POSTURE 2 — and the class §3-S4 RULED F4 most wants asked: this is SPEND on the installer, so
         // "should this happen" is a question with a price on it.
-        await suggestAct(runtime, scope, { kind: "generatePicture", args: (args[1] ?? {}) as GenerateImageActionArgs }, signal);
+        await suggestAct(runtime, scope, { kind: "generatePicture", args: pictureArgs }, signal);
       }
-      return await runtime.bridge.imagery.generatePicture(scope.chatId, (args[1] ?? {}) as GenerateImageActionArgs, invocationLiveness(signal));
+      return await runtime.bridge.imagery.generatePicture(scope.chatId, pictureArgs, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "imagery", imagery);

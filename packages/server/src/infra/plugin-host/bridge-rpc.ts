@@ -1,3 +1,5 @@
+import { variableDeltaSchema, variablePreconditionsSchema } from "@orb/contracts/chat";
+import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type {
   HostFunctionRef,
@@ -6,11 +8,14 @@ import type {
   PluginCapability,
   PluginInvocationLiveness,
   PluginQuietOptions,
+  PluginSuggestedAct,
+  PluginSuggestedActKind,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
 import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS, pluginQuietOptionsSchema, pluginWorldEntryUpsertSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
@@ -80,6 +85,28 @@ const BRIDGE_HOST_FUNCTION = {
   "character.findCardData": "character.findCardData",
   "pubsub.emit": "pubsub.emit",
 } as const satisfies Record<Exclude<PluginBridgeOperation, "suggest">, HostFunctionRef>;
+
+const SUGGESTED_ACT_HOST_FUNCTION = {
+  requestTurn: "chat.requestTurn",
+  worldInfoUpsert: "worldInfo.upsertEntry",
+  generatePicture: "imagery.generatePicture",
+} as const satisfies Record<PluginSuggestedActKind, HostFunctionRef>;
+
+// An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.
+const suggestedActSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("requestTurn"),
+    automationDepth: z.int().nonnegative(),
+    speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+    guided: z.string().exactOptional(),
+  }),
+  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }),
+  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }),
+]) satisfies z.ZodType<PluginSuggestedAct>;
+
+const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() })) satisfies z.ZodType<
+  Parameters<PluginBridge["surfaceQuickReply"]>[1]
+>;
 
 const CHAT_SCOPED = new Set<PluginBridgeOperation>([
   "chat.listMessages",
@@ -243,40 +270,14 @@ function quietOptionsAt(args: readonly unknown[], index: number, operation: stri
   return parsed.success ? parsed.data : invalid(operation);
 }
 
-function suggestionCapability(args: readonly unknown[]): PluginCapability {
-  exact(args, 2, "suggest");
-  const act = recordAt(args, 1, "suggest");
-  switch (act["kind"]) {
-    case "requestTurn": {
-      validateSuggestedTurn(act);
-      return HOST_FUNCTION_CAPABILITY["chat.requestTurn"];
-    }
-    case "worldInfoUpsert":
-      if (!pluginWorldEntryUpsertSchema.safeParse(act["entry"]).success) {
-        invalid("suggest");
-      }
-      return HOST_FUNCTION_CAPABILITY["worldInfo.upsertEntry"];
-    case "generatePicture":
-      if (typeof act["args"] !== "object" || act["args"] === null || Array.isArray(act["args"])) {
-        invalid("suggest");
-      }
-      return HOST_FUNCTION_CAPABILITY["imagery.generatePicture"];
-    default:
-      return invalid("suggest");
-  }
+function parsedAt<T>(schema: z.ZodType<T>, args: readonly unknown[], index: number, operation: string): T {
+  const parsed = schema.safeParse(args[index]);
+  return parsed.success ? parsed.data : invalid(operation);
 }
 
-function validateSuggestedTurn(act: Readonly<Record<string, unknown>>): void {
-  const depth = act["automationDepth"];
-  if (typeof depth !== "number" || !Number.isInteger(depth) || depth < 0) {
-    invalid("suggest");
-  }
-  if (act["speakerCharacterId"] !== undefined && typeof act["speakerCharacterId"] !== "string") {
-    invalid("suggest");
-  }
-  if (act["guided"] !== undefined && typeof act["guided"] !== "string") {
-    invalid("suggest");
-  }
+function suggestionCapability(args: readonly unknown[]): PluginCapability {
+  exact(args, 2, "suggest");
+  return HOST_FUNCTION_CAPABILITY[SUGGESTED_ACT_HOST_FUNCTION[parsedAt(suggestedActSchema, args, ARG_SECOND, "suggest").kind]];
 }
 
 function bridgeCapability(operation: PluginBridgeOperation, args: readonly unknown[]): PluginCapability {
@@ -386,10 +387,12 @@ export async function dispatchBridgeCall(
       return await bridge.chat.listCharacters(chatAt(args, 0, operation));
     case "chat.applyVariableOps":
       exact(args, THREE_ARGUMENTS, operation);
+      // The read seam parses the stored log with this same schema and degrades a malformed blob to empty, so an
+      // op it would refuse must never be written: one would erase the room's earlier batches at the next write.
       return await bridge.chat.applyVariableOps(
         chatAt(args, 0, operation),
-        arrayAt(args, 1, operation) as Parameters<PluginBridge["chat"]["applyVariableOps"]>[1],
-        args[2] === undefined ? undefined : (arrayAt(args, 2, operation) as Parameters<PluginBridge["chat"]["applyVariableOps"]>[2]),
+        parsedAt(variableDeltaSchema, args, 1, operation),
+        args[2] === undefined ? undefined : parsedAt(variablePreconditionsSchema, args, 2, operation),
       );
     case "chat.requestTurn":
       exact(args, THREE_ARGUMENTS, operation);
@@ -405,10 +408,7 @@ export async function dispatchBridgeCall(
       return await bridge.worldInfo.upsertEntry(chatAt(args, ARG_FIRST, operation), worldEntryAt(args, ARG_SECOND, operation));
     case "imagery.generatePicture":
       exact(args, 2, operation);
-      return await bridge.imagery.generatePicture(
-        chatAt(args, 0, operation),
-        recordAt(args, 1, operation) as Parameters<PluginBridge["imagery"]["generatePicture"]>[1],
-      );
+      return await bridge.imagery.generatePicture(chatAt(args, 0, operation), parsedAt(generateImageActionArgsSchema, args, 1, operation));
     case "variables.get":
       exact(args, 1, operation);
       return await bridge.variables.get(stringAt(args, 0, operation));
@@ -457,10 +457,10 @@ export async function dispatchBridgeCall(
       return await bridge.llm.quiet(stringAt(args, 0, operation), args[1] === undefined ? undefined : quietOptionsAt(args, 1, operation), liveness);
     case "suggest":
       exact(args, 2, operation);
-      return await bridge.suggest(chatAt(args, 0, operation), recordAt(args, 1, operation) as Parameters<PluginBridge["suggest"]>[1]);
+      return await bridge.suggest(chatAt(args, 0, operation), parsedAt(suggestedActSchema, args, 1, operation));
     case "surfaceQuickReply":
       exact(args, 2, operation);
-      return await bridge.surfaceQuickReply(chatAt(args, 0, operation), arrayAt(args, 1, operation) as Parameters<PluginBridge["surfaceQuickReply"]>[1]);
+      return await bridge.surfaceQuickReply(chatAt(args, 0, operation), parsedAt(quickReplyChoicesSchema, args, 1, operation));
     case "ui.setState":
       exact(args, THREE_ARGUMENTS, operation);
       return await bridge.ui.setState(stringAt(args, 0, operation), recordAt(args, 1, operation), args[2] === null ? null : chatAt(args, 2, operation));
