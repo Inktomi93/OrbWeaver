@@ -46,6 +46,7 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
+import { CHAT_PRINT_COVERAGE } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
@@ -406,6 +407,7 @@ function ChatThread({
     <ArtViewerProvider>
       <Stack className="relative block-full min-block-0">
         {sourceStatus}
+        <PrintCoverage edges={edges} />
         <MessageList
           ref={listHandleRef}
           ariaLabel="Conversation messages"
@@ -440,6 +442,15 @@ function ChatThread({
       </Stack>
     </ArtViewerProvider>
   );
+}
+
+/** Paper has no Earlier messages button, so a transcript that is only part of the room says so on the page. */
+function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactElement | null {
+  return edges.earlier || edges.later ? (
+    <Text className="hidden print:block" voice="gloss">
+      {CHAT_PRINT_COVERAGE}
+    </Text>
+  ) : null;
 }
 
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */

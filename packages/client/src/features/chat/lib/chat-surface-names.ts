@@ -44,6 +44,8 @@ export const CHAT_SAVE_EDIT_NAME = "Save edit";
 export const CHAT_LIST_NAME = "Chats list";
 export const CHAT_SEARCH_NAME = "Search chats";
 export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
+/** Printed in place of the paging controls when the loaded rows are not the whole room. */
+export const CHAT_PRINT_COVERAGE = "This print covers the messages loaded in the room. Load the rest before printing to include them.";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";
 export const CHAT_COMPOSER_NAME = "Message composer";

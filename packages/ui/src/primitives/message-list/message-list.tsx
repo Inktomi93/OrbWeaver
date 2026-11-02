@@ -7,7 +7,7 @@ import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefers
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
-import { composeRangeExtractor, updateEdgeFades } from "./list-window.ts";
+import { composeRangeExtractor, everyRow, updateEdgeFades, usePrinting } from "./list-window.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -148,7 +148,8 @@ export function MessageList<T>({
   // The ONE tabbable row's index (-1 when the mode is off) — see row-roving.ts for the whole technique.
   const activeIndex = useRowRoving({ enabled: roving, getItemKey, items, scrollToIndex, viewportRef: viewportNodeRef });
 
-  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, activeIndex);
+  const printing = usePrinting();
+  const composedRangeExtractor = printing ? everyRow(items.length) : composeRangeExtractor(items, keepMounted, activeIndex);
 
   // pin-prompt never auto-follows an append (the pin owns placement); otherwise today's behavior
   // (instant when tail-follow is on — see the scrollToFn note below — else virtual-core's smooth).

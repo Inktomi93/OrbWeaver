@@ -14,9 +14,9 @@ import { channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES }
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_PRINT_COVERAGE, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -61,6 +61,7 @@ const ROOM_PANEL_PROCEDURES = [
   ...SECTION_PROCEDURES,
   ...ROOM_PROCEDURES,
   "chat.listForks",
+  "chat.listMessageVariants",
   "rpg.getGame",
   "rpg.listTurnToolCalls",
   "rpg.getTrackerView",
@@ -140,6 +141,17 @@ async function seedLongReplyRoom(): Promise<ChatId> {
     }
   }
   throw new Error("The corpus has no room that ends on a reply");
+}
+
+/** A corpus room with older history behind its loaded page. Stops at the first: every read here spends the harness's rate limit. */
+async function findPagedRoom(): Promise<ChatId> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    if ((await caller.chat.listMessages({ chatId: row.id })).previousCursor !== null) {
+      return row.id;
+    }
+  }
+  throw new Error("The corpus has no room with paged history");
 }
 
 test.beforeAll(async () => {
@@ -720,71 +732,218 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
   });
 }
 
-// The footer is pinned in view at 200% on every phone width and scrolls with the list at 300% on 390 and 430: the dialog's
-// own container is 8.4rem at 320px and 200%, and 6.6 to 7.4rem at 300%, which the cq-8 step separates.
-const PHONE_WIDTHS = [
-  { name: "320 phone", touch: true, size: { width: 320, height: 568 } },
-  { name: "360 phone", touch: true, size: { width: 360, height: 800 } },
-  PHONE,
-  { name: "430 phone", touch: true, size: { width: 430, height: 932 } },
+// Every width the footer has to hold at. The short cells stand at 20rem of height or less, tall cells above it, and the
+// normal-size cells prove the short step never fires for an unscaled reader.
+const NARROW_300 = { name: "320 phone", touch: true, size: { width: 320, height: 568 } } as const;
+const PHONE_360 = { name: "360 phone", touch: true, size: { width: 360, height: 800 } } as const;
+const PHONE_430 = { name: "430 phone", touch: true, size: { width: 430, height: 932 } } as const;
+const SHORT_CELLS = [
+  [NARROW_300, TEXT_200],
+  [PHONE_360, LAYOUT_300],
+  [PHONE, LAYOUT_300],
+  [PHONE_430, LAYOUT_300],
+  [DESKTOP, LAYOUT_300],
 ] as const;
-const SCROLLING_FOOTER_CELLS = [
-  [PHONE_WIDTHS[2], LAYOUT_300],
-  [PHONE_WIDTHS[3], LAYOUT_300],
+const TALL_CELLS = [
+  [PHONE_360, TEXT_200],
+  [PHONE, TEXT_200],
+  [PHONE_430, TEXT_200],
+  [DESKTOP, TEXT_200],
+  [NARROW_300, { name: "normal text", factor: 1 }],
+  [PHONE, { name: "normal text", factor: 1 }],
+  [DESKTOP, { name: "normal text", factor: 1 }],
 ] as const;
-const FOOTER_CELLS = [
-  ...PHONE_WIDTHS.map((viewport) => [viewport, TEXT_200, "sticky"] as const),
-  ...SCROLLING_FOOTER_CELLS.map(([viewport, scale]) => [viewport, scale, "static"] as const),
-];
 
-for (const [viewport, scale, position] of FOOTER_CELLS) {
-  test.describe(`New chat footer at ${scale.name} on the ${viewport.name}`, () => {
-    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+const WHOLE_CONTROL = 0.98;
 
-    test(`is ${position === "sticky" ? "pinned in view" : "in the list and still reachable"}`, async ({ mount, page }) => {
-      await seedShellState(page, { activeSection: "chats" });
-      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
-      const dialog = page.getByRole("dialog");
-      await expect(dialog).toBeVisible();
-      await scaleRoot(page, scale.factor);
-      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
-      const footerPosition = await blank.evaluate((button) => getComputedStyle(button.parentElement ?? button).position);
-      expect(footerPosition).toBe(position);
-      // Pinned means in view without scrolling; a footer in the list may sit below the fold of a scrolling dialog, and
-      // reaching it by scrolling is reaching it.
-      if (position === "static") {
-        await blank.scrollIntoViewIfNeeded();
-      }
-      const frame = await dialog.boundingBox();
-      const footer = await blank.boundingBox();
-      expect(frame === null || footer === null ? false : footer.y + footer.height <= frame.y + frame.height + SUBPIXEL).toBe(true);
-    });
-  });
+/** Mounts New chat at a root scale, with the caret landed in the search box. */
+async function openNewChat(mountNewChat: () => Promise<unknown>, page: Page, factor: number): Promise<Locator> {
+  await seedShellState(page, { activeSection: "chats" });
+  await mountNewChat();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await scaleRoot(page, factor);
+  await expect(dialog.getByRole("option").first()).toBeVisible();
+  return dialog;
 }
 
-// At 300% the scrolling footer is what leaves the list a window: a whole character row sits above it.
-for (const [viewport, scale] of SCROLLING_FOOTER_CELLS) {
-  test.describe(`New chat list window at ${scale.name} on the ${viewport.name}`, () => {
+/** The dialog's footer action that begins a room, whichever label its step wears. */
+const newChatMount = (mount: PlaywrightTestArgs["mount"]) => (): Promise<unknown> =>
+  mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
+
+const startAction = (dialog: Locator): Locator => dialog.locator('[data-slot="new-chat-actions"] button').last();
+
+async function expectPressable(control: Locator): Promise<void> {
+  // An input's box sits a fraction of a pixel off its wrapper's, so a whole control reads just under 1.
+  await expect(control).toBeInViewport({ ratio: WHOLE_CONTROL });
+  await expect.poll(() => control.evaluate(coverOf)).toBeNull();
+}
+
+for (const [viewport, scale] of [...SHORT_CELLS, ...TALL_CELLS]) {
+  test.describe(`New chat's list and Start at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
-    test("leaves a whole character row in view above the footer", async ({ mount, page }) => {
-      await seedShellState(page, { activeSection: "chats" });
-      await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
-      const dialog = page.getByRole("dialog");
-      await expect(dialog).toBeVisible();
-      await scaleRoot(page, scale.factor);
-      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
-      await dialog.getByRole("option").first().scrollIntoViewIfNeeded();
-      const footerTop = await blank.evaluate((button) => (button.parentElement ?? button).getBoundingClientRect().top);
+    test("keeps the focused search clear, and Start in reach after a deep pick by real keys", async ({ mount, page }) => {
+      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
+      const search = dialog.getByRole("combobox");
+      await expect(search).toBeFocused();
+      await expectPressable(search);
+      await expect(startAction(dialog)).toBeInViewport({ ratio: 1 });
+      await page.keyboard.press("End");
+      await page.keyboard.press("Enter");
+      await expectPressable(search);
+      const start = startAction(dialog);
+      await expect(start).toBeEnabled();
+      await expectPressable(start);
+      await page.keyboard.type("a");
+      await expect(search).toHaveValue("a");
+      await expectPressable(search);
+      await expect(dialog.getByRole("option").first()).toBeVisible();
+      await expect.poll(() => findings(dialog)).toEqual([]);
+      expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+
+    test("shows a whole row in the list's own window, and Blank chat by keyboard", async ({ mount, page }) => {
+      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
+      const list = dialog.locator('[data-slot="command-list"]');
+      const row = dialog.getByRole("option").first();
+      await row.scrollIntoViewIfNeeded();
       await expect
-        .poll(async () => {
-          const boxes = await dialog.getByRole("option").evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect()));
-          return boxes.some((row) => row.top >= 0 && row.bottom <= footerTop);
-        })
+        .poll(() => row.evaluate((node) => node.getBoundingClientRect().height <= (node.closest('[data-slot="command-list"]')?.clientHeight ?? 0)))
         .toBe(true);
+      await expect(row).toBeInViewport({ ratio: 1 });
+      await expect.poll(() => row.evaluate(coverOf)).toBeNull();
+      const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+      await expect(async () => {
+        await page.keyboard.press("Tab");
+        await expect(blank).toBeFocused({ timeout: DOOR_TIMEOUT_MS });
+      }).toPass();
+      await expectPressable(blank);
+      await expect(list).toBeAttached();
     });
   });
 }
+
+// 300% on 320 leaves the dialog body 240px: the search and Start fill it, so nothing is clipped and each is reached by scrolling.
+test.describe("New chat at 300% layout on the 320 phone", () => {
+  test.use({ viewport: NARROW_300.size, hasTouch: true, isMobile: true });
+
+  test("clips nothing and keeps Start and Blank chat pressable", async ({ mount, page }) => {
+    const dialog = await openNewChat(newChatMount(mount), page, LAYOUT_300.factor);
+    await expect.poll(() => findings(dialog)).toEqual([]);
+    await expect(startAction(dialog)).toBeInViewport({ ratio: 1 });
+    const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+    await expect(async () => {
+      await page.keyboard.press("Tab");
+      await expect(blank).toBeFocused({ timeout: DOOR_TIMEOUT_MS });
+    }).toPass();
+    await expect(blank).toBeInViewport();
+    await expect.poll(() => blank.evaluate(coverOf)).toBeNull();
+  });
+});
+
+// A short dialog's list stays a scroller, so the tail still loads by scroll, and it is shorter than the body around it,
+// so a swipe that ends on the list hands off and the body's end comes into reach.
+for (const [viewport, scale] of SHORT_CELLS) {
+  test.describe(`New chat's short step at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("bounds the list inside the body and hands a finished swipe to it", async ({ mount, page }) => {
+      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
+      const geometry = await dialog.locator('[data-slot="command-list"]').evaluate((list) => {
+        const style = getComputedStyle(list);
+        let body = list.parentElement;
+        while (body !== null && !/auto|scroll/u.test(getComputedStyle(body).overflowY)) {
+          body = body.parentElement;
+        }
+        return { list: list.clientHeight, scrolls: list.scrollHeight > list.clientHeight, body: body?.clientHeight ?? 0, chain: style.overscrollBehaviorY };
+      });
+      expect(geometry.scrolls).toBe(true);
+      expect(geometry.list).toBeLessThan(geometry.body / 2);
+      expect(geometry.chain).toBe("auto");
+      await expect(dialog.locator('[data-slot="new-chat-actions"]')).toHaveCSS("position", "sticky");
+    });
+  });
+}
+
+for (const [viewport, scale] of TALL_CELLS) {
+  test.describe(`New chat's footer at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("stays pinned with both actions, and the short step does not fire", async ({ mount, page }) => {
+      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
+      const footer = dialog.locator('[data-slot="new-chat-actions"]');
+      await expect(footer).toHaveCSS("position", "sticky");
+      await expect(footer.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(dialog.locator('[data-slot="command-list"]')).toHaveCSS("overscroll-behavior-y", "contain");
+    });
+  });
+}
+
+/** The vertical gaps between consecutive printed rows, in document order: an overlap or a hole is a lost row. */
+function printedRowTops(list: Element): { readonly tops: readonly number[]; readonly ink: readonly string[] } {
+  const rows = [...list.querySelectorAll('[data-slot="message-list-row"]')];
+  return {
+    tops: rows.map((row) => row.getBoundingClientRect().top),
+    ink: rows.slice(0, 1).map((row) => getComputedStyle(row.querySelector('[data-slot="message-bubble"]') ?? row).color),
+  };
+}
+
+test.describe("printing a room", () => {
+  test.use({ viewport: DESKTOP.size });
+
+  test("flows every loaded message down the page on paper-coloured ground, says what it leaves out, and windows again after", async ({ mount, page }) => {
+    const pagedRoomId = await findPagedRoom();
+    await openRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page, pagedRoomId);
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    await expect(page.locator('[data-slot="message-bubble"]').last()).toBeVisible();
+    const windowed = await page.locator('[data-slot="message-list-row"]').count();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { messages, previousCursor } = await caller.chat.listMessages({ chatId: pagedRoomId });
+    expect(windowed).toBeLessThan(messages.length);
+    expect(previousCursor).not.toBeNull();
+
+    // Read a microtask after the event: a real print lays out before any frame, so rows that a later observer mounts
+    // under the emulated media never reach paper.
+    const mountedForPaper = await page.evaluate(async () => {
+      dispatchEvent(new Event("beforeprint"));
+      await Promise.resolve();
+      return document.querySelectorAll('[data-slot="message-list-row"]').length;
+    });
+    expect(mountedForPaper).toBe(messages.length);
+    await page.emulateMedia({ media: "print", reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none", contrast: "no-preference" });
+    const paper = await list.evaluate((node) => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right, sheet: innerWidth }));
+    expect(paper.left).toBeLessThanOrEqual(SUBPIXEL);
+    expect(paper.right).toBeLessThanOrEqual(paper.sheet + SUBPIXEL);
+    await expect(page.locator(".shell-panel-edge").first()).toBeHidden();
+    const { tops, ink } = await list.evaluate(printedRowTops);
+    // Page one starts with the room, not with the blank height of rows that were never mounted.
+    expect(tops[0]).toBeLessThan(DESKTOP.size.height / 2);
+    expect(tops).toEqual(tops.toSorted((a, b) => a - b));
+    expect(new Set(tops).size).toBe(tops.length);
+    expect(ink).toEqual(["rgb(0, 0, 0)"]);
+    await expect(page.getByText(CHAT_PRINT_COVERAGE, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeHidden();
+    await expect(page.locator(".shell-topbar")).toBeHidden();
+    await expect(page.locator('[data-slot="composer"]')).toBeHidden();
+    const scrollers = await list.evaluate((node) => {
+      const stuck: string[] = [];
+      for (let up: Element | null = node; up !== null; up = up.parentElement) {
+        const { overflowY, maskImage } = getComputedStyle(up);
+        if (/auto|scroll|hidden/u.test(overflowY) || maskImage !== "none") {
+          stuck.push(up.getAttribute("data-slot") ?? up.tagName);
+        }
+      }
+      return stuck;
+    });
+    expect(scrollers).toEqual([]);
+
+    await page.evaluate(() => dispatchEvent(new Event("afterprint")));
+    await page.emulateMedia({ media: "screen", reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none", contrast: "no-preference" });
+    await expect.poll(() => page.locator('[data-slot="message-list-row"]').count()).toBeLessThan(messages.length);
+    await expect(page.getByText(CHAT_PRINT_COVERAGE, { exact: true })).toBeHidden();
+  });
+});
 
 for (const [viewport, scale] of QUALIFIED.listPanel) {
   test.describe(`list panel at ${scale.name} on the ${viewport.name}`, () => {

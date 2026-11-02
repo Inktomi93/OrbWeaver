@@ -329,6 +329,8 @@
   --height-scroll-sm: 10rem;
   --height-scroll-md: 16rem;
   --height-scroll-lg: 24rem;
+  --height-scroll-short: 2.75rem;
+  --height-picker-chrome: 21rem;
   --height-room-thread-min: 1.4375rem;
   --height-row-placeholder: 4rem;
   --height-home-recents-empty: 12.0625rem;
@@ -417,6 +419,7 @@
     --orb-grid-cell-fixed: 8.5rem;
     --orb-density-comfortable-cell-fixed: 8.5rem;
     --orb-density-compact-cell-fixed: 7.5rem;
+    --height-picker-window: clamp(var(--height-scroll-short), calc(100dvh - var(--height-picker-chrome)), var(--height-scroll-lg));
     --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);

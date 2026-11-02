@@ -4,6 +4,7 @@
 
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor } from "@tanstack/react-virtual";
+import { useSyncExternalStore } from "react";
 
 // An edge fades only when more than this many px of content lie beyond it — sub-pixel rounding must
 // not flicker the fade on an unscrolled list.
@@ -15,6 +16,37 @@ export function updateEdgeFades(el: HTMLElement): void {
   el.toggleAttribute("data-fade-top", scrolled);
   el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_FADE_EPSILON_PX);
 }
+
+let printing = false;
+
+function subscribePrinting(notify: () => void): () => void {
+  const set = (next: boolean) => (): void => {
+    printing = next;
+    notify();
+  };
+  const start = set(true);
+  const end = set(false);
+  addEventListener("beforeprint", start);
+  addEventListener("afterprint", end);
+  return (): void => {
+    removeEventListener("beforeprint", start);
+    removeEventListener("afterprint", end);
+  };
+}
+
+/**
+ * True from `beforeprint` to `afterprint`. The browser lays out paper right after that event, before any frame or
+ * observer runs. An external store's update flushes in the microtask after the listener, so the rows land in time.
+ */
+export function usePrinting(): boolean {
+  return useSyncExternalStore(subscribePrinting, () => printing);
+}
+
+/** Paper has no scroll window: every row prints. */
+export const everyRow = (count: number): (() => number[]) => {
+  const all = Array.from({ length: count }, (_, index) => index);
+  return (): number[] => all;
+};
 
 // Merges keepMounted's forced indices — plus the roving mode's ACTIVE ROW, which must survive a
 // scroll-away or the list's single tab stop disappears mid-thread — into the library's base range;

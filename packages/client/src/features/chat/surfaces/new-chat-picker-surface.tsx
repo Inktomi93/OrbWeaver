@@ -38,6 +38,12 @@
 // claims focus any more.
 // The `orb/surface-a11y-focus` home that records this decision is in eslint.config.js; the reason is on `NewChatPicker` below.
 //
+// A SHORT DIALOG KEEPS START AND THE LIST, AND LETS THE REST SCROLL. `dialog-short` keys on the dialog's height, not its
+// width: enlarged text makes a phone narrow and a desktop short, and only height separates the cells that cannot hold
+// the footer (at most 20rem tall) from those that can, with normal text far above it. In that step the list is down to
+// its one-row floor, still a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains
+// to the body instead of stopping there. Start stays pinned under it; Blank chat and the saved-roster door flow after it.
+//
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
 // overflow goes LEFT — so "Blank chat" painted OUTSIDE the dialog and was clipped by the popup, worse as
@@ -88,6 +94,11 @@ function compactStartLabelFor(count: number, pending: boolean): string {
     return "Starting…";
   }
   return count === 0 ? "Pick a character" : `Start (${count})`;
+}
+
+/** The short dialog's label: the one word that fits beside any count at 300% on a 320px phone. */
+function shortStartLabelFor(count: number, pending: boolean): string {
+  return count === 0 ? "Start" : compactStartLabelFor(count, pending);
 }
 
 /** The polite announcement of the count (side-eye ARIA rec #2): the Start button's accessible name carries
@@ -148,6 +159,30 @@ export function NewChatPicker(): ReactElement {
   // The teaching arm — rendered, disabled, and QUIET, so the affordance is discoverable before it is usable
   // without spending the modal's one focal control on a button that cannot act (#441).
   const teaching = selectedCount === 0;
+  const shortStartLabel = shortStartLabelFor(selectedCount, isPending);
+  // A hop to the saved-roster picker (the slot is the destination, no feature import). The intent is cleared like
+  // any dismiss: a roster start carries its own creation parameters.
+  const rosterDoor = hasRosters ? (
+    <Button
+      variant="ghost"
+      size="sm"
+      wrap={true}
+      onClick={(): void => {
+        clearNewChatIntent();
+        closeModal();
+        openModal("savedRosters");
+      }}
+    >
+      <Icon icon={Users} size="sm" />
+      Start from a saved roster
+    </Button>
+  ) : null;
+  const blankAction = (className: string): ReactElement => (
+    <Button className={className} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
+      <Icon className="@max-cq-20:hidden" icon={Plus} size="sm" />
+      {BLANK_CHAT_NAME}
+    </Button>
+  );
 
   return (
     <Stack>
@@ -163,22 +198,8 @@ export function NewChatPicker(): ReactElement {
         </Row>
       ) : null}
       {hasRosters ? (
-        <Row className="flex-wrap" justify="end" padding="block">
-          {/* #26 — hop to the saved-roster picker (the slot is the destination — no feature import). The
-              intent is cleared like any dismiss: a roster start carries its own creation parameters. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            wrap={true}
-            onClick={(): void => {
-              clearNewChatIntent();
-              closeModal();
-              openModal("savedRosters");
-            }}
-          >
-            <Icon icon={Users} size="sm" />
-            Start from a saved roster
-          </Button>
+        <Row className="flex-wrap dialog-short:hidden" justify="end" padding="block">
+          {rosterDoor}
         </Row>
       ) : null}
       <CharacterPicker
@@ -186,7 +207,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-block-(--height-scroll-lg)"
+        listClassName="max-block-(--height-picker-window) dialog-short:overflow-x-hidden dialog-short:overscroll-auto"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
@@ -196,18 +217,21 @@ export function NewChatPicker(): ReactElement {
       />
       {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
-          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. Below the `cq-8` step
-          (the dialog measures 6.6 to 7.4rem on a 390 to 430px phone at 300% text) the stacked buttons would take the
-          whole dialog and leave no list, so there the footer scrolls with the list instead. At 200% the dialog measures
-          8.4rem (320px) to 11.9rem (430px), so the footer stays pinned. */}
-      <Row align="center" className="sticky inset-be-0 flex-wrap @max-cq-8:static" divider="top" gap="field" ground="popover" justify="end" padding="block">
+          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
+      <Row
+        align="center"
+        className="sticky inset-be-0 flex-wrap dialog-short:py-tight"
+        data-slot="new-chat-actions"
+        divider="top"
+        gap="field"
+        ground="popover"
+        justify="end"
+        padding="block"
+      >
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
-          <Icon icon={Plus} size="sm" />
-          {BLANK_CHAT_NAME}
-        </Button>
+        {blankAction(`${ACTION_BUTTON} dialog-short:hidden`)}
         <Button
           className={ACTION_BUTTON}
           quietDisabled={teaching}
@@ -220,10 +244,16 @@ export function NewChatPicker(): ReactElement {
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}
-          <Row className="@cq-28:hidden">{compactStartLabel}</Row>
-          <Row className="hidden @cq-28:flex">{startLabel}</Row>
+          <Row className="@cq-28:hidden dialog-short:hidden">{compactStartLabel}</Row>
+          <Row className="hidden @cq-28:flex dialog-short:hidden">{startLabel}</Row>
+          <Row className="hidden dialog-short:flex">{shortStartLabel}</Row>
         </Button>
       </Row>
+      {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
+      <Stack className="hidden dialog-short:flex" gap="field" padding="block">
+        {blankAction("inline-full")}
+        {rosterDoor}
+      </Stack>
     </Stack>
   );
 }

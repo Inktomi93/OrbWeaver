@@ -1,5 +1,9 @@
 /* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
 
+/* A dialog too short to spare fixed chrome. The step sits in a container query, and not a media query, because a `rem`
+ * there follows the enlarged root; it fires at enlarged text on a phone or a desktop and not at normal text. */
+@custom-variant dialog-short (@container dialog (height <= 20rem));
+
 /* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
 @utility orb-paint-carrier {
   content: "";
@@ -105,6 +109,11 @@
 }
 
 @layer ui {
+  /* `fixed inset-0` gives the dialog viewport a definite height, so size containment changes nothing about its layout. */
+  [data-slot="dialog-viewport"] {
+    container: dialog / size;
+  }
+
   /* The ceiling rides a custom property, never an inline max-height. Declared in layer ui, it loses to any unlayered
    * rule, so a regime rule (the app shell's short-room cap) can hold the field lower than the ceiling the component asks for. */
   [data-slot="textarea-root"] {

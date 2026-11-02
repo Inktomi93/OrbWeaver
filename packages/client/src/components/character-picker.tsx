@@ -201,17 +201,17 @@ function CharacterPickerBody({
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
       {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-        <Row divider="top" align="center" gap="row" padding="row">
+        <Row className="flex-wrap" divider="top" align="center" gap="row" padding="row">
           <Text as="span" voice="gloss">
             {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
-          <Row className="flex-1" gap="field" justify="end">
+          <Row className="flex-1 min-inline-0" gap="field" justify="end">
             {query.isFetchNextPageError ? (
               <>
                 <Text role="alert" voice="gloss">
                   Couldn't load more characters.
                 </Text>
-                <Button variant="outline" onClick={fetchMore} size="sm">
+                <Button variant="outline" onClick={fetchMore} size="sm" wrap={true}>
                   Retry loading more characters
                 </Button>
               </>
@@ -219,6 +219,7 @@ function CharacterPickerBody({
             {term === "" ? null : (
               <Button
                 variant="ghost"
+                wrap={true}
                 onClick={(): void => {
                   setTerm("");
                   searchRef.current?.focus();

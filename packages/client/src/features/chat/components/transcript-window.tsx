@@ -73,7 +73,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
   return (
     <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching}>
       {historyAvailable ? (
-        <Row gap="field" align="center">
+        <Row className="print:hidden" gap="field" align="center">
           <Button
             aria-describedby={description}
             variant="ghost"
@@ -149,7 +149,7 @@ function AnchoredThread({
       : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
   return (
     <Stack className="block-full min-block-0" gap="field">
-      <Row className="flex-wrap" gap="field">
+      <Row className="flex-wrap print:hidden" gap="field">
         <Button
           aria-describedby={pagingDescription}
           variant="ghost"
@@ -175,7 +175,7 @@ function AnchoredThread({
           Back to Corpus
         </Button>
       </Row>
-      <Text id={pagingDescription} voice="gloss">
+      <Text className="print:hidden" id={pagingDescription} voice="gloss">
         Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
       </Text>
       {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}

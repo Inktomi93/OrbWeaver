@@ -20,7 +20,8 @@ export const dialogVariants = tv({
     // and a base `p-gutter` were two padding classes tailwind-merge could not dedupe; with the spacing scale
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
-    viewport: "@container fixed inset-0 z-(--z-modal) flex justify-center",
+    // The inline step queries and the `dialog-short` variant both read this box; its size container is primitives.css's rule.
+    viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
     `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
