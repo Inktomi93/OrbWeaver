@@ -11,6 +11,7 @@ import type {
   CostDetails,
   EndpointFeatures,
   GenerationCapability,
+  ProviderGenerationId,
   ProviderId,
   ResolvedWarning,
   ResponseCache,
@@ -117,7 +118,7 @@ export interface ResultContext {
   readonly measuredCost: MeasuredCost | null;
   /** The row's shipped pricing — the `estimated` arm when nothing was measured. */
   readonly pricing: EndpointFeatures["pricing"];
-  readonly generationId: string | null;
+  readonly generationId: ProviderGenerationId | null;
   /** What the wire carried for effort (`ChatResult.appliedEffort`) — read off the built options by the transport. */
   readonly appliedEffort: EffortLevel | null;
   /** The response's rate-limit headers, parsed by the transport (`backends/http/rate-limit-headers.ts`). */
@@ -141,7 +142,7 @@ export interface StreamDrain {
   readonly finish: LanguageModelV4FinishReason;
   readonly usage: LanguageModelV4Usage | undefined;
   readonly providerMetadata: SharedV4ProviderMetadata | undefined;
-  readonly responseId: string | undefined;
+  readonly responseId: ProviderGenerationId | undefined;
   readonly servedModel?: string | undefined;
   readonly warnings: readonly SharedV4Warning[];
 }

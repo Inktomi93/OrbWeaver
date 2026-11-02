@@ -5,6 +5,7 @@
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
 import { CONNECTION_LABEL_SEPARATOR, canFund, requirementMet } from "@orb/contracts/inference";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
 
@@ -198,10 +199,10 @@ export function bindRefusal(row: { readonly allowBackground: boolean }, task: Ro
 // not been touched this mount, which is the only state that can never diverge.
 
 /** The `listBindings` view as this model READS it — structural, so the pure lib never imports the trpc
- *  inference type (and the branded ids widen to `string` on the way in). */
+ *  inference type. */
 export interface RoleBindingView {
-  readonly binding: { readonly connectionId: string | null } | null;
-  readonly resolved: { readonly connectionId: string; readonly capability: Capability } | null;
+  readonly binding: { readonly connectionId: UserConnectionId | null } | null;
+  readonly resolved: { readonly connectionId: UserConnectionId; readonly capability: Capability } | null;
   readonly unavailableCause: UnavailableCause | null;
 }
 
@@ -268,8 +269,8 @@ export function connectionHost(baseUrl: string | null): string | null {
 export function roleReadout(args: {
   readonly view: RoleBindingView | null;
   /** The picker's current selection — `undefined` until the user touches it, `null` for "Not set". */
-  readonly draftConnectionId: string | null | undefined;
-  readonly factsOf: (connectionId: string) => RoleConnectionFacts | null;
+  readonly draftConnectionId: UserConnectionId | null | undefined;
+  readonly factsOf: (connectionId: UserConnectionId) => RoleConnectionFacts | null;
 }): RoleReadout {
   const resolved = args.view?.resolved ?? null;
   const bound = args.view?.binding?.connectionId ?? null;

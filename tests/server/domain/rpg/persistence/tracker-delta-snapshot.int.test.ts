@@ -4,7 +4,7 @@
 // @subject packages/server/src/domain/rpg/chat-ops/gather.ts
 // @subject packages/server/src/domain/rpg/substrate/delta.ts
 
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { rpgSnapshots } from "@orb/db";
@@ -106,7 +106,7 @@ test("real SEND preserves tracker hints in standalone macro and CEL deltas, then
       sections: [
         {
           type: "literal",
-          id: "tracker-wire-fragments",
+          id: promptSectionIdSchema.parse("tracker-wire-fragments"),
           name: "Tracker wire fragments",
           role: "system",
           content: [

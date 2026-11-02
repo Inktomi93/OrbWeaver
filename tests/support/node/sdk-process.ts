@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { SeededIds } from "../iso/ids.ts";
 import { createSeededIds } from "../iso/ids.ts";
 import type { SdkScriptInput, SdkScriptSpawn } from "./contract/sdk-process.ts";
-import { SDK_SCRIPT_FRAME_NAMES, SDK_SCRIPT_IDENTITY_TYPE, sdkScriptIdentitySchema } from "./contract/sdk-process.ts";
+import { SDK_SCRIPT_FRAME_NAMES, SDK_SCRIPT_IDENTITY_TYPE, sdkScriptIdentitySchema, sdkSessionIdOf } from "./contract/sdk-process.ts";
 
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "./contract/sdk-private-diagnostics.ts";
 export { SDK_PRIVATE_DIAGNOSTIC_SINKS, sdkPrivateDiagnosticResultSchema } from "./contract/sdk-private-diagnostics.ts";
@@ -58,7 +58,7 @@ export async function readSdkProcessInput(): Promise<SdkScriptInput> {
   const available = new Map(Object.entries(identity.frames));
   return {
     lines: input,
-    sdkSessionId: resume ?? identity.sessionId,
+    sdkSessionId: sdkSessionIdOf(resume ?? identity.sessionId),
     frameId: (name: string): string => {
       const uuid = available.get(name);
       if (uuid === undefined) {

@@ -552,7 +552,7 @@ interface SdkMetadata {
   webSearchRequests: number;
   warmSpareClaimed: boolean | null;
   modelUsage: Record<string, { inputTokens: number; outputTokens: number; costUsd: number }>;
-  sdkSessionId: string | null;
+  sdkSessionId: AgentSdkSessionId | null;
   apiKeySource: string | null;
   servedModel: string | null;
 }

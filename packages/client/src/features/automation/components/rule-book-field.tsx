@@ -1,4 +1,5 @@
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, WorldBookId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Stack } from "@orb/ui/layout";
@@ -18,8 +19,8 @@ export function RuleBookField({
   onBlur,
 }: {
   readonly chatId: ChatId | null;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
+  readonly value: WorldBookId | "";
+  readonly onChange: (value: WorldBookId) => void;
   readonly error: string | null;
   readonly onBlur: () => void;
 }): ReactElement {
@@ -39,12 +40,13 @@ export function RuleBookField({
               onBlur();
             }
           }}
-          value={value || null}
+          value={value === "" ? null : value}
           placeholder="Choose a world book…"
           items={unavailable ? [...items, { value, label: `Unavailable book (${value})` }] : items}
           onValueChange={(next): void => {
-            if (next !== null) {
-              onChange(next);
+            const book = typeIdSchema(ID_PREFIX.worldBook).safeParse(next);
+            if (book.success) {
+              onChange(book.data);
             }
           }}
         />

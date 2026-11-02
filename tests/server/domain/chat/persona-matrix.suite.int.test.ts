@@ -1,12 +1,13 @@
 // @subject packages/server/src/domain/chat/assembly/turn-personas.ts
 // The current-policy report observes native provider bytes; every persona and room mutation uses the real graph.
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -23,7 +24,14 @@ import {
   personaRoom,
 } from "./persona-cache-physical.ts";
 
-const PRESET_PROBE: PromptSection = { type: "literal", id: "probe", name: "probe", role: "system", enabled: true, content: "PRESET_USER=<{{user}}>" };
+const PRESET_PROBE: PromptSection = {
+  type: "literal",
+  id: promptSectionIdSchema.parse("probe"),
+  name: "probe",
+  role: "system",
+  enabled: true,
+  content: "PRESET_USER=<{{user}}>",
+};
 
 function presetOf(namesBehavior: NamesBehavior): PromptConfig {
   return {

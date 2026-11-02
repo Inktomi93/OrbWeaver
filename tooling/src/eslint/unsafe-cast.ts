@@ -45,7 +45,7 @@ const UNTYPED = new Set<string>([AST_NODE_TYPES.TSUnknownKeyword, AST_NODE_TYPES
 // The constraint of `castId`'s type parameter is the repo's own `Branded<string>`: every brand is assignable to it and a bare string is not.
 const brandCache = new WeakMap<ts.Program, ts.Type | null>();
 
-function brandedString(program: ts.Program, checker: ts.TypeChecker): ts.Type | null {
+export function brandedString(program: ts.Program, checker: ts.TypeChecker): ts.Type | null {
   const cached = brandCache.get(program);
   if (cached !== undefined) {
     return cached;

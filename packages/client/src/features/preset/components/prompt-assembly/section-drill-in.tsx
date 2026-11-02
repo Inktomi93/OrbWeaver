@@ -33,7 +33,8 @@
 // (`chat_history`) can be neither deleted, disabled, silenced, nor re-zoned, so it offers no menu at all
 // and no Placement/Triggers cluster (a trigger filter is silencing by another name).
 
-import type { GenerationType, PromptSection } from "@orb/contracts/preset";
+import type { GenerationType, PromptSection, PromptSectionId } from "@orb/contracts/preset";
+import { mintPromptSectionId } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -410,7 +411,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
             }}
             label={PRESET_SECTION_ACTIONS_NAME}
           >
-            <MenuItem onClick={(): void => duplicate(form, section, index, ids.uuid)}>
+            <MenuItem onClick={(): void => duplicate(form, section, index, () => mintPromptSectionId(ids.uuid()))}>
               <Icon icon={Copy} size="sm" />
               Duplicate
             </MenuItem>
@@ -424,7 +425,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
 
 /** Duplicate the section just below itself with a fresh id (content preserved). The autosave BOUNDARY's
  *  store driver persists it (D78 §3) — no call-site flush. */
-function duplicate(form: AssemblyForm, section: PromptSection, index: number, mint: () => string): void {
+function duplicate(form: AssemblyForm, section: PromptSection, index: number, mint: () => PromptSectionId): void {
   const clone: PromptSection = { ...section, id: mint() };
   form.insertFieldValue("sections", index + 1, clone).catch(() => notify.error("Couldn't duplicate the section."));
 }

@@ -4,13 +4,13 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
 import { embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
-import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
 interface ActiveGenerationRow {
   readonly id: EmbedGenerationId;
   readonly via: EmbeddingTask;
-  readonly connectionId: string | null;
+  readonly connectionId: UserConnectionId | null;
   readonly fingerprint: string;
   readonly space: string;
 }

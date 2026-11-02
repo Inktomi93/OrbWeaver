@@ -1,6 +1,6 @@
 // Corpus retains these wire snapshots below the client data layer; producers and navigation share one shape.
 
-import type { CharacterId, EmbedGenerationId, ThemeClusterId } from "@orb/kit/ids";
+import type { Branded, CharacterId, EmbedGenerationId, ThemeClusterId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { TokenProvenance } from "../chat/token-provenance.ts";
@@ -27,11 +27,17 @@ export interface ArchetypeMember {
   readonly avatarHash: string | null;
 }
 
+/** The SHA-256 fingerprint of one clustering pass's input, the identity two archetype reads compare; never a row id. */
+type PassId = Branded<"PassId">;
+const passIdSchema = brandedId("PassId");
+/** The one mint of a pass identity from the fingerprint the clustering computed. */
+export const mintPassId = (fingerprint: string): PassId => passIdSchema.parse(fingerprint);
+
 /** One character archetype — a k-means cluster of an owner's card embeddings, labelled from the dominant
  *  distilled facets. `members` retains the complete grouping; finders bound their own display. */
 export interface Archetype {
   readonly baseLabel: string;
-  readonly passId: string;
+  readonly passId: PassId;
   readonly generationId: EmbedGenerationId;
   readonly fingerprint: string | null;
   readonly label: string;
@@ -46,7 +52,7 @@ export interface Archetype {
 /** One art-style cluster — k-means over avatar vectors, labelled by dominant caption artStyle/mood. */
 export interface VisualArchetype {
   readonly baseLabel: string;
-  readonly passId: string;
+  readonly passId: PassId;
   readonly generationId: EmbedGenerationId;
   readonly fingerprint: string | null;
   readonly label: string;
@@ -95,8 +101,7 @@ export const archetypeMemberSchema = z.strictObject({
 
 export const archetypeSchema = z.strictObject({
   baseLabel: z.string(),
-  // eslint-disable-next-line orb/no-raw-id -- SHA-256 corpus fingerprint produced by clustering, not a minted row identity.
-  passId: z.string(),
+  passId: passIdSchema,
   generationId: brandedId("EmbedGenerationId"),
   fingerprint: z.string().nullable(),
   label: z.string(),
@@ -110,8 +115,7 @@ export const archetypeSchema = z.strictObject({
 
 export const visualArchetypeSchema = z.strictObject({
   baseLabel: z.string(),
-  // eslint-disable-next-line orb/no-raw-id -- SHA-256 corpus fingerprint produced by clustering, not a minted row identity.
-  passId: z.string(),
+  passId: passIdSchema,
   generationId: brandedId("EmbedGenerationId"),
   fingerprint: z.string().nullable(),
   label: z.string(),

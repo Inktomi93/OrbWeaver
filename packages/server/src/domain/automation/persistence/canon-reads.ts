@@ -8,8 +8,8 @@ import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, personas, rpgGames, worldBooks, worldEntries } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
-import type { AssetId, CharacterId, ChatId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { AnalysisAuditTarget, AnalysisWindowRow } from "../contract/analysis.ts";
@@ -71,7 +71,7 @@ export async function loadPresentHumanMemberIds(db: Db, chatId: ChatId): Promise
 /** Whether the installing user OWNS the referenced row — the chat-less domain-fact visibility check
  *  (one arm per {@link DomainRowKind}). A forged / stale id names no row ⇒ `false` (fail-closed by
  *  construction — the re-read IS the gate). `ownerId` is the D18/D23 scope anchor; the id arrives UNBRANDED
- *  (the TriggerFact wire shape) and is re-branded here only to query — a re-read gate, never a trust transfer.
+ *  (the TriggerFact wire shape) and is parsed here only to query — a re-read gate, never a trust transfer.
  *  The drizzle table stays module-private (the caller names a KIND, not a schema object).
  *
  *  Consumed by the plugin fan-out's visibility gate (`substrate/plugin-subscribers::canInstallerSeeFact`). The
@@ -88,39 +88,39 @@ export async function isDomainRowOwnedBy(db: Db, kind: DomainRowKind, id: string
 async function selectDomainRowOwner(db: Db, kind: DomainRowKind, id: string): Promise<UserId | undefined> {
   switch (kind) {
     case "character": {
-      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are re-branded only to query: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
-      const rows = await db
-        .select({ ownerId: characters.ownerId })
-        .from(characters)
-        .where(eq(characters.id, castId<CharacterId>(id)))
-        .limit(LIMIT_ONE);
+      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are parsed with the brand's schema only to query; a malformed id names no row: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
+      const parsed = typeIdSchema(ID_PREFIX.character).safeParse(id);
+      if (!parsed.success) {
+        return undefined;
+      }
+      const rows = await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, parsed.data)).limit(LIMIT_ONE);
       return rows[0]?.ownerId;
     }
     case "asset": {
-      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are re-branded only to query: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
-      const rows = await db
-        .select({ ownerId: assets.ownerId })
-        .from(assets)
-        .where(eq(assets.id, castId<AssetId>(id)))
-        .limit(LIMIT_ONE);
+      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are parsed with the brand's schema only to query; a malformed id names no row: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
+      const parsed = typeIdSchema(ID_PREFIX.asset).safeParse(id);
+      if (!parsed.success) {
+        return undefined;
+      }
+      const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, parsed.data)).limit(LIMIT_ONE);
       return rows[0]?.ownerId;
     }
     case "persona": {
-      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are re-branded only to query: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
-      const rows = await db
-        .select({ ownerId: personas.ownerId })
-        .from(personas)
-        .where(eq(personas.id, castId<PersonaId>(id)))
-        .limit(LIMIT_ONE);
+      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are parsed with the brand's schema only to query; a malformed id names no row: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
+      const parsed = typeIdSchema(ID_PREFIX.persona).safeParse(id);
+      if (!parsed.success) {
+        return undefined;
+      }
+      const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, parsed.data)).limit(LIMIT_ONE);
       return rows[0]?.ownerId;
     }
     case "worldBook": {
-      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are re-branded only to query: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
-      const rows = await db
-        .select({ ownerId: worldBooks.ownerId })
-        .from(worldBooks)
-        .where(eq(worldBooks.id, castId<WorldBookId>(id)))
-        .limit(LIMIT_ONE);
+      // this IS the POST-FETCH ownership arm, not a missing predicate. Every read here PROJECTS `ownerId` and nothing else, and its two callers compare it to a known user — `isDomainRowOwnedBy` (the plugin fan-out's visibility gate) and `isBookOwnedBy` (the owner-global lore gate) — so a foreign row can only ever produce `false`, never a leaked row. Putting the owner in the WHERE instead would make the function unable to answer the question it exists for ("WHO owns this?"), and both callers would still have to compare. The ids arrive UNBRANDED off the wire-shaped `TriggerFact` and are parsed with the brand's schema only to query; a malformed id names no row: the re-read IS the gate. ENDS the day a caller wants the ROW rather than the owner id.
+      const parsed = typeIdSchema(ID_PREFIX.worldBook).safeParse(id);
+      if (!parsed.success) {
+        return undefined;
+      }
+      const rows = await db.select({ ownerId: worldBooks.ownerId }).from(worldBooks).where(eq(worldBooks.id, parsed.data)).limit(LIMIT_ONE);
       return rows[0]?.ownerId;
     }
     default: {

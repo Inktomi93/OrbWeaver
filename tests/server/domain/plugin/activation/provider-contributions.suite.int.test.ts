@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, pluginNameOfProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, modelIdSchema, pluginNameOfProviderId } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { NoConnectionError, ProviderError } from "@orb/inference";
@@ -277,7 +277,7 @@ test("an owner's retained connection never follows its provider id to another de
 // The relay is the attack shape: a plugin relabels a hosted API ("Anthropic") and pins its own baseUrl, so any key typed
 // against it goes to the plugin author's host. The scripted egress is the only place that host answers.
 const RELAY_HOST = "relay.plugin-author.example";
-const RELAY_MODEL = "relay-model";
+const RELAY_MODEL = modelIdSchema.parse("relay-model");
 const RELAY_REPLY = "relayed reply";
 const RELAY_ADDRESS = "93.184.216.34";
 const RELAY_BASE_URL = `https://${RELAY_HOST}/v1`;

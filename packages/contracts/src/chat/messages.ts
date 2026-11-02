@@ -4,7 +4,7 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { Branded, CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -15,7 +15,8 @@ import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
 import { normalizedFinishReasonSchema } from "../inference/finish-reasons.ts";
 import type { ProviderId } from "../inference/provider-id.ts";
 import { providerIdSchema } from "../inference/provider-id.ts";
-import { generationUsageLegSchema } from "../inference/usage.ts";
+import type { ProviderGenerationId } from "../inference/usage.ts";
+import { generationUsageLegSchema, providerGenerationIdSchema } from "../inference/usage.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 import type { TokenProvenance } from "./token-provenance.ts";
@@ -193,8 +194,8 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
       /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
        *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
       outputCapReached: z.literal(true).optional(),
-      // eslint-disable-next-line orb/no-raw-id -- Opaque Anthropic SDK session handle preserved as foreign provenance, not the BFF session row ID.
-      sdkSessionId: z.string().optional(),
+      // The Anthropic SDK's own session handle, kept as foreign provenance; never the BFF session row id.
+      sdkSessionId: brandedId("AgentSdkSessionId").optional(),
       servedModel: z.string().optional(),
     })
     .strip(),
@@ -252,6 +253,14 @@ export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSche
 const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() }).strip();
 export type TextSignature = z.infer<typeof textSignatureSchema>;
 // Strip mode: also reads stored rows.
+/** The handle a provider gives one tool call, kept verbatim to join the call to its result and for signed replay.
+ *  @remarks Provider-local and reusable across exchanges; the host names an occurrence by turn and ordinal. */
+export type ToolCallId = Branded<"ToolCallId">;
+// Any text, the empty string included: a provider's handle is kept verbatim, and stored rows hold what providers sent.
+export const toolCallIdSchema = z.string().pipe(z.custom<ToolCallId>());
+/** The one mint of a call handle the host itself composes, for a call no provider named. */
+export const mintToolCallId = (handle: string): ToolCallId => toolCallIdSchema.parse(handle);
+
 const contentSignatureSnapshotSchema = z
   .object({
     content: z.string().optional(),
@@ -261,8 +270,7 @@ const contentSignatureSnapshotSchema = z
       .array(
         z
           .object({
-            // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle retained verbatim for signed wire replay, not an Orbweaver identity.
-            toolCallId: z.string(),
+            toolCallId: toolCallIdSchema,
             callOrdinal: z.int().nonnegative().optional(),
             thoughtSignature: z.string().optional(),
             openrouter: chatReasoningPartSchema.shape.meta.unwrap().shape.openrouter,
@@ -455,7 +463,7 @@ export interface ToolCallRecord {
   readonly exchangeOrdinal?: number;
   /** The completion may emit prose/media after its calls; those parts precede this batch's results. */
   readonly exchangeTextEnd?: number;
-  readonly toolCallId: string;
+  readonly toolCallId: ToolCallId;
   readonly name: string;
   readonly arguments: string;
   readonly result: string | null;
@@ -475,8 +483,7 @@ const toolCallRecordInputSchema = z
     callOrdinal: z.int().nonnegative().optional(),
     exchangeOrdinal: z.int().nonnegative().optional(),
     exchangeTextEnd: z.int().nonnegative().optional(),
-    // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle joins wire calls to results; the host occurrence identity is separate.
-    toolCallId: z.string(),
+    toolCallId: toolCallIdSchema,
     name: z.string(),
     /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
     arguments: z.string(),
@@ -595,7 +602,7 @@ export interface MessageView {
   /** The upstream generation handle (OpenRouter's `gen-…`) this shown swipe billed under — the key a quiet
    *  per-message cost readout settles with via `connection.generationCost`, resolved against
    *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
-  generationId: string | null;
+  generationId: ProviderGenerationId | null;
   /** WHETHER this swipe ever carried a connection id. `recorded` + null means the referenced connection was
    *  deleted; `unrecorded` + null means no connection was recorded for this variant. */
   connectionAttributionProvenance: ConnectionAttributionProvenance;
@@ -673,8 +680,7 @@ export const messageViewSchema = z.strictObject({
   genStartedAt: z.number().nullable(),
   genFinishedAt: z.number().nullable(),
   hasGeneratedVariant: z.boolean(),
-  // eslint-disable-next-line orb/no-raw-id -- Upstream provider billing handle, not an orbweaver id.
-  generationId: z.string().nullable(),
+  generationId: providerGenerationIdSchema.nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
   toolCalls: z.array(toolCallRecordOutputSchema).readonly(),

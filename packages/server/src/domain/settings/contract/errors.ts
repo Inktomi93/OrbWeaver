@@ -14,6 +14,8 @@ export const SETTINGS_OP_CODES = {
   tenantNamespace: "settings_tenant_namespace",
   /** createTheme/updateTheme custom CSS failed css-validate (a containment-break shape). */
   unsafeCss: "unsafe_css",
+  /** A section patch wrote an id pointer that is not a valid id of its family; nothing is written. */
+  malformedPointer: "settings_malformed_pointer",
   /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with
    *  the degraded default the read seam hands out (#471 — the silent whole-blob wipe class). The row is
    *  left exactly as it was; the failure reason rides the message. Thrown by `#primitives/stored-config`, which

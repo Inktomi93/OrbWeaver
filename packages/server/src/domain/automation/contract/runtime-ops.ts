@@ -1,4 +1,4 @@
-import type { RequestTurnOp, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
+import type { RequestTurnOp, ToolCallId, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture } from "@orb/contracts/imagery";
 import type { BindingActor } from "@orb/contracts/inference";
@@ -35,7 +35,7 @@ export interface AutomationRuntimeDeps<TSet> {
   };
   readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
-  readonly newToolCallId: () => string;
+  readonly newToolCallId: () => ToolCallId;
 }
 export interface AutomationRuntimeOps {
   readonly requestTurn: AutomationOps["chat"]["requestTurn"];

@@ -4,7 +4,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfigInput } from "@orb/contracts/chat";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { characters, chatGenerationObservations, chatParticipants, messages, messageVariants, pendingTurns } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
@@ -19,7 +19,7 @@ const ARIA = createCharacterSchema.parse({ handle: "aria", name: "aria", descrip
 const CLOCK = {
   ...DEFAULT_PROMPT_CONFIG,
   sections: [
-    { type: "literal", id: "clock", name: "clock", role: "system", content: "CLOCK {{date}} {{time}}", enabled: true } as const,
+    { type: "literal", id: promptSectionIdSchema.parse("clock"), name: "clock", role: "system", content: "CLOCK {{date}} {{time}}", enabled: true } as const,
     ...DEFAULT_PROMPT_CONFIG.sections,
   ],
 };

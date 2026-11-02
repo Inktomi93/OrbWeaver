@@ -6,6 +6,7 @@
 // @subject packages/server/src/domain/chat/verbs/quiet-generate.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { providerIdSchema } from "@orb/contracts/inference";
 import { auditLogs, compactionSpend } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
@@ -56,7 +57,7 @@ for (const phase of PHASES) {
       ownerCaller,
       harness,
       task: "chat",
-      providerId: "claude-sub",
+      providerId: providerIdSchema.parse("claude-sub"),
       baseUrl: null,
       credentialId: key.id,
       cachedFacts: true,
@@ -122,7 +123,7 @@ test("a real native SDK stream strikes its late auth failure only after terminal
     ownerCaller,
     harness,
     task: "chat",
-    providerId: "claude-sub",
+    providerId: providerIdSchema.parse("claude-sub"),
     baseUrl: null,
     credentialId: key.id,
     cachedFacts: true,
@@ -192,7 +193,7 @@ test("a native funding turn captures only its genuine canon-seeded session linea
     ownerCaller,
     harness,
     task: "chat",
-    providerId: "claude-sub",
+    providerId: providerIdSchema.parse("claude-sub"),
     credentialId: key.id,
     baseUrl: null,
     cachedFacts: true,

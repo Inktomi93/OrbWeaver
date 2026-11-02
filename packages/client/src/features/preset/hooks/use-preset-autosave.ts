@@ -54,7 +54,7 @@ export interface PresetAutosaveDeps {
   /** The server row's config — `mergeOnSubmit`'s normalization base (schemaVersion + server-only blobs). */
   readonly server: PromptConfig;
   /** `settings.config.seeds.defaultPresetId` — `null` means the built-in default is the active pick. */
-  readonly activePresetId: string | null;
+  readonly activePresetId: PresetId | null;
 }
 
 /** The open question: this edit targets the built-in and the owner already has a fork of it. */

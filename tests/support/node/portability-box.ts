@@ -4,7 +4,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/id
 import { importStartedSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import type { WorkloadId } from "@orb/kit/ids";
+import type { ModelId, WorkloadId } from "@orb/kit/ids";
 import type { SeededIds } from "../iso/ids.ts";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution } from "./corpus-provider.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -73,7 +73,7 @@ export async function restoreBundle(root: ServerTestHarness, bundle: Uint8Array)
 }
 
 /** A scripted provider that answers only an image generation of `model`, with the pictures a case pushes in order. */
-export function imageProvider(model: string, pictures: Uint8Array[]): typeof fetch {
+export function imageProvider(model: ModelId, pictures: Uint8Array[]): typeof fetch {
   return createCorpusProviderExecution({
     modelIds: [model],
     embedding: CORPUS_EMBEDDING_VECTOR,

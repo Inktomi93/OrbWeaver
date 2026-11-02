@@ -27,7 +27,7 @@ export function buildSideGenParams(deps: SideGenParamsDeps): SideGenParams {
     return detail === null ? null : rolePresetOf(detail.config);
   };
 
-  const fromChoice = async (userId: UserId, choice: RolePresetChoice, activePresetId: string | null): Promise<RolePresetParams | undefined> => {
+  const fromChoice = async (userId: UserId, choice: RolePresetChoice, activePresetId: PresetId | null): Promise<RolePresetParams | undefined> => {
     if (choice.kind === ROLE_PRESET_CHOICE_KINDS.preset) {
       return (await presetParams(userId, castId<PresetId>(choice.presetId))) ?? undefined;
     }

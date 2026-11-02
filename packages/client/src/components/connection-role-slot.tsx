@@ -3,6 +3,7 @@
 // view. Model roles renders one per task for the user; a rule's editor renders one per task its arms spend.
 
 import type { EmbedTargetRefusal } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
@@ -160,7 +161,7 @@ export function ConnectionRoleSlot({
   const toastRefusalIfGone = useEmbedRefusalToastAfterUnmount();
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
-  const [draft, setDraft] = useState<string | null | undefined>(undefined);
+  const [draft, setDraft] = useState<UserConnectionId | null | undefined>(undefined);
 
   const compatible = connections.filter((connection) => connection.tasks.includes(row.task));
   // The closed Select shows the placeholder for the empty value, so the unset option and the placeholder are one word.
@@ -173,7 +174,7 @@ export function ConnectionRoleSlot({
     }),
   ];
 
-  const factsOf = (connectionId: string): RoleConnectionFacts | null => {
+  const factsOf = (connectionId: UserConnectionId): RoleConnectionFacts | null => {
     const connection = connections.find((candidate) => candidate.id === connectionId);
     return connection === undefined ? null : { label: connectionSummary(connection), host: connectionHost(connection.baseUrl) };
   };

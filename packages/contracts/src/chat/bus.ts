@@ -14,7 +14,7 @@ import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import type { AdjustedKnob } from "./adjusted-knobs.ts";
 
-import type { ChatReasoningPart, MessageView, ReasoningPartMeta } from "./messages.ts";
+import type { ChatReasoningPart, MessageView, ReasoningPartMeta, ToolCallId } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ export type ChatContentPart =
    * seam, so the string-shaped assemble/SHAPE transforms stay parts-blind (the D51 law, both directions). */
   | {
       readonly type: "tool-call"; // assistant emits — one per model-requested call
-      readonly toolCallId: string;
+      readonly toolCallId: ToolCallId;
       readonly name: string;
       /** RAW model-emitted JSON string (parsed once, at execute). */
       readonly arguments: string;
@@ -70,7 +70,7 @@ export type ChatContentPart =
   | {
       readonly type: "tool-result"; // the wire `tool` role carries — one per executed call
       /** Joins back to the originating tool-call. */
-      readonly toolCallId: string;
+      readonly toolCallId: ToolCallId;
       /** The record's `result` JSON document. */
       readonly content: string;
       readonly isError?: boolean | undefined;

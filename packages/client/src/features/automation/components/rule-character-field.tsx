@@ -1,4 +1,4 @@
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -16,13 +16,12 @@ export function RuleCharacterField({
   onChange,
 }: {
   readonly label: string;
-  readonly value: string | undefined;
-  readonly onChange: (value: string | undefined) => void;
+  readonly value: CharacterId | undefined;
+  readonly onChange: (value: CharacterId | undefined) => void;
 }): ReactElement {
   const trpc = useTRPC();
   const [open, setOpen] = useState(false);
-  const id = typeIdSchema(ID_PREFIX.character).safeParse(value);
-  const character = useQuery(trpc.character.get.queryOptions(id.success ? { characterId: id.data } : skipToken));
+  const character = useQuery(trpc.character.get.queryOptions(value === undefined ? skipToken : { characterId: value }));
   return (
     <Stack gap="tight">
       <Text>

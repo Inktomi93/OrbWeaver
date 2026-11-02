@@ -3,7 +3,8 @@
 // the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
 
 import type { ModelCheck, ModelKind, ProviderDef } from "@orb/contracts/inference";
-import type { UserConnectionId } from "@orb/kit/ids";
+import { modelIdSchema } from "@orb/contracts/inference";
+import type { ModelId, UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -73,13 +74,13 @@ export function ModelField({
   readonly connectionId: UserConnectionId;
   /** The row's kind: a built-in row's picker is narrowed to it (`editorPickerModels`). */
   readonly kind: ModelKind;
-  readonly model: string;
+  readonly model: ModelId;
   readonly modelCheck: ModelCheck;
   /** Whose list this is, in the user's words — an endpoint's host, or the provider's label. */
   readonly listOwner: string;
   readonly provider: ProviderDef | undefined;
   readonly busy: boolean;
-  readonly onCommit: (next: string, check: ModelCheck) => void;
+  readonly onCommit: (next: ModelId, check: ModelCheck) => void;
   /** Changed when the server refused a write, so a refused model id goes back to the saved one. */
   readonly resetKey: number;
 }): ReactElement {
@@ -107,9 +108,9 @@ export function ModelField({
   }
 
   const commit = (next: string): void => {
-    const id = next.trim();
-    if (id !== "" && id !== model) {
-      onCommit(id, modelCheckOf(source, id));
+    const id = modelIdSchema.safeParse(next);
+    if (id.success && id.data !== model) {
+      onCommit(id.data, modelCheckOf(source, id.data));
     }
   };
 

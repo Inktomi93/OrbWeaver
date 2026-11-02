@@ -2,8 +2,7 @@
 
 import type { InvocationChat, PluginHandlerRef } from "@orb/contracts/plugin";
 import { PLUGIN_READ_CONTENT_MAX_CHARS, pluginToolWireName } from "@orb/contracts/plugin";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { createDetachedSupervision } from "#foundation/observability";
 import type { PluginRegistrarDeps, PluginRegistrarOps } from "../contract/registrar-ops.ts";
 import { buildPluginPromptTransform, capFactContent } from "../substrate/registrar.ts";
@@ -62,7 +61,12 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
           superviseDetached(deps.newEventId(), "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
             let eventChat: InvocationChat | null = null;
             if (fact.chatId !== null) {
-              const factChatId = castId<ChatId>(fact.chatId);
+              // A malformed guest-wire chat id names no room the installer can read, so nothing is delivered.
+              const parsed = typeIdSchema(ID_PREFIX.chat).safeParse(fact.chatId);
+              if (!parsed.success) {
+                return;
+              }
+              const factChatId = parsed.data;
               const authority = await deps.resolveChatAuthority(scope.installer, factChatId);
               if (!authority.canRead) {
                 return;
