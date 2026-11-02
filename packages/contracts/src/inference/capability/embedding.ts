@@ -4,44 +4,49 @@
 // the tag. A vector is never padded. An MRL model is asked for exactly `dims` and only its longer vector is
 // cut to that width; any other width mismatch is refused, which is how a declared shorter width is honoured.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 
 const NATIVE_TEXT_WINDOW_TOKENS = 512;
-const localTextEncodingSchema = z.object({
-  version: z.literal(1),
-  maxTokens: z.literal(NATIVE_TEXT_WINDOW_TOKENS),
-  pooling: z.literal("mean-normalized"),
-});
+const localTextEncodingSchema = z
+  .object({
+    version: z.literal(1),
+    maxTokens: z.literal(NATIVE_TEXT_WINDOW_TOKENS),
+    pooling: z.literal("mean-normalized"),
+  })
+  .strip();
 export type LocalTextEncoding = z.infer<typeof localTextEncodingSchema>;
 
 /** Native text attention is bounded independently of the model's accepted input window. */
 export const LOCAL_TEXT_ENCODING = { version: 1, maxTokens: NATIVE_TEXT_WINDOW_TOKENS, pooling: "mean-normalized" } as const satisfies LocalTextEncoding;
 
-export const embeddingCapabilitySchema = z.object({
-  dims: z.int().positive(),
-  /** Matryoshka: the model honours `dimensions` truncation. */
-  mrl: z.boolean(),
-  maxInputTokens: z.int().positive(),
-  /** `text`, and `image` for a joint-space encoder (jina-clip-v2, a VL embedder on vLLM). */
-  input: z.array(modalitySchema),
-  output: z.tuple([z.literal("vector")]),
-  /** Honours a per-task instruction prefix (the asymmetric query/document scaffold). */
-  instructionAware: z.boolean(),
-  /** The served precision (`q8`, `fp16`) — part of the space tag when present (#2417). */
-  dtype: z.string().min(1).optional(),
-  /** The local encoder's lossless window/centroid recipe; changing it moves the vector generation. */
-  localTextEncoding: localTextEncodingSchema.optional(),
-  /** The text scaffold the encoder was trained on when served over a plain `/v1/embeddings` `input`:
-   *  `chatml` = the Qwen3-VL-Embedding cookbook conversation (`<|im_start|>system … assistant\n`). A
-   *  capability fact the curated row states, never a wire feature — a served OpenAI embedder has none. */
-  promptScaffold: z.enum(["chatml", "gemini-retrieval"]).optional(),
-  /** The model supports retrieval task types through a native embedding API. */
-  retrievalTaskType: z.boolean().optional(),
-  windowEstimated: z.boolean().optional(),
-  /** `dims` is the kind floor's guess: no tier above it stated a width, so the space fit is unproven. */
-  dimsEstimated: z.boolean().optional(),
-});
+export const embeddingCapabilitySchema = z
+  .object({
+    dims: z.int().positive(),
+    /** Matryoshka: the model honours `dimensions` truncation. */
+    mrl: z.boolean(),
+    maxInputTokens: z.int().positive(),
+    /** `text`, and `image` for a joint-space encoder (jina-clip-v2, a VL embedder on vLLM). */
+    input: z.array(modalitySchema),
+    output: z.tuple([z.literal("vector")]),
+    /** Honours a per-task instruction prefix (the asymmetric query/document scaffold). */
+    instructionAware: z.boolean(),
+    /** The served precision (`q8`, `fp16`) — part of the space tag when present (#2417). */
+    dtype: z.string().min(1).optional(),
+    /** The local encoder's lossless window/centroid recipe; changing it moves the vector generation. */
+    localTextEncoding: localTextEncodingSchema.optional(),
+    /** The text scaffold the encoder was trained on when served over a plain `/v1/embeddings` `input`:
+     *  `chatml` = the Qwen3-VL-Embedding cookbook conversation (`<|im_start|>system … assistant\n`). A
+     *  capability fact the curated row states, never a wire feature — a served OpenAI embedder has none. */
+    promptScaffold: z.enum(["chatml", "gemini-retrieval"]).optional(),
+    /** The model supports retrieval task types through a native embedding API. */
+    retrievalTaskType: z.boolean().optional(),
+    windowEstimated: z.boolean().optional(),
+    /** `dims` is the kind floor's guess: no tier above it stated a width, so the space fit is unproven. */
+    dimsEstimated: z.boolean().optional(),
+  })
+  .strip();
 export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
 
 /** The connection-row fields a vector space's identity is derived from. A patch touching none of them cannot move

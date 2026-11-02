@@ -2,6 +2,7 @@
 // `satisfies` the input shape without importing the registry that parses it (no cycle). See `providers.ts`
 // for the doctrine (rows are data, the id is half the credential AAD, namespaced plugin ids).
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { CHAT_APIS } from "./apis.ts";
@@ -107,6 +108,7 @@ export const providerDefSchema = z
     metered: z.boolean(),
     docsUrl: z.url().optional(),
   })
+  .strip()
   .superRefine((row, ctx) => {
     for (const issue of [...wireIssues(row), ...dialectIssues(row), ...baseUrlIssues(row)]) {
       ctx.addIssue({ code: "custom", ...issue });

@@ -83,7 +83,7 @@ export const PORTABLE_IMPORT_ORDER = [
 ] as const satisfies readonly PortableKind[];
 
 /** A text download returned by a single-entity export; its contents retain the entity's own codec. */
-export const portableTextFileSchema = z.object({ filename: z.string(), fileText: z.string() });
+export const portableTextFileSchema = z.strictObject({ filename: z.string(), fileText: z.string() });
 
 /** Where one imported file landed: the name it carries now, the file's own name when a collision suffix applied, and
  *  whether a row was minted (false = an owned entity with equal content was reused). */

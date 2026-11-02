@@ -18,8 +18,8 @@
 // Fault isolation: every field is lenient (`.catch`/`.default`) so a malformed carried blob heals to
 // `kind:"none"` (⇒ the viewer's own appearance wins) rather than throwing — the `themeOverrideSchema` and
 // `parseChatMetadata` posture.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** The decorative-background source kind — the ONE home (viewer `appearance` + the carried twin). `asset`
@@ -41,30 +41,32 @@ export const BACKGROUND_IMAGE_KINDS = ["none", "external", "asset"] as const;
  *  never carried (the viewer keeps their own appearance treatment). `kind:"none"` (or an empty ref for the
  *  active kind) resolves to "no override" ⇒ the viewer's own background wins. Field naming mirrors the flat
  *  `appearance` background fields minus the `background` prefix (`kind`, not `backgroundImageKind`). */
-export const themeBackgroundSchema = z.object({
-  kind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-  externalUrl: z
-    .string()
-    .refine((s) => s === "" || z.url().safeParse(s).success, { error: "must be empty or a URL" })
-    .catch("")
-    .default(""),
-  // eslint-disable-next-line orb/no-raw-id -- Lenient carried-background pointer admits an empty sentinel; the owned-asset consumer validates live IDs.
-  assetId: z
-    .string()
-    .regex(/^(asset_[a-z0-9]+)?$/u)
-    .catch("")
-    .default(""),
-  // The immutable content hash for the `asset` kind — the SYNC url resolver builds `blobUrl(hash)` from it.
-  assetHash: z.string().catch("").default(""),
-  // The `asset` mime — the app-shell branches the `<video>` background layer over the image layer when this
-  // is `video/*` (the BG-V axis); blank (image assets / non-asset kinds) ⇒ the image layer.
-  mime: z.string().catch("").default(""),
-  // Provenance for a MATERIALIZED background (the INVARIANT above): the original external URL an `asset`
-  // source was fetched-and-stored from, kept as metadata (never re-fetched — the bytes live in the CAS). Only
-  // meaningful on `kind:"asset"`; `canonicalBackgroundSource` empties it for every other kind. Additive +
-  // lenient (an old blob reads "" — no version bump; the carried twin is not a versioned-config tier).
-  provenanceUrl: z.string().catch("").default(""),
-});
+export const themeBackgroundSchema = z
+  .object({
+    kind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
+    externalUrl: z
+      .string()
+      .refine((s) => s === "" || z.url().safeParse(s).success, { error: "must be empty or a URL" })
+      .catch("")
+      .default(""),
+    // eslint-disable-next-line orb/no-raw-id -- Lenient carried-background pointer admits an empty sentinel; the owned-asset consumer validates live IDs.
+    assetId: z
+      .string()
+      .regex(/^(asset_[a-z0-9]+)?$/u)
+      .catch("")
+      .default(""),
+    // The immutable content hash for the `asset` kind — the SYNC url resolver builds `blobUrl(hash)` from it.
+    assetHash: z.string().catch("").default(""),
+    // The `asset` mime — the app-shell branches the `<video>` background layer over the image layer when this
+    // is `video/*` (the BG-V axis); blank (image assets / non-asset kinds) ⇒ the image layer.
+    mime: z.string().catch("").default(""),
+    // Provenance for a MATERIALIZED background (the INVARIANT above): the original external URL an `asset`
+    // source was fetched-and-stored from, kept as metadata (never re-fetched — the bytes live in the CAS). Only
+    // meaningful on `kind:"asset"`; `canonicalBackgroundSource` empties it for every other kind. Additive +
+    // lenient (an old blob reads "" — no version bump; the carried twin is not a versioned-config tier).
+    provenanceUrl: z.string().catch("").default(""),
+  })
+  .strip();
 export type ThemeBackground = z.infer<typeof themeBackgroundSchema>;
 
 /** Canonicalize a parsed background SOURCE to its GC-safe persisted shape: ONLY `kind:"asset"` may carry an

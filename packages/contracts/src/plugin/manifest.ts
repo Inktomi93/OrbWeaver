@@ -6,6 +6,7 @@
 // is refused before any guest code runs. A well-formed `hostVersion` is compatibility data: the lifecycle
 // funnel compares it with {@link PLUGIN_HOST_VERSIONS} and raises its distinct unserved-version refusal.
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { SEMVER_RE } from "@orb/kit/semver";
@@ -229,6 +230,7 @@ export const pluginBuiltAgainstSchema = z
     engineVersion: z.string().min(1).max(ENGINE_VERSION_MAX),
     engineCommit: z.string().max(ENGINE_COMMIT_MAX).optional(),
   })
+  .strip()
   .describe("The engine version/commit the plugin was built against; display+warn provenance, not an install gate.");
 export type PluginBuiltAgainst = z.infer<typeof pluginBuiltAgainstSchema>;
 
@@ -391,6 +393,7 @@ export const pluginManifestSchema = z
     matchAutomationEvents: z.boolean().optional(),
     builtAgainst: pluginBuiltAgainstSchema.optional(),
   })
+  .strip()
   .superRefine((m, ctx): void => {
     // The netHosts ⟺ egress biconditional, generalized over EVERY egress capability (net.fetch AND
     // net.fetch_asset). Declaring an egress capability requires ≥ 1 host (an empty allowlist is a fail-closed

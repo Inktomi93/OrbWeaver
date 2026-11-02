@@ -8,10 +8,11 @@
 // multi-human refusal on the router + the socket room. That is a stated gap (#1627), not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
 // it returns.)
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
-// unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
+// unrepresentable: every member declares `.strip()` — no `z.looseObject`, no `z.unknown()`.
 
 // `UserId` is a plain `Branded` nanoid, so it validates with `brandedId` rather than `typeIdSchema`.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -80,18 +81,22 @@ export type PluginNotificationRecipient = (typeof PLUGIN_NOTIFICATION_RECIPIENTS
 // The discriminant strings ARE the db `notifications.type` column values. Closed: a new delivery
 // reason is a member here + its chat producer; the contract test's exhaustiveness guard catches drift.
 export const notificationEventSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("invite"),
-    recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
-    inviteId: chatInviteIdSchema,
-    invitedByHandle: handleSchema,
-  }),
-  z.object({
-    type: z.literal("kicked"),
-    recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
-  }),
+  z
+    .object({
+      type: z.literal("invite"),
+      recipientUserId: recipientUserIdSchema,
+      chatId: chatIdSchema,
+      inviteId: chatInviteIdSchema,
+      invitedByHandle: handleSchema,
+    })
+    .strip(),
+  z
+    .object({
+      type: z.literal("kicked"),
+      recipientUserId: recipientUserIdSchema,
+      chatId: chatIdSchema,
+    })
+    .strip(),
   // THE NOMINATION CARRIES ITS OWN DISCLOSURE (#1762). Accepting is not just "you now host this room": it
   // lands the departing host's characters, world books, GM voice and the room's REGEX SCRIPTS — executable
   // transforms over the accepter's chats (#1739) — in the NOMINEE's library. The receiving side rendered a
@@ -101,30 +106,36 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   // those rows yet, so an id would be an unreadable pointer AND a second user's library key on the wire.
   // `handoffOfferContentsSchema` (`@orb/contracts/chat`) is its one home, beside the OFFER it previews, so
   // the producer's resolution and the reader's render cannot drift into two shapes.
-  z.object({
-    type: z.literal("handoff-nominated"),
-    recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
-    /** What accepting would copy into the recipient's library, frozen at nominate. All-zero = the room
-     *  transfers and nothing else does (the built D64 drop), which the confirm says in as many words. */
-    offer: handoffOfferContentsSchema,
-  }),
-  z.object({
-    type: z.literal("handoff-accepted"),
-    recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
-    newHostHandle: handleSchema,
-  }),
+  z
+    .object({
+      type: z.literal("handoff-nominated"),
+      recipientUserId: recipientUserIdSchema,
+      chatId: chatIdSchema,
+      /** What accepting would copy into the recipient's library, frozen at nominate. All-zero = the room
+       *  transfers and nothing else does (the built D64 drop), which the confirm says in as many words. */
+      offer: handoffOfferContentsSchema,
+    })
+    .strip(),
+  z
+    .object({
+      type: z.literal("handoff-accepted"),
+      recipientUserId: recipientUserIdSchema,
+      chatId: chatIdSchema,
+      newHostHandle: handleSchema,
+    })
+    .strip(),
   // A host-offline DEFERRED AI turn (chat `pending_turns`, Part III §5) that a drain PERMANENTLY dropped —
   // delivered to the frozen `triggeredBy` member so their owed reply never silently vanishes. `reason`:
   // `consent` (the host's D17 consent belt refused the by-proxy hosted turn) | `chat-gone` (the room is gone).
   // A budget/transient drain outcome RE-QUEUES (no notification), so this is only the terminal-verdict path.
-  z.object({
-    type: z.literal("deferred-turn-dropped"),
-    recipientUserId: recipientUserIdSchema,
-    chatId: chatIdSchema,
-    reason: z.enum(["consent", "chat-gone"]),
-  }),
+  z
+    .object({
+      type: z.literal("deferred-turn-dropped"),
+      recipientUserId: recipientUserIdSchema,
+      chatId: chatIdSchema,
+      reason: z.enum(["consent", "chat-gone"]),
+    })
+    .strip(),
   // An automation `post_notification` arm firing (§AC-C) OR a plugin `notify`
   // (the SAME durable path, participants only). The one member that carries a rendered
   // `message` — a host-authored/plugin-authored template rendered server-side over room state (a rule that only
@@ -133,35 +144,39 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   // deep-links the host's rule debug surface / the owner's plugin surface; `chatId` scopes the notice;
   // `recipientUserId` is a chat participant by construction (host or a present member — the producer gates
   // recipients to the roster). Stored in the JSON `payload` blob, so widening `source` needs no db migration.
-  z.object({
-    type: z.literal("automation-notice"),
-    recipientUserId: recipientUserIdSchema,
-    /** The room the notice is about, or NULL when there is none — an owner-GLOBAL automation rule (C5) has
-     *  no chat, and its author still has to learn that it auto-disabled itself after 20 consecutive errors.
-     *  Without the null arm that notice could not be constructed at all, so a rotting global rule would go
-     *  silent in the ONE surface built to make rot visible (the transient `ruleAutoDisabled` bus event is
-     *  per-chat too, so the durable inbox is not a second channel there — it is the only one).
-     *
-     *  NULL is a scope fact, never a fallback: every notice raised BY a room still carries its room, so the
-     *  deep-link is unchanged for every producer that has one. No migration — `chatId` lives inside the JSON
-     *  `payload` blob, not a column (`db/schema/notifications.ts`). */
-    chatId: chatIdSchema.nullable(),
-    source: z.discriminatedUnion("kind", [
-      z.object({ kind: z.literal("rule"), ruleId: automationRuleIdSchema }),
-      z.object({ kind: z.literal("plugin"), pluginId: pluginIdSchema }),
-    ]),
-    message: z.string().max(AUTOMATION_NOTICE_MESSAGE_MAX),
-  }),
+  z
+    .object({
+      type: z.literal("automation-notice"),
+      recipientUserId: recipientUserIdSchema,
+      /** The room the notice is about, or NULL when there is none — an owner-GLOBAL automation rule (C5) has
+       *  no chat, and its author still has to learn that it auto-disabled itself after 20 consecutive errors.
+       *  Without the null arm that notice could not be constructed at all, so a rotting global rule would go
+       *  silent in the ONE surface built to make rot visible (the transient `ruleAutoDisabled` bus event is
+       *  per-chat too, so the durable inbox is not a second channel there — it is the only one).
+       *
+       *  NULL is a scope fact, never a fallback: every notice raised BY a room still carries its room, so the
+       *  deep-link is unchanged for every producer that has one. No migration — `chatId` lives inside the JSON
+       *  `payload` blob, not a column (`db/schema/notifications.ts`). */
+      chatId: chatIdSchema.nullable(),
+      source: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("rule"), ruleId: automationRuleIdSchema }).strip(),
+        z.object({ kind: z.literal("plugin"), pluginId: pluginIdSchema }).strip(),
+      ]),
+      message: z.string().max(AUTOMATION_NOTICE_MESSAGE_MAX),
+    })
+    .strip(),
   // A resident plugin the crash policy AUTO-DISABLED after the consecutive-crash threshold (the owner is
   // notified). Delivered to the plugin's installing OWNER (a human — an agent has no
   // inbox). Ids only: `pluginId` deep-links the owner's plugin-management surface where `lastError` /
   // `consecutiveCrashes` already live (no free error string on the wire — the detail is read there, never
   // smuggled through the durable payload). NOT chat-scoped (a plugin is owner-installed, not room-bound).
-  z.object({
-    type: z.literal("plugin-disabled"),
-    recipientUserId: recipientUserIdSchema,
-    pluginId: pluginIdSchema,
-  }),
+  z
+    .object({
+      type: z.literal("plugin-disabled"),
+      recipientUserId: recipientUserIdSchema,
+      pluginId: pluginIdSchema,
+    })
+    .strip(),
   // THE STANDING CONSENT ASK, AGGREGATED (#1041/#924). Installed plugins the recipient has not answered
   // yet — a fresh boot lands NINE of them (installed, disabled, empty grant, `pending_reconsent` raised:
   // `entry/boot/seed-example-plugins.ts`) and, before this member existed, nothing ever asked. It is ONE
@@ -177,13 +192,15 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   // `.min(1)` IS THE ZERO RULE AT THE TYPE: an aggregate that says "0 waiting" is unrepresentable, which is
   // how "when the last ask is answered the row is RETRACTED, never rewritten to zero" stops being prose
   // (the producer's `retract` path — `domain/notifications/verbs/standing.ts`).
-  z.object({
-    type: z.literal("plugins-awaiting-consent"),
-    recipientUserId: recipientUserIdSchema,
-    /** How many of the recipient's installed plugins are standing on their answer, at emission. The
-     *  consent surface is the live truth; this is what the row says while it waits. */
-    pendingCount: z.int().min(1),
-  }),
+  z
+    .object({
+      type: z.literal("plugins-awaiting-consent"),
+      recipientUserId: recipientUserIdSchema,
+      /** How many of the recipient's installed plugins are standing on their answer, at emission. The
+       *  consent surface is the live truth; this is what the row says while it waits. */
+      pendingCount: z.int().min(1),
+    })
+    .strip(),
 ]);
 
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;

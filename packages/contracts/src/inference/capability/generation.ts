@@ -5,8 +5,8 @@
 // simply ABSENT (no silent no-ops); the reasoning/sampling/verbosity/output/context/turns axes are kept
 // verbatim from the shape they replace. The axis tuples below are THE HOME — `@orb/contracts/connection`
 // re-exports them until it is deleted with the source axis.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 import { PROMPT_CACHE_FORMATS, PROMPT_CACHE_RETENTIONS, PROMPT_CACHE_TTLS } from "../prompt-cache.ts";
@@ -99,7 +99,7 @@ export const SYSTEM_ROW_PLACEMENT: Readonly<Record<RoleHandling, SystemRowPlacem
 
 // An inclusive numeric range — the ONE place a knob's bounds live; the client reads them for slider
 //  min/max and never re-hardcodes them.
-const rangeSchema = z.object({ min: z.number(), max: z.number() });
+const rangeSchema = z.object({ min: z.number(), max: z.number() }).strip();
 export type Range = z.infer<typeof rangeSchema>;
 
 /** THE HOME of the NUMERIC sampling knobs: each is a preset field (`UserIntent`), a capability `Range`, a
@@ -200,20 +200,22 @@ export const samplerOrderSchema = z
 //  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
 //  the first-listed and drops the other with `sampling_knob_conflict`. `samplerOrder` is the stages the server
 //  can order, in the server's own default order.
-const samplingCapabilitySchema = z.object({
-  ...samplingRangeShape,
-  seed: z.boolean().optional(),
-  logitBias: z.boolean().optional(),
-  stop: z.boolean().optional(),
-  drySequenceBreakers: z.boolean().optional(),
-  bannedStrings: z.boolean().optional(),
-  banEos: z.boolean().optional(),
-  samplerOrder: samplerOrderSchema.optional(),
-  exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
-  /** The knobs this server's Mirostat branch does not run: while `mirostatMode` is on, Mirostat replaces them. They
-   *  still ride, so the editor and the readout mark them rather than drop them. Absent ⇒ unstated. */
-  mirostatSkips: z.array(z.enum(SAMPLER_KNOBS)).optional(),
-});
+const samplingCapabilitySchema = z
+  .object({
+    ...samplingRangeShape,
+    seed: z.boolean().optional(),
+    logitBias: z.boolean().optional(),
+    stop: z.boolean().optional(),
+    drySequenceBreakers: z.boolean().optional(),
+    bannedStrings: z.boolean().optional(),
+    banEos: z.boolean().optional(),
+    samplerOrder: samplerOrderSchema.optional(),
+    exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
+    /** The knobs this server's Mirostat branch does not run: while `mirostatMode` is on, Mirostat replaces them. They
+     *  still ride, so the editor and the readout mark them rather than drop them. Absent ⇒ unstated. */
+    mirostatSkips: z.array(z.enum(SAMPLER_KNOBS)).optional(),
+  })
+  .strip();
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;
 
 /** The samplers the Vercel V4 call options model: the openai-compat wire hands these to the SDK. */
@@ -229,80 +231,84 @@ function ridesBody(knob: SamplerKnob): knob is Exclude<SamplerKnob, V4SamplerKno
  *  Derived from {@link SAMPLER_KNOBS}, so a new knob rides the body without a second list to keep. */
 export const BODY_SAMPLER_KNOBS: readonly Exclude<SamplerKnob, V4SamplerKnob>[] = SAMPLER_KNOBS.filter(ridesBody);
 
-const reasoningCapabilitySchema = z.object({
-  mode: reasoningModeSchema,
-  /** The on/off axis (NOT `effort:'none'`). */
-  enabled: z.boolean(),
-  effortLevels: z.array(effortLevelSchema).optional(),
-  budgetRange: rangeSchema.optional(),
-  displayModes: z.array(reasoningDisplayModeSchema).optional(),
-  /** Reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED up at the funnel, never a 400. */
-  mandatory: z.boolean().optional(),
-  /** How an off turn is spelled on this model ({@link REASONING_OFF_MODES}). Absent ⇒ `disabled`. A `mandatory`
-   *  route never reaches it: its off clamps up first. */
-  offMode: reasoningOffModeSchema.optional(),
-  /** The samplers the model takes only on a turn that sends reasoning off (OpenAI's GPT-5.1 and later refuse
-   *  `temperature` and `top_p` at any other effort). A turn that reasons, or leaves the effort unset, drops them
-   *  with `sampling_knob_dropped`. Kept here rather than in `sampling` so a tier that restates the sampler set
-   *  cannot erase the refusal. */
-  offOnlySamplers: z.array(z.enum(SAMPLER_KNOBS)).optional(),
-  /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
-   *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
-   *  `@orb/inference`'s resolve contract). */
-  defaultEnabled: z.boolean().optional(),
-  defaultEffort: effortLevelSchema.optional(),
-  /** What a REPLAYED prior reasoning block may carry on this wire (§8.8). Rides `EVIDENCE_TIERS` like every
-   *  other cell, so a curated family default is overridable by a dated `measured/*` row and by the user's own
-   *  `declared` block. Absent ⇒ {@link REASONING_REPLAY_FLOOR}. */
-  replay: reasoningReplayModeSchema.optional(),
-  /** Replayed thinking is bound to the conversation prefix: a block whose earlier system, tools or messages
-   *  changed is refused unless the request asks the API to drop it (`drop_block`). */
-  prefixBound: z.boolean().optional(),
-  /** A prefix edit before a carried thinking block cannot fail this route's turn: the wire asks the API to drop
-   *  the block (`drop_block`), or the route's runtime builds its own requests and carries none of ours. Absent ⇒
-   *  false, so a prefix-bound model on the route keeps its thinking inside one turn (`carryReasoning: tool-chain`). */
-  prefixEditSafe: z.boolean().optional(),
-  supportsMaxTokens: z.boolean().optional(),
-});
+const reasoningCapabilitySchema = z
+  .object({
+    mode: reasoningModeSchema,
+    /** The on/off axis (NOT `effort:'none'`). */
+    enabled: z.boolean(),
+    effortLevels: z.array(effortLevelSchema).optional(),
+    budgetRange: rangeSchema.optional(),
+    displayModes: z.array(reasoningDisplayModeSchema).optional(),
+    /** Reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED up at the funnel, never a 400. */
+    mandatory: z.boolean().optional(),
+    /** How an off turn is spelled on this model ({@link REASONING_OFF_MODES}). Absent ⇒ `disabled`. A `mandatory`
+     *  route never reaches it: its off clamps up first. */
+    offMode: reasoningOffModeSchema.optional(),
+    /** The samplers the model takes only on a turn that sends reasoning off (OpenAI's GPT-5.1 and later refuse
+     *  `temperature` and `top_p` at any other effort). A turn that reasons, or leaves the effort unset, drops them
+     *  with `sampling_knob_dropped`. Kept here rather than in `sampling` so a tier that restates the sampler set
+     *  cannot erase the refusal. */
+    offOnlySamplers: z.array(z.enum(SAMPLER_KNOBS)).optional(),
+    /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
+     *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
+     *  `@orb/inference`'s resolve contract). */
+    defaultEnabled: z.boolean().optional(),
+    defaultEffort: effortLevelSchema.optional(),
+    /** What a REPLAYED prior reasoning block may carry on this wire (§8.8). Rides `EVIDENCE_TIERS` like every
+     *  other cell, so a curated family default is overridable by a dated `measured/*` row and by the user's own
+     *  `declared` block. Absent ⇒ {@link REASONING_REPLAY_FLOOR}. */
+    replay: reasoningReplayModeSchema.optional(),
+    /** Replayed thinking is bound to the conversation prefix: a block whose earlier system, tools or messages
+     *  changed is refused unless the request asks the API to drop it (`drop_block`). */
+    prefixBound: z.boolean().optional(),
+    /** A prefix edit before a carried thinking block cannot fail this route's turn: the wire asks the API to drop
+     *  the block (`drop_block`), or the route's runtime builds its own requests and carries none of ours. Absent ⇒
+     *  false, so a prefix-bound model on the route keeps its thinking inside one turn (`carryReasoning: tool-chain`). */
+    prefixEditSafe: z.boolean().optional(),
+    supportsMaxTokens: z.boolean().optional(),
+  })
+  .strip();
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
 
 // Turn/message-array capabilities, keyed on (wire-shape × model). Every cell is MEASURED or fail-closed
 //  (D68/D69): absent `turns` ⇒ `TURNS_FLOOR`.
-const turnsCapabilitySchema = z.object({
-  /** The wire continues a DELIVERED trailing-assistant row. `true` authorizes the transport to send its
-   *  continuation spelling (`features.prefill`); a template-driven engine that lacks it silently renders
-   *  the row as a COMPLETED prior turn, an Anthropic wire hard-400s. */
-  assistantPrefill: z.boolean(),
-  /** MEASURED: the model takes a `system` row that ENDS the delivered history (after a user row). */
-  midConversationSystem: z.boolean(),
-  /** MEASURED: the model takes a `system` row INSIDE the delivered history (before an assistant row). A sibling
-   *  fact, never inferred from `midConversationSystem`: one wire can take the tail and refuse mid-array. It gates
-   *  an injection's delivery and nothing about a canon row's role (the narrator mapping is owner-ruled out). */
-  historySystemRows: z.boolean(),
-  /** The least strict {@link ROLE_HANDLING} level this (model × wire) takes. A model that takes a system row
-   *  only in its legal slot states `slotted`. */
-  roleHandlingFloor: roleHandlingSchema,
-  /** Explicit prompt caching (a rolling breakpoint pair + per-block cache_control) is worth placing. */
-  explicitPromptCache: z.boolean(),
-  promptCacheFormat: z.enum(PROMPT_CACHE_FORMATS).optional(),
-  providerImplicitPromptCache: z.boolean().optional(),
-  promptCacheRetentions: z.array(z.enum(PROMPT_CACHE_RETENTIONS)).optional(),
-  promptCacheKey: z.boolean().optional(),
-  requestAutomaticPromptCache: z.boolean().optional(),
-  disablesImplicitPromptCache: z.boolean().optional(),
-  cacheRetentionRefresh: z.boolean().optional(),
-  /** Fixed request-wide retention for a protocol that does not use block TTLs. */
-  cacheRetentionSeconds: z.int().positive().optional(),
-  /** Per-model minimum cacheable prefix; `CACHE_MIN_FLOOR` when absent. */
-  cacheMinTokens: z.int().positive().optional(),
-  /** The route fixes cache retention; a different requested TTL is reported and clamped. */
-  fixedCacheTtl: z.enum(PROMPT_CACHE_TTLS).optional(),
-  /** Whether explicit markers default on when the connection stores no preference. Automatic caching is independent. */
-  promptCacheDefaultEnabled: z.boolean().optional(),
-  /** The wire honours a per-row `clearAt: "next_user_message"` on a mid-conversation system row
-   *  (`@ai-sdk/anthropic`'s beta) — advertised by the curated row, forwarded by the wire converter. */
-  clearAt: z.boolean().optional(),
-});
+const turnsCapabilitySchema = z
+  .object({
+    /** The wire continues a DELIVERED trailing-assistant row. `true` authorizes the transport to send its
+     *  continuation spelling (`features.prefill`); a template-driven engine that lacks it silently renders
+     *  the row as a COMPLETED prior turn, an Anthropic wire hard-400s. */
+    assistantPrefill: z.boolean(),
+    /** MEASURED: the model takes a `system` row that ENDS the delivered history (after a user row). */
+    midConversationSystem: z.boolean(),
+    /** MEASURED: the model takes a `system` row INSIDE the delivered history (before an assistant row). A sibling
+     *  fact, never inferred from `midConversationSystem`: one wire can take the tail and refuse mid-array. It gates
+     *  an injection's delivery and nothing about a canon row's role (the narrator mapping is owner-ruled out). */
+    historySystemRows: z.boolean(),
+    /** The least strict {@link ROLE_HANDLING} level this (model × wire) takes. A model that takes a system row
+     *  only in its legal slot states `slotted`. */
+    roleHandlingFloor: roleHandlingSchema,
+    /** Explicit prompt caching (a rolling breakpoint pair + per-block cache_control) is worth placing. */
+    explicitPromptCache: z.boolean(),
+    promptCacheFormat: z.enum(PROMPT_CACHE_FORMATS).optional(),
+    providerImplicitPromptCache: z.boolean().optional(),
+    promptCacheRetentions: z.array(z.enum(PROMPT_CACHE_RETENTIONS)).optional(),
+    promptCacheKey: z.boolean().optional(),
+    requestAutomaticPromptCache: z.boolean().optional(),
+    disablesImplicitPromptCache: z.boolean().optional(),
+    cacheRetentionRefresh: z.boolean().optional(),
+    /** Fixed request-wide retention for a protocol that does not use block TTLs. */
+    cacheRetentionSeconds: z.int().positive().optional(),
+    /** Per-model minimum cacheable prefix; `CACHE_MIN_FLOOR` when absent. */
+    cacheMinTokens: z.int().positive().optional(),
+    /** The route fixes cache retention; a different requested TTL is reported and clamped. */
+    fixedCacheTtl: z.enum(PROMPT_CACHE_TTLS).optional(),
+    /** Whether explicit markers default on when the connection stores no preference. Automatic caching is independent. */
+    promptCacheDefaultEnabled: z.boolean().optional(),
+    /** The wire honours a per-row `clearAt: "next_user_message"` on a mid-conversation system row
+     *  (`@ai-sdk/anthropic`'s beta) — advertised by the curated row, forwarded by the wire converter. */
+    clearAt: z.boolean().optional(),
+  })
+  .strip();
 export type TurnsCapability = z.infer<typeof turnsCapabilitySchema>;
 
 /** The `turns` cells a preset's message handling and a continue read, whose provenance synthesis records
@@ -315,100 +321,108 @@ export const ESTIMABLE_TURNS = [
 ] as const satisfies readonly (keyof TurnsCapability)[];
 export type EstimableTurn = (typeof ESTIMABLE_TURNS)[number];
 
-export const generationCapabilitySchema = z.object({
-  reasoning: reasoningCapabilitySchema,
-  sampling: samplingCapabilitySchema,
-  /** The value the server itself runs a sampler at when a request leaves it unset, where the server
-   *  advertises one (llama.cpp `/props` `default_generation_settings.params`, an Ollama Modelfile's
-   *  `PARAMETER` lines). Display only: an unset knob never rides the wire. Kept outside `sampling` because
-   *  `sampling` is a stated set that replaces whole, and a tier that only knows defaults must not erase it. */
-  samplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
-  /** The value the route itself sends for a sampler the request leaves unset (Ollama's `/v1` sends `temperature`
-   *  and `top_p` 1.0), which the server then runs in place of its own default. Display only, like
-   *  `samplingDefaults`, and read before it: a server's advertised default never reaches a turn on this route. */
-  routeSamplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
-  verbosity: z.array(verbositySchema).optional(),
-  /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
-   *  are captured truth no consumer sends yet. */
-  input: z.array(modalitySchema),
-  /** Present ⇒ offers `tools[]`, subject to the stated turn conditions. `silencesProse` = MEASURED: attaching tools suppresses the assistant's
-   *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
-   *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
-   *
-   *  `requiredChoice: false` / `namedChoice: false` = a forced tool choice of that form (`required`, or a named
-   *  function — Anthropic's `any` / `tool`) does not reach the model as forced: Anthropic answers both with a
-   *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
-   *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
-   *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
-   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
-   *
-   *  `noneChoice: false` = a `none` choice does not reach the model either (Ollama, and KoboldCpp, whose chat route
-   *  reads it as no constraint), so a turn that asks for none offers no tools there. `parallelControl: false` = a
-   *  request's `parallel_tool_calls: false` reaches no model on this server, so it is dropped by name. Absent ⇒
-   *  honoured, like the forced forms. Read through `acceptsNoneToolChoice` / `honoursParallelControl`. */
-  tools: z
-    .object({
-      parallel: z.boolean(),
-      silencesProse: z.boolean().optional(),
-      requiredChoice: z.boolean().optional(),
-      namedChoice: z.boolean().optional(),
-      noneChoice: z.boolean().optional(),
-      parallelControl: z.boolean().optional(),
-      /** Tool calls on this route require an explicitly disabled reasoning turn. */
-      requiresReasoningOff: z.boolean().optional(),
-    })
-    .optional(),
-  output: z.object({
-    maxTokens: rangeSchema,
-    /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
-    maxTokensEstimated: z.boolean().optional(),
-    /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
-    structured: z.boolean().optional(),
-    /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
-     *  class carries the request. Absent ⇒ no stated ceiling. The structured planner checks every request
-     *  against them before the call. */
-    structuredLimitsFrom: z.enum(WIRE_SCHEMA_MODES).optional(),
-    /** Per-model ceilings merged over `structuredLimitsFrom`'s defaults field by field: a model that differs from
-     *  its vendor's table is a row, never a branch. */
-    structuredLimits: z
+export const generationCapabilitySchema = z
+  .object({
+    reasoning: reasoningCapabilitySchema,
+    sampling: samplingCapabilitySchema,
+    /** The value the server itself runs a sampler at when a request leaves it unset, where the server
+     *  advertises one (llama.cpp `/props` `default_generation_settings.params`, an Ollama Modelfile's
+     *  `PARAMETER` lines). Display only: an unset knob never rides the wire. Kept outside `sampling` because
+     *  `sampling` is a stated set that replaces whole, and a tier that only knows defaults must not erase it. */
+    samplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
+    /** The value the route itself sends for a sampler the request leaves unset (Ollama's `/v1` sends `temperature`
+     *  and `top_p` 1.0), which the server then runs in place of its own default. Display only, like
+     *  `samplingDefaults`, and read before it: a server's advertised default never reaches a turn on this route. */
+    routeSamplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
+    verbosity: z.array(verbositySchema).optional(),
+    /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
+     *  are captured truth no consumer sends yet. */
+    input: z.array(modalitySchema),
+    /** Present ⇒ offers `tools[]`, subject to the stated turn conditions. `silencesProse` = MEASURED: attaching tools suppresses the assistant's
+     *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
+     *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
+     *
+     *  `requiredChoice: false` / `namedChoice: false` = a forced tool choice of that form (`required`, or a named
+     *  function — Anthropic's `any` / `tool`) does not reach the model as forced: Anthropic answers both with a
+     *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
+     *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
+     *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
+     *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
+     *
+     *  `noneChoice: false` = a `none` choice does not reach the model either (Ollama, and KoboldCpp, whose chat route
+     *  reads it as no constraint), so a turn that asks for none offers no tools there. `parallelControl: false` = a
+     *  request's `parallel_tool_calls: false` reaches no model on this server, so it is dropped by name. Absent ⇒
+     *  honoured, like the forced forms. Read through `acceptsNoneToolChoice` / `honoursParallelControl`. */
+    tools: z
       .object({
-        maxOptionalProps: z.int().nonnegative().optional(),
-        maxUnionProps: z.int().nonnegative().optional(),
-        maxStrictTools: z.int().nonnegative().optional(),
-        maxObjectProps: z.int().nonnegative().optional(),
-        maxDepth: z.int().nonnegative().optional(),
-        maxEnumValues: z.int().nonnegative().optional(),
-        maxNameChars: z.int().nonnegative().optional(),
+        parallel: z.boolean(),
+        silencesProse: z.boolean().optional(),
+        requiredChoice: z.boolean().optional(),
+        namedChoice: z.boolean().optional(),
+        noneChoice: z.boolean().optional(),
+        parallelControl: z.boolean().optional(),
+        /** Tool calls on this route require an explicitly disabled reasoning turn. */
+        requiresReasoningOff: z.boolean().optional(),
       })
+      .strip()
       .optional(),
-    /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and
-     *  what `generateImage` requires. */
-    modalities: z.array(modalitySchema),
-  }),
-  /** Image-GENERATION input arms: an init/reference image on the call (`edit-image`, `generate-picture`). */
-  imageEdit: z.boolean().optional(),
-  imageDetail: z.boolean().optional(),
-  imageReferences: z.boolean().optional(),
-  /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
-   *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */
-  context: z.object({
-    window: z.number(),
-    windowEstimated: z.boolean().optional(),
-    /** The route sends the window with each request (Ollama's native `num_ctx`), so a preset's Max context tokens
-     *  sets the window the server runs, up to `max`, the model's trained maximum. Absent (another route, or a server
-     *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through
-     *  `windowForPreset`. */
-    settable: z.object({ max: z.number() }).optional(),
-  }),
-  /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
-  modalitiesEstimated: z.boolean().optional(),
-  moderated: z.boolean().optional(),
-  turns: turnsCapabilitySchema.optional(),
-  /** The `turns` cells no evidence tier stated, so they hold {@link TURNS_FLOOR}'s fail-closed guess. A preset's
-   *  role handling is clamped only against a STATED floor (`turnsLevelFor`), and an estimated prefill cell does
-   *  not block a continue. Absent ⇒ every cell was stated. */
-  turnsEstimated: z.array(z.enum(ESTIMABLE_TURNS)).optional(),
-});
+    output: z
+      .object({
+        maxTokens: rangeSchema,
+        /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
+        maxTokensEstimated: z.boolean().optional(),
+        /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
+        structured: z.boolean().optional(),
+        /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
+         *  class carries the request. Absent ⇒ no stated ceiling. The structured planner checks every request
+         *  against them before the call. */
+        structuredLimitsFrom: z.enum(WIRE_SCHEMA_MODES).optional(),
+        /** Per-model ceilings merged over `structuredLimitsFrom`'s defaults field by field: a model that differs from
+         *  its vendor's table is a row, never a branch. */
+        structuredLimits: z
+          .object({
+            maxOptionalProps: z.int().nonnegative().optional(),
+            maxUnionProps: z.int().nonnegative().optional(),
+            maxStrictTools: z.int().nonnegative().optional(),
+            maxObjectProps: z.int().nonnegative().optional(),
+            maxDepth: z.int().nonnegative().optional(),
+            maxEnumValues: z.int().nonnegative().optional(),
+            maxNameChars: z.int().nonnegative().optional(),
+          })
+          .strip()
+          .optional(),
+        /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and
+         *  what `generateImage` requires. */
+        modalities: z.array(modalitySchema),
+      })
+      .strip(),
+    /** Image-GENERATION input arms: an init/reference image on the call (`edit-image`, `generate-picture`). */
+    imageEdit: z.boolean().optional(),
+    imageDetail: z.boolean().optional(),
+    imageReferences: z.boolean().optional(),
+    /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
+     *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */
+    context: z
+      .object({
+        window: z.number(),
+        windowEstimated: z.boolean().optional(),
+        /** The route sends the window with each request (Ollama's native `num_ctx`), so a preset's Max context tokens
+         *  sets the window the server runs, up to `max`, the model's trained maximum. Absent (another route, or a server
+         *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through
+         *  `windowForPreset`. */
+        settable: z.object({ max: z.number() }).strip().optional(),
+      })
+      .strip(),
+    /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
+    modalitiesEstimated: z.boolean().optional(),
+    moderated: z.boolean().optional(),
+    turns: turnsCapabilitySchema.optional(),
+    /** The `turns` cells no evidence tier stated, so they hold {@link TURNS_FLOOR}'s fail-closed guess. A preset's
+     *  role handling is clamped only against a STATED floor (`turnsLevelFor`), and an estimated prefill cell does
+     *  not block a continue. Absent ⇒ every cell was stated. */
+    turnsEstimated: z.array(z.enum(ESTIMABLE_TURNS)).optional(),
+  })
+  .strip();
 export type GenerationCapability = z.infer<typeof generationCapabilitySchema>;
 
 /** The conservative `turns` cell every model defaults to when no per-shape cell was measured. */

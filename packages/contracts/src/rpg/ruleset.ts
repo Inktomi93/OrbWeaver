@@ -16,8 +16,8 @@
 //
 // Profile vocabulary is editable independently of the ruleset. The editor supports manual changes,
 // not a packaged-profile picker (D281); applying a ruleset never replaces those host-owned edits.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import type { RpgStatProfile } from "./profile.ts";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgSeedTrackers } from "./profile.ts";
@@ -35,7 +35,7 @@ export const RPG_RULESET_DEFAULT: RpgRuleset = "freeform";
 
 /** What a game is born with when a chat starts as one: its ruleset (omit ⇒ {@link RPG_RULESET_DEFAULT}).
  *  One shape for every start — chat's `startAsGame` and a roster preset's stored game template. */
-export const rpgGameTemplateSchema = z.object({ ruleset: rpgRulesetSchema.optional() });
+export const rpgGameTemplateSchema = z.object({ ruleset: rpgRulesetSchema.optional() }).strip();
 export type RpgGameTemplate = z.output<typeof rpgGameTemplateSchema>;
 
 /** The stat vocabulary each ruleset carries. Exhaustive over the axis (a new member fails `tsc` here). */

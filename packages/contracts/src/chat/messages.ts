@@ -100,21 +100,28 @@ export interface ChatReasoningPart {
   readonly meta?: ReasoningPartMeta | undefined;
 }
 
+// Strip mode: also reads stored rows.
 /** The PARSE-ON-READ seam for `message_variants.reasoning_parts` (the `toolCalls` / `variableDelta` idiom — a
  *  malformed or absent blob degrades, never throws and never a drizzle `$type` cast). The provenance bodies
  *  stay `jsonValueSchema`-shaped: this layer re-serialises the provider's own bytes and never interprets
  *  them, so tightening them here would only invent a schema the provider does not owe us. */
-export const chatReasoningPartSchema = z.object({
-  type: z.literal("reasoning"),
-  text: z.string(),
-  meta: z
-    .object({
-      google: z.object({ thoughtSignature: z.string() }).optional(),
-      anthropic: z.object({ signature: z.string().optional(), redactedData: z.string().optional() }).optional(),
-      openrouter: z.object({ reasoningDetails: z.array(jsonValueSchema).transform((details): readonly JsonValue[] => details) }).optional(),
-    })
-    .optional(),
-}) satisfies z.ZodType<ChatReasoningPart>;
+export const chatReasoningPartSchema = z
+  .object({
+    type: z.literal("reasoning"),
+    text: z.string(),
+    meta: z
+      .object({
+        google: z.object({ thoughtSignature: z.string() }).strip().optional(),
+        anthropic: z.object({ signature: z.string().optional(), redactedData: z.string().optional() }).strip().optional(),
+        openrouter: z
+          .object({ reasoningDetails: z.array(jsonValueSchema).transform((details): readonly JsonValue[] => details) })
+          .strip()
+          .optional(),
+      })
+      .strip()
+      .optional(),
+  })
+  .strip() satisfies z.ZodType<ChatReasoningPart>;
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
@@ -138,6 +145,7 @@ export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
  *  reasoning window because it enumerated the LIVE-TURN writer; the tree has two keys with readers. */
 export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
 
+// Strip mode: also reads stored rows and upstream responses.
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
  *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
  *
@@ -155,50 +163,57 @@ export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
  *  Every arm below has a live producer; an arm nobody writes is the "contract landed, wiring didn't" shape
  *  this sidecar exists to end. */
 const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
-  z.object({
-    provider: z.literal("openrouter"),
-    /** WHICH UPSTREAM actually served the generation ("Anthropic", "DeepInfra", …) — OpenRouter's own
-     *  `providerMetadata.openrouter.provider`. NOT our discriminator under another name: `provider` on this
-     *  arm (and `message_variants.provider`) is the orbweaver REGISTRY id, always `openrouter` for a routed
-     *  turn, so without this field the vendor that actually billed is unrecoverable from the record. */
-    upstreamProvider: z.string().optional(),
-    /** `usage.costDetails.upstreamInferenceCost` — what the upstream charged before OpenRouter's own fee. It
-     *  reaches `cost_details.upstreamUsd` ONLY on a BYOK turn (where the split is the spend); on a
-     *  passthrough turn the column records OR's total and this is the only record of the upstream figure. */
-    upstreamCost: z.number().optional(),
-  }),
-  z.object({
-    provider: z.literal("claude-sub"),
-    /** The ephemeral cache-creation split by TTL (`usage.cache_creation.ephemeral_{5m,1h}_input_tokens`).
-     *  `cache_write_tokens` is their SUM — the split itself has no normalized home. */
-    cacheCreation5mTokens: z.number().optional(),
-    cacheCreation1hTokens: z.number().optional(),
-    /** Server-side web-search calls the SDK billed for this turn — dropped from `ChatUsage` by §5.3c
-     *  precisely because it is Anthropic-shaped, and landed here instead of nowhere. */
-    webSearchRequests: z.number().optional(),
-    warmSpareClaimed: z.boolean().optional(),
-    durationApiMs: z.number().optional(),
-    numTurns: z.number().optional(),
-    /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
-     *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
-    outputCapReached: z.literal(true).optional(),
-    // eslint-disable-next-line orb/no-raw-id -- Opaque Anthropic SDK session handle preserved as foreign provenance, not the BFF session row ID.
-    sdkSessionId: z.string().optional(),
-    servedModel: z.string().optional(),
-  }),
-  z.object({
-    provider: z.literal("anthropic"),
-    /** The same TTL split as the subscription arm, off `providerMetadata.anthropic.usage` (the RAW
-     *  snake-cased Anthropic usage the SDK passes through as a loose object). */
-    cacheCreation5mTokens: z.number().optional(),
-    cacheCreation1hTokens: z.number().optional(),
-    /** How many replayed thinking blocks the API dropped because the prefix before them changed
-     *  (`input_transformations` with reason `prefix_binding_mismatch`). Absent when the response listed no
-     *  transformations; above zero, it marks an edit the carried history should not have made. */
-    thinkingDropped: z.number().optional(),
-  }),
+  z
+    .object({
+      provider: z.literal("openrouter"),
+      /** WHICH UPSTREAM actually served the generation ("Anthropic", "DeepInfra", …) — OpenRouter's own
+       *  `providerMetadata.openrouter.provider`. NOT our discriminator under another name: `provider` on this
+       *  arm (and `message_variants.provider`) is the orbweaver REGISTRY id, always `openrouter` for a routed
+       *  turn, so without this field the vendor that actually billed is unrecoverable from the record. */
+      upstreamProvider: z.string().optional(),
+      /** `usage.costDetails.upstreamInferenceCost` — what the upstream charged before OpenRouter's own fee. It
+       *  reaches `cost_details.upstreamUsd` ONLY on a BYOK turn (where the split is the spend); on a
+       *  passthrough turn the column records OR's total and this is the only record of the upstream figure. */
+      upstreamCost: z.number().optional(),
+    })
+    .strip(),
+  z
+    .object({
+      provider: z.literal("claude-sub"),
+      /** The ephemeral cache-creation split by TTL (`usage.cache_creation.ephemeral_{5m,1h}_input_tokens`).
+       *  `cache_write_tokens` is their SUM — the split itself has no normalized home. */
+      cacheCreation5mTokens: z.number().optional(),
+      cacheCreation1hTokens: z.number().optional(),
+      /** Server-side web-search calls the SDK billed for this turn — dropped from `ChatUsage` by §5.3c
+       *  precisely because it is Anthropic-shaped, and landed here instead of nowhere. */
+      webSearchRequests: z.number().optional(),
+      warmSpareClaimed: z.boolean().optional(),
+      durationApiMs: z.number().optional(),
+      numTurns: z.number().optional(),
+      /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
+       *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
+      outputCapReached: z.literal(true).optional(),
+      // eslint-disable-next-line orb/no-raw-id -- Opaque Anthropic SDK session handle preserved as foreign provenance, not the BFF session row ID.
+      sdkSessionId: z.string().optional(),
+      servedModel: z.string().optional(),
+    })
+    .strip(),
+  z
+    .object({
+      provider: z.literal("anthropic"),
+      /** The same TTL split as the subscription arm, off `providerMetadata.anthropic.usage` (the RAW
+       *  snake-cased Anthropic usage the SDK passes through as a loose object). */
+      cacheCreation5mTokens: z.number().optional(),
+      cacheCreation1hTokens: z.number().optional(),
+      /** How many replayed thinking blocks the API dropped because the prefix before them changed
+       *  (`input_transformations` with reason `prefix_binding_mismatch`). Absent when the response listed no
+       *  transformations; above zero, it marks an edit the carried history should not have made. */
+      thinkingDropped: z.number().optional(),
+    })
+    .strip(),
 ]);
 
+// Strip mode: also reads stored rows and upstream responses.
 /** A PLUGIN provider's arm. Its `provider` is a PATTERN (`plugin:<namespace>/<id>`), not a literal — plugin
  *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue` per §5.3c: storable
  *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture).
@@ -209,10 +224,12 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
  *  template type (`plugin:` + string) excludes the three named ids, so a reader narrows by the discriminator
  *  and lands on exactly one arm. The regex still runs — `templateLiteral` composes its parts' patterns, so
  *  `plugin:BAD`, `plugin:a/b/c` and a bare vendor name are all refused at the seam (probed 2026-09-20). */
-const pluginProviderMetadataSchema = z.object({
-  provider: z.templateLiteral(["plugin:", z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/u)]),
-  raw: jsonValueSchema,
-});
+const pluginProviderMetadataSchema = z
+  .object({
+    provider: z.templateLiteral(["plugin:", z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/u)]),
+    raw: jsonValueSchema,
+  })
+  .strip();
 
 /** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
  *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
@@ -230,30 +247,37 @@ export const variantProviderMetadataSchema = z.union([namedProviderMetadataSchem
  *  narrows on. A plugin provider's arm carries `raw` and NO reader by key. */
 export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
 
+// Strip mode: also reads stored rows.
 /** Host-only replay provenance, matched against the selected variant's exact canonical content. */
-const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() });
+const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() }).strip();
 export type TextSignature = z.infer<typeof textSignatureSchema>;
-const contentSignatureSnapshotSchema = z.object({
-  content: z.string().optional(),
-  text: z.array(textSignatureSchema.partial({ thoughtSignature: true })),
-  images: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), thoughtSignature: z.string() })),
-  tools: z
-    .array(
-      z.object({
-        // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle retained verbatim for signed wire replay, not an Orbweaver identity.
-        toolCallId: z.string(),
-        callOrdinal: z.int().nonnegative().optional(),
-        thoughtSignature: z.string().optional(),
-        openrouter: chatReasoningPartSchema.shape.meta.unwrap().shape.openrouter,
-        reasoningParts: z.array(chatReasoningPartSchema).optional(),
-        turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
-      }),
-    )
-    .optional(),
-});
+// Strip mode: also reads stored rows.
+const contentSignatureSnapshotSchema = z
+  .object({
+    content: z.string().optional(),
+    text: z.array(textSignatureSchema.partial({ thoughtSignature: true })),
+    images: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), thoughtSignature: z.string() }).strip()),
+    tools: z
+      .array(
+        z
+          .object({
+            // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle retained verbatim for signed wire replay, not an Orbweaver identity.
+            toolCallId: z.string(),
+            callOrdinal: z.int().nonnegative().optional(),
+            thoughtSignature: z.string().optional(),
+            openrouter: chatReasoningPartSchema.shape.meta.unwrap().shape.openrouter,
+            reasoningParts: z.array(chatReasoningPartSchema).optional(),
+            turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+          })
+          .strip(),
+      )
+      .optional(),
+  })
+  .strip();
 const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 
+// Strip mode: also reads stored rows.
 // `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
 //  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
 //
@@ -270,24 +294,28 @@ export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 //  named, `JsonValue`-typed field, which is §5.3c class 4: declared-OPAQUE provenance, never compared,
 //  switched on or joined, and unreadable by key without an explicit narrow. Flattening them back into the
 //  modeled level is what let a foreign file's `providerMetadata` key masquerade as ours.
-const variantMetadataSchema = z.object({
-  [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
-  [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
-  /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
-   *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
-  systemTokens: z.number().optional(),
-  providerMetadata: variantProviderMetadataSchema.optional(),
-  /** Ordered normalized executions for this operation; funding context never rides in this copied sidecar. */
-  usageLegs: z.array(generationUsageLegSchema).optional(),
-  contentSignatures: contentSignaturesSchema.optional(),
-  /** Explicit phase survives lossy member projections; missing phase is a legacy body-equality read. */
-  continuationTools: z
-    .lazy(() =>
-      z.object({ beforeContent: z.string(), before: z.array(toolCallRecordSchema), after: z.array(toolCallRecordSchema), undone: z.boolean().optional() }),
-    )
-    .optional(),
-  importResidue: jsonValueSchema.optional(),
-});
+const variantMetadataSchema = z
+  .object({
+    [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
+    [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
+    /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
+     *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
+    systemTokens: z.number().optional(),
+    providerMetadata: variantProviderMetadataSchema.optional(),
+    /** Ordered normalized executions for this operation; funding context never rides in this copied sidecar. */
+    usageLegs: z.array(generationUsageLegSchema).optional(),
+    contentSignatures: contentSignaturesSchema.optional(),
+    /** Explicit phase survives lossy member projections; missing phase is a legacy body-equality read. */
+    continuationTools: z
+      .lazy(() =>
+        z
+          .object({ beforeContent: z.string(), before: z.array(toolCallRecordSchema), after: z.array(toolCallRecordSchema), undone: z.boolean().optional() })
+          .strip(),
+      )
+      .optional(),
+    importResidue: jsonValueSchema.optional(),
+  })
+  .strip();
 /** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader
  *  holds. Every field optional: an absent sidecar and a sidecar that recorded nothing are one value. */
 export type VariantMetadata = z.infer<typeof variantMetadataSchema>;
@@ -309,17 +337,18 @@ export function legacyNotionalCostSamples(costUsd: number | null | undefined, me
   return costUsd !== null && costUsd !== undefined && (metadata?.usageLegs?.length ?? 0) === 0 && metadata?.providerMetadata?.provider === "claude-sub" ? 1 : 0;
 }
 
+// Strip mode: also reads plugin guest data, imported files and stored rows.
 /** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
  *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
  *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
  *  (the `parseChatMetadata` `.safeParse` pattern — never a cast). `satisfies z.ZodType<VarOp>` checks the
  *  schema-to-contract direction; the output-twin gate checks the reverse direction so neither may drift. */
 export const varOpSchema = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("set"), key: z.string(), value: z.string() }),
-  z.object({ op: z.literal("add"), key: z.string(), value: z.string() }),
-  z.object({ op: z.literal("inc"), key: z.string() }),
-  z.object({ op: z.literal("dec"), key: z.string() }),
-  z.object({ op: z.literal("delete"), key: z.string() }),
+  z.object({ op: z.literal("set"), key: z.string(), value: z.string() }).strip(),
+  z.object({ op: z.literal("add"), key: z.string(), value: z.string() }).strip(),
+  z.object({ op: z.literal("inc"), key: z.string() }).strip(),
+  z.object({ op: z.literal("dec"), key: z.string() }).strip(),
+  z.object({ op: z.literal("delete"), key: z.string() }).strip(),
 ]) satisfies z.ZodType<VarOp>;
 
 /** The ordered per-variant delta (`message_variants.variable_delta`). Parsed at the read seam; folded along the
@@ -346,7 +375,8 @@ export interface VariablePrecondition {
   readonly key: string;
   readonly expected: string | null;
 }
-const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }) satisfies z.ZodType<VariablePrecondition>;
+// Strip mode: also reads plugin guest data.
+const variablePreconditionSchema = z.object({ key: z.string(), expected: z.string().nullable() }).strip() satisfies z.ZodType<VariablePrecondition>;
 export type VariablePreconditions = readonly VariablePrecondition[];
 export const variablePreconditionsSchema = z
   .array(variablePreconditionSchema)
@@ -363,10 +393,11 @@ export const variablePreconditionsSchema = z
  *  answer `applied`. */
 export type VariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
+// Strip mode: also reads stored rows.
 // One standalone (out-of-turn) delta batch (`chats.standalone_variable_deltas`) —
 //  a seq-stamped `applyVariableOps` write made with no turn in flight. Parsed at the read seam; folded into
 //  `chats.runtime_variables` interleaved with the message-variant deltas by `seq`.
-const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema });
+const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: variableDeltaSchema }).strip();
 export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSchema>;
 export type StandaloneVariableDeltas = StandaloneVariableDelta[];
 export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema) satisfies z.ZodType<StandaloneVariableDeltas>;
@@ -381,17 +412,20 @@ export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSch
 export const userMacroDrawsSchema = z.record(z.string(), z.record(z.string(), z.string()));
 export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
 
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** ONE volatile-macro occurrence frozen into a stored body — the read-parse boundary for
  *  `message_variants.macro_freezes`. `name` is the REGISTERED macro name (`roll`/`random`/`pick`/the clock
  *  family), `args` its delivered argument text when it took one (`{{roll::2d6}}` ⇒ `"2d6"`), `value` the
  *  string the freeze substituted. Occurrence-ordered, so a replay walks it positionally exactly as the freeze
  *  wrote it. `satisfies z.ZodType<MacroFreeze>` checks the schema-to-contract direction, and the output-twin
  *  gate checks the reverse direction against the kit {@link MacroFreeze} the macro engine EMITS. */
-export const macroFreezeSchema = z.object({
-  name: z.string(),
-  args: z.string().optional(),
-  value: z.string(),
-}) satisfies z.ZodType<MacroFreeze>;
+export const macroFreezeSchema = z
+  .object({
+    name: z.string(),
+    args: z.string().optional(),
+    value: z.string(),
+  })
+  .strip() satisfies z.ZodType<MacroFreeze>;
 
 /** The per-variant VOLATILE-FREEZE record (stickler 2026-08-08 §3 — the `macroDraws` idiom generalized).
  *
@@ -434,28 +468,31 @@ export interface ToolCallRecord {
   readonly textOffset?: number;
 }
 
-const toolCallRecordInputSchema = z.object({
-  turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
-  callOrdinal: z.int().nonnegative().optional(),
-  exchangeOrdinal: z.int().nonnegative().optional(),
-  exchangeTextEnd: z.int().nonnegative().optional(),
-  // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle joins wire calls to results; the host occurrence identity is separate.
-  toolCallId: z.string(),
-  name: z.string(),
-  /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
-  arguments: z.string(),
-  /** Exact tool-result text; `null` = not executed (recurse-limit — D48). */
-  result: z.string().nullable(),
-  isError: z.boolean(),
-  /** `null` when unexecuted; else the execute duration (injected clock). */
-  durationMs: z.number().nullable(),
-  displayName: z.string().optional(),
-  replayHistory: z.boolean().optional(),
-  hidden: z.boolean().optional(),
-  deleted: z.boolean().optional(),
-  /** UTF-16 position in stored canon, rebased together with the body on a member view. */
-  textOffset: z.int().nonnegative().optional(),
-});
+// Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+const toolCallRecordInputSchema = z
+  .object({
+    turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
+    callOrdinal: z.int().nonnegative().optional(),
+    exchangeOrdinal: z.int().nonnegative().optional(),
+    exchangeTextEnd: z.int().nonnegative().optional(),
+    // eslint-disable-next-line orb/no-raw-id -- Provider-emitted call handle joins wire calls to results; the host occurrence identity is separate.
+    toolCallId: z.string(),
+    name: z.string(),
+    /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
+    arguments: z.string(),
+    /** Exact tool-result text; `null` = not executed (recurse-limit — D48). */
+    result: z.string().nullable(),
+    isError: z.boolean(),
+    /** `null` when unexecuted; else the execute duration (injected clock). */
+    durationMs: z.number().nullable(),
+    displayName: z.string().optional(),
+    replayHistory: z.boolean().optional(),
+    hidden: z.boolean().optional(),
+    deleted: z.boolean().optional(),
+    /** UTF-16 position in stored canon, rebased together with the body on a member view. */
+    textOffset: z.int().nonnegative().optional(),
+  })
+  .strip();
 
 function toolCallRecordOf(record: z.output<typeof toolCallRecordInputSchema>): ToolCallRecord {
   return {

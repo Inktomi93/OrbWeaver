@@ -10,6 +10,7 @@
 // (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
 // is separate row-44 residue and moves under its own row.
 
+// Strip mode: these schemas also read imported files, which can carry keys this release does not declare.
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -33,6 +34,7 @@ const pendingGenerationObservationInputSchema = z
     sourceVariantIdx: z.int().nonnegative().nullable(),
     leg: generationUsageLegSchema,
   })
+  .strip()
   .superRefine((row, ctx) => {
     if (row.sourceMessageIndex === null && row.sourceVariantIdx !== null) {
       ctx.addIssue({ code: "custom", path: ["sourceVariantIdx"], message: "a source variant requires its message position" });

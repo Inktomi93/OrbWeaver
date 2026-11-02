@@ -1,3 +1,4 @@
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 export const IMAGE_DETAILS = ["auto", "low", "high"] as const;
@@ -10,6 +11,7 @@ export const attachmentQualitySchema = z
     imageDetail: z.enum(IMAGE_DETAILS).catch("auto").default("auto"),
     videoMaxResolution: z.enum(VIDEO_MAX_RESOLUTIONS).catch("720").default("720"),
   })
+  .strip()
   .prefault({});
 export type AttachmentQuality = z.infer<typeof attachmentQualitySchema>;
 export const DEFAULT_ATTACHMENT_QUALITY: AttachmentQuality = attachmentQualitySchema.parse({});

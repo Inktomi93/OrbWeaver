@@ -8,9 +8,9 @@ import { generationCapabilitySchema } from "./generation.ts";
 import { rerankCapabilitySchema } from "./rerank.ts";
 
 const capabilitySchemas = {
-  generation: z.object({ kind: z.literal(modelKindSchema.enum.generation), generation: generationCapabilitySchema }),
-  embedding: z.object({ kind: z.literal(modelKindSchema.enum.embedding), embedding: embeddingCapabilitySchema }),
-  rerank: z.object({ kind: z.literal(modelKindSchema.enum.rerank), rerank: rerankCapabilitySchema }),
+  generation: z.strictObject({ kind: z.literal(modelKindSchema.enum.generation), generation: generationCapabilitySchema }),
+  embedding: z.strictObject({ kind: z.literal(modelKindSchema.enum.embedding), embedding: embeddingCapabilitySchema }),
+  rerank: z.strictObject({ kind: z.literal(modelKindSchema.enum.rerank), rerank: rerankCapabilitySchema }),
 } satisfies { readonly [Kind in ModelKind]: z.ZodType<{ readonly kind: Kind }> };
 const firstKind = modelKindSchema.enum.generation;
 const remainingKinds = modelKindSchema.options.filter((kind) => kind !== firstKind);

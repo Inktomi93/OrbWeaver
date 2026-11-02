@@ -9,7 +9,7 @@ export const TRPC_BATCH_MAX_ITEMS = 22;
 export const TRPC_BATCH_MAX_URL_LENGTH = 1334;
 
 // A modelled subscription fault is terminal data, not an instruction to retry the source.
-const subscriptionErrorFrameSchema = z.object({
+const subscriptionErrorFrameSchema = z.strictObject({
   __subscriptionError: z.literal(true),
   code: z.string(),
   message: z.string(),

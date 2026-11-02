@@ -1,6 +1,7 @@
 // The image-lens vocabulary owns the DB `image_embeddings.lens` column.
 // Text embeddings use distinct tables and do not contribute values to this column.
 
+// Strip mode: these schemas also read model output and stored rows, which can carry keys this release does not declare.
 import type { AssetId } from "@orb/kit/ids";
 import { z } from "zod";
 import { assetIdSchema } from "../assets/index.ts";
@@ -174,28 +175,30 @@ const MAX_IMAGE_TAGS = 8;
  * `caption` rides the SAME call rather than a second one: the sentence and the facets are one look at one
  * image, and splitting them would double the GPU cost of every avatar for a corpus backfill.
  */
-export const imageBreakdownSchema = z.object({
-  /** The one-sentence human caption — also written to `image_analyses.caption` and embedded. */
-  caption: z.string(),
-  artStyle: z.enum(IMAGE_ART_STYLES),
-  palette: z.enum(IMAGE_PALETTES),
-  mood: z.enum(IMAGE_MOODS),
-  rating: z.enum(IMAGE_RATINGS),
-  shotType: z.enum(IMAGE_SHOT_TYPES),
-  cameraAngle: z.enum(IMAGE_CAMERA_ANGLES),
-  gender: z.enum(IMAGE_GENDERS),
-  coverage: z.enum(IMAGE_COVERAGES),
-  bodyType: z.enum(IMAGE_BODY_TYPES),
-  chestSize: z.enum(IMAGE_CHEST_SIZES),
-  skinTone: z.enum(IMAGE_SKIN_TONES),
-  outfitType: z.enum(IMAGE_OUTFIT_TYPES),
-  clothingState: z.enum(IMAGE_CLOTHING_STATES),
-  nudityLevel: z.enum(IMAGE_NUDITY_LEVELS),
-  exposedParts: z.array(z.enum(IMAGE_EXPOSED_PARTS)),
-  /** Free subject keywords — the ONE open facet, because a closed subject vocabulary cannot describe a
-   *  library. Bounded so a degenerate reply can't write a hundred one-off buckets. */
-  tags: z.array(z.string()).min(MIN_IMAGE_TAGS).max(MAX_IMAGE_TAGS),
-});
+export const imageBreakdownSchema = z
+  .object({
+    /** The one-sentence human caption — also written to `image_analyses.caption` and embedded. */
+    caption: z.string(),
+    artStyle: z.enum(IMAGE_ART_STYLES),
+    palette: z.enum(IMAGE_PALETTES),
+    mood: z.enum(IMAGE_MOODS),
+    rating: z.enum(IMAGE_RATINGS),
+    shotType: z.enum(IMAGE_SHOT_TYPES),
+    cameraAngle: z.enum(IMAGE_CAMERA_ANGLES),
+    gender: z.enum(IMAGE_GENDERS),
+    coverage: z.enum(IMAGE_COVERAGES),
+    bodyType: z.enum(IMAGE_BODY_TYPES),
+    chestSize: z.enum(IMAGE_CHEST_SIZES),
+    skinTone: z.enum(IMAGE_SKIN_TONES),
+    outfitType: z.enum(IMAGE_OUTFIT_TYPES),
+    clothingState: z.enum(IMAGE_CLOTHING_STATES),
+    nudityLevel: z.enum(IMAGE_NUDITY_LEVELS),
+    exposedParts: z.array(z.enum(IMAGE_EXPOSED_PARTS)),
+    /** Free subject keywords — the ONE open facet, because a closed subject vocabulary cannot describe a
+     *  library. Bounded so a degenerate reply can't write a hundred one-off buckets. */
+    tags: z.array(z.string()).min(MIN_IMAGE_TAGS).max(MAX_IMAGE_TAGS),
+  })
+  .strip();
 
 /** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` has always been
  *  there, every facet is OPTIONAL because the 2026-08-18 backfill boundary means older rows carry none, and

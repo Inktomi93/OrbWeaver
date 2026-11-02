@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-17
+updated: 2026-11-02
 ---
 
 # Client Architecture Lockdown
@@ -84,7 +84,7 @@ sub-dirs. Grouping is presentation for the reader and never alters a file's role
 duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and changing together) decides
 when to hoist. Review repeated composites before hoisting them; semantic near-duplicates need a design decision.
 
-**Composites are typed to be used right.** This is type law 5 ([Spine-TypeScript-and-Patterns.md](Spine-TypeScript-and-Patterns.md#the-type-laws)). A composite or primitive takes what its safe use needs as a required prop, so a wrong composition fails `tsc`. A lint rule covers only what a type cannot express. Open items:
+**Composites are typed to be used right.** This is type law 5 ([Spine-TypeScript-and-Patterns.md](Spine-TypeScript-and-Patterns.md#the-type-laws)). A composite or primitive takes what its safe use needs as a required prop, so a wrong composition fails `tsc`. A lint rule covers only what a type cannot express: `orb/dialog-needs-dismiss` and `orb/destructive-needs-confirm` cover dialog dismissal and destructive confirmation. Open items:
 
 - [1769](../work/1769-section-gains-a-trailing-slot-so-laneband-composes.md): `Section` takes a trailing slot, so `LaneBand` composes from it.
 - [1775](../work/1775-every-dialog-has-a-dismiss-path-by-type.md): a dialog has a dismiss path by type.

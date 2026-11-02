@@ -2,6 +2,7 @@
 // pair the #173 client-side clamp fits (rerank is scoring-only, nothing persisted, so clamping is
 // legitimate); `input ∋ image` admits the multimodal data-URI body.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 
@@ -21,22 +22,26 @@ const HUB_REVISION = /^[0-9a-f]{40}$/u;
 //  dtype-suffix convention; an architecture with no entry is refused rather than served another file. `revision`
 //  pins every file the backend reads. `dynamicQuantized` says the file quantizes activations per forward pass, so a
 //  pair's score depends on its batch neighbours unless each pair runs alone.
-const rerankOnnxSchema = z.object({
-  head: z.enum(RERANK_ONNX_HEADS),
-  dtype: z.string().min(1),
-  files: z.record(z.string(), z.string().regex(ONNX_FILE_STEM)).optional(),
-  revision: z.string().regex(HUB_REVISION).optional(),
-  dynamicQuantized: z.boolean().optional(),
-});
+const rerankOnnxSchema = z
+  .object({
+    head: z.enum(RERANK_ONNX_HEADS),
+    dtype: z.string().min(1),
+    files: z.record(z.string(), z.string().regex(ONNX_FILE_STEM)).optional(),
+    revision: z.string().regex(HUB_REVISION).optional(),
+    dynamicQuantized: z.boolean().optional(),
+  })
+  .strip();
 export type RerankOnnx = z.infer<typeof rerankOnnxSchema>;
 
-export const rerankCapabilitySchema = z.object({
-  maxInputTokens: z.int().positive(),
-  input: z.array(modalitySchema),
-  instructionAware: z.boolean(),
-  windowEstimated: z.boolean().optional(),
-  onnx: rerankOnnxSchema.optional(),
-});
+export const rerankCapabilitySchema = z
+  .object({
+    maxInputTokens: z.int().positive(),
+    input: z.array(modalitySchema),
+    instructionAware: z.boolean(),
+    windowEstimated: z.boolean().optional(),
+    onnx: rerankOnnxSchema.optional(),
+  })
+  .strip();
 export type RerankCapability = z.infer<typeof rerankCapabilitySchema>;
 
 /** The smallest window a resolved reranker is given, whatever a row or a declared block states: room for a pair's

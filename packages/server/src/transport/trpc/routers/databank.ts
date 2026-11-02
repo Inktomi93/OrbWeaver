@@ -88,7 +88,7 @@ export const databankRouter = t.router({
   bankHealth: authedProcedure.output(bankHealthViewSchema).query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
 
   rename: authedProcedure
-    .output(documentViewSchema.strict())
+    .output(documentViewSchema)
     .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(DATABANK_NAME_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 

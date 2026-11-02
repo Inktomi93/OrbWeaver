@@ -93,14 +93,14 @@ const CAS_HASH_HEX_LENGTH = 64;
  *  sha-256 hex, so an empty hash was a state no live path could reach and the schema accepted anyway. This
  *  is a RESPONSE validator over our own server's reply, not an input boundary — the tightening buys a louder
  *  failure if the reply ever stops being what the CAS promises, nothing more, and it is free. */
-export const storedAssetSchema = z.object({
+export const storedAssetSchema = z.strictObject({
   assetId: assetIdSchema,
   hash: z.string().length(CAS_HASH_HEX_LENGTH),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
  *  person can act on, worded to follow "Couldn't upload <file>:". */
-export const assetUploadRefusalSchema = z.object({ error: z.string().min(1) });
+export const assetUploadRefusalSchema = z.strictObject({ error: z.string().min(1) });
 export type AssetUploadRefusal = z.infer<typeof assetUploadRefusalSchema>;
 
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */

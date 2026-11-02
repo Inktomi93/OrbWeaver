@@ -14,7 +14,7 @@ export type EmbeddingTask = (typeof EMBEDDING_TASKS)[number];
 export const EMBEDDING_INVOCATION_OUTCOMES = ["completed", "failed"] as const;
 export type EmbeddingInvocationOutcome = (typeof EMBEDDING_INVOCATION_OUTCOMES)[number];
 
-export const embeddingBatchObservationSchema = z.object({
+export const embeddingBatchObservationSchema = z.strictObject({
   inputCount: z.int().positive(),
   inputModalities: z.array(modalitySchema),
   servedModel: z.string().min(1).nullable(),

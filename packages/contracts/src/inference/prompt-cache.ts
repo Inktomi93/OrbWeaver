@@ -1,8 +1,8 @@
 // The connection's prompt-cache settings: a user preference, so its own column (`user_connections.prompt_cache`),
 // never a `declared.features` line (a statement about the server). NULL on the row is `SHIPPED_PROMPT_CACHE`,
 // which is byte-identical to the wire before the settings existed.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 
 /** The user TTL vocabulary; a route may fix retention through its capability. Anthropic accepts both, spelled `{"type":"ephemeral","ttl":…}` with no `anthropic-beta`
@@ -23,29 +23,31 @@ export const PROMPT_CACHE_DEPTH_MIN = 1;
  *  blocks, so a deeper breakpoint has nothing left to find. */
 export const PROMPT_CACHE_DEPTH_CEIL = 20;
 
-export const promptCacheSettingsSchema = z.object({
-  /** Unset leaves the provider's model/organization retention default unchanged. */
-  retention: z.enum(PROMPT_CACHE_RETENTIONS).optional(),
-  /** Request-wide automatic caching is an opt-in control only on routes that support it. */
-  requestAutomatic: z.boolean().optional(),
-  /** Disable provider-managed implicit breakpoints only where the route has a documented control. */
-  disableImplicit: z.boolean().optional(),
-  /** Off ⇒ no `cache_control` anywhere in the request: tools, system block, history. */
-  enabled: z.boolean(),
-  /** Mark the static system block. Off leaves the history breakpoints (and the tool list) in place. */
-  cacheSystem: z.boolean(),
-  /**
-   * The per-connection MINIMUM history depth, never an exact target; `null` ⇒ the turn's own depth.
-   *
-   * @remarks The turn's depth is max(chat SHAPE's depth, the admin floor `promptCacheMinDepth`, this value).
-   * SHAPE's depth marks where the volatile tail begins, and a breakpoint shallower than it pays a cache write
-   * every turn that is never read, so a user can push the breakpoint deeper and never shallower than the
-   * admin floor. A turn SHAPE gave no depth places no history breakpoint whatever this says.
-   */
-  historyDepth: z.int().min(PROMPT_CACHE_DEPTH_MIN).max(PROMPT_CACHE_DEPTH_CEIL).nullable(),
-  /** Requested TTL; a fixed route TTL overrides it with a warning. All markers in one turn use the same applied value. */
-  ttl: z.enum(PROMPT_CACHE_TTLS),
-});
+export const promptCacheSettingsSchema = z
+  .object({
+    /** Unset leaves the provider's model/organization retention default unchanged. */
+    retention: z.enum(PROMPT_CACHE_RETENTIONS).optional(),
+    /** Request-wide automatic caching is an opt-in control only on routes that support it. */
+    requestAutomatic: z.boolean().optional(),
+    /** Disable provider-managed implicit breakpoints only where the route has a documented control. */
+    disableImplicit: z.boolean().optional(),
+    /** Off ⇒ no `cache_control` anywhere in the request: tools, system block, history. */
+    enabled: z.boolean(),
+    /** Mark the static system block. Off leaves the history breakpoints (and the tool list) in place. */
+    cacheSystem: z.boolean(),
+    /**
+     * The per-connection MINIMUM history depth, never an exact target; `null` ⇒ the turn's own depth.
+     *
+     * @remarks The turn's depth is max(chat SHAPE's depth, the admin floor `promptCacheMinDepth`, this value).
+     * SHAPE's depth marks where the volatile tail begins, and a breakpoint shallower than it pays a cache write
+     * every turn that is never read, so a user can push the breakpoint deeper and never shallower than the
+     * admin floor. A turn SHAPE gave no depth places no history breakpoint whatever this says.
+     */
+    historyDepth: z.int().min(PROMPT_CACHE_DEPTH_MIN).max(PROMPT_CACHE_DEPTH_CEIL).nullable(),
+    /** Requested TTL; a fixed route TTL overrides it with a warning. All markers in one turn use the same applied value. */
+    ttl: z.enum(PROMPT_CACHE_TTLS),
+  })
+  .strip();
 export type PromptCacheSettings = z.infer<typeof promptCacheSettingsSchema>;
 
 /** What a row with no settings (`prompt_cache` NULL) gets: the wire exactly as it shipped before the settings. */
