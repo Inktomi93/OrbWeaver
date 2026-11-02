@@ -149,16 +149,14 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 // PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
 // consuming it is outside this parser. URI fetches must use the network egress guard: a card is untrusted,
 // so a URI fetch is an SSRF surface. The serde stays
-// pure parse-and-validate (kit is isomorphic, zero I/O). `.loose()` keeps unknown asset keys; the fields are
+// pure parse-and-validate (kit is isomorphic, zero I/O). `z.looseObject` keeps unknown asset keys; the fields are
 // lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
-const cardAssetSchema = z
-  .object({
-    type: z.string().catch(""),
-    uri: z.string().catch(""),
-    name: z.string().catch(""),
-    ext: z.string().catch(""),
-  })
-  .loose();
+const cardAssetSchema = z.looseObject({
+  type: z.string().catch(""),
+  uri: z.string().catch(""),
+  name: z.string().catch(""),
+  ext: z.string().catch(""),
+});
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
@@ -176,20 +174,24 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // `score` holds the pipeline's 1-10 rubric (a score run's `overallScore`) — tightened IN THE SAME CHANGE
 // as the read seam's field-level heal split (security pass §1 gap 2's ordering condition: tightening
 // under the old whole-object catch would have wiped BOTH halves on any legacy out-of-range value).
-export const refinerySignalsSchema = z.object({
-  score: z.number().min(1).max(10).nullable(),
-  analysis: refineryAnalyzePayloadSchema.nullable(),
-});
+export const refinerySignalsSchema = z
+  .object({
+    score: z.number().min(1).max(10).nullable(),
+    analysis: refineryAnalyzePayloadSchema.nullable(),
+  })
+  .strip();
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
 
 // one attached world-info book REFERENCE carried on a portable card — `{worldBookId, role}` mirrors
 // the `character_books` junction columns (`createdAt` is NOT carried — a re-link is a fresh attach). Books
 // are NEVER cloned/embedded through this channel: export bundles the references, import re-links each id it
 // can access on the importing install and skips the rest (the portability twin of the duplicate carry).
-export const attachedBookRefSchema = z.object({
-  worldBookId: typeIdSchema(ID_PREFIX.worldBook),
-  role: worldBookRoleSchema,
-});
+export const attachedBookRefSchema = z
+  .object({
+    worldBookId: typeIdSchema(ID_PREFIX.worldBook),
+    role: worldBookRoleSchema,
+  })
+  .strip();
 export type AttachedBookRef = z.infer<typeof attachedBookRefSchema>;
 
 // The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`
@@ -209,13 +211,15 @@ export const CHARACTER_BACKGROUND_WIRE_KEY = "orbweaver_background";
 // `alternate_greetings` (the rest, `groupOnly` absent/false), and `group_only_greetings` (`groupOnly: true`) —
 // offered only in group chats. The serde re-splits them on export (`buildCardV3`) so the round-trip is lossless.
 // The owner-decided lock-the-extensible-shape call (the parallel-column alternative was rejected).
-const greetingSchema = z.object({
-  /** The greeting text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at read. */
-  text: z.string().max(TEXT_MAX),
-  /** True ⇒ offered ONLY in group chats (ST `data.group_only_greetings`). Absent ⇒ a normal greeting. Never
-   *  set on greetings[0] (the first message is always solo-eligible). */
-  groupOnly: z.boolean().optional(),
-});
+const greetingSchema = z
+  .object({
+    /** The greeting text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at read. */
+    text: z.string().max(TEXT_MAX),
+    /** True ⇒ offered ONLY in group chats (ST `data.group_only_greetings`). Absent ⇒ a normal greeting. Never
+     *  set on greetings[0] (the first message is always solo-eligible). */
+    groupOnly: z.boolean().optional(),
+  })
+  .strip();
 export type Greeting = z.infer<typeof greetingSchema>;
 
 /** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
@@ -223,62 +227,64 @@ export type Greeting = z.infer<typeof greetingSchema>;
 export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
-const characterCardSchema = z.object({
-  name: cardFaceFields.name,
-  // The face description, `.nullable()` per card-spec fidelity (a V2/V3 card may omit it) — the wrap is
-  // character's write semantics; the inner validator is the ONE home.
-  description: cardFaceFields.description.nullable(),
-  personality: z.string().max(TEXT_MAX).nullable(),
-  scenario: z.string().max(TEXT_MAX).nullable(),
-  /** Ordered greetings — `[0]` is the first message, the rest are alternates; `groupOnly` marks a
-   *  group-chat-only greeting (the folded ST `group_only_greetings`). */
-  greetings: z.array(greetingSchema).max(GREETINGS_MAX),
-  exampleMessages: z.string().max(TEXT_MAX).nullable(),
-  systemPrompt: z.string().max(TEXT_MAX).nullable(),
-  postHistoryInstructions: z.string().max(TEXT_MAX).nullable(),
-  /** Character's Note \@ Depth, or null (no/empty note). */
-  depthPrompt: cardDepthPromptSchema.nullable(),
-  creatorNotes: z.string().max(TEXT_MAX).nullable(),
-  // ── Typed promotions (D28): the fields neo leaked through `raw`, now first-class columns ──
-  /** Card-author handle (ST `data.creator`). */
-  creator: z.string().max(CREATOR_MAX).nullable(),
-  /** Card author's freeform version STRING (ST `data.character_version`, e.g. "1.2") — NEVER an int counter. */
-  cardVersion: z.string().max(CARD_VERSION_MAX).nullable(),
-  // ── V3 content promotions: the four `data.*` fields that had a residual home, now first-class columns.
-  //    Absent on a V2 / app-authored card ⇒ null (the V2-omits-them-cleanly property export relies on). ──
-  /** Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`). */
-  nickname: z.string().max(NICKNAME_MAX).nullable(),
-  /** Provenance URLs / ids the card was sourced from (ST V3 `data.source`). */
-  source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable(),
-  /** Unix-seconds authorship timestamp (ST V3 `data.creation_date`). */
-  creationDate: z.int().nullable(),
-  /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
-  modificationDate: z.int().nullable(),
-  /** ST's favorite flag (`data.extensions.fav`) promoted onto `characters.starred` — the
-   *  promote-out-of-residue pattern of `depth_prompt`/`regex_scripts` (D28): the IN-adapter reads it, the
-   *  residue drops the key, and the OUT-emitter writes it back FROM THE LIVE ROW (so a star toggled in orb
-   *  exports truthfully instead of replaying the imported byte). OPTIONAL on the `regexScripts` precedent:
-   *  present at the serde boundary; the domain's card projection omits it (the row column is the home). */
-  starred: z.boolean().optional(),
-  /** The ST card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
-   *  the LIFT/RE-EMBED slot, present ONLY at the serde boundary: the importer hands these to the regex
-   *  domain to mint library rows + a `character_regex_scripts` attachment, and the exporter fills it by
-   *  walking that junction back out (byte-shape-identical ST wire). The DOMAIN's card projection OMITS it
-   *  — a character does not carry scripts by value any more (D121-E). */
-  regexScripts: z.array(regexScriptCardSchema).max(REGEX_SCRIPTS_MAX).optional(),
-  /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
-  extensions: z.record(z.string(), z.unknown()).nullable(),
-  /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — distinct from `extensions`. */
-  residualData: z.record(z.string(), z.unknown()).nullable(),
-  avatarAssetId: cardFaceFields.avatarAssetId,
-  /** CardRefinery pipeline signals (derived, not authored). */
-  refinery: refinerySignalsSchema.nullable(),
-  /** The wire spec this card was READ from (`chara_card_v2`/`chara_card_v3`) so export round-trips it (V2→V2,
-   *  V3→V3). Absent for app-authored / V1 / Pygmalion cards — export then defaults to V3. Serde-boundary only
-   *  today (no backing `characters` column yet — the residual-first pattern), so a DB round-trip normalizes
-   *  to V3; V3-native content (`assets`/`nickname`/…) still survives the DB via the `residualData` column. */
-  spec: cardSpecSchema.optional(),
-});
+const characterCardSchema = z
+  .object({
+    name: cardFaceFields.name,
+    // The face description, `.nullable()` per card-spec fidelity (a V2/V3 card may omit it) — the wrap is
+    // character's write semantics; the inner validator is the ONE home.
+    description: cardFaceFields.description.nullable(),
+    personality: z.string().max(TEXT_MAX).nullable(),
+    scenario: z.string().max(TEXT_MAX).nullable(),
+    /** Ordered greetings — `[0]` is the first message, the rest are alternates; `groupOnly` marks a
+     *  group-chat-only greeting (the folded ST `group_only_greetings`). */
+    greetings: z.array(greetingSchema).max(GREETINGS_MAX),
+    exampleMessages: z.string().max(TEXT_MAX).nullable(),
+    systemPrompt: z.string().max(TEXT_MAX).nullable(),
+    postHistoryInstructions: z.string().max(TEXT_MAX).nullable(),
+    /** Character's Note \@ Depth, or null (no/empty note). */
+    depthPrompt: cardDepthPromptSchema.nullable(),
+    creatorNotes: z.string().max(TEXT_MAX).nullable(),
+    // ── Typed promotions (D28): the fields neo leaked through `raw`, now first-class columns ──
+    /** Card-author handle (ST `data.creator`). */
+    creator: z.string().max(CREATOR_MAX).nullable(),
+    /** Card author's freeform version STRING (ST `data.character_version`, e.g. "1.2") — NEVER an int counter. */
+    cardVersion: z.string().max(CARD_VERSION_MAX).nullable(),
+    // ── V3 content promotions: the four `data.*` fields that had a residual home, now first-class columns.
+    //    Absent on a V2 / app-authored card ⇒ null (the V2-omits-them-cleanly property export relies on). ──
+    /** Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`). */
+    nickname: z.string().max(NICKNAME_MAX).nullable(),
+    /** Provenance URLs / ids the card was sourced from (ST V3 `data.source`). */
+    source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable(),
+    /** Unix-seconds authorship timestamp (ST V3 `data.creation_date`). */
+    creationDate: z.int().nullable(),
+    /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
+    modificationDate: z.int().nullable(),
+    /** ST's favorite flag (`data.extensions.fav`) promoted onto `characters.starred` — the
+     *  promote-out-of-residue pattern of `depth_prompt`/`regex_scripts` (D28): the IN-adapter reads it, the
+     *  residue drops the key, and the OUT-emitter writes it back FROM THE LIVE ROW (so a star toggled in orb
+     *  exports truthfully instead of replaying the imported byte). OPTIONAL on the `regexScripts` precedent:
+     *  present at the serde boundary; the domain's card projection omits it (the row column is the home). */
+    starred: z.boolean().optional(),
+    /** The ST card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
+     *  the LIFT/RE-EMBED slot, present ONLY at the serde boundary: the importer hands these to the regex
+     *  domain to mint library rows + a `character_regex_scripts` attachment, and the exporter fills it by
+     *  walking that junction back out (byte-shape-identical ST wire). The DOMAIN's card projection OMITS it
+     *  — a character does not carry scripts by value any more (D121-E). */
+    regexScripts: z.array(regexScriptCardSchema).max(REGEX_SCRIPTS_MAX).optional(),
+    /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
+    extensions: z.record(z.string(), z.unknown()).nullable(),
+    /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — distinct from `extensions`. */
+    residualData: z.record(z.string(), z.unknown()).nullable(),
+    avatarAssetId: cardFaceFields.avatarAssetId,
+    /** CardRefinery pipeline signals (derived, not authored). */
+    refinery: refinerySignalsSchema.nullable(),
+    /** The wire spec this card was READ from (`chara_card_v2`/`chara_card_v3`) so export round-trips it (V2→V2,
+     *  V3→V3). Absent for app-authored / V1 / Pygmalion cards — export then defaults to V3. Serde-boundary only
+     *  today (no backing `characters` column yet — the residual-first pattern), so a DB round-trip normalizes
+     *  to V3; V3-native content (`assets`/`nickname`/…) still survives the DB via the `residualData` column. */
+    spec: cardSpecSchema.optional(),
+  })
+  .strip();
 export type CharacterCard = z.infer<typeof characterCardSchema>;
 
 const storedCardText = z
@@ -376,36 +382,38 @@ export function deriveCharacterHandle(source: CharacterHandle, suffix: string): 
 
 // The ONE schema the tRPC router AND the import normalizer validate against. Pipeline-derived `refinery`
 // is NOT here. null clears a field; omit to leave it unchanged.
-export const createCharacterSchema = z.object({
-  // The card-slug WIRE boundary: length-validated, then branded (`CharacterHandle`, the identity-VALUE
-  // brand `characters.handle` carries) — every consumer downstream of the parse is nominally typed.
-  handle: characterHandleSchema,
-  name: cardFaceFields.name,
-  description: cardFaceFields.description,
-  personality: z.string().max(TEXT_MAX).nullable().optional(),
-  scenario: z.string().max(TEXT_MAX).nullable().optional(),
-  greetings: z.array(greetingSchema).max(GREETINGS_MAX).nullable().optional(),
-  exampleMessages: z.string().max(TEXT_MAX).nullable().optional(),
-  systemPrompt: z.string().max(TEXT_MAX).nullable().optional(),
-  postHistoryInstructions: z.string().max(TEXT_MAX).nullable().optional(),
-  creatorNotes: z.string().max(TEXT_MAX).nullable().optional(),
-  creator: z.string().max(CREATOR_MAX).nullable().optional(),
-  cardVersion: z.string().max(CARD_VERSION_MAX).nullable().optional(),
-  nickname: z.string().max(NICKNAME_MAX).nullable().optional(),
-  source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable().optional(),
-  creationDate: z.int().nullable().optional(),
-  modificationDate: z.int().nullable().optional(),
-  // NO `regexScripts` (D121-E): a character does not carry scripts by value, so the CREATE input has no
-  // slot for them. The import path reads them off the PARSED CARD and hands them to the regex domain's lift
-  // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
-  extensions: z.record(z.string(), z.unknown()).nullable().optional(),
-  residualData: z.record(z.string(), z.unknown()).nullable().optional(),
-  avatarAssetId: cardFaceFields.avatarAssetId.optional(),
-  /** The owner's star; an imported card lands with the star its file carries (ST `extensions.fav`). */
-  starred: cardFaceFields.starred.optional(),
-  /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
-  depthPrompt: cardDepthPromptSchema.nullable().optional(),
-});
+export const createCharacterSchema = z
+  .object({
+    // The card-slug WIRE boundary: length-validated, then branded (`CharacterHandle`, the identity-VALUE
+    // brand `characters.handle` carries) — every consumer downstream of the parse is nominally typed.
+    handle: characterHandleSchema,
+    name: cardFaceFields.name,
+    description: cardFaceFields.description,
+    personality: z.string().max(TEXT_MAX).nullable().optional(),
+    scenario: z.string().max(TEXT_MAX).nullable().optional(),
+    greetings: z.array(greetingSchema).max(GREETINGS_MAX).nullable().optional(),
+    exampleMessages: z.string().max(TEXT_MAX).nullable().optional(),
+    systemPrompt: z.string().max(TEXT_MAX).nullable().optional(),
+    postHistoryInstructions: z.string().max(TEXT_MAX).nullable().optional(),
+    creatorNotes: z.string().max(TEXT_MAX).nullable().optional(),
+    creator: z.string().max(CREATOR_MAX).nullable().optional(),
+    cardVersion: z.string().max(CARD_VERSION_MAX).nullable().optional(),
+    nickname: z.string().max(NICKNAME_MAX).nullable().optional(),
+    source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable().optional(),
+    creationDate: z.int().nullable().optional(),
+    modificationDate: z.int().nullable().optional(),
+    // NO `regexScripts` (D121-E): a character does not carry scripts by value, so the CREATE input has no
+    // slot for them. The import path reads them off the PARSED CARD and hands them to the regex domain's lift
+    // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
+    extensions: z.record(z.string(), z.unknown()).nullable().optional(),
+    residualData: z.record(z.string(), z.unknown()).nullable().optional(),
+    avatarAssetId: cardFaceFields.avatarAssetId.optional(),
+    /** The owner's star; an imported card lands with the star its file carries (ST `extensions.fav`). */
+    starred: cardFaceFields.starred.optional(),
+    /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
+    depthPrompt: cardDepthPromptSchema.nullable().optional(),
+  })
+  .strip();
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 
 /** Clamp a string to `max` (null/undefined pass through) — the string half of the import repair. */
@@ -580,76 +588,70 @@ const characterListCursorSchema = z.discriminatedUnion("sort", [
 export type CharacterListCursor = z.infer<typeof characterListCursorSchema>;
 
 // The ST card wire object — a V2/V3 SUPERSET (`spec` accepts either; V3-additive fields are optional so a
-// V2 card validates as "V3 with the extras absent"). `.loose()` keeps unknown vendor keys riding through.
-const characterBookEntrySchema = z
-  .object({
-    keys: z.array(z.string()),
-    content: z.string(),
-    enabled: z.boolean(),
-    insertion_order: z.number(),
-    comment: z.string().optional(),
-    constant: z.boolean().optional(),
-    extensions: z.record(z.string(), z.unknown()).optional(),
-    // V3-additive lorebook fields. `use_regex` marks the entry's keys as REGEX PATTERNS rather than literals —
-    // honored on both halves of the serde (#266 D-2): it normalizes into `world_entries.metadata.keyMode` on
-    // import and is re-derived from the resolved mode on export, and the keyword matcher compiles accordingly.
-    // Decorators are NOT a wire field — V3 embeds them as `@@`-prefixed lines INSIDE `content`, so they ride
-    // through verbatim with the content (no separate column). `.catch` keeps a malformed value non-throwing.
-    use_regex: z.boolean().optional().catch(undefined),
-  })
-  .loose();
+// V2 card validates as "V3 with the extras absent"). `z.looseObject` keeps unknown vendor keys riding through.
+const characterBookEntrySchema = z.looseObject({
+  keys: z.array(z.string()),
+  content: z.string(),
+  enabled: z.boolean(),
+  insertion_order: z.number(),
+  comment: z.string().optional(),
+  constant: z.boolean().optional(),
+  extensions: z.record(z.string(), z.unknown()).optional(),
+  // V3-additive lorebook fields. `use_regex` marks the entry's keys as REGEX PATTERNS rather than literals —
+  // honored on both halves of the serde (#266 D-2): it normalizes into `world_entries.metadata.keyMode` on
+  // import and is re-derived from the resolved mode on export, and the keyword matcher compiles accordingly.
+  // Decorators are NOT a wire field — V3 embeds them as `@@`-prefixed lines INSIDE `content`, so they ride
+  // through verbatim with the content (no separate column). `.catch` keeps a malformed value non-throwing.
+  use_regex: z.boolean().optional().catch(undefined),
+});
 
-const characterBookSchema = z.object({ entries: z.array(characterBookEntrySchema) }).loose();
+const characterBookSchema = z.looseObject({ entries: z.array(characterBookEntrySchema) });
 
-const characterCardV3DataSchema = z
-  .object({
-    name: z.string(),
-    description: z.string(),
-    personality: z.string(),
-    scenario: z.string(),
-    first_mes: z.string(),
-    mes_example: z.string(),
-    system_prompt: z.string(),
-    post_history_instructions: z.string(),
-    creator: z.string(),
-    creator_notes: z.string(),
-    character_version: z.string(),
-    alternate_greetings: z.array(z.string()),
-    tags: z.array(z.string()),
-    extensions: z.record(z.string(), z.unknown()),
-    character_book: characterBookSchema.optional(),
-    // ── V3-additive `data.*` fields (a V2 card omits them ⇒ all optional). Each carries `.catch` so a
-    // malformed real-world value is dropped rather than throwing the strict OUT `.parse` (these ride in via
-    // the `residualData` passthrough, which is untrusted). A well-formed value round-trips unchanged. ──
-    /** Media manifest — PARSED + PRESERVED only (round-trips on `residualData`); no consumer materializes
-     *  its URIs into local storage yet — there is no card-media fetch/download path built anywhere. */
-    assets: z.array(cardAssetSchema).optional().catch(undefined),
-    /** Prompt-facing display name overriding `{{char}}`. */
-    nickname: z.string().optional().catch(undefined),
-    /** Per-language creator notes, keyed by language code. */
-    creator_notes_multilingual: z.record(z.string(), z.string()).optional().catch(undefined),
-    /** Provenance URLs / ids the card was sourced from. */
-    source: z.array(z.string()).optional().catch(undefined),
-    /** Greetings offered ONLY in group chats. */
-    group_only_greetings: z.array(z.string()).optional().catch(undefined),
-    /** Unix-seconds authorship timestamps. */
-    creation_date: z.number().optional().catch(undefined),
-    modification_date: z.number().optional().catch(undefined),
-    // orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
-    // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
-    orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
-    [CHARACTER_HANDLE_WIRE_KEY]: characterHandleSchema.optional(),
-  })
-  .loose();
+const characterCardV3DataSchema = z.looseObject({
+  name: z.string(),
+  description: z.string(),
+  personality: z.string(),
+  scenario: z.string(),
+  first_mes: z.string(),
+  mes_example: z.string(),
+  system_prompt: z.string(),
+  post_history_instructions: z.string(),
+  creator: z.string(),
+  creator_notes: z.string(),
+  character_version: z.string(),
+  alternate_greetings: z.array(z.string()),
+  tags: z.array(z.string()),
+  extensions: z.record(z.string(), z.unknown()),
+  character_book: characterBookSchema.optional(),
+  // ── V3-additive `data.*` fields (a V2 card omits them ⇒ all optional). Each carries `.catch` so a
+  // malformed real-world value is dropped rather than throwing the strict OUT `.parse` (these ride in via
+  // the `residualData` passthrough, which is untrusted). A well-formed value round-trips unchanged. ──
+  /** Media manifest — PARSED + PRESERVED only (round-trips on `residualData`); no consumer materializes
+   *  its URIs into local storage yet — there is no card-media fetch/download path built anywhere. */
+  assets: z.array(cardAssetSchema).optional().catch(undefined),
+  /** Prompt-facing display name overriding `{{char}}`. */
+  nickname: z.string().optional().catch(undefined),
+  /** Per-language creator notes, keyed by language code. */
+  creator_notes_multilingual: z.record(z.string(), z.string()).optional().catch(undefined),
+  /** Provenance URLs / ids the card was sourced from. */
+  source: z.array(z.string()).optional().catch(undefined),
+  /** Greetings offered ONLY in group chats. */
+  group_only_greetings: z.array(z.string()).optional().catch(undefined),
+  /** Unix-seconds authorship timestamps. */
+  creation_date: z.number().optional().catch(undefined),
+  modification_date: z.number().optional().catch(undefined),
+  // orbweaver-namespaced attached-book REFERENCES (never the book content). Optional so every
+  // existing/foreign card stays valid; validated on the OUT boundary so a malformed ref fails loud.
+  orbweaver_attached_books: z.array(attachedBookRefSchema).optional(),
+  [CHARACTER_HANDLE_WIRE_KEY]: characterHandleSchema.optional(),
+});
 
-export const characterCardV3Schema = z
-  .object({
-    // A V2/V3 superset: accept either spec marker (`spec_version` stays a free string — ST V3 allows 3.x).
-    spec: cardSpecSchema,
-    spec_version: z.string(),
-    data: characterCardV3DataSchema,
-  })
-  .loose();
+export const characterCardV3Schema = z.looseObject({
+  // A V2/V3 superset: accept either spec marker (`spec_version` stays a free string — ST V3 allows 3.x).
+  spec: cardSpecSchema,
+  spec_version: z.string(),
+  data: characterCardV3DataSchema,
+});
 
 /** The ST V3 card object the serde emits/parses (the shape `buildCardV3` returns + `writeCardChunk` writes). */
 export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;

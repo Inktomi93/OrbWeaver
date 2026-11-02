@@ -1,6 +1,7 @@
 // Execution accounting belongs to the embedding invocation, never to a vector row. A paid response
 // survives a later width refusal, generation switch or vector purge; batches do not multiply per input.
 
+// Upstream responses keep zod strip mode: a provider or SDK adds fields this app does not read.
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { modalitySchema } from "../inference/modalities.ts";
@@ -14,14 +15,16 @@ export type EmbeddingTask = (typeof EMBEDDING_TASKS)[number];
 export const EMBEDDING_INVOCATION_OUTCOMES = ["completed", "failed"] as const;
 export type EmbeddingInvocationOutcome = (typeof EMBEDDING_INVOCATION_OUTCOMES)[number];
 
-export const embeddingBatchObservationSchema = z.object({
-  inputCount: z.int().positive(),
-  inputModalities: z.array(modalitySchema),
-  servedModel: z.string().min(1).nullable(),
-  usage: embedUsageSchema,
-  tokenDetails: tokenDetailsSchema.nullable(),
-  cost: costUsageSchema,
-});
+export const embeddingBatchObservationSchema = z
+  .object({
+    inputCount: z.int().positive(),
+    inputModalities: z.array(modalitySchema),
+    servedModel: z.string().min(1).nullable(),
+    usage: embedUsageSchema,
+    tokenDetails: tokenDetailsSchema.nullable(),
+    cost: costUsageSchema,
+  })
+  .strip();
 export type EmbeddingBatchObservation = z.infer<typeof embeddingBatchObservationSchema>;
 
 export interface EmbeddingInvocationContext {

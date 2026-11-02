@@ -1,6 +1,7 @@
 // Shared refinery rubric, critique bounds and analysis validators. Character and schema authoring consume
 // this leaf without importing the composing public root; it never imports character or that root.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 
@@ -85,16 +86,18 @@ export const LIST_MAX = 50;
  *  THE ONE PAYLOAD THAT REACHES CANON: R1 stamps it into `characters.refinery.analysis` (F6), so these
  *  bytes ride every card detail read AND every `character_snapshots` blob taken afterwards. Its ceilings
  *  are the tightest in this file for that reason. */
-export const refineryAnalyzePayloadSchema = z.object({
-  preserved: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  lost: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  gained: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  soulScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  soulAssessment: critiqueProseSchema,
-  verdict: refineryVerdictSchema,
-  issues: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  recommendations: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-});
+export const refineryAnalyzePayloadSchema = z
+  .object({
+    preserved: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+    lost: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+    gained: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+    soulScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
+    soulAssessment: critiqueProseSchema,
+    verdict: refineryVerdictSchema,
+    issues: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+    recommendations: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+  })
+  .strip();
 
 export type RefineryAnalyzePayload = z.infer<typeof refineryAnalyzePayloadSchema>;
 

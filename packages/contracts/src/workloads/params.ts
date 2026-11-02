@@ -22,7 +22,7 @@ import type { RefineScoreSweepWorkloadParams } from "#refinery";
 import type { WorkloadKind } from "./axes.ts";
 import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
 
-const noParams = z.object({});
+const noParams = z.object({}).strip();
 
 /** The `workloads.list` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded run-history fetch. The same 500 the
@@ -51,53 +51,61 @@ const stagedHandleSchema = z
 
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
  *  owner (`ctx.ownerId`) scopes the run. */
-export const databankIngestWorkloadParams = z.object({ documentId: documentIdSchema });
+export const databankIngestWorkloadParams = z.object({ documentId: documentIdSchema }).strip();
 
 /** databank-reindex: bulk derived-layer maintenance (param/model change, extractor upgrade). `scope` selects
  *  one document or every document the row owner owns; `mode` is a tunable (the contribution floors it to
  *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). `embedderChanged` marks the
  *  rebuild an embedder change queued. */
-export const databankReindexWorkloadParams = z.object({
-  scope: reindexScopeSchema,
-  mode: reindexModeSchema.optional(),
-  embedderChanged: z.boolean().optional(),
-});
+export const databankReindexWorkloadParams = z
+  .object({
+    scope: reindexScopeSchema,
+    mode: reindexModeSchema.optional(),
+    embedderChanged: z.boolean().optional(),
+  })
+  .strip();
 
 /** index: the embeddings reindex. Its ONE required field is `source` — which is the queue's OWN
  *  single-active lock sub-partition (stamped into `workloads.source`), so unlike every other kind this
  *  schema stays here rather than in `@orb/contracts/embeddings`: the field is queue vocabulary, and moving
  *  it would make `contracts/embeddings` and `contracts/workloads` import each other. */
-export const indexWorkloadParams = z.object({
-  source: indexSourceSchema,
-  force: z.boolean().optional(),
-  /** The run rebuilds an index the owner's new embedder emptied; its progress row says so. */
-  embedderChanged: z.boolean().optional(),
-});
+export const indexWorkloadParams = z
+  .object({
+    source: indexSourceSchema,
+    force: z.boolean().optional(),
+    /** The run rebuilds an index the owner's new embedder emptied; its progress row says so. */
+    embedderChanged: z.boolean().optional(),
+  })
+  .strip();
 
 /** The shared maintenance tunable — `dryRun` reports what a pass WOULD change without mutating. */
-export const maintenanceWorkloadParams = z.object({ dryRun: z.boolean().optional() });
+export const maintenanceWorkloadParams = z.object({ dryRun: z.boolean().optional() }).strip();
 
 /** assets-rebuild-index: the asset kind stamped on every row the rebuild re-derives. A rebuild targets one kind
  *  at a time because a blob on disk carries no kind of its own. */
-export const assetsRebuildIndexWorkloadParams = z.object({ kind: assetKindSchema });
+export const assetsRebuildIndexWorkloadParams = z.object({ kind: assetKindSchema }).strip();
 
 /** import-st tunables: the maintenance `dryRun` plus an optional folder-upload `stagedDir` override (a
  *  server-minted staging handle — a single safe path segment; the import contribution resolves it to a
  *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir.
  *  `personaCollisions` is the review's per-collision choice; an unlisted collision merges. */
-export const importStWorkloadParams = z.object({
-  dryRun: z.boolean().optional(),
-  stagedDir: stagedHandleSchema.optional(),
-  personaCollisions: personaCollisionChoicesSchema.optional(),
-});
+export const importStWorkloadParams = z
+  .object({
+    dryRun: z.boolean().optional(),
+    stagedDir: stagedHandleSchema.optional(),
+    personaCollisions: personaCollisionChoicesSchema.optional(),
+  })
+  .strip();
 
 /** import-bundle: a server-minted staging handle (a single safe path segment); the import contribution
  *  resolves it to a strict descendant of the staging root (path-traversal-safe). `source` selects the staged
  *  shape: `zip` (a single archive, the default) or `dir` (a folder-upload tree). */
-export const importBundleWorkloadParams = z.object({
-  token: stagedHandleSchema,
-  source: z.enum(["zip", "dir"]).optional(),
-});
+export const importBundleWorkloadParams = z
+  .object({
+    token: stagedHandleSchema,
+    source: z.enum(["zip", "dir"]).optional(),
+  })
+  .strip();
 
 /** No-tunable kinds share this schema — the explicit empty object every uniform parse runs against. */
 export const emptyWorkloadParams = noParams;
@@ -147,7 +155,7 @@ export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; read
  * failure to a BAD_REQUEST domain error. A malformed blob is still rejected — one layer later, never
  * accepted.
  */
-export const startWorkloadEnvelope = z.object({ kind: workloadKindSchema, params: z.record(z.string(), z.unknown()) });
+export const startWorkloadEnvelope = z.object({ kind: workloadKindSchema, params: z.record(z.string(), z.unknown()) }).strip();
 
 export type StartWorkloadEnvelope = z.infer<typeof startWorkloadEnvelope>;
 

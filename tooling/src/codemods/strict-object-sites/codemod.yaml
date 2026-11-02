@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "strict-object-sites"
 version: "0.1.0"
-description: "Rewrite z.object( to z.strictObject( at the call sites a JSON list in the target directory names."
+description: "Give each z.object( site a JSON plan in the target directory names its unknown-key mode: strict, strip or loose."
 author: "Orbweaver"
 license: "MIT"
 targets:

@@ -8,6 +8,7 @@
 // The journal is NOT here — it is a variant-AWARE TABLE (unbounded archive; snapshot-copying it every
 // turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection (§2.5).
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RpgActorRef } from "./actor.ts";
@@ -26,41 +27,49 @@ import { rpgTrackerValuesSchema } from "./tracker.ts";
 // with the current act embered; null = no plot authored yet (the rail renders nothing — no invented acts).
 
 // One act of the plot spine — a title (the rail's label) + a short optional summary.
-const rpgPlotActSchema = z.object({
-  title: z.string().default(""),
-  summary: z.string().default(""),
-});
+const rpgPlotActSchema = z
+  .object({
+    title: z.string().default(""),
+    summary: z.string().default(""),
+  })
+  .strip();
 
 /** The snapshot-resident plot object. `act` indexes 1-based into `acts` (the applier keeps
  *  `acts.length >= act`, padding untitled acts, so the rail is total). */
-export const rpgPlotSchema = z.object({
-  act: z.int().min(1).default(1),
-  title: z.string().default(""),
-  acts: z.array(rpgPlotActSchema).default([]),
-});
+export const rpgPlotSchema = z
+  .object({
+    act: z.int().min(1).default(1),
+    title: z.string().default(""),
+    acts: z.array(rpgPlotActSchema).default([]),
+  })
+  .strip();
 export type RpgPlot = z.infer<typeof rpgPlotSchema>;
 
 /** A quest objective — a stable-`id` line with a completion flag (`n/m` derives from these). The objective
  *  `id` is a plain in-blob string (`id` doesn't trip `orb/no-raw-id`; a per-objective brand buys nothing at
  *  this cardinality — the objective is addressed only within its quest). */
-export const rpgQuestObjectiveSchema = z.object({
-  id: z.string().min(1),
-  text: z.string().min(1),
-  completed: z.boolean().default(false),
-});
+export const rpgQuestObjectiveSchema = z
+  .object({
+    id: z.string().min(1),
+    text: z.string().min(1),
+    completed: z.boolean().default(false),
+  })
+  .strip();
 export type RpgQuestObjective = z.infer<typeof rpgQuestObjectiveSchema>;
 
 /** The SNAPSHOT-RESIDENT quest object (§2.5). `id` is a prefix-less branded nanoid (`RpgQuestId`) minted IN
  *  the blob (no table, no FK, no `ID_PREFIX` entry) — the type-safety-without-TypeID middle the spec's
  *  "plain string" call wanted, made a real brand so the id flows typed through the snapshot addressing
  *  (`fieldLocks` path `quests.<id>`, the tool flip target). Identity is stable across variants. */
-export const rpgQuestSchema = z.object({
-  id: brandedId("RpgQuestId"),
-  name: z.string().min(1),
-  status: rpgQuestStatusSchema,
-  description: z.string().default(""),
-  objectives: z.array(rpgQuestObjectiveSchema).default([]),
-});
+export const rpgQuestSchema = z
+  .object({
+    id: brandedId("RpgQuestId"),
+    name: z.string().min(1),
+    status: rpgQuestStatusSchema,
+    description: z.string().default(""),
+    objectives: z.array(rpgQuestObjectiveSchema).default([]),
+  })
+  .strip();
 export type RpgQuest = z.infer<typeof rpgQuestSchema>;
 
 /** The manual-edit-wins lock record — a presence-key set (`Record<path, true>`). Only `editSnapshot`
@@ -73,31 +82,33 @@ export type RpgFieldLocks = z.infer<typeof rpgFieldLocksSchema>;
  *  ZERO columns here). This is the shape the staging accumulator overlays and clone-forwards; `quests`
  *  rides INSIDE it (§2.5). The db table splits these into columns; this schema is the composed read shape
  *  the resolution ladder returns. */
-export const rpgSnapshotStateSchema = z.object({
-  clock: rpgClockTimeSchema.nullable(),
-  calendarDate: z.string().nullable(),
-  location: z.string().default(""),
-  weather: rpgWeatherSchema.nullable(),
-  // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
-  // included: a participant character on stage is `character:<id>`). Nothing else lives here any more. It used to
-  // carry the npc's whole identity row, which made departure a DESTRUCTION of her name, mood,
-  // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
-  // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
-  // over it, so departure retains everything and return re-surfaces the whole NPC.
-  presentCharacters: z.array(z.string().min(1)).default([]),
-  recentEvents: z.array(z.string()).default([]),
-  actorState: z.array(rpgActorEntrySchema).default([]),
-  // The GAME-SUBJECT tracker values (the tracked-field unification §5.2) — one value per `subject:"game"`
-  // tracker, keyed by tracker `key`. Replaces `widgetValues`, which keyed by widget LABEL (so a rename
-  // orphaned the value) and whose defs lived in a whole separate TABLE. Actor-subject values live on
-  // `actorState[].trackerValues` — one shape, two homes by subject, no third.
-  trackerValues: rpgTrackerValuesSchema.default({}),
-  quests: z.array(rpgQuestSchema).default([]),
-  // The P5 plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
-  // Defaulted null so a pre-P5 state blob self-heals at the parse seam (the quests `.default` posture).
-  plot: rpgPlotSchema.nullable().default(null),
-  fieldLocks: rpgFieldLocksSchema.nullable(),
-});
+export const rpgSnapshotStateSchema = z
+  .object({
+    clock: rpgClockTimeSchema.nullable(),
+    calendarDate: z.string().nullable(),
+    location: z.string().default(""),
+    weather: rpgWeatherSchema.nullable(),
+    // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
+    // included: a participant character on stage is `character:<id>`). Nothing else lives here any more. It used to
+    // carry the npc's whole identity row, which made departure a DESTRUCTION of her name, mood,
+    // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
+    // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
+    // over it, so departure retains everything and return re-surfaces the whole NPC.
+    presentCharacters: z.array(z.string().min(1)).default([]),
+    recentEvents: z.array(z.string()).default([]),
+    actorState: z.array(rpgActorEntrySchema).default([]),
+    // The GAME-SUBJECT tracker values (the tracked-field unification §5.2) — one value per `subject:"game"`
+    // tracker, keyed by tracker `key`. Replaces `widgetValues`, which keyed by widget LABEL (so a rename
+    // orphaned the value) and whose defs lived in a whole separate TABLE. Actor-subject values live on
+    // `actorState[].trackerValues` — one shape, two homes by subject, no third.
+    trackerValues: rpgTrackerValuesSchema.default({}),
+    quests: z.array(rpgQuestSchema).default([]),
+    // The P5 plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
+    // Defaulted null so a pre-P5 state blob self-heals at the parse seam (the quests `.default` posture).
+    plot: rpgPlotSchema.nullable().default(null),
+    fieldLocks: rpgFieldLocksSchema.nullable(),
+  })
+  .strip();
 export type RpgSnapshotState = z.infer<typeof rpgSnapshotStateSchema>;
 
 // THE HAND-PATCH VOCABULARY — the top-level keys an `editSnapshot` patch may address, DERIVED from the state

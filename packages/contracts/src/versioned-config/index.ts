@@ -49,6 +49,7 @@
 //     documented whole-group self-heal — they are re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
@@ -132,7 +133,7 @@ export interface VersionedConfig<T> {
   parseOutcome: (raw: unknown, storedVersion?: number) => VersionedParseOutcome<T>;
 }
 
-const versionProbeSchema = z.object({ schemaVersion: z.int().optional() });
+const versionProbeSchema = z.object({ schemaVersion: z.int().optional() }).strip();
 
 /**
  * The version the walk STARTS from: the externally-recorded version (a storage column) beats the in-blob

@@ -35,7 +35,7 @@ export const RPG_RULESET_DEFAULT: RpgRuleset = "freeform";
 
 /** What a game is born with when a chat starts as one: its ruleset (omit ⇒ {@link RPG_RULESET_DEFAULT}).
  *  One shape for every start — chat's `startAsGame` and a roster preset's stored game template. */
-export const rpgGameTemplateSchema = z.object({ ruleset: rpgRulesetSchema.optional() });
+export const rpgGameTemplateSchema = z.object({ ruleset: rpgRulesetSchema.optional() }).strip();
 export type RpgGameTemplate = z.output<typeof rpgGameTemplateSchema>;
 
 /** The stat vocabulary each ruleset carries. Exhaustive over the axis (a new member fails `tsc` here). */

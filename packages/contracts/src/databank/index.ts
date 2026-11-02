@@ -136,11 +136,13 @@ const RETRIEVAL_K_DEFAULT = 5;
 const MIN_SCORE_DEFAULT = 0.25;
 
 // ── chunk params (the wire twin of @orb/kit/chunk's ChunkParams; pinned by ChunkParamsPin below) ─────────
-export const chunkParamsSchema = z.object({
-  chunkSize: z.int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — ST chunk_size_db
-  overlapPercent: z.int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // ST overlap_percent_db
-  wholeFileThreshold: z.int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — ST size_threshold_db (5 KB)
-});
+export const chunkParamsSchema = z
+  .object({
+    chunkSize: z.int().min(CHUNK_SIZE_MIN).max(CHUNK_SIZE_MAX).default(CHUNK_SIZE_DEFAULT), // chars — ST chunk_size_db
+    overlapPercent: z.int().min(0).max(OVERLAP_PERCENT_MAX).default(0), // ST overlap_percent_db
+    wholeFileThreshold: z.int().min(0).max(WHOLE_FILE_THRESHOLD_MAX).default(WHOLE_FILE_THRESHOLD_DEFAULT), // chars — ST size_threshold_db (5 KB)
+  })
+  .strip();
 
 export type ChunkParamsWire = z.infer<typeof chunkParamsSchema>;
 
@@ -153,21 +155,25 @@ type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams extends
 const [_chunkParamsHolds]: [ChunkParamsPin] = [true];
 
 // ── retrieval settings (the user-setting blob) ────────────────────────────────────────────────────────────
-export const databankRetrievalSettingsSchema = z.object({
-  k: z.int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
-  minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
-  rerank: z.boolean().default(false), // LEAN default off
-});
+export const databankRetrievalSettingsSchema = z
+  .object({
+    k: z.int().min(1).max(RETRIEVAL_K_MAX).default(RETRIEVAL_K_DEFAULT), // ST chunk_count_db
+    minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
+    rerank: z.boolean().default(false), // LEAN default off
+  })
+  .strip();
 export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettingsSchema>;
 
-export const databankSettingsSchema = z.object({
-  chunk: chunkParamsSchema,
-});
+export const databankSettingsSchema = z
+  .object({
+    chunk: chunkParamsSchema,
+  })
+  .strip();
 
 export type DatabankSettings = z.infer<typeof databankSettingsSchema>;
 
 // ── the client-facing document view (extractedText is NOT here — see the file header) ────────────────────
-export const documentViewSchema = z.object({
+export const documentViewSchema = z.strictObject({
   id: documentIdSchema,
   name: z.string().min(1),
   mime: z.string(),
@@ -269,8 +275,8 @@ export const reindexModeSchema = z.enum(["chunk-embed", "re-extract"]);
 export type ReindexMode = z.infer<typeof reindexModeSchema>;
 
 export const reindexScopeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("document"), documentId: documentIdSchema }),
-  z.object({ kind: z.literal("owner") }),
+  z.object({ kind: z.literal("document"), documentId: documentIdSchema }).strip(),
+  z.object({ kind: z.literal("owner") }).strip(),
 ]);
 
 export type ReindexScope = z.infer<typeof reindexScopeSchema>;
@@ -396,7 +402,6 @@ export const bankHealthViewSchema = z.strictObject({
 }) satisfies z.ZodType<BankHealthView>;
 
 export const documentDetailViewSchema = documentViewSchema
-  .strict()
   .extend({
     extractedText: z.string().optional(),
   })
@@ -415,14 +420,14 @@ export const documentAttachmentsViewSchema = z.strictObject({
   characters: z.array(documentCharacterRefSchema).readonly(),
 }) satisfies z.ZodType<DocumentAttachmentsView>;
 
-export const activeChatDocumentViewSchema = documentViewSchema.strict().extend({
+export const activeChatDocumentViewSchema = documentViewSchema.extend({
   hidden: z.boolean(),
   sources: z.array(z.enum(DOCUMENT_SCOPE_SOURCES)).readonly(),
 }) satisfies z.ZodType<ActiveChatDocumentView>;
 
 export const uploadResultSchema = z
   .strictObject({
-    document: documentViewSchema.strict(),
+    document: documentViewSchema,
     outcome: z.literal(["created", "duplicate"]),
     ingest: z.enum(INGEST_OUTCOMES),
     warning: z.literal("empty-extraction").optional(),
@@ -430,7 +435,7 @@ export const uploadResultSchema = z
   .transform(({ warning, ...result }): UploadResult => ({ ...result, ...(warning === undefined ? {} : { warning }) })) satisfies z.ZodType<UploadResult>;
 
 export const listDocumentsResultSchema = z.strictObject({
-  items: z.array(documentViewSchema.strict()).readonly(),
+  items: z.array(documentViewSchema).readonly(),
   nextCursor: documentListCursorSchema.strict().nullable(),
   totalCount: z.number(),
 }) satisfies z.ZodType<ListDocumentsResult>;

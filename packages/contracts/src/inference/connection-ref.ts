@@ -8,7 +8,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { routableTaskSchema } from "./tasks.ts";
 
-export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
+export const connectionRefSchema = z.strictObject({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
 
 /** WHICH connection a capability read describes: a role, resolved through the caller's own bindings as a turn
  *  would, or one of the caller's own connections by id. Absent ⇒ the chat role. */

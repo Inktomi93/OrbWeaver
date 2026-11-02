@@ -63,26 +63,30 @@ const trackerKeyField = z
   .refine((key) => key !== PROTO_KEY, { message: `a tracker key cannot be ${PROTO_KEY}` });
 
 /** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
-const trackerDeltaSchema = z.object({ key: trackerKeyField, delta: z.int() });
+const trackerDeltaSchema = z.object({ key: trackerKeyField, delta: z.int() }).strip();
 
 /** A `write:"set"` tracker write — record the new reading. `value` carries a `meter`'s number or a `text`
  *  tracker's string (the projection narrows it to the one type when this call's set-trackers are all one
  *  shape); `items` carries a `list` tracker's lines. Exactly one is meaningful per key; both omitted is a
  *  no-op the applier drops. */
-const trackerSetSchema = z.object({
-  key: trackerKeyField,
-  value: z.union([z.number(), z.string()]).optional(),
-  items: z.array(z.string()).optional(),
-});
+const trackerSetSchema = z
+  .object({
+    key: trackerKeyField,
+    value: z.union([z.number(), z.string()]).optional(),
+    items: z.array(z.string()).optional(),
+  })
+  .strip();
 
 // A present-cast RELATIONSHIP write — `kind` rides the closed vocab (ENUM-constrained at the
 // token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
 // (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
 // non-custom kind). The whole `relationship` field is optional on the patch (MA-4: omit = keep the current stance).
-const relationshipUpsertSchema = z.object({
-  kind: rpgRelationshipKindSchema,
-  label: z.string().optional(),
-});
+const relationshipUpsertSchema = z
+  .object({
+    kind: rpgRelationshipKindSchema,
+    label: z.string().optional(),
+  })
+  .strip();
 
 // The AMBIENT WEATHER write (§2.7) — the SAME closed-enum + free-label shape as `relationship` above. `type`
 // is one of the eight states the panel's Waystone paints (an enum the token-level grammar binds under an
@@ -91,10 +95,12 @@ const relationshipUpsertSchema = z.object({
 // strict-style within the object (type required, D109-6); `label` optional-omit — omission is plausible when
 // the type already says it ("clear" needs no gloss). The whole `weather` field is optional on the patch
 // (MA-4: omit = keep the current sky).
-const weatherUpsertSchema = z.object({
-  type: rpgWeatherTypeSchema,
-  label: rpgWeatherLabelSchema.optional(),
-});
+const weatherUpsertSchema = z
+  .object({
+    type: rpgWeatherTypeSchema,
+    label: rpgWeatherLabelSchema.optional(),
+  })
+  .strip();
 
 /** `update_party` — tracker writes, conditions, status on any party-side actor OR npc key.
  *
@@ -102,83 +108,100 @@ const weatherUpsertSchema = z.object({
  *  with `key:"hp"` under the SAME per-actor key enum every other tracker uses. That is a STRONGER gate than the
  *  arm it replaced — an actor who does not carry hp is now UNTYPEABLE rather than refused after the fact — and
  *  the projected grammar shrinks by one property on every call. */
-export const updatePartyArgsSchema = z.object({
-  targetRef: targetRefField,
-  trackerDeltas: z.array(trackerDeltaSchema).optional(),
-  trackerSets: z.array(trackerSetSchema).optional(),
-  addCondition: z.object({ name: z.string().min(1), modifier: z.int().optional() }).optional(),
-  removeCondition: z.string().min(1).optional(),
-  status: z.string().optional(),
-});
+export const updatePartyArgsSchema = z
+  .object({
+    targetRef: targetRefField,
+    trackerDeltas: z.array(trackerDeltaSchema).optional(),
+    trackerSets: z.array(trackerSetSchema).optional(),
+    addCondition: z
+      .object({ name: z.string().min(1), modifier: z.int().optional() })
+      .strip()
+      .optional(),
+    removeCondition: z.string().min(1).optional(),
+    status: z.string().optional(),
+  })
+  .strip();
 export type UpdatePartyArgs = z.infer<typeof updatePartyArgsSchema>;
 
 /** `update_inventory` — add/update/remove items + `walletDeltas` (the STORED named-amount wallet, §2.6).
  *  `update` addresses an existing item by its model-visible name and patches only the fields the beat moved.
  *  Without this arm a story could put a carried key on a necklace while the tracker was structurally unable
  *  to record anything except deleting and re-minting it. */
-export const updateInventoryArgsSchema = z.object({
-  targetRef: targetRefField,
-  add: z
-    .array(
-      z.object({
-        name: z.string().min(1),
-        description: z.string().optional(),
-        quantity: z.int().min(1).optional(),
-        location: z.string().optional(),
-      }),
-    )
-    .optional(),
-  update: z
-    .array(
-      z.object({
-        name: z.string().min(1),
-        description: z.string().optional(),
-        quantity: z.int().min(1).optional(),
-        location: z.string().optional(),
-      }),
-    )
-    .optional(),
-  remove: z.array(z.object({ name: z.string().min(1), quantity: z.int().min(1).optional() })).optional(),
-  walletDeltas: z.array(z.object({ name: z.string().min(1), delta: z.int() })).optional(),
-});
+export const updateInventoryArgsSchema = z
+  .object({
+    targetRef: targetRefField,
+    add: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            quantity: z.int().min(1).optional(),
+            location: z.string().optional(),
+          })
+          .strip(),
+      )
+      .optional(),
+    update: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1),
+            description: z.string().optional(),
+            quantity: z.int().min(1).optional(),
+            location: z.string().optional(),
+          })
+          .strip(),
+      )
+      .optional(),
+    remove: z.array(z.object({ name: z.string().min(1), quantity: z.int().min(1).optional() }).strip()).optional(),
+    walletDeltas: z.array(z.object({ name: z.string().min(1), delta: z.int() }).strip()).optional(),
+  })
+  .strip();
 export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
 // The P5 PLOT patch (parity-plus — the snapshot-resident plot plane's model-facing write). Deliberately
 // FLAT (the small-model-robust arm, ruling #10): the model declares the CURRENT act number and/or the
 // current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
 // acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
-const plotPatchSchema = z.object({
-  act: z.int().min(1).optional(),
-  title: z.string().optional(),
-  actTitle: z.string().optional(),
-  actSummary: z.string().optional(),
-});
+const plotPatchSchema = z
+  .object({
+    act: z.int().min(1).optional(),
+    title: z.string().optional(),
+    actTitle: z.string().optional(),
+    actSummary: z.string().optional(),
+  })
+  .strip();
 
 /** `update_scene` — ambient fields (§2.7) + a present-cast PATCH (MA-4: omit = keep, null = clear). */
-export const updateSceneArgsSchema = z.object({
-  location: z.string().optional(),
-  calendarDate: z.string().optional(),
-  day: z.int().min(1).optional(),
-  timeOfDay: z.enum(TIME_OF_DAY).optional(),
-  weather: weatherUpsertSchema.optional(),
-  presentUpsert: z
-    .array(
-      z.object({
-        name: z.string().min(1),
-        emoji: z.string().optional(),
-        mood: z.string().optional(),
-        appearance: z.string().optional(),
-        outfit: z.string().optional(),
-        thoughts: z.string().optional(),
-        relationship: relationshipUpsertSchema.optional(),
-      }),
-    )
-    .optional(),
-  presentRemove: z.array(z.string().min(1)).optional(),
-  recentEvent: z.string().optional(),
-  // P5 — the plot-plane patch (advance the act / retitle the story or current act). Omit = keep.
-  plot: plotPatchSchema.optional(),
-});
+export const updateSceneArgsSchema = z
+  .object({
+    location: z.string().optional(),
+    calendarDate: z.string().optional(),
+    day: z.int().min(1).optional(),
+    timeOfDay: z.enum(TIME_OF_DAY).optional(),
+    weather: weatherUpsertSchema.optional(),
+    presentUpsert: z
+      .array(
+        z
+          .object({
+            name: z.string().min(1),
+            emoji: z.string().optional(),
+            mood: z.string().optional(),
+            appearance: z.string().optional(),
+            outfit: z.string().optional(),
+            thoughts: z.string().optional(),
+            relationship: relationshipUpsertSchema.optional(),
+          })
+          .strip(),
+      )
+      .optional(),
+    presentRemove: z.array(z.string().min(1)).optional(),
+    recentEvent: z.string().optional(),
+    // P5 — the plot-plane patch (advance the act / retitle the story or current act). Omit = keep.
+    plot: plotPatchSchema.optional(),
+  })
+  .strip();
 export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
 
 /** `set_tracker` — write a GAME-subject tracker (the retired `set_widget_value`, un-widgeted). Addressed by
@@ -186,34 +209,38 @@ export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
  *  `write:"delta"` game tracker, `value`/`items` the `write:"set"` ones. The projection constrains `key` to
  *  the game's UNLOCKED game-subject trackers and prunes the arms no live tracker needs, so a game with no
  *  game-subject trackers never sees the tool at all. */
-export const setTrackerArgsSchema = z.object({
-  key: trackerKeyField,
-  delta: z.int().optional(),
-  value: z.union([z.number(), z.string()]).optional(),
-  items: z.array(z.string()).optional(),
-});
+export const setTrackerArgsSchema = z
+  .object({
+    key: trackerKeyField,
+    delta: z.int().optional(),
+    value: z.union([z.number(), z.string()]).optional(),
+    items: z.array(z.string()).optional(),
+  })
+  .strip();
 export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 
 // `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
 //  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards.
 const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
-export const upsertQuestArgsSchema = z.object({
-  name: z.string().min(1),
-  action: z.enum(RPG_QUEST_ACTIONS),
-  description: z.string().optional(),
-  // The AUTHORING arm — the quest's objective LINES, as text. An `update` carrying this list is a MERGE BY
-  // TEXT at apply (`applyUpsertQuest`), never a re-mint: an objective whose text matches an existing one keeps
-  // its id AND its `completed` flag, so restating the list (which a model does constantly) can no longer wipe
-  // the progress the host and the story already earned. A line the list omits is dropped — the list is the
-  // quest's objectives, absolutely.
-  objectives: z.array(z.string().min(1)).optional(),
-  // The COMPLETION arm — mark objectives done by their TEXT, without restating the whole list. Kept as a bare
-  // string array (never a per-objective `{text,completed}` object) because the nested-array required-field
-  // blind spot bites exactly there: a flat enum-free string list is the xgrammar-cheapest shape that expresses
-  // "these are done". A name matching no live objective is DROPPED at apply (errors-as-data — a completion of
-  // a nonexistent objective is a ghost, never a mint).
-  completeObjectives: z.array(z.string().min(1)).optional(),
-});
+export const upsertQuestArgsSchema = z
+  .object({
+    name: z.string().min(1),
+    action: z.enum(RPG_QUEST_ACTIONS),
+    description: z.string().optional(),
+    // The AUTHORING arm — the quest's objective LINES, as text. An `update` carrying this list is a MERGE BY
+    // TEXT at apply (`applyUpsertQuest`), never a re-mint: an objective whose text matches an existing one keeps
+    // its id AND its `completed` flag, so restating the list (which a model does constantly) can no longer wipe
+    // the progress the host and the story already earned. A line the list omits is dropped — the list is the
+    // quest's objectives, absolutely.
+    objectives: z.array(z.string().min(1)).optional(),
+    // The COMPLETION arm — mark objectives done by their TEXT, without restating the whole list. Kept as a bare
+    // string array (never a per-objective `{text,completed}` object) because the nested-array required-field
+    // blind spot bites exactly there: a flat enum-free string list is the xgrammar-cheapest shape that expresses
+    // "these are done". A name matching no live objective is DROPPED at apply (errors-as-data — a completion of
+    // a nonexistent objective is a ghost, never a mint).
+    completeObjectives: z.array(z.string().min(1)).optional(),
+  })
+  .strip();
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
 /** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5).
@@ -235,16 +262,18 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  `content` stays REQUIRED, deliberately: a content-less entry has nothing to log (the title derives FROM the
  *  content), so the honest degrade is to drop that one entry as malformed — which every delivery path now does
  *  per-ENTRY (EXT-4a), so the drop costs the entry and never the turn's other five planes. */
-export const addJournalEntryArgsSchema = z.object({
-  type: rpgJournalTypeSchema.optional(),
-  // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
-  // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
-  // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless
-  // on a non-custom type (the applier clears it there — the relationship precedent).
-  label: z.string().optional(),
-  title: z.string().min(1).optional(),
-  content: z.string(),
-});
+export const addJournalEntryArgsSchema = z
+  .object({
+    type: rpgJournalTypeSchema.optional(),
+    // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
+    // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
+    // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless
+    // on a non-custom type (the applier clears it there — the relationship precedent).
+    label: z.string().optional(),
+    title: z.string().min(1).optional(),
+    content: z.string(),
+  })
+  .strip();
 export type AddJournalEntryArgs = z.infer<typeof addJournalEntryArgsSchema>;
 
 /** The type a type-less journal entry HEALS to (EXT-4b) — the neutral built-in kind, so a beat whose only
@@ -278,10 +307,12 @@ export function journalTitleFor(args: { readonly title?: string | undefined; rea
 }
 
 /** `roll_dice` — bake-once, zero state (the ToolCallRecord on the variant IS the canon stamp). */
-export const rollDiceArgsSchema = z.object({
-  notation: z.string().min(1),
-  reason: z.string().optional(),
-});
+export const rollDiceArgsSchema = z
+  .object({
+    notation: z.string().min(1),
+    reason: z.string().optional(),
+  })
+  .strip();
 
 /** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
  *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses
@@ -289,11 +320,13 @@ export const rollDiceArgsSchema = z.object({
  *  `rollDiceArgsSchema`). `faces` are the per-die rolls, `total` the summed value the server baked; `reason`
  *  echoes the model's optional `reason` arg. A malformed/absent blob is the renderer's own fall-back-to-generic
  *  decision (a tool call is CANON — the record is never dropped), never a parse throw here. */
-export const rollDiceToolResultSchema = z.object({
-  notation: z.string(),
-  total: z.number(),
-  faces: z.array(z.number()),
-  reason: z.string().optional(),
-});
+export const rollDiceToolResultSchema = z
+  .object({
+    notation: z.string(),
+    total: z.number(),
+    faces: z.array(z.number()),
+    reason: z.string().optional(),
+  })
+  .strip();
 /** The typed roll_dice result surface the in-thread renderer reads. */
 export type RollDiceToolResult = z.infer<typeof rollDiceToolResultSchema>;

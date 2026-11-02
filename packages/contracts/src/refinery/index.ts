@@ -182,10 +182,12 @@ const selectionGreetingIndexesSchema = z
 
 /** Which card content rides the pipeline — session state (stored, never wire-projected).
  *  `greetingIndexes` applies when `fields` includes `greetings`: absent ⇒ every greeting. */
-export const refinerySelectionSchema = z.object({
-  fields: selectionFieldsSchema,
-  greetingIndexes: selectionGreetingIndexesSchema.optional(),
-});
+export const refinerySelectionSchema = z
+  .object({
+    fields: selectionFieldsSchema,
+    greetingIndexes: selectionGreetingIndexesSchema.optional(),
+  })
+  .strip();
 export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
 
 /**
@@ -206,10 +208,12 @@ export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
  * clobber. The verb re-parses the MERGED WHOLE through {@link refinerySelectionSchema}: this schema
  * validates the delta, that one stays the stored-shape belt.
  */
-export const refinerySelectionPatchSchema = z.object({
-  fields: selectionFieldsSchema.optional(),
-  greetingIndexes: selectionGreetingIndexesSchema.nullable().optional(),
-});
+export const refinerySelectionPatchSchema = z
+  .object({
+    fields: selectionFieldsSchema.optional(),
+    greetingIndexes: selectionGreetingIndexesSchema.nullable().optional(),
+  })
+  .strip();
 export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema>;
 
 /** The session's loop-wide steering text ("keep her mean") — HOST-authored, but it is spliced into every
@@ -232,32 +236,40 @@ export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
 
 /** The fixed arm, score. Exported apart from the session union: run rows and the read-seam heal speak
  *  the ARM, not the union (a strip-mode union parse would silently eat a custom embed's schema). */
-export const refineryScoreFixedConfigSchema = z.object({
-  kind: z.literal("fixed"),
-  mode: refineryScoreModeSchema,
-});
+export const refineryScoreFixedConfigSchema = z
+  .object({
+    kind: z.literal("fixed"),
+    mode: refineryScoreModeSchema,
+  })
+  .strip();
 type RefineryScoreFixedConfig = z.infer<typeof refineryScoreFixedConfigSchema>;
 
-export const refineryRewriteConfigSchema = z.object({
-  kind: z.literal("fixed"),
-  mode: refineryRewriteModeSchema,
-});
+export const refineryRewriteConfigSchema = z
+  .object({
+    kind: z.literal("fixed"),
+    mode: refineryRewriteModeSchema,
+  })
+  .strip();
 type RefineryRewriteConfig = z.infer<typeof refineryRewriteConfigSchema>;
 
-export const refineryAnalyzeFixedConfigSchema = z.object({
-  kind: z.literal("fixed"),
-  mode: refineryAnalyzeModeSchema,
-});
+export const refineryAnalyzeFixedConfigSchema = z
+  .object({
+    kind: z.literal("fixed"),
+    mode: refineryAnalyzeModeSchema,
+  })
+  .strip();
 type RefineryAnalyzeFixedConfig = z.infer<typeof refineryAnalyzeFixedConfigSchema>;
 
 /** The SESSION-side custom arm — a pointer at an owned `refinery_schemas` row. `brandedId`, not
  *  `typeIdSchema`: the id is an INPUT the verb immediately resolves against the owned table (the lookup
  *  is the real belt), and stored config blobs re-parse through this at the read seam — a length-strict
  *  parse would heal a whole session config over an id-shape nit. */
-export const refineryCustomStageConfigSchema = z.object({
-  kind: z.literal("custom"),
-  schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
-});
+export const refineryCustomStageConfigSchema = z
+  .object({
+    kind: z.literal("custom"),
+    schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
+  })
+  .strip();
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
@@ -266,11 +278,13 @@ const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refin
 const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
-export const refineryStageConfigSchema = z.object({
-  score: refineryScoreConfigSchema,
-  rewrite: refineryRewriteConfigSchema,
-  analyze: refineryAnalyzeConfigSchema,
-});
+export const refineryStageConfigSchema = z
+  .object({
+    score: refineryScoreConfigSchema,
+    rewrite: refineryRewriteConfigSchema,
+    analyze: refineryAnalyzeConfigSchema,
+  })
+  .strip();
 export type RefineryStageConfig = z.infer<typeof refineryStageConfigSchema>;
 
 /** A session's born configuration (score full · rewrite balanced · analyze full — the extension's
@@ -287,20 +301,24 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
  *  re-parse never dereference a live `refinery_schemas` row for a historical run — "the schema is gone"
  *  is unrepresentable rather than a state the run viewer has to survive. The session-side POINTER arm
  *  above is the mutable half; the resolve-and-embed happens inside `runStage`. */
-export const refineryCustomRunConfigSchema = z.object({
-  kind: z.literal("custom"),
-  schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
-  schemaVersion: z.int().min(1),
-  schema: z.record(z.string(), z.unknown()),
-});
+export const refineryCustomRunConfigSchema = z
+  .object({
+    kind: z.literal("custom"),
+    schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
+    schemaVersion: z.int().min(1),
+    schema: z.record(z.string(), z.unknown()),
+  })
+  .strip();
 export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSchema>;
 
 /** The RUN-side manual-rewrite provenance arm — a HAND-authored rewrite (og-extension-feedback gap 1,
  *  the ShadowKyogre fork: score → hand-edit → analyze). No mode, no model, no schema: the payload is the
  *  same typed rewrite contract, authored by the owner in the WIP edit area instead of a model. */
-export const refineryManualRewriteConfigSchema = z.object({
-  kind: z.literal("manual"),
-});
+export const refineryManualRewriteConfigSchema = z
+  .object({
+    kind: z.literal("manual"),
+  })
+  .strip();
 type RefineryManualRewriteConfig = z.infer<typeof refineryManualRewriteConfigSchema>;
 
 /** The per-RUN provenance union (`refinery_runs.payload_config`) — the config arm that produced a run's
@@ -320,21 +338,25 @@ export type RefineryStagePayloadConfig =
  *  (the extension's builtin score schema, not arrays). `greetingIndex` is present ⇔ `field` is
  *  `greetings` — a flat optional (not a per-entry union) for small-model structured-output reliability;
  *  the invariant's one enforcement consumer is R1's apply/render belt. */
-const refineryFieldScoreSchema = z.object({
-  field: refinableFieldSchema,
-  greetingIndex: z.int().min(0).max(GREETING_INDEX_MAX).optional(),
-  score: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  strengths: critiqueProseSchema,
-  weaknesses: critiqueProseSchema,
-  suggestions: critiqueProseSchema,
-});
-export const refineryScorePayloadSchema = z.object({
-  fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
-  /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
-  overallScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  priorityImprovements: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  summary: critiqueProseSchema,
-});
+const refineryFieldScoreSchema = z
+  .object({
+    field: refinableFieldSchema,
+    greetingIndex: z.int().min(0).max(GREETING_INDEX_MAX).optional(),
+    score: z.number().min(SCORE_MIN).max(SCORE_MAX),
+    strengths: critiqueProseSchema,
+    weaknesses: critiqueProseSchema,
+    suggestions: critiqueProseSchema,
+  })
+  .strip();
+export const refineryScorePayloadSchema = z
+  .object({
+    fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
+    /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
+    overallScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
+    priorityImprovements: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
+    summary: critiqueProseSchema,
+  })
+  .strip();
 export type RefineryScorePayload = z.infer<typeof refineryScorePayloadSchema>;
 
 /** The addressing half every rewrite entry carries, whichever arm it takes. `greetingIndex` ⇔
@@ -379,9 +401,9 @@ const rewriteFieldTarget = {
  *  nothing), then replace, then clear. Spelled as a plain union, not a discriminated one: the tag is
  *  optional on one arm, which `z.discriminatedUnion` cannot express. */
 export const refineryRewriteFieldSchema = z.union([
-  z.object({ field: z.literal("greetings"), append: z.literal(true), text: z.string().min(1).max(REWRITE_TEXT_MAX) }),
-  z.object({ ...rewriteFieldTarget, text: z.string().min(1).max(REWRITE_TEXT_MAX) }),
-  z.object({ ...rewriteFieldTarget, cleared: z.literal(true) }),
+  z.object({ field: z.literal("greetings"), append: z.literal(true), text: z.string().min(1).max(REWRITE_TEXT_MAX) }).strip(),
+  z.object({ ...rewriteFieldTarget, text: z.string().min(1).max(REWRITE_TEXT_MAX) }).strip(),
+  z.object({ ...rewriteFieldTarget, cleared: z.literal(true) }).strip(),
 ]);
 export type RefineryRewriteField = z.infer<typeof refineryRewriteFieldSchema>;
 
@@ -411,9 +433,11 @@ export function appendedRewrites(fields: readonly RefineryRewriteField[]): Extra
  *  `fields` is entry-COUNT-capped as well as per-text-capped: the entry count is the apply verb's blast
  *  radius (one entry = one card field overwritten), and one payload can never name more targets than the
  *  card has. */
-const refineryRewritePayloadSchema = z.object({
-  fields: z.array(refineryRewriteFieldSchema).max(ENTRIES_MAX),
-});
+const refineryRewritePayloadSchema = z
+  .object({
+    fields: z.array(refineryRewriteFieldSchema).max(ENTRIES_MAX),
+  })
+  .strip();
 export type RefineryRewritePayload = z.infer<typeof refineryRewritePayloadSchema>;
 
 /** Drop a `greetingIndex` from an entry whose field is not `greetings` — the address biconditional the flat
@@ -501,7 +525,7 @@ export const REFINERY_STAGE_SHAPES = {
  *  not spend one model call per already-scored card. `true` re-scores everything (the card texts moved, or
  *  the model did). Deliberately the only tunable: mode/selection are the SWEEP's own posture, not a knob —
  *  a per-card session is where a user chooses those. */
-export const refineScoreSweepWorkloadParams = z.object({ rescoreAll: z.boolean().optional() });
+export const refineScoreSweepWorkloadParams = z.object({ rescoreAll: z.boolean().optional() }).strip();
 export type RefineScoreSweepWorkloadParams = z.infer<typeof refineScoreSweepWorkloadParams>;
 
 /** What one sweep pass did. FOUR counts, not the two `AnalyticsResult` carries: a sweep that skipped 400
@@ -521,42 +545,44 @@ export interface RefineryScoreSweepResult {
 
 // Wire views compose character validators; the analysis dependency stays in the lower core leaf.
 
-const refineryRunBaseSchema = z.object({
-  id: typeIdSchema(ID_PREFIX.refineryRun),
-  sessionId: typeIdSchema(ID_PREFIX.refinerySession),
-  /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
-  iteration: z.int().min(0),
-  /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
-   *  null beats a sentinel spelling (the anti-sniffing law). */
-  model: brandedId("ModelId").nullable(),
-  /** Provider-reported usage, or null when the backend reports none (stats parity). */
-  promptTokens: z.int().min(0).nullable(),
-  outputTokens: z.int().min(0).nullable(),
-  /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
-   *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
-   *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
-   *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
-  durationMs: z.int().min(0),
-  /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
-   *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
-   *  read no prior run.
-   *
-   *  WHY IT IS A COLUMN AND NOT AN INFERENCE: the
-   *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
-   *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
-   *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
-   *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
-   *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
-   *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
-   *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
-   *  the DAG edge is UNKNOWN, not that the child should vanish.] */
-  sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
-  /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
-   *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
-   *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
-  strippedKeys: z.array(z.string()),
-  createdAt: z.int(),
-});
+const refineryRunBaseSchema = z
+  .object({
+    id: typeIdSchema(ID_PREFIX.refineryRun),
+    sessionId: typeIdSchema(ID_PREFIX.refinerySession),
+    /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
+    iteration: z.int().min(0),
+    /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
+     *  null beats a sentinel spelling (the anti-sniffing law). */
+    model: brandedId("ModelId").nullable(),
+    /** Provider-reported usage, or null when the backend reports none (stats parity). */
+    promptTokens: z.int().min(0).nullable(),
+    outputTokens: z.int().min(0).nullable(),
+    /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
+     *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
+     *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
+     *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
+    durationMs: z.int().min(0),
+    /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
+     *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
+     *  read no prior run.
+     *
+     *  WHY IT IS A COLUMN AND NOT AN INFERENCE: the
+     *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
+     *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
+     *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
+     *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
+     *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
+     *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
+     *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
+     *  the DAG edge is UNKNOWN, not that the child should vanish.] */
+    sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
+    /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
+     *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
+     *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
+    strippedKeys: z.array(z.string()),
+    createdAt: z.int(),
+  })
+  .strip();
 
 /** A custom run's payload on the wire: shape-valid against its EMBEDDED schema at write AND at the read
  *  seam — the wire type is the honest "an object of the run's own schema" (the client renders it through
@@ -608,7 +634,7 @@ export type RefineryRun = z.infer<typeof refineryRunSchema>;
  *  `characters` for owner-scoping (domain/refinery/persistence/queries.ts), so carrying the two display
  *  facts costs one left-join to `assets` and no extra query — and `characterName` is non-nullable
  *  precisely BECAUSE that join is an inner one: a summary exists only where its character does. */
-export const refinerySessionSummarySchema = z.object({
+export const refinerySessionSummarySchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.refinerySession),
   characterId: typeIdSchema(ID_PREFIX.character),
   /** The card's display name, joined server-side — the roster row's TITLE and its search key. */

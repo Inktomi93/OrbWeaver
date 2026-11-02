@@ -42,42 +42,44 @@ export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
  *  host runs PURE hidden (no peek even for themselves); it NEVER changes the member-strip (a member never reads
  *  hidden bytes regardless) nor the wire (the model always remembers). `recentBeatsKeepLast` caps the reminder's
  *  Recent-beats slice (the durable log stays append-only). */
-export const rpgGameFeaturesSchema = z.object({
-  relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
-  // R4c (owner go, 2026-07-31) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
-  // journal entry may ride `type:"custom"` with a free `label`, and this maps that label → a steering gloss so
-  // a host-defined beat type teaches as precisely as the seven built-ins (the R4b hint argument, applied to
-  // the plane that fires on 79% of turns). Empty ⇒ bare labels.
-  journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
-  deception: z.boolean().default(false),
-  omniscience: z.boolean().default(false),
-  hiddenContentReveal: z.boolean().default(true),
-  recentBeatsKeepLast: z.int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
-  // Feature 7 — immersive HTML cards. `immersiveHtml` gates the TEACHING ask + the
-  // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
-  // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
-  immersiveHtml: z.boolean().default(true),
-  // Governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
-  // the model emits renders in the same sandbox regardless (§4.2 — the toggle shapes the PROMPT).
-  immersiveHtmlInteractive: z.boolean().default(true),
-  // At least the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub
-  // X at a time, so the prompt cache breaks once per X cards.
-  // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture).
-  cardKeepLastX: z.int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
-  // CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
-  // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
-  // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
-  // toggle-independent — an emitted fence always renders as buttons (never a stored-content break).
-  cyoa: z.boolean().default(false),
-  // What a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
-  // draft + focuses it (append flavor, then send); `send` fires the option as the user turn immediately.
-  // Toggle-independent render — the buttons always show; this only branches the client click handler.
-  cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.default("compose"),
-  // Plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
-  // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
-  // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).
-  plotProgression: z.boolean().default(true),
-});
+export const rpgGameFeaturesSchema = z
+  .object({
+    relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
+    // R4c (owner go, 2026-07-31) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
+    // journal entry may ride `type:"custom"` with a free `label`, and this maps that label → a steering gloss so
+    // a host-defined beat type teaches as precisely as the seven built-ins (the R4b hint argument, applied to
+    // the plane that fires on 79% of turns). Empty ⇒ bare labels.
+    journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
+    deception: z.boolean().default(false),
+    omniscience: z.boolean().default(false),
+    hiddenContentReveal: z.boolean().default(true),
+    recentBeatsKeepLast: z.int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
+    // Feature 7 — immersive HTML cards. `immersiveHtml` gates the TEACHING ask + the
+    // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
+    // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
+    immersiveHtml: z.boolean().default(true),
+    // Governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
+    // the model emits renders in the same sandbox regardless (§4.2 — the toggle shapes the PROMPT).
+    immersiveHtmlInteractive: z.boolean().default(true),
+    // At least the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub
+    // X at a time, so the prompt cache breaks once per X cards.
+    // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture).
+    cardKeepLastX: z.int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
+    // CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
+    // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
+    // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
+    // toggle-independent — an emitted fence always renders as buttons (never a stored-content break).
+    cyoa: z.boolean().default(false),
+    // What a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
+    // draft + focuses it (append flavor, then send); `send` fires the option as the user turn immediately.
+    // Toggle-independent render — the buttons always show; this only branches the client click handler.
+    cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.default("compose"),
+    // Plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
+    // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
+    // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).
+    plotProgression: z.boolean().default(true),
+  })
+  .strip();
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
 
 /** Is a game's config DECEPTION-ACTIVE? True when either hidden channel is on — the ONE
@@ -204,70 +206,73 @@ export const RPG_CONFIG_MAX_TRACKERS = 64;
  *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling 2026-08-01, on
  *  D112's measured evidence; the two-call `cheap` arm is the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
  *  additive, self-heals at the parse seam. */
-export const rpgGameConfigSchema = z.object({
-  // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
-  // turn assembly (no reminder/state/steering/tools — every rpg chat-op behaves as a non-game chat) and
-  // hides the panel, while PRESERVING every game row/snapshot (reversible — re-enable restores the
-  // sheet/scene as they were, never a delete). Additive defaulted — a pre-toggle blob self-heals to
-  // `true` (engaged) at the parse seam. Mirrored onto the chat pointer (`ChatRpgPointer.engaged`) so the
-  // client's sync gate reads it off `ChatDetail` without a round-trip.
-  engaged: z.boolean().default(true),
-  // THE RULESET SETTING (#862, owner ruling 2026-08-30) — `freeform` (born default) | `d20`. One game mode;
-  // the ruleset is a host SETTING on the Game tab, not a start-time door. It is the SELECTION, never a second
-  // storage for the vocabulary: `statProfile`/`trackers` below stay the truth, and a switch MERGES the
-  // ruleset's vocabulary into them additively (`applyRulesetVocabulary`, ruleset.ts). Additive defaulted — a
-  // pre-#862 blob self-heals to `freeform` at the parse seam.
-  ruleset: rpgRulesetSchema.default(RPG_RULESET_DEFAULT),
-  statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
-  // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field
-  // unification §5.1). This single array replaces `sheet.poolDefs` (per-actor, on four different sheets),
-  // `features.castFields` (per-game NPC fields), `features.pinnedOrbs` (a third surface for the same defs) and
-  // the whole `rpg_hud_widgets` TABLE. Values are keyed by `key` on the snapshot — actor-subject under
-  // `actorState[].trackerValues`, game-subject under `snapshotState.trackerValues`. Empty = a game that tracks
-  // nothing but the built-in planes (hp/wallet/inventory/conditions stay first-class, never trackers).
-  // The COUNT CAP ({@link RPG_CONFIG_MAX_TRACKERS}) and the per-`key` uniqueness rule are enforced at the write door
-  // (`assertTrackersCoherent`, `domain/rpg/verbs/game/update-config.ts`), NOT as `.max()`/`.refine()` here —
-  // this whole schema is parse-on-read and a bound added here would make an over-cap or duplicate-keyed
-  // STORED blob permanently unreadable (`RpgStateCorruptError`). Same trade, same reason as the statProfile
-  // invariants; `rpg/profile.ts`'s schema header states it once (#1371 items 2/3).
-  trackers: z.array(rpgTrackerDefSchema).default([]),
-  lite: z
-    .object({
-      steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).default(""),
-    })
-    .default({ steeringNote: "" }),
-  extractionMode: z.enum(RPG_EXTRACTION_MODES).default("folded"),
-  // How the dedicated state round asks for the beat's changes ({@link RPG_STATE_CAPTURE_VEHICLES}).
-  stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).default("auto"),
-  // The extraction-DEPTH knobs (the crunchy-cluster redesign §1.3) — how much of the turn's own story the
-  // state round reads, and its token budget. Additive defaulted, self-healing at the parse seam (the
-  // `extractionMode` precedent — D107 knob-wire discipline, no version stamp). `extractionContext` defaults
-  // to `window` (the "recent arc" — the ratified round-1 owner default); `extractionWindowTokens` bounds the
-  // `window` arm's transcript budget (message-boundary sliced), floored for the sad-path 8B and capped so a
-  // hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]).
-  extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).default("window"),
-  extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
-  // The RECONCILE CADENCE (§1.3) — every Nth flush FORCES a full re-emission of the refreshable planes
-  // (scene + present characters, via the establish-when-unset machinery applied unconditionally) so a deep story's
-  // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config
-  // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
-  reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
-  dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
-  // The feature knobs (relationship/journal hints + the hidden-channel + card options) — additive,
-  // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the
-  // all-defaults features via the sub-schema, so the knobs heal in without a version stamp). The function
-  // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
-  // wouldn't satisfy the fully-required output type).
-  features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
-  // GAME-authored user macros (owner ruling #20) — the game half of the two-home
-  // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
-  // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
-  // `{kind:"game", id:<chatId>}` by the macro-feed threading (kit `registerUserMacros`).
-  userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
-  // NO `prose` FIELD (owner ruling 2026-08-08, "we are putting everything in presets"). The steering-reminder
-  // teach/heading OVERRIDES live in the PRESET's `promptConfig.prose` and are authored in the Templates tab;
-  // a game turn assembles its `gmPresetId`, so a table's own copy rides that preset. The one-merge-long
-  // `config.prose` spine is deleted, not deprecated — a second storage for one concept is the defect the
-  // ruling closes, and pre-launch NO-LEGACY means no shim reads the old key.
-});
+export const rpgGameConfigSchema = z
+  .object({
+    // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
+    // turn assembly (no reminder/state/steering/tools — every rpg chat-op behaves as a non-game chat) and
+    // hides the panel, while PRESERVING every game row/snapshot (reversible — re-enable restores the
+    // sheet/scene as they were, never a delete). Additive defaulted — a pre-toggle blob self-heals to
+    // `true` (engaged) at the parse seam. Mirrored onto the chat pointer (`ChatRpgPointer.engaged`) so the
+    // client's sync gate reads it off `ChatDetail` without a round-trip.
+    engaged: z.boolean().default(true),
+    // THE RULESET SETTING (#862, owner ruling 2026-08-30) — `freeform` (born default) | `d20`. One game mode;
+    // the ruleset is a host SETTING on the Game tab, not a start-time door. It is the SELECTION, never a second
+    // storage for the vocabulary: `statProfile`/`trackers` below stay the truth, and a switch MERGES the
+    // ruleset's vocabulary into them additively (`applyRulesetVocabulary`, ruleset.ts). Additive defaulted — a
+    // pre-#862 blob self-heals to `freeform` at the parse seam.
+    ruleset: rpgRulesetSchema.default(RPG_RULESET_DEFAULT),
+    statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
+    // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field
+    // unification §5.1). This single array replaces `sheet.poolDefs` (per-actor, on four different sheets),
+    // `features.castFields` (per-game NPC fields), `features.pinnedOrbs` (a third surface for the same defs) and
+    // the whole `rpg_hud_widgets` TABLE. Values are keyed by `key` on the snapshot — actor-subject under
+    // `actorState[].trackerValues`, game-subject under `snapshotState.trackerValues`. Empty = a game that tracks
+    // nothing but the built-in planes (hp/wallet/inventory/conditions stay first-class, never trackers).
+    // The COUNT CAP ({@link RPG_CONFIG_MAX_TRACKERS}) and the per-`key` uniqueness rule are enforced at the write door
+    // (`assertTrackersCoherent`, `domain/rpg/verbs/game/update-config.ts`), NOT as `.max()`/`.refine()` here —
+    // this whole schema is parse-on-read and a bound added here would make an over-cap or duplicate-keyed
+    // STORED blob permanently unreadable (`RpgStateCorruptError`). Same trade, same reason as the statProfile
+    // invariants; `rpg/profile.ts`'s schema header states it once (#1371 items 2/3).
+    trackers: z.array(rpgTrackerDefSchema).default([]),
+    lite: z
+      .object({
+        steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).default(""),
+      })
+      .strip()
+      .default({ steeringNote: "" }),
+    extractionMode: z.enum(RPG_EXTRACTION_MODES).default("folded"),
+    // How the dedicated state round asks for the beat's changes ({@link RPG_STATE_CAPTURE_VEHICLES}).
+    stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).default("auto"),
+    // The extraction-DEPTH knobs (the crunchy-cluster redesign §1.3) — how much of the turn's own story the
+    // state round reads, and its token budget. Additive defaulted, self-healing at the parse seam (the
+    // `extractionMode` precedent — D107 knob-wire discipline, no version stamp). `extractionContext` defaults
+    // to `window` (the "recent arc" — the ratified round-1 owner default); `extractionWindowTokens` bounds the
+    // `window` arm's transcript budget (message-boundary sliced), floored for the sad-path 8B and capped so a
+    // hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]).
+    extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).default("window"),
+    extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
+    // The RECONCILE CADENCE (§1.3) — every Nth flush FORCES a full re-emission of the refreshable planes
+    // (scene + present characters, via the establish-when-unset machinery applied unconditionally) so a deep story's
+    // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config
+    // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
+    reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
+    dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
+    // The feature knobs (relationship/journal hints + the hidden-channel + card options) — additive,
+    // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the
+    // all-defaults features via the sub-schema, so the knobs heal in without a version stamp). The function
+    // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
+    // wouldn't satisfy the fully-required output type).
+    features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
+    // GAME-authored user macros (owner ruling #20) — the game half of the two-home
+    // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
+    // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
+    // `{kind:"game", id:<chatId>}` by the macro-feed threading (kit `registerUserMacros`).
+    userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
+    // NO `prose` FIELD (owner ruling 2026-08-08, "we are putting everything in presets"). The steering-reminder
+    // teach/heading OVERRIDES live in the PRESET's `promptConfig.prose` and are authored in the Templates tab;
+    // a game turn assembles its `gmPresetId`, so a table's own copy rides that preset. The one-merge-long
+    // `config.prose` spine is deleted, not deprecated — a second storage for one concept is the defect the
+    // ruling closes, and pre-launch NO-LEGACY means no shim reads the old key.
+  })
+  .strip();
 export type RpgGameConfig = z.infer<typeof rpgGameConfigSchema>;

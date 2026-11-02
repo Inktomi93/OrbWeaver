@@ -1,4 +1,5 @@
 // Scripted UI relay arguments exclude room identity; the mount supplies membership-checked scope.
+// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
 import { z } from "zod";
 import type { UiProxyableHostFunction } from "./host-v1.ts";
 
@@ -12,7 +13,12 @@ const keyAndValue = z.tuple([kvKey, z.string()]);
 
 /** Positional arguments parsed by the authoritative UI relay before calling its installer-scoped bridge. */
 export const pluginUiHostArgsSchemas = {
-  "chat.listMessages": z.tuple([z.object({ limit: z.int().positive().max(PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX).optional() }).optional()]),
+  "chat.listMessages": z.tuple([
+    z
+      .object({ limit: z.int().positive().max(PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX).optional() })
+      .strip()
+      .optional(),
+  ]),
   "chat.getVariables": noArgs,
   "variables.get": oneKey,
   "variables.set": keyAndValue,

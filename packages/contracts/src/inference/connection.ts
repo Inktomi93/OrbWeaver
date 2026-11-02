@@ -21,23 +21,27 @@ import { routableTaskSchema } from "./tasks.ts";
 
 /** A custom endpoint's REQUEST/RESPONSE transforms — a CLOSED object (four fields), one owner, never queried
  *  by field (§5.3's JSON-column defence). Shown only on `auth: endpoint` rows. */
-const responseMapSchema = z.object({
-  contentPath: z.string().optional(),
-  reasoningPath: z.string().optional(),
-  finishReasonPath: z.string().optional(),
-  promptTokensPath: z.string().optional(),
-  completionTokensPath: z.string().optional(),
-  errorMessagePath: z.string().optional(),
-  errorCodePath: z.string().optional(),
-  toolCallsPath: z.string().optional(),
-});
+const responseMapSchema = z
+  .object({
+    contentPath: z.string().optional(),
+    reasoningPath: z.string().optional(),
+    finishReasonPath: z.string().optional(),
+    promptTokensPath: z.string().optional(),
+    completionTokensPath: z.string().optional(),
+    errorMessagePath: z.string().optional(),
+    errorCodePath: z.string().optional(),
+    toolCallsPath: z.string().optional(),
+  })
+  .strip();
 
-export const connectionTransportSchema = z.object({
-  headers: z.record(z.string(), z.string()).optional(),
-  includeBody: z.record(z.string(), jsonValueSchema).optional(),
-  excludeBody: z.array(z.string()).optional(),
-  responseMap: responseMapSchema.optional(),
-});
+export const connectionTransportSchema = z
+  .object({
+    headers: z.record(z.string(), z.string()).optional(),
+    includeBody: z.record(z.string(), jsonValueSchema).optional(),
+    excludeBody: z.array(z.string()).optional(),
+    responseMap: responseMapSchema.optional(),
+  })
+  .strip();
 export type ConnectionTransportDoc = z.infer<typeof connectionTransportSchema>;
 
 /** `extras` — the connection's extra BODY fields (today's preset `customParameters`, re-homed where the
@@ -71,28 +75,30 @@ export function mintConnectionLabel(
   return nextFreeLabel(typed === "" ? `${providerDisplayLabel(provider)}${CONNECTION_LABEL_SEPARATOR}${model}` : typed, taken);
 }
 
-export const userConnectionSchema = z.object({
-  id: typeIdSchema(ID_PREFIX.userConnection),
-  ownerId: brandedId("UserId"),
-  label: z.string().min(1),
-  providerId: providerIdSchema,
-  credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
-  /** For `auth: endpoint` providers; `null` when the provider row fixes it. */
-  baseUrl: z.string().nullable(),
-  /** The picked model id — NEVER defaulted (F16); the picker is the only way it gets set. */
-  model: modelIdSchema,
-  api: connectionApiSchema,
-  declared: declaredCapabilitySchema.nullable(),
-  extras: connectionExtrasSchema.nullable(),
-  transport: connectionTransportSchema.nullable(),
-  modelCheck: modelCheckSchema,
-  /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5) */
-  allowBackground: z.boolean(),
-  /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */
-  promptCache: promptCacheSettingsSchema.nullable(),
-  createdAt: z.int(),
-  updatedAt: z.int(),
-});
+export const userConnectionSchema = z
+  .object({
+    id: typeIdSchema(ID_PREFIX.userConnection),
+    ownerId: brandedId("UserId"),
+    label: z.string().min(1),
+    providerId: providerIdSchema,
+    credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
+    /** For `auth: endpoint` providers; `null` when the provider row fixes it. */
+    baseUrl: z.string().nullable(),
+    /** The picked model id — NEVER defaulted (F16); the picker is the only way it gets set. */
+    model: modelIdSchema,
+    api: connectionApiSchema,
+    declared: declaredCapabilitySchema.nullable(),
+    extras: connectionExtrasSchema.nullable(),
+    transport: connectionTransportSchema.nullable(),
+    modelCheck: modelCheckSchema,
+    /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5) */
+    allowBackground: z.boolean(),
+    /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */
+    promptCache: promptCacheSettingsSchema.nullable(),
+    createdAt: z.int(),
+    updatedAt: z.int(),
+  })
+  .strip();
 export type UserConnection = z.infer<typeof userConnectionSchema>;
 
 /** One actor's pick of a connection for ONE routable task. Exactly one of the three actor ids is set,

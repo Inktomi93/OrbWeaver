@@ -23,6 +23,7 @@
 // Custom REWRITE schemas do not exist (F-N3: the apply path's semantics ARE the fixed typed contract),
 // and there is no "any" stage: one schema serves one stage, because each stage pins its own core.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { JsonSchemaLiftError, liftJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { z } from "zod";
@@ -225,6 +226,7 @@ export const refinerySchemaDocumentSchema = z
     stage: refinerySchemaStageSchema,
     schema: rawSchemaNode,
   })
+  .strip()
   .superRefine((doc, ctx) => {
     const issue = liftIssueOf(doc.schema) ?? walkTightenings(doc.schema, "#", 0) ?? coreIssueOf(doc.schema, doc.stage);
     if (issue !== null) {
@@ -238,7 +240,7 @@ export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema
 // @typeonly-ok: server-trusted DB→wire projection (`schemaSummaryOf`) — nothing `.parse`s this schema at
 // runtime, but it is the one-home shape source for `RefinerySchemaSummary` (`no-inline-types`); the zod
 // literal IS the contract, consumed only through its inferred type.
-export const refinerySchemaSummarySchema = z.object({
+export const refinerySchemaSummarySchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.refinerySchema),
   name: z.string(),
   description: z.string(),

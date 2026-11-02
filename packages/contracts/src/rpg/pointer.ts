@@ -8,6 +8,7 @@
 // The pointer carries NO `mode` — mode's ONE home is the game row (the client reads mode from
 // `rpg.getGame` after the pointer fires). Two homes for one axis would drift the day `setMode` lands.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -16,10 +17,12 @@ import { z } from "zod";
  *  reads off `ChatDetail`). Owned HERE (the foreign-schema precedent); the chat metadata parser
  *  lazy-parses it with `.catch(undefined)` so a corrupt blob heals to absent. `gameId` is
  *  prefix-validated (`rpg_game_…`); a pre-toggle pointer heals `engaged` to `true` via the default. */
-export const chatRpgPointerSchema = z.object({
-  gameId: typeIdSchema(ID_PREFIX.rpgGame),
-  engaged: z.boolean().default(true),
-});
+export const chatRpgPointerSchema = z
+  .object({
+    gameId: typeIdSchema(ID_PREFIX.rpgGame),
+    engaged: z.boolean().default(true),
+  })
+  .strip();
 export type ChatRpgPointer = z.infer<typeof chatRpgPointerSchema>;
 
 /** The ONE takeover-gate predicate (#40): does this chat's pointer say "a LIVE game"? `null`/absent =

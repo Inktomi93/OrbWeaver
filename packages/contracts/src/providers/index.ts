@@ -12,92 +12,112 @@ const embedVectorSchema = z.instanceof(Float32Array);
 
 /** Token usage of one embed batch observation. `null` when the family doesn't report — in-process
  *  embedders don't meter. */
-export const embedUsageSchema = z.object({
-  responseCache: responseCacheSchema.optional(),
-  /** Tokens billed. `null` when the family doesn't report. */
-  promptTokens: z.number().nullable(),
-  totalTokens: z.number().nullable(),
-});
+export const embedUsageSchema = z
+  .object({
+    responseCache: responseCacheSchema.optional(),
+    /** Tokens billed. `null` when the family doesn't report. */
+    promptTokens: z.number().nullable(),
+    totalTokens: z.number().nullable(),
+  })
+  .strip();
 
 // Cross-family TEXT embed result. One `vectors` entry per input (same order as the request `input`
 //  array; a single-string input produces a one-element array). `null` entries mark filtered inputs
 //  (empty/whitespace) — the local family filters; OpenRouter never emits `null`. Callers that always
 //  pass non-empty inputs can `.filter((v): v is Float32Array => v !== null)`.
-const embedResultSchema = z.object({
-  vectors: z.array(embedVectorSchema.nullable()),
-  /** Which model actually served the embedding — provenance for the row's `model` column. */
-  model: z.string(),
-});
+const embedResultSchema = z
+  .object({
+    vectors: z.array(embedVectorSchema.nullable()),
+    /** Which model actually served the embedding — provenance for the row's `model` column. */
+    model: z.string(),
+  })
+  .strip();
 export type EmbedResult = z.infer<typeof embedResultSchema>;
 
 // A single rerank result — preserves the caller's id (NOT an array index), stable across
 //  reorderings; the caller looks up text via their own map rather than re-indexing the documents.
-const rerankHitSchema = z.object({
-  /** The caller-supplied id from the request's `documents[].id`. */
-  id: z.string(),
-  /** Relevance score; higher = more relevant. Range is family-dependent (local: raw monotonic logit;
-   *  hosted: provider-normalized, often `[0, 1]`). */
-  score: z.number(),
-});
+const rerankHitSchema = z
+  .object({
+    /** The caller-supplied id from the request's `documents[].id`. */
+    id: z.string(),
+    /** Relevance score; higher = more relevant. Range is family-dependent (local: raw monotonic logit;
+     *  hosted: provider-normalized, often `[0, 1]`). */
+    score: z.number(),
+  })
+  .strip();
 export type RerankHit = z.infer<typeof rerankHitSchema>;
 
 // Cross-family rerank result. `hits` is sorted descending by score; length ≤ request `topN` (or the
 //  full scored-document count when `topN` was unset). Empty-text documents were filtered before
 //  scoring.
-const rerankResultSchema = z.object({
-  hits: z.array(rerankHitSchema),
-});
+const rerankResultSchema = z
+  .object({
+    hits: z.array(rerankHitSchema),
+  })
+  .strip();
 export type RerankResult = z.infer<typeof rerankResultSchema>;
 
 // Cross-family joint-modality embed result. Vectors live in the SHARED image/text space defined by
 //  the model — an image embedding and a text embedding from the SAME model compare directly. Vectors
 //  from different models (or non-space-sharing modes) are NOT comparable; `model` is the provenance
 //  for catching cross-space bugs at the storage boundary. `null` entries mark filtered inputs.
-const imageEmbedResultSchema = z.object({
-  vectors: z.array(embedVectorSchema.nullable()),
-  model: z.string(),
-});
+const imageEmbedResultSchema = z
+  .object({
+    vectors: z.array(embedVectorSchema.nullable()),
+    model: z.string(),
+  })
+  .strip();
 export type ImageEmbedResult = z.infer<typeof imageEmbedResultSchema>;
 
 // One summary per input (same order as request `inputs`).
-const summarizeResultItemSchema = z.object({
-  /** The summary text — `<think>…</think>` blocks stripped at the runner boundary so callers never
-   *  see CoT scaffolding. */
-  text: z.string(),
-  usage: z.object({
-    tokensIn: z.number().nullable(),
-    tokensOut: z.number().nullable(),
-    /** Generation cost in USD. `null` for local families (no metered cost). */
-    costUsd: z.number().nullable(),
-  }),
-});
+const summarizeResultItemSchema = z
+  .object({
+    /** The summary text — `<think>…</think>` blocks stripped at the runner boundary so callers never
+     *  see CoT scaffolding. */
+    text: z.string(),
+    usage: z
+      .object({
+        tokensIn: z.number().nullable(),
+        tokensOut: z.number().nullable(),
+        /** Generation cost in USD. `null` for local families (no metered cost). */
+        costUsd: z.number().nullable(),
+      })
+      .strip(),
+  })
+  .strip();
 export type SummarizeResultItem = z.infer<typeof summarizeResultItemSchema>;
 
 // Cross-family summarize result. `items` length matches `request.inputs`; index-aligned.
-const summarizeResultSchema = z.object({
-  items: z.array(summarizeResultItemSchema),
-});
+const summarizeResultSchema = z
+  .object({
+    items: z.array(summarizeResultItemSchema),
+  })
+  .strip();
 export type SummarizeResult = z.infer<typeof summarizeResultSchema>;
 
 /** A hosted credential's account balance — the `accountCredits` surface returns it. Family-neutral:
  *  OpenRouter reports USD credits; `total` is the lifetime granted, `used` the cumulative spend. */
-export const accountCreditsSchema = z.object({
-  total: z.number(),
-  used: z.number(),
-});
+export const accountCreditsSchema = z
+  .object({
+    total: z.number(),
+    used: z.number(),
+  })
+  .strip();
 export type AccountCredits = z.infer<typeof accountCreditsSchema>;
 
 /** The settled upstream cost of ONE generation. */
-export const generationCostSchema = z.object({
-  totalCost: z.number(),
-});
+export const generationCostSchema = z
+  .object({
+    totalCost: z.number(),
+  })
+  .strip();
 export type GenerationCost = z.infer<typeof generationCostSchema>;
 
 /** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the request one chat
  *  call sent on the route chat uses (headers REDACTED — the key never leaves the server) plus the raw
  *  response, or a `null` response + an `error` message when the request never completed (DNS / refused / timeout). */
 const endpointInspectionBaseSchema = z.strictObject({
-  request: z.object({
+  request: z.strictObject({
     url: z.string(),
     /** REDACTED — Authorization / key-shaped headers are masked. */
     headers: z.record(z.string(), z.string()),
@@ -105,7 +125,7 @@ const endpointInspectionBaseSchema = z.strictObject({
     body: z.string(),
   }),
   /** The raw response, or `null` when the request never completed. */
-  response: z.object({
+  response: z.strictObject({
     status: z.number(),
     statusText: z.string(),
     bodyPreview: z.string(),
@@ -123,12 +143,14 @@ export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
  *
  *  @remarks Strip mode on purpose: this parses the SDK's own response, so a field the SDK adds is dropped from
  *  the projection instead of failing it. The wire result below re-reads it strictly. */
-export const verifyAuthAccountSchema = z.object({
-  email: z.string().optional(),
-  organization: z.string().optional(),
-  /** The plan tier the account is on (SDK `subscriptionType`). */
-  subscriptionType: z.string().optional(),
-});
+export const verifyAuthAccountSchema = z
+  .object({
+    email: z.string().optional(),
+    organization: z.string().optional(),
+    /** The plan tier the account is on (SDK `subscriptionType`). */
+    subscriptionType: z.string().optional(),
+  })
+  .strip();
 export type VerifyAuthAccount = z.infer<typeof verifyAuthAccountSchema>;
 
 export const verifyAuthResultSchema = z.strictObject({

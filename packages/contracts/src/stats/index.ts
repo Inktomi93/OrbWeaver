@@ -22,7 +22,7 @@ export const STATS_LIST_MAX_LIMIT = 200;
 //  decoupled so a swipe can bump `day.swipes` without touching `day.tokens`), MODEL (`modelGenerations`/…,
 //  decoupled so a swipe on a different model never double-counts scalar). No `.default()`: an omitted
 //  increment stays absent (the delta is a sparse patch).
-const statsDeltaSchema = z.object({
+const statsDeltaSchema = z.strictObject({
   ownerId: brandedId("UserId"),
   // null for system / no-character writes → `character_stats` is skipped for this delta.
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),

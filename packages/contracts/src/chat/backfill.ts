@@ -3,6 +3,7 @@
 // domain). `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints
 // the synthetic group character for every >1-character room that lacks one (D38).
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { z } from "zod";
 
 /** An import's scope handle: the server-clock span (epoch ms, both ends inclusive) in which the import wrote its
@@ -37,11 +38,13 @@ export function mergeImportWindows(a: ImportWindow, b: ImportWindow): ImportWind
  *  verbatim-segment embeddings and no digest, so it makes no Utility-model call: an import enqueues that pass
  *  itself, and offers the digest build behind the model-run confirm. `embedderChanged` marks the whole-corpus
  *  rebuild an embedder change queued. */
-export const memoryBackfillWorkloadParams = z.object({
-  importWindow: importWindowSchema.optional(),
-  segmentsOnly: z.boolean().optional(),
-  embedderChanged: z.boolean().optional(),
-});
+export const memoryBackfillWorkloadParams = z
+  .object({
+    importWindow: importWindowSchema.optional(),
+    segmentsOnly: z.boolean().optional(),
+    embedderChanged: z.boolean().optional(),
+  })
+  .strip();
 export type MemoryBackfillWorkloadParams = z.infer<typeof memoryBackfillWorkloadParams>;
 
 /** A backfill sweep's counts: rows examined, rows changed. Shared by both sweeps. */

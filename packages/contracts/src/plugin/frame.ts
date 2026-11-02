@@ -27,6 +27,7 @@
 //      embedder checks `event.source === iframe.contentWindow`; THIS file owns the other half, the payload, and
 //      it parses rather than trusts. Neither half is sufficient alone, which is why they are separated.
 
+// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { cardFrameStyleTokensSchema } from "../chat/card-frame.ts";
@@ -145,13 +146,17 @@ export interface PluginFrameCall {
   readonly args: unknown;
 }
 
-const frameCallSchema = z.object({
-  [CALL_KEY]: z.object({
-    callId: callIdSchema,
-    fn: z.string().min(1).max(CALL_FN_MAX),
-    args: z.unknown(),
-  }),
-});
+const frameCallSchema = z
+  .object({
+    [CALL_KEY]: z
+      .object({
+        callId: callIdSchema,
+        fn: z.string().min(1).max(CALL_FN_MAX),
+        args: z.unknown(),
+      })
+      .strip(),
+  })
+  .strip();
 
 /**
  * Parse ONE `MessageEvent.data` into a host call, or `undefined` for anything that is not one.

@@ -393,9 +393,9 @@ export const authMeSchema = z.strictObject({
 export type AuthMe = z.infer<typeof authMeSchema>;
 
 /** Optional HTTP error-body content; malformed bodies still receive the caller's status fallback. */
-export const authErrorResponseSchema = z.object({ error: z.string().optional() });
+export const authErrorResponseSchema = z.strictObject({ error: z.string().optional() });
 /** The upstream sign-out destination, or no destination for local sign-out. */
-export const authLogoutResultSchema = z.object({ endSessionUrl: z.string().nullable() });
+export const authLogoutResultSchema = z.strictObject({ endSessionUrl: z.string().nullable() });
 export type AuthLogoutResult = z.infer<typeof authLogoutResultSchema>;
 
 // The `can()` privilege-decision seam. Cross-boundary: admin's `can()` impl ARBITRATES, chat CALLS IN with

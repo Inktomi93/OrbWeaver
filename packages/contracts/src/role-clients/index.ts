@@ -26,7 +26,7 @@ import type { EmbedResult, RerankResult, SummarizeResult } from "#providers";
 //  same shape every backend's wire arm maps. Never rides `toolChoice` (the two axes are separate). Minted
 //  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. A
 //  caller states the schema only: how it goes out, and whether it fits, is the structured plan's (`@orb/inference`).
-const responseFormatSchema = z.object({
+const responseFormatSchema = z.strictObject({
   /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
   name: z.string(),
   description: z.string().optional(),

@@ -227,12 +227,14 @@ export const MAX_NEGATIVE_CHARS = 1000;
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Free mode requires a nonempty prompt. `gallery` is the per-request opt-out of the auto-add: absent or
  *  `true` joins each picture to the room character's gallery, `false` keeps it out. */
-const generatePictureRequestFields = z.object({
-  n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
-  size: sizePresetSchema.optional(),
-  negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
-  gallery: z.boolean().optional(),
-});
+const generatePictureRequestFields = z
+  .object({
+    n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
+    size: sizePresetSchema.optional(),
+    negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
+    gallery: z.boolean().optional(),
+  })
+  .strip();
 const freePromptSchema = z
   .string()
   .max(MAX_PROMPT_CHARS)
@@ -262,15 +264,17 @@ export const DEFAULT_ACTION_MODE = "scenario" satisfies PromptTemplateMode;
 const DEFAULT_IMAGE_COUNT = 1;
 
 export const reusePolicySchema = z.enum(["prefer", "never"]);
-const generateImageActionArgsFields = z.object({
-  negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
-  n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).default(DEFAULT_IMAGE_COUNT),
-  size: sizePresetSchema.optional(),
-  subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-  useAvatarReference: z.boolean().default(false),
-  reuse: reusePolicySchema.default("prefer"),
-  quiet: z.boolean().default(false),
-});
+const generateImageActionArgsFields = z
+  .object({
+    negative: z.string().max(MAX_NEGATIVE_CHARS).optional(),
+    n: z.int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).default(DEFAULT_IMAGE_COUNT),
+    size: sizePresetSchema.optional(),
+    subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+    useAvatarReference: z.boolean().default(false),
+    reuse: reusePolicySchema.default("prefer"),
+    quiet: z.boolean().default(false),
+  })
+  .strip();
 /** The automation Tier-1 `generate_image` action-arm args — lives HERE so the
  *  automation contract IMPORTS it into its action union, never re-spells it (`no-inline-union-redecl`). The
  *  args map 1:1 onto `GeneratePictureParams`; `quiet` is interpreted by the CALLER (post vs fire-log

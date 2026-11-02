@@ -52,4 +52,15 @@ export const TYPE_SHAPE_RESTRICTIONS = [
       },
     ],
   },
+  {
+    id: "wire-object-declares-mode",
+    selectors: [
+      {
+        // `z.object(...).strip()` is the one spelling left: the call is the receiver of a `.strip` member.
+        selector: "CallExpression[callee.object.name='z'][callee.property.name='object']:not(MemberExpression[property.name='strip'] > CallExpression.object)",
+        message:
+          "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` under a one-line reason, or `z.looseObject` to keep unknown keys (Spine-TypeScript-and-Patterns.md, type law 1).",
+      },
+    ],
+  },
 ];

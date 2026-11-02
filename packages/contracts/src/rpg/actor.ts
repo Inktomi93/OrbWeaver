@@ -116,13 +116,15 @@ export function rpgNpcSlug(name: string): string {
  *  person in the panel, unreachable by every model write (the appliers resolve names through the slug), and
  *  removable only by `dismissActor` with the same raw key. The refine costs {@link actorRefKey} nothing: it
  *  stays a pure projection, now over data that is canonical by the time it exists. */
-export const rpgNpcRefSchema = z.object({
-  kind: z.literal("npc"),
-  npcKey: z
-    .string()
-    .min(1)
-    .refine((key) => key === rpgNpcSlug(key), { error: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
-});
+export const rpgNpcRefSchema = z
+  .object({
+    kind: z.literal("npc"),
+    npcKey: z
+      .string()
+      .min(1)
+      .refine((key) => key === rpgNpcSlug(key), { error: "a npc key must be its normalized slug (lowercase, hyphen-separated) — see rpgNpcSlug" }),
+  })
+  .strip();
 /** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
  *  turns an npc into a participant character, so a `character`/`user` target is not "refused" — it is
  *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the npc-key
@@ -130,8 +132,8 @@ export const rpgNpcRefSchema = z.object({
 export type RpgNpcRef = z.infer<typeof rpgNpcRefSchema>;
 
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-  z.object({ kind: z.literal("user"), userId: brandedId("UserId") }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }).strip(),
+  z.object({ kind: z.literal("user"), userId: brandedId("UserId") }).strip(),
   rpgNpcRefSchema,
 ]);
 export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;
@@ -150,27 +152,31 @@ export function actorRefKey(ref: RpgActorRef): string {
 
 /** An inventory item — `type` taxonomy ships for display + full's equip/filter future, minus any wallet
  *  coupling (§2.6). */
-export const rpgInventoryItemSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().default(""),
-  quantity: z.int().min(1).default(1),
-  location: z.string().default(""),
-  type: z.string().default(""),
-  // #37 — the HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
-  // `ITEM_ICON_CHOICES` table). Host-set only (absent from `update_inventory`'s args + the extraction
-  // schema — unwritable by the model); display falls back to the keyword resolver when unset.
-  icon: z.string().optional(),
-});
+export const rpgInventoryItemSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().default(""),
+    quantity: z.int().min(1).default(1),
+    location: z.string().default(""),
+    type: z.string().default(""),
+    // #37 — the HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
+    // `ITEM_ICON_CHOICES` table). Host-set only (absent from `update_inventory`'s args + the extraction
+    // schema — unwritable by the model); display falls back to the keyword resolver when unset.
+    icon: z.string().optional(),
+  })
+  .strip();
 export type RpgInventoryItem = z.infer<typeof rpgInventoryItemSchema>;
 
 /** The full-engine condition slot, born whole (`stat`/`turnsLeft` are full-engine fields lite ignores). */
-const rpgConditionSchema = z.object({
-  name: z.string().min(1),
-  stat: z.enum(["attack", "defense", "speed", "hp"]).nullable(),
-  modifier: z.int(),
-  turnsLeft: z.int().min(1).nullable(),
-});
+const rpgConditionSchema = z
+  .object({
+    name: z.string().min(1),
+    stat: z.enum(["attack", "defense", "speed", "hp"]).nullable(),
+    modifier: z.int(),
+    turnsLeft: z.int().min(1).nullable(),
+  })
+  .strip();
 
 /** A present character's RELATIONSHIP — a first-class field on the actor's IDENTITY half,
  *  NOT a `customFields` entry. `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token
@@ -178,10 +184,12 @@ const rpgConditionSchema = z.object({
  *  is the NPC's stance toward the PLAYER. Swipe-consistent by construction (it rides the snapshot's actor
  *  plane) and DEPARTURE-SURVIVING since R2 (it used to die with the `presentCharacters` row, so an established
  *  `enemy` returned as `neutral` with no journal beat — the silent arc reset). */
-export const rpgRelationshipSchema = z.object({
-  kind: rpgRelationshipKindSchema.default("neutral"),
-  label: z.string().default(""),
-});
+export const rpgRelationshipSchema = z
+  .object({
+    kind: rpgRelationshipKindSchema.default("neutral"),
+    label: z.string().default(""),
+  })
+  .strip();
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
 /** The IDENTITY half of an `npc` actor — who she IS, as opposed to what the beat did to her. Participant actors
@@ -232,16 +240,18 @@ export function clampActorCardName(name: string): { readonly value: string; read
   return { value: `${out}${NAME_CLAMP_ELLIPSIS}`, truncated: true };
 }
 
-export const rpgActorIdentitySchema = z.object({
-  name: z.string().min(1),
-  characterId: typeIdSchema(ID_PREFIX.character).optional(),
-  emoji: z.string().default(""),
-  mood: z.string().default(""),
-  appearance: z.string().optional(),
-  outfit: z.string().optional(),
-  thoughts: z.string().optional(),
-  relationship: rpgRelationshipSchema.default({ kind: "neutral", label: "" }),
-});
+export const rpgActorIdentitySchema = z
+  .object({
+    name: z.string().min(1),
+    characterId: typeIdSchema(ID_PREFIX.character).optional(),
+    emoji: z.string().default(""),
+    mood: z.string().default(""),
+    appearance: z.string().optional(),
+    outfit: z.string().optional(),
+    thoughts: z.string().optional(),
+    relationship: rpgRelationshipSchema.default({ kind: "neutral", label: "" }),
+  })
+  .strip();
 export type RpgActorIdentity = z.infer<typeof rpgActorIdentitySchema>;
 
 /** The PERSISTENT per-character guides (RV-11) — the three prose fields the extraction round is asked for on
@@ -304,26 +314,30 @@ export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
  *  game SEEDS an `hp` meter tracker at mint; `freeform` seeds nothing, because the lived freeform default was
  *  always hp-absent. Health is now mode-forkable, renameable, and read by the same one grammar as every other
  *  meter. There is no `actorRef` here either — the ref keys the {@link rpgActorEntrySchema} ROW above it. */
-export const rpgActorVolatileSchema = z.object({
-  trackerValues: rpgTrackerValuesSchema.default({}),
-  conditions: z.array(rpgConditionSchema).default([]),
-  inventory: z.array(rpgInventoryItemSchema).default([]),
-  wallet: z.array(z.object({ name: z.string().min(1), amount: z.int() })).default([]),
-  status: z.string().default(""),
-});
+export const rpgActorVolatileSchema = z
+  .object({
+    trackerValues: rpgTrackerValuesSchema.default({}),
+    conditions: z.array(rpgConditionSchema).default([]),
+    inventory: z.array(rpgInventoryItemSchema).default([]),
+    wallet: z.array(z.object({ name: z.string().min(1), amount: z.int() }).strip()).default([]),
+    status: z.string().default(""),
+  })
+  .strip();
 export type RpgActorVolatile = z.infer<typeof rpgActorVolatileSchema>;
 
 /** THE actor row on the snapshot's `actorState` plane (R2) — one person, both halves, one lifecycle. `identity`
  *  is present for `npc` actors and absent for participant ones (see {@link rpgActorIdentitySchema}); `volatile` is
  *  always whole. The plane is keyed by {@link actorRefKey} over `actorRef` (the merge engine's computed element
  *  key), and it is ADDITIVE: an actor leaves it by `rpg.dismissActor`, never by going unmentioned. */
-export const rpgActorEntrySchema = z.object({
-  actorRef: rpgActorRefSchema,
-  identity: rpgActorIdentitySchema.optional(),
-  // Defaulted so a row authored as `{actorRef}` alone parses into a WHOLE zero-state actor (the ops then write
-  // onto it) — the same born shape `emptyActorEntry` mints, one home for "a fresh actor's zero state".
-  volatile: rpgActorVolatileSchema.default(() => rpgActorVolatileSchema.parse({})),
-});
+export const rpgActorEntrySchema = z
+  .object({
+    actorRef: rpgActorRefSchema,
+    identity: rpgActorIdentitySchema.optional(),
+    // Defaulted so a row authored as `{actorRef}` alone parses into a WHOLE zero-state actor (the ops then write
+    // onto it) — the same born shape `emptyActorEntry` mints, one home for "a fresh actor's zero state".
+    volatile: rpgActorVolatileSchema.default(() => rpgActorVolatileSchema.parse({})),
+  })
+  .strip();
 export type RpgActorEntry = z.infer<typeof rpgActorEntrySchema>;
 
 // ── THE OP-SHAPED HAND VOCABULARY (R1 — `rpg.patchActor`) ────────────────────────────────────────────────

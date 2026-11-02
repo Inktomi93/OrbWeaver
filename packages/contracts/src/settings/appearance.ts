@@ -21,6 +21,7 @@
 // Appearance (D294, UI-Theming-and-Content §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
 // territory, D53). Per-character COLOR theme layers on top; movingUI/waifuMode are OUT of scope here.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -107,20 +108,22 @@ export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number
 // the settings live-source scan (`domain/assets/persistence/asset-refs.ts`) so an unpicked upload is never
 // reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer (BG-V) over the image one;
 // `assetHash` builds `blobUrl(hash)` for the grid thumbnail without an async id→hash round-trip.
-export const backgroundLibraryEntrySchema = z.object({
-  // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
-  // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
-  // stays the content pointer; `entryId` identifies the row.
-  // eslint-disable-next-line orb/no-raw-id -- Blob-local UI row key admits client UUIDs and deterministic asset:index backfills, not entity TypeIDs.
-  entryId: z.string(),
-  assetId: typeIdSchema(ID_PREFIX.asset),
-  assetHash: z.string(),
-  mime: z.string(),
-  name: z.string(),
-  // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
-  // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
-  provenanceUrl: z.string().optional(),
-});
+export const backgroundLibraryEntrySchema = z
+  .object({
+    // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
+    // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
+    // stays the content pointer; `entryId` identifies the row.
+    // eslint-disable-next-line orb/no-raw-id -- Blob-local UI row key admits client UUIDs and deterministic asset:index backfills, not entity TypeIDs.
+    entryId: z.string(),
+    assetId: typeIdSchema(ID_PREFIX.asset),
+    assetHash: z.string(),
+    mime: z.string(),
+    name: z.string(),
+    // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
+    // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
+    provenanceUrl: z.string().optional(),
+  })
+  .strip();
 export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -247,6 +250,7 @@ export const appearanceSettingsSchema = z
     blurStrength: z.number().min(BLUR_STRENGTH_MIN).max(BLUR_STRENGTH_MAX).catch(BLUR_STRENGTH_DEFAULT).default(BLUR_STRENGTH_DEFAULT),
     showLLMReasoningIcon: z.boolean().catch(false).default(false),
   })
+  .strip()
   .prefault({});
 
 export type AppearanceSettings = z.infer<typeof appearanceSettingsSchema>;

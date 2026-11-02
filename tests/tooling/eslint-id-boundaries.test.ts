@@ -1,4 +1,4 @@
-// The id-brand and response-body bans run as native ESLint rules; these controls drive the configured rules through
+// The id-brand, wire-object and response-body bans run as native ESLint rules; these controls drive the configured rules through
 // the real flat config, one planted source per arm, so a rule that loses its scope or its selector goes red here.
 
 import { join } from "node:path";
@@ -161,6 +161,26 @@ test(
   },
   CONFIG_LOAD_TIMEOUT_MS,
 );
+
+const WIRE_OBJECT = "orb/wire-object-declares-mode";
+
+rows(WIRE_OBJECT, CONTRACTS, [
+  ["a bare object strips an undeclared key silently", `${ZOD}export const s = z.object({ a: z.string() });\n`, 1],
+  ["a multi-line chain is the same call", `${ZOD}export const s = z\n  .object({ a: z.string() })\n  .optional();\n`, 1],
+  ["a method spelling of loose mode", `${ZOD}export const s = z.object({ a: z.string() }).loose();\n`, 1],
+  ["a method spelling of strict mode", `${ZOD}export const s = z.object({ a: z.string() }).strict();\n`, 1],
+  ["a bare object nested in a strict one", `${ZOD}export const s = z.strictObject({ inner: z.object({ a: z.string() }) });\n`, 1],
+  ["a strip read after another method", `${ZOD}export const s = z.object({ a: z.string() }).optional().strip;\n`, 1],
+  ["the wire spelling", `${ZOD}export const s = z.strictObject({ a: z.string() });\n`, 0],
+  ["the declared loose spelling", `${ZOD}export const s = z.looseObject({ a: z.string() });\n`, 0],
+  ["the declared strip spelling", `${ZOD}export const s = z.object({ a: z.string() }).strip();\n`, 0],
+  ["a declared strip with a later wrapper", `${ZOD}export const s = z\n  .object({ a: z.string() })\n  .strip()\n  .optional();\n`, 0],
+]);
+
+rows(WIRE_OBJECT, "packages/server/src/transport/trpc/probe.ts", [
+  ["the transport tree is judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 1],
+]);
+rows(WIRE_OBJECT, SERVER, [["a domain outside contracts and transport is not judged", `${ZOD}export const s = z.object({ a: z.string() });\n`, 0]]);
 
 const WIRE_IDS = 'import type { AssetId, CharacterId, MessageId, SandboxWireId } from "@orb/kit/ids";\n';
 

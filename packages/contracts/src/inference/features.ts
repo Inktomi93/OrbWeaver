@@ -149,75 +149,78 @@ export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
  *  bound holds on every wire rather than per backend. */
 export const SUMMARIZE_CONCURRENCY_MAX = 32;
 
-export const endpointFeaturesSchema = z.object({
-  prefill: z.enum(PREFILL_MODES).optional(),
-  strictJson: z.enum(STRICT_JSON_MODES).optional(),
-  /** The JSON-Schema vocabulary this endpoint's grammar compiles (`wire-subset.ts`); absent ⇒ the wire's default
-   *  (`WIRE_STRUCTURED_MODE_DEFAULT`). */
-  structuredMode: z.enum(WIRE_SCHEMA_MODES).optional(),
-  effort: z.enum(EFFORT_SPELLINGS).optional(),
-  outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
-  images: z.enum(IMAGE_ARMS).optional(),
-  modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
-  nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
-  /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
-   *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
-   *  skips the probe; the connection's identity and credential stay this row's. */
-  detectServer: z.boolean().optional(),
-  /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
-  rerankPath: z.string().optional(),
-  /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
-   *  AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
-  sleep: z.object({ isSleepingPath: z.string(), wakePath: z.string() }).optional(),
-  /** The measured vLLM interlock (§8.1, verify6 M2): a CONTENT prefill with thinking on ⇒ an empty reply, so
-   *  the transport strips the thinking toggle on a prefill turn with `reasoning_dropped_for_prefill`. A row
-   *  that leaves it unset gets the raw behaviour — the honest default for an unmeasured server. */
-  prefillSuppressesThinking: z.boolean().optional(),
-  /** The stream-delta field(s) the server puts reasoning in, read IN ORDER. vLLM ships
-   *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
-   *  every reasoning token, live-verified 2026-08-10). Applied by the transport's chunk reshaper. */
-  reasoningKeys: z.array(z.string().min(1)).optional(),
-  /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
-   *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
-   *  only `mirostat_mode`). Folds key by key. */
-  samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
-  /** Further keys a sampler also rides under, on a server that reads several spellings and keeps the largest:
-   *  KoboldCpp's chat route takes the repetition penalty as the maximum of `rep_pen`, `repeat_penalty` and
-   *  `repetition_penalty`, each missing one counting as 1, so a value below 1 holds only when all three carry it
-   *  (koboldcpp.py transform_genparams). A key the user's own body sets stands alone. */
-  samplerAliases: z.partialRecord(z.enum(SAMPLER_KNOBS), z.array(z.string().min(1)).min(1)).optional(),
-  /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
-  samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
-  /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */
-  bannedStrings: z.enum(BANNED_STRINGS_SPELLINGS).optional(),
-  /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
-  tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
-  /** The template-level thinking switch a turn sends, off or on ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */
-  thinkingOff: z.enum(THINKING_OFF_SPELLINGS).optional(),
-  /** The body field a reasoning token budget rides under ({@link REASONING_BUDGET_FIELDS}). */
-  reasoningBudgetField: z.enum(REASONING_BUDGET_FIELDS).optional(),
-  /** Ollama's native route: how long the model stays loaded after a turn, as Ollama's duration string
-   *  (`"30m"`, `"-1m"` = until the server stops). Absent ⇒ the server's default. */
-  keepAlive: z.string().min(1).optional(),
-  /** Ollama's native route: the prompt batch size (`options.num_batch`); a change reloads the model. */
-  numBatch: z.int().positive().optional(),
-  /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
-  pricing: tokenPricingSchema.optional(),
-  /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
-  concurrency: z
-    .object({
-      embed: z.int().positive().optional(),
-      imageEmbed: z.int().positive().optional(),
-      summarize: z.int().positive().max(SUMMARIZE_CONCURRENCY_MAX).optional(),
-    })
-    .optional(),
-  /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
-   *  POST reach ~1M tokens and head-of-line-block every other caller. Server-specific, so a feature. */
-  embedBatch: z.object({ maxTokens: z.int().positive(), floorTokensPerSec: z.number().positive() }).optional(),
-  /** The row's request deadline: the embed POST's deadline base, and the idle ceiling (the longest a turn may go
-   *  without a received chunk) of every HTTP chat turn and of an agent-sdk side-generation turn. */
-  requestTimeoutMs: z.int().positive().optional(),
-});
+export const endpointFeaturesSchema = z
+  .object({
+    prefill: z.enum(PREFILL_MODES).optional(),
+    strictJson: z.enum(STRICT_JSON_MODES).optional(),
+    /** The JSON-Schema vocabulary this endpoint's grammar compiles (`wire-subset.ts`); absent ⇒ the wire's default
+     *  (`WIRE_STRUCTURED_MODE_DEFAULT`). */
+    structuredMode: z.enum(WIRE_SCHEMA_MODES).optional(),
+    effort: z.enum(EFFORT_SPELLINGS).optional(),
+    outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
+    images: z.enum(IMAGE_ARMS).optional(),
+    modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
+    nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+    /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
+     *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
+     *  skips the probe; the connection's identity and credential stay this row's. */
+    detectServer: z.boolean().optional(),
+    /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
+    rerankPath: z.string().optional(),
+    /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
+     *  AVAILABLE and is woken before the request; unset ⇒ sleeping IS down. */
+    sleep: z.object({ isSleepingPath: z.string(), wakePath: z.string() }).strip().optional(),
+    /** The measured vLLM interlock (§8.1, verify6 M2): a CONTENT prefill with thinking on ⇒ an empty reply, so
+     *  the transport strips the thinking toggle on a prefill turn with `reasoning_dropped_for_prefill`. A row
+     *  that leaves it unset gets the raw behaviour — the honest default for an unmeasured server. */
+    prefillSuppressesThinking: z.boolean().optional(),
+    /** The stream-delta field(s) the server puts reasoning in, read IN ORDER. vLLM ships
+     *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
+     *  every reasoning token, live-verified 2026-08-10). Applied by the transport's chunk reshaper. */
+    reasoningKeys: z.array(z.string().min(1)).optional(),
+    /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
+     *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
+     *  only `mirostat_mode`). Folds key by key. */
+    samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
+    /** Further keys a sampler also rides under, on a server that reads several spellings and keeps the largest:
+     *  KoboldCpp's chat route takes the repetition penalty as the maximum of `rep_pen`, `repeat_penalty` and
+     *  `repetition_penalty`, each missing one counting as 1, so a value below 1 holds only when all three carry it
+     *  (koboldcpp.py transform_genparams). A key the user's own body sets stands alone. */
+    samplerAliases: z.partialRecord(z.enum(SAMPLER_KNOBS), z.array(z.string().min(1)).min(1)).optional(),
+    /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
+    samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
+    /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */
+    bannedStrings: z.enum(BANNED_STRINGS_SPELLINGS).optional(),
+    /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
+    tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
+    /** The template-level thinking switch a turn sends, off or on ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */
+    thinkingOff: z.enum(THINKING_OFF_SPELLINGS).optional(),
+    /** The body field a reasoning token budget rides under ({@link REASONING_BUDGET_FIELDS}). */
+    reasoningBudgetField: z.enum(REASONING_BUDGET_FIELDS).optional(),
+    /** Ollama's native route: how long the model stays loaded after a turn, as Ollama's duration string
+     *  (`"30m"`, `"-1m"` = until the server stops). Absent ⇒ the server's default. */
+    keepAlive: z.string().min(1).optional(),
+    /** Ollama's native route: the prompt batch size (`options.num_batch`); a change reloads the model. */
+    numBatch: z.int().positive().optional(),
+    /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
+    pricing: tokenPricingSchema.optional(),
+    /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
+    concurrency: z
+      .object({
+        embed: z.int().positive().optional(),
+        imageEmbed: z.int().positive().optional(),
+        summarize: z.int().positive().max(SUMMARIZE_CONCURRENCY_MAX).optional(),
+      })
+      .strip()
+      .optional(),
+    /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
+     *  POST reach ~1M tokens and head-of-line-block every other caller. Server-specific, so a feature. */
+    embedBatch: z.object({ maxTokens: z.int().positive(), floorTokensPerSec: z.number().positive() }).strip().optional(),
+    /** The row's request deadline: the embed POST's deadline base, and the idle ceiling (the longest a turn may go
+     *  without a received chunk) of every HTTP chat turn and of an agent-sdk side-generation turn. */
+    requestTimeoutMs: z.int().positive().optional(),
+  })
+  .strip();
 export type EndpointFeatures = z.infer<typeof endpointFeaturesSchema>;
 
 /** The wire's own defaults — what a row that says nothing gets. Today's `vllm/index.ts:52-53` fan-out. */

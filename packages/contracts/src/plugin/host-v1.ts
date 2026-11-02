@@ -8,6 +8,7 @@
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 
+// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
 import type { AssetId, Branded, CharacterId, ChatId, DocumentId, MessageId, SandboxWireId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -75,13 +76,15 @@ export interface PluginWorldEntryUpsert {
 }
 
 /** {@link PluginWorldEntryUpsert} as the sandbox boundary reads it: guest data, parsed on both sides of the broker. */
-export const pluginWorldEntryUpsertSchema = z.object({
-  bookId: typeIdSchema(ID_PREFIX.worldBook),
-  entryKey: z.string(),
-  keys: z.array(z.string()).readonly(),
-  contentTemplate: z.string(),
-  position: z.enum(ENTRY_POSITIONS),
-}) satisfies z.ZodType<PluginWorldEntryUpsert>;
+export const pluginWorldEntryUpsertSchema = z
+  .object({
+    bookId: typeIdSchema(ID_PREFIX.worldBook),
+    entryKey: z.string(),
+    keys: z.array(z.string()).readonly(),
+    contentTemplate: z.string(),
+    position: z.enum(ENTRY_POSITIONS),
+  })
+  .strip() satisfies z.ZodType<PluginWorldEntryUpsert>;
 
 /** A REDUCED world-book projection (`worldInfo.listBooks`, #788 F12). The room's own lore books — those ATTACHED
  *  to the invocation chat, member-visible. `id` is what the guest passes back to `worldInfo.listEntries`. */
@@ -182,18 +185,22 @@ export interface PluginQuietOptions {
   readonly imageAssetIds?: readonly SandboxWireId<AssetId>[];
 }
 
-const pluginQuietSchemaSchema = z.object({
-  name: z.string(),
-  description: z.string().exactOptional(),
-  schema: z.record(z.string(), z.unknown()),
-}) satisfies z.ZodType<PluginQuietSchema>;
+const pluginQuietSchemaSchema = z
+  .object({
+    name: z.string(),
+    description: z.string().exactOptional(),
+    schema: z.record(z.string(), z.unknown()),
+  })
+  .strip() satisfies z.ZodType<PluginQuietSchema>;
 
 /** {@link PluginQuietOptions} as the app process reads it from the broker. The image cap is here as well as in the
  *  membrane's projection: the membrane runs in the broker, so its clamp bounds a guest and never a broker. */
-export const pluginQuietOptionsSchema = z.object({
-  schema: pluginQuietSchemaSchema.exactOptional(),
-  imageAssetIds: z.array(z.string()).max(PLUGIN_QUIET_IMAGES_MAX).readonly().exactOptional(),
-}) satisfies z.ZodType<PluginQuietOptions>;
+export const pluginQuietOptionsSchema = z
+  .object({
+    schema: pluginQuietSchemaSchema.exactOptional(),
+    imageAssetIds: z.array(z.string()).max(PLUGIN_QUIET_IMAGES_MAX).readonly().exactOptional(),
+  })
+  .strip() satisfies z.ZodType<PluginQuietOptions>;
 
 // ── The surface ────────────────────────────────────────────────────────────────────────────────────────────
 export interface PluginHostV1 {

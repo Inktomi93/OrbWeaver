@@ -9,11 +9,13 @@ import { trackerCeiling, trackerNumber } from "./tracker.ts";
 
 // One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
 //  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose.
-const rpgStatAttributeDefSchema = z.object({
-  key: z.string().min(1),
-  label: z.string().min(1),
-  hint: z.string().default(""),
-});
+const rpgStatAttributeDefSchema = z
+  .object({
+    key: z.string().min(1),
+    label: z.string().min(1),
+    hint: z.string().default(""),
+  })
+  .strip();
 export type RpgStatAttributeDef = z.infer<typeof rpgStatAttributeDefSchema>;
 
 /** The max attribute count a profile may carry (§2.3 — "≤12"). A prompt-budget shape constant. */
@@ -21,7 +23,7 @@ export const RPG_PROFILE_MAX_ATTRIBUTES = 12;
 
 // The RESERVED resolution discriminant (§2.3) — a single-arm union today (`house-d20`). Full's check
 //  engine grows this with alt-arms (the D86 reserved-discriminant growth pattern); lite never reads it.
-const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") })]);
+const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") }).strip()]);
 type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
 
 /** A `statProfile` — the full mechanical vocabulary, shipped whole. Manual ability rolls read `attributes` and `modifier`; the remaining fields reserve the full-engine contract. `skillGoverning` maps a skill name → the attribute
@@ -42,15 +44,17 @@ type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
  *  attribute their `defaultAttribute` named has such a blob today, and the read path handles it gracefully
  *  on purpose (`attributeReading` prints the raw key). Tier-4 refusal at the producer verb closes the state
  *  going forward without bricking a stored one; that is the trade, stated. */
-export const rpgStatProfileSchema = z.object({
-  attributes: z.array(rpgStatAttributeDefSchema).max(RPG_PROFILE_MAX_ATTRIBUTES),
-  range: z.object({ min: z.int(), max: z.int() }),
-  modifier: z.object({ center: z.int(), step: z.int().min(1) }),
-  skillGoverning: z.record(z.string(), z.string()).default({}),
-  defaultAttribute: z.string(),
-  perceptionAttribute: z.string(),
-  resolution: rpgStatResolutionSchema,
-});
+export const rpgStatProfileSchema = z
+  .object({
+    attributes: z.array(rpgStatAttributeDefSchema).max(RPG_PROFILE_MAX_ATTRIBUTES),
+    range: z.object({ min: z.int(), max: z.int() }).strip(),
+    modifier: z.object({ center: z.int(), step: z.int().min(1) }).strip(),
+    skillGoverning: z.record(z.string(), z.string()).default({}),
+    defaultAttribute: z.string(),
+    perceptionAttribute: z.string(),
+    resolution: rpgStatResolutionSchema,
+  })
+  .strip();
 export type RpgStatProfile = z.infer<typeof rpgStatProfileSchema>;
 
 /** Convert a set attribute score to the profile's shared modifier space. */

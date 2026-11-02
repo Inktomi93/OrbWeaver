@@ -23,6 +23,7 @@
 // on the chat-vars read proc) and the `when` CEL visibility predicate (priced with the node that first needs
 // it). Adding those is a priced phase, not a widening of this file.
 
+// Guest-authored plugin data keeps zod strip mode: a plugin built against another SDK may send keys this host does not read.
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -847,7 +848,7 @@ export type PluginSurfaceNode =
 
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
 
-const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) });
+const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) }).strip();
 
 /** A string bounded in BYTES — the unit every `*_MAX_BYTES` cap here names. `z.string().max()` measures
  *  UTF-16 code UNITS, which for a CJK payload is a third of the bytes it claims to bound: a 2048-character
@@ -887,154 +888,185 @@ function readonlyArrayOutput<Item>(schema: z.ZodType<Item[]>): z.ZodType<readonl
 //  schema's output has not narrowed or grown away from the declared union.
 const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
   z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("stack"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
-    z.object({ kind: z.literal("row"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
-    z.object({ kind: z.literal("section"), kicker: labelSchema, children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }),
-    z.object({ kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() }),
-    z.object({ kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }),
-    z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }),
-    z.object({
-      kind: z.literal("keyValue"),
-      rows: readonlyArrayOutput(z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) })).max(PLUGIN_ROWS_MAX)).optional(),
-      rowsFrom: stateBindingSchema.optional(),
-    }),
-    z.object({ kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }),
-    z.object({
-      kind: z.literal("image"),
-      assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-      assetFrom: stateBindingSchema.optional(),
-      bundleAsset: bundleAssetPathSchema.optional(),
-      alt: z.string().max(LABEL_MAX).optional(),
-      aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
-    }),
-    z.object({ kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }),
-    z.object({
-      kind: z.literal("textField"),
-      name: identSchema,
-      label: labelSchema,
-      value: z.string().max(LABEL_MAX).optional(),
-      placeholder: z.string().max(LABEL_MAX).optional(),
-    }),
-    z.object({
-      kind: z.literal("numberField"),
-      name: identSchema,
-      label: labelSchema,
-      value: finiteNumber.optional(),
-      min: finiteNumber.optional(),
-      max: finiteNumber.optional(),
-      step: finiteNumber.optional(),
-    }),
-    z.object({ kind: z.literal("toggle"), name: identSchema, label: labelSchema, value: z.boolean().optional(), actionId: identSchema.optional() }),
-    z.object({
-      kind: z.literal("select"),
-      name: identSchema,
-      label: labelSchema,
-      options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_ROWS_MAX)).optional(),
-      optionsFrom: stateBindingSchema.optional(),
-      optionsFromHost: z.enum(PLUGIN_SELECT_HOST_SOURCES).optional(),
-      value: z.string().max(LABEL_MAX).optional(),
-      actionId: identSchema.optional(),
-    }),
-    z.object({
-      kind: z.literal("slider"),
-      name: identSchema,
-      label: labelSchema,
-      min: finiteNumber,
-      max: finiteNumber,
-      step: finiteNumber.optional(),
-      value: finiteNumber.optional(),
-    }),
-    z.object({
-      kind: z.literal("button"),
-      actionId: identSchema,
-      label: labelSchema,
-      variant: z.enum(PLUGIN_BUTTON_VARIANTS).optional(),
-      disabled: boundBoolean.optional(),
-    }),
-    z.object({
-      kind: z.literal("confirmButton"),
-      actionId: identSchema,
-      label: labelSchema,
-      confirmTitle: labelSchema,
-      confirmBody: byteBoundedString(PLUGIN_TEXT_MAX_BYTES).optional(),
-    }),
+    z.object({ kind: z.literal("stack"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
+    z.object({ kind: z.literal("row"), gap: gapSchema.optional(), children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
+    z.object({ kind: z.literal("section"), kicker: labelSchema, children: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema)) }).strip(),
+    z.object({ kind: z.literal("text"), value: boundString(PLUGIN_TEXT_MAX_BYTES), voice: z.enum(PLUGIN_TEXT_VOICES).optional() }).strip(),
+    z.object({ kind: z.literal("badge"), text: boundString(LABEL_MAX), intent: z.enum(PLUGIN_BADGE_INTENTS).optional() }).strip(),
+    z.object({ kind: z.literal("meter"), value: boundNumber, max: finiteNumber.optional(), label: labelSchema.optional() }).strip(),
+    z
+      .object({
+        kind: z.literal("keyValue"),
+        rows: readonlyArrayOutput(z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) }).strip()).max(PLUGIN_ROWS_MAX)).optional(),
+        rowsFrom: stateBindingSchema.optional(),
+      })
+      .strip(),
+    z.object({ kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }).strip(),
+    z
+      .object({
+        kind: z.literal("image"),
+        assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+        assetFrom: stateBindingSchema.optional(),
+        bundleAsset: bundleAssetPathSchema.optional(),
+        alt: z.string().max(LABEL_MAX).optional(),
+        aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
+      })
+      .strip(),
+    z.object({ kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }).strip(),
+    z
+      .object({
+        kind: z.literal("textField"),
+        name: identSchema,
+        label: labelSchema,
+        value: z.string().max(LABEL_MAX).optional(),
+        placeholder: z.string().max(LABEL_MAX).optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("numberField"),
+        name: identSchema,
+        label: labelSchema,
+        value: finiteNumber.optional(),
+        min: finiteNumber.optional(),
+        max: finiteNumber.optional(),
+        step: finiteNumber.optional(),
+      })
+      .strip(),
+    z.object({ kind: z.literal("toggle"), name: identSchema, label: labelSchema, value: z.boolean().optional(), actionId: identSchema.optional() }).strip(),
+    z
+      .object({
+        kind: z.literal("select"),
+        name: identSchema,
+        label: labelSchema,
+        options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }).strip()).max(PLUGIN_ROWS_MAX)).optional(),
+        optionsFrom: stateBindingSchema.optional(),
+        optionsFromHost: z.enum(PLUGIN_SELECT_HOST_SOURCES).optional(),
+        value: z.string().max(LABEL_MAX).optional(),
+        actionId: identSchema.optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("slider"),
+        name: identSchema,
+        label: labelSchema,
+        min: finiteNumber,
+        max: finiteNumber,
+        step: finiteNumber.optional(),
+        value: finiteNumber.optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("button"),
+        actionId: identSchema,
+        label: labelSchema,
+        variant: z.enum(PLUGIN_BUTTON_VARIANTS).optional(),
+        disabled: boundBoolean.optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("confirmButton"),
+        actionId: identSchema,
+        label: labelSchema,
+        confirmTitle: labelSchema,
+        confirmBody: byteBoundedString(PLUGIN_TEXT_MAX_BYTES).optional(),
+      })
+      .strip(),
     // ── The U5 browse-genre arms. `grid` has no text-only shape by construction; the cover slot is where the
     //    genre's signal lives, so an absent `assetId` is a shape-matched placeholder, not a row.
-    z.object({
-      kind: z.literal("grid"),
-      tiles: readonlyArrayOutput(
-        z
-          .array(
-            z.object({
-              id: identSchema,
-              title: boundString(LABEL_MAX),
-              subtitle: boundString(LABEL_MAX).optional(),
-              badge: boundString(LABEL_MAX).optional(),
-              assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-              bundleAsset: bundleAssetPathSchema.optional(),
-              alt: z.string().max(LABEL_MAX).optional(),
-              tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
-              actionId: identSchema.optional(),
-            }),
-          )
-          .max(PLUGIN_GRID_TILES_MAX),
-      ).optional(),
-      tilesFrom: stateBindingSchema.optional(),
-      tileAction: identSchema.optional(),
-      aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
-      empty: z.string().max(LABEL_MAX).optional(),
-      loading: boundBoolean.optional(),
-    }),
+    z
+      .object({
+        kind: z.literal("grid"),
+        tiles: readonlyArrayOutput(
+          z
+            .array(
+              z
+                .object({
+                  id: identSchema,
+                  title: boundString(LABEL_MAX),
+                  subtitle: boundString(LABEL_MAX).optional(),
+                  badge: boundString(LABEL_MAX).optional(),
+                  assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+                  bundleAsset: bundleAssetPathSchema.optional(),
+                  alt: z.string().max(LABEL_MAX).optional(),
+                  tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
+                  actionId: identSchema.optional(),
+                })
+                .strip(),
+            )
+            .max(PLUGIN_GRID_TILES_MAX),
+        ).optional(),
+        tilesFrom: stateBindingSchema.optional(),
+        tileAction: identSchema.optional(),
+        aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
+        empty: z.string().max(LABEL_MAX).optional(),
+        loading: boundBoolean.optional(),
+      })
+      .strip(),
     // #799 — the glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
     // refusal rather than a runtime miss, and the client's total Record cannot be reached with a name it has
     // no component for.
-    z.object({ kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }),
+    z.object({ kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }).strip(),
     // #799 — the one-of-N strip. The `select`'s grammar, with its own (much smaller) option cap: every
     // option paints at once, so the bound is a LAYOUT bound, not just a DoS one.
-    z.object({
-      kind: z.literal("tabs"),
-      name: identSchema,
-      label: labelSchema,
-      options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_TABS_OPTIONS_MAX)).optional(),
-      optionsFrom: stateBindingSchema.optional(),
-      value: z.string().max(LABEL_MAX).optional(),
-      actionId: identSchema.optional(),
-    }),
-    z.object({
-      kind: z.literal("masterDetail"),
-      stages: readonlyArrayOutput(
-        z
-          .array(
-            z.object({
-              id: identSchema,
-              kind: z.enum(PLUGIN_PAGE_STAGE_KINDS),
-              title: boundString(LABEL_MAX).optional(),
-              hero: z
+    z
+      .object({
+        kind: z.literal("tabs"),
+        name: identSchema,
+        label: labelSchema,
+        options: readonlyArrayOutput(
+          z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }).strip()).max(PLUGIN_TABS_OPTIONS_MAX),
+        ).optional(),
+        optionsFrom: stateBindingSchema.optional(),
+        value: z.string().max(LABEL_MAX).optional(),
+        actionId: identSchema.optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("masterDetail"),
+        stages: readonlyArrayOutput(
+          z
+            .array(
+              z
                 .object({
-                  assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-                  assetFrom: stateBindingSchema.optional(),
-                  bundleAsset: bundleAssetPathSchema.optional(),
-                  alt: z.string().max(LABEL_MAX).optional(),
+                  id: identSchema,
+                  kind: z.enum(PLUGIN_PAGE_STAGE_KINDS),
+                  title: boundString(LABEL_MAX).optional(),
+                  hero: z
+                    .object({
+                      assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+                      assetFrom: stateBindingSchema.optional(),
+                      bundleAsset: bundleAssetPathSchema.optional(),
+                      alt: z.string().max(LABEL_MAX).optional(),
+                    })
+                    .strip()
+                    .optional(),
+                  body: pluginSurfaceNodeSchema,
                 })
-                .optional(),
-              body: pluginSurfaceNodeSchema,
-            }),
-          )
-          .min(1)
-          .max(PLUGIN_PAGE_STAGES_MAX),
-      ),
-      active: boundString(LABEL_MAX).optional(),
-    }),
-    z.object({
-      kind: z.literal("searchBar"),
-      name: identSchema,
-      label: labelSchema,
-      placeholder: z.string().max(LABEL_MAX).optional(),
-      value: z.string().max(LABEL_MAX).optional(),
-      actionId: identSchema.optional(),
-      filters: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema).max(PLUGIN_ROWS_MAX)).optional(),
-      filtersLabel: labelSchema.optional(),
-    }),
+                .strip(),
+            )
+            .min(1)
+            .max(PLUGIN_PAGE_STAGES_MAX),
+        ),
+        active: boundString(LABEL_MAX).optional(),
+      })
+      .strip(),
+    z
+      .object({
+        kind: z.literal("searchBar"),
+        name: identSchema,
+        label: labelSchema,
+        placeholder: z.string().max(LABEL_MAX).optional(),
+        value: z.string().max(LABEL_MAX).optional(),
+        actionId: identSchema.optional(),
+        filters: readonlyArrayOutput(z.array(pluginSurfaceNodeSchema).max(PLUGIN_ROWS_MAX)).optional(),
+        filtersLabel: labelSchema.optional(),
+      })
+      .strip(),
   ]),
 );
 
@@ -1226,15 +1258,17 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfa
 // ONE bound tile as published state, validated at RESOLVE — the registration gate cannot see state, so this
 //  schema is where an untrusted entry is judged. `assetId` is FORMAT-validated exactly like the `image` node's
 //  (a URL or garbage is unspellable); OWNERSHIP is the server resolve's job, same as everywhere.
-const pluginBoundGridTileSchema = z.object({
-  id: z.string().regex(IDENT_RE),
-  title: z.string().max(LABEL_MAX),
-  subtitle: z.string().max(LABEL_MAX).optional(),
-  badge: z.string().max(LABEL_MAX).optional(),
-  assetId: typeIdSchema(ID_PREFIX.asset).optional(),
-  alt: z.string().max(LABEL_MAX).optional(),
-  tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
-}) satisfies z.ZodType<PluginBoundGridTile>;
+const pluginBoundGridTileSchema = z
+  .object({
+    id: z.string().regex(IDENT_RE),
+    title: z.string().max(LABEL_MAX),
+    subtitle: z.string().max(LABEL_MAX).optional(),
+    badge: z.string().max(LABEL_MAX).optional(),
+    assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+    alt: z.string().max(LABEL_MAX).optional(),
+    tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
+  })
+  .strip() satisfies z.ZodType<PluginBoundGridTile>;
 
 /** Resolve a grid's `tilesFrom` binding against published state: read the path, validate EVERY entry, clamp
  *  the count. The three postures, each deliberate:
@@ -1288,7 +1322,7 @@ function resolveBoundArray<T>(state: Record<string, unknown>, binding: PluginSta
 
 // ONE bound select option as published state — the declared `PluginSelectOption` shape, judged at
 //  RESOLVE (the registration gate cannot see state).
-const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }) satisfies z.ZodType<PluginSelectOption>;
+const pluginBoundSelectOptionSchema = z.object({ value: z.string().max(LABEL_MAX), label: labelSchema }).strip() satisfies z.ZodType<PluginSelectOption>;
 
 /** Resolve a select's `optionsFrom` binding (hub v1.3): the per-entry gate + the {@link PLUGIN_ROWS_MAX}
  *  clamp, the `resolvePluginBoundTiles` posture exactly. A miss resolves to NO options — the renderer
@@ -1320,7 +1354,7 @@ export function resolvePluginBoundBoolean(state: Record<string, unknown>, value:
 
 // ONE bound keyValue row as published state — key AND value are plain strings on this arm (the row set
 //  itself is data; a binding inside published state would be a hall of mirrors, the bound-tile rule).
-const pluginBoundKeyValueRowSchema = z.object({ key: labelSchema, value: z.string().max(LABEL_MAX) });
+const pluginBoundKeyValueRowSchema = z.object({ key: labelSchema, value: z.string().max(LABEL_MAX) }).strip();
 export type PluginBoundKeyValueRow = z.infer<typeof pluginBoundKeyValueRowSchema>;
 
 /** Resolve a keyValue's `rowsFrom` binding (hub v1.3) — same gate, same clamp, same miss posture. */
@@ -1388,6 +1422,7 @@ export const pluginSurfaceRegistrationMetaSchema = z
     spec: pluginSurfaceSpecSchema.optional(),
     toolName: z.string().regex(PLUGIN_TOOL_NAME_RE).optional(),
   })
+  .strip()
   // THE PER-ANCHOR BELTS, in one place. `superRefine` (the U6 message-footer clamps) precedes the U3
   // `tool-card` biconditional; both run, and a spec that violates both reports both.
   .superRefine((meta, ctx) => {
@@ -1467,11 +1502,13 @@ export interface PluginCommandPlacement {
   readonly label: string;
   readonly icon?: PluginIconName | undefined;
 }
-export const pluginCommandPlacementSchema = z.object({
-  target: z.enum(PLUGIN_COMMAND_PLACEMENT_TARGETS),
-  label: z.string().min(1).max(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX),
-  icon: z.enum(PLUGIN_ICON_NAMES).optional(),
-}) satisfies z.ZodType<PluginCommandPlacement>;
+export const pluginCommandPlacementSchema = z
+  .object({
+    target: z.enum(PLUGIN_COMMAND_PLACEMENT_TARGETS),
+    label: z.string().min(1).max(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX),
+    icon: z.enum(PLUGIN_ICON_NAMES).optional(),
+  })
+  .strip() satisfies z.ZodType<PluginCommandPlacement>;
 
 // ── TYPED ARG GRAMMAR (#791) — the deep half of the ST SlashCommandParser, cut to the CLEAN core ────────────────
 // U5 gave a command ONE opaque `args` remainder ("a command owns its own argument grammar"). #791 lets a command
@@ -1550,12 +1587,14 @@ function defaultFitsArg(type: PluginCommandArgType, value: PluginCommandArgValue
 
 /** A declared arg spec, validated host-side at registration. The enum biconditional lives here so a malformed
  *  arg is a REGISTRATION refusal (the command absent, a log line), never activation-fatal. */
-const pluginCommandArgSpecBaseSchema = z.object({
-  name: z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE),
-  required: z.boolean().optional(),
-  describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
-  default: z.union([z.string().max(LABEL_MAX), finiteNumber, z.boolean()]).optional(),
-});
+const pluginCommandArgSpecBaseSchema = z
+  .object({
+    name: z.string().regex(PLUGIN_COMMAND_ARG_NAME_RE),
+    required: z.boolean().optional(),
+    describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX).optional(),
+    default: z.union([z.string().max(LABEL_MAX), finiteNumber, z.boolean()]).optional(),
+  })
+  .strip();
 
 export const pluginCommandArgSpecSchema = z
   .discriminatedUnion("type", [
@@ -1587,6 +1626,7 @@ export const pluginCommandRegistrationMetaSchema = z
     placements: readonlyArrayOutput(z.array(pluginCommandPlacementSchema).max(PLUGIN_COMMAND_PLACEMENT_TARGETS.length)).optional(),
     composerDraft: z.literal(true).optional(),
   })
+  .strip()
   .superRefine((meta, ctx) => {
     if (meta.composerDraft === true && (meta.placements?.length !== 1 || meta.placements[0]?.target !== "composer-action" || (meta.args?.length ?? 0) !== 0)) {
       ctx.addIssue({ code: "custom", message: "a composer draft command has only a composer-action placement and no arguments", path: ["composerDraft"] });
@@ -1684,15 +1724,18 @@ export function pluginCommandArgsSchema<const TSpecs extends readonly PluginComm
     const base = argValueSchema(spec);
     shape[spec.name] = spec.required === true ? base : base.optional();
   }
-  return z.object(shape).transform((values): PluginCommandArgs => {
-    const defined: PluginCommandArgs = {};
-    for (const [name, value] of Object.entries(values)) {
-      if (value !== undefined) {
-        defined[name] = value;
+  return z
+    .object(shape)
+    .strip()
+    .transform((values): PluginCommandArgs => {
+      const defined: PluginCommandArgs = {};
+      for (const [name, value] of Object.entries(values)) {
+        if (value !== undefined) {
+          defined[name] = value;
+        }
       }
-    }
-    return defined;
-  });
+      return defined;
+    });
 }
 
 /** One declared arg's value schema — the exhaustive `type` dispatch, matching {@link coerceArgValue}. */

@@ -520,6 +520,7 @@ export const userIntentSchema = z.strictObject({
       // Absent ⇒ the engine floor (`MANAGED_VERBATIM_TAIL`), derived from that const — byte-identical default.
       verbatimTail: generationKnobSchemas.compactionVerbatimTail,
     })
+    .strip()
     .optional(),
 
   // Escape hatch — allowlisted to the Claude runtime knob namespace here (see `claudeEnvSchema`); the
@@ -540,6 +541,7 @@ export const userIntentSchema = z.strictObject({
       // provider default (parallel allowed).
       parallelToolCalls: z.boolean().optional(),
     })
+    .strip()
     .optional(),
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
@@ -668,53 +670,57 @@ const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 // generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
 // a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
 // parses and simply loses it.
-const guidedActionConfigSchema = z.object({
-  /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
-   *
-   *  CAPPED at the shared injection-template max (owner ruling 2026-08-08). It was an unbounded `z.string()` —
-   *  the one authored text field in this contract with no ceiling, reaching BOTH the preset row and the model's
-   *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
-   *  functional sibling `formatStrings` has always carried this same number; they are one class. */
-  prompt: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH),
-  /** Conversation role the resolved text is delivered with; `system` rides the `guided_instruction` marker
-   *  wherever the prompt order places it, `user`/`assistant` push as an in-chat injection. */
-  role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
-  /** In-chat delivery DEPTH for a `user`/`assistant` role: 0 = the tail (with `assistant` that IS the
-   *  prefill-shaped position — prefill is a POSITION, not a role), N = N turns back. ABSENT (never
-   *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
-   *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
-   *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
-  depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
-}) satisfies z.ZodType<{ readonly prompt: string; readonly role: MessageRole; readonly depth?: number | undefined }>;
+const guidedActionConfigSchema = z
+  .object({
+    /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
+     *
+     *  CAPPED at the shared injection-template max (owner ruling 2026-08-08). It was an unbounded `z.string()` —
+     *  the one authored text field in this contract with no ceiling, reaching BOTH the preset row and the model's
+     *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
+     *  functional sibling `formatStrings` has always carried this same number; they are one class. */
+    prompt: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH),
+    /** Conversation role the resolved text is delivered with; `system` rides the `guided_instruction` marker
+     *  wherever the prompt order places it, `user`/`assistant` push as an in-chat injection. */
+    role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
+    /** In-chat delivery DEPTH for a `user`/`assistant` role: 0 = the tail (with `assistant` that IS the
+     *  prefill-shaped position — prefill is a POSITION, not a role), N = N turns back. ABSENT (never
+     *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
+     *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
+     *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
+    depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
+  })
+  .strip() satisfies z.ZodType<{ readonly prompt: string; readonly role: MessageRole; readonly depth?: number | undefined }>;
 
-export const guidedActionsSchema = z.object({
-  response: guidedActionConfigSchema,
-  swipe: guidedActionConfigSchema,
-  impersonate: guidedActionConfigSchema,
-  rewrite: guidedActionConfigSchema,
-  // Defaulted (not required) so a stored blob predating opening/continue still parses.
-  opening: guidedActionConfigSchema.default({
-    prompt: OPENING_DEFAULT_PROMPT,
-    role: GUIDED_DEFAULT_ROLE,
-  }),
-  continue: guidedActionConfigSchema.default({
-    prompt: CONTINUE_DEFAULT_PROMPT,
-    role: GUIDED_DEFAULT_ROLE,
-  }),
-  // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them
-  // still parses. `role` is inert for these (the studio verbs run a standalone bounded completion, never a
-  // chat-turn injection) but kept for schema uniformity. The keys ARE the `GuidedActionKind` strings (the
-  // schema map is keyed by kind, so key === kind avoids a translation layer); the audit-ratified vocabulary
-  // is snake_case.
-  greeting_rewrite: guidedActionConfigSchema.default({
-    prompt: GREETING_REWRITE_DEFAULT_PROMPT,
-    role: GUIDED_DEFAULT_ROLE,
-  }),
-  greeting_new: guidedActionConfigSchema.default({
-    prompt: GREETING_NEW_DEFAULT_PROMPT,
-    role: GUIDED_DEFAULT_ROLE,
-  }),
-});
+export const guidedActionsSchema = z
+  .object({
+    response: guidedActionConfigSchema,
+    swipe: guidedActionConfigSchema,
+    impersonate: guidedActionConfigSchema,
+    rewrite: guidedActionConfigSchema,
+    // Defaulted (not required) so a stored blob predating opening/continue still parses.
+    opening: guidedActionConfigSchema.default({
+      prompt: OPENING_DEFAULT_PROMPT,
+      role: GUIDED_DEFAULT_ROLE,
+    }),
+    continue: guidedActionConfigSchema.default({
+      prompt: CONTINUE_DEFAULT_PROMPT,
+      role: GUIDED_DEFAULT_ROLE,
+    }),
+    // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them
+    // still parses. `role` is inert for these (the studio verbs run a standalone bounded completion, never a
+    // chat-turn injection) but kept for schema uniformity. The keys ARE the `GuidedActionKind` strings (the
+    // schema map is keyed by kind, so key === kind avoids a translation layer); the audit-ratified vocabulary
+    // is snake_case.
+    greeting_rewrite: guidedActionConfigSchema.default({
+      prompt: GREETING_REWRITE_DEFAULT_PROMPT,
+      role: GUIDED_DEFAULT_ROLE,
+    }),
+    greeting_new: guidedActionConfigSchema.default({
+      prompt: GREETING_NEW_DEFAULT_PROMPT,
+      role: GUIDED_DEFAULT_ROLE,
+    }),
+  })
+  .strip();
 export type GuidedActionsConfig = z.infer<typeof guidedActionsSchema>;
 
 export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
@@ -934,66 +940,74 @@ const triggerSchema = z.array(z.enum(GENERATION_TYPES)).max(GENERATION_TYPES.len
 
 /** Absolute-depth placement (ST `injection_position: ABSOLUTE`). Depth 0 = the tail; N = N turns back.
  *  Ceiling shared with `@orb/kit/injection.MAX_INJECTION_DEPTH` (one source of truth). */
-const injectSchema = z.object({
-  depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH),
-  order: z.int().min(INJECT_ORDER_MIN).max(INJECT_ORDER_MAX).optional(),
-});
+const injectSchema = z
+  .object({
+    depth: z.int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH),
+    order: z.int().min(INJECT_ORDER_MIN).max(INJECT_ORDER_MAX).optional(),
+  })
+  .strip();
 type SectionInject = z.infer<typeof injectSchema>;
 
-const literalSection = z.object({
-  type: z.literal("literal"),
-  id: z.string().min(MIN_ID_LENGTH),
-  name: z.string().max(MAX_NAME_LENGTH),
-  role: z.enum(MESSAGE_ROLES).default("system"),
-  content: z.string().max(MAX_TEXT_LENGTH),
-  enabled: z.boolean().default(true),
-  inject: injectSchema.optional(),
-  trigger: triggerSchema.optional(),
-});
+const literalSection = z
+  .object({
+    type: z.literal("literal"),
+    id: z.string().min(MIN_ID_LENGTH),
+    name: z.string().max(MAX_NAME_LENGTH),
+    role: z.enum(MESSAGE_ROLES).default("system"),
+    content: z.string().max(MAX_TEXT_LENGTH),
+    enabled: z.boolean().default(true),
+    inject: injectSchema.optional(),
+    trigger: triggerSchema.optional(),
+  })
+  .strip();
 
-const plainMarkerSection = z.object({
-  type: z.literal("marker"),
-  id: z.string().min(MIN_ID_LENGTH),
-  name: z.string().max(MAX_NAME_LENGTH),
-  marker: z.enum(PLAIN_MARKERS),
-  role: z.enum(MESSAGE_ROLES).default("system"),
-  enabled: z.boolean().default(true),
-  /** The firing gate, on the plain markers too (#1462, owner ruling: ST sets `injection_trigger` on EVERY
-   *  prompt-manager entry including the World Info and Chat History rows, and the neo-parity oracle is a
-   *  FLOOR). Its absence here was a PARITY GAP, not a design boundary: `sectionFromPrompt` silently dropped
-   *  an imported `injection_trigger` for these three, and the assembler's world-info anchor routing had no
-   *  gate to read. Every reader is the shared one — `assembly/sections::sectionTriggers` for the walk and
-   *  `hasActiveMarker` for the anchor-fallback routing, plus the `chat_history` pivot's own `sendHistory`.
-   *
-   *  `inject` is deliberately NOT added alongside it: `assembly/assemble::injectionDepthFor` returns `null`
-   *  unconditionally for all three plain markers (they are placement ANCHORS, not injectable content), so an
-   *  `inject` here would be a stored field no reader could ever honour. */
-  trigger: triggerSchema.optional(),
-});
+const plainMarkerSection = z
+  .object({
+    type: z.literal("marker"),
+    id: z.string().min(MIN_ID_LENGTH),
+    name: z.string().max(MAX_NAME_LENGTH),
+    marker: z.enum(PLAIN_MARKERS),
+    role: z.enum(MESSAGE_ROLES).default("system"),
+    enabled: z.boolean().default(true),
+    /** The firing gate, on the plain markers too (#1462, owner ruling: ST sets `injection_trigger` on EVERY
+     *  prompt-manager entry including the World Info and Chat History rows, and the neo-parity oracle is a
+     *  FLOOR). Its absence here was a PARITY GAP, not a design boundary: `sectionFromPrompt` silently dropped
+     *  an imported `injection_trigger` for these three, and the assembler's world-info anchor routing had no
+     *  gate to read. Every reader is the shared one — `assembly/sections::sectionTriggers` for the walk and
+     *  `hasActiveMarker` for the anchor-fallback routing, plus the `chat_history` pivot's own `sendHistory`.
+     *
+     *  `inject` is deliberately NOT added alongside it: `assembly/assemble::injectionDepthFor` returns `null`
+     *  unconditionally for all three plain markers (they are placement ANCHORS, not injectable content), so an
+     *  `inject` here would be a stored field no reader could ever honour. */
+    trigger: triggerSchema.optional(),
+  })
+  .strip();
 
-const templatedMarkerSection = z.object({
-  type: z.literal("marker"),
-  id: z.string().min(MIN_ID_LENGTH),
-  name: z.string().max(MAX_NAME_LENGTH),
-  marker: z.enum(TEMPLATED_MARKERS),
-  role: z.enum(MESSAGE_ROLES).default("system"),
-  enabled: z.boolean().default(true),
-  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]` — except
-   *  `main_prompt`, whose default is MODE-AWARE (a narrator turn resolves `NARRATOR_MAIN_PROMPT_TEMPLATE`;
-   *  the pick lives in `assembly/assemble.ts` templateFor). This field is ONE stored text either way: an
-   *  override REPLACES the default on both turn kinds, and there is no per-mode override slot.
-   *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
-   *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
-   *  mechanism (the tri-state retirement; the v4→v5 lift retires every
-   *  stored `""`). */
-  template: z.string().max(MAX_TEXT_LENGTH).optional(),
-  inject: injectSchema.optional(),
-  trigger: triggerSchema.optional(),
-  /** Block the character-card override for `main_prompt`/`post_history` (ST `forbid_overrides`). */
-  forbidCharacterOverride: z.boolean().optional(),
-  /** Block the host ROOM override; independent of the card override. */
-  forbidRoomOverride: z.boolean().optional(),
-});
+const templatedMarkerSection = z
+  .object({
+    type: z.literal("marker"),
+    id: z.string().min(MIN_ID_LENGTH),
+    name: z.string().max(MAX_NAME_LENGTH),
+    marker: z.enum(TEMPLATED_MARKERS),
+    role: z.enum(MESSAGE_ROLES).default("system"),
+    enabled: z.boolean().default(true),
+    /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]` — except
+     *  `main_prompt`, whose default is MODE-AWARE (a narrator turn resolves `NARRATOR_MAIN_PROMPT_TEMPLATE`;
+     *  the pick lives in `assembly/assemble.ts` templateFor). This field is ONE stored text either way: an
+     *  override REPLACES the default on both turn kinds, and there is no per-mode override slot.
+     *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
+     *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
+     *  mechanism (the tri-state retirement; the v4→v5 lift retires every
+     *  stored `""`). */
+    template: z.string().max(MAX_TEXT_LENGTH).optional(),
+    inject: injectSchema.optional(),
+    trigger: triggerSchema.optional(),
+    /** Block the character-card override for `main_prompt`/`post_history` (ST `forbid_overrides`). */
+    forbidCharacterOverride: z.boolean().optional(),
+    /** Block the host ROOM override; independent of the card override. */
+    forbidRoomOverride: z.boolean().optional(),
+  })
+  .strip();
 
 // Regular union (not discriminatedUnion): both marker branches share `type: "marker"`.
 const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
@@ -2254,19 +2268,23 @@ export const NARRATOR_MAIN_PROMPT_TEMPLATE =
 
 // ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
 // them as `{{getvar::<name>}}` / `{{<name>}}`.
-const choiceBlockOptionSchema = z.object({
-  label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
-  value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
-});
-export const choiceBlockSchema = z.object({
-  name: z.string().min(MIN_ID_LENGTH).max(MAX_NAME_LENGTH),
-  question: z.string().min(MIN_QUESTION_LENGTH).max(MAX_QUESTION_LENGTH),
-  options: z.array(choiceBlockOptionSchema).min(MIN_CHOICE_OPTIONS).max(MAX_CHOICE_OPTIONS),
-  defaultValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).optional(),
-  multiSelect: z.boolean().default(false),
-  separator: z.string().max(MAX_SEPARATOR_LENGTH).default(", "),
-  randomPick: z.boolean().default(false),
-});
+const choiceBlockOptionSchema = z
+  .object({
+    label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
+    value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
+  })
+  .strip();
+export const choiceBlockSchema = z
+  .object({
+    name: z.string().min(MIN_ID_LENGTH).max(MAX_NAME_LENGTH),
+    question: z.string().min(MIN_QUESTION_LENGTH).max(MAX_QUESTION_LENGTH),
+    options: z.array(choiceBlockOptionSchema).min(MIN_CHOICE_OPTIONS).max(MAX_CHOICE_OPTIONS),
+    defaultValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).optional(),
+    multiSelect: z.boolean().default(false),
+    separator: z.string().max(MAX_SEPARATOR_LENGTH).default(", "),
+    randomPick: z.boolean().default(false),
+  })
+  .strip();
 export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 
 /** The per-chat ChoiceBlock PICKS bag (`chats.variableValues`, written by `setVariables`): variable name →
@@ -2292,32 +2310,38 @@ const MAX_USER_MACRO_ARGS = 16;
 const MAX_USER_MACRO_INPUTS = 16;
 
 /** One declared positional arg — kit's `MacroArgDef` authored (checkMacroArgs enforces it at render). */
-const userMacroArgSchema = z.object({
-  name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
-  type: z.enum(MACRO_ARG_TYPES).default("string"),
-  optional: z.boolean().default(false),
-  default: z.string().max(MAX_CHOICE_VALUE_LENGTH).optional(),
-  description: z.string().max(MAX_QUESTION_LENGTH).optional(),
-});
+const userMacroArgSchema = z
+  .object({
+    name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
+    type: z.enum(MACRO_ARG_TYPES).default("string"),
+    optional: z.boolean().default(false),
+    default: z.string().max(MAX_CHOICE_VALUE_LENGTH).optional(),
+    description: z.string().max(MAX_QUESTION_LENGTH).optional(),
+  })
+  .strip();
 
-const userMacroInputOptionSchema = z.object({
-  label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
-  value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
-});
+const userMacroInputOptionSchema = z
+  .object({
+    label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
+    value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
+  })
+  .strip();
 
 /** One typed input (#24): a FLAT shape (kind + per-kind knobs, the ChoiceBlock editor idiom) — the
  *  semantics table lives on kit's `UserMacroInputDef` (resolveUserMacroInputs is the ONE resolution
  *  home). Every knob is defaulted so a stored def predating a knob self-heals at the parse seam. */
-const userMacroInputSchema = z.object({
-  kind: z.enum(USER_MACRO_INPUT_KINDS),
-  name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
-  label: z.string().max(MAX_QUESTION_LENGTH).default(""),
-  options: z.array(userMacroInputOptionSchema).max(MAX_CHOICE_OPTIONS).default([]),
-  separator: z.string().max(MAX_SEPARATOR_LENGTH).default(", "),
-  onValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default("true"),
-  offValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
-  defaultValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
-});
+const userMacroInputSchema = z
+  .object({
+    kind: z.enum(USER_MACRO_INPUT_KINDS),
+    name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
+    label: z.string().max(MAX_QUESTION_LENGTH).default(""),
+    options: z.array(userMacroInputOptionSchema).max(MAX_CHOICE_OPTIONS).default([]),
+    separator: z.string().max(MAX_SEPARATOR_LENGTH).default(", "),
+    onValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default("true"),
+    offValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
+    defaultValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
+  })
+  .strip();
 
 /** One user macro definition. `args` must declare optionals as a CONTIGUOUS SUFFIX (the arity model
  *  counts on it — the same shape rule the builtin metadata test pins). */
@@ -2330,6 +2354,7 @@ export const userMacroSchema = z
     inputs: z.array(userMacroInputSchema).max(MAX_USER_MACRO_INPUTS).default([]),
     strict: z.boolean().default(false),
   })
+  .strip()
   .superRefine((def, ctx) => {
     const firstOptional = def.args.findIndex((a) => a.optional);
     if (firstOptional !== -1 && def.args.slice(firstOptional).some((a) => !a.optional)) {
@@ -2380,57 +2405,63 @@ const SCHEMA_VERSION_V8 = 8;
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
  *  DEFAULT_PROMPT_CONFIG), so refusing on read would nuke an entire stored preset over one bad wrapper. The
  *  guard rides `promptConfigWriteSchema` below. */
-const formatStringsSchema = z.object({
-  continueNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
-  impersonateNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
-  responseNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
-  wiFormat: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
-  newChatMarker: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
-});
+const formatStringsSchema = z
+  .object({
+    continueNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+    impersonateNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+    responseNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+    wiFormat: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+    newChatMarker: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+  })
+  .strip();
 
-export const promptConfigSchema = z.object({
-  schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
-  sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
-  // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
-  // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
-  params: userIntentSchema.catch({}).default({}),
-  // NO `regexScripts` (D121-E): a preset's regex set is a REFERENCE list in `preset_regex_scripts`, not an
-  // embedded copy. `promptConfigSchema` is a plain (non-strict) object, so a stored pre-D121-E blob simply
-  // strips the retired key at the parse seam — no lift, no schema bump; the owner re-attaches by hand
-  // (BACKREST-MANUAL, the ruled NO-LEGACY carryover posture).
-  variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
-  // Preset-authored user macros — additive defaulted (a pre-MU blob parses; no
-  // version bump needed, the `variables`/`guidedActions` precedent).
-  userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
-  namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
-  continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
-  formatStrings: formatStringsSchema.optional(),
-  guidedActions: guidedActionsSchema.optional(),
-  // The per-PRESET PROSE-1 overrides (owner ruling 2026-08-07: templates have ONE home and it is presets).
-  // Keyed by slot id, holding the SAME `{text, baseVersion}` record every other home stores — which is why
-  // `resolveProse` needs no per-home arm. Additive + `.prefault({})`, so a pre-ruling blob parses unchanged
-  // and resolves every slot to its shipped default (the `variables`/`userMacros` precedent — no version bump).
-  // NOT a second door for the guided/format slots: those stay in their own fields (§4.6) and
-  // `PRESET_PROSE_SLOT_IDS` excludes them.
-  prose: proseOverridesSchema,
-  postProcess: z
-    .object({
-      collapseNewlines: z.boolean().default(false),
-      trimTrailingWhitespace: z.boolean().default(false),
-      dropIncompleteSentence: z.boolean().default(false),
-      singleLine: z.boolean().default(false),
-    })
-    .optional(),
-  // Inline `<think>` reasoning-tag fallback: native reasoning is always preferred; this only fires when
-  // the reply has no native reasoning AND `autoParse` is on. Defaults OFF (opt-in per preset).
-  reasoningParse: z
-    .object({
-      autoParse: z.boolean().default(false),
-      prefix: z.string().default(THINK_PREFIX_DEFAULT),
-      suffix: z.string().default(THINK_SUFFIX_DEFAULT),
-    })
-    .optional(),
-});
+export const promptConfigSchema = z
+  .object({
+    schemaVersion: z.int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
+    sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
+    // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
+    // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
+    params: userIntentSchema.catch({}).default({}),
+    // NO `regexScripts` (D121-E): a preset's regex set is a REFERENCE list in `preset_regex_scripts`, not an
+    // embedded copy. `promptConfigSchema` is a plain (non-strict) object, so a stored pre-D121-E blob simply
+    // strips the retired key at the parse seam — no lift, no schema bump; the owner re-attaches by hand
+    // (BACKREST-MANUAL, the ruled NO-LEGACY carryover posture).
+    variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
+    // Preset-authored user macros — additive defaulted (a pre-MU blob parses; no
+    // version bump needed, the `variables`/`guidedActions` precedent).
+    userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
+    namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
+    continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
+    formatStrings: formatStringsSchema.optional(),
+    guidedActions: guidedActionsSchema.optional(),
+    // The per-PRESET PROSE-1 overrides (owner ruling 2026-08-07: templates have ONE home and it is presets).
+    // Keyed by slot id, holding the SAME `{text, baseVersion}` record every other home stores — which is why
+    // `resolveProse` needs no per-home arm. Additive + `.prefault({})`, so a pre-ruling blob parses unchanged
+    // and resolves every slot to its shipped default (the `variables`/`userMacros` precedent — no version bump).
+    // NOT a second door for the guided/format slots: those stay in their own fields (§4.6) and
+    // `PRESET_PROSE_SLOT_IDS` excludes them.
+    prose: proseOverridesSchema,
+    postProcess: z
+      .object({
+        collapseNewlines: z.boolean().default(false),
+        trimTrailingWhitespace: z.boolean().default(false),
+        dropIncompleteSentence: z.boolean().default(false),
+        singleLine: z.boolean().default(false),
+      })
+      .strip()
+      .optional(),
+    // Inline `<think>` reasoning-tag fallback: native reasoning is always preferred; this only fires when
+    // the reply has no native reasoning AND `autoParse` is on. Defaults OFF (opt-in per preset).
+    reasoningParse: z
+      .object({
+        autoParse: z.boolean().default(false),
+        prefix: z.string().default(THINK_PREFIX_DEFAULT),
+        suffix: z.string().default(THINK_SUFFIX_DEFAULT),
+      })
+      .strip()
+      .optional(),
+  })
+  .strip();
 export type PromptConfig = z.infer<typeof promptConfigSchema>;
 
 // ── THE PIPELINE ORDER (the ONE declaration of what runs when) ─────────────────────────────────────
@@ -2967,33 +2998,31 @@ const ST_NAMES_BEHAVIOR: Record<number, NamesBehavior> = {
 };
 
 // ST wire field names are snake_case — they must match the foreign JSON verbatim.
-const stPromptSchema = z
-  .object({
-    identifier: z.string(),
-    name: z.string().optional(),
-    role: z.string().optional(),
-    content: z.string().optional(),
-    system_prompt: z.boolean().optional(),
-    marker: z.boolean().optional(),
-    injection_position: z.number().optional(),
-    injection_depth: z.number().optional(),
-    injection_order: z.number().optional(),
-    injection_trigger: z.array(z.string()).optional(),
-    forbid_overrides: z.boolean().optional(),
-  })
-  .loose();
-
-const stOrderEntrySchema = z.object({
+const stPromptSchema = z.looseObject({
   identifier: z.string(),
-  enabled: z.boolean().optional(),
+  name: z.string().optional(),
+  role: z.string().optional(),
+  content: z.string().optional(),
+  system_prompt: z.boolean().optional(),
+  marker: z.boolean().optional(),
+  injection_position: z.number().optional(),
+  injection_depth: z.number().optional(),
+  injection_order: z.number().optional(),
+  injection_trigger: z.array(z.string()).optional(),
+  forbid_overrides: z.boolean().optional(),
 });
 
-const stPresetSchema = z
+const stOrderEntrySchema = z
   .object({
-    prompts: z.array(stPromptSchema).optional(),
-    prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) })).optional(),
+    identifier: z.string(),
+    enabled: z.boolean().optional(),
   })
-  .loose();
+  .strip();
+
+const stPresetSchema = z.looseObject({
+  prompts: z.array(stPromptSchema).optional(),
+  prompt_order: z.array(z.object({ character_id: z.number(), order: z.array(stOrderEntrySchema) }).strip()).optional(),
+});
 
 export interface StDroppedField {
   field: string;

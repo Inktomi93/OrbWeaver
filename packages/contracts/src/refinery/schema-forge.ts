@@ -54,6 +54,7 @@
 // exponentially for (Anthropic caps union-typed params at 16), and the raw-paste door still accepts one for
 // the belt to judge. The renderer keeps its union widget for those.
 
+// Model-authored output keeps zod strip mode: a model-invented key is dropped, never a refused call.
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { PROTO_KEY, readOwnKey } from "@orb/kit/objects";
 import { z } from "zod";
@@ -134,10 +135,11 @@ const forgeFieldRowSchema = z
     /** Enum MEMBER → tone word. A PAIR LIST, not a map: an open key map is the exact construct the live probe
      *  showed hosted grammars collapse to "no keys permitted" (header). */
     tones: z
-      .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }))
+      .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }).strip())
       .max(REFINERY_SCHEMA_MAX_ENUM)
       .optional(),
   })
+  .strip()
   // #1371 item 1 — `minimum`/`maximum` were independent optionals with no pairing check, and
   // `writeNumericBounds` wrote both VERBATIM, so a design carrying `minimum: 10, maximum: 5` transpiled to
   // `{"type":"number","minimum":10,"maximum":5}` with an empty `dropped` list. That output becomes
@@ -165,53 +167,64 @@ export type ForgeFieldRow = z.infer<typeof forgeFieldRowSchema>;
  *  in this field and the editor routes the author to the raw door WITH whatever skeleton the design did
  *  reach, instead of quietly shipping a lossy flat approximation of their idea. We own the grammar, so the
  *  refusal costs one boolean. */
-export const forgeDesignEnvelopeSchema = z.object({
-  name: z.string().max(REFINERY_SCHEMA_NAME_MAX),
-  description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
-  fields: z.array(forgeFieldRowSchema).max(REFINERY_FORGE_MAX_FIELDS),
-  /** True when the ask needs a construct this leaf list cannot express. `fields` may still carry the part
-   *  that DID fit — that becomes the raw door's starter skeleton. */
-  needsRaw: z.boolean().optional(),
-  /** What the leaf list could not express, in the author's terms. Shown verbatim when `needsRaw`. */
-  needsRawReason: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX).optional(),
-});
+export const forgeDesignEnvelopeSchema = z
+  .object({
+    name: z.string().max(REFINERY_SCHEMA_NAME_MAX),
+    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+    fields: z.array(forgeFieldRowSchema).max(REFINERY_FORGE_MAX_FIELDS),
+    /** True when the ask needs a construct this leaf list cannot express. `fields` may still carry the part
+     *  that DID fit — that becomes the raw door's starter skeleton. */
+    needsRaw: z.boolean().optional(),
+    /** What the leaf list could not express, in the author's terms. Shown verbatim when `needsRaw`. */
+    needsRawReason: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX).optional(),
+  })
+  .strip();
 export type ForgeDesignEnvelope = z.infer<typeof forgeDesignEnvelopeSchema>;
 
 /** How many rows one `guided` plan may name — the per-field call fans out one batch item per row. */
 const REFINERY_FORGE_MAX_PLAN_FIELDS = 16;
 
 /** The `guided` arm's FIRST call: paths + intents only. Tiny grammar, all the attention on decomposition. */
-export const forgePlanEnvelopeSchema = z.object({
-  name: z.string().max(REFINERY_SCHEMA_NAME_MAX),
-  description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
-  fields: z
-    .array(
-      z.object({ path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS), intent: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX) }),
-    )
-    .min(1)
-    .max(REFINERY_FORGE_MAX_PLAN_FIELDS),
-});
+export const forgePlanEnvelopeSchema = z
+  .object({
+    name: z.string().max(REFINERY_SCHEMA_NAME_MAX),
+    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+    fields: z
+      .array(
+        z
+          .object({
+            path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
+            intent: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+          })
+          .strip(),
+      )
+      .min(1)
+      .max(REFINERY_FORGE_MAX_PLAN_FIELDS),
+  })
+  .strip();
 
 /** The `guided` arm's PER-FIELD call: exactly one finished row. */
-export const forgeFieldEnvelopeSchema = z.object({ field: forgeFieldRowSchema });
+export const forgeFieldEnvelopeSchema = z.object({ field: forgeFieldRowSchema }).strip();
 
 /** The `two-stage` arm's SECOND call: display vocabulary only, keyed by the paths the FIRST call fixed. The
  *  structure is ours by then — the model cannot move a field while hinting it. A path that matches no row
  *  is dropped and counted, never applied to a guess. */
-const forgeHintRowSchema = z.object({
-  path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
-  role: z.enum(RENDER_HINT_ROLES).optional(),
-  group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
-  label: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
-  chart: z.enum(["bars", "radar"]).optional(),
-  tones: z
-    .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }))
-    .max(REFINERY_SCHEMA_MAX_ENUM)
-    .optional(),
-});
+const forgeHintRowSchema = z
+  .object({
+    path: z.string().max(REFINERY_SCHEMA_NAME_MAX * REFINERY_FORGE_MAX_PATH_SEGMENTS),
+    role: z.enum(RENDER_HINT_ROLES).optional(),
+    group: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
+    label: z.string().max(REFINERY_SCHEMA_NAME_MAX).optional(),
+    chart: z.enum(["bars", "radar"]).optional(),
+    tones: z
+      .array(z.object({ member: z.string().max(REFINERY_SCHEMA_NAME_MAX), tone: z.enum(RENDER_HINT_TONES) }).strip())
+      .max(REFINERY_SCHEMA_MAX_ENUM)
+      .optional(),
+  })
+  .strip();
 export type ForgeHintRow = z.infer<typeof forgeHintRowSchema>;
 
-export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSchema).max(REFINERY_FORGE_MAX_FIELDS) });
+export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSchema).max(REFINERY_FORGE_MAX_FIELDS) }).strip();
 
 // ── the spliced well-known cores ─────────────────────────────────────────────────────────────────────────
 

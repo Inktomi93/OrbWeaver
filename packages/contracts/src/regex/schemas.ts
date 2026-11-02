@@ -74,6 +74,7 @@ const regexHistoryDepthSchema = z
     min: z.int().min(0).default(0),
     max: z.int().min(0).nullable().default(null),
   })
+  .strip()
   .superRefine((scope, ctx): void => {
     if (scope.max !== null && scope.max < scope.min) {
       ctx.addIssue({ code: "custom", message: "maximum depth must not be shallower than the minimum", path: ["max"] });
@@ -83,28 +84,30 @@ const regexHistoryDepthSchema = z
 /** The behavior FIELDS, un-checked — the base every `.extend()`/`.partial()` derives from. The pairing
  *  check rides {@link regexScriptBehaviorSchema}; zod refuses `.partial()` on a refined object, so the
  *  patch schema has to descend from this one. */
-const regexScriptBehaviorFields = z.object({
-  // Storage-boundary cap == execution cap (`@orb/kit/regex` MAX_FIND_REGEX_LENGTH) so an over-long
-  // pattern can't even be persisted (it would otherwise only be rejected at execution).
-  findRegex: z.string().max(MAX_FIND_REGEX_LENGTH),
-  replaceString: z.string().max(MAX_REPLACE_LENGTH),
-  placement: regexPlacementListSchema,
+const regexScriptBehaviorFields = z
+  .object({
+    // Storage-boundary cap == execution cap (`@orb/kit/regex` MAX_FIND_REGEX_LENGTH) so an over-long
+    // pattern can't even be persisted (it would otherwise only be rejected at execution).
+    findRegex: z.string().max(MAX_FIND_REGEX_LENGTH),
+    replaceString: z.string().max(MAX_REPLACE_LENGTH),
+    placement: regexPlacementListSchema,
 
-  // Options mimicking the legacy ST card-format. `markdownOnly` = the per-user DISPLAY tier (D53's
-  // preserved clause — the flags ARE the tier discriminant); `promptOnly` is its complement.
-  markdownOnly: z.boolean().default(false),
-  promptOnly: z.boolean().default(false),
-  runOnEdit: z.boolean().default(false),
-  trimStrings: z.array(z.string().max(MAX_TRIM_STRING_LENGTH)).max(MAX_TRIM_STRINGS).default([]),
+    // Options mimicking the legacy ST card-format. `markdownOnly` = the per-user DISPLAY tier (D53's
+    // preserved clause — the flags ARE the tier discriminant); `promptOnly` is its complement.
+    markdownOnly: z.boolean().default(false),
+    promptOnly: z.boolean().default(false),
+    runOnEdit: z.boolean().default(false),
+    trimStrings: z.array(z.string().max(MAX_TRIM_STRING_LENGTH)).max(MAX_TRIM_STRINGS).default([]),
 
-  // How macros run on the FIND pattern before it is compiled (kit `SubstituteFindRegex`: none/raw/escaped).
-  // Multi-value `z.literal([...])` (zod 4.x) — one node, one `invalid_value` issue naming all three options,
-  // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
-  substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
+    // How macros run on the FIND pattern before it is compiled (kit `SubstituteFindRegex`: none/raw/escaped).
+    // Multi-value `z.literal([...])` (zod 4.x) — one node, one `invalid_value` issue naming all three options,
+    // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
+    substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
 
-  // Present IFF `placement` carries `PROMPT_HISTORY` — enforced in both directions below.
-  historyDepth: regexHistoryDepthSchema.optional(),
-});
+    // Present IFF `placement` carries `PROMPT_HISTORY` — enforced in both directions below.
+    historyDepth: regexHistoryDepthSchema.optional(),
+  })
+  .strip();
 
 /** The depth scope and the depth-scoped LEG are one fact, so they are validated as one (see the header's
  *  check clause). Both arms are stated: depth without the leg would be a knob that governs nothing (D107),
@@ -308,9 +311,11 @@ export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 // attached to, alongside the by-value `regex_scripts` ST payload. On a same-install re-import the references
 // re-link to the existing rows (zero duplicate rows); on a foreign install they resolve to nothing and the
 // by-value payload lifts instead. Library scripts are never cloned through the reference channel.
-export const attachedRegexScriptRefSchema = z.object({
-  regexScriptId: typeIdSchema(ID_PREFIX.regexScript),
-});
+export const attachedRegexScriptRefSchema = z
+  .object({
+    regexScriptId: typeIdSchema(ID_PREFIX.regexScript),
+  })
+  .strip();
 export type AttachedRegexScriptRef = z.infer<typeof attachedRegexScriptRefSchema>;
 
 /** The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`

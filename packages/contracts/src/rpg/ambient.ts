@@ -8,6 +8,7 @@
 // `timeOfDayAtHour`, the ONE derivation home. `weather` has `type` required, everything else
 // optional — lite writes `{type:"rain"}`; full's engine fills the optional fields on the SAME shape.
 
+// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 import { WEATHER_TYPES } from "@orb/kit/weather";
 import { z } from "zod";
 
@@ -32,11 +33,13 @@ const MINUTE_MAX = 59;
  *
  *  Lite sets the time via the `TIME_OF_DAY` label; full's engine sets it directly. Reading the label back is
  *  {@link clockTimeOfDay} — the ONE guard, so no consumer re-decides what "this clock has no time" means. */
-export const rpgClockTimeSchema = z.object({
-  day: z.int().min(1),
-  hour: z.int().min(0).max(HOUR_MAX).nullable(),
-  minute: z.int().min(0).max(MINUTE_MAX).nullable(),
-});
+export const rpgClockTimeSchema = z
+  .object({
+    day: z.int().min(1),
+    hour: z.int().min(0).max(HOUR_MAX).nullable(),
+    minute: z.int().min(0).max(MINUTE_MAX).nullable(),
+  })
+  .strip();
 export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
 
 /** The CLOSED weather vocabulary the model writes and the panel's Waystone paints — the axis is homed in
@@ -65,14 +68,16 @@ export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX) satisfies
  *  The volatile-plane merge RECURSES into a plain-object patch ([merge-clear]), so a type-only write over a
  *  labelled sky would leave the OLD flavor text stranded on the new weather ("torrential sleet" over
  *  `clear`). A total field means every write carries the answer. */
-export const rpgWeatherSchema = z.object({
-  type: rpgWeatherTypeSchema,
-  label: rpgWeatherLabelSchema.default(""),
-  temperatureC: z.number().optional(),
-  description: z.string().optional(),
-  wind: z.string().optional(),
-  visibility: z.string().optional(),
-});
+export const rpgWeatherSchema = z
+  .object({
+    type: rpgWeatherTypeSchema,
+    label: rpgWeatherLabelSchema.default(""),
+    temperatureC: z.number().optional(),
+    description: z.string().optional(),
+    wind: z.string().optional(),
+    visibility: z.string().optional(),
+  })
+  .strip();
 export type RpgWeather = z.infer<typeof rpgWeatherSchema>;
 
 /** The DISPLAY text for a weather: the model's free `label` when it wrote one, else the canonical type.
