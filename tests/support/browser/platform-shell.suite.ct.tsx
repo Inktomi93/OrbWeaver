@@ -117,11 +117,14 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
   });
 }
 
-// The room's hooks are the public slot names; a bare probe wearing them, inside the content column whose height the
-// rule queries, reads the shell sheet's rule without mounting a chat room.
+// The room's hooks are the public slot names; a bare probe wearing them in the room's own nesting (surface, body, the
+// transcript's box, its flank row), inside the content column whose height the rule queries, reads the shell sheet's
+// rule without mounting a chat room. The short room is the cq-28 height step (UI-Architecture-and-Layout.md §4b axis 4),
+// so a landscape phone floors the transcript with or without its keyboard; a portrait phone is tall.
 for (const [viewport, short] of [
   [PHONE_LANDSCAPE_KEYBOARD, true],
-  [PHONE_LANDSCAPE, false],
+  [PHONE_LANDSCAPE, true],
+  [PHONE_PORTRAIT, false],
 ] as const) {
   test(`shell-short ${short ? "floors the transcript" : "leaves the transcript alone"} at ${String(viewport.width)}x${String(viewport.height)}`, async ({
     mount,
@@ -132,11 +135,14 @@ for (const [viewport, short] of [
     const probed = await page.evaluate(() => {
       const surface = document.createElement("div");
       surface.dataset["slot"] = "chat-room-surface";
+      const body = document.createElement("div");
+      body.dataset["slot"] = "chat-room-body";
       const anchor = document.createElement("div");
       const row = document.createElement("div");
       row.dataset["slot"] = "chat-room-flank-row";
       anchor.append(row);
-      surface.append(anchor);
+      body.append(anchor);
+      surface.append(body);
       document.querySelector(".shell-main")?.append(surface);
       const floor = getComputedStyle(anchor).minBlockSize;
       surface.remove();
