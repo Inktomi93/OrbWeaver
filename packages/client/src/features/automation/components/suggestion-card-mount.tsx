@@ -23,11 +23,13 @@
 // renders the newest card and discloses the rest as "+N pending" — this source publishes oldest-first and
 // lets the band own that law.
 
+import type { SuggestionCardDetail } from "@orb/contracts/automation";
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { AutomationSuggestionId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { DiffView } from "@orb/ui/diff";
 import { ScrollArea } from "@orb/ui/scroll-area";
+import { Text } from "@orb/ui/text";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useBusRoom, useInvalidation, useTRPC } from "#data";
@@ -80,6 +82,36 @@ function RewriteDetail({ before, after }: { readonly before: string; readonly af
       </CollapsiblePanel>
     </Collapsible>
   );
+}
+
+/** A plugin turn's whole steer behind the same closed disclosure. The title cuts the steer to one line; the host
+ *  pays for the turn the full text drives, so the full text is one click away before they answer. */
+function SteerDetail({ text }: { readonly text: string }): ReactNode {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger>Show the full steer</CollapsibleTrigger>
+      <CollapsiblePanel>
+        <ScrollArea viewportClassName="max-block-(--height-scroll-md)" wrapContent={true}>
+          <Text as="div" className="whitespace-pre-wrap" data-slot="suggestion-steer">
+            {text}
+          </Text>
+        </ScrollArea>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+function cardDetail(detail: SuggestionCardDetail): ReactNode {
+  switch (detail.kind) {
+    case "rewrite":
+      return <RewriteDetail before={detail.before} after={detail.after} />;
+    case "steer":
+      return <SteerDetail text={detail.text} />;
+    default: {
+      const exhaustive: never = detail;
+      throw new Error(`unhandled suggestion card detail ${JSON.stringify(exhaustive)}`);
+    }
+  }
 }
 
 export function AutomationSuggestionMount({ state, publish }: ChatControlSourceMountProps): ReactNode {
@@ -153,7 +185,7 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
       // The band does NOT compare `detail` across publishes (it compares kind/id/title/actions), which is
       // safe here for the reason the contract names: a card's detail is a pure function of its ask, and an
       // ask that changes gets a new `id` from the server.
-      ...(ask.detail === undefined ? {} : { detail: <RewriteDetail before={ask.detail.before} after={ask.detail.after} /> }),
+      ...(ask.detail === undefined ? {} : { detail: cardDetail(ask.detail) }),
       actions: [
         {
           id: ask.id,

@@ -342,7 +342,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assets: { read: assetReads.read, storeFetched: pluginRuntime.storeFetched },
     search: { documents: createPluginDocumentSearch((params) => deps.search.documents(params)) },
     suggestions: {
-      raise: createPluginSuggestionRaiser({ suggestions: automationSuggestions, notify: automationNotify, newSuggestionId, now }),
+      raise: createPluginSuggestionRaiser({
+        db,
+        suggestions: automationSuggestions,
+        notify: automationNotify,
+        newSuggestionId,
+        now,
+        installerHandle: async (userId) => (await resolveOwnerPrincipal(userId)).handle,
+      }),
       voidForPlugin: (pluginId) => {
         automationSuggestions.voidPlugin(pluginId);
       },

@@ -14,10 +14,11 @@
 // is deliberate: a host confirming an act does not top up the plugin's egress or spend budget.
 //
 // WHAT IT DOES **NOT** RE-CHECK, and why that is correct rather than a gap: authority. The confirm verb
-// already gated the caller as HOST of the ask's own chat, claimed the ask take-once, and re-proved that the
-// installer is still a present member. The host's yes IS the authority for a plugin ask (owner ruling), so
-// the installer need not host. That is why the confirmed turn skips the bridge's `requireHost(installer)`
-// gate, which belongs to the DIRECT call; chat's `requestTurn` still refuses an initiator who is not present.
+// already gated the caller as HOST of the ask's own chat, claimed the ask take-once, and re-proved that the host
+// is the one the card was raised to and the installer holds the same membership. That host's yes IS the
+// authority for a plugin ask (owner ruling), so the installer need not host. That is why the confirmed turn
+// skips the bridge's `requireHost(installer)` gate, which belongs to the DIRECT call; chat's `requestTurn`
+// still refuses an initiator who is not present.
 //
 // NO GUEST RUNS. Every act is a HOST-side op; the sandbox is not involved, so a confirmed act works whether or
 // not the plugin still has a resident instance. It works because the ACT is data, not a closure — a pending

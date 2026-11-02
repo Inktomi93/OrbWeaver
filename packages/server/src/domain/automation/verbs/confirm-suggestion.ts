@@ -18,10 +18,11 @@
 //      alternative (put it back) is what turns a refusal into a retry loop against dead state.
 //   3. RE-CHECK the two things that can have died since the ask was raised — BY ORIGIN. For a rule: it still
 //      exists and is enabled, and its AUTHOR still hosts. The confirmer's host role never stands in for the
-//      author's, and on a handoff the pending ask dies fail-closed: no re-mint, no transfer. For a PLUGIN: it
-//      is still installed and enabled (the injected read), and its INSTALLER is still a present member. Here
-//      the host's yes IS the authority, so the installer need not host (owner ruling; the one exception to the
-//      rule origin's actor-must-host check). `substrate/authority.ts::askActorStillStands` owns both answers.
+//      author's. For a PLUGIN: it is still installed and enabled (the injected read), the host its card was
+//      raised to still hosts, and its INSTALLER holds the same membership. Here that host's yes IS the
+//      authority, so the installer need not host (owner ruling; the one exception to the rule origin's
+//      actor-must-host check). On a handoff both die fail-closed: no re-mint, no transfer.
+//      `substrate/authority.ts::askActorStillStands` owns both answers.
 //   4. EXECUTE by ORIGIN, then by class. A rule's `confirm` runs the STASHED arm through the injected
 //      dispatcher with `confirmFirst` cleared, in the STORED frame, and records a `fired` row stamped with
 //      the confirmer; its `invitation` has no stored payload by construction (`budget_refused` precedes
@@ -92,15 +93,15 @@ async function assertRuleStillLive(ctx: AutomationContext, pending: PendingSugge
 }
 
 /** The PLUGIN origin's liveness: the plugin is still installed AND enabled (the INJECTED read; automation holds
- *  no `plugins` table and may not query one), and its INSTALLER is still in the room. Fail-CLOSED both ways: a
- *  disabled plugin's card must not run one more act after the owner turned it off, and an installer who left or
- *  was removed must not have an act run under their grants. Each refuses typed, so a host who kept a card open
- *  learns WHICH thing changed. */
+ *  no `plugins` table and may not query one), and the standing the ask recorded still holds. Fail-CLOSED both
+ *  ways: a disabled plugin's card must not run one more act after the owner turned it off, and an installer who
+ *  left or was removed must not have an act run under their grants. Each refuses typed, so a host who kept a
+ *  card open learns WHICH thing changed. */
 async function assertPluginStillLive(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<void> {
   if (!(await ctx.isPluginLive(pluginId, pending.actorUserId))) {
     throw new SuggestionRefusedError("rule_disabled", "the plugin behind this suggestion is no longer installed or enabled");
   }
-  await assertActorStillStands(ctx, pending, "the plugin's installer is no longer in this room");
+  await assertActorStillStands(ctx, pending, "the room's host or the plugin installer's place in it has changed since the ask");
 }
 
 const ACT_FAILED = "act_failed";

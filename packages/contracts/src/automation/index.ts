@@ -895,23 +895,24 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
  *  re-read. */
 // The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
-//  cannot. It exists for exactly one reason and gains members the same way: a REWRITE card must show the host
-//  WHAT WOULD CHANGE before they say yes, and a "Fix the prose?" summary is not that. Both strings are capped
-//  at {@link ANALYSIS_REWRITE_MAX} at the producer.
+//  cannot. Each arm exists because the host must see exactly what they approve before they say yes:
+//  - `rewrite`: WHAT WOULD CHANGE. A "Fix the prose?" summary is not that. Both strings are capped at
+//    {@link ANALYSIS_REWRITE_MAX} at the producer.
+//  - `steer`: a plugin turn's whole steer. The summary is cut to {@link AUTOMATION_SUGGESTION_SUMMARY_MAX}, and
+//    the host pays for the turn the full steer drives. Capped at the chat steer cap at the bridge.
 //
 //  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
 //  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
-//  never forwarded to a member subscriber (the room source's member filter is default-deny), so the audited
-//  text crosses to exactly the host who could already read it in the transcript.
-//
-//  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
-//  re-type of every consumer (the single-arm-union seam shape).
-export interface SuggestionCardDetail {
-  readonly kind: "rewrite";
-  /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
-  readonly before: string;
-  readonly after: string;
-}
+//  never forwarded to a member subscriber (the room source's member filter is default-deny), so the text
+//  crosses only to the host being asked.
+export type SuggestionCardDetail =
+  | {
+      readonly kind: "rewrite";
+      /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
+      readonly before: string;
+      readonly after: string;
+    }
+  | { readonly kind: "steer"; readonly text: string };
 
 export type AutomationBusEvent =
   | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }
@@ -932,8 +933,8 @@ export type AutomationBusEvent =
        *  edge the server sweeps, so a stale card never sits offering an ask that would refuse. */
       expiresAt: number;
       /** OPTIONAL structured body ({@link SuggestionCardDetail}) — present only for the ask classes whose card
-       *  shows more than a question (today: C3's rewrite diff). Absent ⇒ the card is title + actions, exactly
-       *  as every A4 card renders today, so this field changes no existing event's bytes. */
+       *  shows more than a question (C3's rewrite diff, a plugin turn's steer). Absent ⇒ the card is title +
+       *  actions. */
       detail?: SuggestionCardDetail;
     }
   /** S4 RETIREMENT (host-only, id-only) — the twin of `suggestionRaised`: a pending ask was ANSWERED

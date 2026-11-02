@@ -1,4 +1,4 @@
-import { variableDeltaSchema, variablePreconditionsSchema } from "@orb/contracts/chat";
+import { GUIDED_STEER_INPUT_MAX, variableDeltaSchema, variablePreconditionsSchema } from "@orb/contracts/chat";
 import { databankTextDocumentSchema } from "@orb/contracts/databank";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
@@ -93,10 +93,11 @@ const SUGGESTED_ACT_HOST_FUNCTION = {
   generatePicture: "imagery.generatePicture",
 } as const satisfies Record<PluginSuggestedActKind, HostFunctionRef>;
 
-// The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it.
+// The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it. The steer
+// takes the cap the app's own steer input has, so an ask cannot carry more text than a member could type.
 const turnHintsSchema = z.object({
   speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
-  guided: z.string().exactOptional(),
+  guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
 }) satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
 
 // An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.

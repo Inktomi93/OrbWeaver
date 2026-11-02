@@ -78,8 +78,8 @@ function loadMatchedRules(
 }
 
 /** RULED (§8, VOID-ALL on host handoff) — "authority died, its pending asks die with it; a re-fire under the
- *  new host mints fresh". This is where that ruling meets the tree, for RULE asks. A PLUGIN ask's authority is
- *  the host's yes, so a handoff leaves it open; it dies when its installer leaves the room.
+ *  new host mints fresh". This is where that ruling meets the tree, for both origins. A PLUGIN ask also dies
+ *  when its installer leaves the room, even if they are invited back before this sweep runs.
  *
  *  THE EDGE IT RIDES: `chatUpdated`. `acceptHostHandoff` (chat's roster verb) emits it after the atomic role
  *  swap, and the automation domain has no other sight of a handoff — there is no `hostChanged` member, and
@@ -98,7 +98,7 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
   }
   const pending = ctx.suggestions.listForChat(chatId, ctx.now());
   // The sweep and the confirm re-check ask ONE question per origin (`askActorStillStands`): a rule's card dies
-  // when its author stops hosting, a plugin's card when its installer leaves the room.
+  // when its author stops hosting, a plugin's card on a handoff or when its installer's membership ends.
   const held = await Promise.all(pending.map((ask) => askActorStillStands(ctx, ask)));
   pending.forEach((ask, i) => {
     if (held[i] !== true) {

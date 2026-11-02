@@ -222,6 +222,7 @@ export {
   GROUP_OUTPUT_LABELS,
   GROUP_POLICIES,
   GROUP_POLICY_LABELS,
+  GUIDED_STEER_INPUT_MAX,
   groupConfigInputSchema,
   groupConfigSchema,
   guidedSteerSchema,
