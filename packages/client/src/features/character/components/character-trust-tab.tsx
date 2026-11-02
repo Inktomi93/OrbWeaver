@@ -79,6 +79,7 @@ export function CharacterTrustTab({ characterId }: CharacterAppearanceTabProps):
     // RESERVED (#1098) — the Trust tab settles into the render-policy rows; its sibling Look tab is keyed
     // for the same reason, and two tabs in one panel that resize differently is the worse half of it.
     <QueryBoundary
+      resetKeys={[characterId]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="trust" onRetry={retry} />}
       reserveKey="character.context.trust"

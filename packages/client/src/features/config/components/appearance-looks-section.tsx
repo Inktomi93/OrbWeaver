@@ -112,6 +112,7 @@ export function AppearanceLooksSection({ anchorId }: { readonly anchorId: string
   return (
     <Section divider={true} heading={APPEARANCE_LOOKS_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={LOOKS_SKELETON_ROWS} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
         reserveBlock={firstBootBox}

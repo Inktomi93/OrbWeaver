@@ -18,12 +18,10 @@ import type { EffectiveProfileRow } from "./effective-knobs.ts";
 import type { PresetEditorValues } from "./preset-editor-values.ts";
 import type { PresetEditorView } from "./preset-nav.ts";
 import { openSectionInPrompt } from "./preset-nav.ts";
-import type { ReadFailure } from "./resolve-failure.ts";
 
 export interface ViewContentProps {
   readonly form: AppFormInstance<PresetEditorValues>;
   readonly capability: GenerationCapability | undefined;
-  readonly capabilityError: ReadFailure | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The Macros body's source attribution (`preset:<id>` in the browser). */
@@ -40,10 +38,10 @@ export interface ViewContentProps {
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 export function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, capabilityError, effective, presetId, attachable, onRevealSection, samplerSpelling } = props;
+  const { form, capability, effective, presetId, attachable, onRevealSection, samplerSpelling } = props;
   switch (id) {
     case "params":
-      return <ParamsDeck capability={capability} capabilityError={capabilityError} effective={effective} form={form} samplerSpelling={samplerSpelling} />;
+      return <ParamsDeck capability={capability} effective={effective} form={form} samplerSpelling={samplerSpelling} />;
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).

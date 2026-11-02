@@ -42,7 +42,8 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { EditorPage, SettingRowGroup, SettingTrackRow } from "#components";
+import { EditorPage, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { useSuspenseQuery, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import {
   pageStep,
@@ -55,13 +56,13 @@ import {
   supportsDrySequenceBreakers,
   supportsSeed,
 } from "../lib/capability-panel-model.ts";
+import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { MIROSTAT_SKIPPED_GLOSS, mirostatSkipped, qualityDeckGloss } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
-import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
-import { CapabilityGate } from "./capability-gate.tsx";
+import { CapabilityGate, CapabilityGatePending } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 import { SamplerOrder } from "./sampler-order.tsx";
@@ -73,22 +74,13 @@ type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface ParamsDeckProps {
   readonly form: AppForm;
-  /** `undefined` until the capability read lands, and forever if it FAILS — QUALITY/CONTEXT/ADVANCED still
-   *  render, the model-fed clusters stand down to `CapabilityGate`. Which of that gate's two arms shows is
-   *  the `capabilityError` split, never this field: PENDING holds a skeleton, a FAILED read quotes the server
-   *  and names the cause it has EARNED (a routing verdict only on a routing refusal — F-02 + the 2026-08-08
-   *  earned-cause fix). There is no third arm — a settled-successful read always carries a descriptor, so
-   *  `undefined` here means pending-or-failed and nothing else. */
+  /** `undefined` until the capability read lands, and forever if it FAILS — the limits degrade to the
+   *  preset's own values. The model-fed clusters read the descriptor themselves under the deck's boundary,
+   *  whose PENDING arm holds a skeleton and whose FAILED arm quotes the server (`CapabilityGate`). */
   readonly capability: GenerationCapability | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
-  /** The capability read's THROWN error object — `null` while the read is still PENDING. Passed WHOLE (not a
-   *  flattened `.message`) so the gate discriminates the cause on `data.code`: only a routing refusal earns
-   *  the routing verdict (side-eye F-02 + the 2026-08-08 earned-cause fix), and a pending read is not a state
-   *  at all, so the gate must print neither over the other. `ReadFailure | null`, never `unknown`: an
-   *  `undefined` leaking in would select the gate's FAILED arm under a read that never failed. */
-  readonly capabilityError: ReadFailure | null;
   /** The target connection's sampler spellings, for the staleness row; `undefined` until they load. */
   readonly samplerSpelling: StalenessRowProps["spelling"];
 }
@@ -96,7 +88,7 @@ export interface ParamsDeckProps {
 /** A knob row whose slider moves in whole steps — it also pages by a range-sized step. */
 const INTEGER_STEP = 1;
 
-export function ParamsDeck({ form, capability, effective, capabilityError, samplerSpelling }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, effective, samplerSpelling }: ParamsDeckProps): ReactElement {
   return (
     <>
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
@@ -124,16 +116,40 @@ export function ParamsDeck({ form, capability, effective, capabilityError, sampl
         {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
             PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two
             are exhaustive and why the old connect-a-model empty state was a flash, not a state. */}
-        {capability === undefined ? (
-          <CapabilityGate error={capabilityError} />
-        ) : (
-          <>
-            <SamplingCluster capability={capability} effective={effective} form={form} samplerSpelling={samplerSpelling} />
-            <ReasoningCluster capability={capability} effective={effective} form={form} />
-          </>
-        )}
+        <QueryBoundary
+          resetKeys={[]}
+          fallback={<CapabilityGatePending />}
+          renderError={(error, retry): ReactElement => <CapabilityGate error={error} onRetry={retry} />}
+        >
+          <ModelFedClusters effective={effective} form={form} samplerSpelling={samplerSpelling} />
+        </QueryBoundary>
         <ParamsLimits capability={capability} effective={effective} form={form} />
       </EditorPage>
+    </>
+  );
+}
+
+/** SAMPLING and REASONING, which need the chat model's descriptor. A settled resolve that describes no generation model has
+ *  nothing for them to show, so it keeps the pending skeleton rather than claiming an empty model. */
+function ModelFedClusters({
+  form,
+  effective,
+  samplerSpelling,
+}: {
+  readonly form: AppForm;
+  readonly effective: EffectiveProfileRow | undefined;
+  readonly samplerSpelling: StalenessRowProps["spelling"];
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.connection.resolveChatCapability.queryOptions());
+  const capability = chatCapabilityOf(data);
+  if (capability === undefined) {
+    return <CapabilityGatePending />;
+  }
+  return (
+    <>
+      <SamplingCluster capability={capability} effective={effective} form={form} samplerSpelling={samplerSpelling} />
+      <ReasoningCluster capability={capability} effective={effective} form={form} />
     </>
   );
 }

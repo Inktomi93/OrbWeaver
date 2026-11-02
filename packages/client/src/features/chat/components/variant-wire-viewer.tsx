@@ -33,7 +33,7 @@
 // they were minted for, so the empty-prompt arm keeps its honest "nothing was captured" answer and the
 // provenance sections render beneath it either way.
 //
-// The read is GATED on `open` (`useQuery` `enabled`) — never eager per row — and immutable once committed
+// The read is mounted only while `open` (a suspending child under a `QueryBoundary`) — never eager per row — and immutable once committed
 // (`staleTime: Infinity`): an edit mints a new variant and a swipe appends one, so a variant's stamped prompt
 // never changes. A NOT_FOUND is a TYPED gone-arm (the `MemberCardViewer` precedent), never a swallowed catch:
 // it is what a deleted message, or a foreign variantId, resolves to.
@@ -46,10 +46,9 @@ import { Section, Stack } from "@orb/ui/layout";
 import type { LogLine } from "@orb/ui/log-viewer";
 import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ViewerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryBoundary, ViewerDialog } from "#components";
+import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 
 const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
@@ -213,51 +212,41 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
 }
 
 export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: VariantWireViewerProps): ReactElement {
-  const trpc = useTRPC();
-  const wire = useQuery({
-    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
-    // Gated: the key is built (and the server hit) ONLY while the dialog is open — never eager per row.
-    enabled: open,
-    // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner.
-    retry: (_count, error): boolean => !isNotFound(error),
-  });
-
   return (
     <ViewerDialog title="What this reply sent" popupProps={{ size: "lg", "data-testid": testId("variantWireViewer") }} open={open} onOpenChange={onOpenChange}>
-      <WireDialogBody isError={wire.isError} error={wire.error} data={wire.data} onRetry={(): void => void wire.refetch().catch(globalThis.reportError)} />
+      {/* The read exists only while the dialog is open, so it is never eager per row. A NOT_FOUND is an answer (the typed gone
+          arm), not a failure. */}
+      {open ? (
+        <QueryBoundary
+          resetKeys={[chatId, variantId]}
+          fallback={<SkeletonRows count={4} />}
+          renderError={(error, retry): ReactElement =>
+            isNotFound(error) ? (
+              // action={null}: the RAWVIEW inspector's NOT_FOUND gone-arm (the message was deleted, so no wire record is left to read) — the member-card-viewer precedent, same species, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-messages affordance the gone arm could point at.
+              <EmptyState
+                action={null}
+                icon={<Icon icon={ScrollText} size="lg" />}
+                title="This reply is gone"
+                description="The message was deleted, so there's no wire record left to read."
+              />
+            ) : (
+              <QueryErrorState label="the wire record" onRetry={retry} />
+            )
+          }
+        >
+          <LoadedWire chatId={chatId} variantId={variantId} />
+        </QueryBoundary>
+      ) : null}
     </ViewerDialog>
   );
 }
 
-/** The three read arms — the TYPED gone-arm first (a NOT_FOUND is an answer, not a failure), then the
- *  transient error arm, then loading, then the body. */
-function WireDialogBody({
-  isError,
-  error,
-  data,
-  onRetry,
-}: {
-  readonly isError: boolean;
-  readonly error: unknown;
-  readonly data: VariantWireView | undefined;
-  readonly onRetry: () => void;
-}): ReactElement {
-  if (isError && isNotFound(error)) {
-    return (
-      // action={null}: the RAWVIEW inspector's NOT_FOUND gone-arm (the message was deleted, so no wire record is left to read) — the member-card-viewer precedent, same species, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-messages affordance the gone arm could point at.
-      <EmptyState
-        action={null}
-        icon={<Icon icon={ScrollText} size="lg" />}
-        title="This reply is gone"
-        description="The message was deleted, so there's no wire record left to read."
-      />
-    );
-  }
-  if (isError) {
-    return <QueryErrorState label="the wire record" onRetry={onRetry} />;
-  }
-  if (data === undefined) {
-    return <SkeletonRows count={4} />;
-  }
+function LoadedWire({ chatId, variantId }: { readonly chatId: ChatId; readonly variantId: MessageVariantId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery({
+    ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
+    // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner; any other failure keeps the shared rule.
+    retry: (failureCount, error): boolean => !isNotFound(error) && retryUnlessBadRequest(failureCount, error),
+  });
   return <WireBody wire={data} />;
 }

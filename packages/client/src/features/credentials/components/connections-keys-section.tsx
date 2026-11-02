@@ -24,6 +24,7 @@ export function ConnectionsKeysSection({ anchorId }: { readonly anchorId: string
   return (
     // RESERVED (#1098) — a config section that settles into the saved-key library, with every later Connections section stacked under it.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your saved keys" onRetry={retry} />}
       reserveBlock={firstBootBox}

@@ -43,6 +43,7 @@ export function BoundSelect({
     const HostPicker = HOST_PICKERS[node.optionsFromHost];
     return (
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={1} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your world books" onRetry={retry} />}
         reserveKey="plugin.lore-picker"

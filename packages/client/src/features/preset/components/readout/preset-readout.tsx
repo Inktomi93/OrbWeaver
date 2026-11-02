@@ -36,9 +36,9 @@ import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 import { qualityMappingGloss } from "#src/features/preset/lib/effective-knobs.ts";
 import type { PresetEditorView } from "#src/features/preset/lib/preset-nav.ts";
@@ -53,12 +53,27 @@ import { ReadoutBindingChip } from "./readout-binding.tsx";
 import { TransformsReadout } from "./transforms-readout.tsx";
 import { UsageReadout } from "./usage-readout.tsx";
 
+const READOUT_SKELETON_ROWS = 4;
+
 export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();
-  if (presetId === null) {
-    return <ActivePresetReadout />;
-  }
-  return <OpenPresetReadout presetId={presetId} />;
+  return (
+    <QueryBoundary
+      resetKeys={[presetId]}
+      fallback={
+        <Stack padding="block">
+          <SkeletonRows count={READOUT_SKELETON_ROWS} shape="datum" />
+        </Stack>
+      }
+      renderError={(_error, retry): ReactElement => (
+        <Stack padding="block">
+          <QueryErrorState label="the readout" onRetry={retry} />
+        </Stack>
+      )}
+    >
+      {presetId === null ? <ActivePresetReadout /> : <OpenPresetReadout presetId={presetId} />}
+    </QueryBoundary>
+  );
 }
 
 /** The no-selection panel: the ACTIVE pick's effective profile. Useful before a row is ever clicked.
@@ -70,20 +85,15 @@ export function PresetReadout(): ReactElement {
  *  say the opposite, beside that badge, and showed no profile at all. The built-in is a REAL row with a
  *  real id, so the null pick resolves to it and gets the same chip + the same effective table as any other
  *  preset: the resolver already answers for it. */
-function ActivePresetReadout(): ReactElement {
+function ActivePresetReadout(): ReactElement | null {
   const trpc = useTRPC();
-  const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const presets = useQuery(trpc.preset.list.queryOptions());
-  const activeId = settings.data?.config.seeds.defaultPresetId ?? null;
-  const active = activeId === null ? presets.data?.find((preset) => preset.isSystemDefault) : presets.data?.find((preset) => preset.id === activeId);
+  const [{ data: settings }, { data: presets }] = useSuspenseQueries({
+    queries: [trpc.settings.getUserSettings.queryOptions(), trpc.preset.list.queryOptions()],
+  });
+  const activeId = settings.config.seeds.defaultPresetId ?? null;
+  const active = activeId === null ? presets.find((preset) => preset.isSystemDefault) : presets.find((preset) => preset.id === activeId);
   if (active === undefined) {
-    // The list has not landed yet — the honest wait, not an "activate something" claim (that claim is what
-    // F-07 measured as false).
-    return (
-      <Stack padding="block">
-        <Text voice="gloss">Loading the active preset…</Text>
-      </Stack>
-    );
+    return null;
   }
   return <ActiveProfile isSystemDefault={active.isSystemDefault} name={active.name} presetId={active.id} />;
 }
@@ -143,16 +153,8 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   const storedView = usePresetEditorView();
   const view = (PRESET_EDITOR_VIEWS.find((entry) => entry.id === storedView) ?? PRESET_EDITOR_VIEWS[0])?.id;
   const selectedSectionId = useSelectedPresetSectionId();
-  const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
-
-  const config = preset.data?.config;
-  if (config === undefined) {
-    return (
-      <Stack padding="block">
-        <Text voice="gloss">Loading the readout…</Text>
-      </Stack>
-    );
-  }
+  const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
+  const { config } = preset;
   return (
     <Stack gap="section" padding="block">
       {/* THE BINDING (D8 / §7.1) sits above the projected panel — the readout's own header row, exactly where
@@ -174,7 +176,7 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
       {/* `attachable` is the SYSTEM-DEFAULT fact, read off the wire flag (never the sentinel id): that preset
           has a null owner, so the attachment read refuses it by design and its regex stages are known-off
           rather than unread. */}
-      {view === "transforms" ? <TransformsReadout attachable={preset.data?.isSystemDefault !== true} config={config} presetId={presetId} /> : null}
+      {view === "transforms" ? <TransformsReadout attachable={!preset.isSystemDefault} config={config} presetId={presetId} /> : null}
       {view === "params" ? (
         <CapabilityPanel
           footer={(effective): ReactElement | null => <QualityMapping effective={effective} quality={config.params.quality} />}

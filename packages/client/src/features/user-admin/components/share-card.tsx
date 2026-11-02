@@ -102,6 +102,7 @@ export function ShareCard(props: SeatingFacts): ReactElement {
       <Section heading={SHARE_CARD_TITLE} level={4} aria-label={SHARE_CARD_TITLE}>
         {/* RESERVED (#1098) — the Share card settles into its precondition rows or its running panel. */}
         <QueryBoundary
+          resetKeys={[]}
           fallback={<SkeletonRows count={4} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="sharing — the owner only" onRetry={retry} />}
           reserveBlock={firstBootBox}

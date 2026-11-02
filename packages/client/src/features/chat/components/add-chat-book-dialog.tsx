@@ -105,6 +105,7 @@ interface PickerBodyProps {
 function PickerBody(props: PickerBodyProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world books" onRetry={retry} />}
     >

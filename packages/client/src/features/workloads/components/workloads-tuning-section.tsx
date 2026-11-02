@@ -39,6 +39,7 @@ export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly ancho
   return (
     // RESERVED (#1098) — a config section that settles into a knob stack.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
       reserveBlock={firstBootBox}

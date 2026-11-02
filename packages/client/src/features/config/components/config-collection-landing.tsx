@@ -134,6 +134,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
           nothing about what a member IS. The boundary moved here with them: `collection.list` suspends on the
           library's read, and an error inside it is the library's to retry, not the pane's to swallow. */}
       <QueryBoundary
+        resetKeys={[group.id, filter]}
         fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
       >

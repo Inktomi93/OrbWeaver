@@ -133,6 +133,7 @@ function AddModelOnKeyBody({
               };
               return (
                 <QueryBoundary
+                  resetKeys={[connection.id]}
                   fallback={<ModelPicker {...picker} source={{ status: "loading" }} />}
                   renderError={(error, retry): ReactElement => <ModelPicker {...picker} source={failedCatalogSource(error, retry)} />}
                 >

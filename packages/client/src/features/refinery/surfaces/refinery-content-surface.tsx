@@ -93,6 +93,7 @@ export function RefineryContentSurface(): ReactElement {
         // commit, so a keyed mount never moves what sits below it. `SessionPane` (not `RefinerySessionPane`
         // itself) owns the suspending reads so the boundary's Suspense actually catches them.
         <QueryBoundary
+          resetKeys={[sessionId]}
           fallback={<SkeletonRows count={REFINERY_SKELETON_ROWS} />}
           key={sessionId}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this session" onRetry={retry} />}

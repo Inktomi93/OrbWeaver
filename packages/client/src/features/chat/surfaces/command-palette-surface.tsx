@@ -109,6 +109,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
           <CommandEmpty>No matches.</CommandEmpty>
 
           <QueryBoundary
+            resetKeys={[]}
             fallback={<RecentThreadsLoading />}
             renderError={(_error, retry): ReactElement => (
               <QueryErrorState

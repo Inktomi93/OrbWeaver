@@ -31,6 +31,7 @@ const RELATION_SKELETON_ROWS = 2;
 function RelationBoundary({ heading, noun, children }: { readonly heading: string; readonly noun: string; readonly children: ReactNode }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={
         <Section heading={heading}>
           <SkeletonRows count={RELATION_SKELETON_ROWS} />

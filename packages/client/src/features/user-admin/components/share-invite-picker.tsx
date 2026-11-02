@@ -26,6 +26,7 @@ export function InviteRoomPicker(): ReactElement {
         <MenuGroup>
           <MenuGroupLabel>Your newest rooms</MenuGroupLabel>
           <QueryBoundary
+            resetKeys={[]}
             fallback={<MenuItem disabled={true}>Loading rooms</MenuItem>}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="your rooms" onRetry={retry} />}
           >

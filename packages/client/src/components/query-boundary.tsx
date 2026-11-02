@@ -69,6 +69,12 @@ export interface QueryBoundaryProps {
    * @defaultValue a generic `QueryErrorState label="this"` — pass a labeled one for a specific surface.
    */
   readonly renderError?: (error: unknown, retry: () => void) => ReactNode;
+  /**
+   * The inputs the child's reads are keyed on — every prop or value that changes which query the subtree reads; `[]` for a
+   * subtree whose reads take none. A change clears a caught error and resets the query errors, so the new key reads
+   * instead of the old key's error standing until Retry, and a revisited key refetches instead of re-throwing its cached error.
+   */
+  readonly resetKeys: readonly unknown[];
   readonly children: ReactNode;
 }
 
@@ -102,7 +108,12 @@ interface CatchProps {
   readonly onReset: () => void;
   readonly renderError: NonNullable<QueryBoundaryProps["renderError"]>;
   readonly landing: RefObject<HTMLParagraphElement | null>;
+  readonly resetKeys: readonly unknown[];
   readonly children: (phase: RetryPhase) => ReactNode;
+}
+
+function keysChanged(previous: readonly unknown[], next: readonly unknown[]): boolean {
+  return previous.length !== next.length || previous.some((key, at) => !Object.is(key, next[at]));
 }
 
 class QueryErrorCatch extends Component<CatchProps, CatchState> {
@@ -110,6 +121,41 @@ class QueryErrorCatch extends Component<CatchProps, CatchState> {
 
   static getDerivedStateFromError(error: unknown): Pick<CatchState, "error" | "recovery"> {
     return { error, recovery: "idle" };
+  }
+
+  // The keys of the last commit with no error standing, and the keys the standing error was caught under.
+  private settledKeys: readonly unknown[] = this.props.resetKeys;
+  private caughtKeys: readonly unknown[] = this.props.resetKeys;
+  // Every error this boundary has caught. A query keeps its error object in the cache, so a revisited key re-throws one of these.
+  private readonly seenErrors = new WeakSet<object>();
+
+  // A new key is a new read, not a retry. Two catches reset: a key change under a standing error, and a revisited key
+  // re-throwing an error this boundary already caught, with no request. A fresh key that fails throws a new error, even when
+  // its render was deferred and its keys never committed, so it stands. Each reset records the keys first, so a key change
+  // gets at most one: a child that throws again under the same keys stands as the error arm.
+  override componentDidUpdate(_previous: CatchProps, previousState: CatchState): void {
+    const { error } = this.state;
+    if (error === null) {
+      this.settledKeys = this.props.resetKeys;
+      return;
+    }
+    if (previousState.error === null) {
+      const revisit = typeof error === "object" && this.seenErrors.has(error) && keysChanged(this.settledKeys, this.props.resetKeys);
+      if (typeof error === "object") {
+        this.seenErrors.add(error);
+      }
+      if (!revisit) {
+        this.caughtKeys = this.props.resetKeys;
+        return;
+      }
+    } else if (!keysChanged(this.caughtKeys, this.props.resetKeys)) {
+      return;
+    }
+    this.caughtKeys = this.props.resetKeys;
+    this.settledKeys = this.props.resetKeys;
+    this.props.onReset();
+    // eslint-disable-next-line react-x/no-set-state-in-component-did-update -- the error arm committed under the new keys; clearing it in the same commit means it never paints.
+    this.setState({ error: null, recovery: "idle" });
   }
 
   private readonly retry = (): void => {
@@ -347,6 +393,7 @@ export function QueryBoundary({
   reserveBlock,
   fill = false,
   renderError = defaultRenderError,
+  resetKeys,
   children,
 }: QueryBoundaryProps): ReactElement {
   const landing = useRef<HTMLParagraphElement>(null);
@@ -369,7 +416,7 @@ export function QueryBoundary({
   return (
     <QueryErrorResetBoundary>
       {({ reset }): ReactElement => (
-        <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError}>
+        <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError} resetKeys={resetKeys}>
           {(phase): ReactElement => (
             <Suspense fallback={<PendingFallback onPending={phase.onPending}>{reservedFallback}</PendingFallback>}>
               <QueryBoundaryScope value={true}>{settledChildren(phase, measuredChildren)}</QueryBoundaryScope>

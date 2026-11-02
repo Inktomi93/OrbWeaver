@@ -20,10 +20,13 @@ import { useSelectedAnalyticsCharacterId } from "#state";
 import { formatAccountingLabel, formatCompact, formatCompactNoun, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsPersonasTab(): ReactElement {
+  // The drilled character keys the read, so the boundary resets when the drill changes.
+  const drilled = useSelectedAnalyticsCharacterId();
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
     <Stack className="relative min-block-0" data-testid={testId("analyticsPersonasTab")}>
       <QueryBoundary
+        resetKeys={[drilled]}
         fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
         reserveKey="analytics.personas"

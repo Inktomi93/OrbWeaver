@@ -121,6 +121,7 @@ export function CharacterHeroBand({
           keeps the suspense local (the editor does not re-suspend for it) and `reserveKey` holds the box
           this device measured, so the block below it never moves. */}
       <QueryBoundary
+        resetKeys={[detail.id]}
         fallback={<SkeletonRows count={TAG_SUGGESTION_SKELETON_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="tag suggestions" onRetry={retry} />}
         reserveKey="character.tagSuggestions"

@@ -8,10 +8,11 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { QueryErrorState, useSuspenseQuery } from "#data";
 import { useVerifySignIn } from "../hooks/use-connections-mutations.ts";
 import type { SignInVerdict } from "../lib/connection-account-model.ts";
 import { creditsLine, servesAccountCredits, servesSignInCheck, signInVerdict } from "../lib/connection-account-model.ts";
@@ -34,38 +35,35 @@ export function ConnectionAccount({ connectionId, provider, trpc, invalidation }
 }
 
 function AccountCreditsBlock({ connectionId, trpc }: { readonly connectionId: UserConnectionId; readonly trpc: Trpc }): ReactElement {
-  // NON-suspense: the balance dials the provider, and a failed read is a line in this block, not an error
-  // boundary over the whole editor.
-  const credits = useQuery({ ...trpc.connection.accountCredits.queryOptions({ connectionId }), retry: false });
+  // The balance dials the provider, so only the balance line sits under the boundary: a failed read is a block here that
+  // keeps the provider's own message, not an error over the whole editor.
   return (
     <Stack data-slot="connection-credits" gap="tight">
       <Text voice="label">Account credits</Text>
-      {credits.isPending ? <Text voice="gloss">Reading the balance…</Text> : null}
-      {credits.isError ? (
-        <>
-          <Text tone="warning" voice="gloss">
-            Couldn't read the balance — {errorMessage(credits.error)}
-          </Text>
-          <Row gap="field">
-            <Button
-              disabled={credits.isFetching}
-              variant="outline"
-              onClick={(): void => {
-                credits.refetch().catch(() => undefined); // the query's own error state carries the failure
-              }}
-              size="sm"
-            >
-              Read it again
-            </Button>
-          </Row>
-        </>
-      ) : null}
-      {credits.data === undefined ? null : (
-        <Text data-slot="connection-credits-balance" voice="datum">
-          {creditsLine(credits.data)}
-        </Text>
-      )}
+      <QueryBoundary
+        resetKeys={[connectionId]}
+        fallback={<Text voice="gloss">Reading the balance…</Text>}
+        renderError={(error, retry): ReactElement => (
+          <>
+            <QueryErrorState label="the balance" onRetry={retry} />
+            <Text tone="warning" voice="gloss">
+              {errorMessage(error)}
+            </Text>
+          </>
+        )}
+      >
+        <AccountCreditsBalance connectionId={connectionId} trpc={trpc} />
+      </QueryBoundary>
     </Stack>
+  );
+}
+
+function AccountCreditsBalance({ connectionId, trpc }: { readonly connectionId: UserConnectionId; readonly trpc: Trpc }): ReactElement {
+  const { data } = useSuspenseQuery({ ...trpc.connection.accountCredits.queryOptions({ connectionId }), retry: false });
+  return (
+    <Text data-slot="connection-credits-balance" voice="datum">
+      {creditsLine(data)}
+    </Text>
   );
 }
 

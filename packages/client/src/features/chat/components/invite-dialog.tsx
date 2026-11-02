@@ -17,13 +17,22 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
+import { FormDialog, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { fetchLiveShare, useAuthConfig, useInvalidation, useLiveShare, useSettingsViewerView, useTRPC } from "#data";
+import {
+  fetchLiveShare,
+  QueryErrorState,
+  SkeletonRows,
+  useAuthConfig,
+  useInvalidation,
+  useLiveShare,
+  useSettingsViewerView,
+  useSuspenseQuery,
+  useTRPC,
+} from "#data";
 import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorCode } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
@@ -326,16 +335,27 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
   );
 }
 
-function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
+function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[chatId]}
+      fallback={<SkeletonRows count={OUTSTANDING_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the outstanding invites" onRetry={retry} />}
+    >
+      <OutstandingInvitesList chatId={chatId} />
+    </QueryBoundary>
+  );
+}
+
+const OUTSTANDING_SKELETON_ROWS = 2;
+
+function OutstandingInvitesList({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: invites, isError } = useQuery(trpc.invites.listInvites.queryOptions({ chatId }));
+  const { data: invites } = useSuspenseQuery(trpc.invites.listInvites.queryOptions({ chatId }));
   const revoke = useRevokeInvite({ trpc, invalidation });
 
-  if (isError) {
-    return <Text>Couldn't load the outstanding invites.</Text>;
-  }
-  if (invites === undefined || invites.length === 0) {
+  if (invites.length === 0) {
     return null;
   }
   return (

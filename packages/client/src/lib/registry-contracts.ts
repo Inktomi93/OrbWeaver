@@ -177,6 +177,8 @@ export type ContextDefinition =
       readonly kind: "tabs";
       /** Minted ONLY by `defineContextTabs` (G3 wall). May suspend; `null` = nothing selected. */
       readonly useResolved: () => ResolvedContextTabs | null;
+      /** The selection `useResolved` reads, as the host boundary's reset keys. Never suspends. */
+      readonly useResetKeys: ContextTabsSpec<unknown>["useResetKeys"];
     } & ContextEmptyArm);
 
 /** The inputs `defineContextTabs<S>` pairs inside one definition file — the host's projection hook, its
@@ -184,6 +186,11 @@ export type ContextDefinition =
 export interface ContextTabsSpec<S> {
   /** A module-level named `use*` fn (rules-of-hooks); may suspend; `null` = no selection. */
   readonly useContextState: () => S | null;
+  /**
+   * The store-held selection `useContextState` reads, as a module-level named `use*` fn that never suspends. The shell's
+   * boundary around the pane resets on it, so a selection whose read failed gives way to the next one picked.
+   */
+  readonly useResetKeys: () => readonly unknown[];
   readonly tabs: readonly ContextTabDef<S>[];
   readonly actions?: (state: S) => ReactNode;
   /** The pane's identity BAND, under the header row — the artifact's own identity where it has one (a
@@ -254,7 +261,8 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
     }
     return resolveContextTabs(spec, state);
   }
-  return spec.empty === undefined ? { kind: "tabs", useResolved } : { kind: "tabs", useResolved, empty: spec.empty };
+  const { useResetKeys } = spec;
+  return spec.empty === undefined ? { kind: "tabs", useResolved, useResetKeys } : { kind: "tabs", useResolved, useResetKeys, empty: spec.empty };
 }
 
 /** The Characters CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the

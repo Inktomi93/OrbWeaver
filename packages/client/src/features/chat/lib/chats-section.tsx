@@ -30,7 +30,7 @@ import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
 import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
-import { useChatContextState } from "../hooks/use-chat-context-state.ts";
+import { useChatContextResetKeys, useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "./chat-context-tab-labels.ts";
@@ -148,6 +148,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<CommittedChatContext>({
       useContextState: useChatContextState,
+      useResetKeys: useChatContextResetKeys,
       tabs: chatContextTabs(settingsSections),
       // The room's identity (participants, name, chips) lives in the center header, open pane or closed; the
       // pane draws only its own content, so this slot is empty unless a region claims it (the rpg Waystone).

@@ -189,6 +189,7 @@ function TileContent({
 }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[tile.id]}
       fallback={tile.skeleton?.() ?? <SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={title.toLowerCase()} onRetry={retry} />}
       reserveBlock={tile.skeletonBlock}

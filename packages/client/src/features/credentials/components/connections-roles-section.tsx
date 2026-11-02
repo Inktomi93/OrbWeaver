@@ -28,6 +28,7 @@ export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: strin
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your model roles" onRetry={retry} />}
       reserveBlock={firstBootBox}

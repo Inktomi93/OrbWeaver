@@ -39,6 +39,7 @@ const EFFECTS_ENTITY_ID = "appearance-effects";
 export function AppearanceEffectsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your effect settings" onRetry={retry} />}
     >

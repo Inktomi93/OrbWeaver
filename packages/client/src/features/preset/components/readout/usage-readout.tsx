@@ -25,9 +25,9 @@ import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 
@@ -47,35 +47,32 @@ function bindingLine(isDefault: boolean, roomsListed: boolean): string {
     : "Nothing uses this preset yet — activate it, or point a game's GM voice at it.";
 }
 
+const USAGE_SKELETON_ROWS = 1;
+
 export function UsageReadout({ presetId }: { readonly presetId: PresetId }): ReactElement {
-  const trpc = useTRPC();
-  const usage = useQuery(trpc.preset.listUsage.queryOptions({ id: presetId }));
-
-  const rooms = usage.data?.gmRooms ?? [];
-  const isDefault = usage.data?.isUserDefault === true;
-
-  // A FAILED READ IS NOT A SLOW ONE (#1500). `usage.data === undefined` was the only branch, so once the
-  // client's two retries were spent this block printed "Checking…" for the rest of the session, with no way
-  // back but a reload. The error arm is tested FIRST — `isError` implies an absent `data`, never the reverse —
-  // and it carries a Retry that really re-reads (the `QueryErrorState` grammar).
-  let body: ReactElement;
-  if (usage.isError) {
-    body = <QueryErrorState label="what uses this preset" onRetry={(): void => void usage.refetch().catch(globalThis.reportError)} />;
-  } else if (usage.data === undefined) {
-    body = <Text voice="gloss">Checking…</Text>;
-  } else {
-    body = (
-      <Stack gap="row">
-        <Text voice="gloss">{bindingLine(isDefault, rooms.length > 0)}</Text>
-        {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
-      </Stack>
-    );
-  }
-
+  // A failed read is not a slow one: the boundary's error block carries a Retry that really re-reads.
   return (
     <Section data-slot="preset-usage" kicker="Used by">
-      {body}
+      <QueryBoundary
+        resetKeys={[presetId]}
+        fallback={<SkeletonRows count={USAGE_SKELETON_ROWS} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="what uses this preset" onRetry={retry} />}
+      >
+        <UsageBody presetId={presetId} />
+      </QueryBoundary>
     </Section>
+  );
+}
+
+function UsageBody({ presetId }: { readonly presetId: PresetId }): ReactElement {
+  const trpc = useTRPC();
+  const { data: usage } = useSuspenseQuery(trpc.preset.listUsage.queryOptions({ id: presetId }));
+  const rooms = usage.gmRooms;
+  return (
+    <Stack gap="row">
+      <Text voice="gloss">{bindingLine(usage.isUserDefault, rooms.length > 0)}</Text>
+      {rooms.length === 0 ? null : <GmRooms rooms={rooms} />}
+    </Stack>
   );
 }
 

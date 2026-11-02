@@ -45,6 +45,10 @@ const refineryContextTabs: readonly ContextTabDef<RefineryContextState>[] = [
 
 /** The section's context-state projection hook — a module-level named `use*` fn (the mint's contract):
  *  null until a session is open AND its row landed (the tabs need `characterId` for the Versions walk). */
+function useRefineryContextResetKeys(): readonly unknown[] {
+  return [useSelectedRefinerySessionId()];
+}
+
 function useRefineryContextState(): RefineryContextState | null {
   const sessionId = useSelectedRefinerySessionId();
   const session = useRefinerySession(sessionId);
@@ -99,6 +103,7 @@ export const refinerySection: SectionDefinition = {
   content: (): ReactElement => <RefineryContentSurface />,
   context: defineContextTabs<RefineryContextState>({
     useContextState: useRefineryContextState,
+    useResetKeys: useRefineryContextResetKeys,
     // `kicker`: a band's name is painted like the LIST band beside it, and it names the open subject.
     header: () => (
       <Text as="span" voice="kicker">

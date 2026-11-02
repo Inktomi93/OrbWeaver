@@ -256,6 +256,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
             battery's own Retry is the verb for a failed read, the LIST band is still on screen at every
             desktop width, and the phone's topbar carries its own Back. */}
         <QueryBoundary
+          resetKeys={[group.id, selection.memberId]}
           fallback={
             <Stack gap="block">
               <CollectionDrillExit group={group} />

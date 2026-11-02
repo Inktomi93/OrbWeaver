@@ -117,7 +117,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       ref={surfaceRef}
       search={<Input aria-label="Search plugin pages" onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
     >
-      <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…">
+      <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…" resetKeys={[]}>
         <ExtensionsPageList />
       </LibrarySurfaceShell>
     </ListPage>

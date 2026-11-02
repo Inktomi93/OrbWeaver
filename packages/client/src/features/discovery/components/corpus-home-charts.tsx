@@ -28,19 +28,15 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { useDeferredValue, useState } from "react";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
 import { localThemeDrift } from "../lib/story-time-folds.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
-
-type TopKeyword = inferOutput<Trpc["discovery"]["topKeywords"]>[number];
 
 const NO_KEYWORD = "";
 const SKELETON_ROW_COUNT = 3;
@@ -64,19 +60,28 @@ const LEVEL_OPTIONS = [
 ] as const;
 
 /** The keyword explorer — `topKeywords` as a bar-list, and picking one drills its `cooccurringKeywords`.
- *  The read itself lives on the overview (one query owns both this block and the readiness rail's keyword
- *  row, #269), so its PENDING state arrives as a prop rather than off a query of its own. */
-export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKeyword[] | undefined; readonly pending: boolean }): ReactElement | null {
+ *  The read sits under its own boundary, so the overview's masthead and rail settle without it; the overview
+ *  reads the same cache entry for the rail's keyword row (#269). */
+export function KeywordExplorer(): ReactElement {
+  return (
+    // PENDING IS NOT ABSENCE: the block holds its place with the shared skeleton rather than materialising
+    // under the reader's scroll position. A block with no data still renders nothing — the rail says why.
+    <QueryBoundary
+      resetKeys={[]}
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your top keywords" onRetry={retry} />}
+    >
+      <KeywordExplorerRead />
+    </QueryBoundary>
+  );
+}
+
+function KeywordExplorerRead(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: top } = useSuspenseQuery(trpc.discovery.topKeywords.queryOptions());
   const [keyword, setKeyword] = useState(NO_KEYWORD);
 
-  if (pending) {
-    // PENDING IS NOT ABSENCE (side-eye 2026-08-21). This returned `null` while the deferred read was in
-    // flight and then materialised under the reader's scroll position — while its two siblings in this very
-    // file already held their place with SkeletonRows. The `null` return below IS still the design (a block
-    // with no data renders nothing, the rail says why); it just isn't the answer to "not yet".
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (top === undefined || top.length === 0) {
+  if (top.length === 0) {
     return null;
   }
 
@@ -133,7 +138,13 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
             >
               Read keyword sources
             </Button>
-            <CooccurringKeywords keyword={keyword} />
+            <QueryBoundary
+              resetKeys={[keyword]}
+              fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="the cooccurrences" onRetry={retry} />}
+            >
+              <CooccurringKeywords keyword={keyword} />
+            </QueryBoundary>
           </>
         )}
       </Stack>
@@ -143,17 +154,9 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
 
 function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactElement | null {
   const trpc = useTRPC();
-  const cooccurring = useQuery(trpc.discovery.cooccurringKeywords.queryOptions({ keyword }));
+  const { data: cooccurring } = useSuspenseQuery(trpc.discovery.cooccurringKeywords.queryOptions({ keyword }));
 
-  if (cooccurring.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (cooccurring.error !== null) {
-    // Wrapped, never passed by reference: `onRetry` rides a Button's onClick, so a bare `refetch` receives
-    // React's MouseEvent as its options bag (side-eye 2026-08-21).
-    return <QueryErrorState label="the cooccurrences" onRetry={(): void => void cooccurring.refetch().catch(globalThis.reportError)} />;
-  }
-  if (cooccurring.data.length === 0) {
+  if (cooccurring.length === 0) {
     // The ONE surviving note in this file, and it earns its place: the user PICKED this keyword, so an
     // empty result is an answer to a question they just asked, not an un-run pass.
     return <Text voice="gloss">Nothing co-occurs with “{keyword}” yet.</Text>;
@@ -165,14 +168,14 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
         // not the surface's focal.
         intent="quiet"
         items={toBarItems(
-          cooccurring.data,
+          cooccurring,
           (row) => row.keyword,
           (row) => row.count,
         )}
         label={`Co-occurs with ${keyword}`}
       />
       <Stack gap="row" role="list">
-        {cooccurring.data.map((row) => (
+        {cooccurring.map((row) => (
           <Stack key={row.keyword} role="listitem">
             <ListRow
               clickable={true}
@@ -197,29 +200,35 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
 /** Story-time theme prevalence, scene↔arc toggle. A plain query so the level switch refetches in place. */
 export function StoryThemeDrift(): ReactElement {
   const [level, setLevel] = useState<ThemeLevel>("scene");
-  return <StoryThemeDriftBody level={level} onLevelChange={setLevel} />;
+  // The read follows a deferred level, so the toggle answers at once and the settled months stay on screen until the other level lands.
+  const readLevel = useDeferredValue(level);
+  return (
+    <QueryBoundary
+      resetKeys={[readLevel]}
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="story-theme drift" onRetry={retry} />}
+    >
+      <StoryThemeDriftBody level={level} onLevelChange={setLevel} readLevel={readLevel} />
+    </QueryBoundary>
+  );
 }
 
 function StoryThemeDriftBody({
   level,
+  readLevel,
   onLevelChange,
 }: {
   readonly level: ThemeLevel;
+  readonly readLevel: ThemeLevel;
   readonly onLevelChange: (next: ThemeLevel) => void;
 }): ReactElement | null {
   const trpc = useTRPC();
-  const drift = useQuery(trpc.discovery.themeDrift.queryOptions({ level }));
+  const { data: drift } = useSuspenseQuery(trpc.discovery.themeDrift.queryOptions({ level: readLevel }));
 
-  if (drift.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (drift.error !== null) {
-    return <QueryErrorState label="story-theme drift" onRetry={(): void => void drift.refetch().catch(globalThis.reportError)} />;
-  }
-  if (drift.data.length === 0) {
+  if (drift.length === 0) {
     return null;
   }
-  const months = localThemeDrift(drift.data, timeLib.calendarPosition);
+  const months = localThemeDrift(drift, timeLib.calendarPosition);
   return (
     <Section kicker="Story-theme drift" level={2}>
       <Stack gap="block">

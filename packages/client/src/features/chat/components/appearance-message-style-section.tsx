@@ -41,6 +41,7 @@ const MESSAGE_STYLE_ENTITY_ID = "appearance-message-style";
 export function AppearanceMessageStyleSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your message-style settings" onRetry={retry} />}
     >

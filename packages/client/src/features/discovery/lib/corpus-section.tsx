@@ -27,6 +27,10 @@ export interface CorpusSectionContributions extends CorpusModes {
 }
 
 /** Every tab, own or contributed, is gated on the active mode (a module-level named hook, §6b). */
+function useCorpusContextResetKeys(): readonly unknown[] {
+  return [useCorpusMode(), useSelectedCorpusDestination()];
+}
+
 function useCorpusContextState(): CorpusContextState {
   return { mode: useCorpusMode(), subject: useSelectedCorpusDestination() };
 }
@@ -82,6 +86,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     content: () => <CorpusWorkspaceContent modes={modes} />,
     context: defineContextTabs<CorpusContextState>({
       useContextState: useCorpusContextState,
+      useResetKeys: useCorpusContextResetKeys,
       header: (state) => (state.mode === "explore" ? <CorpusContextHeader /> : modes[state.mode].contextHeader()),
       // Explore's five owner-wide analysis tabs, labelled `Whole corpus` in the band.
       tabs: [

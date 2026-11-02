@@ -27,6 +27,7 @@ export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): 
     // whatever the library holds, which is precisely the case a remembered measurement predicts exactly.
     // The field sits mid-form, so the sentence-to-control delta shifts every control under it.
     <QueryBoundary
+      resetKeys={[personaId]}
       fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
       reserveKey="persona.editor.loreBook"

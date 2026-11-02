@@ -95,6 +95,7 @@ export function RulesSectionBody({ chatId }: RulesSectionBodyProps): ReactElemen
     // count match; #886 re-derived the SHAPE against the row's new closed face. The read lives in THIS
     // component, outside the measured wrapper, so it cannot poison the remembered box.
     <QueryBoundary
+      resetKeys={[chatId]}
       fallback={<RulesSkeleton count={data?.length ?? 1} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
       reserveKey="automation.thisChat.rules"

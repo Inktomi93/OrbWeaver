@@ -10,8 +10,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
@@ -54,21 +55,24 @@ const K_ITEMS: SelectItems = [
 ];
 
 export function CorpusArchetypesTab(): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[]}
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="archetypes" onRetry={retry} />}
+    >
+      <ArchetypesBody />
+    </QueryBoundary>
+  );
+}
+
+function ArchetypesBody(): ReactElement {
   const trpc = useTRPC();
   const [k, setK] = useState(AUTO);
   const kArg = k === AUTO ? {} : { k: Number(k) };
+  const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
 
-  const catalog = useQuery(trpc.discovery.catalog.queryOptions());
-  const archetypes = useQuery(trpc.discovery.archetypes.queryOptions(kArg));
-  const visual = useQuery(trpc.discovery.visualArchetypes.queryOptions(kArg));
-
-  if (catalog.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (catalog.error !== null) {
-    return <QueryErrorState label="archetypes" onRetry={catalog.refetch} />;
-  }
-  if (catalog.data.totalDistilled === 0) {
+  if (catalog.totalDistilled === 0) {
     // THE UN-RUN STATE: the invitation, and nothing that would read as a finding. Not the cluster knob
     // either — a control that re-clusters data the surface is refusing to show is a control over nothing.
     return (
@@ -94,61 +98,84 @@ export function CorpusArchetypesTab(): ReactElement {
           on the page it opens; the families are what was asked for, so they are what is under the fold line.
           The writing half loses nothing but its position — it has no door of its own to disappoint. */}
       <Section heading="Art archetypes">
-        <ClusterView
-          isPending={visual.isPending}
-          error={visual.error}
-          onRetry={visual.refetch}
-          clusters={(visual.data ?? []).map((v) => ({
-            // P3-4: an unnameable cluster is "Unclassified", never the literal token `none` the VL pass
-            // writes. Projected once, here, so the bar and the card below it carry the same name.
-            destination: { kind: "cluster", cluster: v, visual: true, k: k === AUTO ? null : Number(k), title: facetLabel(v.label) },
-            label: facetLabel(v.label),
-            genre: v.genre,
-            tone: v.tone,
-            topTags: [],
-            extra: [v.artStyle, v.palette, v.mood],
-            size: v.size,
-            members: v.members,
-          }))}
-          emptyLabel="No art archetypes computed yet."
-          emptyHint="Art archetypes group your indexed character portraits, and need more of them than the cluster count. Run Index (embeddings) with Images as the source to read new portraits."
-          chartLabel="Art cluster sizes"
-        />
+        <QueryBoundary
+          resetKeys={[kArg]}
+          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the art archetypes" onRetry={retry} />}
+        >
+          <ArtClusters kArg={kArg} />
+        </QueryBoundary>
       </Section>
 
       <Section heading="Writing archetypes">
-        <ClusterView
-          isPending={archetypes.isPending}
-          error={archetypes.error}
-          onRetry={archetypes.refetch}
-          clusters={(archetypes.data ?? []).map((cluster) => ({
-            ...cluster,
-            destination: { kind: "cluster" as const, cluster, visual: false, k: k === AUTO ? null : Number(k), title: cluster.label },
-          }))}
-          emptyLabel="No writing archetypes computed yet."
-          emptyHint="Writing archetypes group your indexed cards, and need more of them than the cluster count. Run Index (embeddings) to index new cards."
-          // One door per screen: when the art section above already offers it, this one states its emptiness only.
-          offerDoor={visual.data === undefined || visual.data.length > 0}
-          chartLabel="Writing cluster sizes"
-        />
+        <QueryBoundary
+          resetKeys={[kArg]}
+          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the writing archetypes" onRetry={retry} />}
+        >
+          <WritingClusters kArg={kArg} />
+        </QueryBoundary>
       </Section>
     </Stack>
   );
 }
 
+interface ClusterSectionProps {
+  readonly kArg: { readonly k?: number };
+}
+
+function ArtClusters({ kArg }: ClusterSectionProps): ReactElement {
+  const trpc = useTRPC();
+  const { data: visual } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions(kArg));
+  return (
+    <ClusterView
+      clusters={visual.map((v) => ({
+        // P3-4: an unnameable cluster is "Unclassified", never the literal token `none` the VL pass
+        // writes. Projected once, here, so the bar and the card below it carry the same name.
+        destination: { kind: "cluster", cluster: v, visual: true, k: kArg.k ?? null, title: facetLabel(v.label) },
+        label: facetLabel(v.label),
+        genre: v.genre,
+        tone: v.tone,
+        topTags: [],
+        extra: [v.artStyle, v.palette, v.mood],
+        size: v.size,
+        members: v.members,
+      }))}
+      emptyLabel="No art archetypes computed yet."
+      emptyHint="Art archetypes group your indexed character portraits, and need more of them than the cluster count. Run Index (embeddings) with Images as the source to read new portraits."
+      chartLabel="Art cluster sizes"
+    />
+  );
+}
+
+function WritingClusters({ kArg }: ClusterSectionProps): ReactElement {
+  const trpc = useTRPC();
+  const { data: archetypes } = useSuspenseQuery(trpc.discovery.archetypes.queryOptions(kArg));
+  // Reads the art section's cache entry for its count only: the art section owns that read's loading and error states,
+  // and a failed art read must not take this section down with it.
+  const art = useQuery(trpc.discovery.visualArchetypes.queryOptions(kArg)).data;
+  return (
+    <ClusterView
+      clusters={archetypes.map((cluster) => ({
+        ...cluster,
+        destination: { kind: "cluster" as const, cluster, visual: false, k: kArg.k ?? null, title: cluster.label },
+      }))}
+      emptyLabel="No writing archetypes computed yet."
+      emptyHint="Writing archetypes group your indexed cards, and need more of them than the cluster count. Run Index (embeddings) to index new cards."
+      // One door per screen: when the art section above already offers it, this one states its emptiness only.
+      offerDoor={art === undefined || art.length > 0}
+      chartLabel="Writing cluster sizes"
+    />
+  );
+}
+
 function ClusterView({
-  isPending,
-  error,
-  onRetry,
   clusters,
   emptyLabel,
   emptyHint,
   offerDoor = true,
   chartLabel,
 }: {
-  readonly isPending: boolean;
-  readonly error: unknown;
-  readonly onRetry: () => void;
   readonly clusters: readonly ArchetypeCard[];
   readonly emptyLabel: string;
   /** Names the job that fills this section, by its picker label. */
@@ -156,12 +183,6 @@ function ClusterView({
   readonly offerDoor?: boolean;
   readonly chartLabel: string;
 }): ReactElement {
-  if (isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (error !== null) {
-    return <QueryErrorState label="archetypes" onRetry={onRetry} />;
-  }
   if (clusters.length === 0) {
     return <CorpusRunJobEmptyState title={emptyLabel} description={emptyHint} offerDoor={offerDoor} />;
   }

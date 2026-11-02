@@ -39,6 +39,7 @@ export function LabelsContent(): ReactElement {
           <LabelsLandingSurface returning={editorWasOpen} />
         ) : (
           <QueryBoundary
+            resetKeys={[tagId]}
             fallback={exit}
             renderError={(_error, retry): ReactElement => (
               <QueryErrorState

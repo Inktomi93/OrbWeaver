@@ -29,8 +29,9 @@ declare module "@tanstack/react-query" {
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
 
-// Repeating refused input cannot recover; other failures keep the shared retry schedule.
-function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
+/** The default query retry: repeating refused input cannot recover, and other failures keep the shared schedule. A read that adds
+ *  its own refusal composes with it rather than restating the count. */
+export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
   return trpcErrorCode(error) !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
 }
 

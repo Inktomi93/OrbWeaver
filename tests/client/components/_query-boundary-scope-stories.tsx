@@ -27,7 +27,7 @@ export function ReadInsideBoundaryStory(): ReactElement {
   return (
     <CtIsolation subject="QueryBoundary" isolates="The boundary needs the app data providers, not the section registries.">
       <CtAppDataProviders>
-        <QueryBoundary fallback={<p>loading</p>}>
+        <QueryBoundary resetKeys={[]} fallback={<p>loading</p>}>
           <Reader />
         </QueryBoundary>
       </CtAppDataProviders>

@@ -36,6 +36,7 @@ export function AdminUsersSection({ anchorId }: { readonly anchorId: string }): 
   return (
     // RESERVED (#1098) — an admin section that settles into the account table — the tallest block on the pane.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

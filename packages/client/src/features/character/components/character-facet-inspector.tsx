@@ -56,6 +56,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     // the scroller, the chain is unbroken, and the scroller survives the read.
     <Stack className="relative overflow-y-auto overscroll-contain min-block-0">
       <QueryBoundary
+        resetKeys={[characterId]}
         fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this field" onRetry={retry} />}
         reserveKey="character.facetInspector"

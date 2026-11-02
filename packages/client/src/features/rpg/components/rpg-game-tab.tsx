@@ -449,6 +449,7 @@ export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
     // RESERVED — the GM console settles into a full section stack (macros, resync) behind a config read,
     // so without a reservation the tab would jump its own height every time a host opened it.
     <QueryBoundary
+      resetKeys={[state.chatId]}
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the host console" onRetry={retry} />}
       reserveKey="rpg.hostConsole"

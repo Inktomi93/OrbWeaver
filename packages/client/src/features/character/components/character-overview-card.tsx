@@ -68,6 +68,7 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
   // "Never" for when you two last spoke, and a failed read says so with the way to re-read it.
   return (
     <QueryBoundary
+      resetKeys={[characterId]}
       key={characterId}
       fallback={<Text voice="quiet">Loading…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}

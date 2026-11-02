@@ -55,6 +55,7 @@ export function PluginsInstalledSection({ anchorId }: { readonly anchorId: strin
   return (
     <Section divider={true} heading={PLUGINS_INSTALLED_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={2} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your plugins" onRetry={retry} />}
         reserveKey="config.plugins.installed"

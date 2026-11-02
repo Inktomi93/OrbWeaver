@@ -35,6 +35,7 @@ export function AnalyticsTimeTab(): ReactElement {
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
     <Stack className="relative min-block-0" data-testid={testId("analyticsTimeTab")}>
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="datum" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
         reserveKey="analytics.time"

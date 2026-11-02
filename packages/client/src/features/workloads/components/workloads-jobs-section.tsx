@@ -49,6 +49,7 @@ export function WorkloadsJobsSection({ anchorId }: { readonly anchorId: string }
   return (
     // RESERVED (#1098) — a config section that settles into the job table — the longest block in Workloads.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your jobs" onRetry={retry} />}
       reserveBlock={firstBootBox}

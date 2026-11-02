@@ -261,6 +261,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
             host read two titles in reversed order. */}
         <PopoverTitle>{selected === null ? "Add a rule" : selected.title}</PopoverTitle>
         <QueryBoundary
+          resetKeys={[chatId]}
           fallback={<SkeletonRows count={3} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the rules you can add" onRetry={retry} />}
           reserveKey="automation.rulePresetPicker"

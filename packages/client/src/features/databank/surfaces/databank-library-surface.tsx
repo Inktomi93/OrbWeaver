@@ -146,7 +146,7 @@ export function DatabankLibrarySurface(): ReactElement {
       search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setQuery} placeholder="Search documents…" value={query} />}
       skipTo="Skip to documents"
     >
-      <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
+      <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…" resetKeys={[query, phaseFilter]}>
         <DatabankList listRootRef={surfaceRef} onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />
       </LibrarySurfaceShell>
     </ListPage>

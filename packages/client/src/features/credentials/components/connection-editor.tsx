@@ -66,6 +66,7 @@ export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   return (
     // RESERVED (#1098) — the editor settles into four tier headers plus the two open tiers' fields.
     <QueryBoundary
+      resetKeys={[props.connectionId]}
       fallback={<SkeletonRows count={6} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this connection" onRetry={retry} />}
       reserveKey="config.connections.editor"
