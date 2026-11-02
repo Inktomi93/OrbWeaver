@@ -44,7 +44,8 @@ const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
 const CONFIRM_IN_FILE = "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|ContentDialog|FlowDialog)$/]";
 const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
 // An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
-const KEEP_BESIDE = String.raw`JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/])`;
+// The Cancel word is either literal text or the shared `DIALOG_VERBS.cancel`.
+const KEEP_BESIDE = String.raw`:matches(JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/]), JSXElement:has(> JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']))`;
 const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
 const DESTRUCTIVE_MESSAGE =
   "A control that destroys data needs a ConfirmDialog or an undo (docs/law/client-architecture-state-and-gates.md §14). Wrap it in a ConfirmDialog trigger, or offer Undo.";

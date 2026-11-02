@@ -3,6 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_BACK_TO_RACK_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -43,7 +44,7 @@ for (const { width, height, density } of [
       for (const trigger of [ordinary, pivot]) {
         await trigger.focus();
         await page.keyboard.press("Enter");
-        const back = page.getByRole("button", { name: "Back to rack", exact: true });
+        const back = page.getByRole("button", { name: PRESET_BACK_TO_RACK_NAME, exact: true });
         await expect(back).toBeFocused();
         await back.press("Enter");
         await expect(trigger).toBeFocused();

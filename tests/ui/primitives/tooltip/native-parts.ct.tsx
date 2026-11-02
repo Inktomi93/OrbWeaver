@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { TooltipCallerDescriptionStory, TooltipDescriptionStory, TooltipHandleStory } from "./_native-parts-stories.tsx";
 
 test("native arrow and viewport do not duplicate portal parts into the at-rest accessible description", async ({ mount, page }) => {
@@ -40,7 +41,7 @@ test("caller opt-out distinguishes a name-only tooltip from an unavailable contr
   const component = await mount<typeof TooltipCallerDescriptionStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipCallerDescriptionStory", {
     refused: false,
   });
-  const trigger = page.getByRole("button", { name: "Send message", exact: true });
+  const trigger = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
   await expect(trigger).toBeEnabled();
   await expect(trigger).toHaveAttribute("data-tooltip-describes", "name");
   await expect(trigger).toHaveAccessibleDescription("");

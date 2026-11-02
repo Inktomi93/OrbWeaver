@@ -10,6 +10,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createFirstBootHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -57,7 +58,7 @@ test("the empty finder's door reveals the overview, takes focus into Content and
   await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
   await expect(page.locator(".shell-content")).not.toHaveAttribute("inert");
   // The overview of a library with no characters is Content's own mode switch over the empty-library welcome.
-  await expect(page.getByRole("main").getByRole("radiogroup", { name: "Corpus mode", exact: true })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true })).toBeVisible();
   await expect(page.getByRole("main")).toBeFocused();
 });
 

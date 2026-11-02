@@ -4,6 +4,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_NAME_FIELD_NAME, PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -42,7 +43,7 @@ for (const regime of REGIMES) {
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
       const props = { width: regime.width, appearance: regime.appearance, subject: "editor" as const, presetId: preset.id };
       const mounted = await mount<typeof PresetActionGroupsStory>(STORY, props);
-      const rename = page.getByRole("button", { name: "Rename preset", exact: true });
+      const rename = page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
       const activate = page.getByRole("button", { name: "Activate — use this preset for generation", exact: true });
       const reset = page.getByRole("button", { name: "Reset to starter arrangement", exact: true });
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
@@ -56,9 +57,9 @@ for (const regime of REGIMES) {
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
       await rename.focus();
       await page.keyboard.press("Enter");
-      const renameDialog = page.getByRole("dialog", { name: "Rename preset", exact: true });
-      await expect(renameDialog.getByRole("textbox", { name: "Preset name", exact: true })).toHaveValue(name);
-      await expect(renameDialog.getByRole("textbox", { name: "Preset name", exact: true })).toBeFocused();
+      const renameDialog = page.getByRole("dialog", { name: PRESET_RENAME_NAME, exact: true });
+      await expect(renameDialog.getByRole("textbox", { name: PRESET_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
+      await expect(renameDialog.getByRole("textbox", { name: PRESET_NAME_FIELD_NAME, exact: true })).toBeFocused();
       await renameDialog.getByRole("button", { name: "Cancel", exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(renameDialog).toBeHidden();

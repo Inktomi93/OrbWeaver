@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CAPTION = "Wayfinding witness";
@@ -95,7 +96,7 @@ async function routeLibrary(page: Page, subjects: Awaited<ReturnType<typeof libr
 }
 
 async function expectRoom(page: Page, title: string): Promise<void> {
-  await expect(page.getByRole("group", { name: "Message composer", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true })).toBeVisible();
   await expect(page.locator(".shell-topbar-subtitle")).toHaveText(title);
 }
 
@@ -109,7 +110,7 @@ for (const mode of ROW_MODES) {
     await routeLibrary(page, subjects);
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(STORY, {});
-    const row = page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button", { name: subjects.row.title, exact: true });
+    const row = page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: subjects.row.title, exact: true });
     const subtitle = row.locator('[data-slot="list-row-subtitle"]');
     const stamp = timeLib.formatRelativeCompact(subjects.row.at);
     await expect(subtitle).toHaveText(subjects.row.preview);

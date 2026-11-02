@@ -16,6 +16,7 @@ import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -431,7 +432,7 @@ async function firstCharacterId(): Promise<CharacterId> {
 async function openRoom(mountRoom: (chatId: ChatId) => Promise<unknown>, page: Page, chatId: ChatId): Promise<Locator> {
   await seedShellState(page, { activeSection: "chats" });
   await mountRoom(chatId);
-  const input = page.getByRole("textbox", { name: "Message", exact: true });
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   await expect(input).toBeVisible();
   return input;
 }
@@ -528,7 +529,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
 
     test("keeps the roster's body and its doors reachable", async ({ mount, page }) => {
       await openGameRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
-      await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
@@ -584,7 +585,7 @@ for (const [viewport, scale] of QUALIFIED.focusedField) {
 
     test("keeps the field clear of the controls and every line being typed in view", async ({ mount, page }) => {
       await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
-      const input = page.getByRole("textbox", { name: "Message", exact: true });
+      const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       await expect(input).toBeVisible();
       await scaleRoot(page, scale.factor);
       await input.scrollIntoViewIfNeeded();
@@ -596,7 +597,7 @@ for (const [viewport, scale] of QUALIFIED.focusedField) {
       await expect.poll(() => findings(page.locator('[data-slot="composer"]'))).toEqual([]);
       await input.scrollIntoViewIfNeeded();
       await expect(input).toBeInViewport({ ratio: 1 });
-      const send = page.getByRole("button", { name: "Send message", exact: true });
+      const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
       await send.scrollIntoViewIfNeeded();
       await expect(send).toBeInViewport({ ratio: 1 });
       if (viewport.touch) {
@@ -647,7 +648,7 @@ for (const [viewport, scale] of QUALIFIED.screenName) {
 
     test("names a room on screen, where a phone has no tab bar", async ({ mount, page }) => {
       await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
-      await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
       await scaleRoot(page, scale.factor);
       const floor = await nameFloor(page);
       await expect.poll(() => named(page)).toBeGreaterThanOrEqual(floor / 2);
@@ -863,9 +864,9 @@ for (const [viewport, scale] of QUALIFIED.room) {
     test("keeps the transcript, the message field and Send reachable", async ({ mount, page }) => {
       const input = await openLongRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
       await scaleRoot(page, scale.factor);
-      await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible();
       // The room scrolls once the composer and a readable transcript cannot share it, so both are reachable, not both on screen.
-      for (const control of [input, page.getByRole("button", { name: "Send message", exact: true })]) {
+      for (const control of [input, page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })]) {
         await control.scrollIntoViewIfNeeded();
         await expect(control).toBeInViewport({ ratio: 1 });
       }

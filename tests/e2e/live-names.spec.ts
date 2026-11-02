@@ -15,6 +15,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
@@ -55,7 +56,7 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
     expect(characterName).toMatch(NON_WS);
 
     // Drive one turn so a USER row exists too (greeting seeds only an assistant row).
-    await typeAndSend(page.getByRole("textbox", { name: "Message" }), "Reply with exactly: names-probe-ok");
+    await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), "Reply with exactly: names-probe-ok");
     await expect(page.locator('[data-slot="message-row"][data-role="user"]').first()).toBeVisible({ timeout: WAIT_SETTLE_MS });
     await expect(page.locator('[data-slot="message-row"][data-role="assistant"]').last()).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
 

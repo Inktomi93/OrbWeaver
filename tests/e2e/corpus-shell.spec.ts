@@ -12,6 +12,7 @@ import { pickKeys } from "@orb/kit/objects";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
@@ -548,7 +549,7 @@ test.describe("committed corpus shell on a phone", () => {
       throw new Error("Corpus has no character or document");
     }
     const walks: readonly { readonly section: string; readonly open: (page: Page) => Promise<void> }[] = [
-      { section: "Chats", open: async (p) => p.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click() },
+      { section: "Chats", open: async (p) => p.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click() },
       { section: "Characters", open: async (p) => libraryRow(p, character.name).click() },
       { section: "Databank", open: async (p) => listPanel(p).getByRole("button", { name: document.name }).first().click() },
     ];
@@ -577,7 +578,7 @@ test.describe("committed corpus shell on a phone", () => {
     await reachOnPhone(page, "Chats");
     const grid = page.locator(GRID);
     const context = page.locator(CONTEXT_PANEL);
-    await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
+    await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
     await expect(grid).toHaveAttribute("data-room-screen", "true");
     await expect(page.locator(".shell-rail")).toHaveCount(0);
 
@@ -611,7 +612,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
 
     await reachOnPhone(page, "Chats");
-    await page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button").first().click();
+    await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
     await expect(grid).toHaveAttribute("data-room-screen", "true");
     await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
     await expect(grid).toHaveAttribute("data-section", "chats");

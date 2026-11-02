@@ -17,6 +17,7 @@
 // a real speaker in the room) streams a reply back.
 
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { charactersRailButton, typeAndSend } from "./support/chat-room.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
@@ -55,7 +56,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
 
   // The store seam flipped CONTENT back to the Chats section with a fresh, character-seeded draft: the
   // composer is live.
-  const composer = page.getByRole("textbox", { name: "Message" });
+  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
   await expect(composer).toBeVisible();
 
   // Type + send via the shared helper (it drives React's onChange — `fill` does not — and RETRIES past the
@@ -102,7 +103,7 @@ test("draft promotion: after the first send completes, the composer returns to S
   await expect(chatCta).toBeAttached({ timeout: WAIT_SETTLE_MS });
   await chatCta.click();
 
-  const composer = page.getByRole("textbox", { name: "Message" });
+  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
   await expect(composer).toBeVisible();
 
   // First send — the draft→committed promotion + a real streamed turn.
@@ -117,7 +118,7 @@ test("draft promotion: after the first send completes, the composer returns to S
   // indefinitely (input + Send disabled), recoverable only by a page reload.
   const sendButton = page.locator('[data-testid="composer-send"]');
   await expect(sendButton).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await expect(page.getByRole("button", { name: "Stop generating" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: CHAT_STOP_NAME })).toHaveCount(0);
   await expect(composer).toBeEnabled();
 
   // The proof the room is genuinely usable again (not just visually recovered): a SECOND message types and

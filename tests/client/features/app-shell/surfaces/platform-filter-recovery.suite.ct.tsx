@@ -4,6 +4,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { FilterRecoveryShellStory } from "./_filter-recovery-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_filter-recovery-stories/FilterRecoveryShellStory";
@@ -91,7 +92,7 @@ for (const regime of [
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "docked", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');
-      const search = list.getByRole("textbox", { name: "Search sessions by character or name", exact: true });
+      const search = list.getByRole("textbox", { name: REFINERY_SEARCH_SESSIONS_NAME, exact: true });
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       await search.fill(MISSING);
       await expect(list.getByText("No sessions match that search.", { exact: true })).toBeVisible();

@@ -12,6 +12,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -74,7 +75,7 @@ test.describe("committed corpus room launches", () => {
     await goToSection(page, isMobile, "Chats");
     await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toBeVisible();
-    await expect(page.getByRole("textbox", { name: "Message" })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toHaveCount(0);
   });
 
   test("picking a character in the library creates the chat and lands in it", { tag: "@smoke" }, async ({ page, baseURL }) => {
@@ -91,14 +92,14 @@ test.describe("committed corpus room launches", () => {
       await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(PROBE_NAME);
       const cta = page.getByRole("button", { name: chatWithActionName(PROBE_NAME), exact: true });
       await expect(cta).toBeVisible();
-      await expect(page.getByRole("textbox", { name: "Message" })).toHaveCount(0);
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toHaveCount(0);
       // A floated action cluster is inert at rest; the row must be hovered before its door can be clicked.
       await page.locator('[data-slot="list-row-root"]').filter({ has: cta }).hover();
       const started = page.waitForResponse((response) => response.url().includes("/api/trpc/chat.startChat"));
       await cta.click();
       const chatId = await startedChatId(await started);
       try {
-        await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+        await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
         await expect(page.locator('[data-slot="message-row"][data-role="assistant"]').first()).toContainText(PROBE_GREETING);
         expect(startRequests).toBe(1);
       } finally {
@@ -124,7 +125,7 @@ test.describe("committed corpus room launches", () => {
     const chatId = await startedChatId(await started);
     try {
       expect((await host.trpc.chat.getChat.query({ chatId })).temporary).toBe(true);
-      const composer = page.getByRole("textbox", { name: "Message" });
+      const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
       await expect(composer).toBeVisible();
       await expect(page.locator(".shell-topbar").getByText(TEMPORARY_CHAT_BADGE, { exact: true })).toBeVisible();
       await composer.click();

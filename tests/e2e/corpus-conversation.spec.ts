@@ -2,6 +2,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { CHAT_CANCEL_EDIT_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { openChatByTitle, openChatOptions, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
@@ -68,7 +69,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await host.trpc.chat.updateTitle.mutate({ chatId, title: TITLE });
     await openChatByTitle(page, TITLE);
     const sent = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("chat.send"));
-    await typeAndSend(page.getByRole("textbox", { name: "Message", exact: true }), PROMPT);
+    await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }), PROMPT);
     await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(FIRST.prefix);
     fixture.release(0);
     const sentResponse = await sent;
@@ -88,11 +89,11 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await assistant.hover();
     await assistant.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
     await assistant.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill("This cancelled edit must not land.");
-    await assistant.getByRole("button", { name: "Cancel edit", exact: true }).click();
+    await assistant.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
     await expect(assistant).toContainText(SWIPE.prefix + SWIPE.suffix);
     await assistant.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
     await assistant.getByRole("textbox", { name: MESSAGE_EDIT_NAME, exact: true }).fill(EDITED);
-    await assistant.getByRole("button", { name: "Save edit", exact: true }).click();
+    await assistant.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }).click();
     await expect(assistant).toContainText(EDITED);
 
     await openPersonas(page, isMobile);
@@ -116,7 +117,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     if (isMobile) {
       await jumpTo(page, TITLE);
     }
-    await typeAndSend(page.getByRole("textbox", { name: "Message", exact: true }), SWITCHED.userMessage);
+    await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }), SWITCHED.userMessage);
     await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWITCHED.prefix);
     fixture.release(2);
     await expect(assistant).toContainText(SWITCHED.prefix + SWITCHED.suffix);

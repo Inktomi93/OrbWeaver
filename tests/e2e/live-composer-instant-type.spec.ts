@@ -1,5 +1,6 @@
 // Room-entry reads must not remount the composer or lose input. Exercise raw typing and one-shot sending.
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openOrCreateChat, reopenFirstChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
@@ -15,7 +16,7 @@ test("typing instantly after room open keeps every keystroke — no composer rem
   await page.reload();
   await waitForAppReady(page);
   await reopenFirstChat(page);
-  const composer = page.getByRole("textbox", { name: "Message" });
+  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
   await expect(composer).toBeVisible();
 
   // (1) RAW instant type — NO settle wait, NO retry loop. Under the bug this dropped everything after the

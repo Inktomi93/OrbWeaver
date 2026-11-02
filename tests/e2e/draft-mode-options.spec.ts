@@ -9,6 +9,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import {
   charactersRailButton,
@@ -38,7 +39,7 @@ async function openFreshHusk(page: Page): Promise<void> {
   await chatRow.hover();
   await chatRow.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }).click();
   await expect(page.locator('[role="status"]', { hasText: "Loaded chat" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 test("committed room: the ⋯ options menu is present with its actions enabled", async ({ page }) => {
@@ -78,7 +79,9 @@ test("start click mounts the real room surface and the first row write claims th
     // Rename is explicit activity: it claims the husk, after which ordinary library navigation must reveal it.
     await renameOpenChat(page, claimedTitle);
     await gotoChatsList(page);
-    await expect(page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
+    await expect(page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({
+      timeout: WAIT_SURFACE_MS,
+    });
   } finally {
     await removeCharacter(characterId);
   }
@@ -90,7 +93,7 @@ test("turning game mode on in an unsent room claims it into the Chats list", asy
   try {
     // A title given at creation does not claim, so the row is hidden until the game is created.
     const started = await trpc.chat.startChat.mutate({ characterIds: [characterId], title: gameTitle });
-    const gameRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: gameTitle });
+    const gameRow = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button", { name: gameTitle });
     await gotoChatsList(page);
     await expect(gameRow).toHaveCount(0);
 

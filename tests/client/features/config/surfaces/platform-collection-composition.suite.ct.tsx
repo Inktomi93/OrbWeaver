@@ -9,6 +9,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -284,7 +285,7 @@ for (const regime of REGIMES) {
       await expect(content.getByRole("textbox", { name: "Script name", exact: true })).toBeFocused();
       await content.getByRole("button", { name: "Cancel", exact: true }).click();
       expect(await caller.regex.countScripts()).toBe(before);
-      await content.getByRole("button", { name: "More library actions", exact: true }).click();
+      await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();
       await expect(page.getByRole("menuitem", { name: "Import a regex script", exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await page.screenshot({ path: test.info().outputPath("collection-controls.png") });

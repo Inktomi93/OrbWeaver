@@ -3,6 +3,8 @@ import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
 type Scenario = Omit<Exclude<SurfaceAuditRequest, { readonly state: "error" }>, "checks" | "requireBothFormKeys">;
@@ -15,11 +17,11 @@ const SECTION_WITNESSES = {
       .getByRole("button", { name: /^Resume / })
       .first(),
     page.getByRole("list", { name: "Character quick-picks", exact: true }).getByRole("listitem").first(),
-    page.getByRole("list", { name: "Recent documents", exact: true }).getByRole("listitem").first(),
+    page.getByRole("list", { name: DATABANK_RECENT_DOCUMENTS_NAME, exact: true }).getByRole("listitem").first(),
     page.locator('[data-home-tile="rosterPreset.rosters"]').getByRole("listitem").first(),
   ],
   chats: (page): Witnesses => [
-    page.getByRole("list", { name: "Chats list", exact: true }).getByRole("listitem").first(),
+    page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("listitem").first(),
     page.locator(".shell-content").getByRole("button", { name: /Start a new chat/i }),
   ],
   characters: (page): Witnesses => [

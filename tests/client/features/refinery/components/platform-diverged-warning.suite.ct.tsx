@@ -8,6 +8,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { REFINERY_SESSION_STATE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -78,7 +79,7 @@ for (const regime of REGIMES) {
       const review = page.getByTestId(testId("refineryAcceptReview"));
       await expect(review.getByText(RECONFIRM, { exact: true })).toBeVisible();
       const masthead = page.getByTestId(testId("refineryMasthead"));
-      const sessionState = masthead.getByRole("group", { name: "Session state", exact: true });
+      const sessionState = masthead.getByRole("group", { name: REFINERY_SESSION_STATE_NAME, exact: true });
       const sessionStateGeometry = await actionGroupGeometry(masthead, [sessionState, ...(await sessionState.getByTestId(testId("refineryChip")).all())]);
       await test.info().attach("session-state-bounds", { body: JSON.stringify(sessionStateGeometry), contentType: "application/json" });
       expect(sessionStateGeometry.inlineOverflow).toBeLessThanOrEqual(1);

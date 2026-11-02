@@ -1,6 +1,7 @@
 // Passive two-tab smoke: a known room renamed in A must update B without reload.
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, renameFirstChatViaRowKebab } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -19,10 +20,10 @@ test("rename in tab A propagates live to tab B's list via the user-bus", { tag: 
     await gotoChatsList(tabA);
     await gotoChatsList(tabB);
     // Both list the same first chat.
-    const listRowB = tabB.getByRole("list", { name: "Chats list" }).getByRole("button").first();
+    const listRowB = tabB.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button").first();
     await expect(listRowB).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(listRowB).toContainText(title);
-    await expect(tabA.getByRole("list", { name: "Chats list" }).getByRole("button").first()).toContainText(title);
+    await expect(tabA.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button").first()).toContainText(title);
 
     const newTitle = "e2e-multitab-smoke-renamed";
     await renameFirstChatViaRowKebab(tabA, newTitle);

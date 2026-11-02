@@ -2,6 +2,7 @@
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { DATABANK_PASTE_TEXT_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 
 const STORY = "tests/client/features/databank/components/_add-document-stories/AddDocumentStory";
@@ -38,7 +39,7 @@ test("a link fetch that fails after the source was switched is still said, by th
   await page.getByRole("button", { name: "Fetch and add", exact: true }).click();
   await hold.requested;
 
-  await page.getByRole("button", { name: "Paste text", exact: true }).click();
+  await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
   hold.fail();
   await expect(page.locator(TOAST)).toBeVisible();
 });

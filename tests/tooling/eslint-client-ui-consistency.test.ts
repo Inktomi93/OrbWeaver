@@ -100,6 +100,8 @@ test.for([
   ["a ConfirmDialog trigger", '<ConfirmDialog title="t" trigger={<Button>Delete</Button>} />'],
   ["an Undo action", "<><Button>Remove</Button>{notify({ action: { label: 'Undo' } })}</>"],
   ["an inline Keep step", "<Row><Button>Keep</Button><Button>Dismiss</Button></Row>"],
+  ["an inline Cancel step", "<Row><Button>Cancel</Button><Button>Delete</Button></Row>"],
+  ["an inline Cancel step by shared verb", "<Row><Button>{DIALOG_VERBS.cancel}</Button><Button>Delete</Button></Row>"],
   ["an editing dialog", "<><FormDialog title='t' dismissLabel='Close' /><Button>Remove</Button></>"],
   ["a search clear", "<Button>Clear search</Button>"],
   ["a non-destructive verb", "<Button>Save</Button>"],
