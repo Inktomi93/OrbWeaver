@@ -16,7 +16,7 @@
 // THE `entityRef` ARM IS THE ONE THAT READS THE CHAT (#630). Every other editor is pure over its
 // descriptor; this one asks the server what THIS ROOM has, because the whole point is that a host never
 // types a TypeID from memory. Its three non-pickable states are SAID rather than rendered as an empty
-// dropdown: loading, a failed read, and — the honest one — a room with no world books attached, which no
+// dropdown: loading, a failed read (the shared boundary's skeleton and error), and — the honest one — a room with no world books attached, which no
 // picker can invent. The mint's own refusal stays reachable behind all of it: attachment is a LIVE fact
 // (`domain/automation/substrate/validate.ts`), so a book listed at render can stop qualifying before the
 // press, and that refusal rides `mintFailureToast`.
@@ -41,7 +41,8 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
 import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset-knob-model.ts";
 
@@ -174,9 +175,8 @@ function ChoiceKnobField({
  *  chat, which is the same set `substrate/validate.ts` will accept at mint, so a listed option is a book
  *  the mint can take.
  *
- *  `useQuery`, NOT `useSuspenseQuery`: suspending HERE would throw the whole popover body back to its
- *  `QueryBoundary` fallback mid-form, and the three non-pickable outcomes are things a host needs to READ
- *  rather than a spinner over the whole card.
+ *  The read suspends under the knob's own `QueryBoundary`, so the row says loading or failed in place and
+ *  the popover body stays standing.
  *
  *  THE EMPTY ARM NOW POINTS SOMEWHERE (#640). It used to prescribe nothing on purpose — no client affordance
  *  attached a book to a chat, so a "go attach one" line would have pointed at a door that was not there. The
@@ -184,9 +184,8 @@ function ChoiceKnobField({
  *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
  *  that makes this card completable. */
 function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElement {
-  // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs `useQuery`, so the chat-less arm has
-  // to be a different COMPONENT rather than an early return. (An `enabled: false` query would report
-  // `isPending` forever and paint "Loading this room's world books…" at a surface that has no room.)
+  // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs a suspending read, so the chat-less arm
+  // has to be a different COMPONENT rather than an early return.
   return chatId === null ? <GlobalEntityRefUnavailable knob={props.knob} /> : <ChatWorldInfoBookKnobField {...props} chatId={chatId} />;
 }
 
@@ -203,26 +202,32 @@ function GlobalEntityRefUnavailable({ knob }: { readonly knob: RulePresetKnobVie
   );
 }
 
-function ChatWorldInfoBookKnobField({ knob, chatId, value, onChange, showIssue }: KnobFieldProps & { readonly chatId: ChatId }): ReactElement {
+function ChatWorldInfoBookKnobField(props: KnobFieldProps & { readonly chatId: ChatId }): ReactElement {
+  // The knob's own boundary: a pending or failed read says so in this row and never takes the popover body with it.
+  return (
+    <QueryBoundary
+      fallback={
+        <KnobRow knob={props.knob} issue={null}>
+          <SkeletonRows count={1} shape="line" />
+        </KnobRow>
+      }
+      renderError={(_error, retry): ReactElement => (
+        <KnobRow knob={props.knob} issue={props.showIssue ? knobIssue(props.knob, props.value) : null}>
+          <QueryErrorState label="this room's world books" onRetry={retry} />
+        </KnobRow>
+      )}
+    >
+      <ChatWorldInfoBookKnobBody {...props} />
+    </QueryBoundary>
+  );
+}
+
+function ChatWorldInfoBookKnobBody({ knob, chatId, value, onChange, showIssue }: KnobFieldProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const books = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
+  const books = useSuspenseQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
   const chosen = typeof value === "string" && value.length > 0 ? value : null;
   const issue = showIssue ? knobIssue(knob, value) : null;
 
-  if (books.isPending) {
-    return (
-      <KnobRow knob={knob} issue={null}>
-        <Text voice="gloss">Loading this room's world books…</Text>
-      </KnobRow>
-    );
-  }
-  if (books.isError) {
-    return (
-      <KnobRow knob={knob} issue={issue}>
-        <Text voice="gloss">Couldn't load this room's world books.</Text>
-      </KnobRow>
-    );
-  }
   const items: SelectItems = books.data.map((book) => ({ value: book.id, label: book.name }));
   if (items.length === 0) {
     return (
