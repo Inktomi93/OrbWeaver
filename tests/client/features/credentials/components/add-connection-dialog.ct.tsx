@@ -1,6 +1,7 @@
 // The Add connection dialog through the real Connections section: the model picker takes the caret when its list lands
 // and centres the row a keyboard pick lands on; a refused save puts focus on its inline failure; a saved connection
 // hands focus to the Add connection button that replaces the one the empty state drew.
+import type { ProviderId } from "@orb/contracts/inference";
 import { modelListingSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -43,7 +44,7 @@ const catalog = modelListingSchema.parse({
 async function scenario(): Promise<{
   readonly caller: Awaited<ReturnType<typeof root.internalCallerFor>>;
   readonly label: string;
-  readonly providerId: string;
+  readonly providerId: ProviderId;
   readonly providers: Awaited<ReturnType<Awaited<ReturnType<typeof root.internalCallerFor>>["connection"]["providersAvailable"]>>;
 }> {
   const caller = await root.internalCallerFor(root.ownerId);

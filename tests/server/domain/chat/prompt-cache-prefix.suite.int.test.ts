@@ -1,9 +1,10 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Persona changes are authored through the root; prefix identity is measured on native provider inputs.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -427,7 +428,7 @@ async function placement(model: string, strict: boolean): Promise<JsonValue> {
   const pivot = DEFAULT_PROMPT_CONFIG.sections.findIndex((section) => section.type === "marker" && section.marker === "chat_history");
   const perTurn: PromptSection = {
     type: "literal",
-    id: "per-turn",
+    id: promptSectionIdSchema.parse("per-turn"),
     name: "per-turn",
     role: "system",
     enabled: true,
@@ -436,14 +437,21 @@ async function placement(model: string, strict: boolean): Promise<JsonValue> {
   };
   const depth: PromptSection = {
     type: "literal",
-    id: "at-depth",
+    id: promptSectionIdSchema.parse("at-depth"),
     name: "at-depth",
     role: "system",
     enabled: true,
     content: DEPTH_TWO_NOTE,
     inject: { depth: 2 },
   };
-  const below: PromptSection = { type: "literal", id: "below", name: "below", role: "system", enabled: true, content: BELOW_HISTORY_NOTE };
+  const below: PromptSection = {
+    type: "literal",
+    id: promptSectionIdSchema.parse("below"),
+    name: "below",
+    role: "system",
+    enabled: true,
+    content: BELOW_HISTORY_NOTE,
+  };
   await using h = await personaRoom(["r"], {
     model,
     promptConfig: {
@@ -505,7 +513,7 @@ test("a real older model and strict preset fold the same system rows into user t
 test("an actual imported ST lorebook brackets the per-turn section at before-character and after-character anchors", async () => {
   const marker = (id: string, kind: "main_prompt" | "world_info_before" | "char_description" | "world_info_after" | "chat_history"): PromptSection => ({
     type: "marker",
-    id,
+    id: promptSectionIdSchema.parse(id),
     name: id,
     marker: kind,
     role: "system",
@@ -517,7 +525,7 @@ test("an actual imported ST lorebook brackets the per-turn section at before-cha
       marker("main", "main_prompt"),
       marker("wi-before", "world_info_before"),
       marker("desc", "char_description"),
-      { type: "literal", id: "mid", name: "mid", role: "system", enabled: true, content: "[MID]", trigger: ["normal"] },
+      { type: "literal", id: promptSectionIdSchema.parse("mid"), name: "mid", role: "system", enabled: true, content: "[MID]", trigger: ["normal"] },
       marker("wi-after", "world_info_after"),
       marker("history", "chat_history"),
     ],

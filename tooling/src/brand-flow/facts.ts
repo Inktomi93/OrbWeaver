@@ -1,4 +1,4 @@
-// What the checker says a type is, as far as brands go, and the table that maps an id-named declaration to its brand.
+// What the checker says a type is, as far as brands go.
 // A brand is any intersection assignable to the constraint of `castId`'s type parameter (`Branded<string>`): every
 // brand is assignable to it and a bare string is not. A union is read member by member.
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -128,43 +128,3 @@ export class TypeReader {
 
 /** A type that is a plain string slot: it takes any string and names no brand. */
 export const takesAnyString = (facts: TypeFacts): boolean => facts.plain && facts.brands.length === 0;
-
-// A name whose brand is spelled differently: the connection brand carries its table prefix, and an owner is a user.
-const ALIASES: Readonly<Record<string, string>> = { owner: "UserId", connection: "UserConnectionId", binding: "ConnectionBindingId" };
-
-export interface NameMatch {
-  readonly brand: string;
-  readonly match: "exact" | "suffix" | "alias";
-}
-
-/** The table that maps an id-named declaration to a brand: one row per `ID_PREFIX` entity, plus every other brand a
- *  world met whose name ends in `Id`. */
-export class BrandTable {
-  readonly #byTokens = new Map<string, string>();
-  readonly names: ReadonlySet<string>;
-
-  constructor(seen: Iterable<string>) {
-    const names = new Set([...Object.keys(ID_PREFIX).map((key) => `${pascal(key)}Id`), ...[...seen].filter((name) => /^[A-Z]\w*Id$/u.test(name))]);
-    this.names = names;
-    for (const name of names) {
-      this.#byTokens.set(name.slice(0, -2).toLowerCase(), name);
-    }
-  }
-
-  /** The brand an id-named declaration stands for, by its whole stem, its trailing words, or an alias. */
-  brandOf(declared: string): NameMatch | null {
-    const stem = /^(.+?)Ids?$/u.exec(declared)?.[1];
-    if (stem === undefined) {
-      return null;
-    }
-    const words = stem.split(/(?=[A-Z])/u);
-    for (const [start] of words.entries()) {
-      const brand = this.#byTokens.get(words.slice(start).join("").toLowerCase());
-      if (brand !== undefined) {
-        return { brand, match: start === 0 ? "exact" : "suffix" };
-      }
-    }
-    const alias = ALIASES[words.at(-1)?.toLowerCase() ?? ""];
-    return alias !== undefined && this.names.has(alias) ? { brand: alias, match: "alias" } : null;
-  }
-}

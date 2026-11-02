@@ -1,5 +1,8 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
+
 import { createHash } from "node:crypto";
+import { modelIdSchema } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
 import { REFINERY_RESPONSE_FORMATS } from "../../../packages/server/src/domain/refinery/substrate/stage-resolution.ts";
 import { servePhysicalPeer } from "./physical-peer.ts";
@@ -7,8 +10,8 @@ import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 
 export const CORPUS_PROVIDER_ENDPOINT = "http://127.0.0.1:8704/v1";
-export const CORPUS_EMBED_MODEL = "corpus-embed-v2";
-export const CORPUS_TEXT_MODEL = "corpus-text-v1";
+export const CORPUS_EMBED_MODEL = modelIdSchema.parse("corpus-embed-v2");
+export const CORPUS_TEXT_MODEL = modelIdSchema.parse("corpus-text-v1");
 const EMBEDDING_DIGEST = "sha512";
 const BYTE_MIDPOINT = 0xff / 2;
 export const CORPUS_EMBEDDING_VECTOR: readonly number[] = Object.freeze(
@@ -130,7 +133,7 @@ export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
 
 interface CorpusProviderScript {
   readonly baseUrl?: string;
-  readonly modelIds: readonly string[];
+  readonly modelIds: readonly ModelId[];
   readonly embedding: readonly number[] | ((input: string) => readonly number[]);
   readonly chatText: string | ((requestBody: string) => string);
   /** Stream the scripted chat text as these separate deltas; their concatenation is `chatText`. */

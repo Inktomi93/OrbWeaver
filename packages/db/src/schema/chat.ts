@@ -72,7 +72,7 @@ import {
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
 import { AUTH_MODES, PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS, WIRES } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import { EFFORT_LEVELS } from "@orb/contracts/preset";
@@ -539,8 +539,8 @@ export const messageVariants = sqliteTable(
     // The PROVIDER's response id for this generation — OpenRouter's `gen-…` (the key `connection.generationCost`
     // settles the per-message cost with) or Anthropic's `msg_…` (the support handle a request is traced
     // by; inference audit B7). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
-    // Null where the wire reports none (agent-sdk / a user-authored row). NOT an orbweaver-branded id.
-    generationId: text("generation_id"),
+    // Null where the wire reports none (agent-sdk / a user-authored row). Never an orbweaver identity.
+    generationId: text("generation_id").$type<ProviderGenerationId>(),
     // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
     preContinueContent: text("pre_continue_content"),
     preContinueReasoning: text("pre_continue_reasoning"),
@@ -1096,7 +1096,7 @@ export const chatGenerationObservations = sqliteTable(
     finishReason: text("finish_reason", { enum: NORMALIZED_FINISH_REASONS }).$type<NormalizedFinishReason>(),
     stopReason: text("stop_reason"),
     terminalReason: text("terminal_reason"),
-    generationId: text("generation_id"),
+    generationId: text("generation_id").$type<ProviderGenerationId>(),
     observedAt: integer("observed_at").notNull(),
   },
   (t) => [

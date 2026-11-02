@@ -92,6 +92,17 @@ test("recognised schema refusal identifies the source prompt and field, unlike u
   expect(tryImportStChatCompletionPreset({ note: "another tool's export", items: [1, 2, 3] })).toMatchObject({ ok: false, recognised: false });
 });
 
+test("a prompt with an empty identifier is a recognised refusal, never a throw", () => {
+  const valid = INJECTED_PRESET;
+  const [first] = valid.prompts;
+  const refused = tryImportStChatCompletionPreset({
+    ...valid,
+    prompts: [{ ...first, identifier: "" }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "", enabled: true }] }],
+  });
+  expect(refused).toMatchObject({ ok: false, recognised: true });
+});
+
 test("sampling values map while disabled sentinels and absent fields remain unset", () => {
   const enabled = tryImportStChatCompletionPreset({ prompts: [], temperature: 0.8, ["min_p"]: 0.07, ["top_a"]: 0.2, ["top_k"]: 12, seed: 0 });
   const disabled = tryImportStChatCompletionPreset({ prompts: [], ["min_p"]: 0, ["top_a"]: 0, ["top_k"]: 0, seed: -1 });

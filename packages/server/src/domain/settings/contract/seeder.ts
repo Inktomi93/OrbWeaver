@@ -12,10 +12,10 @@
 
 import type { StoreSeedPlate } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { BackgroundLibraryEntry, ResolveSeededPlateOp } from "@orb/contracts/settings";
+import type { BackgroundLibraryEntry, NewBackgroundEntryId, ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { SeedBackgroundPlate } from "@orb/default-content";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 
 export interface DefaultBackgroundSeederDeps {
@@ -26,7 +26,7 @@ export interface DefaultBackgroundSeederDeps {
    *  no such plate / the store refused it, so the caller skips ONE plate instead of failing the seed. */
   readonly storePlate: StoreSeedPlate;
   /** Mint one `backgroundLibrary` row id (the settings service's own `newBackgroundEntryId`). */
-  readonly newEntryId: IdSource["uuid"];
+  readonly newEntryId: NewBackgroundEntryId;
   /** The caller's own settings — the latch, the pack stamp and the current library. */
   readonly readOnboarding: (principal: Principal) => Promise<{ readonly seeded: boolean }>;
   readonly readLibrary: (principal: Principal) => Promise<readonly BackgroundLibraryEntry[]>;

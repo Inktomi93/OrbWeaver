@@ -3,7 +3,7 @@
 // Native vendor inputs and committed canon prove the public Smart policy, not a substituted arbiter.
 
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
@@ -69,7 +69,7 @@ test("saved Utility sampling reaches native input without replacing the arbiter 
       sections: [
         {
           type: "literal",
-          id: "private-utility-template",
+          id: promptSectionIdSchema.parse("private-utility-template"),
           name: "Utility template",
           role: "system",
           content: "NEVER BLEED THIS CUSTOM UTILITY SYSTEM",

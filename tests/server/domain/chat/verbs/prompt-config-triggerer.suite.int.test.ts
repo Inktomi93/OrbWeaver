@@ -1,14 +1,22 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Public stamps and native prompt voices replace private resolver-argument observations.
+
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
 import { inputSystem, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
 
-const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PRESET_USER=<{{user}}>" };
+const VOICE_PROBE: PromptSection = {
+  type: "literal",
+  id: promptSectionIdSchema.parse("voice"),
+  name: "voice",
+  role: "system",
+  enabled: true,
+  content: "PRESET_USER=<{{user}}>",
+};
 
 test("an explicit owned send persona stamps that human while canon stays anchored and a draft uses the explicit voice", async () => {
   await using h = await personaRoom(["canon", "draft"], {

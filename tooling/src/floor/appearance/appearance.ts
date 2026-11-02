@@ -31,6 +31,7 @@
 // ThemeScope commit from `orb:appearance-boot`. Intercepting the query alone would therefore measure a
 // stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation;
 // `appearance.test.ts` keeps this copied browser boundary set-equal to the live manifest.
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { BrowserContext, Route } from "@playwright/test";
 import { isPlainObject } from "../browser/page-validate.ts";
 import { warn } from "../cli/log.ts";
@@ -225,7 +226,8 @@ export function readBackgroundCapability(body: unknown, index: number): Backgrou
   if (typeof assetId !== "string" || typeof assetHash !== "string" || typeof mime !== "string" || assetId.length === 0 || assetHash.length === 0) {
     return null;
   }
-  return { assetId, assetHash, mime };
+  const asset = typeIdSchema(ID_PREFIX.asset).safeParse(assetId);
+  return asset.success ? { assetId: asset.data, assetHash, mime } : null;
 }
 
 async function fulfilPatched(

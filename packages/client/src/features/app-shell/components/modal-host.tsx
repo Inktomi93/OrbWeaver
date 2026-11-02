@@ -180,6 +180,21 @@ function DialogModal({
     return visibleModalTrigger(def.id) ?? true;
   };
 
+  // Base UI scrolls to any initial-focus element but the popup itself. A short popup that scrolls as one sheet would lose its
+  // title and Close to that scroll, so the body takes focus without scrolling and Base UI is told to move nothing more.
+  // A body that already placed its own arrival focus keeps it: on a warm open the picker's search focuses before this runs,
+  // and on a cold one after it, so either order ends on the body's choice.
+  const focusBodyInPlace = (): boolean => {
+    const target = bodyRef.current;
+    if (target === null) {
+      return true;
+    }
+    if (!target.contains(document.activeElement)) {
+      target.focus({ preventScroll: true });
+    }
+    return false;
+  };
+
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
   // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
@@ -190,7 +205,7 @@ function DialogModal({
       title={def.title}
       open={true}
       onOpenChange={onOpenChange}
-      popupProps={{ ...sizeProp, container, finalFocus: resolveFinalFocus, initialFocus: (): HTMLElement | boolean => bodyRef.current ?? true }}
+      popupProps={{ ...sizeProp, container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
       bodyProps={{ className: bodyClass, ref: bodyRef, tabIndex: -1 }}
       headerActions={
         <DialogClose

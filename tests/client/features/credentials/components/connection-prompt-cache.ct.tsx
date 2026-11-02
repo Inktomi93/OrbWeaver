@@ -1,5 +1,5 @@
-import type { PromptCacheSettings } from "@orb/contracts/inference";
-import { builtinProvider, effectivePromptCache, foldFeatures, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
+import type { PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
+import { builtinProvider, effectivePromptCache, foldFeatures, providerIdSchema, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser/spec";
 import type { TrpcInput, TrpcRecorder } from "@orb/testkit/ct";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -31,7 +31,7 @@ const CACHE_READS = [
 ] as const;
 
 // Only vendor catalog bytes are scripted; the root owns saved connections, capability synthesis and cache policy.
-async function captureCacheRoute(providerId: string, model: string, replay = false, change?: Partial<PromptCacheSettings>): Promise<CacheCapture> {
+async function captureCacheRoute(providerId: ProviderId, model: string, replay = false, change?: Partial<PromptCacheSettings>): Promise<CacheCapture> {
   const provider = builtinProvider(providerId);
   if (provider?.baseUrl === undefined) {
     throw new Error("The cache witness requires a canonical hosted provider");
@@ -127,7 +127,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("native implicit caching explains provider ownership without invented controls or price claims", async ({ page, mount }) => {
-  await using captured = await captureCacheRoute("google", "gemini-3.8-flash");
+  await using captured = await captureCacheRoute(providerIdSchema.parse("google"), "gemini-3.8-flash");
   await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -163,7 +163,7 @@ test("native implicit caching explains provider ownership without invented contr
 });
 
 test("modern prefix caching retains provider minimum prose and saves the implicit-disable control", async ({ page, mount }) => {
-  await using captured = await captureCacheRoute("openai", "gpt-6-sol", false, { disableImplicit: true });
+  await using captured = await captureCacheRoute(providerIdSchema.parse("openai"), "gpt-6-sol", false, { disableImplicit: true });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -179,7 +179,7 @@ test("modern prefix caching retains provider minimum prose and saves the implici
 });
 
 test("automatic placement disables manual markers but leaves applicable retention available", async ({ page, mount }) => {
-  await using captured = await captureCacheRoute("anthropic", "claude-sonnet-5", false, { requestAutomatic: true });
+  await using captured = await captureCacheRoute(providerIdSchema.parse("anthropic"), "claude-sonnet-5", false, { requestAutomatic: true });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 870,
@@ -197,7 +197,7 @@ test("automatic placement disables manual markers but leaves applicable retentio
 });
 
 test("earlier OpenAI retention offers only its supported provider choices", async ({ page, mount }) => {
-  await using captured = await captureCacheRoute("openai", "gpt-5.5", false, { retention: "24h" });
+  await using captured = await captureCacheRoute(providerIdSchema.parse("openai"), "gpt-5.5", false, { retention: "24h" });
   const calls = await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 486,
@@ -212,7 +212,7 @@ test("earlier OpenAI retention offers only its supported provider choices", asyn
 });
 
 test("header-requested complete-response replay is reported separately from prefix caching", async ({ page, mount }) => {
-  await using captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
+  await using captured = await captureCacheRoute(providerIdSchema.parse("openrouter"), "anthropic/claude-sonnet-5", true);
   await installCacheRoute(page, captured);
   await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", {
     width: 870,
@@ -224,7 +224,7 @@ test("header-requested complete-response replay is reported separately from pref
 
 for (const width of [870, 486]) {
   test(`cache explanations retain their own prose typography and reading cap at ${width}`, async ({ page, mount }, testInfo) => {
-    await using captured = await captureCacheRoute("openrouter", "anthropic/claude-sonnet-5", true);
+    await using captured = await captureCacheRoute(providerIdSchema.parse("openrouter"), "anthropic/claude-sonnet-5", true);
     await installCacheRoute(page, captured);
     await mount<typeof ConnectionPromptCacheStory>("tests/client/features/credentials/components/_prompt-cache-stories/ConnectionPromptCacheStory", { width });
     const tier = await openCacheTier(page);

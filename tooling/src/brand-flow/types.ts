@@ -82,7 +82,7 @@ export interface RenarrowSite extends Where {
 export interface MissingSite extends Where {
   readonly name: string;
   readonly brand: string;
-  readonly match: "exact" | "suffix" | "alias";
+  readonly match: "exact" | "qualified" | "suffix" | "alias";
   readonly declKind: string;
   readonly owner: string | null;
   readonly shape: "string" | "collection";

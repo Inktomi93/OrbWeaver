@@ -24,7 +24,7 @@
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, ChatInjection } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, mintPromptSectionId, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -651,7 +651,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext, render: Ma
   return { renderedById };
 }
 
-const SYNTHETIC_COMPACT_SUMMARY_ID = "__synthetic-compact-summary";
+const SYNTHETIC_COMPACT_SUMMARY_ID = mintPromptSectionId("__synthetic-compact-summary");
 
 /** D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
  *  `compact_summary` section (the neo C1 cache-anchor invariant). The assembler — not the preset author —

@@ -8,6 +8,7 @@
 // with the metadata row that decides whether to give this readout a slot.
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { ProviderGenerationId } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Coins, Icon } from "@orb/ui/icons";
@@ -43,7 +44,7 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
   // The key is built ONLY once revealed AND the row is settleable — until then `useGatedQuery` skips the
   // fetch. The two null re-checks are what narrows the pair for `tsc`; `settleable` is the decision.
   const gateKey = revealed && settleable && generationId !== null && connectionId !== null ? { generationId, connectionId } : undefined;
-  const query = useGatedQuery(gateKey, (key: { readonly generationId: string; readonly connectionId: UserConnectionId }) =>
+  const query = useGatedQuery(gateKey, (key: { readonly generationId: ProviderGenerationId; readonly connectionId: UserConnectionId }) =>
     trpc.connection.generationCost.queryOptions(key),
   );
 

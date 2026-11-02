@@ -2,16 +2,24 @@
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 // Persona resolution on the native provider bytes: a card's identity follows the room's pinned anchor, the prompt's
 // voice follows the speaker's seat, and neither a seat swap nor a re-pin rewrites a stored message's persona stamp.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { addPersona, connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
 import { inputMessages, inputSystem, invitePerson, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
 
-const VOICE_PROBE: PromptSection = { type: "literal", id: "voice", name: "voice", role: "system", enabled: true, content: "PROMPT_USER=<{{user}}>" };
+const VOICE_PROBE: PromptSection = {
+  type: "literal",
+  id: promptSectionIdSchema.parse("voice"),
+  name: "voice",
+  role: "system",
+  enabled: true,
+  content: "PROMPT_USER=<{{user}}>",
+};
 const CARD_DESCRIPTION = "CARD_USER=<{{user}}> CARD_PERSONA=<{{persona}}>";
 // A card that never names {{persona}}, so an anchor description in the prompt can only come from the anchor block.
 const BARE_CARD_DESCRIPTION = "CARD_USER=<{{user}}>";

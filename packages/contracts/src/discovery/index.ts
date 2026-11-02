@@ -133,7 +133,7 @@ export interface AnalyticsResult {
 }
 
 export type { Archetype, ArchetypeMember, ModelRoutingRow, ThemeRow, VisualArchetype } from "./artifacts.ts";
-export { archetypeMemberSchema, archetypeSchema, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
+export { archetypeMemberSchema, archetypeSchema, mintPassId, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
 // The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
 // to compose `PROSE_SLOTS`.
 export { DISCOVERY_PROSE_SLOTS } from "./prose.ts";

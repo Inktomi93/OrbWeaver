@@ -1,10 +1,11 @@
 // Hold only the physical request; native turn admission, abort, accounting and persistence remain real.
+import { modelIdSchema } from "@orb/contracts/inference";
 import { readSeedAvatar } from "@orb/default-content";
 import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import sharp from "sharp";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
 
-export const CORPUS_CHAT_MODEL = "corpus-lifecycle-text-v1";
+export const CORPUS_CHAT_MODEL = modelIdSchema.parse("corpus-lifecycle-text-v1");
 export const CORPUS_CHAT_IMPORT_CUE = "Record the imported ledger scene.";
 export const CORPUS_CHAT_EMPTY_CUE = "Record the refused lifecycle witness.";
 export const CORPUS_CHAT_HELD_CUE = "Record the held lifecycle witness.";

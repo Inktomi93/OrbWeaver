@@ -1,4 +1,4 @@
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { createFrozenClock, makePromptConfig } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 
@@ -9,7 +9,14 @@ export const CLOCK_PREFIX = "CLOCK ";
 export const UTC_CLOCK = "2026-01-15 20:00:00 Thursday";
 export const CLOCK_CONFIG = makePromptConfig({
   sections: [
-    { type: "literal", id: "clock", name: "Clock", role: "system", content: `${CLOCK_PREFIX}{{date}} {{time}} {{weekday}}`, enabled: true },
+    {
+      type: "literal",
+      id: promptSectionIdSchema.parse("clock"),
+      name: "Clock",
+      role: "system",
+      content: `${CLOCK_PREFIX}{{date}} {{time}} {{weekday}}`,
+      enabled: true,
+    },
     ...DEFAULT_PROMPT_CONFIG.sections,
   ],
 });

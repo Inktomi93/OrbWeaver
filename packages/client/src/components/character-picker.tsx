@@ -33,7 +33,7 @@ import type { ReactElement, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { useDebouncedValue, useFocusOnSwap } from "#lib";
+import { useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
@@ -129,10 +129,15 @@ function CharacterPickerBody({
   const searchRef = useRef<HTMLInputElement>(null);
   useImperativeHandle(ownerSearchRef, () => searchRef.current as HTMLInputElement);
   const listRef = useRef<HTMLDivElement>(null);
-  // The SWAP hook, not the guarded one: this body mounts as the direct result of a user activation, and
-  // the control that opened it is gone (or the popup has already taken focus), so the `<body>` guard would
-  // decline exactly when the caret is wanted.
-  useFocusOnSwap(searchRef, autoFocusSearch);
+  // A swap focus, not the guarded one: this body mounts as the direct result of a user activation, and the control
+  // that opened it is gone (or the popup has already taken focus), so the `<body>` guard would decline exactly when
+  // the caret is wanted. It does not scroll: in a short dialog the box sits under the title, and revealing the box
+  // whole would push the title and Close out of view.
+  useEffect(() => {
+    if (autoFocusSearch) {
+      searchRef.current?.focus({ preventScroll: true });
+    }
+  }, [autoFocusSearch]);
   const trpc = useTRPC();
   const [term, setTerm] = useState("");
   const settled = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);

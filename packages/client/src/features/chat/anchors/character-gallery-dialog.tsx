@@ -32,7 +32,7 @@ import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 
 type GalleryItem = inferOutput<Trpc["assets"]["listGallery"]>[number];
 
-function toGalleryGridItem(item: GalleryItem, index: number): MediaGridItem {
+function toGalleryGridItem(item: GalleryItem, index: number): MediaGridItem<GalleryItemId> {
   return {
     id: item.galleryItemId,
     url: blobUrl(item.hash),
@@ -64,10 +64,10 @@ interface GalleryGridBodyProps {
   readonly onRetry: () => void;
   readonly scope: GalleryScope;
   readonly onShowEverywhere: () => void;
-  readonly gridItems: readonly MediaGridItem[];
+  readonly gridItems: readonly MediaGridItem<GalleryItemId>[];
   readonly galleryLabel: string;
   readonly characterName: string;
-  readonly onActivate: (item: MediaGridItem) => void;
+  readonly onActivate: (item: MediaGridItem<GalleryItemId>) => void;
   readonly onAddClick: () => void;
   readonly gridRef: Ref<MediaGridHandle>;
 }
@@ -172,8 +172,8 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
 
   const lightboxIndex = items.findIndex((i) => i.galleryItemId === lightboxId);
   const lightboxItem = items[lightboxIndex];
-  const openLightbox = (activated: MediaGridItem): void => {
-    setLightboxId(items.find((i) => i.galleryItemId === activated.id)?.galleryItemId ?? null);
+  const openLightbox = (activated: MediaGridItem<GalleryItemId>): void => {
+    setLightboxId(activated.id);
   };
   // BOTH DIALOGS CLOSE ON THE REMOVAL, NOT ON THE REQUEST (#1501). The confirm and the lightbox were
   // dismissed on the same tick as `.mutate`, so a rejected remove left the image in the gallery, the reader

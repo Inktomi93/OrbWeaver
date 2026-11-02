@@ -3,7 +3,7 @@
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
 import type { ChatContentPart, ChatDeltaEvent, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
-import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason, ProviderGenerationId } from "@orb/contracts/inference";
 import type { EffortLevel, ReasoningTagPair, ResponseCacheControl, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -332,7 +332,7 @@ export interface ChatResult {
   readonly numTurns: number;
   /** The provider's response id for this generation — OpenRouter's `gen-…` (the cost-settlement key), Anthropic's
    *  `msg_…` (the support handle); null where a wire reports none (agent-sdk). Opaque provenance (§5.3c class 4). */
-  readonly generationId?: string | null | undefined;
+  readonly generationId?: ProviderGenerationId | null | undefined;
   /** The reasoning effort the wire ACTUALLY CARRIED, in the preset's 7-member vocabulary (the `reasoning_effort`
    *  column's CHECK): `"none"` when the transport spelled thinking OFF, the wire word when it spelled a level,
    *  `null` when it spelled no effort field at all (a row with `features.effort: "none"`, a budget-mode turn, an

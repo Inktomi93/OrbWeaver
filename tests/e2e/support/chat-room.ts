@@ -355,9 +355,11 @@ export async function openGroupBehaviorSection(page: Page): Promise<void> {
 }
 
 /** The character bar's chip locator (chat-character-bar.tsx) — one chip per PRESENT character, and the whole bar is
- *  absent below 2 characters. `characterChipNames` reads the rendered roster; `characterChip` targets one member. */
+ *  absent below 2 characters. `characterChipNames` reads the rendered roster; `characterChip` targets one member.
+ *  The room renders the strip twice; the copy inside a short room's transcript is a pointer-only twin hidden from
+ *  assistive tech, so the copy that names the cast in every regime is the one counted. */
 export function characterChips(page: Page): ReturnType<Page["locator"]> {
-  return page.locator(`${CHARACTER_BAR} ${CHARACTER_CHIP}`);
+  return page.locator(`${CHARACTER_BAR}:not([aria-hidden="true"]) ${CHARACTER_CHIP}`);
 }
 
 /** The rendered character-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is

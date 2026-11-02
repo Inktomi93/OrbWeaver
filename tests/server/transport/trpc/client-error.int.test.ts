@@ -1,5 +1,6 @@
 // @subject packages/server/src/transport/trpc/router.ts
 // @subject packages/server/src/foundation/observability/client-error.ts
+import { clientRequestIdSchema } from "@orb/contracts/diagnostics";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -17,7 +18,7 @@ test("anonymous and authenticated reports keep sink truncation, URL secrecy and 
         url: "/auth/callback?code=private-query#private-fragment",
         stack: "s".repeat(5000),
         ownerStack: "at <Component>",
-        requestId: "client request\nfrom-prior-call",
+        requestId: clientRequestIdSchema.parse("client request\nfrom-prior-call"),
       }),
     ).toEqual({ ok: true });
     expect(error).toHaveBeenCalledExactlyOnceWith(

@@ -1,5 +1,5 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
-import type { Task } from "@orb/contracts/inference";
+import type { ProviderId, Task } from "@orb/contracts/inference";
 import { declaredCapabilitySchema, TASKS, taskDef } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
 import { closeDb } from "@orb/db";
@@ -333,7 +333,7 @@ export async function fundingConnection<T extends Task>(args: {
   readonly task: T;
   readonly allowBackground?: boolean;
   readonly credentialId?: UserCredentialId | null;
-  readonly providerId?: string;
+  readonly providerId?: ProviderId;
   readonly model?: string;
   readonly baseUrl?: string | null;
   readonly cachedFacts?: boolean;

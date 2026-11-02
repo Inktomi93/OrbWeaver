@@ -1,4 +1,5 @@
 import { blobIconUrl } from "@orb/contracts/assets";
+import type { CharacterId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Histogram } from "@orb/ui/histogram";
@@ -197,7 +198,7 @@ function VisualGroupingCheck({ destination }: { readonly destination: ClusterDes
 
 interface GroupingSnapshot {
   readonly passId: string;
-  readonly members: readonly { readonly characterId: string }[];
+  readonly members: readonly { readonly characterId: CharacterId }[];
 }
 
 function GroupingChangedNote({
@@ -207,7 +208,7 @@ function GroupingChangedNote({
   readonly current: readonly GroupingSnapshot[];
   readonly destination: ClusterDestination;
 }): ReactElement | null {
-  const membership = (members: readonly { readonly characterId: string }[]): string =>
+  const membership = (members: readonly { readonly characterId: CharacterId }[]): string =>
     members
       .map((member) => member.characterId)
       .toSorted()

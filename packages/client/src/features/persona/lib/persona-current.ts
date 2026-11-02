@@ -1,3 +1,4 @@
+import type { PersonaId } from "@orb/kit/ids";
 // The ONE resolution of "which persona am I playing as". With no room open it is who a new chat starts you as:
 // the default (the crown), then the last-played persona, then the first owned. In a room it is the viewer's
 // SEAT persona, or null when the seat is empty (the server stamps no persona then). Spelled ONCE because
@@ -5,8 +6,8 @@
 
 /** The seed pointers the resolution reads — the `settings.config.seeds` slice, structurally. */
 export interface PersonaSeedPointers {
-  readonly currentPersonaId: string | null;
-  readonly defaultPersonaId: string | null;
+  readonly currentPersonaId: PersonaId | null;
+  readonly defaultPersonaId: PersonaId | null;
 }
 
 /** The viewer's seat in the open room: `seatId` is `null` for an empty seat. */

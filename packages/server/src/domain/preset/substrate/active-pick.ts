@@ -10,6 +10,6 @@ import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
  *
  *  `defaultPresetId` is `string | null` because that is the type the settings contract gives the seed; the asked-for
  *  id is branded, so a wrong-kind id cannot reach this comparison from the verb side. */
-export function isActivePresetPick(defaultPresetId: string | null, presetId: PresetId): boolean {
+export function isActivePresetPick(defaultPresetId: PresetId | null, presetId: PresetId): boolean {
   return defaultPresetId === null ? presetId === SYSTEM_DEFAULT_PRESET_ID : defaultPresetId === presetId;
 }

@@ -5,7 +5,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { MouseEvent, ReactElement, ReactNode } from "react";
 import { useEffect, useId } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
@@ -19,7 +19,8 @@ type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 
 interface TranscriptWindowProps {
   readonly chatId: ChatId;
-  readonly render: (page: CanonPage, window: AnchoredPage | null, edges: TranscriptEdges) => ReactElement;
+  /** `history` is the ordinary pager's second copy, which a short room's transcript carries as its leading chrome. */
+  readonly render: (page: CanonPage, window: AnchoredPage | null, edges: TranscriptEdges, history: ReactNode) => ReactElement;
 }
 
 export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
@@ -30,6 +31,8 @@ export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
 }
 
 const EARLIER_MESSAGES_LABEL = CHAT_EARLIER_MESSAGES_NAME;
+// Paired by name with the short room rule in styles/globals.css, which picks which pager copy shows.
+const TRANSCRIPT_HISTORY_SLOT = "transcript-history";
 
 function mergePages(pages: readonly CanonPage[]): CanonPage {
   return {
@@ -43,6 +46,67 @@ function OrdinaryThread(props: TranscriptWindowProps): ReactElement {
   // Composer readers and the live carrier share this finite tail; it wins every overlapping row.
   const { data: tail } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }));
   return <OrdinaryHistory {...props} tail={tail} />;
+}
+
+interface HistoryPagerState {
+  readonly available: boolean;
+  readonly hasEarlier: boolean;
+  readonly busy: boolean;
+  readonly failed: boolean;
+  readonly onLoad: () => void;
+  readonly onRetry: () => void;
+}
+
+// A pointer-only control never takes focus, so a press cannot leave focus on a copy a regime flip hides.
+const keepFocus = (event: MouseEvent): void => event.preventDefault();
+
+/**
+ * The pager renders twice, and styles/globals.css picks what shows. The copy above the transcript (`describedBy` set) is
+ * the one keyboard and screen-reader users reach in every regime, so a regime flip never hides the control that holds
+ * focus. A short room also shows the copy inside the transcript's scroll content, for pointer and touch only: focusing
+ * chrome in the scroll content would scroll the reader to the oldest loaded row.
+ */
+function HistoryPager({
+  available,
+  hasEarlier,
+  busy,
+  failed,
+  onLoad,
+  onRetry,
+  describedBy,
+}: HistoryPagerState & { readonly describedBy: string | null }): ReactNode {
+  if (!(available || failed)) {
+    return null;
+  }
+  const pointer = describedBy === null;
+  const pointerOnly = pointer ? { tabIndex: -1, onMouseDown: keepFocus } : {};
+  return (
+    <Stack aria-hidden={pointer ? true : undefined} className="print:hidden" gap="field" data-slot={TRANSCRIPT_HISTORY_SLOT}>
+      {available ? (
+        <Row gap="field" align="center">
+          <Button {...pointerOnly} aria-describedby={describedBy ?? undefined} variant="ghost" size="sm" disabled={!hasEarlier || busy} onClick={onLoad}>
+            {EARLIER_MESSAGES_LABEL}
+          </Button>
+          {pointer ? null : (
+            <Text id={describedBy} className="sr-only" role="status">
+              {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
+            </Text>
+          )}
+        </Row>
+      ) : null}
+      {failed ? (
+        <QueryErrorState
+          label="conversation history"
+          onRetry={onRetry}
+          renderRetry={(retry): ReactNode => (
+            <Button {...pointerOnly} variant="ghost" onClick={retry}>
+              Retry
+            </Button>
+          )}
+        />
+      ) : null}
+    </Stack>
+  );
 }
 
 function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly tail: HistoryPage }): ReactElement {
@@ -69,29 +133,25 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
       void fetchNextPage().catch(globalThis.reportError);
     }
   }, [bridging, hasNextPage, isFetching, fetchNextPage]);
-  const historyAvailable = pages.hasPreviousPage || pages.data.pages.length > 1;
+  const pager: HistoryPagerState = {
+    available: pages.hasPreviousPage || pages.data.pages.length > 1,
+    hasEarlier: pages.hasPreviousPage,
+    busy: pages.isFetching,
+    failed: pages.isError,
+    onLoad: (): void => void pages.fetchPreviousPage().catch(globalThis.reportError),
+    onRetry: (): void => void pages.refetch().catch(globalThis.reportError),
+  };
   return (
     <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching}>
-      {historyAvailable ? (
-        <Row className="print:hidden" gap="field" align="center">
-          <Button
-            aria-describedby={description}
-            variant="ghost"
-            size="sm"
-            disabled={!pages.hasPreviousPage || pages.isFetching}
-            onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
-          >
-            {EARLIER_MESSAGES_LABEL}
-          </Button>
-          <Text id={description} className="sr-only" role="status">
-            {pages.hasPreviousPage ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
-          </Text>
-        </Row>
-      ) : null}
-      {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
+      <HistoryPager {...pager} describedBy={description} />
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
-      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false, settling: bridging })}
+      {props.render(
+        mergePages([...pages.data.pages, tail]),
+        null,
+        { earlier: pages.hasPreviousPage, later: false, settling: bridging },
+        <HistoryPager {...pager} describedBy={null} />,
+      )}
     </Stack>
   );
 }
@@ -148,6 +208,8 @@ function AnchoredThread({
       ? { earlier: fallback.data.previousCursor !== null, later: false, settling: false }
       : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
   return (
+    // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
+    // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
     <Stack className="block-full min-block-0" gap="field">
       <Row className="flex-wrap print:hidden" gap="field">
         <Button
@@ -179,7 +241,7 @@ function AnchoredThread({
         Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
       </Text>
       {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
-      {props.render(messagesPage, initial, edges)}
+      {props.render(messagesPage, initial, edges, null)}
     </Stack>
   );
 }

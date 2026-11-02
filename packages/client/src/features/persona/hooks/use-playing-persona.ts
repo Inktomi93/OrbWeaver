@@ -18,7 +18,7 @@ type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
 export interface PlayingPersonaState {
   readonly personas: readonly PersonaListItem[];
-  readonly seeds: { readonly currentPersonaId: string | null; readonly defaultPersonaId: string | null };
+  readonly seeds: { readonly currentPersonaId: PersonaId | null; readonly defaultPersonaId: PersonaId | null };
   readonly notifyOnChange: boolean;
   /** Who a new chat starts you as, and which pointer decided it (the no-room head). */
   readonly newChat: ReturnType<typeof resolveNewChatPersona<PersonaListItem>>;

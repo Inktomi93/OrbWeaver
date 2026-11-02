@@ -12,6 +12,7 @@
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
 import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type { NewBackgroundEntryId } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BulkImportLorebook, HasPrimaryBook } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -94,7 +95,7 @@ export interface AssetsCharacterComposeDeps {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   /** Mints one `appearance.backgroundLibrary` row id — the SAME minter the settings service uses for an
    *  upload/`addExternalBackground` entry, so a seeded plate's row is indistinguishable from a user's own. */
-  readonly newBackgroundEntryId: IdSource["uuid"];
+  readonly newBackgroundEntryId: NewBackgroundEntryId;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
   /** The caller's Utility-role preset params (D299). */

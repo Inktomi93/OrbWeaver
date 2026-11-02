@@ -6,6 +6,7 @@
 
 import type { ContentSpan } from "@orb/kit/content";
 import { contentSpanRaw, tokenizeContent } from "@orb/kit/content";
+import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { ASSET_LIST_LIMIT_MAX } from "../assets/index.ts";
@@ -166,7 +167,7 @@ export function composeSendBody(blocks: readonly SendContentBlock[]): string {
   return blocks.map((block) => (block.kind === "markdown" ? block.md : pictureRef(block))).join(SEND_BLOCK_SEPARATOR);
 }
 
-const pictureKey = (assetId: string, alt: string): string => JSON.stringify([assetId, alt]);
+const pictureKey = (assetId: AssetId, alt: string): string => JSON.stringify([assetId, alt]);
 
 /** Whether every authored picture is an image span in `body` exactly as many times as it was authored. Counts each
  *  occurrence, because one surviving copy of an asset must not hide a swallowed copy. */

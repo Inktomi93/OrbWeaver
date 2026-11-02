@@ -1,5 +1,4 @@
 import type { CharacterId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -16,11 +15,10 @@ export function RuleCharacterField({
   onChange,
 }: {
   readonly label: string;
-  readonly value: string | undefined;
-  readonly onChange: (value: string | undefined) => void;
+  readonly value: CharacterId | undefined;
+  readonly onChange: (value: CharacterId | undefined) => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
-  const id = typeIdSchema(ID_PREFIX.character).safeParse(value);
   return (
     <Stack gap="tight">
       {value === undefined ? (
@@ -41,13 +39,7 @@ export function RuleCharacterField({
             </Stack>
           )}
         >
-          {id.success ? (
-            <SelectedCharacterName characterId={id.data} label={label} />
-          ) : (
-            <Text>
-              {label}: {value}
-            </Text>
-          )}
+          <SelectedCharacterName characterId={value} label={label} />
         </QueryBoundary>
       )}
       <Button variant="ghost" className="justify-start" onClick={(): void => setOpen(!open)}>

@@ -98,7 +98,7 @@ function FacesStripView({
       ? [{ avatarHash: characterFilter.avatarHash, id: characterFilter.id, name: characterFilter.name }]
       : [];
   const faces = [...scopedFace, ...recent];
-  const scopeToFace = (id: string): void => {
+  const scopeToFace = (id: CharacterId): void => {
     const face = faces.find((candidate) => candidate.id === id);
     if (face === undefined) {
       return;

@@ -27,11 +27,12 @@ import type {
   CostDetails,
   GenerationUsageLeg,
   NormalizedFinishReason,
+  ProviderGenerationId,
   ProviderId,
   ResponseCache,
   TokenDetails,
 } from "@orb/contracts/inference";
-import type { EffortLevel, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
+import type { EffortLevel, PromptSectionId, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
@@ -169,7 +170,7 @@ export interface AssemblySlice {
    *  (`AssemblyBudgetPreview.sections`, D121-G). ABSENT for a delivered INJECTION: a `chat_injections` row is
    *  not a rack row, so it accounts under its source and belongs to no section (the absence is the fact, never
    *  a placeholder id). */
-  readonly sectionId?: string;
+  readonly sectionId?: PromptSectionId;
 }
 
 /** The `history` row of the budget breakdown (`assembly/budget`): the shaped+fitted wire history's COST and
@@ -291,7 +292,7 @@ export interface TurnEconomics {
   readonly terminalReason?: string | null;
   /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
-  readonly generationId?: string | null;
+  readonly generationId?: ProviderGenerationId | null;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
    *  closed per-provider union (§5.3c class 3): the ephemeral cache-creation TTL split, the subscription's
    *  warm-spare receipt, OpenRouter's upstream vendor and its pre-fee charge. Persisted under

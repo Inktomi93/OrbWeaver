@@ -14,8 +14,8 @@ import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
-import type { GenerationType, PromptConfig, UserIntent } from "#preset";
-import { userIntentViewSchema } from "#preset";
+import type { GenerationType, PromptConfig, PromptSectionId, UserIntent } from "#preset";
+import { promptSectionIdSchema, userIntentViewSchema } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScriptRow } from "#regex";
 import type { MemoryRetrievalMode } from "#search";
@@ -354,7 +354,7 @@ export interface AssemblySectionRow {
  *  the section answers "what does this row cost" (the {@link AssemblyBudgetSlice} posture). */
 export interface AssemblySectionCost {
   /** The `PromptSection.id` this cost belongs to. */
-  sectionId: string;
+  sectionId: PromptSectionId;
   tokens: number;
   /** The materialization breakdown, in prompt order. NEVER empty — a single-contributor section is one row. */
   rows: readonly AssemblySectionRow[];
@@ -819,8 +819,7 @@ const assemblyBudgetSliceSchema = z.strictObject({
 const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
 
 const assemblySectionCostSchema = z.strictObject({
-  // eslint-disable-next-line orb/no-raw-id -- Preset-local authored/imported section key, not a canonical row identity.
-  sectionId: z.string(),
+  sectionId: promptSectionIdSchema,
   tokens: z.number(),
   rows: z.array(assemblySectionRowSchema).readonly(),
 }) satisfies z.ZodType<AssemblySectionCost>;

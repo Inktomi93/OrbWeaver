@@ -17,8 +17,11 @@
 //
 // AUTH: the same two-tier debug gate as the trace endpoints (owner session, else x-debug-token; bare
 // single-user dev needs neither). Hits the server DIRECTLY on PORT (default 8788), not the vite proxy.
+
 import process from "node:process";
 import type { WireCapture } from "@orb/contracts/debug";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { WireOutcome } from "@orb/server/foundation/observability";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -36,7 +39,7 @@ const BODY_KEY_CAP = 12;
 interface CapturesArgs {
   outcomes: boolean;
   json: boolean;
-  chatId: string | null;
+  chatId: ChatId | null;
   backend: string | null;
   limit: number;
 }
@@ -50,7 +53,8 @@ const FLAG_HANDLERS: Record<string, (args: CapturesArgs, rest: string[]) => void
     a.json = true;
   },
   "--chat": (a, rest) => {
-    a.chatId = rest.shift() ?? null;
+    const chatId = rest.shift();
+    a.chatId = chatId === undefined ? null : typeIdSchema(ID_PREFIX.chat).parse(chatId);
   },
   "--backend": (a, rest) => {
     a.backend = rest.shift() ?? null;

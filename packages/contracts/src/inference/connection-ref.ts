@@ -3,7 +3,7 @@
 // (the local-light floor is two SEEDED rows, §7.2). Every actor's refs are `connection_bindings` ROWS keyed
 // `(actorKind, actor, task)`; a chat is NOT an actor (F20) and neither is an rpg game.
 
-import type { AutomationRuleId, PluginId } from "@orb/kit/ids";
+import type { AutomationRuleId, PluginId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { routableTaskSchema } from "./tasks.ts";
@@ -24,6 +24,12 @@ export type CapabilityTarget = z.output<typeof capabilityTargetSchema>;
  *  defaults silently). An agent principal is a future kind when D60 builds it. */
 export const BINDING_ACTOR_KINDS = ["user", "automation-rule", "plugin-grant"] as const;
 export type BindingActorKind = (typeof BINDING_ACTOR_KINDS)[number];
+
+/** One binding actor as the store keys it: the kind with the id that kind carries, so no arm reads another's id. */
+export type BindingActorKey =
+  | { readonly actorKind: (typeof BINDING_ACTOR_KINDS)[0]; readonly actorId: UserId }
+  | { readonly actorKind: (typeof BINDING_ACTOR_KINDS)[1]; readonly actorId: AutomationRuleId }
+  | { readonly actorKind: (typeof BINDING_ACTOR_KINDS)[2]; readonly actorId: PluginId };
 
 export type BindingActor =
   | { readonly kind: "automation-rule"; readonly ruleId: AutomationRuleId }

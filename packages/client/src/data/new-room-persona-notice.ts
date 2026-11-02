@@ -2,6 +2,7 @@
 // than your default decided who you play there. Derived on the client from what it already holds: your seed
 // pointers and the room's seat. A roster start names its persona itself, so its caller passes nothing here.
 
+import type { PersonaId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import { notify } from "#lib";
@@ -15,7 +16,7 @@ function newRoomPersonaNotice(
   chat: Pick<ChatDetail, "viewerActivePersonaId" | "identities"> & {
     readonly participants: readonly Pick<ChatDetail["participants"][number], "kind" | "displayName">[];
   },
-  seeds: { readonly defaultPersonaId: string | null },
+  seeds: { readonly defaultPersonaId: PersonaId | null },
 ): string | null {
   const seatId = chat.viewerActivePersonaId;
   if (seatId === null || seatId === seeds.defaultPersonaId) {

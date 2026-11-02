@@ -81,7 +81,7 @@ export class PluginNoGitSourceError extends DomainOperationError {
 export class PluginNoSourceUrlError extends DomainOperationError {
   constructor(
     // echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
-    pluginId: string,
+    pluginId: PluginId,
   ) {
     super(
       "plugin_no_source_url",
@@ -101,7 +101,7 @@ export class PluginNoSourceUrlError extends DomainOperationError {
 export class PluginNotShowcaseError extends DomainOperationError {
   constructor(
     // echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
-    pluginId: string,
+    pluginId: PluginId,
   ) {
     super(
       "plugin_not_showcase",

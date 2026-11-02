@@ -5,10 +5,10 @@ import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/impor
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
-import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp } from "@orb/contracts/settings";
+import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp, NewBackgroundEntryId } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
 import type { CollectResult } from "./collection.ts";
@@ -67,7 +67,7 @@ export interface ProfileDirImportDeps {
    *  serialized settings write. Optional alongside `storeBackground` — both come from the same composition. */
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
-  readonly newBackgroundEntryId?: IdSource["uuid"];
+  readonly newBackgroundEntryId?: NewBackgroundEntryId;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;

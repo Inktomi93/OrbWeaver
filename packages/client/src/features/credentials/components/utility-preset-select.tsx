@@ -3,6 +3,8 @@
 
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
+import type { PresetId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -16,7 +18,7 @@ const SAME_AS_CHAT_VALUE = ROLE_PRESET_CHOICE_KINDS.sameAsChat;
 
 const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
-function selectedValueOf(choice: RolePresetChoice | null, presetIds: readonly string[]): string {
+function selectedValueOf(choice: RolePresetChoice | null, presetIds: readonly PresetId[]): string {
   if (choice === null) {
     return TASK_DEFAULTS_VALUE;
   }
@@ -34,7 +36,9 @@ function choiceOf(value: string): RolePresetChoice | null {
   if (value === SAME_AS_CHAT_VALUE) {
     return { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat };
   }
-  return { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: value };
+  // A Select value is UI text: an unknown one reads as task defaults rather than throwing in a change handler.
+  const presetId = typeIdSchema(ID_PREFIX.preset).safeParse(value);
+  return presetId.success ? { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: presetId.data } : null;
 }
 
 export function UtilityPresetSelect(): ReactElement {
@@ -52,7 +56,7 @@ export function UtilityPresetSelect(): ReactElement {
   ];
   const value = selectedValueOf(
     settings.config.seeds.summarizePreset,
-    presets.map((preset): string => preset.id),
+    presets.map((preset) => preset.id),
   );
 
   return (

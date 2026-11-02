@@ -44,6 +44,7 @@ export const CHAT_SAVE_EDIT_NAME = "Save edit";
 export const CHAT_LIST_NAME = "Chats list";
 export const CHAT_SEARCH_NAME = "Search chats";
 export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
+export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";
 export const CHAT_COMPOSER_NAME = "Message composer";

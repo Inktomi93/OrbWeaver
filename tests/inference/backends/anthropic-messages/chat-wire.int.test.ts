@@ -4,6 +4,7 @@
 // history ruling.
 // @subject packages/inference/src/backends/anthropic-messages/chat.ts
 
+import { toolCallIdSchema } from "@orb/contracts/chat";
 import { WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ExtractionRefs } from "@orb/contracts/rpg";
@@ -131,9 +132,12 @@ test("a thinking and tool loop sends the first leg's reasoning back with its sig
       ASK,
       {
         role: "assistant",
-        content: [...(first.turn.reasoningParts ?? []), { type: "tool-call", toolCallId: "toolu_1", name: "get_weather", arguments: '{"city":"Paris"}' }],
+        content: [
+          ...(first.turn.reasoningParts ?? []),
+          { type: "tool-call", toolCallId: toolCallIdSchema.parse("toolu_1"), name: "get_weather", arguments: '{"city":"Paris"}' },
+        ],
       },
-      { role: "tool", content: [{ type: "tool-result", toolCallId: "toolu_1", content: "18C, clear." }] },
+      { role: "tool", content: [{ type: "tool-result", toolCallId: toolCallIdSchema.parse("toolu_1"), content: "18C, clear." }] },
     ],
   });
 

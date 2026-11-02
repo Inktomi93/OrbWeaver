@@ -1,6 +1,8 @@
 // Native generation/import provenance stays private; valid vendor pixels are supplied separately at HTTP.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { portableImageryCallSchema } from "@orb/contracts/imagery";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -9,7 +11,7 @@ import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./factories/rows/imagery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
-export const CORPUS_IMAGE_MODEL = "corpus-image-v1";
+export const CORPUS_IMAGE_MODEL = modelIdSchema.parse("corpus-image-v1");
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type NativeCohort = Awaited<ReturnType<typeof seedImageryGenerationsRows>>;
 interface CorpusImagery {
