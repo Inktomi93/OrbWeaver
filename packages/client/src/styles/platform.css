@@ -16,36 +16,75 @@
     }
   }
 
-  /* A printed room is its transcript: the chrome is hidden, the grid stops clipping to the viewport, and the light
-   * palette is used whatever theme is selected, since dark paper does not exist. */
+  /* A printed room is its transcript: the chrome is hidden, nothing between the document and the rows clips or scrolls,
+   * since a browser does not break a scroller across pages, and the rows flow, because a virtual row is parked at an
+   * offset inside a box as tall as every row. The palette tokens are explicit values that `color-scheme` cannot flip,
+   * and print drops backgrounds by default, so ink and ground are set here: a dark theme's ink on paper reads as blank. */
   @variant print {
     :root {
       color-scheme: light;
     }
+    html,
+    body {
+      overflow: visible;
+      background-color: white;
+    }
+    /* The screen's width dial reads `dvw`, which stays the window's on paper and would run every row off the sheet. */
+    .shell-grid {
+      --width-shell-content: 100%;
+    }
     .shell-rail,
     .shell-panel,
+    .shell-panel-edge,
     .shell-topbar,
     .shell-scrim,
-    [data-slot="composer"] {
+    [data-slot="composer"],
+    [data-slot="chat-above-composer"],
+    [data-slot="chat-thread-flank"],
+    [data-slot="jump-to-latest"],
+    [data-slot="message-actions-row"],
+    [data-slot="swipe-strip"] {
       display: none;
     }
     .shell-grid,
     .shell-main,
     .shell-content,
-    .shell-region-fill {
+    .shell-region-fill,
+    [data-slot="chat-room-surface"],
+    [data-slot="chat-room-flank-row"],
+    [data-slot="chat-room-thread"] {
       display: block;
       position: static;
       block-size: auto;
       overflow: visible;
       padding: 0;
     }
+    .shell-grid,
+    .shell-grid * {
+      background: transparent;
+      box-shadow: none;
+      color: black;
+      text-shadow: none;
+    }
     [data-slot="message-list-scroll"] {
       block-size: auto;
       overflow: visible;
+      mask-image: none;
     }
-    /* The screen's size containment would collapse an auto-height page to nothing. */
+    /* `display: contents` drops the height the virtualizer writes inline, which only `!important` could otherwise beat. */
+    [data-slot="message-list-viewport"] {
+      display: contents;
+    }
+    [data-slot="message-list-row"] {
+      position: static;
+      margin-block-end: var(--spacing-block);
+    }
+    /* The screen's size containment would collapse an auto-height page to nothing, and a panel track that has left the
+     * layout must not leave its flip offset behind. */
     .shell-main {
       container-type: inline-size;
+      animation: none;
+      translate: none;
     }
   }
 }

@@ -75,8 +75,8 @@ export interface CharacterPickerProps {
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
   /**
-   * The OWNER's surface-box id (#885/#1748). This picker is mounted by EIGHT owners, so it can never mint a
-   * key of its own — one literal here would hand all eight the same remembered box, the copy-paste collision
+   * The OWNER's surface-box id (#885/#1748). Many owners mount this picker, so it can never mint a
+   * key of its own — one literal here would hand all of them the same remembered box, the copy-paste collision
    * the `query-boundary-reservation` gate's duplicate arm reds and which its literal census could not see
    * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
    */
@@ -96,7 +96,7 @@ export interface CharacterPickerProps {
 export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   return (
     // THE KEY IS THE CALLER'S (#1748 — the pass-through design §1.4 prescribed). The ruling that this file
-    // may not mint one SURVIVES: eight owners, one literal, one box for all of them. What changed is that
+    // may not mint one SURVIVES: many owners, one literal, one box for all of them. What changed is that
     // every owner now supplies its own, so the reservation is reachable without the collision.
     <QueryBoundary
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
@@ -201,17 +201,17 @@ function CharacterPickerBody({
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
       {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-        <Row divider="top" align="center" gap="row" padding="row">
+        <Row className="flex-wrap" divider="top" align="center" gap="row" padding="row">
           <Text as="span" voice="gloss">
             {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
-          <Row className="flex-1" gap="field" justify="end">
+          <Row className="flex-1 min-inline-0" gap="field" justify="end">
             {query.isFetchNextPageError ? (
               <>
                 <Text role="alert" voice="gloss">
                   Couldn't load more characters.
                 </Text>
-                <Button variant="outline" onClick={fetchMore} size="sm">
+                <Button variant="outline" onClick={fetchMore} size="sm" wrap={true}>
                   Retry loading more characters
                 </Button>
               </>
@@ -219,6 +219,7 @@ function CharacterPickerBody({
             {term === "" ? null : (
               <Button
                 variant="ghost"
+                wrap={true}
                 onClick={(): void => {
                   setTerm("");
                   searchRef.current?.focus();

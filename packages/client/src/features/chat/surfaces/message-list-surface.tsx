@@ -57,6 +57,7 @@ import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
+import { CHAT_PRINT_COVERAGE } from "../lib/transcript-copy.ts";
 
 /** Initial row-height model. A flat 96px guess made a 3k-character RPG turn look like a one-line bubble,
  *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up.
@@ -406,6 +407,7 @@ function ChatThread({
     <ArtViewerProvider>
       <Stack className="relative block-full min-block-0">
         {sourceStatus}
+        <PrintCoverage edges={edges} />
         <MessageList
           ref={listHandleRef}
           ariaLabel="Conversation messages"
@@ -440,6 +442,15 @@ function ChatThread({
       </Stack>
     </ArtViewerProvider>
   );
+}
+
+/** Paper has no Earlier messages button, so a transcript that is only part of the room says so on the page. */
+function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactElement | null {
+  return edges.earlier || edges.later ? (
+    <Text className="hidden print:block" voice="gloss">
+      {CHAT_PRINT_COVERAGE}
+    </Text>
+  ) : null;
 }
 
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
