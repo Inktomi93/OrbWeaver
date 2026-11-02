@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-02
 priority: P2
 area: client
 plan: cross-surface-consistency
@@ -11,18 +11,34 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Every client feature component that renders its own pending, error and empty ladder from a bare `useQuery` reads through `QueryBoundary` instead. Each converted surface gets a CT that holds the read, fails it, and checks the shared skeleton and the shared error block with Retry.
 
 ## Why
 
-The symptom or the ruling behind it.
+One visual system: every surface shows the same loading, error and retry states. Rule 1810 refuses a new bare ladder only after this list is empty.
 
 ## Done when
 
-The observable bar a verifier can check.
+- Each site in the table below is converted, or keeps its ladder and cites `docs/law/client-architecture-state-and-gates.md` §10 or a ruling.
+- Each converted surface has a CT that holds the read pending, then fails it, and asserts the shared loading and error states.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Converted in the first batch:
 
-The site list is in 1762's Evidence on the compose branch. Start with the discovery tabs, preset readouts, chat member card, invite and transcript. Done when each site converts, or cites §10 or a ruling. 1810's rule turns on only after this drains.
+| site | CT |
+| - | - |
+| `packages/client/src/features/discovery/components/corpus-archetypes-tab.tsx` (catalog gate, art section, writing section) | `tests/client/features/discovery/components/corpus-context-tabs-boundary.ct.tsx` |
+
+Still open. None of these cites §10 or a ruling yet. The first four need an owner decision before they convert.
+
+| site | why it is not converted yet |
+| - | - |
+| `packages/client/src/features/chat/components/member-card-viewer.tsx` | the dialog title and avatar come from the read, and the NOT_FOUND gone state needs the error code. The dialog chrome must move under the boundary or take its title from a second source |
+| `packages/client/src/features/preset/components/readout/prompt-readout.tsx`, `transforms-readout.tsx` | the panel keeps rendering estimates and a named refusal ("you are not the host") while the read is pending or failed. A boundary would replace the whole panel with a generic error |
+| `packages/client/src/features/discovery/components/corpus-similarity-tab.tsx` NearestPairs | a plain read on purpose, so the two knobs re-rank in place without re-suspending the tab. Needs a transition design or a ruling |
+| `packages/client/src/features/chat/components/transcript-window.tsx` AnchoredThread | a sibling lane edits this file |
+| `packages/client/src/features/chat/components/invite-dialog.tsx` OutstandingInvites | converts directly. The members tab has no CT mount yet, so the held-read CT needs a room, shell and members-tab story |
+| `packages/client/src/features/preset/components/readout/usage-readout.tsx`, `actions-readout.tsx`, `preset-readout.tsx` | convert directly. The preset context pane has no CT mount |
+| `packages/client/src/features/discovery/components/corpus-compare-tab.tsx` CompareResult, `corpus-visuals-tab.tsx`, `corpus-home-charts.tsx`, `corpus-search-results.tsx`, `corpus-home-surface.tsx`, `corpus-context-header.tsx`, `corpus-dossier-surface.tsx` | not started |
+| the remaining rows of the 1762 "Still to convert" table (databank, automation, tag, credentials, imagery, plugin, refinery, rpg, stats, chat) | not started |
