@@ -38,9 +38,6 @@ function names(preview: ImportPreview, kind: keyof ImportPreview["kinds"]): read
 test("a dry run names what each kind would bring and what it would skip, writes no row in any table, and a real run then lands it", async () => {
   await using root = await harness();
   const files = profile(root);
-  // The first HTTP request seeds the owner's default content in the background, so the baseline follows it.
-  await (await post(root, files, ["refused"])).arrayBuffer();
-  await root.settleBackground();
   const before = await tableContents(root);
   const blobsBefore = await storedBlobs(root);
 
