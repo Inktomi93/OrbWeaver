@@ -974,7 +974,9 @@ function printedRowTops(list: Element): { readonly tops: readonly number[]; read
   };
 }
 
-const SETTLE_FRAMES = 12;
+// virtual-core's default `isScrollingResetDelay`: until this long after the last scroll event the list counts as
+// scrolling and does not measure a row as it mounts, so a reader who printed sooner than this would not reach the defect.
+const VIRTUAL_CORE_SCROLLING_RESET_MS = 150;
 
 test.describe("printing a room", () => {
   test.use({ viewport: DESKTOP.size });
@@ -985,6 +987,7 @@ test.describe("printing a room", () => {
     const pagedRoomId = await findPagedRoom();
     await openRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page, pagedRoomId);
     const list = page.locator('[data-slot="message-list-scroll"]');
+    const rows = page.locator('[data-slot="message-list-row"]');
     await expect(page.locator('[data-slot="message-bubble"]').last()).toBeVisible();
     const topRow = (): Promise<{ readonly index: string | null; readonly offset: number }> =>
       list.evaluate((node) => {
@@ -992,19 +995,49 @@ test.describe("printing a room", () => {
         const row = [...node.querySelectorAll('[data-slot="message-list-row"]')].find((candidate) => candidate.getBoundingClientRect().bottom > top);
         return { index: row?.getAttribute("data-index") ?? null, offset: Math.round((row?.getBoundingClientRect().top ?? 0) - top) };
       });
-    await list.evaluate((node) => {
-      node.scrollTop -= 2000;
-    });
+    // The reader comes to rest: this listener is added after the virtualizer's, so each scroll event re-arms its
+    // timer after the virtualizer's own, and the quiet period ends after the list stops counting as scrolling.
+    await list.evaluate(
+      (node, quietMs) =>
+        new Promise<void>((resolve) => {
+          const quiet = new AbortController();
+          const settle = (): void => {
+            quiet.abort();
+            resolve();
+          };
+          let timer = setTimeout(settle, quietMs);
+          node.addEventListener(
+            "scroll",
+            () => {
+              clearTimeout(timer);
+              timer = setTimeout(settle, quietMs);
+            },
+            { signal: quiet.signal },
+          );
+          node.scrollTop -= 2000;
+        }),
+      VIRTUAL_CORE_SCROLLING_RESET_MS,
+    );
     await expect.poll(() => list.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeGreaterThan(500);
     await expect.poll(topRow).toEqual(await topRow());
     const reading = await topRow();
+    const windowed = await rows.count();
     await page.pdf();
-    // The drift lands as the rows re-measure after the print, so a first equal read proves nothing.
-    await page.evaluate(async (frames) => {
-      for (let frame = 0; frame < frames; frame += 1) {
-        await new Promise(requestAnimationFrame);
-      }
-    }, SETTLE_FRAMES);
+    await expect.poll(() => rows.count()).toBeLessThanOrEqual(windowed);
+    // Settled: the first ResizeObserver delivery after the print is the frame the virtualizer's own observer
+    // re-measures in, and the frame after it applies that measure.
+    await list.evaluate(
+      (node) =>
+        new Promise<void>((resolve) => {
+          const observer = new ResizeObserver(() => {
+            observer.disconnect();
+            requestAnimationFrame(() => resolve());
+          });
+          for (const row of node.querySelectorAll('[data-slot="message-list-row"]')) {
+            observer.observe(row);
+          }
+        }),
+    );
     expect(await topRow()).toEqual(reading);
   });
 
@@ -1027,6 +1060,10 @@ test.describe("printing a room", () => {
       return document.querySelectorAll('[data-slot="message-list-row"]').length;
     });
     expect(mountedForPaper).toBe(messages.length);
+    // A print dialog shows the screen behind it, so the rows mounted for paper must sit in order there, not in a pile.
+    const behindDialog = await list.evaluate(printedRowTops);
+    expect(behindDialog.tops).toEqual(behindDialog.tops.toSorted((a, b) => a - b));
+    expect(new Set(behindDialog.tops).size).toBe(behindDialog.tops.length);
     await page.emulateMedia({ media: "print", reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none", contrast: "no-preference" });
     const paper = await list.evaluate((node) => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right, sheet: innerWidth }));
     expect(paper.left).toBeLessThanOrEqual(SUBPIXEL);
