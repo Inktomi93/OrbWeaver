@@ -278,13 +278,12 @@ function seedReadingHosts(background: string | undefined): readonly Oklch[] | nu
   return seed === null ? null : SEED_READING_HOSTS.flatMap((token) => toOklch(seed(token)) ?? []);
 }
 
-/** A scope inside a box keeps only what it holds there: its accent is read as text on the fill, as the box's own links are. */
-function insideBox(t: ThemeScopeTokens, fill: string | undefined): ThemeScopeTokens {
-  if (fill === undefined) {
+function insideBox(t: ThemeScopeTokens, inside: boolean): ThemeScopeTokens {
+  if (!inside) {
     return t;
   }
   const { background: _background, userBubble: _user, aiBubble: _ai, systemBubble: _system, ...held } = t;
-  return held.accent === undefined ? held : { ...held, accent: boxAccentOn(fill, held.accent) };
+  return held;
 }
 
 /** What a scope's prose inks are judged over: the base under them, the seed's painted hosts over a seed, or the fill they sit inside. */
@@ -532,6 +531,23 @@ function carriedAmbientOf(t: ThemeScopeTokens, ambientBackground: string | undef
   return accentOnly && ambientPalette === "carried" && ambientBackground !== undefined ? carriedPaletteOf(toOklch(ambientBackground)) : null;
 }
 
+/**
+ * What an accent pick is solved against. Inside a box the fill is the surface, in every ambient: the pick holds the text
+ * floor there, as the box's own links do, and its primary, ring and tones solve on the palette the fill derives. The
+ * pick itself stays the source a descendant judges, so it never solves twice.
+ */
+function accentGroundOn(
+  t: ThemeScopeTokens,
+  ambientBackground: string | undefined,
+  ambientPalette: AmbientPalette,
+  fill: string | undefined,
+): { readonly picked: string | undefined; readonly ambient: CarriedPalette | null } {
+  if (fill === undefined || t.accent === undefined) {
+    return { picked: t.accent, ambient: carriedAmbientOf(t, ambientBackground, ambientPalette) };
+  }
+  return { picked: boxAccentOn(fill, t.accent), ambient: carriedPaletteOf(toOklch(fill)) };
+}
+
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */
 function inkBaseFor(carried: string | undefined, ambient: string | undefined): ParsedOklch | null {
   if (carried !== undefined) {
@@ -623,8 +639,9 @@ export function clampThemeTokens(
   { palette = "seed", inks = {}, fills: ambientFills = {}, inside, asBox }: ScopeAmbient = {},
 ): ClampedTheme {
   const parsed = themeScopeTokensSchema.safeParse(raw);
-  // Inside a box the box is the surface: a nested scope's background and bubble fills paint nothing there, only its inks hold.
-  const t = insideBox(parsed.success ? parsed.data : {}, asBox === true ? undefined : inside);
+  const boxed = asBox === true ? undefined : inside;
+  // Inside a box the box is the surface: a nested scope's background and bubble fills paint nothing there, only its inks and accent hold.
+  const t = insideBox(parsed.success ? parsed.data : {}, boxed !== undefined);
   const vars: Record<string, string> = {};
   const put = (name: string, value: string | undefined): void => {
     if (value !== undefined) {
@@ -633,11 +650,11 @@ export function clampThemeTokens(
   };
   const carriedBase = t.background === undefined ? null : compositedBase(t.background, ambientBackground);
   const carried = carriedPaletteOf(carriedBase);
-  const carriedAmbient = carriedAmbientOf(t, ambientBackground, palette);
+  const { picked, ambient: carriedAmbient } = accentGroundOn(t, ambientBackground, palette, boxed);
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
-  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(t.accent, ambientAccent, carried, carriedAmbient);
+  const { accent, toneVars, fallback, inputBorderFallback: nestedEdgeFallback } = accentAndTonesOn(picked, ambientAccent, carried, carriedAmbient);
   put(THEME_OVERRIDE_COLOR_VARS.accent, accent?.fill);
   put("--color-ring", accent?.fill);
   // The accent's readable foreground derives off the accent this scope actually PAINTS with, so a dark

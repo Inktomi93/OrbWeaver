@@ -125,11 +125,29 @@ test("a carried scope that spells a seed's base judges its inks on the hosts it 
   expect(emitted("seed")).not.toBe(fix?.l);
 });
 
-test("an accent picked inside a bubble's box holds the text floor on the fill it sits in", () => {
-  const fill = "oklch(0.34 0.06 35)";
-  const { vars } = clampThemeTokens({ accent: "oklch(0.3 0.1 260)" }, undefined, undefined, { inside: fill });
-  const accent = parsed(vars[TOKENS["color.primary"].cssVar] ?? "");
-  expect(wcagContrastRatio(oklchToSrgb(accent), oklchToSrgb(parsed(fill)))).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+const BOX_AMBIENTS = [
+  { name: "none", background: undefined, palette: "seed" },
+  { name: "seed", background: SEED_THEME_VALUE_SETS.light.vars[TOKENS["color.background"].cssVar], palette: "seed" },
+  { name: "carried dark", background: "oklch(0.2 0.02 300)", palette: "carried" },
+  { name: "carried light", background: "oklch(0.95 0.01 90)", palette: "carried" },
+  { name: "carried mid", background: "oklch(0.55 0.02 60)", palette: "carried" },
+] as const;
+
+test("an accent picked inside a bubble's box holds the text floor on the fill, whatever the room around it", () => {
+  const misses: string[] = [];
+  for (const ambient of BOX_AMBIENTS) {
+    for (const fill of ["oklch(0.9 0.02 90)", "oklch(0.34 0.06 35)", "oklch(0.6 0.04 30)"]) {
+      for (const pick of ["oklch(0.7 0.2 260)", "oklch(0.3 0.1 260)", "oklch(0.55 0.2 30)"]) {
+        const { vars, accentSource } = clampThemeTokens({ accent: pick }, ambient.background, undefined, { palette: ambient.palette, inside: fill });
+        const painted = parsed(vars[TOKENS["color.primary"].cssVar] ?? "");
+        const ratio = wcagContrastRatio(oklchToSrgb(painted), oklchToSrgb(parsed(fill)));
+        if (ratio < AA_NORMAL_RATIO || accentSource !== pick) {
+          misses.push(`${ambient.name} ${fill} ${pick} ${ratio.toFixed(2)} source ${accentSource}`);
+        }
+      }
+    }
+  }
+  expect(misses).toEqual([]);
 });
 
 test("a picked fill restates its inks on its own box and leaves the scope's vars to the page", () => {
