@@ -58,16 +58,18 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "refine-score-sweep": "Score the library (Refinery)",
 };
 
-const RUNNABLE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) => (RUNNABLE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind)).map(
-  (kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }),
-);
+const RUNNABLE_KIND_OPTIONS: SelectItems = WORKLOAD_KINDS.filter((kind) => RUNNABLE_WORKLOAD_KINDS.includes(kind)).map((kind) => ({
+  value: kind,
+  label: WORKLOAD_KIND_LABELS[kind],
+}));
 
-const MAINTENANCE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) =>
-  (MAINTENANCE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind),
-).map((kind) => ({ value: kind as string, label: WORKLOAD_KIND_LABELS[kind] }));
+const MAINTENANCE_KIND_OPTIONS: SelectItems = WORKLOAD_KINDS.filter((kind) => MAINTENANCE_WORKLOAD_KINDS.includes(kind)).map((kind) => ({
+  value: kind,
+  label: WORKLOAD_KIND_LABELS[kind],
+}));
 
 /** The grouped (owner) kind-picker items; the maintenance group is omitted when empty. */
-const OWNER_KIND_ITEMS: SelectItems<string> =
+const OWNER_KIND_ITEMS: SelectItems =
   MAINTENANCE_KIND_OPTIONS.length === 0
     ? RUNNABLE_KIND_OPTIONS
     : [
@@ -76,7 +78,7 @@ const OWNER_KIND_ITEMS: SelectItems<string> =
       ];
 
 /** The kind-picker's items for a viewer — a non-owner sees the flat runnable list, the owner sees the grouped list. */
-export function workloadKindItems(viewerIsOwner: boolean): SelectItems<string> {
+export function workloadKindItems(viewerIsOwner: boolean): SelectItems {
   return viewerIsOwner ? OWNER_KIND_ITEMS : RUNNABLE_KIND_OPTIONS;
 }
 
@@ -86,8 +88,8 @@ const INDEX_SOURCE_LABELS: Record<IndexSource, string> = {
   image: "Images — avatars",
   all: "Everything",
 };
-export const INDEX_SOURCE_ITEMS: SelectItems<string> = INDEX_SOURCES.map((source) => ({
-  value: source as string,
+export const INDEX_SOURCE_ITEMS: SelectItems = INDEX_SOURCES.map((source) => ({
+  value: source,
   label: INDEX_SOURCE_LABELS[source],
 }));
 
@@ -103,7 +105,7 @@ const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   background: "Backgrounds",
   plugin: "Plugin files",
 };
-export const ASSET_KIND_ITEMS: SelectItems<string> = ASSET_KINDS.map((kind) => ({ value: kind as string, label: ASSET_KIND_LABELS[kind] }));
+export const ASSET_KIND_ITEMS: SelectItems = ASSET_KINDS.map((kind) => ({ value: kind, label: ASSET_KIND_LABELS[kind] }));
 
 /** Status → row-badge label (exhaustive). */
 export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
@@ -304,7 +306,7 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
   } else if (shape === "assetKind") {
     params = { kind: values.assetKind };
   }
-  return { kind, params } as StartWorkloadWire["input"];
+  return { kind, params };
 }
 
 /** The nullable display projection: a missing percent is indeterminate, and message/counts determine the label. */

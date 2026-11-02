@@ -73,7 +73,7 @@ function positionLabel(position: ChatInjection["position"]): string {
       return "In chat history (at depth)";
   }
 }
-const POSITION_ITEMS: SelectItems<string> = CHAT_INJECTION_POSITIONS.map((value) => ({
+const POSITION_ITEMS: SelectItems = CHAT_INJECTION_POSITIONS.map((value) => ({
   value,
   label: positionLabel(value),
 }));

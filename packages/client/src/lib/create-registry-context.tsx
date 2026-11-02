@@ -27,6 +27,7 @@ export interface RegistryContext<R> {
  *  registry view type (`Registry<Id, Def>` or `ContributorRegistry<Def>`). */
 export function createRegistryContext<R>(name: string): RegistryContext<R> {
   const RegistryCtx = createContext<R | null>(null);
+  RegistryCtx.displayName = "RegistryCtx";
   // biome-ignore lint/correctness/noComponentHookFactories: callers mint each trio at MODULE scope (export const modalRegistryContext = createRegistryContext(...)), so the hook keeps one identity.
   function useRegistry(): R {
     const registry = use(RegistryCtx);

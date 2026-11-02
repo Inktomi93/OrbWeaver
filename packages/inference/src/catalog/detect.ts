@@ -45,7 +45,7 @@ async function answer(args: DetectArgs & { readonly signal: AbortSignal }, path:
   const text = await res.text();
   // only JSON.parse of the text above can throw here, and a 2xx that is not JSON is a server that is not this one; the null reaches `probe.schema.safeParse` in `detectServer`, which moves to the next probe and ends at `{ server: null }`. Ends if a probed route can answer anything but JSON on the server it identifies.
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch {
     return null;
   }

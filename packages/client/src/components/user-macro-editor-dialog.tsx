@@ -54,7 +54,7 @@ const USER_MACRO_INPUT_KIND_LABELS: Record<UserMacroInputKind, string> = {
   "multi-select": "Multi select — pick several, joined",
   "random-pick": "Random pick — draw one from your pool each turn",
 };
-const USER_MACRO_INPUT_KIND_ITEMS: SelectItems<string> = USER_MACRO_INPUT_KINDS.map((value) => ({
+const USER_MACRO_INPUT_KIND_ITEMS: SelectItems = USER_MACRO_INPUT_KINDS.map((value) => ({
   value,
   label: USER_MACRO_INPUT_KIND_LABELS[value],
 }));
@@ -64,14 +64,14 @@ const MACRO_ARG_TYPE_LABELS: Record<MacroArgType, string> = {
   number: "Number",
   boolean: "Boolean",
 };
-const MACRO_ARG_TYPE_ITEMS: SelectItems<string> = MACRO_ARG_TYPES.map((value) => ({ value, label: MACRO_ARG_TYPE_LABELS[value] }));
+const MACRO_ARG_TYPE_ITEMS: SelectItems = MACRO_ARG_TYPES.map((value) => ({ value, label: MACRO_ARG_TYPE_LABELS[value] }));
 
 // The builtin name set the collision lint checks against — module-level, built once (the same names
 // `registerUserMacros` refuses; the lint is the authoring-time mirror of that refusal).
 const BUILTIN_REGISTRY = createDefaultRegistry();
 
-export interface UserMacroEditorDialogProps {
-  readonly form: UserMacroEditorForm;
+export interface UserMacroEditorDialogProps<TValues extends UserMacrosFormValues = UserMacrosFormValues> {
+  readonly form: Omit<AppFormInstance<TValues>, "reset">;
   /** The macro index this dialog edits (`userMacros[index].*`). */
   readonly index: number;
   readonly onClose: () => void;
@@ -94,6 +94,8 @@ export interface UserMacroEditorDialogProps {
 }
 
 /** The user-macro editor — bound to `userMacros[index].*`; closes via the caller's `onClose`. */
+export function UserMacroEditorDialog<TValues extends UserMacrosFormValues>(props: UserMacroEditorDialogProps<TValues>): ReactElement;
+// TanStack form instances are invariant in their value type; the generic signature proves the bound `userMacros[*]` paths exist.
 export function UserMacroEditorDialog({ form, index, onClose, suggestions }: UserMacroEditorDialogProps): ReactElement {
   return (
     <FormDialog

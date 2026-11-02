@@ -145,7 +145,7 @@ export function installRealm(deps: RealmDeps): void {
       // `HostVersionError` posture — the class NAME is what crosses a realm boundary intact).
       const error = ctx.newError(`orb.ui(${String(major)}) is not served — this host serves version 1`);
       ctx.setProp(error, "name", ctx.newString("HostVersionError"));
-      throw error;
+      return { error };
     }
     return buildSurface(deps);
   });

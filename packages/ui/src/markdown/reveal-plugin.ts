@@ -115,7 +115,7 @@ function countChars(node: HastNode): number {
     return 0;
   }
   let total = 0;
-  for (const child of (node as HastParent).children) {
+  for (const child of node.children) {
     total += countChars(child);
   }
   return total;
@@ -161,7 +161,7 @@ function wrapTree(node: HastNode, skipped: boolean, state: WrapState): void {
   if (!hasChildren(node)) {
     return;
   }
-  const parent = node as HastParent;
+  const parent = node;
   const skipHere = skipped || (isElement(node) && skips(node));
   const next: HastNode[] = [];
   for (const child of parent.children) {

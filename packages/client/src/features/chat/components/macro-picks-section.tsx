@@ -27,6 +27,7 @@ import type { ChoiceBlockSpec, ChoiceBlockValues, UserMacroValues } from "@orb/c
 import type { ChatId } from "@orb/kit/ids";
 import type { UserMacroInputDef } from "@orb/kit/macro";
 import { findOffVocabularyPicks, userMacroToggleDefaultsOn } from "@orb/kit/macro";
+import { omitKey } from "@orb/kit/objects";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -91,21 +92,17 @@ function withoutStalePicks(inputs: readonly UserMacroInputDef[], bag: UserMacroV
   if (stale.length === 0) {
     return bag;
   }
-  const next: Record<string, PickValue> = { ...bag };
+  let next: Record<string, PickValue> = { ...bag };
   for (const pick of stale) {
     const current = next[pick.input];
     if (!Array.isArray(current)) {
-      delete next[pick.input]; // single-select: the whole pick is the stale value
+      next = omitKey(next, pick.input); // single-select: the whole pick is the stale value
       continue;
     }
     const kept = current.filter((value) => value !== pick.value);
     // Mirrors `resolveMultiSelect`: survivors keep their PICK order, and a selection nothing survives is
     // unpicked (the key goes), never an explicit `[]` — which is a real "none" the user may have chosen.
-    if (kept.length === 0) {
-      delete next[pick.input];
-    } else {
-      next[pick.input] = kept;
-    }
+    next = kept.length === 0 ? omitKey(next, pick.input) : { ...next, [pick.input]: kept };
   }
   return next;
 }
@@ -115,7 +112,7 @@ function withoutStalePicks(inputs: readonly UserMacroInputDef[], bag: UserMacroV
  *  ignores them, and dropping them here would make an unrelated edit delete state the author may be about to
  *  re-declare (the `withVariablePick` orphan-preserve reasoning, one family over). */
 function livePicks(macros: readonly { readonly name: string; readonly inputs: readonly UserMacroInputDef[] }[], values: UserMacroValues): UserMacroValues {
-  const next: UserMacroValues = { ...values };
+  let next: UserMacroValues = { ...values };
   let changed = false;
   for (const macro of macros) {
     const bag = values[macro.name];
@@ -127,11 +124,7 @@ function livePicks(macros: readonly { readonly name: string; readonly inputs: re
       continue;
     }
     changed = true;
-    if (Object.keys(kept).length === 0) {
-      delete next[macro.name];
-    } else {
-      next[macro.name] = kept;
-    }
+    next = Object.keys(kept).length === 0 ? omitKey(next, macro.name) : { ...next, [macro.name]: kept };
   }
   return changed ? next : values;
 }
@@ -139,14 +132,9 @@ function livePicks(macros: readonly { readonly name: string; readonly inputs: re
 /** Rebuild the whole bag with ONE input set (or, for `next === undefined`, unset). An emptied macro entry is
  *  dropped entirely so "unset everything" round-trips to `{}` — the same shape a never-picked chat has. */
 function withPick(values: UserMacroValues, macro: string, input: string, next: PickValue | undefined): UserMacroValues {
-  const bag: Record<string, PickValue> = { ...values[macro] };
-  if (next === undefined) {
-    delete bag[input];
-  } else {
-    bag[input] = next;
-  }
-  const rest = { ...values };
-  delete rest[macro];
+  const current: Record<string, PickValue> = { ...values[macro] };
+  const bag = next === undefined ? omitKey(current, input) : { ...current, [input]: next };
+  const rest = omitKey(values, macro);
   return Object.keys(bag).length === 0 ? rest : { ...rest, [macro]: bag };
 }
 
@@ -347,8 +335,7 @@ function VariableControl(props: VariableControlProps): ReactElement {
  *  the preset no longer declares survive untouched — the turn still resolves them (the resolver's
  *  orphan-preserve arm), so an edit here must not quietly drop them. */
 function withVariablePick(values: ChoiceBlockValues, name: string, next: string | undefined): ChoiceBlockValues {
-  const rest = { ...values };
-  delete rest[name];
+  const rest = omitKey(values, name);
   return next === undefined ? rest : { ...rest, [name]: next };
 }
 

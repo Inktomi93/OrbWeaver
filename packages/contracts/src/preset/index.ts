@@ -618,7 +618,7 @@ export function rolePresetParamsOf(params: UserIntent & Pick<RolePresetParams, "
   if (params.reasoningTags !== undefined) {
     out["reasoningTags"] = params.reasoningTags;
   }
-  return out as RolePresetParams;
+  return out;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3386,7 +3386,7 @@ const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
  *  object counts only when it carries keys). */
 function isMeaningfulPowerUserValue(value: unknown): boolean {
   if (value !== null && typeof value === "object") {
-    return Object.keys(value as Record<string, unknown>).length > 0;
+    return Object.keys(value).length > 0;
   }
   return isMeaningful(value);
 }

@@ -20,7 +20,7 @@ function parseIssueTemplate(filename: string): Readonly<Record<string, unknown>>
     throw new Error(`${filename} has invalid YAML: ${document.errors.map((error) => error.message).join("; ")}`);
   }
 
-  const parsed = document.toJS();
+  const parsed: unknown = document.toJS();
   if (!isPlainObject(parsed)) {
     throw new Error(`${filename} must decode to an object`);
   }

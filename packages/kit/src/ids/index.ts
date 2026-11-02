@@ -313,6 +313,7 @@ export type AuditLogId = TypeIdOf<"audit_log">;
 
 /** Unchecked cast of a raw string to a specific branded id. Use it at trusted untyped seams, never
  *  to paper over a real type mismatch. Prefer {@link typeIdSchema} for TypeID ids at boundaries. */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the caller names the brand; the return is the point of this seam.
 export function castId<T extends Branded<string>>(raw: string): T {
   return raw as T;
 }
@@ -334,7 +335,7 @@ export function brandedId<const Label extends string>(_label: PrefixlessLabel<La
 
 /** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding canonical entity brand. */
 export function mintTypeId<P extends TypeIdPrefix>(prefix: P, generate?: RawIdGenerator): TypeIdOf<P> {
-  return (generate === undefined ? typeidUnboxed(prefix) : generatedTypeId(prefix, generate)) as string as TypeIdOf<P>;
+  return (generate === undefined ? typeidUnboxed(prefix) : generatedTypeId(prefix, generate)) as TypeIdOf<P>;
 }
 
 /** Mint a fresh prefixless TypeID as plain text, without claiming an identity family or verification. */

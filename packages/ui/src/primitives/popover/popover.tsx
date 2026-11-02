@@ -51,8 +51,8 @@ const STABLE_WIDTH_STYLE: CSSProperties = { width: "min(var(--available-width), 
  * rpg icon picker) are correct unfenced and stay that way: nothing is in flight to protect, and a fence
  * would cost a second tap to leave.
  */
-export function Popover<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
-  return <BasePopover.Root {...props} />;
+export function Popover<Payload = unknown>({ children, ...props }: BaseRootProps<Payload>): ReactElement {
+  return <BasePopover.Root {...props}>{children}</BasePopover.Root>;
 }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven popover. */

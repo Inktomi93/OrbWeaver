@@ -60,8 +60,8 @@ export interface CharacterAppearanceTabProps {
 // readout (`BoundColorField`), the helper sentence, and the cluster-wide verb below.
 const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit" } as const;
 // `labelStyle` — each font option renders in its own typeface, derived from the value (#866 §7.8).
-const FONT_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value, labelStyle: { fontFamily: value } }))];
-const RADIUS_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: THEME_RADIUS_LABELS[value] }))];
+const FONT_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value, labelStyle: { fontFamily: value } }))];
+const RADIUS_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: THEME_RADIUS_LABELS[value] }))];
 
 const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof CharacterThemeFormValues)[];
 

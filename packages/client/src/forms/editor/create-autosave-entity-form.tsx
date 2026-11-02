@@ -112,12 +112,11 @@ export function createAutosaveEntityForm<TValues extends object>(
     // server: the seed heals to server truth instead of displaying the dead draft as "saved" (the brick).
     const [seed] = useState<TValues>(() =>
       admit(
-        pendingSeed ??
-          ({
-            ...config.defaultValues,
-            ...serverValues,
-            ...readDraftSeed(config.draft, entityId, baselineHash),
-          } as TValues),
+        pendingSeed ?? {
+          ...config.defaultValues,
+          ...serverValues,
+          ...readDraftSeed(config.draft, entityId, baselineHash),
+        },
       ),
     );
 

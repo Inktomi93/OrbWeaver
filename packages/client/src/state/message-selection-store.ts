@@ -6,6 +6,7 @@
 // selection.
 
 import type { MessageId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import type { BulkSelectionState } from "./bulk-selection-state.ts";
 import { createGatedStore } from "./create-gated-store.ts";
 
@@ -24,12 +25,7 @@ export function exitSelectionMode(): void {
 /** Toggle one message's membership in the selection (a row's checkbox / row tap while in select mode). */
 export function toggleMessageSelected(messageId: MessageId): void {
   const { selectedIds } = useMessageSelectionStore.getState();
-  const next: Record<string, true> = { ...selectedIds };
-  if (next[messageId] === true) {
-    delete next[messageId];
-  } else {
-    next[messageId] = true;
-  }
+  const next: Record<string, true> = selectedIds[messageId] === true ? omitKey(selectedIds, messageId) : { ...selectedIds, [messageId]: true };
   useMessageSelectionStore.setState({ selectedIds: next }, false, "selection/toggle");
 }
 

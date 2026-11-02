@@ -25,8 +25,6 @@
 // The chat feature owns its own factories rather than importing `features/regex`'s (features cannot import
 // each other — the `use-chat-book-mutations.ts` precedent for the identical attach/detach shape).
 
-import type { UpdateRegexScriptInput } from "@orb/contracts/regex";
-import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -40,25 +38,19 @@ export const useSetRegexAllow = createEntityMutation<inferInput<Trpc["chat"]["se
 /** The ROW switch — the library row's `enabled`, which is off EVERYWHERE and not per-chat. The section's own
  *  toast (with Undo) is raised at the call site rather than here, because whether the flip reaches beyond
  *  this room is a property of the ROW (`attachedElsewhere`), not of the verb. */
-export const useSetRegexScriptEnabled = createEntityMutation<
-  { readonly scriptId: RegexScriptId; readonly input: UpdateRegexScriptInput },
-  inferOutput<Trpc["regex"]["updateScript"]>
->({
+export const useSetRegexScriptEnabled = createEntityMutation<inferInput<Trpc["regex"]["updateScript"]>, inferOutput<Trpc["regex"]["updateScript"]>>({
   options: (trpc) => trpc.regex.updateScript.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't switch that script.",
 });
 
-export const useAttachScriptToChat = createEntityMutation<{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }, void>({
+export const useAttachScriptToChat = createEntityMutation<inferInput<Trpc["regex"]["attachToChat"]>, void>({
   options: (trpc) => trpc.regex.attachToChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't attach that script to this chat.",
 });
 
-export const useDetachScriptFromChat = createEntityMutation<
-  { readonly chatId: ChatId; readonly scriptId: RegexScriptId },
-  inferOutput<Trpc["regex"]["detachFromChat"]>
->({
+export const useDetachScriptFromChat = createEntityMutation<inferInput<Trpc["regex"]["detachFromChat"]>, inferOutput<Trpc["regex"]["detachFromChat"]>>({
   options: (trpc) => trpc.regex.detachFromChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't detach that script from this chat.",

@@ -30,7 +30,7 @@ function plantRepo(scratch: string, repoRoot: string): { main: string; worktree:
 }
 
 function runHook(hook: string, cwd: string, toolInput: object = {}, toolName = "mcp__codegraph__codegraph_explore"): string {
-  const payload = Object.fromEntries([
+  const payload: Record<string, unknown> = Object.fromEntries<unknown>([
     ["hook_event_name", "PreToolUse"],
     ["tool_name", toolName],
     ["cwd", cwd],

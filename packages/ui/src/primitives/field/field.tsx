@@ -33,10 +33,12 @@ export type FieldAlign = (typeof FIELD_ALIGNS)[number];
 
 // Lets a settings pane set orientation once instead of threading it through every field call site.
 const FieldOrientationContext = createContext<FieldOrientation>("vertical");
+FieldOrientationContext.displayName = "FieldOrientationContext";
 // SEPARATE from orientation on purpose: `align` is a SECTION-level decision (all the rows share tracks or
 // none do) while `orientation` is legitimately per-row, and keeping them apart is what lets `FieldLayout`'s
 // default stay byte-identical for the 25 horizontal consumers that are not settings rows.
 const FieldAlignContext = createContext<FieldAlign>("block");
+FieldAlignContext.displayName = "FieldAlignContext";
 
 /** Sets the ambient `<Field>` orientation (and, opt-in, the column alignment) for its subtree. */
 export function FieldLayout({
@@ -219,6 +221,6 @@ export function Field({
 }
 
 /** Custom validity render-prop for rows needing more than the single `error` message. */
-export function FieldValidity(props: FieldValidityProps): ReactElement {
-  return <BaseField.Validity {...props} />;
+export function FieldValidity({ children, ...props }: FieldValidityProps): ReactElement {
+  return <BaseField.Validity {...props}>{children}</BaseField.Validity>;
 }

@@ -16,7 +16,7 @@ import type { PluginToolCardState } from "@orb/contracts/plugin";
 function parseJsonOrRaw(raw: string): unknown {
   // a non-JSON argument or result is data, not a failure; the raw string is the binding-root value and toolCardResultLine returns it for the tool card (components/plugin-tool-card.tsx) to render. Ends if the card stops rendering the raw string.
   try {
-    return JSON.parse(raw) as unknown;
+    return JSON.parse(raw);
   } catch {
     return raw;
   }

@@ -75,13 +75,15 @@ export interface ComposerProps {
   readonly mediaContributions?: readonly ReactNode[] | undefined;
 }
 
+const NONE: readonly never[] = [];
+
 export function Composer({
   chatId,
   tailRole = null,
   tailAssistantMessageId = null,
-  actionContributions = [],
-  roomContributions = [],
-  mediaContributions = [],
+  actionContributions = NONE,
+  roomContributions = NONE,
+  mediaContributions = NONE,
 }: ComposerProps): ReactElement {
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.

@@ -67,10 +67,7 @@ function CompareBody(): ReactElement {
   const idA = castId<CharacterId>(a);
   const idB = castId<CharacterId>(b);
 
-  const listed: readonly SelectOption<string>[] = [
-    { value: NONE, label: "Pick a character" },
-    ...catalog.items.map((c) => ({ value: c.characterId, label: c.name })),
-  ];
+  const listed: readonly SelectOption[] = [{ value: NONE, label: "Pick a character" }, ...catalog.items.map((c) => ({ value: c.characterId, label: c.name }))];
 
   return (
     <Stack gap="section">
@@ -106,7 +103,7 @@ function CompareBody(): ReactElement {
  * pick as selected. An id we have no name for is left alone: printing the ULID is bad, and inventing a name
  * for it would be worse.
  */
-function withSelected(items: readonly SelectOption<string>[], selected: string, name: string): readonly SelectOption<string>[] {
+function withSelected(items: readonly SelectOption[], selected: string, name: string): readonly SelectOption[] {
   if (selected === NONE || name === "" || items.some((item) => item.value === selected)) {
     return items;
   }
@@ -121,8 +118,8 @@ function ComparePickers({
   onA,
   onB,
 }: {
-  readonly itemsA: readonly SelectOption<string>[];
-  readonly itemsB: readonly SelectOption<string>[];
+  readonly itemsA: readonly SelectOption[];
+  readonly itemsB: readonly SelectOption[];
   readonly a: string;
   readonly b: string;
   readonly onA: (id: string, name: string) => void;
@@ -130,7 +127,7 @@ function ComparePickers({
 }): ReactElement {
   // The picked NAME is read off the item the user picked — the picker is the one place that holds both, and
   // the store's whole point is that the name reaches the trigger even when the catalog page does not.
-  const nameIn = (items: readonly SelectOption<string>[], value: string): string => items.find((item) => item.value === value)?.label ?? "";
+  const nameIn = (items: readonly SelectOption[], value: string): string => items.find((item) => item.value === value)?.label ?? "";
   return (
     <Row align="center" gap="field">
       <Select items={itemsA} value={a} onValueChange={(next): void => onA(next as string, nameIn(itemsA, next as string))} aria-label="First character" />
@@ -203,7 +200,7 @@ function DeepNarrative({
   narrative,
 }: {
   readonly isPending: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly narrative: NonNullable<inferOutput<Trpc["discovery"]["compareCharactersDeep"]>>["narrative"] | null;
 }): ReactElement {
   if (isPending) {

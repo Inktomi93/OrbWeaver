@@ -10,6 +10,9 @@ import { bugReportRequests } from "./bug-report-requests.ts";
 
 const MENU_FORMS: readonly OverflowMenuForm[] = [{ id: "bug-report", label: "Report a bug", icon: Bug, onSelect: (): void => bugReportRequests.request() }];
 
+const alwaysVisible = (): boolean => true;
+const menuForms = (): readonly OverflowMenuForm[] => MENU_FORMS;
+
 export const bugReportChrome: ChromeEntry = {
   id: "bug-report",
   label: "Report a bug",
@@ -18,11 +21,11 @@ export const bugReportChrome: ChromeEntry = {
   order: 90,
   // A phone's topbar budget belongs to the room's name; a rarely used report door rides the You sheet instead.
   mobile: "sheet",
-  useVisible: (): boolean => true,
+  useVisible: alwaysVisible,
   behavior: {
     kind: "widget",
     body: (presentation): ReturnType<typeof ReportBugChromeButton> => <ReportBugChromeButton presentation={presentation} />,
     // The menu entry opens the button's own form.
-    useMenuForms: (): readonly OverflowMenuForm[] => MENU_FORMS,
+    useMenuForms: menuForms,
   },
 };

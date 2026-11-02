@@ -65,7 +65,7 @@ const THINKING_DISPLAY_LABELS: Record<ThinkingDisplay, string> = {
   summarized: "Summarized",
   omitted: "Omitted",
 };
-export const THINKING_DISPLAY_ITEMS: SelectItems<string> = THINKING_DISPLAYS.map((value) => ({
+export const THINKING_DISPLAY_ITEMS: SelectItems = THINKING_DISPLAYS.map((value) => ({
   value,
   label: THINKING_DISPLAY_LABELS[value],
 }));
@@ -89,7 +89,7 @@ const NAMES_BEHAVIOR_LABELS: Record<NamesBehavior, string> = {
   content: "Content",
   completion: "Completion",
 };
-export const NAMES_BEHAVIOR_ITEMS: SelectItems<string> = NAMES_BEHAVIOR.map((value) => ({
+export const NAMES_BEHAVIOR_ITEMS: SelectItems = NAMES_BEHAVIOR.map((value) => ({
   value,
   label: NAMES_BEHAVIOR_LABELS[value],
 }));
@@ -102,7 +102,7 @@ const CONTINUE_POSTFIX_LABELS: Record<ContinuePostfix, string> = {
   newline: "Newline",
   "double-newline": "Double newline",
 };
-export const CONTINUE_POSTFIX_ITEMS: SelectItems<string> = CONTINUE_POSTFIX_TYPES.map((value) => ({
+export const CONTINUE_POSTFIX_ITEMS: SelectItems = CONTINUE_POSTFIX_TYPES.map((value) => ({
   value,
   label: CONTINUE_POSTFIX_LABELS[value],
 }));
@@ -122,7 +122,7 @@ const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
   auto: "The model's app",
   managed: "Orbweaver",
 };
-export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
+export const COMPACTION_MODE_ITEMS: SelectItems = COMPACTION_MODES.map((value) => ({
   value,
   label: COMPACTION_MODE_LABELS[value],
 }));

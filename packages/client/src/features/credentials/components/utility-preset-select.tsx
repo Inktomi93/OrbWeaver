@@ -48,11 +48,11 @@ export function UtilityPresetSelect(): ReactElement {
   const items = [
     { label: "Task defaults", value: TASK_DEFAULTS_VALUE, description: "Each background task uses its own sampling." },
     { label: "Same as chat", value: SAME_AS_CHAT_VALUE, description: "Uses your active chat preset's sampling." },
-    ...presets.map((preset) => ({ label: preset.name, value: preset.id as string })),
+    ...presets.map((preset) => ({ label: preset.name, value: preset.id })),
   ];
   const value = selectedValueOf(
     settings.config.seeds.summarizePreset,
-    presets.map((preset) => preset.id as string),
+    presets.map((preset): string => preset.id),
   );
 
   return (

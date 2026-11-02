@@ -1,4 +1,4 @@
-// Rewrites a plan-listed named input type argument of `createEntityMutation<Named, …>` to `inferInput<Trpc["a"]["b"]>`,
+// Rewrites a plan-listed input type argument of `createEntityMutation<…>`, named or an inline literal, to `inferInput<Trpc["a"]["b"]>`,
 // taking the procedure from its `options: (trpc) => trpc.a.b.mutationOptions()` call. Mode `assert` instead appends
 // one type-level equality check per site, so a typecheck proves the named type equals the router input first.
 
@@ -110,7 +110,7 @@ function plannedSites(rootNode: SgNode<TS>, types: ReadonlySet<string>): readonl
       ?.children()
       .find((child) => child.isNamed());
     const procedure = procedureOf(call);
-    if (first?.kind() === "type_identifier" && procedure !== null && types.has(first.text())) {
+    if ((first?.kind() === "type_identifier" || first?.kind() === "object_type") && procedure !== null && types.has(first.text())) {
       sites.push({ typeArgument: first, procedure });
     }
   }
@@ -162,7 +162,8 @@ function assertEdit(sites: readonly Site[], bytes: Uint8Array): Edit {
 function rewriteEdits(rootNode: SgNode<TS>, sites: readonly Site[], bytes: Uint8Array, limit: number): readonly Edit[] {
   const replaced = new Set(sites.map((site) => site.typeArgument.id()));
   const edits: Edit[] = sites.map((site) => site.typeArgument.replace(`inferInput<${site.procedure}>`));
-  for (const type of new Set(sites.map((site) => site.typeArgument.text()))) {
+  const named = sites.filter((site) => site.typeArgument.kind() === "type_identifier");
+  for (const type of new Set(named.map((site) => site.typeArgument.text()))) {
     const removal = unusedDeclaration(rootNode, type, bytes, { replaced, limit });
     if (removal !== null) {
       edits.push(removal);

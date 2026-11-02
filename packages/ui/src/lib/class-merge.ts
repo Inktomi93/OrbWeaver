@@ -371,6 +371,7 @@ function wrapVariantComponent<Component extends RuntimeVariantComponent>(compone
 /** Tailwind Variants composes raw candidates; every returned ordinary/slot string gets one Orb merge. */
 export const tv: TV = new Proxy(composeVariants, {
   apply(target, thisArg, args): RuntimeVariantComponent {
-    return wrapVariantComponent(Reflect.apply(target, thisArg, args));
+    // `TV`'s overloads resolve to `any` through `Reflect.apply`; every one of them returns a variant component.
+    return wrapVariantComponent(Reflect.apply(target, thisArg, args) as RuntimeVariantComponent);
   },
 });

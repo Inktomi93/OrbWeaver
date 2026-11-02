@@ -169,7 +169,7 @@ function collectLiteralColors(node: RawNode, path: readonly string[], lightValue
  * without shipping a fake entry in ALLOWED_NEAR_PAIRS; the build never passes it.
  */
 export function assertNoNearDuplicateColors(source: RawNode, options: NearDuplicateOptions = {}): void {
-  const lightValues = new Map<string, unknown>();
+  const lightValues = new Map<string>();
   if (options.lightSource !== undefined) {
     tokenValues(options.lightSource, [], lightValues);
   }

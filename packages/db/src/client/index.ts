@@ -74,11 +74,8 @@ const TUNING_PRAGMAS = [
 // drizzle's returned handle carries `$client` at runtime; `Db` (the public type) intentionally hides it.
 // This local (non-exported) accessor is the one place we reach it — for `close()`, which has no
 // drizzle-level equivalent.
-interface WithClient {
-  readonly $client: Client;
-}
 function clientOf(db: Db): Client {
-  return (db as unknown as WithClient).$client;
+  return Reflect.get(db, "$client") as Client;
 }
 
 /** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */

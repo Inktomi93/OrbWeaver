@@ -76,10 +76,7 @@ function TaskRow({ pluginId, pluginName, task, view, connections }: TaskRowProps
   const [attempted, setAttempted] = useState<string | null>(null);
 
   const compatible = connections.filter((connection) => connection.tasks.includes(task satisfies RoutableTask));
-  const items = [
-    { label: PLUGIN_MODEL_UNSET, value: UNSET_VALUE },
-    ...compatible.map((connection) => ({ label: connection.label, value: connection.id as string })),
-  ];
+  const items = [{ label: PLUGIN_MODEL_UNSET, value: UNSET_VALUE }, ...compatible.map((connection) => ({ label: connection.label, value: connection.id }))];
   const persisted = view?.binding?.connectionId ?? UNSET_VALUE;
   const label = PLUGIN_GRANT_TASK_LABELS[task];
 

@@ -162,7 +162,7 @@ function nullableEnum<const T extends readonly string[]>(value: unknown, options
 
 function safeString(value: unknown, label: string): string {
   const text = pageString(value, label);
-  const hasControl = [...text].some((character) => {
+  const hasControl = Array.from(text).some((character) => {
     const code = character.charCodeAt(0);
     return code <= ASCII_CONTROL_MAX || code === ASCII_DELETE;
   });

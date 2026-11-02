@@ -32,7 +32,7 @@ export const clusterKey = (cluster: string): string => cluster.split(/\s+/u).sor
 /** The literal a site writes, normalised so equal values group: a length in pixels, a colour, or the token text. */
 function literalOf(site: Site): string | null {
   if (site.kind === "css-raw-length") {
-    const match = /(-?\d*\.?\d+)(px|rem)\b/u.exec(site.detail);
+    const match = /(?<![\d.])(-?\d*\.?\d+)(px|rem)\b/u.exec(site.detail);
     const px = match === null ? null : pxOf(match[0]);
     return px === null ? null : `${px}px`;
   }

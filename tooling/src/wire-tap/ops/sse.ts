@@ -62,9 +62,11 @@ function buildClient(env: SseEnv): ReturnType<typeof createTRPCClient<AppRouter>
             ? {}
             : {
                 eventSourceOptions: {
-                  fetch: (u: string | URL | Request, init?: RequestInit): Promise<Response> =>
-                    // biome-ignore lint/style/useNamingConvention: `Cookie` is the HTTP header's own spelling, not an identifier.
-                    fetch(u, { ...init, headers: { ...(init?.headers ?? {}), Cookie: env.cookie } }),
+                  fetch: (u: string | URL | Request, init?: RequestInit): Promise<Response> => {
+                    const headers = new Headers(init?.headers);
+                    headers.set("Cookie", env.cookie);
+                    return fetch(u, { ...init, headers });
+                  },
                 },
               }),
         }),

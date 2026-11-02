@@ -252,7 +252,7 @@ function sha256(text: string): string {
 
 function parseJson(text: string, path: string, diagnostics: TokenContractDiagnostic[]): unknown {
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch (error) {
     diagnostics.push(diagnostic(path, "json.parse", error instanceof Error ? error.message : String(error)));
     return null;
@@ -271,7 +271,7 @@ function ajvDiagnostics(path: string, code: string, validate: ValidateFunction, 
     return [];
   }
   return (validate.errors ?? []).map((error: ErrorObject) =>
-    diagnostic(`${path}${error.instancePath}`, code, `${error.message ?? "schema violation"}${` (${JSON.stringify(error.params)})`}`),
+    diagnostic(`${path}${error.instancePath}`, code, `${error.message ?? "schema violation"} (${JSON.stringify(error.params)})`),
   );
 }
 

@@ -70,7 +70,7 @@ export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule
   );
 }
 
-const CADENCE_ITEMS: SelectItems<string> = SCHEDULE_CADENCE_ITEMS.map((item) => ({
+const CADENCE_ITEMS: SelectItems = SCHEDULE_CADENCE_ITEMS.map((item) => ({
   value: item.value,
   label: item.label,
 }));
@@ -119,7 +119,7 @@ function ScheduleFormBody({
   };
 
   const { form } = useCreateScheduleForm({
-    entityId: isEdit ? (schedule.id as string) : "create-schedule",
+    entityId: isEdit ? schedule.id : "create-schedule",
     serverValues: schedule === undefined ? undefined : scheduleFormValuesFromRow(schedule),
     save,
   });

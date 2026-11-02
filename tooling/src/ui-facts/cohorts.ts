@@ -37,11 +37,11 @@ function rowComposite(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>):
     if (!(facts.tags.has(name) && /Row$/u.test(name))) {
       continue;
     }
-    const dir = facts.source.path.replace(/[^/]+$/u, "");
+    const dir = facts.source.path.slice(0, facts.source.path.lastIndexOf("/") + 1);
     const target = [`${dir}${specifier.replace(/^\.\//u, "").replace(/\.tsx?$/u, "")}.tsx`, ...resolveUp(dir, specifier)]
       .map((p) => byPath.get(p))
       .find((f) => f !== undefined);
-    return cell(target?.tags.has("ListRow") === true && target.tags.has("LibraryRow") === false ? "raw ListRow" : "row composite", firstLine(facts, name));
+    return cell(target?.tags.has("ListRow") === true && !target.tags.has("LibraryRow") ? "raw ListRow" : "row composite", firstLine(facts, name));
   }
   return cell(NOT_APPLICABLE, firstLine(facts, "LibraryListRows"));
 }

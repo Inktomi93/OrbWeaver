@@ -3,14 +3,7 @@
 // and the unified effort vocabulary. What a wire spells differently (OR's nested `reasoning`, vLLM's `top_k`/`min_p`
 // via provider options, Anthropic's `thinking`) stays in that wire's own option builder.
 
-import type {
-  JSONObject,
-  JSONSchema7,
-  LanguageModelV4CallOptions,
-  LanguageModelV4FunctionTool,
-  LanguageModelV4ToolChoice,
-  SharedV4ProviderOptions,
-} from "@ai-sdk/provider";
+import type { JSONObject, LanguageModelV4CallOptions, LanguageModelV4FunctionTool, LanguageModelV4ToolChoice, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { EffortLevel } from "@orb/contracts/inference";
 import type { ResolvedSampling, ToolChoice } from "#contract";
 import type { PlannedResponseFormat, PlannedTool, StructuredPlan } from "../../contract/structured.ts";
@@ -48,7 +41,7 @@ function functionTools(tools: readonly PlannedTool[], cacheLastTool: SharedV4Pro
     type: "function",
     name: tool.name,
     description: tool.description,
-    inputSchema: tool.parameters as JSONSchema7,
+    inputSchema: tool.parameters,
     ...(tool.strict !== undefined ? { strict: tool.strict } : {}),
     ...(tool.inputExamples !== undefined ? { inputExamples: tool.inputExamples.map((input) => ({ input: input as JSONObject })) } : {}),
     ...(cacheLastTool !== undefined && index === last ? { providerOptions: cacheLastTool } : {}),
@@ -63,7 +56,7 @@ function toolChoiceOf(choice: ToolChoice): LanguageModelV4ToolChoice {
 function jsonResponseFormat(format: PlannedResponseFormat): NonNullable<LanguageModelV4CallOptions["responseFormat"]> {
   return {
     type: "json",
-    schema: format.schema as JSONSchema7,
+    schema: format.schema,
     name: format.name,
     ...(format.description !== undefined ? { description: format.description } : {}),
   };

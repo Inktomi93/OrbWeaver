@@ -40,7 +40,7 @@ export interface CharacterLibraryBodyProps {
   readonly filtersActive: boolean;
   readonly categorized: boolean;
   readonly isPending: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly filtered: readonly CharacterCardItem[];
   readonly hasNextPage: boolean;
   readonly isFetchingNextPage: boolean;

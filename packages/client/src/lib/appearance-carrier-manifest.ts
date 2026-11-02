@@ -464,7 +464,7 @@ export function appearanceMatrixContract(): AppearanceMatrixContract {
       lifecycle: row.lifecycle,
       portal: row.portal,
       arms: executable ? row.requiredDistinctArms : null,
-      dependsOn: "dependsOn" in row ? (row.dependsOn as readonly AppearanceCarrierKey[]) : [],
+      dependsOn: "dependsOn" in row ? row.dependsOn : [],
       incompatibleWith: "incompatibleWith" in row ? (row.incompatibleWith as readonly AppearanceCarrierKey[]) : [],
       observable: executable ? APPEARANCE_CARRIER_OBSERVABLES[key as keyof typeof APPEARANCE_CARRIER_OBSERVABLES] : null,
     };

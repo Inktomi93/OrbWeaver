@@ -103,7 +103,7 @@ function classifyLevel(value: unknown): ConstraintViolation | undefined {
 /** Walk `err` and every `.cause` under it, outermost first. The `seen` set is the whole termination
  *  argument: a cause chain is finite unless it CYCLES, and a cycle revisits a link — so the walk ends
  *  when the chain runs out or when a link repeats, never at an arbitrary depth (#1377 item 4). */
-function* causeChain(err: unknown): Generator<unknown> {
+function* causeChain(err: unknown): Generator {
   const seen = new Set<unknown>();
   let current: unknown = err;
   while (!seen.has(current)) {

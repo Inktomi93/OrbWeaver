@@ -46,35 +46,35 @@ const CHAT_STYLE_DESCRIPTIONS: Record<AppearanceSettings["chatStyle"], string> =
 };
 
 /** The message-row anatomy options — the viewer's own `appearance.chatStyle` setting (never card-forced). */
-export const CHAT_STYLE_ITEMS: readonly SelectOption<string>[] = THEME_CHAT_STYLES.map((value) => ({
+export const CHAT_STYLE_ITEMS: readonly SelectOption[] = THEME_CHAT_STYLES.map((value) => ({
   value,
   label: CHAT_STYLE_LABELS[value],
   description: CHAT_STYLE_DESCRIPTIONS[value],
 }));
 
-export const AVATAR_SIZE_ITEMS: readonly SelectOption<string>[] = [
+export const AVATAR_SIZE_ITEMS: readonly SelectOption[] = [
   { value: "sm", label: "Small" },
   { value: "md", label: "Medium" },
   { value: "lg", label: "Large" },
 ] satisfies readonly { value: AppearanceSettings["avatarSize"]; label: string }[];
 
-export const AVATAR_SHAPE_ITEMS: readonly SelectOption<string>[] = [
+export const AVATAR_SHAPE_ITEMS: readonly SelectOption[] = [
   { value: "round", label: "Round" },
   { value: "square", label: "Square" },
   { value: "rounded", label: "Rounded" },
 ] satisfies readonly { value: AppearanceSettings["avatarShape"]; label: string }[];
 
-export const AVATAR_ASPECT_ITEMS: readonly SelectOption<string>[] = [
+export const AVATAR_ASPECT_ITEMS: readonly SelectOption[] = [
   { value: "square", label: "Square" },
   { value: "portrait", label: "Portrait (2:3)" },
 ] satisfies readonly { value: AppearanceSettings["avatarAspect"]; label: string }[];
 
-export const AVATAR_RING_ITEMS: readonly SelectOption<string>[] = [
+export const AVATAR_RING_ITEMS: readonly SelectOption[] = [
   { value: "none", label: "None" },
   { value: "accent", label: "Accent" },
 ] satisfies readonly { value: AppearanceSettings["avatarRing"]; label: string }[];
 
-export const MESSAGE_ACTIONS_ITEMS: readonly SelectOption<string>[] = [
+export const MESSAGE_ACTIONS_ITEMS: readonly SelectOption[] = [
   { value: "hover", label: "Reveal on hover" },
   { value: "expanded", label: "Always visible" },
 ] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];

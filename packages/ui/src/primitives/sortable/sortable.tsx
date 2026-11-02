@@ -236,6 +236,8 @@ const withAnnouncements: NonNullable<ComponentProps<typeof DragDropProvider>["pl
       : plugin,
   );
 
+const NONE: readonly never[] = [];
+
 /** Generic controlled reorderable list over `@dnd-kit/react`; caller owns `items` and applies `onReorder`. */
 export function SortableList<T>({
   items,
@@ -246,7 +248,7 @@ export function SortableList<T>({
   itemLabel,
   disabled = false,
   "aria-label": ariaLabel,
-  fixedTail = [],
+  fixedTail = NONE,
 }: SortableListProps<T>): ReactElement {
   const keys = items.map((item) => getItemKey(item));
   const count = items.length + fixedTail.length;

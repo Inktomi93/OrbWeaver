@@ -16,7 +16,7 @@ import { useBoundField } from "./use-bound-field.ts";
 export interface SegmentFieldProps extends BoundFieldShellProps {
   /** Also the group's `aria-label`, so it stays a string. */
   readonly label: string;
-  readonly items: readonly SelectOption<string>[];
+  readonly items: readonly SelectOption[];
 }
 
 export function SegmentField(props: SegmentFieldProps): ReactElement {

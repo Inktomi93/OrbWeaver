@@ -38,5 +38,5 @@ export async function fetchOwned<T extends OwnedTable>(
     .from(table)
     .where(and(eq(table.id, id), eq(table.ownerId, ownerId)))
     .limit(LIMIT_ONE);
-  return rows[0] as T["$inferSelect"] | undefined;
+  return rows[0];
 }

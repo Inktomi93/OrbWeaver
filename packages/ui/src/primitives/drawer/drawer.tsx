@@ -33,8 +33,12 @@ export interface DrawerProps<Payload = unknown> extends Omit<BaseRootProps<Paylo
  * State-only. `side` sets the swipe-dismiss direction and must match `side` on DrawerPopup.
  */
 export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactElement {
-  const { side = "bottom", ...rest } = props;
-  return <BaseDrawer.Root swipeDirection={SWIPE_BY_SIDE[side]} {...rest} />;
+  const { side = "bottom", children, ...rest } = props;
+  return (
+    <BaseDrawer.Root swipeDirection={SWIPE_BY_SIDE[side]} {...rest}>
+      {children}
+    </BaseDrawer.Root>
+  );
 }
 
 /**

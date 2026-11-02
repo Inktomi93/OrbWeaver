@@ -13,7 +13,7 @@ export const MESSAGE_ROLE_LABELS: Record<MessageRole, string> = {
   assistant: "Assistant",
 };
 
-export const MESSAGE_ROLE_ITEMS: SelectItems<string> = MESSAGE_ROLES.map((value) => ({
+export const MESSAGE_ROLE_ITEMS: SelectItems = MESSAGE_ROLES.map((value) => ({
   value,
   label: MESSAGE_ROLE_LABELS[value],
 }));

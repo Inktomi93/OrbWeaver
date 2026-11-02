@@ -18,7 +18,7 @@ export const useCreateTheme = createEntityMutation<inferInput<Trpc["settings"]["
  *  SillyTavern theme) plus its name, through the same server op the backup restore calls. The server's
  *  refusal reason is what the caller renders. */
 export const useImportThemeFile = createEntityMutation<
-  { readonly fileText: string; readonly filename: string },
+  inferInput<Trpc["settings"]["importThemeFile"]>,
   { readonly created: boolean; readonly name: string; readonly renamedFrom: string | null }
 >({
   options: (trpc) => trpc.settings.importThemeFile.mutationOptions(),

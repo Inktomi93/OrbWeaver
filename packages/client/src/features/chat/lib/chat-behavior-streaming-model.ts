@@ -14,7 +14,7 @@ const STREAM_SCROLL_MODE_LABELS: Record<ChatSettings["streamScrollMode"], string
 };
 
 /** The scroll-mode Select options — pinned to the contract union so a typo'd value is a tsc error. */
-export const STREAM_SCROLL_MODE_ITEMS: readonly SelectOption<string>[] = STREAM_SCROLL_MODES.map((value) => ({
+export const STREAM_SCROLL_MODE_ITEMS: readonly SelectOption[] = STREAM_SCROLL_MODES.map((value) => ({
   value,
   label: STREAM_SCROLL_MODE_LABELS[value],
 }));

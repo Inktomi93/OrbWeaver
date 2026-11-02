@@ -19,9 +19,16 @@ interface Geometry {
 
 function geometry(row: Locator): Promise<Geometry> {
   return row.evaluate((root) => {
-    const body = root.querySelector('[data-slot="list-row-body"]') as HTMLElement;
-    const actions = root.querySelector('[data-slot="list-row-actions"]') as HTMLElement;
-    const title = root.querySelector('[data-slot="list-row-title"]') as HTMLElement;
+    const part = (slot: string): HTMLElement => {
+      const found = root.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      if (found === null) {
+        throw new Error(`list row has no ${slot}`);
+      }
+      return found;
+    };
+    const body = part("list-row-body");
+    const actions = part("list-row-actions");
+    const title = part("list-row-title");
     return {
       height: root.getBoundingClientRect().height,
       actionsTop: actions.getBoundingClientRect().top,

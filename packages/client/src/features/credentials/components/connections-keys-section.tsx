@@ -42,7 +42,7 @@ function SavedKeysSection({ anchorId }: { readonly anchorId: string }): ReactEle
   // The registry rows are the ONE home for a provider's user-facing label (`providerDisplayLabel`) — a
   // credential row carries only the registry ID, which is half an AAD and not a word for a person.
   const { data: providers } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
-  const providerLabels = new Map(providers.map((row) => [row.provider.id as string, providerDisplayLabel(row.provider)]));
+  const providerLabels = new Map<string, string>(providers.map((row) => [row.provider.id, providerDisplayLabel(row.provider)]));
 
   return (
     <Section divider={true} heading={CONNECTIONS_KEYS_SUBCATEGORY.label} id={anchorId}>

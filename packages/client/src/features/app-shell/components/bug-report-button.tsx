@@ -185,7 +185,7 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
         placeholder="What you did, and what went wrong."
       />
       <Text voice="label">When?</Text>
-      <RadioGroup aria-label="When did it happen?" value={whenValue} onValueChange={(next): void => setWhenValue(String(next))}>
+      <RadioGroup aria-label="When did it happen?" value={whenValue} onValueChange={(next): void => setWhenValue(next)}>
         {WHEN_OPTIONS.map((option) => (
           <RadioGroupItem key={option.value} value={option.value}>
             <Text as="span" voice="label">

@@ -36,3 +36,4 @@ export interface AmbientScope {
 }
 
 export const AmbientScopeContext = createContext<AmbientScope>({});
+AmbientScopeContext.displayName = "AmbientScopeContext";

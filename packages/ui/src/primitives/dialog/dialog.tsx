@@ -15,8 +15,8 @@ import { dialogVariants } from "./variants.ts";
 
 const slots = dialogVariants();
 
-export function Dialog<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
-  return <BaseDialog.Root {...props} />;
+export function Dialog<Payload = unknown>({ children, ...props }: BaseRootProps<Payload>): ReactElement {
+  return <BaseDialog.Root {...props}>{children}</BaseDialog.Root>;
 }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog. */

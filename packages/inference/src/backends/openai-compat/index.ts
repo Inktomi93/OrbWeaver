@@ -4,9 +4,10 @@
 // these methods by the table test. Nothing here knows a provider id — the row's `features`, `extras` and
 // `transport` are the whole configuration.
 
-import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, Resolved, StructuredRequest, SummarizeRequest } from "#contract";
+import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, StructuredRequest, SummarizeRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
+import type { DiagnosticRequestCommon } from "../../contract/diagnostics.ts";
 import type { OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "../../contract/openai-backend.ts";
 import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
@@ -24,10 +25,7 @@ function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatReq
 }
 
 /** What a task carries that the wake reads: its row and its cancel. */
-interface WakeRequest {
-  readonly connection: Resolved;
-  readonly signal?: AbortSignal | undefined;
-}
+type WakeRequest = Pick<DiagnosticRequestCommon, "connection" | "signal">;
 
 /** A row whose folded features name a sleep pair is woken before any task reaches it: the availability read calls a
  *  sleeping server available because the task wakes it. A row without the pair sends as it is. */

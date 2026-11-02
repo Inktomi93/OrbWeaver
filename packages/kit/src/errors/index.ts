@@ -11,9 +11,7 @@
 /** Capture a clean stack trace where the V8 API is available (Node + Chromium); a
  *  no-op elsewhere (Firefox/Safari) — kit is browser-safe, so this must not assume V8. */
 function captureStack(target: Error, ctor: new (...args: never[]) => Error): void {
-  const ErrorCtor = Error as unknown as {
-    captureStackTrace?: (t: Error, c: unknown) => void;
-  };
+  const ErrorCtor: ErrorConstructor & { readonly captureStackTrace?: (t: Error, c: typeof ctor) => void } = Error;
   ErrorCtor.captureStackTrace?.(target, ctor);
 }
 

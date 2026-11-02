@@ -16,6 +16,7 @@
 import { createContext, use } from "react";
 
 export const FieldLabelledContext = createContext(false);
+FieldLabelledContext.displayName = "FieldLabelledContext";
 
 /** Does an ancestor `<Field>` already name this control? See the module header. */
 export function useFieldLabelled(): boolean {

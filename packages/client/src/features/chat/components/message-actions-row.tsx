@@ -112,15 +112,17 @@ function ActionsFrame({ chip, className, ...row }: ComponentProps<typeof Row> & 
   );
 }
 
+const NONE: readonly never[] = [];
+
 export function MessageActionsRow({
   message,
   columnRef,
   messageActions = "hover",
   greetingBound = false,
   viewerIsHost = false,
-  characterSeats = [],
+  characterSeats = NONE,
   generationCredit = false,
-  characterNames = [],
+  characterNames = NONE,
   chip = false,
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();

@@ -89,9 +89,9 @@ function RunWorkloadFormBody({
   const start = useStartWorkload({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
 
-  const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
+  const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id, label: user.handle }));
 
-  const dependencyItems: readonly SelectOption<string>[] = dependencyCandidates.map((candidate) => ({
+  const dependencyItems: readonly SelectOption[] = dependencyCandidates.map((candidate) => ({
     value: candidate.id,
     label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
   }));

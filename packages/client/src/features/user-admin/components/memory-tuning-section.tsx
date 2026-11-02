@@ -120,7 +120,7 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
       patch[key] = clamped;
     }
   }
-  return patch as MemoryDefaults;
+  return patch;
 }
 
 /** The section's own suspense/error boundary so it is self-contained. */

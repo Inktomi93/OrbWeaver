@@ -7,8 +7,8 @@ import { echartsCore } from "./echarts-setup.ts";
 // The CJS renderer may arrive as its component or as the module namespace.
 type CoreNamespace = typeof ReactEChartsCoreDefault;
 type CoreComponent = CoreNamespace extends { readonly default: infer C } ? C : CoreNamespace;
-const ReactEChartsCore = ((ReactEChartsCoreDefault as unknown as { readonly default?: CoreComponent }).default ??
-  (ReactEChartsCoreDefault as unknown as CoreComponent)) as CoreComponent;
+const interop: CoreComponent & { readonly default?: CoreComponent } = ReactEChartsCoreDefault;
+const ReactEChartsCore = interop.default ?? interop;
 
 /** Render the already-themed chart after the shared seal's lazy boundary resolves. */
 export function ChartRenderer({ option, height, onChartReady, onEvents }: Pick<ChartProps, "option" | "height" | "onChartReady" | "onEvents">): ReactElement {

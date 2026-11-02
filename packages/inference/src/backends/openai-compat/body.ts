@@ -203,7 +203,7 @@ function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, u
   if (args.templateThinking === undefined || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY || userThinking) {
     return body;
   }
-  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? body[CHAT_TEMPLATE_KWARGS_KEY] : {};
   if (kwargs[ENABLE_THINKING_KEY] === false) {
     return body;
   }
@@ -233,7 +233,7 @@ function applyPreserveReasoning(body: Record<string, unknown>, args: ShapeArgs, 
   ) {
     return body;
   }
-  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? body[CHAT_TEMPLATE_KWARGS_KEY] : {};
   return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...kwargs, [PRESERVE_REASONING_KEY]: false } };
 }
 

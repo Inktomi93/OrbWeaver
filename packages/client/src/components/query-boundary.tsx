@@ -80,7 +80,7 @@ type RecoveryPhase = (typeof RECOVERY_PHASES)[number];
 const RECOVERY_MESSAGES: Readonly<Record<RecoveryPhase, string>> = { idle: "", reloading: "Reloading…", recovered: "Loaded again." };
 
 interface CatchState {
-  readonly error: unknown | null;
+  readonly error: unknown;
   /** True once the user pressed Retry on this mount; it never clears, because the settled wrapper must keep its place in the tree. */
   readonly retried: boolean;
   /** What the recovery status says: reloading from a Retry press, recovered once that read settles, idle otherwise. */

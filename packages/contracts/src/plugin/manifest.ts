@@ -303,7 +303,7 @@ interface ProviderManifestFields {
  * package deliberately carries neither the DOM nor Node ambient library. Keep the structural surface to the
  * one parsed field the trust check needs. `providerDefSchema` has already admitted the input through `z.url()`.
  */
-const WhatwgUrl = (globalThis as unknown as { readonly URL: new (input: string) => { readonly hostname: string } }).URL;
+const WhatwgUrl = Reflect.get(globalThis, "URL") as new (input: string) => { readonly hostname: string };
 
 function refineFixedProviderHost(args: {
   readonly provider: ProviderDef;

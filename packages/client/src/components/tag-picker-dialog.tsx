@@ -48,9 +48,11 @@ export interface TagPickerDialogProps {
   readonly onSubmit: (name: string) => void;
 }
 
+const NONE: readonly never[] = [];
+
 /** The tag-name prompt — a suggesting "Tag name" field over the existing library + a required-non-empty
  *  confirm that names its arm, over FormDialog. */
-export function TagPickerDialog({ open, onOpenChange, title, description, confirmLabel, attachedNames = [], onSubmit }: TagPickerDialogProps): ReactElement {
+export function TagPickerDialog({ open, onOpenChange, title, description, confirmLabel, attachedNames = NONE, onSubmit }: TagPickerDialogProps): ReactElement {
   const trpc = useTRPC();
   const [name, setName] = useState("");
   const helperId = useId();

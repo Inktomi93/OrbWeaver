@@ -1,12 +1,12 @@
 // Shared factory implementation; only the typed production door and private legacy seam may import it.
 import { isPlainObject } from "@orb/kit/guards";
+import { omitKey } from "@orb/kit/objects";
 import type { PersistOptions, StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
 import { createStore } from "zustand/vanilla";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
-import type { DurableLocalPersistApi } from "./durable-local.ts";
 import { durableLocalKey, durableLocalWritesAllowed, registerDurableLocalStore } from "./durable-local.ts";
 
 // Stable no-draft ref: a fresh {} per render would infinite-loop useSyncExternalStore under Object.is.
@@ -73,14 +73,16 @@ export interface EntityDraftStore<TInput> {
 /** Any unrecognized/older persisted shape falls back to a fresh empty map — drafts are cache, not canon.
  *  A pre-envelope (bare-values) persisted shape is NOT lifted: it is unverifiable, so it starts empty. */
 function migrateDrafts<TInput>(persisted: unknown): DraftsState<TInput> {
+  const isEnvelope = (entry: unknown): entry is DraftEnvelope<TInput> =>
+    isPlainObject(entry) && isPlainObject(entry["values"]) && typeof entry["schemaVersion"] === "number";
   if (isPlainObject(persisted) && isPlainObject(persisted["drafts"])) {
-    const drafts = persisted["drafts"] as Record<string, unknown>;
+    const drafts = persisted["drafts"];
     const kept: Record<string, DraftEnvelope<TInput>> = {};
     for (const [id, entry] of Object.entries(drafts)) {
       // Keep ONLY well-formed envelopes; a bare-values (pre-#11) entry has no `values`/`schemaVersion`
       // and is dropped — it can't prove freshness, so it must never be handed back (the whole point).
-      if (isPlainObject(entry) && isPlainObject(entry["values"]) && typeof entry["schemaVersion"] === "number") {
-        kept[id] = entry as unknown as DraftEnvelope<TInput>;
+      if (isEnvelope(entry)) {
+        kept[id] = entry;
       }
     }
     return { drafts: kept };
@@ -119,7 +121,7 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
   registerDurableLocalStore({
     prefix: STORAGE_KEY_PREFIX,
     name: config.name,
-    api: store as unknown as DurableLocalPersistApi,
+    api: store,
     reset: (): void => {
       store.setState(store.getInitialState(), true);
     },
@@ -146,9 +148,7 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     if (!durableLocalWritesAllowed()) {
       return;
     }
-    const drafts = { ...store.getState().drafts };
-    delete drafts[id];
-    store.setState({ drafts }, true, "draft/clear");
+    store.setState({ drafts: omitKey(store.getState().drafts, id) }, true, "draft/clear");
   };
 
   const readDraft = (id: string, baselineHash?: string): Readonly<Partial<TInput>> | undefined => {

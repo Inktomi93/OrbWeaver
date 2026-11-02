@@ -152,7 +152,7 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
     <Section kicker="Quality">
       <form.AppField name="params.quality">
         {(field): ReactElement => {
-          const current = field.state.value as Quality | undefined;
+          const current = field.state.value;
           // ONE LINE (crunch-list 5): the MAPPING datum ("deep → effort high · temperature 1", the
           // server's own projection of the dial table) joined with the OVERRIDE status, exactly as the
           // mock draws it. Both halves stay separate derivations in `effective-knobs.ts`.
@@ -279,7 +279,7 @@ function ReasoningCluster({
       <SettingRowGroup>
         <form.AppField name="params.effort">
           {(field): ReactElement => {
-            const effort = field.state.value as EffortLevel | "none" | undefined;
+            const effort = field.state.value;
             const on = effort !== "none";
             return (
               // A FRAGMENT, NOT A BOX: both rows are CELLS of the group's shared track set (the switch and
@@ -350,7 +350,7 @@ function EffortField({
   if (levels.length === 0) {
     return null;
   }
-  const items: SelectItems<string> = levels.map((level) => ({ value: level, label: level }));
+  const items: SelectItems = levels.map((level) => ({ value: level, label: level }));
   return (
     <SettingTrackRow>
       <Field label="Effort" name="reasoning-effort">

@@ -136,7 +136,7 @@ async function probeNativeWithin(args: EndpointFetchArgs, path: string, body: un
   // only JSON.parse of the text above can throw; a non-JSON answer is `{ status, json: null }` and every caller (`llamaCppKind`, `measuredWidth`, `ollamaPrefill`, `llamaCppPrefill`, `llamaCppEmbedLimit`)
   // reads the status or a zod `safeParse` of `json`. Ends if a probed route can answer a fact in a non-JSON body.
   try {
-    return { status: res.status, json: JSON.parse(text) as unknown };
+    return { status: res.status, json: JSON.parse(text) };
   } catch {
     return { status: res.status, json: null };
   }

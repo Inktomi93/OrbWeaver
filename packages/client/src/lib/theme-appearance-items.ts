@@ -21,7 +21,7 @@ const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
 };
 // FLAT rows (not the `SelectItems` union): the density segment (`SegmentField`, #866 §7.8) renders the
 // same table the Selects did, and a segment has no grouped analogue.
-export const DENSITY_ITEMS: readonly SelectOption<string>[] = THEME_DENSITIES.map((value) => ({
+export const DENSITY_ITEMS: readonly SelectOption[] = THEME_DENSITIES.map((value) => ({
   value,
   label: DENSITY_LABELS[value],
 }));

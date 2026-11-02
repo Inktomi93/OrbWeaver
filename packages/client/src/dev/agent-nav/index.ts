@@ -15,7 +15,7 @@
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import { CHAT_LIST_MAX_LIMIT } from "@orb/contracts/chat";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
@@ -139,7 +139,7 @@ async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: Q
   // The real tRPC boundary validates the complete TypeID. Prefix routing here only decides whether the
   // caller named an opaque id or a display title; an invalid id simply falls through to the honest miss.
   // null sends `openChat` on to `resolveListedChat`, whose failed list query and whose miss both return an `ok:false` NavResult the caller reads (the `page === null` and "no chat matches" returns). Ends if `openChat` stops falling through to the list arm.
-  const chat = await queryClient.query(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);
+  const chat = await queryClient.query(trpc.chat.getChat.queryOptions({ chatId: idOrTitle })).catch(() => null);
   return chat?.id ?? null;
 }
 
@@ -179,7 +179,7 @@ async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: Que
     if (top === undefined) {
       return { ok: false, reason: `no chat to open — "${idOrTitle}" resolves against the chat list, which is empty` };
     }
-    openChatIn(top.id as ChatId);
+    openChatIn(top.id);
     return OK;
   }
   // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
@@ -192,7 +192,7 @@ async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: Que
   }
   const singleTitle = byTitle[0];
   if (singleTitle !== undefined) {
-    openChatIn(singleTitle.id as ChatId);
+    openChatIn(singleTitle.id);
     return OK;
   }
   // The REFUSAL names its own reach: `listChats` is keyset-paged, so a miss means "not in the most
@@ -323,7 +323,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       // validates the complete TypeID, and an invalid id falls through to the honest name arm.
       if (idOrName.startsWith(`${ID_PREFIX.character}_`)) {
         // null skips the id arm and falls into the name-search read below, whose `page === null` check returns `{ ok: false, reason: "character list query failed — …" }` as the NavResult the caller reads. Ends if the id arm stops falling through to that search.
-        const byId = await queryClient.query(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
+        const byId = await queryClient.query(trpc.character.get.queryOptions({ characterId: idOrName })).catch(() => null);
         if (byId !== null) {
           markAgentNavigation();
           setActiveSection("characters");
@@ -348,7 +348,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       if (singleName !== undefined) {
         markAgentNavigation();
         setActiveSection("characters");
-        selectCharacter(singleName.id as CharacterId);
+        selectCharacter(singleName.id);
         return OK;
       }
       return { ok: false, reason: `no character matches id-or-name "${idOrName}" (searched the whole library; ${String(page.totalCount)} match(es))` };

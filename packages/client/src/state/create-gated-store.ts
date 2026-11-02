@@ -56,5 +56,5 @@ export function createGatedStore<T>(name: string, initializer: (set: GatedSet<T>
       subscribeWithSelector((set, get): T => initializer(set as GatedSet<T>, get)),
       { name, enabled: STORE_DEVTOOLS_ENABLED },
     ),
-  ) as GatedStoreHook<T>;
+  );
 }

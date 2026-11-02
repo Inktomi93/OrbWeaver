@@ -54,7 +54,7 @@ export interface AddConnectionFormBodyProps {
   readonly onCancel: (() => void) | undefined;
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
-  readonly pickerItems: SelectItems<string>;
+  readonly pickerItems: SelectItems;
   readonly providerOf: (id: string) => ProviderDef | undefined;
 }
 

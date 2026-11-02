@@ -154,9 +154,9 @@ const QUALITY_OFF = "off";
 
 /** The dial as SELECT items — the OFF arm first, then the levels in canonical order. `SelectItems` (not
  *  `QualityOption[]`): the OFF arm is not a `Quality`, and a select renders labels, not descriptions. */
-export const QUALITY_SELECT_ITEMS: SelectItems<string> = [
+export const QUALITY_SELECT_ITEMS: SelectItems = [
   { value: QUALITY_OFF, label: "Don't use quality" },
-  ...QUALITY_OPTIONS.map((option) => ({ value: option.value as string, label: option.label })),
+  ...QUALITY_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
 ];
 
 /** The select's value for a stored dial — the OFF sentinel when nothing is stored, never an empty string

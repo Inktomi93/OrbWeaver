@@ -103,6 +103,7 @@ test.for([
     found: null,
   },
   { name: "a string cast to a brand", source: "export const a = raw as ProbeId;", found: null },
+  { name: "an unknown value erased to never", source: "export const a = loose as never;", found: null },
   { name: "a typed row cast to the contract", source: "declare const row: ProbeRow;\nexport const a = row as ProbeView;", found: null },
 ])("the cast rule reports $name", ({ source, found }, { scratch }) => {
   const messages = lint(scratch, FILE, source);

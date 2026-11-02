@@ -4,6 +4,7 @@ import type { IdSource } from "@orb/kit/ids";
 import { createContext, use } from "react";
 
 export const IdsContext = createContext<IdSource | null>(null);
+IdsContext.displayName = "IdsContext";
 
 /** The mounted runtime's id source, for ids the client persists. */
 export function useIds(): IdSource {

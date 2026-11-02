@@ -78,7 +78,7 @@ function isJournalScope(value: string | undefined): value is JournalScope {
   return (JOURNAL_SCOPES as readonly (string | undefined)[]).includes(value);
 }
 
-const JOURNAL_TYPE_ITEMS: SelectItems<string> = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
+const JOURNAL_TYPE_ITEMS: SelectItems = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";
 
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged

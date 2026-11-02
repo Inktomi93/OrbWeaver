@@ -29,7 +29,7 @@ export const CREATE_USER_DEFAULTS: CreateUserFormValues = {
 };
 
 /** The assignable roles (create dialog + per-row role select). `owner` is deliberately absent. */
-export const ROLE_ITEMS: SelectItems<string> = [
+export const ROLE_ITEMS: SelectItems = [
   { value: "user", label: "User" },
   { value: "admin", label: "Admin" },
 ];

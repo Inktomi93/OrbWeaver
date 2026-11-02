@@ -9,6 +9,7 @@
 // closes only on the bus's turnAborted (or a race-won turnCompleted).
 
 import type { CharacterId, ChatId, ChatTurnId, MessageId } from "@orb/kit/ids";
+import { omitKey } from "@orb/kit/objects";
 import { perfMark, perfMeasure } from "#lib";
 import type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream-types.ts";
 import { createGatedStore } from "./create-gated-store.ts";
@@ -61,12 +62,7 @@ function setSlot(chatId: ChatId, next: TurnSlot, action: string): void {
  *  (replace-mode set — a recall write must never drop the turn axis). */
 function setRecall(chatId: ChatId, next: RecallState | null, action: string): void {
   const current = useChatStreamStore.getState().recalls;
-  const recalls = { ...current };
-  if (next === null) {
-    delete recalls[chatId];
-  } else {
-    recalls[chatId] = next;
-  }
+  const recalls = next === null ? omitKey(current, chatId) : { ...current, [chatId]: next };
   useChatStreamStore.setState({ turns: useChatStreamStore.getState().turns, recalls }, true, action);
 }
 

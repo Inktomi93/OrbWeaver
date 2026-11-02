@@ -79,7 +79,7 @@ function parsedArguments(raw: unknown): unknown {
     return raw ?? {};
   }
   try {
-    return JSON.parse(raw) as unknown;
+    return JSON.parse(raw);
   } catch (cause) {
     throw notJson("invalid", "a replayed tool call carries arguments that are not JSON", cause);
   }

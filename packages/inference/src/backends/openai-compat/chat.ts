@@ -342,7 +342,7 @@ function webSearchOptions(extras: Resolved["extras"], warnings: ResolvedWarning[
     });
     return;
   }
-  return parsed.data as JSONObject;
+  return parsed.data;
 }
 
 /** `debug` off `extras`, validated; a malformed block drops loudly and is never sent (D3). */
@@ -356,7 +356,7 @@ function debugOptions(extras: Resolved["extras"], warnings: ResolvedWarning[]): 
     warnings.push({ code: "custom_parameters_ignored", key: "debug", message: "extras.debug ignored: not a valid openrouter debug block" });
     return;
   }
-  return parsed.data as JSONObject;
+  return parsed.data;
 }
 
 /** The two extras keys the openrouter transport MODELS (`provider` routing prefs, `models` fallback chain),

@@ -53,12 +53,12 @@ const ThemeCssField = lazy(async () => {
 
 // `labelStyle` — the "seen, not read" slot (#866 §7.8): each font option renders in its OWN typeface,
 // derived from the value itself (never a second table).
-const FONT_ITEMS: SelectItems<string> = THEME_FONT_ALLOWLIST.map((value) => ({
+const FONT_ITEMS: SelectItems = THEME_FONT_ALLOWLIST.map((value) => ({
   value,
   label: value,
   labelStyle: { fontFamily: value },
 }));
-const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
+const RADIUS_ITEMS: SelectItems = THEME_RADII.map((value) => ({
   value,
   label: THEME_RADIUS_LABELS[value],
 }));

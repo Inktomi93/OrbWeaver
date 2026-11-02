@@ -9,8 +9,11 @@
 // first. Never "nothing selected" while tabs exist.
 
 import { useEffect } from "react";
+import { z } from "zod";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { publishContextTabs, setContextTab, useContextTab } from "#state";
+
+const publishedTabsSchema = z.array(z.object({ id: z.string(), label: z.string() }));
 
 export function useContextTabSelection(tabs: readonly ResolvedContextTab[]): Pick<ContextRegionView, "activeTab" | "selectTab"> {
   const contextTab = useContextTab();
@@ -21,7 +24,7 @@ export function useContextTabSelection(tabs: readonly ResolvedContextTab[]): Pic
   // a closed panel reports no tabs rather than a stale set. `tabKey` keys the effect: same ids, no re-write.
   const tabKey = JSON.stringify(tabs.map(({ id, label }) => ({ id, label })));
   useEffect((): (() => void) => {
-    publishContextTabs(JSON.parse(tabKey) as Array<{ id: string; label: string }>);
+    publishContextTabs(publishedTabsSchema.parse(JSON.parse(tabKey)));
     return (): void => publishContextTabs([]);
   }, [tabKey]);
   return { activeTab: contextTab !== null && visible ? contextTab : fallback, selectTab: setContextTab };

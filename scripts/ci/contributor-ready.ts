@@ -20,10 +20,9 @@ if (RUNNER_TEMP === undefined || HEALTHZ === undefined || DEV_ORIGIN === undefin
 }
 const preload = join(RUNNER_TEMP, "contributor-marker.mjs");
 writeFileSync(preload, devMarkerPreload(join(RUNNER_TEMP, "contributor-dev.marker"), pathToFileURL(resolve("tooling/src/floor/process/run-marker.ts")).href));
-const childEnv = inheritedProcessEnv();
-childEnv["DEBUG"] = [childEnv["DEBUG"], "vite:load,vite:transform"].filter(Boolean).join(",");
 // The native dev proof owns its marker, not a surrounding tool's inherited run.
-delete childEnv[RUN_MARKER_ENV];
+const { [RUN_MARKER_ENV]: _inheritedMarker, ...childEnv } = inheritedProcessEnv();
+childEnv["DEBUG"] = [childEnv["DEBUG"], "vite:load,vite:transform"].filter(Boolean).join(",");
 childEnv["NODE_OPTIONS"] = [childEnv["NODE_OPTIONS"], `--import=${pathToFileURL(preload).href}`].filter(Boolean).join(" ");
 // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
 const child = spawnFullPriorityChild("pnpm", ["dev"], {

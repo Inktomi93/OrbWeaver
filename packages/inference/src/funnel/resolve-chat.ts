@@ -497,7 +497,7 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
       });
     }
   }
-  return Object.fromEntries(out) as ResolvedSampling;
+  return Object.fromEntries(out);
 }
 
 function resolveSampling(params: UserIntent, capability: GenerationCapability, reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): ResolvedSampling {

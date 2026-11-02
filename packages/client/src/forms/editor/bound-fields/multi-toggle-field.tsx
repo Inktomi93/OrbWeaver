@@ -16,7 +16,7 @@ import { useBoundField } from "./use-bound-field.ts";
 export interface MultiToggleFieldProps extends BoundFieldShellProps {
   /** Also the group's `aria-label`, so it stays a string. */
   readonly label: string;
-  readonly items: readonly SelectOption<string>[];
+  readonly items: readonly SelectOption[];
   /**
    * A caller-computed invalid message, rendered through `<Field>`'s error slot and overriding the
    * touch-gated one. It exists because the SET-EMPTY state is a real defect on an AUTOSAVING form and

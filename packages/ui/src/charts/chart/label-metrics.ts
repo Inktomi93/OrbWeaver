@@ -24,7 +24,7 @@ function measureChartLabelPx(text: string, theme: ChartColors): number {
   const context = labelContext();
   if (context === null) {
     // One em per code point is deliberately conservative until the real font can be measured.
-    return [...text].length * theme.metrics.fontSize;
+    return Array.from(text).length * theme.metrics.fontSize;
   }
   context.font = `${theme.fontWeight} ${theme.metrics.fontSize}px ${theme.fontFamily}`;
   return Math.ceil(context.measureText(text).width);

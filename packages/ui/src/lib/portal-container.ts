@@ -13,6 +13,7 @@ type MaybeShadowRoot = typeof globalThis extends { ShadowRoot: new () => infer T
 export type PortalContainer = HTMLElement | MaybeShadowRoot | RefObject<HTMLElement | MaybeShadowRoot | null> | undefined;
 
 export const PortalContainerContext = createContext<PortalContainer>(undefined);
+PortalContainerContext.displayName = "PortalContainerContext";
 
 /** A float seal prefers its own explicit `container` prop, then this, then Base UI's `<body>` default. */
 export function usePortalContainer(): PortalContainer {

@@ -16,16 +16,17 @@
 // The subscription is the store's own fire-and-forget publication (`subscribeHuskAbandoned`), which keeps
 // `#state` tRPC-free — the `subscribeUserMessageCommitted` precedent (state/chat-stream.ts).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import { subscribeHuskAbandoned } from "#state";
 import { createEntityMutation } from "./create-entity-mutation.ts";
+import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
 // NO `errorToast`: a failed best-effort reap is a non-event (see the header). `busDriven` because a reap
 // that DOES land fans `chatDeleted`, which the list + the active-chat pointer already react to.
-const useReapHuskMutation = createEntityMutation<{ readonly chatId: ChatId }, unknown>({
+const useReapHuskMutation = createEntityMutation<inferInput<Trpc["chat"]["reapHusk"]>, unknown>({
   options: (trpc) => trpc.chat.reapHusk.mutationOptions(),
   busDriven: true,
 });

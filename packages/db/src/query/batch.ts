@@ -68,6 +68,7 @@ export function batchStmt<TStmt extends BatchStmt>(stmt: TStmt): TStmt {
  * A caller that needs "at least one statement" is asserting a DOMAIN invariant and must say so at its own
  * seam, where it knows what an empty list would mean.
  */
-export function batchMany<const TStmts extends readonly BatchStmt[]>(stmts: TStmts): Readonly<[TStmts[number], ...TStmts[number][]]> {
-  return stmts as unknown as Readonly<[TStmts[number], ...TStmts[number][]]>;
+export function batchMany<const TStmts extends readonly BatchStmt[]>(stmts: TStmts): Readonly<[TStmts[number], ...TStmts[number][]]>;
+export function batchMany(stmts: readonly BatchStmt[]): readonly BatchStmt[] {
+  return stmts;
 }

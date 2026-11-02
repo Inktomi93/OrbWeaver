@@ -137,7 +137,7 @@ for (const [viewport, short] of [
       row.dataset["slot"] = "chat-room-flank-row";
       anchor.append(row);
       surface.append(anchor);
-      (document.querySelector(".shell-main") as Element).append(surface);
+      document.querySelector(".shell-main")?.append(surface);
       const floor = getComputedStyle(anchor).minBlockSize;
       surface.remove();
       return floor;

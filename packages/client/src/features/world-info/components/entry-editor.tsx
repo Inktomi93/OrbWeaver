@@ -57,7 +57,7 @@ const SCOPE_MODE_LABELS: Record<(typeof ENTRY_SCOPE_MODES)[number], string> = {
   always: "Always — fires every turn, keys ignored",
   keyword: "Keyword — fires only when a key matches",
 };
-const SCOPE_MODE_ITEMS: SelectItems<string> = ENTRY_SCOPE_MODES.map((value) => ({
+const SCOPE_MODE_ITEMS: SelectItems = ENTRY_SCOPE_MODES.map((value) => ({
   value,
   label: SCOPE_MODE_LABELS[value],
 }));
@@ -66,7 +66,7 @@ const POSITION_LABELS: Record<(typeof ENTRY_POSITIONS)[number], string> = {
   before: "Before the character definitions",
   after: "After the character definitions",
 };
-const POSITION_ITEMS: SelectItems<string> = ENTRY_POSITIONS.map((value) => ({
+const POSITION_ITEMS: SelectItems = ENTRY_POSITIONS.map((value) => ({
   value,
   label: POSITION_LABELS[value],
 }));

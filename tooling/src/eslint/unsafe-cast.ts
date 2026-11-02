@@ -15,7 +15,21 @@ export interface UnsafeCastHome {
 }
 
 /** The files a cast is the boundary itself. Add a file only for data that arrives untyped by construction. */
-export const UNSAFE_CAST_HOMES: readonly UnsafeCastHome[] = [];
+export const UNSAFE_CAST_HOMES: readonly UnsafeCastHome[] = [
+  {
+    file: "packages/contracts/src/plugin/manifest.ts",
+    reason: "the WHATWG `URL` global exists in every runtime yet in neither lib this package compiles under, so it can only be read untyped",
+  },
+  {
+    file: "packages/inference/src/backends/local-light/model-worker.ts",
+    reason: "`workerData` arrives untyped across the thread boundary from this worker's own spawner",
+  },
+  {
+    file: "packages/ui/src/lib/live-token-resolver.ts",
+    reason:
+      "reads DOM globals through structural shims so the module compiles in the DOM-less node world; `globalThis` has no type in common with them in either world",
+  },
+];
 
 const KIT_IDS = /\/packages\/kit\/src\/ids\/index\.ts$/u;
 // The shape of a drizzle row alias; the inferred select type of a table has no name to test.
@@ -69,6 +83,9 @@ const STRIPPED_BRAND = "`as string` strips a brand the checker was holding: a br
 
 // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
 const isUntyped = (type: ts.Type): boolean => (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) !== 0;
+// `never` is assignable to every brand, so `as never` would read as a brand cast though it names none.
+// biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
+const isNever = (type: ts.Type): boolean => (type.flags & ts.TypeFlags.Never) !== 0;
 
 function namesRow(type: ts.Type): boolean {
   const symbol = type.aliasSymbol ?? type.getSymbol();
@@ -102,7 +119,7 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[]): OrbRule {
       }
       const checker = program.getTypeChecker();
       const brand = brandedString(program, checker);
-      const isBrand = (type: ts.Type): boolean => brand !== null && !isUntyped(type) && checker.isTypeAssignableTo(type, brand);
+      const isBrand = (type: ts.Type): boolean => brand !== null && !isUntyped(type) && !isNever(type) && checker.isTypeAssignableTo(type, brand);
       const typedReason = (node: TSESTree.TSAsExpression): string | null => {
         const target = checker.getTypeFromTypeNode(toTs.get(node.typeAnnotation) as ts.TypeNode);
         const carried = checker.getTypeAtLocation(toTs.get(node.expression));

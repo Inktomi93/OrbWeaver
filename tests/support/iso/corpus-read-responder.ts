@@ -9,7 +9,7 @@ function captureKey(value: unknown): string | undefined {
 }
 
 // tRPC's infinite client stamps `direction` on every page; it selects no data, so a capture of the plain read answers it.
-function requestKey<T>(input: T): string | undefined {
+function requestKey(input: unknown): string | undefined {
   if (typeof input === "object" && input !== null && "direction" in input) {
     const { direction: _direction, ...request } = input;
     return captureKey(request);

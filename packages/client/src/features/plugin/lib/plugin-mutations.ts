@@ -14,7 +14,6 @@
 // to act on. So `errorToast` forwards `error.message` and falls back to a generic line only when the error
 // is not one of ours — re-spelling them here would give one refusal two homes that drift.
 
-import type { PluginId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -223,7 +222,7 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
 
 /** Remove a plugin, its bundle asset, and its registrations. No optimistic removal — the surface puts this
  *  behind a confirm, and a failed uninstall flashing a row back is worse than the brief settle refetch. */
-export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: PluginId }, inferOutput<Trpc["plugin"]["uninstall"]>>({
+export const useUninstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["uninstall"]>, inferOutput<Trpc["plugin"]["uninstall"]>>({
   options: (trpc) => trpc.plugin.uninstall.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
   errorToast: serverReason("Couldn't remove that plugin."),

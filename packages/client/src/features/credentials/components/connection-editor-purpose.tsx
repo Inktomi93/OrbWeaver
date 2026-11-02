@@ -38,7 +38,7 @@ export function KindVerdict({
         <Select
           aria-label="Change what this model is for"
           disabled={busy}
-          items={KIND_VERDICT_ITEMS.map((item) => ({ label: item.label, value: item.value as string }))}
+          items={KIND_VERDICT_ITEMS.map((item) => ({ label: item.label, value: item.value }))}
           onValueChange={(next): void => onChange(String(next) as ModelKind)}
           renderValue={(): ReactNode => "change"}
           value={declared?.kind ?? kind}

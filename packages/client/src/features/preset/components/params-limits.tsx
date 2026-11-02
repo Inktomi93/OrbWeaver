@@ -143,8 +143,8 @@ function OutputCluster({
           <SettingTrackRow>
             <form.AppField name="params.verbosity">
               {(field): ReactElement => {
-                const value = field.state.value as Verbosity | undefined;
-                const items: SelectItems<string> = verbosityLevels.map((level) => ({ value: level, label: level }));
+                const value = field.state.value;
+                const items: SelectItems = verbosityLevels.map((level) => ({ value: level, label: level }));
                 return (
                   <Field hint="How terse or expansive the model's replies run." label="Verbosity" name={field.name}>
                     <Select

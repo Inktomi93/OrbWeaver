@@ -32,7 +32,7 @@ function firewallBase(): Omit<DisciplineOptions, "env"> {
   return {
     disallowedTools: [...COWORK_DENYLIST],
     tools: [] as string[],
-    mcpServers: {} as Record<string, never>,
+    mcpServers: {},
     strictMcpConfig: true as const,
     settingSources: [] as never[],
   };

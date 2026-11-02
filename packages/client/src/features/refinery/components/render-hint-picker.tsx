@@ -21,7 +21,7 @@ import { Select } from "@orb/ui/select";
 import type { Dispatch, ReactElement, RefObject, SetStateAction } from "react";
 import { useState } from "react";
 
-const RENDER_HINT_ROLE_ITEMS: SelectItems<string> = RENDER_HINT_ROLES.map((value) => ({ value, label: value }));
+const RENDER_HINT_ROLE_ITEMS: SelectItems = RENDER_HINT_ROLES.map((value) => ({ value, label: value }));
 const RENDER_HINT_ROLE_QUESTION = "Render hint role";
 
 /** Insert the `x-orb-ui` hint snippet for `role` at `textarea`'s cursor (or append, when unfocused —

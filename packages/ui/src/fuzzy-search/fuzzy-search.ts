@@ -58,8 +58,8 @@ function getOrBuildIndex<T extends { id: string }>(args: IndexArgs<T>): MiniSear
     fields: fields as string[],
     storeFields: fields as string[],
   });
-  ms.addAll(items as T[]);
-  byConfig.set(fieldsKey, ms as MiniSearch<never>);
+  ms.addAll(items);
+  byConfig.set(fieldsKey, ms);
   return ms;
 }
 

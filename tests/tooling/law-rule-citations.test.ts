@@ -89,7 +89,7 @@ const enabledStylelintRules = (): Set<string> => {
 test("every orb/ rule a law or rule file cites is registered and enabled in a config block", { timeout: 120_000 }, async () => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
   const config = await resolvedConfig(eslint, join(ROOT, CLIENT_PROBE));
-  const registered = Object.keys(config.plugins?.["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
+  const registered = Object.keys(config.plugins["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
   const plugins: readonly unknown[] = [stylelintConfig.plugins].flat();
   const stylelintRegistered = plugins.flatMap((plugin) =>
     typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],

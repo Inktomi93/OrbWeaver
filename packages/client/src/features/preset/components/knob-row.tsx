@@ -108,7 +108,7 @@ export function KnobRow(props: KnobRowProps): ReactElement {
   return (
     <form.AppField name={name}>
       {(field): ReactElement => {
-        const value = field.state.value as number | undefined;
+        const value = field.state.value;
         // THE ONE DERIVATION (§4.1, the side-eye's "single biggest opportunity"): explicit ⇔ the field
         // carries a value. Everything else — fill vs bare rail, full-weight vs muted, whether the reset
         // exists, whether a provenance line renders — hangs off this and nothing else.

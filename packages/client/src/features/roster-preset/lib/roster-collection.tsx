@@ -8,7 +8,7 @@
 import type { ReactElement } from "react";
 import type { CollectionContribution, CollectionListView, CollectionMemberView } from "#lib";
 import { RosterCollectionRows } from "../components/roster-collection-rows.tsx";
-import { useCreateRosterMember, useRosterCount, useRosterInsights, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
+import { rosterCreateRunner, useRosterCount, useRosterInsights, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
 import { RosterMemberSurface } from "../surfaces/roster-member-surface.tsx";
 
 function renderList(view: CollectionListView): ReactElement {
@@ -26,7 +26,7 @@ export const rosterCollection: CollectionContribution = {
   // when the library last changed — the two things a row cannot state about the library.
   insights: { useInsights: useRosterInsights },
   useMemberTitle: useRosterMemberTitle,
-  create: { label: "New roster", useRun: useCreateRosterMember },
+  create: { label: "New roster", useRun: rosterCreateRunner },
   list: renderList,
   detail: renderDetail,
   context: {

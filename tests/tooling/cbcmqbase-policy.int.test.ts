@@ -2,6 +2,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const pw = "tests/client/components/list-pane-header.ct.tsx";
 const vt = "tests/tooling/vitest-composed-imports.int.test.ts";
@@ -105,7 +106,7 @@ const controls = [
 ] as const;
 
 test.for(controls)("native test policy %#: %s %s", async ([file, rule, bad, good], { repoRoot }) => {
-  const config = await new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }).calculateConfigForFile(file);
+  const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), file);
   const doors =
     file === pw ? ["@playwright/test", "@orb/testkit/node/ct-corpus.ts"] : ["vitest", "@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts"];
 
@@ -113,8 +114,8 @@ test.for(controls)("native test policy %#: %s %s", async ([file, rule, bad, good
     files: ["**/*.{ts,tsx}"],
     languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
     plugins: config.plugins,
-    settings: config.settings ?? {},
-    rules: { [rule]: config.rules[rule] ?? "off" },
+    settings: config.settings,
+    rules: { [rule]: rule in config.rules ? config.rules[rule] : "off" },
   };
   const linter = new Linter();
   for (const door of doors) {
@@ -130,9 +131,9 @@ test.for(controls)("native test policy %#: %s %s", async ([file, rule, bad, good
 
 test("the Node runner import restriction excludes executable child-process helpers", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
-  const helper = await eslint.calculateConfigForFile("tests/server/domain/chat/assembly/world-info-watchdog-child.ts");
+  const helper = await resolvedConfig(eslint, "tests/server/domain/chat/assembly/world-info-watchdog-child.ts");
   expect(helper.rules["vitest/no-import-node-test"]).toBeUndefined();
-  const spec = await eslint.calculateConfigForFile("tests/e2e/corpus.spec.ts");
+  const spec = await resolvedConfig(eslint, "tests/e2e/corpus.spec.ts");
   expect(spec.rules["vitest/no-import-node-test"]).toBeUndefined();
   expect(spec.rules["playwright/valid-expect"]).toEqual([2]);
 });
@@ -140,13 +141,13 @@ test("the Node runner import restriction excludes executable child-process helpe
 test("Node suites beside E2E helpers retain Vitest assertion checks", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   for (const file of ["tests/e2e/support/sse.test.ts", "tests/e2e/support/trpc.dom.test.ts"]) {
-    const config = await eslint.calculateConfigForFile(file);
+    const config = await resolvedConfig(eslint, file);
     expect(config.rules["vitest/valid-expect"]).toMatchObject([2, { maxArgs: 2 }]);
     expect(config.rules["vitest/no-import-node-test"]).toEqual([2]);
     expect(config.rules["playwright/valid-expect"]).toBeUndefined();
     expect(config.rules["orb/evaluate-no-scope-capture"]).toBeUndefined();
   }
-  const helper = await eslint.calculateConfigForFile("tests/e2e/support/sse.ts");
+  const helper = await resolvedConfig(eslint, "tests/e2e/support/sse.ts");
   expect(helper.rules["playwright/valid-expect"]).toEqual([2]);
   expect(helper.rules["orb/evaluate-no-scope-capture"]).toEqual([2]);
   expect(helper.rules["vitest/valid-expect"]).toBeUndefined();

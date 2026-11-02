@@ -23,7 +23,7 @@ import {
   useDetachWorldBookFromPersona,
 } from "../hooks/use-world-info-mutations.ts";
 
-const ROLE_ITEMS: SelectItems<string> = WORLD_BOOK_ROLES.map((value) => ({ value, label: value }));
+const ROLE_ITEMS: SelectItems = WORLD_BOOK_ROLES.map((value) => ({ value, label: value }));
 
 export interface CharacterAttachRowProps {
   readonly bookId: WorldBookId;

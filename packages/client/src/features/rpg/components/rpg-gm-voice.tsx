@@ -44,7 +44,7 @@ const NO_OVERRIDE = "";
 
 /** The options the host can pick from: the no-override arm, the readable library, and — only when the game
  *  points somewhere the library cannot name — the dangling id as its own visibly-degraded row. */
-function gmVoiceItems(presets: readonly { readonly id: PresetId; readonly name: string }[] | undefined, current: string | null): SelectItems<string> {
+function gmVoiceItems(presets: readonly { readonly id: PresetId; readonly name: string }[] | undefined, current: string | null): SelectItems {
   const items = [
     { value: NO_OVERRIDE, label: "Your own preset", description: "Turns in this room assemble whichever preset is active for you — nothing is pinned." },
     ...(presets ?? []).map((preset) => ({ value: preset.id, label: preset.name })),

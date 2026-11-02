@@ -277,8 +277,8 @@ export type AppSettings = z.infer<typeof appSettingsSchema>;
 
 const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
   1: (config) => {
-    const summarizer = config["memorySummarizer"] as { source?: unknown } | undefined;
-    if (summarizer && "source" in summarizer) {
+    const summarizer = config["memorySummarizer"];
+    if (isPlainObject(summarizer) && "source" in summarizer) {
       const { source: _drop, ...rest } = summarizer;
       return { ...config, memorySummarizer: rest, schemaVersion: 2 };
     }
@@ -339,7 +339,7 @@ export const appSettingsConfig = defineVersionedConfig<AppSettings>({
   schema: appSettingsSchema,
   version: APP_SETTINGS_SCHEMA_VERSION,
   lifts: APP_SETTINGS_LIFTS,
-  default: {} as AppSettings,
+  default: {},
 });
 
 // AppSettings stores its `schemaVersion` INSIDE the blob (no version column) — no `storedVersion` arg.
@@ -795,8 +795,8 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
       },
       memory: { enabled: c["memoryEnabled"] ?? false },
       regexScripts: c["regexScripts"] ?? [],
-      workloads: (c["workloadDefaults"] as Record<string, unknown> | undefined) ?? {},
-      profile: (c["profile"] as Record<string, unknown> | undefined) ?? {},
+      workloads: c["workloadDefaults"] ?? {},
+      profile: c["profile"] ?? {},
     };
   },
   // v2→v3: the owner-global regex library moved from the top-level `regexScripts` array into its own

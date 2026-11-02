@@ -68,7 +68,8 @@ export interface DurableLocalPersistApi {
         /** zustand MERGES these over the live options, so either field alone is a legal call: `name`
          *  re-keys the store, `storage` swaps the backend the middleware writes through (used to
          *  blindfold a reset — see `resetWithoutPersisting`). */
-        readonly setOptions: (options: { readonly name?: string; readonly storage?: DurableLocalStorage }) => void;
+        // biome-ignore lint/style/useConsistentMethodSignatures: only a method parameter is bivariant, which lets every minted store enrol here without a cast.
+        setOptions(options: { readonly name?: string; readonly storage?: DurableLocalStorage | undefined }): void;
         readonly rehydrate: () => Promise<void> | void;
         readonly getOptions: () => { readonly storage?: DurableLocalStorage | undefined };
       }
@@ -77,9 +78,12 @@ export interface DurableLocalPersistApi {
 
 /** The slice of zustand's `PersistStorage` the adoption move needs (values are already-parsed envelopes). */
 interface DurableLocalStorage {
-  readonly getItem: (name: string) => unknown;
-  readonly setItem: (name: string, value: unknown) => unknown;
-  readonly removeItem: (name: string) => unknown;
+  // biome-ignore lint/style/useConsistentMethodSignatures: only a method parameter is bivariant, which lets every minted store enrol here without a cast.
+  getItem(name: string): unknown;
+  // biome-ignore lint/style/useConsistentMethodSignatures: only a method parameter is bivariant, which lets every minted store enrol here without a cast.
+  setItem(name: string, value: unknown): unknown;
+  // biome-ignore lint/style/useConsistentMethodSignatures: only a method parameter is bivariant, which lets every minted store enrol here without a cast.
+  removeItem(name: string): unknown;
 }
 
 interface RegisteredStore {

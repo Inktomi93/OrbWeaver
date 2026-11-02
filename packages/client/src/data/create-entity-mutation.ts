@@ -143,7 +143,7 @@ export interface EntityMutationResult<TVars, TData> {
   /** The in-flight variables — render as the ghost row in variables-mode (§13.1). */
   readonly pendingVariables: TVars | undefined;
   /** The ONE error slot (sticky until the next mutate or `clearError`). */
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly clearError: () => void;
   /** Re-fire the last failed variables (the variables-mode retry affordance). */
   readonly retry: () => void;

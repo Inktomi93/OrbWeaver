@@ -223,7 +223,7 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
  * Lives here rather than in a schema module because it is the other half of the `intact` contract above:
  * this is what a leaf must use so `intact: true` keeps meaning "the stored blob was fully read".
  */
-export function tolerantArray<T>(entry: z.ZodType<T>, whenNotAnArray: readonly T[]): z.ZodType<T[], unknown> {
+export function tolerantArray<T>(entry: z.ZodType<T>, whenNotAnArray: readonly T[]): z.ZodType<T[]> {
   return z
     .array(z.unknown())
     .transform((rows): T[] =>

@@ -11,7 +11,7 @@ import type { BoundFieldShellProps } from "./use-bound-field.ts";
 import { useBoundField } from "./use-bound-field.ts";
 
 export interface SelectFieldProps extends BoundFieldShellProps {
-  readonly items: SelectItems<string>;
+  readonly items: SelectItems;
   readonly placeholder?: ReactNode;
 }
 

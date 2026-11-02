@@ -37,8 +37,8 @@ const EDGE_GAP_VAR = "--spacing-row";
  * trigger's payload through the render-function `children`, and a non-generic wrap would type that
  * payload `unknown` at every call site.
  */
-export function Menu<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
-  return <BaseMenu.Root {...props} />;
+export function Menu<Payload = unknown>({ children, ...props }: BaseRootProps<Payload>): ReactElement {
+  return <BaseMenu.Root {...props}>{children}</BaseMenu.Root>;
 }
 
 /** Opens the menu with a stable anchor box; compose its control via `render`. Accepts `handle` +

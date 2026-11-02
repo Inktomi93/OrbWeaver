@@ -2,7 +2,7 @@
 // on other users' rows so the actor's own bus never carries them. Row writes invalidate their reads;
 // process restart reconciles no cached row and instead awaits a new live process identity.
 
-import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -68,7 +68,7 @@ export const useRevokeUserSessions = createEntityMutation<inferInput<Trpc["admin
  *  rate limits). Same admin-gated `updateAppSettings` path; a field value = an override, `null` = clear it
  *  to the floor. Invalidates BOTH admin reads — `getAppSettings` (the engine-launch surface) AND
  *  `getAppSettingsWithOverrides` (these sections' floor-vs-override read). */
-export const useUpdateAppOverrides = createEntityMutation<{ readonly partial: AppSettings }, EffectiveAppConfig>({
+export const useUpdateAppOverrides = createEntityMutation<inferInput<Trpc["settings"]["updateAppSettings"]>, EffectiveAppConfig>({
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter(), trpc.settings.getAppSettingsWithOverrides.queryFilter()],
   errorToast: "Couldn't save the setting.",

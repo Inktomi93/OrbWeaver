@@ -18,7 +18,7 @@ import { radioGroupVariants } from "./variants.ts";
 
 const slots = radioGroupVariants();
 
-export interface RadioGroupProps extends BaseRadioGroupProps {
+export interface RadioGroupProps extends BaseRadioGroupProps<string> {
   className?: string;
 }
 

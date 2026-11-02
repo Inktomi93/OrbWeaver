@@ -57,7 +57,7 @@ function decodeSseChunk(buffer: string, value: Uint8Array, decoder: TextDecoder)
 
 /** Every `data:` JSON payload of an SSE body, in order; stops at `[DONE]`. A final line the server never
  *  newline-terminated (spec-sloppy endpoints) is flushed at EOF. */
-export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGenerator<unknown> {
+export async function* parseOpenAiSse(body: ReadableStream<Uint8Array>): AsyncGenerator {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";

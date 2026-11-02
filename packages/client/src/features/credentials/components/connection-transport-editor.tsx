@@ -17,6 +17,7 @@
 import type { ConnectionTransportDoc } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import { omitKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -229,7 +230,7 @@ type JsonParse = { readonly ok: true; readonly value: unknown } | { readonly ok:
 
 function parseJson(raw: string): JsonParse {
   try {
-    return { ok: true, value: JSON.parse(raw) as unknown };
+    return { ok: true, value: JSON.parse(raw) };
   } catch {
     return { ok: false };
   }
@@ -269,15 +270,9 @@ function parseList(raw: string): readonly string[] {
 }
 
 function prune(doc: ConnectionTransportDoc): ConnectionTransportDoc {
-  const out: Record<string, unknown> = { ...doc };
-  for (const [key, value] of Object.entries(out)) {
-    const empty =
-      value === undefined || (Array.isArray(value) ? value.length === 0 : typeof value === "object" && value !== null && Object.keys(value).length === 0);
-    if (empty) {
-      delete out[key];
-    }
-  }
-  return out as ConnectionTransportDoc;
+  const isEmpty = (value: unknown): boolean =>
+    value === undefined || (Array.isArray(value) ? value.length === 0 : typeof value === "object" && value !== null && Object.keys(value).length === 0);
+  return Object.fromEntries(Object.entries(doc).filter(([, value]) => !isEmpty(value)));
 }
 
 function withHeaders(transport: ConnectionTransportDoc | null, headers: Record<string, string>): ConnectionTransportDoc {
@@ -303,10 +298,5 @@ function withMapPath(
       responseMap[stated] = path;
     }
   }
-  if (value === "") {
-    delete responseMap[key];
-  } else {
-    responseMap[key] = value;
-  }
-  return prune({ ...transport, responseMap });
+  return prune({ ...transport, responseMap: value === "" ? omitKey(responseMap, key) : { ...responseMap, [key]: value } });
 }

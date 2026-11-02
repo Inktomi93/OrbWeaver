@@ -37,7 +37,7 @@ const NEAREST_PAIR_CAP = 40;
 
 /** The edge floor. The VALUES are the wire's cosines; the labels are the surface's one similarity spelling
  *  (P2-5), so the knob and the rows it filters cannot speak two scales at each other. */
-const MIN_SIMILARITY_ITEMS: SelectItems<string> = [
+const MIN_SIMILARITY_ITEMS: SelectItems = [
   // A Default option must resolve the actual floor, not merely name itself, so the reader can tell why
   // pairs qualify (#554).
   { value: DEFAULT, label: "Any similarity" },
@@ -47,7 +47,7 @@ const MIN_SIMILARITY_ITEMS: SelectItems<string> = [
   { value: "0.8", label: "80%" },
   { value: "0.9", label: "90%" },
 ];
-const MAX_NODES_ITEMS: SelectItems<string> = [
+const MAX_NODES_ITEMS: SelectItems = [
   { value: DEFAULT, label: "All characters" },
   { value: "25", label: "25" },
   { value: "50", label: "50" },
@@ -129,7 +129,7 @@ function NearestPairsList({
   edges,
 }: {
   readonly isPending: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly onRetry: () => void;
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly SimilarityGraphEdge[];

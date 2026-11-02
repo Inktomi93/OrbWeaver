@@ -150,7 +150,7 @@ const GENERATION_TYPE_LABELS: Record<GenerationType, string> = {
 };
 
 /** The Triggers select's `{value,label}` items over the static turn-type vocabulary. */
-export const GENERATION_TYPE_ITEMS: readonly SelectOption<string>[] = GENERATION_TYPES.map((value) => ({
+export const GENERATION_TYPE_ITEMS: readonly SelectOption[] = GENERATION_TYPES.map((value) => ({
   value,
   label: GENERATION_TYPE_LABELS[value],
 }));
@@ -172,7 +172,7 @@ export interface AddableSection {
 
 /** The Add-menu options given the sections already placed: "Literal text" + every ABSENT marker. */
 export function addableSections(sections: readonly PromptSection[]): readonly AddableSection[] {
-  const placed = new Set(sections.flatMap((s) => (s.type === "marker" ? [s.marker as MarkerType] : [])));
+  const placed = new Set(sections.flatMap((s) => (s.type === "marker" ? [s.marker] : [])));
   const markers: AddableSection[] = MARKER_TYPES.filter((m) => !placed.has(m)).map((marker) => ({
     marker,
     label: MARKER_COPY[marker].label,

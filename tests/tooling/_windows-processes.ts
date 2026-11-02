@@ -54,7 +54,7 @@ export const test = toolingTest.extend<{ windows: WindowsProcesses }>({
         new Promise<void>((resolve) => leaf.stdout?.once("data", () => resolve())),
       ]);
       const metadata: unknown = JSON.parse(rootReady);
-      const slotDir = typeof metadata === "object" && metadata !== null ? Reflect.get(metadata, "slotDir") : undefined;
+      const slotDir: unknown = typeof metadata === "object" && metadata !== null ? Reflect.get(metadata, "slotDir") : undefined;
       if (
         typeof slotDir !== "string" ||
         processInfo(root.pid)?.cmdline.includes(checkout) !== true ||

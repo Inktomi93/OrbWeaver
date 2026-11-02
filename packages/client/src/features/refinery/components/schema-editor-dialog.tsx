@@ -68,7 +68,7 @@ const FORGE_ARM_LABELS: Record<RefineryForgeArm, string> = {
   guided: "Field by field — best for big schemas",
   "two-stage": "Shape first, then styling",
 };
-const FORGE_ARM_ITEMS: SelectItems<string> = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
+const FORGE_ARM_ITEMS: SelectItems = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
 /** The arm picker's ONE label string — rendered visibly by `Field` AND as the control's `aria-label`
  *  (see the call site's note: two spellings would be a WCAG 2.5.3 mismatch waiting to happen). */
 const FORGE_ARM_QUESTION = "How to build it";

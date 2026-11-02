@@ -1,5 +1,6 @@
 {
   "sites": [
+    { "file": "literal.ts", "type": "{ readonly id: string }" },
     { "file": "chat.ts", "type": "StarVars" },
     { "file": "chat.ts", "type": "RenameVars" },
     { "file": "chat.ts", "type": "ReadVars" },

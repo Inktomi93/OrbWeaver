@@ -57,7 +57,7 @@ const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
   trusted: "Rich HTML",
   interactive: "Interactive",
 };
-const HTML_TRUST_ITEMS: SelectItems<string> = [
+const HTML_TRUST_ITEMS: SelectItems = [
   { value: INHERIT_STEP, label: "Inherit default" },
   ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_LABELS[step] })),
 ];

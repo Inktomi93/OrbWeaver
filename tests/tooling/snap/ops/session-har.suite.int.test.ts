@@ -129,7 +129,11 @@ function delayedExtraAndFailedBody(cdp: CDPSession): CDPSession {
         };
       }
       const value: unknown = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") {
+        return value;
+      }
+      const bound: unknown = value.bind(target);
+      return bound;
     },
   });
 }
@@ -146,7 +150,11 @@ function rejectNetworkEnable(cdp: CDPSession): CDPSession {
         };
       }
       const value: unknown = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
+      if (typeof value !== "function") {
+        return value;
+      }
+      const bound: unknown = value.bind(target);
+      return bound;
     },
   });
 }

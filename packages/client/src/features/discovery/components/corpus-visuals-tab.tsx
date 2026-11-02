@@ -125,11 +125,11 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   const view: FacetView = FACET_VIEWS.find((v) => v.key === facetKey) ?? FACET_VIEWS[0];
   const rows = view.pick(facets);
 
-  const facetItems: SelectItems<string> = FACET_VIEWS.map((v) => ({
+  const facetItems: SelectItems = FACET_VIEWS.map((v) => ({
     value: v.key,
     label: v.label,
   }));
-  const valueItems: SelectItems<string> = [
+  const valueItems: SelectItems = [
     { value: NO_VALUE, label: "Drill a value…" },
     // `none` IS NOT A NAME (P3-4): the VL breakdown writes that token for an image it could not classify,
     // and it reached the reader as a facet value called "none" — and, on the family plates, as a family of

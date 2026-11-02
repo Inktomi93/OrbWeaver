@@ -45,7 +45,7 @@ const AUTO = "";
 const CLUSTER_FACE_SLOTS = 6;
 const CLUSTER_PREVIEW_MEMBERS = 12;
 const SKELETON_ROW_COUNT = 3;
-const K_ITEMS: SelectItems<string> = [
+const K_ITEMS: SelectItems = [
   { value: AUTO, label: "Auto" },
   { value: "4", label: "4" },
   { value: "6", label: "6" },
@@ -147,7 +147,7 @@ function ClusterView({
   chartLabel,
 }: {
   readonly isPending: boolean;
-  readonly error: unknown | null;
+  readonly error: unknown;
   readonly onRetry: () => void;
   readonly clusters: readonly ArchetypeCard[];
   readonly emptyLabel: string;
