@@ -249,10 +249,15 @@ for (const viewport of VIEWPORTS) {
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: reply.chatId });
         const scrollport = page.locator('[data-slot="message-list-scroll"]');
         for (const messageId of reply.messageIds) {
-          await scrollport.evaluate((node) => {
-            node.scrollTop = 0;
-          });
-          await expect.poll(() => scrollport.evaluate((node) => node.scrollTop)).toBe(0);
+          // The reader's own wheel, not a bare scrollTop write: the list keeps a tail follow and a reading-row hold
+          // that only a reader's input yields, and a late image or strip measure re-pins a bare write.
+          await scrollport.hover();
+          await expect
+            .poll(async () => {
+              await page.mouse.wheel(0, -100_000);
+              return scrollport.evaluate((node) => node.scrollTop);
+            })
+            .toBe(0);
           const row = page.locator(`[data-slot="message-row"][data-message-id="${messageId}"]`);
           await exerciseReadingRow(row, scrollport, style, messageId);
         }

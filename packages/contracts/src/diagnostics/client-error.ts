@@ -7,7 +7,7 @@ const CLIENT_ERROR_URL_MAX = 4000;
 const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
 /** The correlation text a client error report carries; the diagnostic sink scrubs it before it is logged. */
-export const clientRequestIdSchema = brandedId("ClientRequestId").refine((value) => value.length <= CLIENT_ERROR_REQUEST_ID_MAX);
+const clientRequestIdSchema = brandedId("ClientRequestId").refine((value) => value.length <= CLIENT_ERROR_REQUEST_ID_MAX);
 
 /** The anonymous-allowed client error report; unrecognized fields are stripped at the transport boundary. */
 export const clientErrorReportSchema = z.strictObject({

@@ -1,6 +1,6 @@
 // @subject packages/server/src/transport/trpc/router.ts
 // @subject packages/server/src/foundation/observability/client-error.ts
-import { clientRequestIdSchema } from "@orb/contracts/diagnostics";
+import { clientErrorReportSchema } from "@orb/contracts/diagnostics";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -13,13 +13,15 @@ test("anonymous and authenticated reports keep sink truncation, URL secrecy and 
   const error = vi.spyOn(root.logger, "error");
   try {
     expect(
-      await anonymous.clientError({
-        message: "m".repeat(5000),
-        url: "/auth/callback?code=private-query#private-fragment",
-        stack: "s".repeat(5000),
-        ownerStack: "at <Component>",
-        requestId: clientRequestIdSchema.parse("client request\nfrom-prior-call"),
-      }),
+      await anonymous.clientError(
+        clientErrorReportSchema.parse({
+          message: "m".repeat(5000),
+          url: "/auth/callback?code=private-query#private-fragment",
+          stack: "s".repeat(5000),
+          ownerStack: "at <Component>",
+          requestId: "client request\nfrom-prior-call",
+        }),
+      ),
     ).toEqual({ ok: true });
     expect(error).toHaveBeenCalledExactlyOnceWith(
       {
