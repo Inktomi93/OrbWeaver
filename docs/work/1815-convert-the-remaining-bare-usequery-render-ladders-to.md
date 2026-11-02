@@ -29,16 +29,15 @@ Converted in the first batch:
 | site | CT |
 | - | - |
 | `packages/client/src/features/discovery/components/corpus-archetypes-tab.tsx` (catalog gate, art section, writing section) | `tests/client/features/discovery/components/corpus-context-tabs-boundary.ct.tsx` |
+| `packages/client/src/features/chat/components/member-card-viewer.tsx`, `invite-dialog.tsx` OutstandingInvites | `tests/client/features/chat/components/members-reads-boundary.ct.tsx` |
 
-Still open. None of these cites §10 or a ruling yet. The first four need an owner decision before they convert.
+Still open. None of these cites §10 or a ruling yet. The owner ruled the readouts and NearestPairs convert (typed FORBIDDEN through the boundary error render, read-dependent part only; knob changes in a transition).
 
 | site | why it is not converted yet |
 | - | - |
-| `packages/client/src/features/chat/components/member-card-viewer.tsx` | the dialog title and avatar come from the read, and the NOT_FOUND gone state needs the error code. The dialog chrome must move under the boundary or take its title from a second source |
 | `packages/client/src/features/preset/components/readout/prompt-readout.tsx`, `transforms-readout.tsx` | the panel keeps rendering estimates and a named refusal ("you are not the host") while the read is pending or failed. A boundary would replace the whole panel with a generic error |
 | `packages/client/src/features/discovery/components/corpus-similarity-tab.tsx` NearestPairs | a plain read on purpose, so the two knobs re-rank in place without re-suspending the tab. Needs a transition design or a ruling |
 | `packages/client/src/features/chat/components/transcript-window.tsx` AnchoredThread | a sibling lane edits this file |
-| `packages/client/src/features/chat/components/invite-dialog.tsx` OutstandingInvites | converts directly. The members tab has no CT mount yet, so the held-read CT needs a room, shell and members-tab story |
 | `packages/client/src/features/preset/components/readout/usage-readout.tsx`, `actions-readout.tsx`, `preset-readout.tsx` | convert directly. The preset context pane has no CT mount |
 | `packages/client/src/features/discovery/components/corpus-compare-tab.tsx` CompareResult, `corpus-visuals-tab.tsx`, `corpus-home-charts.tsx`, `corpus-search-results.tsx`, `corpus-home-surface.tsx`, `corpus-context-header.tsx`, `corpus-dossier-surface.tsx` | not started |
 | the remaining rows of the 1762 "Still to convert" table (databank, automation, tag, credentials, imagery, plugin, refinery, rpg, stats, chat) | not started |
