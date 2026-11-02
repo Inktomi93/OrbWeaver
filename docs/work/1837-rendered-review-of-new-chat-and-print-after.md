@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- Verified on main: print holds a scrolled-up reader, with a positive control on a pre-1834 tree. Paper output (page breaks) was not measured, because snap has no print-media case (see 1842).
