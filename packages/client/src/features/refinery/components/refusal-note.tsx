@@ -3,6 +3,7 @@
 // whose `.message` is the ZodError's SERIALIZED ISSUE ARRAY — so the carefully-worded belt sentence
 // arrives wrapped in brackets, escaped quotes and JSON keys (live-drive D3 2026-08-14). This pulls each
 // issue's own `.message` back out; a non-JSON message (any other rejection) renders verbatim.
+import { isPlainObject } from "@orb/kit/guards";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -10,7 +11,8 @@ import { testId } from "#lib";
 
 /** The teaching sentences carried by a refusal — one per belt issue, or the raw message as a single line. */
 function refusalLines(error: unknown): readonly string[] {
-  const raw = (error as { message?: string }).message ?? "That schema was refused.";
+  const message = isPlainObject(error) ? error["message"] : undefined;
+  const raw = typeof message === "string" ? message : "That schema was refused.";
   // a non-JSON message falls through to the `return [raw]` after the
   // try, and RefusalNote below renders every returned line in a Text. Ends if either the fallback return or that render goes.
   try {

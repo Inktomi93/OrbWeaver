@@ -19,8 +19,7 @@
 // on rotation. No cached native key set can retain another graph's execution or lifetime.
 
 import { createHash } from "node:crypto";
-import type { ExternalId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { externalIdSchema, handleSchema } from "@orb/contracts/identity";
 import type { JWTPayload } from "jose";
 import { createLocalJWKSet, createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import { z } from "zod";
@@ -191,10 +190,10 @@ async function jwtVerifyOrNull(
  *  absent — the seam's fail-closed point 4 rejects that); `externalId` is `sub`; `email` the standard
  *  claim; groups tolerate array or separator-joined string. */
 function claimsFromPayload(payload: JWTPayload): ForwardJwtClaims {
-  const handle = typeof payload["preferred_username"] === "string" ? castId<Handle>(payload["preferred_username"]) : undefined;
-  // castId at the untrusted seam: the verified JWT's `sub` IS the stable SSO external id (the ExternalId
-  // brand's own definition) — this parse is the one place the wire string becomes the branded value.
-  const externalId = typeof payload.sub === "string" ? castId<ExternalId>(payload.sub) : null;
+  const handle = handleSchema.safeParse(payload["preferred_username"]).data;
+  // The verified JWT's `sub` IS the stable SSO external id (the ExternalId brand's own definition); this parse
+  // is the one place the wire string becomes the branded value.
+  const externalId = externalIdSchema.safeParse(payload.sub).data ?? null;
   const rawEmail = payload["email"];
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {

@@ -174,10 +174,14 @@ export async function insertNotification(db: Db, row: NotificationInsert, extras
     const inserted = await buildInsertNotification(db, row);
     return inserted[0] as NotificationRow;
   }
-  const results = await db.batch(batchMany([...preceding, buildInsertNotification(db, row)]));
-  // The INSERT is the last statement; it always yields exactly one RETURNING row.
-  const inserted = results.at(-1) as NotificationRow[];
-  return inserted[0] as NotificationRow;
+  // The INSERT stays last: a producer's fence statement must lead the batch. The batch erases the INSERT's
+  // RETURNING type, so the committed row is read back by its id.
+  await db.batch(batchMany([...preceding, buildInsertNotification(db, row)]));
+  const committed = await loadRecipientSnapshot(db, row.recipientUserId, row.id);
+  if (committed === undefined) {
+    throw new Error(`notification ${row.id} committed but did not read back`);
+  }
+  return committed.parsed;
 }
 
 // A standing ask's dismissed rows are mostly the producer's supersedes and retractions, which no reader did.

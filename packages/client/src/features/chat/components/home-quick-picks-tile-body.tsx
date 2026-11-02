@@ -8,7 +8,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -161,7 +160,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                   if (character.lastChatId !== null) {
                     resumeChat(character.lastChatId);
                   } else {
-                    startChatWith(castId<CharacterId>(character.id));
+                    startChatWith(character.id);
                   }
                 }}
                 {...(caption === null ? {} : { "aria-describedby": captionId })}

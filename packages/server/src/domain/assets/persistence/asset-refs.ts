@@ -26,12 +26,14 @@ import {
 import { ASSET_SCHEME } from "@orb/kit/content";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, MessageVariantId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, exists, gt, inArray, isNotNull, like, not, notInArray, or, sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { AssetRef } from "../contract/maintenance.ts";
 import { extractInlineAssetIds } from "../substrate/portable-asset-file.ts";
+
+const ASSET_ID = typeIdSchema(ID_PREFIX.asset);
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
  *  ambiguous asset-FK column (over-retaining leaks a blob, under-retaining is data loss). */
@@ -166,10 +168,10 @@ function storedString(value: string | null, type: string | null, row: string, pa
   return value;
 }
 
-/** Over-inclusion is safe (an extra live id never reaps a blob), so any non-empty stored string counts. */
+/** A stored string that does not parse as an asset id names no asset row, so dropping it cannot reap a live blob. */
 function storedAssetId(value: string | null, type: string | null, row: string, path: string): AssetId | null {
   const text = storedString(value, type, row, path);
-  return text === null || text.length === 0 ? null : castId<AssetId>(text);
+  return text === null ? null : (ASSET_ID.safeParse(text).data ?? null);
 }
 
 /** Every entry's `assetId` in the stored background library. Absent or JSON null is the documented empty
@@ -208,7 +210,7 @@ function libraryEntryAssetId(entry: unknown, row: string): AssetId | null {
   if (typeof entry.assetId !== "string") {
     throw unmeasurable(row, APPEARANCE_LIBRARY_PATH, "an entry whose assetId is not a string");
   }
-  return entry.assetId.length > 0 ? castId<AssetId>(entry.assetId) : null;
+  return ASSET_ID.safeParse(entry.assetId).data ?? null;
 }
 
 /** The settings JSON pins: the background pick, every background-library entry and the profile avatar. */

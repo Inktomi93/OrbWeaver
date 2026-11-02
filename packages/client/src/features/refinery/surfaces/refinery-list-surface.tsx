@@ -28,7 +28,6 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -145,7 +144,7 @@ function RefineryList({
   const query = search.trim().toLowerCase();
 
   const resolved: ResolvedRow[] = sessions.data.map((session) => ({
-    id: castId<RefinerySessionId>(session.id),
+    id: session.id,
     rawId: session.id,
     characterName: session.characterName,
     avatarHash: session.characterAvatarHash,

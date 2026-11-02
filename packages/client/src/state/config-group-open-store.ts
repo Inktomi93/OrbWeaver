@@ -6,6 +6,7 @@
 // The stored shape is an id list, not a total Record. The sanitizer keeps live ConfigGroupIds;
 // retired/older ids are harmless dead entries dropped on the next toggle.
 
+import { isPlainObject } from "@orb/kit/guards";
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import { isConfigGroupId } from "./config-group-ids.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
@@ -28,9 +29,8 @@ function sanitizeIds(v: unknown): readonly ConfigGroupId[] {
 
 function migrate(persisted: unknown): ConfigGroupOpenState {
   // v1 stored the list as `openKinds` (collection kinds only); the same ids are live group ids today.
-  const raw = persisted as { openIds?: unknown; openKinds?: unknown } | null;
-  const foldRaw = persisted as { foldOpenIds?: unknown } | null;
-  return { openIds: sanitizeIds(raw?.openIds ?? raw?.openKinds), foldOpenIds: sanitizeIds(foldRaw?.foldOpenIds) };
+  const raw = isPlainObject(persisted) ? persisted : {};
+  return { openIds: sanitizeIds(raw["openIds"] ?? raw["openKinds"]), foldOpenIds: sanitizeIds(raw["foldOpenIds"]) };
 }
 
 const useConfigGroupOpenStore = createPersistedStore<ConfigGroupOpenState>("config-group-open", (): ConfigGroupOpenState => DEFAULT_STATE, {

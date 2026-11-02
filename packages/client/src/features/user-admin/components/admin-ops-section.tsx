@@ -4,8 +4,7 @@
 // floor. The embed has no natural character-ops home in the admin surface, so it takes a raw character id
 // (an admin diagnostic utility, not an end-user flow).
 
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -54,12 +53,14 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
   const trimmed = characterId.trim();
 
   const onEmbed = (): void => {
-    if (trimmed === "") {
+    // An empty or malformed id names no character, so there is nothing to embed.
+    const parsed = typeIdSchema(ID_PREFIX.character).safeParse(trimmed).data;
+    if (parsed === undefined) {
       return;
     }
     setDone(false);
     void embed
-      .mutateAsync({ characterId: castId<CharacterId>(trimmed) })
+      .mutateAsync({ characterId: parsed })
       .then(() => setDone(true))
       .catch(() => setDone(false));
   };

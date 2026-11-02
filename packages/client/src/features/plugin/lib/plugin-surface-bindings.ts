@@ -32,6 +32,7 @@ import {
   resolvePluginBoundTiles,
 } from "@orb/contracts/plugin";
 import type { AssetId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 
 /** A `meter` with no explicit `max` scales to 100 (the house percentage default). */
 export const METER_DEFAULT_MAX = 100;
@@ -213,7 +214,7 @@ function coverAssetId(key: string | undefined, bundleAssets: ReadonlyMap<string,
   if (key === undefined) {
     return;
   }
-  return key.startsWith(PLUGIN_UI_ASSETS_DIR) ? bundleAssets.get(key) : (key as AssetId);
+  return key.startsWith(PLUGIN_UI_ASSETS_DIR) ? bundleAssets.get(key) : typeIdSchema(ID_PREFIX.asset).safeParse(key).data;
 }
 
 /** Does this spec name ANY `bundleAsset` path (#820)? The gate on the extra per-plugin `listBundleAssets`

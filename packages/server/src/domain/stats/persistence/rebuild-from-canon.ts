@@ -5,6 +5,7 @@
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
 // Owner-scoping follows the same retained host/character cohort predicates as the live accounting writers.
 
+import { userIdSchema } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema, responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
 import type { ReconcileStatsResult } from "@orb/contracts/stats";
@@ -25,7 +26,6 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
@@ -54,12 +54,12 @@ const MODEL_COLS = 21;
 export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<ReconcileStatsResult> {
   const owners =
     opts.ownerId !== undefined && opts.ownerId !== ""
-      ? [opts.ownerId]
+      ? [userIdSchema.parse(opts.ownerId)]
       : (
           await db.all<{ ownerId: string }>(
             sql`SELECT owner_id AS ownerId FROM characters UNION SELECT owner_id AS ownerId FROM embedding_calls UNION SELECT funder_user_id AS ownerId FROM chat_generation_observations UNION SELECT owner_id AS ownerId FROM owner_stats`,
           )
-        ).map((r) => r.ownerId);
+        ).map((r) => userIdSchema.parse(r.ownerId));
 
   const now = opts.now();
   const idSource = opts.idSource;
@@ -87,7 +87,8 @@ export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, 
       AND NOT EXISTS (SELECT 1 FROM daily_stats d WHERE d.owner_id = o.owner_id)
   `);
   const stamp = now();
-  for (const { ownerId } of owners) {
+  for (const row of owners) {
+    const ownerId = userIdSchema.parse(row.ownerId);
     await untilCanonStable(db, ownerId, undefined, () => computeOwnerTimeline(db, ownerId, stamp, idSource));
   }
   return owners.length;
@@ -95,7 +96,7 @@ export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, 
 
 /** Run one owner's rebuild until canon held still across it, so a live write that raced the scan is never
  *  overwritten by the older fold. */
-async function untilCanonStable<T>(db: Db, ownerId: string, signal: AbortSignal | undefined, build: () => Promise<T>): Promise<T> {
+async function untilCanonStable<T>(db: Db, ownerId: UserId, signal: AbortSignal | undefined, build: () => Promise<T>): Promise<T> {
   for (;;) {
     signal?.throwIfAborted();
     const before = await ownerCanonSnapshot(db, ownerId);
@@ -120,7 +121,7 @@ async function untilCanonStable<T>(db: Db, ownerId: string, signal: AbortSignal 
  *  comparing again after the rollup replace closes the scan/write window without holding a transaction
  *  across the streaming reads. A write after the second snapshot is safe: its live stats delta runs after
  *  the rebuild rather than being overwritten by it. */
-async function ownerCanonSnapshot(db: Db, ownerId: string): Promise<string> {
+async function ownerCanonSnapshot(db: Db, ownerId: UserId): Promise<string> {
   const rows = await db.all<{ canonVersion: number; characterCount: number }>(sql`
     SELECT COALESCE((SELECT version FROM stats_canon_versions WHERE owner_id = ${ownerId}), 0) AS canonVersion,
            (SELECT COUNT(*) FROM characters WHERE owner_id = ${ownerId}) AS characterCount
@@ -129,7 +130,7 @@ async function ownerCanonSnapshot(db: Db, ownerId: string): Promise<string> {
 }
 
 /** Stream the owner's messages (keyset-paged on m.id), folding each message's SELECTED variant. */
-async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
+async function scanMessages(db: Db, ownerId: UserId, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
     // keyset PAGINATION over the owner's whole message corpus — the loop exists to bound memory, and one round trip per page is what streaming means. Ends if the rebuild folds server-side.
@@ -165,7 +166,7 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
 }
 
 /** Stream the owner's swipe variants (the NON-selected variants), keyset-paged on mv.id. */
-async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
+async function scanSwipes(db: Db, ownerId: UserId, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
     // keyset PAGINATION over the owner's swipe variants, the sibling of the message scan above. Ends if the rebuild folds server-side.
@@ -207,7 +208,7 @@ async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
  *  never split a call), and the row count is the picture count. Rows written before `call_id` existed hold
  *  NULL and group by the remaining key alone — best-effort for that legacy data: two such calls finishing in
  *  the same millisecond at the same cost merge into one. Owner-scoped through the asset. */
-async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+async function scanImageSpend(db: Db, ownerId: UserId, a: Accums): Promise<void> {
   const calls = await db
     .select({
       // Every producer writes one immutable execution body/time across its outputs. Stable aggregates
@@ -220,25 +221,25 @@ async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void>
     })
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
-    .where(eq(assets.ownerId, castId<UserId>(ownerId)))
+    .where(eq(assets.ownerId, ownerId))
     .groupBy(sql`coalesce(${imageryGenerations.callId}, ${imageryGenerations.id})`);
   for (const call of calls) {
-    foldSpend(imageGenerationSpendDelta({ ownerId: castId<UserId>(ownerId), ...call, now: call.createdAt }), a);
+    foldSpend(imageGenerationSpendDelta({ ownerId, ...call, now: call.createdAt }), a);
   }
 }
 
 /** The owner's priced compaction passes. */
-async function scanCompactionSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+async function scanCompactionSpend(db: Db, ownerId: UserId, a: Accums): Promise<void> {
   const passes = await db
     .select({ costUsd: compactionSpend.costUsd, createdAt: compactionSpend.createdAt })
     .from(compactionSpend)
-    .where(eq(compactionSpend.ownerId, castId<UserId>(ownerId)));
+    .where(eq(compactionSpend.ownerId, ownerId));
   for (const pass of passes) {
-    foldSpend(compactionSpendDelta({ ownerId: castId<UserId>(ownerId), costUsd: pass.costUsd, now: pass.createdAt }), a);
+    foldSpend(compactionSpendDelta({ ownerId, costUsd: pass.costUsd, now: pass.createdAt }), a);
   }
 }
 
-async function scanEmbeddingSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+async function scanEmbeddingSpend(db: Db, ownerId: UserId, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
     // keyset pagination bounds the retained embedding-call corpus per page, matching the message/swipe scans. Ends if rebuild folds server-side.
@@ -269,11 +270,8 @@ async function scanEmbeddingSpend(db: Db, ownerId: string, a: Accums): Promise<v
   }
 }
 
-async function scanGenerationObservations(db: Db, ownerId: string, a: Accums): Promise<void> {
-  const rows = await db
-    .select()
-    .from(chatGenerationObservations)
-    .where(eq(chatGenerationObservations.funderUserId, castId<UserId>(ownerId)));
+async function scanGenerationObservations(db: Db, ownerId: UserId, a: Accums): Promise<void> {
+  const rows = await db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.funderUserId, ownerId));
   for (const row of rows) {
     foldSpend(
       generationObservationSpendDelta({
@@ -288,7 +286,7 @@ async function scanGenerationObservations(db: Db, ownerId: string, a: Accums): P
 /** The chat-level aggregates: per-character chat counts + first/last, per-bucket chatsCreated, owner library
  *  totals. Forks count independently — a fork is a separate playthrough, so a fork's copied canon is not
  *  content-hash-deduped. */
-async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
+async function loadChatMeta(db: Db, ownerId: UserId): Promise<ChatMeta> {
   const chatAgg = await db.all<{ cid: string } & CharChatMeta>(sql`
     SELECT cp.character_id AS cid, COUNT(DISTINCT cp.chat_id) AS chats,
            SUM(CASE WHEN ch.parent_chat_id IS NOT NULL THEN 1 ELSE 0 END) AS forkedChats,
@@ -318,12 +316,12 @@ async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
 /** Atomic per-owner REPLACE: ONE db.batch of [delete ×4, insert owner_stats, ...chunked inserts] so a read
  *  never sees a half-rebuilt owner. character_stats is deleted by the owner's characters (it has no ownerId
  *  — D23). owner_stats is ALWAYS written (even all-zeros) so freshness distinguishes computed-empty. */
-async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promise<void> {
+async function writeOwner(db: Db, ownerId: UserId, rows: OwnerRollupRows): Promise<void> {
   const stmts: BatchStmt[] = [
     db.delete(characterStats).where(sql`${characterStats.characterId} IN (SELECT id FROM characters WHERE owner_id = ${ownerId})`),
-    db.delete(ownerStats).where(eq(ownerStats.ownerId, castId<UserId>(ownerId))),
-    db.delete(dailyStats).where(eq(dailyStats.ownerId, castId<UserId>(ownerId))),
-    db.delete(modelStats).where(eq(modelStats.ownerId, castId<UserId>(ownerId))),
+    db.delete(ownerStats).where(eq(ownerStats.ownerId, ownerId)),
+    db.delete(dailyStats).where(eq(dailyStats.ownerId, ownerId)),
+    db.delete(modelStats).where(eq(modelStats.ownerId, ownerId)),
     db.insert(ownerStats).values(rows.ownerRow),
   ];
   for (const chunk of chunkRows(rows.charRows, rowsPerInsert(CHAR_COLS))) {
@@ -339,7 +337,7 @@ async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promi
 }
 
 /** One owner's canon folded into every rollup accumulator. */
-async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; meta: ChatMeta }> {
+async function foldOwnerCanon(db: Db, ownerId: UserId): Promise<{ a: Accums; meta: ChatMeta }> {
   const a = createOwnerAccums();
   await scanMessages(db, ownerId, a);
   await scanSwipes(db, ownerId, a);
@@ -352,10 +350,10 @@ async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; met
 }
 
 /** Replace one owner's `daily_stats` timeline from canon, in one batch, leaving every other rollup as it is. */
-async function computeOwnerTimeline(db: Db, ownerId: string, now: number, idSource: IdSource): Promise<number> {
+async function computeOwnerTimeline(db: Db, ownerId: UserId, now: number, idSource: IdSource): Promise<number> {
   const { a, meta } = await foldOwnerCanon(db, ownerId);
-  const rows = buildBucketRows({ ownerId: castId<UserId>(ownerId), idSource }, a.bucketMap, meta, now);
-  const stmts: BatchStmt[] = [db.delete(dailyStats).where(eq(dailyStats.ownerId, castId<UserId>(ownerId)))];
+  const rows = buildBucketRows({ ownerId, idSource }, a.bucketMap, meta, now);
+  const stmts: BatchStmt[] = [db.delete(dailyStats).where(eq(dailyStats.ownerId, ownerId))];
   for (const chunk of chunkRows(rows, rowsPerInsert(DAILY_COLS))) {
     stmts.push(db.insert(dailyStats).values(chunk));
   }
@@ -363,11 +361,11 @@ async function computeOwnerTimeline(db: Db, ownerId: string, now: number, idSour
   return rows.length;
 }
 
-async function computeOwner(db: Db, ownerId: string, now: number, idSource: IdSource): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
+async function computeOwner(db: Db, ownerId: UserId, now: number, idSource: IdSource): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
   const { a, meta } = await foldOwnerCanon(db, ownerId);
   ownerExtrema(a.owner, meta);
 
-  const oid = castId<UserId>(ownerId);
+  const oid = ownerId;
   const ownedCharacters = (await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, oid))).map((row) => row.id);
   const rows = buildOwnerRows({ ownerId: oid, ownedCharacterIds: ownedCharacters, idSource }, a, meta, now);
   await writeOwner(db, ownerId, rows);

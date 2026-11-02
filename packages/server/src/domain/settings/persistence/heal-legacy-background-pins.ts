@@ -31,6 +31,7 @@ import { assets, userSettings } from "@orb/db";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#primitives/stored-config";
 import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
@@ -39,7 +40,8 @@ import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
  *  drops stale entries outright (the library is a set the picker re-populates by re-upload, never data the
  *  user authored by hand). Every OTHER field is untouched. */
 function clearStaleBackgroundPins(config: UserSettings, validIds: ReadonlySet<AssetId>): UserSettings {
-  const currentStale = config.appearance.backgroundImageKind === "asset" && !validIds.has(config.appearance.backgroundAssetId as AssetId);
+  const current = typeIdSchema(ID_PREFIX.asset).safeParse(config.appearance.backgroundAssetId).data;
+  const currentStale = config.appearance.backgroundImageKind === "asset" && (current === undefined || !validIds.has(current));
   return {
     ...config,
     appearance: {

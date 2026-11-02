@@ -7,8 +7,8 @@ import { generationUsageLegSchema, modelIdSchema, providerIdSchema } from "@orb/
 import type { SpendDeltaField, StatsDelta } from "@orb/contracts/stats";
 import { SPEND_DELTA_FIELDS, variantUsageLegDelta } from "@orb/contracts/stats";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type {
   Accums,
@@ -28,6 +28,7 @@ import type {
   TokenSampleAccum,
 } from "../contract/rebuild-from-canon.ts";
 
+const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 const DAY_MS = 86_400_000;
 const MIGRATION_GAP_DAYS = 30; // a message >30d after its chat's creation = migrated (createdAt clobbered)
 const MIGRATION_GAP_MS = MIGRATION_GAP_DAYS * DAY_MS;
@@ -199,14 +200,14 @@ function usageLegsOf(raw: string | null): readonly GenerationUsageLeg[] {
 
 /** The ordered retained usage legs credit the same grains as their live accounting deltas. */
 function foldVariantLegs(
-  args: { readonly ownerId: string; readonly cid: string | null; readonly legs: readonly GenerationUsageLeg[]; readonly selected: boolean },
+  args: { readonly ownerId: UserId; readonly cid: string | null; readonly legs: readonly GenerationUsageLeg[]; readonly selected: boolean },
   a: Accums,
 ): void {
   const { ownerId, cid, legs, selected } = args;
   for (const leg of legs) {
     const delta = variantUsageLegDelta({
-      ownerId: castId<UserId>(ownerId),
-      characterId: cid === null ? null : castId<CharacterId>(cid),
+      ownerId,
+      characterId: cid === null ? null : CHARACTER_ID.parse(cid),
       leg,
       selected,
       sign: 1,
@@ -516,7 +517,7 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
     const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
     return {
       id: idSource.typeId(ID_PREFIX.characterStat),
-      characterId: castId<CharacterId>(characterId),
+      characterId: CHARACTER_ID.parse(characterId),
       chats: m?.chats ?? 0,
       userTurns: c.userTurns,
       assistantTurns: c.assistantTurns,
@@ -685,14 +686,14 @@ export function buildOwnerRows({ ownerId, ownedCharacterIds, idSource }: OwnerRo
 }
 
 /** Retained usage legs replace legacy totals while keeping the selected message's other counters. */
-export function foldCanonMessage(ownerId: string, r: CanonMessage, a: Accums): void {
+export function foldCanonMessage(ownerId: UserId, r: CanonMessage, a: Accums): void {
   const legs = usageLegsOf(r.usageLegs);
   foldMessage(legs.length === 0 ? r : { ...r, ti: null, tout: null, cost: null, cacheR: null, cacheW: null, tokenProvenance: "unrecorded" }, a);
   foldVariantLegs({ ownerId, cid: r.role === "assistant" ? r.cid : null, legs, selected: true }, a);
 }
 
 /** Unselected legs retain spend but do not credit the timeline's selected-message token counters. */
-export function foldCanonSwipe(ownerId: string, r: SwipeRow, a: Accums): void {
+export function foldCanonSwipe(ownerId: UserId, r: SwipeRow, a: Accums): void {
   const legs = usageLegsOf(r.usageLegs);
   foldSwipe(legs.length === 0 ? r : { ...r, ti: null, tout: null, tokenProvenance: "unrecorded" }, a);
   foldVariantLegs({ ownerId, cid: r.cid, legs, selected: false }, a);

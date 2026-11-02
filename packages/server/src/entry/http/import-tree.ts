@@ -48,6 +48,7 @@ import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
+import { errnoCode } from "#primitives/errno";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
@@ -221,7 +222,7 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
   try {
     await writeStaged(target, bytes);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    const code = errnoCode(err);
     if (code === "EEXIST" || code === "ENOTDIR" || code === "EISDIR") {
       // biome-ignore lint/style/useErrorCause: cause IS forwarded — TreeRejected passes its 3rd-arg ErrorOptions to super(); biome only inspects the 2nd constructor arg (same exemption ZipRejectedError carries).
       throw new TreeRejected(BAD_REQUEST, `conflicting paths in the upload near: ${relTarget}`, {

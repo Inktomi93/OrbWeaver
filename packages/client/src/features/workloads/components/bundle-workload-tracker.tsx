@@ -16,7 +16,6 @@
 
 import type { ImportPreview } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
 import { useTRPCClient } from "#data";
 import type { WorkloadSubscriptionHandlers } from "../hooks/use-workload-subscription.ts";
@@ -47,7 +46,7 @@ const RECONCILE_RETRY_BACKOFF_MS = [RECONCILE_RETRY_FIRST_MS, RECONCILE_RETRY_SE
 /** Tail the import workload; forward progress, and resolve on the terminal event. Renders nothing. */
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
   const trpcClient = useTRPCClient();
-  const id = castId<WorkloadId>(workloadId);
+  const id = workloadId;
   // NOTHING THIS TRACKER STARTED MAY SPEAK AFTER IT IS GONE (#1570). Two halves, and the timer was only one
   // of them:
   //   · the retry `setTimeout` had no cancel, so a tracker torn down mid-ladder still fired up to ~1s later;

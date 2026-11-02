@@ -25,8 +25,7 @@
 // CASCADE named — deleting a script detaches it from every preset, character and room, which is the
 // consequence a reader cannot see from the list.
 
-import type { RegexScriptId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
 import { Ban, Globe, Icon, SlidersHorizontal } from "@orb/ui/icons";
@@ -72,7 +71,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   const setGlobal = useBulkSetRegexGlobal({ trpc, invalidation });
   const setPlacement = useBulkSetRegexPlacement({ trpc, invalidation });
   const remove = useBulkRemoveRegexScripts({ trpc, invalidation });
-  const scriptIds = ids.map((id) => castId<RegexScriptId>(id));
+  const scriptIds = ids.map((id) => typeIdSchema(ID_PREFIX.regexScript).parse(id));
   const count = ids.length;
   const [placementOpen, setPlacementOpen] = useState(false);
   const enabledWriteInFlight = useRef(false);

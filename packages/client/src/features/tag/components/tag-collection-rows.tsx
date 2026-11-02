@@ -1,6 +1,7 @@
 // The Labels finder owns destructive decisions so a bus refresh cannot remove an active confirm.
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ColorSwatch } from "@orb/ui/color-field";
 import { Icon, Trash } from "@orb/ui/icons";
@@ -90,7 +91,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
           handle={true}
           itemLabel={(tag: TagWithUsage): string => tag.name}
           items={filtered}
-          onReorder={(orderedKeys): void => setOrder.mutate({ orderedIds: orderedKeys.map((key) => key as TagId) })}
+          onReorder={(orderedKeys): void => setOrder.mutate({ orderedIds: orderedKeys.map((key) => typeIdSchema(ID_PREFIX.tag).parse(key)) })}
           renderItem={renderRow}
         />
       )}

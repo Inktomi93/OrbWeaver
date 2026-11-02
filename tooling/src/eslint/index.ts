@@ -76,7 +76,7 @@ import {
 } from "./ui-policy.ts";
 import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
 import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeOverrideRule } from "./ui-styles.ts";
-import { noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
+import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
 
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
@@ -209,7 +209,7 @@ export function createOrbPlugin(options: {
       "derived-port-member": derivedPortMemberRule,
       "trpc-payload-declared-keys": trpcPayloadKeysRule,
       "trpc-output-declared-keys": trpcOutputKeysRule,
-      "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES),
+      "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES, BRAND_MINT_HOMES),
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

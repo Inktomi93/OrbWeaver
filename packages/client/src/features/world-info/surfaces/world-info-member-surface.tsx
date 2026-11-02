@@ -9,6 +9,7 @@
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -83,7 +84,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   // Drag settled: the sortable reports the new key order; persist it (position i → priority N-i). The hook
   // optimistically re-sorts the cached list so the rows land instantly, then reconciles from the server.
   const onReorder = (orderedKeys: SortableItemKey[]): void => {
-    reorder.mutate({ bookId, orderedEntryIds: orderedKeys.map((k) => k as WorldEntryId) });
+    reorder.mutate({ bookId, orderedEntryIds: orderedKeys.map((k) => typeIdSchema(ID_PREFIX.worldEntry).parse(k)) });
   };
 
   const onCreate = (): void => {

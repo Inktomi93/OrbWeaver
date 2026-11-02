@@ -7,8 +7,6 @@
 // the `card_unreadable` throw in domain/import), and a partial says how many of how many.
 
 import type { CardImportResult } from "@orb/contracts/import";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
@@ -71,7 +69,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
         // Open what landed, like Create does — the first card of the batch when several came in.
         const [first] = result.imported;
         if (first !== undefined) {
-          selectCharacter(castId<CharacterId>(first.characterId));
+          selectCharacter(first.characterId);
         }
         onOpenChange(false);
       },

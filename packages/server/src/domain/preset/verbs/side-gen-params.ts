@@ -7,7 +7,6 @@ import { DEFAULT_PROMPT_CONFIG, rolePresetParamsOf } from "@orb/contracts/preset
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { SideGenParams, SideGenParamsDeps } from "../contract/side-gen-params.ts";
 import { createLoadOptionalPreset } from "../substrate/optional-read.ts";
 
@@ -29,10 +28,10 @@ export function buildSideGenParams(deps: SideGenParamsDeps): SideGenParams {
 
   const fromChoice = async (userId: UserId, choice: RolePresetChoice, activePresetId: PresetId | null): Promise<RolePresetParams | undefined> => {
     if (choice.kind === ROLE_PRESET_CHOICE_KINDS.preset) {
-      return (await presetParams(userId, castId<PresetId>(choice.presetId))) ?? undefined;
+      return (await presetParams(userId, choice.presetId)) ?? undefined;
     }
     // Same as chat: the active preset, which falls back to the built-in exactly as a chat turn does.
-    const active = activePresetId === null ? null : await presetParams(userId, castId<PresetId>(activePresetId));
+    const active = activePresetId === null ? null : await presetParams(userId, activePresetId);
     return active ?? rolePresetOf(DEFAULT_PROMPT_CONFIG);
   };
 

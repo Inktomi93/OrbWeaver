@@ -7,8 +7,8 @@
 // oracle as card imports. It cannot collide with a card-file hash and survives handle renames. Reruns
 // resolve the same row without writing; chats independently dedup by byte hash.
 
+import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import type { ImportOrphanCharacterInput } from "../contract/params.ts";
 import type { ImportOrphanCharacterResult } from "../contract/results.ts";
@@ -61,7 +61,7 @@ export function createImportOrphanCharacter(ctx: ImportContext): ImportService["
     let free: CharacterHandle = handle;
     let n = 2;
     while ((await ctx.findByHandle({ ownerId: ctx.ownerId, handle: free })) !== null) {
-      free = castId<CharacterHandle>(`${handle}-${n}`);
+      free = deriveCharacterHandle(handle, `-${n}`);
       n += 1;
     }
 

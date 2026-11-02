@@ -25,13 +25,14 @@ import type { Dirent } from "node:fs";
 import { mkdir, open, readdir, readFile, rename, rm, stat, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { userIdSchema } from "@orb/contracts/identity";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
-import { hasErrnoCode, isMissingFile } from "#primitives/errno";
+import { errnoCode, hasErrnoCode, isMissingFile } from "#primitives/errno";
 import type { Cas, PutResult } from "./contract.ts";
 
 export type { Cas } from "./contract.ts";
@@ -124,7 +125,7 @@ async function fsyncDir(dir: string, log: Logger): Promise<void> {
     if (!dirSyncUnsupportedAnnounced.has(log)) {
       dirSyncUnsupportedAnnounced.add(log);
       getLog(log).warn(
-        { platform: process.platform, code: (error as NodeJS.ErrnoException).code },
+        { platform: process.platform, code: errnoCode(error) },
         "cas: this filesystem does not support directory fsync — blob bytes are still fsynced and the publish rename is still atomic, but a crash can lose the directory ENTRY of a just-written blob (logged once per root)",
       );
     }
@@ -242,8 +243,10 @@ export function createCas(rootDir: string, log: Logger): Cas {
       return walkOwnerHashes(ownerDir(ownerId));
     },
 
-    listOwners(): AsyncGenerator<string> {
-      return walkOwners(rootDir);
+    async *listOwners(): AsyncGenerator<UserId> {
+      for await (const owner of walkOwners(rootDir)) {
+        yield userIdSchema.parse(owner);
+      }
     },
   };
 }

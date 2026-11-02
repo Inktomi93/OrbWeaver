@@ -18,13 +18,14 @@ import type {
 } from "@orb/contracts/chat";
 import { SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
+import { handleSchema } from "@orb/contracts/identity";
 import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ProviderExecutor } from "@orb/inference";
-import type { ChatId, Handle, IdSource, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import { createSignupMinterCheck as createAdminSignupMinterCheck } from "#domain/admin";
@@ -325,7 +326,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     mintPrincipal({
       userId,
       role: captureUserRole("user"),
-      handle: castId<Handle>(userId),
+      handle: handleSchema.parse(userId),
       externalId: null,
       via: "fallback",
     });

@@ -37,7 +37,7 @@ interface ShikiHighlightResult {
 
 // Curated fence-language set: the everyday web/scripting/data languages a chat message actually
 // fences. An unlisted fence id falls through to the plaintext branch below.
-const LANGUAGE_LOADERS: Record<string, () => Promise<{ default: unknown }>> = {
+const LANGUAGE_LOADERS: Record<string, () => Promise<{ default: Parameters<HighlighterCore["loadLanguage"]>[0] }>> = {
   javascript: () => import("@shikijs/langs/javascript"),
   js: () => import("@shikijs/langs/javascript"),
   typescript: () => import("@shikijs/langs/typescript"),
@@ -193,7 +193,7 @@ async function highlightAsync(code: string, language: string): Promise<ShikiHigh
   const lang = loader ? language : "plaintext";
   if (loader && !highlighter.getLoadedLanguages().includes(language)) {
     const mod = await loader();
-    await highlighter.loadLanguage(mod.default as Parameters<HighlighterCore["loadLanguage"]>[0]);
+    await highlighter.loadLanguage(mod.default);
   }
   const result = highlighter.codeToTokens(code, {
     lang,

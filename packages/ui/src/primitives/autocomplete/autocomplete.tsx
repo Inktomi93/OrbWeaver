@@ -1,5 +1,6 @@
 import type { AutocompletePositionerProps as BasePositionerProps, AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
@@ -113,7 +114,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
  *  speaks and the attribute that claims can never disagree. */
 function countSuggestions(filtered: readonly unknown[]): number {
   return filtered.reduce<number>((total, entry) => {
-    const nested = (entry as { items?: readonly unknown[] }).items;
+    const nested = isPlainObject(entry) ? entry["items"] : undefined;
     return total + (Array.isArray(nested) ? nested.length : 1);
   }, 0);
 }

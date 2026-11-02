@@ -2,8 +2,6 @@
 // Fuzzy matches require an explicit highlight before Enter selects one.
 // Search and command behavior use @orb/ui seals (ui-satellite-seals-search, ui-satellite-seals-command).
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
-import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import {
   Command,
   CommandAuxiliaryButton,
@@ -66,7 +64,8 @@ export interface ModelPickerProps {
   readonly source: ModelCatalogSource;
   /** The picked model id (`""` = none yet). */
   readonly value: string;
-  readonly onValueChange: (modelId: ModelId) => void;
+  /** A draft as typed or picked; the server parses it as a model id when the connection saves. */
+  readonly onValueChange: (value: string) => void;
   /** §7.4: whether an id the list does not carry may be saved (`typedModelAllowed`). */
   readonly typedAllowed: boolean;
   /** Whose list this is, in the user's words — a provider label, or an endpoint's host. */
@@ -189,7 +188,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
     event.preventDefault();
     const picked = activeValue === "" ? typed : modelIdOf(activeValue);
     if (picked !== null) {
-      onValueChange(castId<ModelId>(picked));
+      onValueChange(picked);
     }
   };
 
@@ -240,7 +239,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
                     <CommandItem
                       centerInList={entry.id === value}
                       key={`recent-${entry.id}`}
-                      onSelect={(): void => onValueChange(castId<ModelId>(entry.id))}
+                      onSelect={(): void => onValueChange(entry.id)}
                       value={`${RECENT_VALUE_PREFIX}${entry.id}`}
                     >
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
@@ -251,12 +250,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
               {view.groups.map((group) => (
                 <CommandGroup heading={group.heading ?? undefined} key={group.key}>
                   {group.entries.map((entry) => (
-                    <CommandItem
-                      centerInList={entry.id === value}
-                      key={entry.id}
-                      onSelect={(): void => onValueChange(castId<ModelId>(entry.id))}
-                      value={entry.id}
-                    >
+                    <CommandItem centerInList={entry.id === value} key={entry.id} onSelect={(): void => onValueChange(entry.id)} value={entry.id}>
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}
@@ -272,7 +266,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             <Text voice="gloss">{`+${view.overflow} more — keep typing to narrow`}</Text>
           </Row>
         ) : null}
-        {listReady && typedAllowed ? <TypedRow onPick={(id: string): void => onValueChange(castId<ModelId>(id))} typed={typed} /> : null}
+        {listReady && typedAllowed ? <TypedRow onPick={(id: string): void => onValueChange(id)} typed={typed} /> : null}
       </Command>
       <PickedLine error={error} errorId={errorId} listOwner={listOwner} models={models} value={value} />
     </Stack>

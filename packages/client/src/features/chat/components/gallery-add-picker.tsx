@@ -3,7 +3,8 @@
 // selected, so a retry resubmits only those. Opened from the gallery dialog (`anchors/character-gallery-dialog.tsx`).
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { AssetId, CharacterId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -69,7 +70,7 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
     ownedRef.current = true;
     setIsOwned(true);
     setFailure(null);
-    const writes = assetIds.map((assetId) => add.mutateAsync({ assetId: assetId as AssetId, subjectCharacterId: characterId }));
+    const writes = assetIds.map((assetId) => add.mutateAsync({ assetId: typeIdSchema(ID_PREFIX.asset).parse(assetId), subjectCharacterId: characterId }));
     try {
       const outcomes = await Promise.allSettled(writes);
       // Index-aligned by construction (`Promise.allSettled` preserves input order), so a rejected outcome

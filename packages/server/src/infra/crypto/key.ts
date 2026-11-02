@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { SECRET_FILE_NAMES } from "#foundation/data-layout";
 import type { Env } from "#foundation/env/record";
+import { hasErrnoCode } from "#primitives/errno";
 import type { BootSecretResolution, BootSecretSource, KeyfileReport } from "./contract.ts";
 
 // The boot secrets: the credentials SecretBox key and the SESSION_SECRET pepper. An explicit env value wins;
@@ -108,7 +109,7 @@ function publishKeyfile(keyPath: string, key: Buffer, reportKeyfile: KeyfileRepo
     try {
       linkSync(tempPath, keyPath);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      if (hasErrnoCode(err, "EEXIST")) {
         return false;
       }
       throw err;

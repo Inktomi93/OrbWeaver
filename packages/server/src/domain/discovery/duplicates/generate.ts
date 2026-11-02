@@ -183,9 +183,9 @@ function hashSetsByChat(rows: readonly ChatHashRow[]): Map<ChatId, Set<string>> 
   return sets;
 }
 
-// Candidate chat-pair KEYS (canonical "a\u0000b") that share ≥1 content-hash — the inverted-index prune (only
-// chats with an overlapping block are ever scored, never the full O(n²) all-pairs).
-function candidatePairs(hashSets: ReadonlyMap<ChatId, Set<string>>): Set<string> {
+// Candidate canonical chat pairs that share ≥1 content-hash, deduped by their "a\u0000b" key — the inverted-index
+// prune (only chats with an overlapping block are ever scored, never the full O(n²) all-pairs).
+function candidatePairs(hashSets: ReadonlyMap<ChatId, Set<string>>): Iterable<{ readonly a: ChatId; readonly b: ChatId }> {
   const byHash = new Map<string, ChatId[]>();
   for (const [chatId, hashes] of hashSets) {
     for (const hash of hashes) {
@@ -197,16 +197,16 @@ function candidatePairs(hashSets: ReadonlyMap<ChatId, Set<string>>): Set<string>
       }
     }
   }
-  const pairs = new Set<string>();
+  const pairs = new Map<string, { readonly a: ChatId; readonly b: ChatId }>();
   for (const chatsWithHash of byHash.values()) {
     for (let i = 0; i < chatsWithHash.length; i += 1) {
       for (let j = i + 1; j < chatsWithHash.length; j += 1) {
-        const { a, b } = canonicalChat(chatsWithHash[i] as ChatId, chatsWithHash[j] as ChatId);
-        pairs.add(`${a}\u0000${b}`);
+        const pair = canonicalChat(chatsWithHash[i] as ChatId, chatsWithHash[j] as ChatId);
+        pairs.set(`${pair.a}\u0000${pair.b}`, pair);
       }
     }
   }
-  return pairs;
+  return pairs.values();
 }
 
 // The Jaccard overlap |A∩B| / |A∪B| of two content-hash sets.
@@ -231,10 +231,7 @@ function buildOwnerChatPairs(
   const hashSets = hashSetsByChat(hashRows);
   const roots = forkRoots(new Map(lineage.map((e) => [e.chatId, e.parentChatId])));
   const inserts: ChatDupInsert[] = [];
-  for (const key of candidatePairs(hashSets)) {
-    const [aRaw, bRaw] = key.split("\u0000");
-    const a = aRaw as ChatId;
-    const b = bRaw as ChatId;
+  for (const { a, b } of candidatePairs(hashSets)) {
     const setA = hashSets.get(a);
     const setB = hashSets.get(b);
     if (setA === undefined || setB === undefined) {

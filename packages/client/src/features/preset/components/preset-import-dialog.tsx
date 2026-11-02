@@ -17,6 +17,7 @@
 
 import type { StDroppedField, StImportOutcome, StImportResult } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import { isPlainObject } from "@orb/kit/guards";
 import { Button } from "@orb/ui/button";
 import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
@@ -64,7 +65,7 @@ function reasonOf(cause: unknown): string {
 /** The name an `orb.preset` file declares — the merge key the dialog names in its summary. Falls back to
  *  the verb's own default for a nameless file, so the copy can't promise a name the server won't use. */
 function orbFileName(parsed: unknown): string {
-  const raw = (parsed as Record<string, unknown>)["name"];
+  const raw = isPlainObject(parsed) ? parsed["name"] : undefined;
   return typeof raw === "string" && raw.trim().length > 0 ? raw : "Imported preset";
 }
 

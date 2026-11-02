@@ -271,10 +271,10 @@ function settledChildren(phase: RetryPhase, children: ReactNode): ReactNode {
  *  fresh element rather than `cloneElement` (`no-legacy-react-api`): the type check has already narrowed
  *  the props, so a plain spread carries everything and overrides only the count. */
 function fillToBox(fallback: ReactNode, box: number): ReactNode {
-  if (!isValidElement(fallback) || fallback.type !== SkeletonRows) {
+  if (!isValidElement<SkeletonRowsProps>(fallback) || fallback.type !== SkeletonRows) {
     return fallback;
   }
-  const props = fallback.props as SkeletonRowsProps;
+  const { props } = fallback;
   if (typeof props.count !== "number" || (props.shape !== undefined && props.shape !== "line")) {
     return fallback;
   }

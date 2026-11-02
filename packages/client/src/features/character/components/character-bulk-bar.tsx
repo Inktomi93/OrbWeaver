@@ -11,8 +11,7 @@
 // no longer drift into three names for one verb. This bar renders BUTTONS, not menu items, so it owns its
 // own chrome (no glyphs, `tone="destructive"` on the last one) and takes only the labels + order.
 
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
@@ -46,7 +45,7 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
   const bulkRemove = useBulkRemoveCharacters({ trpc, invalidation });
   const [tagOpen, setTagOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const characterIds = ids.map((id) => castId<CharacterId>(id));
+  const characterIds = ids.map((id) => typeIdSchema(ID_PREFIX.character).parse(id));
   const isPending = bulkTag.isPending || bulkArchive.isPending || bulkRemove.isPending;
 
   const applyTag = (name: string): void => {

@@ -40,7 +40,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { backgroundMaterializeMessage, canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import { chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany } from "@orb/db/query";
+import { batchLed, batchMany } from "@orb/db/query";
 import type { DatabaseHandle, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -163,10 +163,9 @@ async function commitMetadataUpdate<K extends keyof ChatMetadata>(args: {
   const { ctx, ownerId, chatId, effective, authority } = args;
   const available = authority === "owned" ? ownedBackgroundAvailable(ctx.db, ownerId, effective) : carriedBackgroundAvailable(ctx.db, effective);
   const statement = chatMetadataSetStatement(ctx.db, { chatId, key: args.key, value: args.value, guard: available, now: ctx.now() });
-  const statements: BatchStmt[] = [statement];
+  const statements: BatchStmt[] = [];
   ctx.bumpStatsCanonVersion(statements, ctx.db, ownerId);
-  const results = await ctx.db.batch(batchMany(statements));
-  const updated = results[0] as readonly { readonly id: ChatId }[];
+  const [updated] = await ctx.db.batch(batchLed(statement, statements));
   if (updated.length === 0) {
     const stillExists = await ctx.db.select({ id: chats.id }).from(chats).where(eq(chats.id, chatId)).limit(1);
     if (stillExists.length === 0) {

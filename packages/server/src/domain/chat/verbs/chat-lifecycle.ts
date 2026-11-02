@@ -301,8 +301,8 @@ async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: 
   );
   appendRemovalVersions(ctx, statements, ownerId, retainedStats.ownerIds);
   try {
-    const results = await ctx.db.batch(batchMany(statements));
-    return (results[deleteIndex] as readonly { readonly id: ChatId }[]).length > 0;
+    const deleted = (await ctx.db.batch(batchMany(statements)))[deleteIndex];
+    return Array.isArray(deleted) && deleted.length > 0;
   } catch (error) {
     if (await generationObservationRemovalRefused(ctx, scope, groups, error)) {
       return false;

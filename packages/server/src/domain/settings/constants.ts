@@ -19,11 +19,13 @@
 // its `themeOverride`, and "Save as theme…" (TD door 1) re-mints any of them as a real theme on demand.
 
 import type { ThemeId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 
-export const THEME_HEARTH_ID: ThemeId = castId<ThemeId>("theme_00000000000000000000000001");
-export const THEME_MOCHA_ID: ThemeId = castId<ThemeId>("theme_00000000000000000000000002");
-export const THEME_LIGHT_ID: ThemeId = castId<ThemeId>("theme_00000000000000000000000003");
+const THEME_ID = typeIdSchema(ID_PREFIX.theme);
+
+export const THEME_HEARTH_ID: ThemeId = THEME_ID.parse("theme_00000000000000000000000001");
+export const THEME_MOCHA_ID: ThemeId = THEME_ID.parse("theme_00000000000000000000000002");
+export const THEME_LIGHT_ID: ThemeId = THEME_ID.parse("theme_00000000000000000000000003");
 
 export const THEME_HEARTH_NAME = "Hearth";
 export const THEME_MOCHA_NAME = "Mocha";
@@ -33,14 +35,14 @@ export const THEME_LIGHT_NAME = "Light";
  *  these exact sentinel ids and to `ownerId IS NULL`, so a user's own theme can never be caught by it (a
  *  duplicate they made of one of these palettes is THEIR row and survives untouched). */
 export const RETIRED_SEED_THEME_IDS: readonly ThemeId[] = [
-  castId<ThemeId>("theme_00000000000000000000000004"), // Charlotte
-  castId<ThemeId>("theme_00000000000000000000000005"), // JFC
-  castId<ThemeId>("theme_00000000000000000000000006"), // Niko
-  castId<ThemeId>("theme_00000000000000000000000007"), // Hana
-  castId<ThemeId>("theme_00000000000000000000000008"), // Morgatha
-  castId<ThemeId>("theme_00000000000000000000000009"), // Sabine
-  castId<ThemeId>("theme_00000000000000000000000010"), // Birdie
-  castId<ThemeId>("theme_00000000000000000000000011"), // Kohaku
-  castId<ThemeId>("theme_00000000000000000000000012"), // Calamity
-  castId<ThemeId>("theme_00000000000000000000000013"), // Elias
+  THEME_ID.parse("theme_00000000000000000000000004"), // Charlotte
+  THEME_ID.parse("theme_00000000000000000000000005"), // JFC
+  THEME_ID.parse("theme_00000000000000000000000006"), // Niko
+  THEME_ID.parse("theme_00000000000000000000000007"), // Hana
+  THEME_ID.parse("theme_00000000000000000000000008"), // Morgatha
+  THEME_ID.parse("theme_00000000000000000000000009"), // Sabine
+  THEME_ID.parse("theme_00000000000000000000000010"), // Birdie
+  THEME_ID.parse("theme_00000000000000000000000011"), // Kohaku
+  THEME_ID.parse("theme_00000000000000000000000012"), // Calamity
+  THEME_ID.parse("theme_00000000000000000000000013"), // Elias
 ];

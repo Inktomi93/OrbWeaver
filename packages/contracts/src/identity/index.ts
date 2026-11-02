@@ -27,6 +27,11 @@ export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
 
+/** The brand parsers for identity strings that arrive raw: a form field, a forwarded header, a token claim, a config value. */
+export const handleSchema = brandedId("Handle");
+export const externalIdSchema = brandedId("ExternalId");
+export const userIdSchema = brandedId("UserId");
+
 /** Never carries passwordHash or any secret column. ownerHandle names an agent's owner — null for humans. */
 export interface AdminUserView {
   readonly id: UserId;

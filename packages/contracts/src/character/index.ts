@@ -337,7 +337,7 @@ export const characterHandleSchema = z
 /** A handle as a READ projects it: length only, never the alphabet. The synthetic `__group__*` rows sit
  *  outside the alphabet by design, and a row stored before the alphabet was enforced must keep reading;
  *  anything that writes such a value somewhere else derives it through {@link portableCharacterHandle}. */
-const storedCharacterHandleSchema = z
+export const storedCharacterHandleSchema = z
   .string()
   .min(HANDLE_MIN)
   .max(HANDLE_MAX)

@@ -2,9 +2,9 @@
 // and a stable provenance marker so an identical retry resolves the card it already made.
 
 import type { CharacterImportProvenance } from "@orb/contracts/character";
+import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
 import type { RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
@@ -36,7 +36,7 @@ async function freePromotionHandle(deps: RpgRoundsDeps, ownerId: UserId, handle:
   if ((await deps.character.findByHandle({ ownerId, handle })) === null) {
     return handle;
   }
-  const suffixed = Array.from({ length: PROMOTE_HANDLE_ATTEMPTS - 1 }, (_, i) => castId<CharacterHandle>(`${handle}-${i + 2}`));
+  const suffixed = Array.from({ length: PROMOTE_HANDLE_ATTEMPTS - 1 }, (_, i) => deriveCharacterHandle(handle, `-${i + 2}`));
   const taken = await Promise.all(suffixed.map((candidate) => deps.character.findByHandle({ ownerId, handle: candidate })));
   const index = taken.indexOf(null);
   return index === -1 ? null : (suffixed[index] ?? null);

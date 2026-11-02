@@ -10,14 +10,13 @@
 // already created. A privileged mint that cannot be recorded must not happen.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
+import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import { admitsHandle, handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
@@ -55,8 +54,9 @@ function validateCreate(params: CreateUserParams, role: UserRole, isReservedHand
       "handle is not admissible: over the length cap, blank, mixed-script, or holding an invisible or control character (D257)",
     );
   }
+  const parsed = handleSchema.parse(handle);
   // D258: an account holding the owner seed key, or a look-alike, becomes the owner at the next seeded-mode boot.
-  if (isReservedHandle(castId<Handle>(handle))) {
+  if (isReservedHandle(parsed)) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle is reserved for the owner (an OWNER_HANDLES seed key or a look-alike of one)");
   }
 
@@ -68,7 +68,7 @@ function validateCreate(params: CreateUserParams, role: UserRole, isReservedHand
   if (params.password.length < MIN_PASSWORD_LENGTH) {
     throw new DomainOperationError(ADMIN_OP_CODES.weakPassword, `password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
-  return castId<Handle>(handle);
+  return parsed;
 }
 
 const handleTaken = (handle: Handle): DomainOperationError => new DomainOperationError(ADMIN_OP_CODES.userExists, `handle '${handle}' is already taken`);

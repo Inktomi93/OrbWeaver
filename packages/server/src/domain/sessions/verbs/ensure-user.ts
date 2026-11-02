@@ -1,5 +1,5 @@
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { handleSchema } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { insertUser, selectIdByHandle } from "../persistence/users.ts";
@@ -20,7 +20,7 @@ import { insertUser, selectIdByHandle } from "../persistence/users.ts";
 
 export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "ensureUser"> {
   async function ensureUser(rawHandle: string): Promise<UserId> {
-    const handle = castId<Handle>(rawHandle.trim());
+    const handle = handleSchema.parse(rawHandle.trim());
 
     const existing = await selectIdByHandle(ctx.db, handle);
     if (existing !== undefined) {

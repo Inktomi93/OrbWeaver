@@ -5,8 +5,7 @@
 // present-but-invalid JWT never falls through to the unsigned path.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
-import type { ExternalId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { externalIdSchema, handleSchema } from "@orb/contracts/identity";
 import { securityEvent } from "#foundation/observability";
 import { isInRanges } from "#infra/network";
 import type { AuthConfig, ResolveDeps } from "../contract.ts";
@@ -32,43 +31,42 @@ function groupsFromClaim(claim: unknown): string[] {
 // when no known user header is set.
 function readUnsignedIdentity(headers: Headers, config: AuthConfig): ResolvedIdentity | null {
   if (config.forwardUserHeader !== undefined) {
-    const handle = headers.get(config.forwardUserHeader);
-    if (handle === null) {
+    const handle = handleSchema.safeParse(headers.get(config.forwardUserHeader)).data;
+    if (handle === undefined) {
       return null;
     }
     const externalId = config.forwardUidHeader !== undefined ? headers.get(config.forwardUidHeader) : null;
     const groups = config.forwardGroupsHeader !== undefined ? groupsFromClaim(headers.get(config.forwardGroupsHeader)) : [];
     return {
-      externalId: externalId !== null ? castId<ExternalId>(externalId) : null,
-      handle: castId<Handle>(handle),
+      externalId: externalIdSchema.safeParse(externalId).data ?? null,
+      handle,
       groups,
       email: emailFromHeader(config.forwardEmailHeader, headers),
     };
   }
-  const authentik = headers.get("x-authentik-username");
-  if (authentik !== null) {
-    const uid = headers.get("x-authentik-uid");
+  const authentik = handleSchema.safeParse(headers.get("x-authentik-username")).data;
+  if (authentik !== undefined) {
     return {
-      externalId: uid !== null ? castId<ExternalId>(uid) : null,
-      handle: castId<Handle>(authentik),
+      externalId: externalIdSchema.safeParse(headers.get("x-authentik-uid")).data ?? null,
+      handle: authentik,
       groups: groupsFromClaim(headers.get("x-authentik-groups")),
       email: emailFromHeader("x-authentik-email", headers),
     };
   }
-  const authelia = headers.get("remote-user");
-  if (authelia !== null) {
+  const authelia = handleSchema.safeParse(headers.get("remote-user")).data;
+  if (authelia !== undefined) {
     return {
       externalId: null,
-      handle: castId<Handle>(authelia),
+      handle: authelia,
       groups: groupsFromClaim(headers.get("remote-groups")),
       email: emailFromHeader("remote-email", headers),
     };
   }
-  const forwardedUser = headers.get("x-forwarded-user");
-  if (forwardedUser !== null) {
+  const forwardedUser = handleSchema.safeParse(headers.get("x-forwarded-user")).data;
+  if (forwardedUser !== undefined) {
     return {
       externalId: null,
-      handle: castId<Handle>(forwardedUser),
+      handle: forwardedUser,
       groups: groupsFromClaim(headers.get("x-forwarded-groups")),
       email: emailFromHeader("x-forwarded-email", headers),
     };
@@ -120,8 +118,8 @@ async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: Au
     return null;
   }
   return {
-    externalId: claims.externalId !== null ? castId<ExternalId>(claims.externalId) : null,
-    handle: castId<Handle>(claims.handle),
+    externalId: claims.externalId !== null ? claims.externalId : null,
+    handle: claims.handle,
     groups: claims.groups,
     email: claims.email,
   };

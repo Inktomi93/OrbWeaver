@@ -28,6 +28,7 @@
 // commit. A device that has never been told stamps NOTHING — `null`, which reads as the pre-existing floor
 // (no bell), which is the honest first-ever-visit arm.
 
+import { isPlainObject } from "@orb/kit/guards";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** This device's remembered deployment capabilities. `null` = never told, i.e. fall back to the floor. */
@@ -42,7 +43,7 @@ const PERSIST_VERSION = 1;
 
 /** TOTAL: anything that is not a remembered boolean degrades to "this device knows nothing". */
 function migrate(persisted: unknown): DeploymentBootHintState {
-  const value = (persisted as { multiHumanCapable?: unknown } | null | undefined)?.multiHumanCapable;
+  const value = isPlainObject(persisted) ? persisted["multiHumanCapable"] : undefined;
   return { multiHumanCapable: typeof value === "boolean" ? value : null };
 }
 

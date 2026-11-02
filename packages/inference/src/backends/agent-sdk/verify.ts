@@ -5,6 +5,7 @@
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
 import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ErrorClassification } from "../../contract/http.ts";
 
 /**
@@ -15,11 +16,11 @@ import type { ErrorClassification } from "../../contract/http.ts";
  * fresh boot fails fast; pin or upgrade the SDK carefully when this fires.
  */
 export function assertInitFrameShape(message: unknown): void {
-  const init = message as { session_id?: unknown; apiKeySource?: unknown };
-  if (typeof init.session_id !== "string" || init.session_id.length === 0) {
+  const init = isPlainObject(message) ? message : {};
+  if (typeof init["session_id"] !== "string" || init["session_id"].length === 0) {
     throw new Error("agent-sdk: init frame is missing session_id (SDK shape changed?). Pin or upgrade carefully.");
   }
-  if (typeof init.apiKeySource !== "string") {
+  if (typeof init["apiKeySource"] !== "string") {
     throw new Error("agent-sdk: init frame is missing apiKeySource (SDK shape changed?). Pin or upgrade carefully.");
   }
 }

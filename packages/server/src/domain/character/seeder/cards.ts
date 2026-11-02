@@ -29,13 +29,12 @@
 // An account receives a card once; the seed ledger keeps a card the user deleted from coming back.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
-import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
+import { AUTHORED_CARD_CREATOR, characterHandleSchema } from "@orb/contracts/character";
 import { INTERNAL_SEED_TAG_NAMES } from "@orb/contracts/tag";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
 
-export const WELCOME_ASSISTANT_HANDLE = castId<CharacterHandle>("charlotte");
+export const WELCOME_ASSISTANT_HANDLE = characterHandleSchema.parse("charlotte");
 
 /** The pack-wide provenance/posture fields every authored card carries identically (wiring note 5 of the
  *  roster doc): app-authored, no upstream source, no dates (the seeder stamps the real row timestamps), no
@@ -180,7 +179,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("jfc-coder"),
+      handle: characterHandleSchema.parse("jfc-coder"),
       name: "JFC",
       nickname: null,
       description:
@@ -251,7 +250,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("niko"),
+      handle: characterHandleSchema.parse("niko"),
       name: "Niko",
       nickname: null,
       description:
@@ -316,7 +315,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("hana"),
+      handle: characterHandleSchema.parse("hana"),
       name: "Hana Mizushima",
       nickname: null,
       description:
@@ -390,7 +389,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("morgatha"),
+      handle: characterHandleSchema.parse("morgatha"),
       name: "Morgatha, the Undying Dark",
       nickname: "Morgatha",
       description:
@@ -459,7 +458,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("sabine"),
+      handle: characterHandleSchema.parse("sabine"),
       name: "Sabine Veyra",
       nickname: null,
       description:
@@ -527,7 +526,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("birdie"),
+      handle: characterHandleSchema.parse("birdie"),
       name: "Birdie Mae Holloway",
       nickname: null,
       description:
@@ -588,7 +587,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("kohaku"),
+      handle: characterHandleSchema.parse("kohaku"),
       name: "Kohaku",
       nickname: null,
       description:
@@ -658,7 +657,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("calamity"),
+      handle: characterHandleSchema.parse("calamity"),
       name: "Calamity, Doomblade of the Ninth Epoch",
       nickname: "Calamity",
       description:
@@ -724,7 +723,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: castId<CharacterHandle>("elias"),
+      handle: characterHandleSchema.parse("elias"),
       name: "Elias Thorn",
       nickname: null,
       description:

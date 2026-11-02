@@ -7,15 +7,14 @@
 // ownership check — both are owner-gated, so a carried assetId/handle can never launder a foreign row onto
 // this document.
 
-import { portableCharacterHandle } from "@orb/contracts/character";
+import { characterHandleSchema, portableCharacterHandle } from "@orb/contracts/character";
 import type { DatabankImportOutcome, ExportDocument, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { AssetId, CharacterHandle, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CanonicalDocument } from "#primitives/serde/databank";
@@ -136,7 +135,7 @@ async function resolveCharacters(ctx: Pick<DatabankPortabilityContext, "db">, ow
         eq(characters.synthetic, false),
         inArray(
           characters.handle,
-          [...handles].map((h) => castId<CharacterHandle>(h)),
+          handles.flatMap((h) => characterHandleSchema.safeParse(h).data ?? []),
         ),
       ),
     );

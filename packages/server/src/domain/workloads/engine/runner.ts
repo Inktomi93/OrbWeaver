@@ -7,6 +7,7 @@
 // the lease cadence — so a run reporting per document costs the same db traffic as one that never reports,
 // and a client that reconnects after the 60s replay ring expired still reads the last known progress.
 
+import { userIdSchema } from "@orb/contracts/identity";
 import type {
   EveryOwnerRun,
   ReportProgress,
@@ -18,7 +19,6 @@ import type {
 } from "@orb/contracts/workloads";
 import { toError } from "@orb/kit/error-message";
 import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
@@ -26,7 +26,7 @@ import type { WorkloadClaim } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
-const SYSTEM_OWNER_ID = castId<UserId>("system");
+const SYSTEM_OWNER_ID = userIdSchema.parse("system");
 
 const DEFAULT_HEARTBEAT_MS = 5000;
 const DEFAULT_CANCEL_POLL_MS = 5000;

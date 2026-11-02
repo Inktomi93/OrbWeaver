@@ -72,3 +72,9 @@ export function batchMany<const TStmts extends readonly BatchStmt[]>(stmts: TStm
 export function batchMany(stmts: readonly BatchStmt[]): readonly BatchStmt[] {
   return stmts;
 }
+
+/** Bridge a batch whose first statement's rows the caller reads: `Db.batch` types `results[0]` as `lead`'s own
+ *  rows, where {@link batchMany} erases them to `unknown`. */
+export function batchLed<TLead extends BatchStmt>(lead: TLead, rest: readonly BatchStmt[]): Readonly<[TLead, ...BatchStmt[]]> {
+  return [lead, ...rest];
+}

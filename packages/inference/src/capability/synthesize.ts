@@ -12,6 +12,7 @@
 
 import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability, ResolvedWarning } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
+import { isPlainObject } from "@orb/kit/guards";
 import type { Evidence, SynthesizedCapability } from "../contract/capability.ts";
 import { assertNever } from "../contract/errors.ts";
 
@@ -63,7 +64,8 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
 function mergeStructuredLimits(merged: Record<string, unknown>, base: GenerationCapability, patch: GenerationPatch | Partial<GenerationCapability>): void {
   const limits = { ...base.output.structuredLimits, ...patch.output?.structuredLimits };
   if (Object.keys(limits).length > 0) {
-    merged["output"] = { ...(merged["output"] as GenerationCapability["output"]), structuredLimits: limits };
+    const output = merged["output"];
+    merged["output"] = { ...(isPlainObject(output) ? output : {}), structuredLimits: limits };
   }
 }
 

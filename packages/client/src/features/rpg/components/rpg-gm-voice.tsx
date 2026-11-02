@@ -27,7 +27,7 @@
 
 import type { RpgConfigView } from "@orb/contracts/rpg";
 import type { ChatId, PresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -81,7 +81,7 @@ export function RpgGmVoice({ chatId, config }: { readonly chatId: ChatId; readon
           if (picked === (current ?? NO_OVERRIDE)) {
             return; // re-picking the shown value is not an edit — never spend a write on it.
           }
-          updateConfig.mutate({ chatId, gmPresetId: picked === NO_OVERRIDE ? null : castId<PresetId>(picked) });
+          updateConfig.mutate({ chatId, gmPresetId: picked === NO_OVERRIDE ? null : typeIdSchema(ID_PREFIX.preset).parse(picked) });
         }}
       />
       <Text voice="gloss">

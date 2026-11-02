@@ -98,13 +98,13 @@ export function ModelField({
   // The searchable list is on screen; an empty answer renders the typed field instead.
   const listShown = offered.status === "listed" && offered.models.length > 0;
 
-  // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it, and so does a refusal,
-  // which leaves the saved row as it was.
-  const [draft, setDraft] = useState(model);
+  // The draft is the field's text, so it holds the saved id widened for display and `commit` parses it back. It follows
+  // the saved row: an outside save (another tab, a list pick here) replaces it, and so does a refusal.
+  const [draft, setDraft] = useState(String(model));
   const [savedSeen, setSavedSeen] = useState({ model, resetKey });
   if (model !== savedSeen.model || resetKey !== savedSeen.resetKey) {
     setSavedSeen({ model, resetKey });
-    setDraft(model);
+    setDraft(String(model));
   }
 
   const commit = (next: string): void => {

@@ -10,10 +10,12 @@ import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
 import { isPlainObject } from "@orb/kit/guards";
 import type { TagId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 import { cycleTagFilterEntries } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
+
+const TAG_ID = typeIdSchema(ID_PREFIX.tag);
 
 /** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine §5.5). */
 const CHARACTER_VIEW_MODES = ["flat", "categorized"] as const;
@@ -96,16 +98,19 @@ function toTagFilter(v: unknown): readonly TagFilterEntry[] {
   const entries: TagFilterEntry[] = [];
   for (const raw of v) {
     if (typeof raw === "string") {
-      entries.push({ id: castId<TagId>(raw), state: "include" });
+      const id = TAG_ID.safeParse(raw).data;
+      if (id !== undefined) {
+        entries.push({ id, state: "include" });
+      }
       continue;
     }
     if (!isPlainObject(raw)) {
       continue;
     }
     const state = toActiveState(raw["state"]);
-    const id = raw["id"];
-    if (typeof id === "string" && state !== undefined) {
-      entries.push({ id: castId<TagId>(id), state });
+    const id = TAG_ID.safeParse(raw["id"]).data;
+    if (id !== undefined && state !== undefined) {
+      entries.push({ id, state });
     }
   }
   return entries;

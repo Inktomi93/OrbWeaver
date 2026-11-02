@@ -3,7 +3,6 @@
 
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import type { CardIdentityHashes, RestoredSeat } from "../contract/identity.ts";
 
@@ -39,5 +38,5 @@ export async function resolveSeat(
 /** The handle a restored card asks for before the per-owner collision suffix: its carried handle, else the
  *  slug of its name (a foreign card carries no handle). */
 export function requestedHandle(card: { readonly handle: CharacterHandle | null; readonly name: string }): CharacterHandle {
-  return card.handle ?? castId<CharacterHandle>(slugifyHandle(card.name));
+  return card.handle ?? characterHandleSchema.parse(slugifyHandle(card.name));
 }

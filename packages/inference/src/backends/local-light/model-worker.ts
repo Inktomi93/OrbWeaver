@@ -47,9 +47,14 @@ async function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Pro
 // new Worker gains a `gc` global, so it is cleared again the moment this one context has captured `gc`.
 function idleCollector(): () => void {
   setFlagsFromString("--expose-gc");
-  const collect = runInNewContext("gc") as () => void;
+  const collect: unknown = runInNewContext("gc");
   setFlagsFromString("--no-expose-gc");
-  return collect;
+  if (typeof collect !== "function") {
+    throw new Error("local-light worker: --expose-gc exposed no gc function");
+  }
+  return (): void => {
+    Reflect.apply(collect, undefined, []);
+  };
 }
 
 // Only whole-buffer rows are transferred: a view into a shared or pooled buffer would detach bytes it does not own.

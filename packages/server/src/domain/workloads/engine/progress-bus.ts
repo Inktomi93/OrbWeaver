@@ -17,6 +17,9 @@ function createProgressBus(emitter: EventEmitter): WorkloadProgressBus {
   const lifetime = new AbortController();
   let busClock = 0;
   const replay = createReplayBuffer<WorkloadId, WorkloadEvent>(REPLAY_TTL_MS, () => busClock);
+  // `events.on` yields untyped arguments; membership here proves an argument is an event `emit` received.
+  const emitted = new WeakSet<object>();
+  const isEmitted = (value: unknown): value is WorkloadEvent => typeof value === "object" && value !== null && emitted.has(value);
 
   /** Throws on an empty workloadId (the subscription filters on it; empty silently drops client-side). */
   function emit(event: WorkloadEvent): void {
@@ -28,6 +31,7 @@ function createProgressBus(emitter: EventEmitter): WorkloadProgressBus {
     }
     busClock = Math.max(busClock, event.at);
     replay.record(event.workloadId, event);
+    emitted.add(event);
     emitter.emit(WORKLOAD_EVENT_CHANNEL, event);
   }
 
@@ -46,8 +50,8 @@ function createProgressBus(emitter: EventEmitter): WorkloadProgressBus {
 
   async function* subscribe(workloadId: WorkloadId, signal: AbortSignal): AsyncGenerator<WorkloadEvent> {
     for await (const args of on(emitter, WORKLOAD_EVENT_CHANNEL, { signal: AbortSignal.any([signal, lifetime.signal]) })) {
-      const event = args[0] as WorkloadEvent;
-      if (event.workloadId === workloadId) {
+      const event: unknown = args[0];
+      if (isEmitted(event) && event.workloadId === workloadId) {
         yield event;
       }
     }

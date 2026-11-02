@@ -5,7 +5,7 @@
 // inert inline-SVG scatter could NOT carry (an interactive role on a raw SVG is belt-blocked in
 // features), which is the whole reason this tab moved onto the real primitive (north-star §6.4).
 
-import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Scatter } from "@orb/ui/scatter";
 import { Text } from "@orb/ui/text";
@@ -82,7 +82,7 @@ function MapBody(): ReactElement {
           height="100%"
           label="Corpus semantic map"
           legend={true}
-          onPointClick={(id): void => selectCorpusCharacter(id as CharacterId)}
+          onPointClick={(id): void => selectCorpusCharacter(typeIdSchema(ID_PREFIX.character).parse(id))}
           series={series}
         />
       </Stack>

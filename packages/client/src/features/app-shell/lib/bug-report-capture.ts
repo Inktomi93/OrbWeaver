@@ -20,6 +20,7 @@
 
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
+import { isPlainObject } from "@orb/kit/guards";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
 import { postBugReport } from "#data";
 import { readAgentDebugHandle } from "#src/lib/agent-bridge.ts";
@@ -232,9 +233,12 @@ export type BugReportSubmission = { readonly ok: true; readonly id: string; read
 async function refusalReason(response: Response): Promise<string | null> {
   // the refusal itself is owned by the only caller, submitBugReport, which returns `{ ok: false, reason: "HTTP <status> from <route>" }` (bug-report-capture.ts:250) and bug-report-button.tsx:157 stores that reason as the failed status. This try only reads an optional body suffix; a non-JSON body yields null and the status line still renders. Ends if the failed status stops rendering reason.
   try {
-    const body = (await response.json()) as { reason?: unknown; error?: unknown };
+    const body: unknown = await response.json();
+    if (!isPlainObject(body)) {
+      return null;
+    }
     // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.
-    const named = [body.reason, body.error].find((value): value is string => typeof value === "string" && value.length > 0);
+    const named = [body["reason"], body["error"]].find((value): value is string => typeof value === "string" && value.length > 0);
     return named ?? null;
   } catch {
     return null;
@@ -252,8 +256,9 @@ export async function submitBugReport(bundle: BugReportClientBundle): Promise<Bu
     const because = named === null ? "" : ` — ${named}`;
     return { ok: false, reason: `HTTP ${response.status} from ${BUG_REPORT_ROUTE}${because}` };
   }
-  const body = (await response.json()) as { id?: unknown; written?: { json?: unknown } };
-  const id = typeof body.id === "string" ? body.id : "";
-  const json = typeof body.written?.json === "string" ? body.written.json : "";
+  const body: unknown = await response.json();
+  const id = isPlainObject(body) && typeof body["id"] === "string" ? body["id"] : "";
+  const written = isPlainObject(body) ? body["written"] : undefined;
+  const json = isPlainObject(written) && typeof written["json"] === "string" ? written["json"] : "";
   return id === "" ? { ok: false, reason: "the server accepted the report but named no id" } : { ok: true, id, json };
 }

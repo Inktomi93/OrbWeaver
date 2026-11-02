@@ -25,7 +25,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import { compactionSpendDelta } from "@orb/contracts/stats";
 import { chats, compactionSpend } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany } from "@orb/db/query";
+import { batchLed } from "@orb/db/query";
 import type { Resolved } from "@orb/inference";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -119,13 +119,12 @@ async function buildMarker(
   // predicate is the VALUE, `plugin-kv::compareAndSetKv`; `is` rather than `=` because the column is nullable
   // and NULL is the never-compacted state). `RETURNING` is post-update, so a non-empty result means THIS
   // statement moved the row; zero rows means a sibling advanced the marker and this one's is discarded.
-  const stmts: BatchStmt[] = [
-    ctx.db
-      .update(chats)
-      .set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
-      .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
-      .returning({ id: chats.id }),
-  ];
+  const marker = ctx.db
+    .update(chats)
+    .set({ compactSummary: summary, compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
+    .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
+    .returning({ id: chats.id });
+  const stmts: BatchStmt[] = [];
   // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
   // rule), and its `compaction_spend` row rides the same batch — the marker is overwritten by the next pass, so
   // that row is the only canon a stats rebuild can re-derive this spend from. A null/0 cost (a local vLLM turn,
@@ -137,10 +136,8 @@ async function buildMarker(
   } else {
     ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
   }
-  const results = await ctx.db.batch(batchMany(stmts));
-  // `batchMany` erases the tuple type (the ONE sanctioned cast); statement 0 is the guarded UPDATE's
-  // RETURNING rows — the claim-chat precedent for reading a conditional write's outcome out of a batch.
-  const stamped = results[0] as readonly { readonly id: ChatId }[];
+  // Statement 0 is the guarded UPDATE; its RETURNING rows say whether this pass moved the marker.
+  const [stamped] = await ctx.db.batch(batchLed(marker, stmts));
   if (stamped.length === 0) {
     // A sibling pass advanced the marker while this one was generating. THIS marker is discarded (never
     // written over the newer one) and the settled state is reported, so the caller's `updated:false` says
@@ -172,16 +169,14 @@ async function advanceCoverageOnly(
     readonly coveredThroughSeq: number;
   },
 ): Promise<CompactResult> {
-  const stmts: BatchStmt[] = [
-    ctx.db
-      .update(chats)
-      .set({ compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
-      .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
-      .returning({ id: chats.id }),
-  ];
+  const stamp = ctx.db
+    .update(chats)
+    .set({ compactedAtSeq: env.coveredThroughSeq, updatedAt: ctx.now() })
+    .where(and(eq(chats.id, env.chatId), sql`${chats.compactedAtSeq} is ${env.priorCoverage}`))
+    .returning({ id: chats.id });
+  const stmts: BatchStmt[] = [];
   ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
-  const results = await ctx.db.batch(batchMany(stmts));
-  const stamped = results[0] as readonly { readonly id: ChatId }[];
+  const [stamped] = await ctx.db.batch(batchLed(stamp, stmts));
   if (stamped.length === 0) {
     return await settledMarker(ctx, env.chatId, env.priorCoverage);
   }

@@ -176,7 +176,8 @@ function numberWidget({ node, path, overlay }: NodeContext): RenderWidget {
 }
 
 function enumWidget({ node, path, overlay }: NodeContext): RenderWidget {
-  const members = (node["enum"] as readonly unknown[]).filter((m): m is string => typeof m === "string");
+  const values = node["enum"];
+  const members = (Array.isArray(values) ? values : []).filter((m): m is string => typeof m === "string");
   const hint = hintAt(node, path, overlay);
   return {
     kind: "chip-enum",
@@ -216,7 +217,8 @@ function objectWidget({ node, path, overlay }: NodeContext): RenderWidget {
 }
 
 function unionWidget({ node, path, overlay }: NodeContext): RenderWidget {
-  const arms = (node["anyOf"] as readonly unknown[]).filter(isRecord).map((arm, i) => widgetOf({ node: arm, path: `${path}/anyOf/${i}`, overlay }));
+  const anyOf = node["anyOf"];
+  const arms = (Array.isArray(anyOf) ? anyOf : []).filter(isRecord).map((arm, i) => widgetOf({ node: arm, path: `${path}/anyOf/${i}`, overlay }));
   return { kind: "union", arms };
 }
 

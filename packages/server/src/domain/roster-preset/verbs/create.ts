@@ -7,8 +7,6 @@
 // and a duplicate `(owner, name)` is a typed conflict. Preset + seats land as ONE batch; the detail
 // re-reads with the card join (the inserted rows alone would lose the joined names/avatar hashes).
 
-import type { PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { RosterPresetNameConflictError } from "../contract/errors.ts";
 import type { CreateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
@@ -21,9 +19,8 @@ export function createCreate(ctx: RosterPresetContext): RosterPresetService["cre
     const ownerId = principal.userId;
     const members = normalizeMembers(input.members);
     await ensureMembersOwned(ctx, ownerId, members);
-    // The lenient input's anchor is a plain string — the ownership belt is the validator (castId is the
-    // sanctioned untyped-seam cast; a fabricated id matches no owned persona → the same leak-free NotFound).
-    const anchorPersonaId = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? null : castId<PersonaId>(input.anchorPersonaId);
+    // The ownership check is the validator: a foreign anchor matches no owned persona → the same leak-free NotFound.
+    const anchorPersonaId = input.anchorPersonaId ?? null;
     await ensureAnchorOwned(ctx, ownerId, anchorPersonaId);
     const groupConfig = parsedGroupConfig(input.groupConfig);
     const gameTemplate = parsedGameTemplate(input.game);

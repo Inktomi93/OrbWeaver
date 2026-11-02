@@ -3,7 +3,7 @@
 // scope + recency clock, the bound-variable chunker, the LIKE-term escape, and the JSON read-seam parsers.
 
 export type { AwaitableBatchStmt, BatchStmt, RowsAffectedStmt } from "./batch.ts";
-export { batchMany, batchStmt } from "./batch.ts";
+export { batchLed, batchMany, batchStmt } from "./batch.ts";
 export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { isConstraintViolation } from "./db-errors.ts";
 export { fetchOwned } from "./fetch-owned.ts";

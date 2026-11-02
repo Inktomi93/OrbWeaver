@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "drop-proven-cast-id"
+version: "0.1.0"
+description: "Drop castId calls whose argument already carries the brand, at the sites orb/no-unsafe-cast listed."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

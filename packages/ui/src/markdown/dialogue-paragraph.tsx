@@ -19,10 +19,10 @@ import { hasQuoteChar, splitDialogue } from "./dialogue.ts";
  *  resolves mid-stream, not just after commit). Everything else is opaque — including inline
  *  `<code>`, which is why a quote inside code can't open a run. */
 function atomicText(child: ReactNode): string {
-  if (!isValidElement(child)) {
+  if (!isValidElement<{ readonly children?: unknown; readonly "data-orb-reveal"?: unknown }>(child)) {
     return "";
   }
-  const props = child.props as { readonly children?: unknown; readonly "data-orb-reveal"?: unknown };
+  const { props } = child;
   return props["data-orb-reveal"] === true && typeof props.children === "string" ? props.children : "";
 }
 
@@ -34,10 +34,10 @@ function partOf(child: ReactNode): DialoguePart {
  *  `data-orb-reveal` + the span's negative `animation-delay`, so tinting a quote never restarts or
  *  strips the word's fade (the reveal anchors progress to reveal TIME — reveal-plugin.ts header). */
 function revealPropsOf(child: ReactNode): { readonly "data-orb-reveal": true; readonly style?: CSSProperties } | null {
-  if (!isValidElement(child)) {
+  if (!isValidElement<{ readonly "data-orb-reveal"?: unknown; readonly style?: CSSProperties }>(child)) {
     return null;
   }
-  const props = child.props as { readonly "data-orb-reveal"?: unknown; readonly style?: CSSProperties };
+  const { props } = child;
   if (props["data-orb-reveal"] !== true) {
     return null;
   }

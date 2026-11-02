@@ -36,8 +36,7 @@
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
@@ -83,6 +82,8 @@ import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
 import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "../lib/character-names.ts";
+
+const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 
 /** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
 const FAVORITES_STRIP_LIMIT = 24;
@@ -186,18 +187,18 @@ export function CharacterLibrarySurface(): ReactElement {
   // mounted beside the editor it opens, so there is no pane swap to arbitrate focus with and no browse
   // position to rescue — the row the user pressed keeps the focus the browser gave it, and the virtual
   // list keeps its own scroll.
-  const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
-  const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
-  const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
+  const openEditor = (id: string): void => selectCharacter(CHARACTER_ID.parse(id));
+  const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: CHARACTER_ID.parse(id), input: { starred: next } });
+  const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: CHARACTER_ID.parse(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);
   const duplicateCharacter = (id: string): void => {
     void duplicate
-      .mutateAsync({ characterId: castId<CharacterId>(id) })
+      .mutateAsync({ characterId: CHARACTER_ID.parse(id) })
       .then((created) => selectCharacter(created.id))
       .catch(() => undefined);
   };
   const deleteCharacter = (id: string): void => {
-    const characterId = castId<CharacterId>(id);
+    const characterId = CHARACTER_ID.parse(id);
     void remove
       .mutateAsync({ characterId })
       .then(() => {
@@ -208,7 +209,7 @@ export function CharacterLibrarySurface(): ReactElement {
       .catch(() => undefined);
   };
   const chatWith = (id: string): void => {
-    const characterId = castId<CharacterId>(id);
+    const characterId = CHARACTER_ID.parse(id);
     // `collection.items`, not the `items` alias below it: that alias is widened to the CARD's structural
     // subset (`CharacterCardItem`), which deliberately does not carry the resume target.
     const target = collection.items.find((item) => item.id === id)?.lastChatId ?? null;

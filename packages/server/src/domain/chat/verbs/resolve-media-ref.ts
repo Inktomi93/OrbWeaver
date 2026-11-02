@@ -2,8 +2,6 @@
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { AssetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { ResolveImageUrlOp } from "../contract/engine-context.ts";
 import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRefDeps } from "../contract/media-ref.ts";
@@ -41,7 +39,7 @@ async function resolveImageRefToUrl(
   if (ref.kind === "external") {
     return forbidExternalMedia ? null : { url: ref.url, media: "image" };
   }
-  const assetId = castId<AssetId>(ref.assetId);
+  const assetId = ref.assetId;
   const meta = await assets.assetCasRefById(assetId);
   if (!meta) {
     return null;

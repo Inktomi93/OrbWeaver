@@ -5,8 +5,8 @@
 // target and a subject already bound elsewhere; those surface as the sticky mutation error. Base UI unmounts
 // the closed popup, so a reopen never shows a previous subject.
 
-import type { ExternalId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { externalIdSchema } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -48,7 +48,7 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
     // The failure is rendered by the `link.error !== null` line in this component and also toasted by
     // useLinkSsoIdentity's `errorToast`; the dialog stays open. Ends if either stops.
     try {
-      await link.mutateAsync({ userId, externalId: castId<ExternalId>(trimmed) });
+      await link.mutateAsync({ userId, externalId: externalIdSchema.parse(trimmed) });
     } catch {
       // The sticky mutation error renders below — stay open.
       return;

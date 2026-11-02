@@ -60,12 +60,15 @@ function createWebAssemblyMemory(): object {
   if (typeof memoryConstructor !== "function") {
     throw new Error("plugin host: WebAssembly.Memory is unavailable");
   }
-  const memory = Reflect.construct(memoryConstructor, [
+  const memory: unknown = Reflect.construct(memoryConstructor, [
     {
       initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
       maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
     },
-  ]) as object;
+  ]);
+  if (typeof memory !== "object" || memory === null) {
+    throw new Error("plugin host: WebAssembly.Memory constructed no object");
+  }
   // quickjs-emscripten-core holds typed-array views of this memory across FFI calls that can malloc: the
   // context-lifetime `uint32Out` behind getLength/getOwnPropertyNames, and the out-pointer arrays of newPromise
   // and executePendingJobs. A plain `memory.grow` detaches the old buffer under those views, so the next read

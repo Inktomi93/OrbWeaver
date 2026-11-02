@@ -10,8 +10,7 @@ import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { CharacterMemberSpec } from "@orb/contracts/chat";
 import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
-import type { RosterPresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -72,8 +71,8 @@ function RosterRuleBlock(props: {
 }
 
 export function RosterMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
-  // The stamped-id posture: the seam's memberId is opaque; the owner re-brands through its own id space.
-  const presetId = castId<RosterPresetId>(view.memberId);
+  // The seam's memberId is opaque; the owner parses it in its own id space.
+  const presetId = typeIdSchema(ID_PREFIX.rosterPreset).parse(view.memberId);
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: roster } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));

@@ -61,9 +61,8 @@ export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPoin
       pointer === null
         ? chatMetadataDropStatement(ctx.db, { chatId, key: "rpg", guard, now })
         : chatMetadataSetStatement(ctx.db, { chatId, key: "rpg", value: pointer, guard, now });
-    const results = await commitHostFencedWrite(ctx, chatId, [statement]);
-    const updated = results[0] as readonly { readonly id: ChatId }[];
-    if (updated.length > 0) {
+    const [updated] = await commitHostFencedWrite(ctx, chatId, [statement]);
+    if (Array.isArray(updated) && updated.length > 0) {
       return;
     }
     const stillExists = await ctx.db.select({ id: chats.id }).from(chats).where(eq(chats.id, chatId)).limit(1);

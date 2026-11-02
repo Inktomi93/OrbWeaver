@@ -63,7 +63,6 @@
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { batchMany } from "@orb/db/query";
 import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatEventId, ChatId, ChatTurnId } from "@orb/kit/ids";
@@ -347,8 +346,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
         event,
         createdAt: deps.now(),
       });
-      const results = await deps.db.batch(batchMany([statementForOwner(claimStatement), append]));
-      const rows = results[1] as { seq: number }[];
+      const [, rows] = await deps.db.batch([statementForOwner(claimStatement), append]);
       const seq = rows.at(0)?.seq;
       if (seq === undefined) {
         return false;

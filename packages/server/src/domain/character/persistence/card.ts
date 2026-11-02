@@ -20,7 +20,7 @@ import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, isConstraintViolation } from "@orb/db/query";
+import { batchLed, batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
@@ -326,15 +326,13 @@ export async function deleteOwnedCharacter(
   ownerId: UserId,
   bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
 ): Promise<boolean> {
-  const statements: BatchStmt[] = [
-    db
-      .delete(characters)
-      .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-      .returning({ id: characters.id }),
-  ];
+  const deletion = db
+    .delete(characters)
+    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+    .returning({ id: characters.id });
+  const statements: BatchStmt[] = [];
   bumpCanonVersion(statements, db, ownerId);
-  const results = await db.batch(batchMany(statements));
-  const deleted = results[0] as readonly { readonly id: CharacterId }[];
+  const [deleted] = await db.batch(batchLed(deletion, statements));
   return deleted.length > 0;
 }
 

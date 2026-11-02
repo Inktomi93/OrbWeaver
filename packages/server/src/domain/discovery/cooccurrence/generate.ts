@@ -76,7 +76,7 @@ function tallyDigest(d: NormalizedDigest, pairCount: Map<string, Map<string, num
  */
 function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
   const pairCount = new Map<string, Map<string, number>>();
-  const charKw = new Map<string, Map<string, number>>();
+  const charKw = new Map<CharacterId, Map<string, number>>();
   for (const d of digests) {
     tallyDigest(d, pairCount, charKw);
   }
@@ -89,7 +89,7 @@ function tallyCooccurrence(digests: readonly NormalizedDigest[]): OwnerTally {
   const charKeywords: OwnerTally["charKeywords"] = [];
   for (const [characterId, inner] of charKw) {
     for (const [keyword, count] of inner) {
-      charKeywords.push({ characterId: characterId as CharacterId, keyword, count });
+      charKeywords.push({ characterId, keyword, count });
     }
   }
   return { pairs, charKeywords };

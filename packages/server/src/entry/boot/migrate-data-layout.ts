@@ -34,6 +34,7 @@ import type { Env } from "#foundation/env/record";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { keyfileReport, readSessionSecretKeyfile } from "#infra/crypto";
+import { errnoCode, hasErrnoCode } from "#primitives/errno";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
 const LAYOUT_JOURNAL = ".layout-migration.json";
@@ -132,7 +133,7 @@ function pidAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "EPERM";
+    return hasErrnoCode(err, "EPERM");
   }
 }
 
@@ -307,7 +308,7 @@ function applyMove(root: string, move: PlannedMove, rename: Rename): void {
     mkdirSync(dirname(to), { recursive: true });
     rename(from, to);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code ?? "unknown error";
+    const code = errnoCode(err) ?? "unknown error";
     // biome-ignore lint/style/useErrorCause: the cause is passed as the third argument; the rule only reads the second.
     throw new DataLayoutRefusal(
       "move-failed",
