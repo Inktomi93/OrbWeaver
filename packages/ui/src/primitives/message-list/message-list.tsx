@@ -7,7 +7,7 @@ import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefers
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
-import { composeRangeExtractor, everyRow, updateEdgeFades, usePrintAnchor, usePrinting } from "./list-window.ts";
+import { composeRangeExtractor, everyRow, updateEdgeFades, usePrinting } from "./list-window.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -260,8 +260,6 @@ export function MessageList<T>({
         });
   }, []);
 
-  usePrintAnchor(scrollRef, stickToBottomRef, virtualizer);
-
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
     virtualizer.scrollToEnd({ behavior: "auto" });
@@ -393,7 +391,9 @@ export function MessageList<T>({
         {virtualizer.getVirtualItems().map((virtualItem) => (
           <li
             key={virtualItem.key}
-            ref={virtualizer.measureElement}
+            // Nothing is measured while printing: the first measure of a row mounted for paper above a scrolled-up reader
+            // re-places every row below it, and paper flows rows statically, so the screen keeps its sizes and offsets.
+            ref={printing ? undefined : virtualizer.measureElement}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}
