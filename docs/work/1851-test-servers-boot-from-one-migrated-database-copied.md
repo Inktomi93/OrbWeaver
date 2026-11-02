@@ -23,4 +23,7 @@ One boot is timed before and after; the CT and Node suites stay green; a test th
 
 ## Evidence
 
+
+Plan: make the corpus harness a worker-scoped Playwright fixture (one composed server root per worker, today `createCorpusHarness` is called per test in 159 of the 341 CT files and nothing in `tests/support` is worker-scoped), and reset only data per test by copying a migrated template database. Move the call sites by codemod. The browser side already reuses the context (`reuseContext: true` in `playwright-ct.config.ts`).
+
 Filled at landing: what ran and where its output is.
