@@ -11,12 +11,10 @@
 // presentation and shared pair-row anatomy; identical-art equivalence classes collapse pairwise rows into
 // one finding (#564).
 
-import type { SimilarityGraphEdge, SimilarityGraphNode } from "@orb/contracts/discovery";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -84,18 +82,12 @@ function SimilarityBody(): ReactElement {
   );
 }
 
-/** The ranked edge list — a plain query so the two compute knobs re-rank in place (no tab re-suspend). */
+/** The ranked edge list. The two compute knobs re-rank in place: the list reads a deferred copy of them, so a knob
+ *  change keeps the old pairs on screen while the new read settles instead of re-suspending the tab. */
 function NearestPairs(): ReactElement {
-  const trpc = useTRPC();
   const [minSimilarity, setMinSimilarity] = useState(DEFAULT);
   const [maxNodes, setMaxNodes] = useState(DEFAULT);
-
-  const graph = useQuery(
-    trpc.discovery.similarityGraph.queryOptions({
-      ...(minSimilarity === DEFAULT ? {} : { minSimilarity: Number(minSimilarity) }),
-      ...(maxNodes === DEFAULT ? {} : { maxNodes: Number(maxNodes) }),
-    }),
-  );
+  const knobs = useDeferredValue({ minSimilarity, maxNodes });
 
   return (
     <Section heading="Nearest pairs">
@@ -107,39 +99,26 @@ function NearestPairs(): ReactElement {
           <ParamSelect items={MIN_SIMILARITY_ITEMS} label="Min similarity" onValueChange={setMinSimilarity} value={minSimilarity} />
           <ParamSelect items={MAX_NODES_ITEMS} label="Max nodes" onValueChange={setMaxNodes} value={maxNodes} />
         </Row>
-        <NearestPairsList
-          edges={graph.data?.edges ?? []}
-          error={graph.error}
-          isPending={graph.isPending}
-          nodes={graph.data?.nodes ?? []}
-          onRetry={graph.refetch}
-        />
+        <QueryBoundary
+          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the similarity graph" onRetry={retry} />}
+        >
+          <NearestPairsList maxNodes={knobs.maxNodes} minSimilarity={knobs.minSimilarity} />
+        </QueryBoundary>
       </Stack>
     </Section>
   );
 }
 
-type GraphNode = Pick<SimilarityGraphNode, "characterId" | "name">;
-
-function NearestPairsList({
-  isPending,
-  error,
-  onRetry,
-  nodes,
-  edges,
-}: {
-  readonly isPending: boolean;
-  readonly error: unknown;
-  readonly onRetry: () => void;
-  readonly nodes: readonly GraphNode[];
-  readonly edges: readonly SimilarityGraphEdge[];
-}): ReactElement {
-  if (isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;
-  }
-  if (error !== null) {
-    return <QueryErrorState label="the similarity graph" onRetry={onRetry} />;
-  }
+function NearestPairsList({ minSimilarity, maxNodes }: { readonly minSimilarity: string; readonly maxNodes: string }): ReactElement {
+  const trpc = useTRPC();
+  const { data: graph } = useSuspenseQuery(
+    trpc.discovery.similarityGraph.queryOptions({
+      ...(minSimilarity === DEFAULT ? {} : { minSimilarity: Number(minSimilarity) }),
+      ...(maxNodes === DEFAULT ? {} : { maxNodes: Number(maxNodes) }),
+    }),
+  );
+  const { nodes, edges } = graph;
   if (edges.length === 0) {
     return <Muted>No similarity edges at this threshold.</Muted>;
   }

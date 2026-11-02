@@ -11,7 +11,7 @@
 //
 // SOURCE TEXT is a read-only SCROLL REGION, not a `Textarea` (§2.2's rejected primitive): legacy dumped the
 // canon into a form control, which announces as an editable textbox, invites an edit that cannot be saved,
-// and does an instrument's job with a form part. It is also a SEPARATE non-suspending read
+// and does an instrument's job with a form part. It is also a SEPARATE read under its own boundary
 // (`get({includeText:true})`, legacy's own good call) so revealing megabytes never re-suspends the header.
 // Chunk-boundary visualization is deliberately NOT designed — no server read exposes chunk text.
 
@@ -272,22 +272,22 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
   );
 }
 
-/** The lazy full-text read — a separate NON-suspending query, so revealing it never re-suspends the header
- *  (which is exactly why the contract splits `get` from `get({includeText:true})`). */
+/** The lazy full-text read — a separate query under its own boundary, so revealing it never re-suspends the
+ *  header (which is exactly why the contract splits `get` from `get({includeText:true})`). */
 function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactElement {
-  const trpc = useTRPC();
-  const query = useQuery(trpc.databank.get.queryOptions({ id: documentId, includeText: true }));
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={3} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the source text" onRetry={retry} />}
+    >
+      <SourceTextBody documentId={documentId} />
+    </QueryBoundary>
+  );
+}
 
-  if (query.isPending) {
-    return <Text voice="gloss">Loading the source text…</Text>;
-  }
-  if (query.isError) {
-    return (
-      <Text tone="destructive" voice="gloss">
-        Couldn't load the source text.
-      </Text>
-    );
-  }
+function SourceTextBody({ documentId }: { readonly documentId: DocumentId }): ReactElement {
+  const trpc = useTRPC();
+  const query = useSuspenseQuery(trpc.databank.get.queryOptions({ id: documentId, includeText: true }));
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.

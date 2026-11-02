@@ -18,13 +18,12 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ContextTabBody } from "#components";
+import { ConfirmDialog, ContextTabBody, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
@@ -295,25 +294,28 @@ function classOf(snapshot: SnapshotRow): { word: string; tone: RenderHintTone } 
 const SNAPSHOT_PENDING_ROWS = 3;
 
 export function VersionsTab({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this card's versions" onRetry={retry} />}
+    >
+      <LoadedVersions state={state} liveDescription={liveDescription} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedVersions({ state, liveDescription }: { state: RefineryContextState; liveDescription: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const snapshots = useQuery(trpc.character.listSnapshots.queryOptions({ characterId: state.characterId }));
+  const { data: rows } = useSuspenseQuery(trpc.character.listSnapshots.queryOptions({ characterId: state.characterId }));
   const restore = useRestoreCharacterSnapshot({ trpc, invalidation });
   const [compareId, setCompareId] = useState<SnapshotRow["id"] | null>(null);
   // The LIST stays trimmed; the blob is fetched per selected snapshot (the paginate-the-list,
   // fetch-content-per-pair posture — the `getSnapshot` read).
   const comparing = useGatedQuery(compareId, (snapshotId) => trpc.character.getSnapshot.queryOptions({ characterId: state.characterId, snapshotId }));
   const snapshotNow = useSnapshotCharacterNow({ trpc, invalidation });
-  // "NO VERSIONS YET" IS A CLAIM ABOUT THE SNAPSHOT LOG. `snapshots.data ?? []` would collapse three states
-  // into that one sentence — and its empty state offers to MINT the first snapshot, so a reader whose list
-  // merely failed to load would be invited to write a version of a card that already has a dozen.
-  if (snapshots.isError) {
-    return <QueryErrorState label="this card's versions" onRetry={(): void => void snapshots.refetch().catch(globalThis.reportError)} />;
-  }
-  if (snapshots.isPending) {
-    return <SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />;
-  }
-  const rows = snapshots.data;
+  // "No versions yet" is a claim about the snapshot log, and its empty state offers to mint the first snapshot: a list that
+  // failed to load reaches the boundary's error block, never this empty state.
   if (rows.length === 0) {
     return (
       <EmptyState

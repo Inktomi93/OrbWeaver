@@ -17,10 +17,9 @@ import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { CharacterPicker, FaceStrip } from "#components";
-import { useTRPC } from "#data";
+import { CharacterPicker, FaceStrip, QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter } from "#state";
 import { recentFaces } from "../lib/recent-faces.ts";
@@ -41,7 +40,7 @@ const FACES_LABEL = "Filter by character";
  *  sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
  *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
  *
- *  A plain bounded `useQuery`, NOT the pane's scoped collection: a shortcut row must not gate the pane's
+ *  A plain bounded read under its own `QueryBoundary`, NOT the pane's scoped collection: a shortcut row must not gate the pane's
  *  chrome on a fetch, and the strip is what you pick the filter FROM — reading the character-scoped page
  *  would collapse it to the one face already selected. An unresolved read RESERVES the strip's box
  *  (`pending` — measured: rendering nothing shoved the search field and the whole row list 74px on
@@ -53,14 +52,37 @@ const FACES_LABEL = "Filter by character";
  *  second, blinder answer to the same question. What the curation cannot know is the character you scoped
  *  the pane to from the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so
  *  she is prepended as a face — the strip must never be filtering by someone who is not in it. */
-export function ChatListFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
+export function ChatListFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<FacesStripView characterFilter={characterFilter} chats={[]} pending={true} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}
+    >
+      <LoadedFacesStrip characterFilter={characterFilter} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement {
   const trpc = useTRPC();
-  const { data: page, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
+  return <FacesStripView characterFilter={characterFilter} chats={page.items} pending={false} />;
+}
+
+function FacesStripView({
+  characterFilter,
+  chats,
+  pending,
+}: {
+  readonly characterFilter: ChatListCharacterFilter | null;
+  readonly chats: Parameters<typeof recentFaces>[0];
+  readonly pending: boolean;
+}): ReactElement {
   // ONE read decides a face now (#192): the chat rows carry their own seats, so there is no second
   // `character.list` landing for the strip to pop in on — which is what the reservation used to have to
   // wait for as well. The scoped character still comes from the FILTER (she may have no chats at all yet,
   // and a row-sourced strip knows nothing about a character with no rows), so her face rides it too.
-  const recent = recentFaces(page?.items ?? []);
+  const recent = recentFaces(chats);
   const scopedFace =
     characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
       ? [{ avatarHash: characterFilter.avatarHash, id: characterFilter.id, name: characterFilter.name }]
@@ -109,7 +131,7 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
       // arrival — the strip mounted above the search field and pushed the field + the whole row list down,
       // §4.3 rule 7). `isPending` is "no answer yet", never "no faces": a settled empty answer still renders
       // nothing, which is this strip's own ruling.
-      pending={chatsPending}
+      pending={pending}
       overflow={{
         label: "Filter by another character",
         // EXCLUDE THE FACES ALREADY ON THE ROW (side-eye 2026-08-03 P3): the tile says `+N More` and then

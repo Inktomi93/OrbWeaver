@@ -10,10 +10,9 @@
 // note per tier boundary, so a member SEES that more exists without leaking it. Markdown renders
 // UNTRUSTED (the safe floor — a viewer looking at another owner's card gets no trusted-HTML escalation).
 //
-// The read is GATED on `open` (useQuery `enabled`) — never eager per roster row — and uses the plain
-// (non-suspense) query so the thrown read error can be DISCRIMINATED: a transport NOT_FOUND (a
-// non-participant, or a character no longer in the roster) is a TYPED gone-arm (the invite-dialog /
-// dangling-pointer precedent), NEVER a swallowed catch; any other failure stays the transient Retry arm.
+// The read suspends under a QueryBoundary mounted only while the dialog is open — never eager per roster row.
+// The boundary's error render receives the thrown error, so a transport NOT_FOUND (a non-participant, or a
+// character no longer in the roster) is a TYPED gone-arm, NEVER a swallowed catch; any other failure stays the Retry arm.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
@@ -29,10 +28,9 @@ import { Markdown } from "@orb/ui/markdown";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { EditableTagChip, ViewerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { EditableTagChip, QueryBoundary, ViewerDialog } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
 
 export interface MemberCardViewerProps {
@@ -48,80 +46,93 @@ function isNotFound(error: unknown): boolean {
   return trpcErrorCode(error) === "NOT_FOUND";
 }
 
-export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement {
-  const trpc = useTRPC();
-  const card = useQuery({
-    ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }),
-    // Gated: the key is built (and the server hit) ONLY while the dialog is open — never eager per row.
-    enabled: open,
-    // A card that vanished from the roster shouldn't retry a NOT_FOUND into a spinner; the transient
-    // arm keeps the default retry. `retry` here is the read-level guard; the render arm decides copy.
-    retry: (_count, error): boolean => !isNotFound(error),
-  });
+const PENDING_TITLE = "Member";
+const TRANSIENT_RETRIES = 2;
 
+/** The dialog shell shared by the pending, gone/failed and loaded states, so the title and Close stay put while the read settles. */
+function MemberCardShell({
+  title,
+  open,
+  onOpenChange,
+  headerLeading = null,
+  children,
+}: {
+  readonly title: string;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly headerLeading?: ReactNode;
+  readonly children: ReactNode;
+}): ReactElement {
   return (
     <ViewerDialog
-      title={card.isError && isNotFound(card.error) ? "Card unavailable" : (card.data?.name ?? "Character card")}
+      title={title}
       open={open}
       onOpenChange={onOpenChange}
       popupProps={{ size: "lg", "data-testid": testId("memberCardViewer") }}
       titleProps={{ className: "truncate" }}
-      headerLeading={
-        card.data === undefined ? null : (
-          <Avatar
-            size="lg"
-            fallbackDelay={0}
-            hueSeed={card.data.characterId}
-            {...(card.data.avatarHash === null ? {} : { src: blobUrl(card.data.avatarHash) })}
-          >
-            {initialsFor(card.data.name)}
-          </Avatar>
-        )
-      }
+      headerLeading={headerLeading}
     >
-      <MemberCardBody
-        onManage={(): void => onOpenChange(false)}
-        isError={card.isError}
-        error={card.error}
-        data={card.data}
-        onRetry={(): void => void card.refetch().catch(globalThis.reportError)}
-      />
+      {children}
     </ViewerDialog>
   );
 }
 
-/** The load/gone/error/loaded dispatch. NOT_FOUND is its OWN typed arm (never the transient Retry). */
-function MemberCardBody({
-  isError,
-  error,
-  data,
-  onRetry,
-  onManage,
-}: {
-  readonly isError: boolean;
-  readonly error: unknown;
-  readonly data: MemberCardView | undefined;
-  readonly onRetry: () => void;
-  readonly onManage: () => void;
-}): ReactElement {
-  if (isError) {
-    // action={null}: the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
-    if (isNotFound(error)) {
-      return (
-        <EmptyState
-          action={null}
-          icon={<Icon icon={EyeOff} size="lg" />}
-          title="This card isn't available"
-          description="This character has left the chat, or you no longer have access to it."
-        />
-      );
-    }
-    return <QueryErrorState label="this character card" onRetry={onRetry} />;
+// The read exists only while the dialog is open, so it is never eager per roster row.
+export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement | null {
+  if (!open) {
+    return null;
   }
-  if (data === undefined) {
-    return <SkeletonRows count={5} shape="line" />;
-  }
-  return <MemberCard card={data} onManage={onManage} />;
+  return (
+    <QueryBoundary
+      fallback={
+        <MemberCardShell title={PENDING_TITLE} open={open} onOpenChange={onOpenChange}>
+          <SkeletonRows count={5} shape="line" />
+        </MemberCardShell>
+      }
+      renderError={(error, retry): ReactElement =>
+        isNotFound(error) ? (
+          <MemberCardShell title="Card unavailable" open={open} onOpenChange={onOpenChange}>
+            {/* action={null}: the D22 NOT_FOUND gone-arm — the character left the chat, or access was revoked. There is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at. */}
+            <EmptyState
+              action={null}
+              icon={<Icon icon={EyeOff} size="lg" />}
+              title="This card isn't available"
+              description="This character has left the chat, or you no longer have access to it."
+            />
+          </MemberCardShell>
+        ) : (
+          <MemberCardShell title={PENDING_TITLE} open={open} onOpenChange={onOpenChange}>
+            <QueryErrorState label="this character card" onRetry={retry} />
+          </MemberCardShell>
+        )
+      }
+    >
+      <LoadedMemberCard chatId={chatId} characterId={characterId} open={open} onOpenChange={onOpenChange} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedMemberCard({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement {
+  const trpc = useTRPC();
+  const { data: card } = useSuspenseQuery({
+    ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }),
+    // A card that vanished from the roster is a typed gone state, so a NOT_FOUND is not retried; any other failure retries like the shared default and then fails.
+    retry: (failureCount, error): boolean => failureCount < TRANSIENT_RETRIES && !isNotFound(error),
+  });
+  return (
+    <MemberCardShell
+      title={card.name}
+      open={open}
+      onOpenChange={onOpenChange}
+      headerLeading={
+        <Avatar size="lg" fallbackDelay={0} hueSeed={card.characterId} {...(card.avatarHash === null ? {} : { src: blobUrl(card.avatarHash) })}>
+          {initialsFor(card.name)}
+        </Avatar>
+      }
+    >
+      <MemberCard card={card} onManage={(): void => onOpenChange(false)} />
+    </MemberCardShell>
+  );
 }
 
 const VISIBILITY_LABEL: Record<MemberCardVisibility, string> = {

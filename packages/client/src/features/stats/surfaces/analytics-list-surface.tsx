@@ -3,8 +3,8 @@
 // create action.
 //
 // Search must reach beyond the page cap, not filter only loaded rows. analytics-search-store lets the band
-// census and surface rows read the same narrowed query; keepPreviousData retains rows while the next
-// request resolves. VirtualList bounds DOM and emits list semantics, while useLeaderboardRoving gives row
+// census and surface rows read the same narrowed query; the deferred key retains rows while the next
+// request resolves (a deferred key under the boundary). VirtualList bounds DOM and emits list semantics, while useLeaderboardRoving gives row
 // bodies one tab stop with Arrow/Home/End navigation.
 
 import type { CharacterId } from "@orb/kit/ids";
@@ -15,13 +15,12 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
-import { LibraryRow, ListPage } from "#components";
+import { useDeferredValue, useRef, useState } from "react";
+import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
@@ -84,67 +83,46 @@ export function AnalyticsListSurface(): ReactElement {
 }
 
 function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly search: string }): ReactElement {
-  const trpc = useTRPC();
-  const selectedId = useSelectedAnalyticsCharacterId();
   // The roving container is the ALWAYS-MOUNTED wrapper below, not the rows arm: the rows appear on a later
   // commit (the query resolves after the skeleton), and a ref attached only to that arm is null when the
   // hook's mount effect runs. The wrapper is stable, so its `childList`/`tabindex` observer catches the
   // windowed rows the moment `VirtualList` mounts them.
   const rowsRef = useRef<HTMLDivElement>(null);
   useLeaderboardRoving(rowsRef);
-  // `useQuery` + `keepPreviousData` (not `useSuspenseQuery`): a search keystroke re-keys the page, and
-  // suspending would blank the list to a skeleton on every character typed. The empty/error arms are handled
-  // inline for the same reason — a boundary cannot keep the prior rows visible.
-  const trimmed = search.trim();
-  const {
-    data: page,
-    isPending,
-    isError,
-    refetch,
-  } = useQuery(trpc.stats.leaderboard.queryOptions({ sort, ...(trimmed === "" ? {} : { search: trimmed }) }, { placeholderData: keepPreviousData }));
-
   // The bounded height is this wrapper's — `VirtualList` throws at mount on an unbounded scroll element — and
   // it is also the roving container (the Arrow-key contract over the windowed row bodies).
   return (
     <Stack ref={rowsRef} className="flex-1 min-block-0">
-      <LeaderboardBody
-        isError={isError}
-        isPending={isPending}
-        onRetry={(): void => void refetch().catch(globalThis.reportError)}
-        page={page}
-        selectedId={selectedId}
-        trimmed={trimmed}
-      />
+      <QueryBoundary
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
+      >
+        <LeaderboardPageRows sort={sort} search={search} />
+      </QueryBoundary>
     </Stack>
   );
 }
 
+function LeaderboardPageRows({ sort, search }: { readonly sort: SortId; readonly search: string }): ReactElement {
+  const trpc = useTRPC();
+  const selectedId = useSelectedAnalyticsCharacterId();
+  // A search keystroke re-keys the page. The deferred key keeps the prior rows on screen while the next page
+  // loads, so only the first load shows the boundary's skeleton.
+  const trimmed = useDeferredValue(search.trim());
+  const deferredSort = useDeferredValue(sort);
+  const { data: page } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort: deferredSort, ...(trimmed === "" ? {} : { search: trimmed }) }));
+  return <LeaderboardBody page={page} selectedId={selectedId} trimmed={trimmed} />;
+}
+
 function LeaderboardBody({
-  isPending,
-  isError,
-  onRetry,
   page,
   selectedId,
   trimmed,
 }: {
-  readonly isPending: boolean;
-  readonly isError: boolean;
-  readonly onRetry: () => void;
-  readonly page: { readonly rows: readonly LeaderboardPageRow[]; readonly total: number } | undefined;
+  readonly page: { readonly rows: readonly LeaderboardPageRow[]; readonly total: number };
   readonly selectedId: CharacterId | null;
   readonly trimmed: string;
 }): ReactElement {
-  // The error arm MUST win before the undefined-page skeleton: on a first-load failure the query settles
-  // with `isError` true AND `page` still undefined, so a `page === undefined` skeleton check first would
-  // pin a PERMANENT skeleton and the retry affordance would be unreachable. `keepPreviousData` keeps prior
-  // rows (a defined page) across a keystroke, so this only blanks to the error surface when there is
-  // genuinely nothing to keep showing.
-  if (isError) {
-    return <QueryErrorState label="the leaderboard" onRetry={onRetry} />;
-  }
-  if (isPending || page === undefined) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
   if (page.rows.length === 0) {
     return trimmed === "" ? (
       <Text voice="gloss">No characters have any rolled-up activity yet.</Text>

@@ -6,25 +6,24 @@
 // the title/helper inaccessible in a small prompt. A prompt has no safe overlay space above or below its
 // single field.
 //
-// tag.listTagsWithUsage shares the management collection query key and runs only while open. Opening
-// beside a loaded roster is a cache hit; opening from the character library can require a fetch. Pending,
-// failed, and empty reads remain distinct states with a visible retry; data ?? [] must not invite
-// duplicate creation while the library is unresolved.
+// tag.listTagsWithUsage shares the management collection query key and suspends only while open, under a
+// QueryBoundary. Opening beside a loaded roster is a cache hit; opening from the character library can
+// require a fetch. The dialog shows the shared skeleton or error block until the library is known, so
+// an unresolved library never invites duplicate creation.
 //
 // Suggestions omit already attached tags, but the exact-name decision examines the whole library (#1488).
 // An attached exact match refuses both confirm and Enter and explains why. A case-insensitive existing
 // match submits the library's canonical spelling, not the typed spelling.
 
 import { Autocomplete } from "@orb/ui/autocomplete";
-import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
-import { useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { sortTagsBy } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
+import { QueryBoundary } from "./query-boundary.tsx";
 import { TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
 
 /** How many suggestions the inline list renders at once — a scroll of 400 is not a suggestion list (the
@@ -52,23 +51,39 @@ const NONE: readonly never[] = [];
 
 /** The tag-name prompt — a suggesting "Tag name" field over the existing library + a required-non-empty
  *  confirm that names its arm, over FormDialog. */
-export function TagPickerDialog({ open, onOpenChange, title, description, confirmLabel, attachedNames = NONE, onSubmit }: TagPickerDialogProps): ReactElement {
+export function TagPickerDialog(props: TagPickerDialogProps): ReactElement | null {
+  const { open, onOpenChange, title, description } = props;
+  // Mounted only while open: a closed picker costs nothing, the library key is shared with the Tags roster's own read,
+  // and the typed name resets with the unmount.
+  if (!open) {
+    return null;
+  }
+  const shell = (body: ReactNode): ReactElement => (
+    <FormDialog description={description} dismissLabel="Close" onOpenChange={onOpenChange} open={open} title={title}>
+      {body}
+    </FormDialog>
+  );
+  return (
+    <QueryBoundary
+      fallback={shell(<SkeletonRows count={2} />)}
+      renderError={(_error, retry): ReactElement => shell(<QueryErrorState label="your tags" onRetry={retry} />)}
+    >
+      <LoadedTagPicker {...props} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedTagPicker({ open, onOpenChange, title, description, confirmLabel, attachedNames = NONE, onSubmit }: TagPickerDialogProps): ReactElement {
   const trpc = useTRPC();
   const [name, setName] = useState("");
   const helperId = useId();
-  // Gated on `open`: a closed picker costs nothing, and the key is shared with the Tags roster's own read.
-  const libraryQuery = useQuery({ ...trpc.tag.listTagsWithUsage.queryOptions(), enabled: open });
-  const library = libraryQuery.data ?? [];
+  const { data: library } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
 
   const attached = new Set(attachedNames.map((n) => n.toLowerCase()));
   // Most-used first — the same comparator the tag roster's default mode uses, because the tag you reach
   // for most is the one most likely to be the near-duplicate you were about to retype.
   const candidates = sortTagsBy(library, "used").filter((tag) => !attached.has(tag.name.toLowerCase()));
-  const state = pickerState(libraryQuery.isPending, libraryQuery.isError, library.length, candidates.length);
-  // Whether the library is KNOWN. Everything that claims a fact about it — "creates a new tag", the count,
-  // the `Create "x"` confirm — is gated on this: an unread library cannot tell create from attach, and
-  // guessing is how the confirm ends up naming the wrong one of the two things it is about to do.
-  const known = state !== "loading" && state !== "error";
+  const state = pickerState(library.length, candidates.length);
 
   const trimmed = name.trim();
   // MATCHED AGAINST THE WHOLE LIBRARY, never the offered candidates. `candidates` has the attached names
@@ -78,7 +93,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
   // question "does this name already name a tag" is the library's.
   const existing = library.find((tag) => tag.name.toLowerCase() === trimmed.toLowerCase());
   const alreadyAttached = existing !== undefined && attached.has(existing.name.toLowerCase());
-  const creating = known && trimmed !== "" && existing === undefined;
+  const creating = trimmed !== "" && existing === undefined;
   // WE filter (`mode="none"` — Base UI shows exactly what we hand it) so the match count driving the list
   // is the same number it renders. Letting Base UI filter would mean guessing its predicate.
   //
@@ -151,34 +166,18 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           <Text aria-live="polite" className="flex-1 min-inline-0" id={helperId} voice="gloss">
             {helperText(state, candidates.length, trimmed, existing === undefined ? undefined : { name: existing.name, attached: alreadyAttached })}
           </Text>
-          {state === "error" ? (
-            <Button variant="outline" onClick={(): void => void libraryQuery.refetch().catch(globalThis.reportError)} size="sm" type="button">
-              Try again
-            </Button>
-          ) : null}
         </Row>
       </Stack>
     </FormDialog>
   );
 }
 
-/** The five situations a suggestion source can be in — they are NOT one "empty" state. Three of them are
- *  about the LIBRARY ("you have no tags at all", "you already have them all here", "you have some, start
- *  typing") and two are about the READ ("still loading", "the read failed"), and a picker that says the
- *  first sentence while in either of the last two is lying about the user's own data. None of the five is a
- *  dead end — every one of them still leads to creating. */
-const PICKER_STATES = ["loading", "error", "empty", "exhausted", "ready"] as const;
+/** The three situations a loaded suggestion source can be in: you have no tags at all, you already have them all
+ *  here, or you have some to search. None is a dead end — every one still leads to creating. */
+const PICKER_STATES = ["empty", "exhausted", "ready"] as const;
 type PickerState = (typeof PICKER_STATES)[number];
 
-function pickerState(isPending: boolean, isError: boolean, libraryCount: number, candidateCount: number): PickerState {
-  if (isError) {
-    return "error";
-  }
-  // `isPending` (not `isFetching`): it stays true from the enabling of the query until the FIRST result, so
-  // there is no frame in which the empty-library sentence renders over a library that simply hasn't arrived.
-  if (isPending) {
-    return "loading";
-  }
+function pickerState(libraryCount: number, candidateCount: number): PickerState {
   if (libraryCount === 0) {
     return "empty";
   }
@@ -187,9 +186,6 @@ function pickerState(isPending: boolean, isError: boolean, libraryCount: number,
 
 /** What the resting field says per state — a total Record (a sixth state is a tsc error). */
 const RESTING_COPY: Record<PickerState, string | null> = {
-  // No COUNT here: claiming a number while the read is in flight or broken is the defect, one sentence over.
-  loading: "Loading your tags…",
-  error: "Couldn't load your tags. You can still type a name — an existing one will be reused.",
   empty: "No tags yet — the name you type becomes your first one.",
   exhausted: "Every tag you have is already attached. A new name creates a new tag.",
   // `ready` counts its candidates, so its sentence is built rather than stored.
@@ -206,11 +202,6 @@ function helperText(
   match: { readonly name: string; readonly attached: boolean } | undefined,
 ): string {
   if (trimmed !== "") {
-    // Without the library there is no create-vs-attach FACT to state, so the sentence states the OUTCOME
-    // both arms share (the server folds case on create, so this is true either way).
-    if (state === "loading" || state === "error") {
-      return `Applies the tag "${trimmed}".`;
-    }
     if (match === undefined) {
       return `Creates a new tag "${trimmed}".`;
     }

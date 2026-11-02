@@ -20,36 +20,15 @@ import { Button } from "@orb/ui/button";
 import { Icon, Library } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_WHOLE_LABEL } from "#lib";
 import { useSelectedCorpusDestination } from "#state";
 import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 export function CorpusContextHeader(): ReactElement {
-  const trpc = useTRPC();
   const subject = useSelectedCorpusDestination();
-  const catalog = useQuery(trpc.discovery.catalog.queryOptions(undefined, { enabled: subject === null }));
-  const distilled = catalog.data?.totalDistilled ?? 0;
-  const count = distilledCensus(distilled, catalog.data?.totalCharacters ?? 0);
-
-  // A FAILED CENSUS IS NOT A ZERO CENSUS (#1500). `catalog?.totalDistilled ?? 0` hid a failed read behind the
-  // same silence as a library with nothing distilled — the band simply lost its number, which reads as "no
-  // distilled cards" to the one reader who would notice. The failed arm states itself and carries the
-  // re-read; it is a button rather than a line because a band has no other way to offer one, and it only ever
-  // exists in the state that earns it.
-  let census: ReactElement | null = null;
-  if (catalog.isError) {
-    census = (
-      <Button variant="ghost" onClick={(): void => void catalog.refetch().catch(globalThis.reportError)} size="sm" type="button">
-        Census unavailable — retry
-      </Button>
-    );
-  } else if (distilled > 0) {
-    census = <Text voice="datumMono">{count}</Text>;
-  }
-
   return (
     <Row align="center" gap="field" className="min-inline-0">
       <Icon icon={Library} size="sm" />
@@ -57,7 +36,30 @@ export function CorpusContextHeader(): ReactElement {
       <Text className="truncate" voice="promoted">
         {subject === null ? CORPUS_WHOLE_LABEL : "Selected artifact"}
       </Text>
-      {subject === null ? census : null}
+      {/* The count is the only part that reads: it sits in its own boundary, so the band itself never suspends. */}
+      {subject === null ? (
+        // A FAILED CENSUS IS NOT A ZERO CENSUS: the failed arm states itself and carries the re-read. It is a
+        // button rather than the shared block because a band has no room for one, and nothing shows while it pends.
+        <QueryBoundary
+          fallback={null}
+          renderError={(_error, retry): ReactElement => (
+            <Button variant="ghost" onClick={retry} size="sm" type="button">
+              Census unavailable — retry
+            </Button>
+          )}
+        >
+          <Census />
+        </QueryBoundary>
+      ) : null}
     </Row>
   );
+}
+
+function Census(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: catalog } = useSuspenseQuery(trpc.discovery.catalog.queryOptions());
+  if (catalog.totalDistilled === 0) {
+    return null;
+  }
+  return <Text voice="datumMono">{distilledCensus(catalog.totalDistilled, catalog.totalCharacters)}</Text>;
 }
