@@ -274,7 +274,20 @@ function parseRpcError(errorValue: unknown): RpcError | undefined {
 
 const BYTE_TAG = "$orbBytes";
 const UNDEFINED_TAG = "$orbUndefined";
+// Guest data must never decode as a tag, so every data key in this reserved prefix crosses escaped. A bare
+// reserved key on the wire is therefore always the encoder's own tag. Escaping the key adds no nesting, so
+// `PROCESS_VALUE_MAX_DEPTH` keeps its meaning for marker-shaped data.
+const RESERVED_KEY_PREFIX = "$orb";
+const ESCAPED_KEY_PREFIX = `${RESERVED_KEY_PREFIX}Escaped:`;
 const PROCESS_VALUE_MAX_DEPTH = 128;
+
+function encodeKey(key: string): string {
+  return key.startsWith(RESERVED_KEY_PREFIX) ? `${ESCAPED_KEY_PREFIX}${key}` : key;
+}
+
+function decodeKey(key: string): string {
+  return key.startsWith(ESCAPED_KEY_PREFIX) ? key.slice(ESCAPED_KEY_PREFIX.length) : key;
+}
 
 function encodeAtDepth(value: unknown, depth: number): unknown {
   if (depth > PROCESS_VALUE_MAX_DEPTH) {
@@ -290,7 +303,7 @@ function encodeAtDepth(value: unknown, depth: number): unknown {
     return value.map((child) => encodeAtDepth(child, depth + 1));
   }
   if (isRecord(value)) {
-    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, encodeAtDepth(child, depth + 1)]));
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [encodeKey(key), encodeAtDepth(child, depth + 1)]));
   }
   return value;
 }
@@ -315,7 +328,7 @@ function decodeAtDepth(encoded: unknown, depth: number): unknown {
   if (typeof encoded[BYTE_TAG] === "string" && Object.keys(encoded).length === 1) {
     return Uint8Array.from(Buffer.from(encoded[BYTE_TAG], "base64"));
   }
-  return Object.fromEntries(Object.entries(encoded).map(([key, child]) => [key, decodeAtDepth(child, depth + 1)]));
+  return Object.fromEntries(Object.entries(encoded).map(([key, child]) => [decodeKey(key), decodeAtDepth(child, depth + 1)]));
 }
 
 export function decodeProcessValue(value: unknown): unknown {
