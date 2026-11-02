@@ -16,10 +16,10 @@ const SERVED = [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES].filter((path) 
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
 
-async function openArchetypes(page: Page): Promise<ReturnType<Page["locator"]>> {
+async function openContextTab(page: Page, tab: string): Promise<ReturnType<Page["locator"]>> {
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   const context = page.locator(CONTEXT);
-  await context.getByRole("tab", { name: "Archetypes", exact: true }).click();
+  await context.getByRole("tab", { name: tab, exact: true }).click();
   return context;
 }
 
@@ -42,7 +42,7 @@ test("a held catalog read shows the loading skeleton, a failed one the shared er
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openArchetypes(page);
+  const context = await openContextTab(page, "Archetypes");
   await hold.requested;
   await expect(context.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
@@ -72,7 +72,7 @@ test("a failed art-archetypes read says so in its own section and leaves the wri
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openArchetypes(page);
+  const context = await openContextTab(page, "Archetypes");
   await hold.requested;
   await expect(context.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
@@ -81,4 +81,71 @@ test("a failed art-archetypes read says so in its own section and leaves the wri
   failing = false;
   await context.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(context.getByText("Couldn't load the art archetypes.", { exact: true })).toHaveCount(0);
+});
+
+const SIMILARITY_READS = ["discovery.duplicateCharacters", "discovery.duplicateChats", "discovery.imageDuplicates"] as const;
+
+test("a held nearest-pairs read shows the loading skeleton, a failed one the shared error block, and Retry refetches", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
+  let held = false;
+  let failing = true;
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, SIMILARITY_READS),
+    ...serveCorpusProcedures(caller, ["discovery.catalog", "discovery.visualArchetypes"]),
+    ...serveCorpusProcedures(caller, ["discovery.similarityGraph"], () => {
+      if (!held) {
+        held = true;
+        return hold;
+      }
+      return failing ? trpcError() : undefined;
+    }),
+  });
+  await seedShellState(page, { activeSection: "corpus" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  const context = await openContextTab(page, "Similarity");
+  await hold.requested;
+  await expect(context.locator('[aria-busy="true"]')).toBeVisible();
+  hold.fail();
+  await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toBeVisible();
+  failing = false;
+  await context.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toHaveCount(0);
+  await expect(context.getByRole("combobox", { name: "Min similarity" })).toBeVisible();
+});
+
+test("changing a nearest-pairs knob keeps the settled pairs on screen while the new read is held", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const hold = holdServed();
+  let reads = 0;
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, SERVED),
+    ...serveCorpusProcedures(caller, SIMILARITY_READS),
+    ...serveCorpusProcedures(caller, ["discovery.catalog", "discovery.visualArchetypes"]),
+    ...serveCorpusProcedures(caller, ["discovery.similarityGraph"], () => {
+      reads += 1;
+      return reads === 2 ? hold : undefined;
+    }),
+  });
+  await seedShellState(page, { activeSection: "corpus" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  const context = await openContextTab(page, "Similarity");
+  const knob = context.getByRole("combobox", { name: "Min similarity" });
+  await expect(knob).toBeVisible();
+  await expect(context.locator('[aria-busy="true"]')).toHaveCount(0);
+  const settled = await context
+    .getByText(/pairs|No similarity edges at this threshold\./u)
+    .first()
+    .textContent();
+  await knob.click();
+  await page.getByRole("option", { name: "90%", exact: true }).click();
+  await hold.requested;
+  await expect(knob).toContainText("90%");
+  await expect(context.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expect(context.getByText(settled ?? "", { exact: true }).first()).toBeVisible();
+  hold.release();
+  await expect(context.locator('[aria-busy="true"]')).toHaveCount(0);
 });
