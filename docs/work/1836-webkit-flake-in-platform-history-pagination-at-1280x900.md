@@ -1,13 +1,12 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
-priority: P2
-area: client
-plan: css-system
+updated: 2026-11-02
+priority: P3
+area: testing
 ---
 
-# New chat dialog left-clips at 200% and 300%, and printing a room gives blank pages
+# WebKit flake in platform-history-pagination at 1280x900 flat
 
 ## What
 

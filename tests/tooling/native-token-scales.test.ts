@@ -257,7 +257,8 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.
     expect(lintWith(RESTRICTED_RULE, PLANTED_CONSTANTS), path).toHaveLength(PLANTED_CONSTANT_HITS + 2 * pointerRefusals);
-    expect(lintWith(RESTRICTED_RULE, PLANTED_BINDINGS), path).toHaveLength(PLANTED_BINDING_RESTRICTED + pointerRefusals);
+    // Client features refuse two more bindings: the pointer variant, and `rounded-l-none` as a raw radius.
+    expect(lintWith(RESTRICTED_RULE, PLANTED_BINDINGS), path).toHaveLength(PLANTED_BINDING_RESTRICTED + 2 * pointerRefusals);
     expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_BINDINGS)), path).toEqual(PLANTED_BINDING_PHYSICAL);
     expect(physicalIn(lintWith(LOGICAL_RULE, PLANTED_CALL_IN_LOGICAL)), path).toEqual(PLANTED_CALL_IN_LOGICAL_PHYSICAL);
     // The scoped patterns: viewport variants and raw widths everywhere outside the shell, pointer variants in features only.

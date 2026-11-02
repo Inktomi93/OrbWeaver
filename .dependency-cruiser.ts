@@ -412,6 +412,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
+  "packages/client/src/features/chat/lib/transcript-copy.ts": "CHAT_PRINT_COVERAGE: the printed line for a partial transcript",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
     "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery picker and message confirm names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",

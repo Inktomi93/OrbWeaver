@@ -1,13 +1,13 @@
 ---
-kind: bug
+kind: work
 status: open
-updated: 2026-11-01
-priority: P2
+updated: 2026-11-02
+priority: P3
 area: client
 plan: css-system
 ---
 
-# New chat list window at phone 300% text
+# Rendered review of New chat and print after the lint branch merge
 
 ## What
 
@@ -24,5 +24,3 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
-
-- 9d19cd84ee fixed the phone 300% list window. Desktop 300% New chat is still open, so this item stays open for it.
