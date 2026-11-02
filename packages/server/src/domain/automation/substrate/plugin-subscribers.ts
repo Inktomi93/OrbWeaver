@@ -22,8 +22,8 @@ import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
-import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
@@ -115,7 +115,13 @@ async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floo
     return fact.message.seq < floorSeq;
   }
   if (fact.reaction !== undefined && fact.chatId !== null) {
-    const anchor = await deps.getMessageFact(castId<ChatId>(fact.chatId), castId<MessageId>(fact.reaction.messageId));
+    const chatId = typeIdSchema(ID_PREFIX.chat).safeParse(fact.chatId);
+    const messageId = typeIdSchema(ID_PREFIX.message).safeParse(fact.reaction.messageId);
+    // A malformed anchor names no message, so it is withheld like a raced delete.
+    if (!(chatId.success && messageId.success)) {
+      return true;
+    }
+    const anchor = await deps.getMessageFact(chatId.data, messageId.data);
     return anchor === null || anchor.seq < floorSeq;
   }
   return false;
@@ -123,9 +129,13 @@ async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floo
 
 async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fact: TriggerFact): Promise<FactVisibility> {
   if (fact.chatId !== null) {
-    // Ids arrive UNBRANDED (the TriggerFact wire shape) and are re-branded only to query — a re-read gate,
-    // never a trust transfer. A garbage/forged chatId resolves to no membership ⇒ `null` ⇒ no delivery.
-    const visibility = await deps.resolveViewerVisibility(castId<ChatId>(fact.chatId), installer);
+    // Ids arrive UNBRANDED (the TriggerFact wire shape) and are parsed only to query — a re-read gate, never a
+    // trust transfer. A malformed chatId fails the parse and a forged one resolves to no membership: no delivery.
+    const chatId = typeIdSchema(ID_PREFIX.chat).safeParse(fact.chatId);
+    if (!chatId.success) {
+      return { visible: false };
+    }
+    const visibility = await deps.resolveViewerVisibility(chatId.data, installer);
     if (visibility === null) {
       return { visible: false };
     }

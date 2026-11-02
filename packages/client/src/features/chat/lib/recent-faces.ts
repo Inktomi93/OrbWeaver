@@ -24,8 +24,8 @@ export interface FaceSourceChat {
 }
 
 /** Distinct character seats in first-appearance order across `chats`. */
-export function recentFaces(chats: readonly FaceSourceChat[]): readonly FaceStripItem[] {
-  const faces: FaceStripItem[] = [];
+export function recentFaces(chats: readonly FaceSourceChat[]): readonly FaceStripItem<CharacterId>[] {
+  const faces: FaceStripItem<CharacterId>[] = [];
   const seen = new Set<string>();
   for (const chat of chats) {
     for (const seat of chat.participantPortraits) {

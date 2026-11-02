@@ -9,7 +9,7 @@
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
 
-import type { ModelId, PresetId, UserId } from "@orb/kit/ids";
+import type { Branded, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
@@ -952,10 +952,15 @@ const injectSchema = z
 type SectionInject = z.infer<typeof injectSchema>;
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+/** A prompt section's key inside its preset: authored or imported text, unique per preset, never an entity row id.
+ *  @remarks The assembly readout keys each section's cost by it, so the two sides join on one brand. */
+export type PromptSectionId = Branded<"PromptSectionId">;
+export const promptSectionIdSchema = brandedId("PromptSectionId");
+
 const literalSection = z
   .object({
     type: z.literal("literal"),
-    id: z.string().min(MIN_ID_LENGTH),
+    id: promptSectionIdSchema,
     name: z.string().max(MAX_NAME_LENGTH),
     role: z.enum(MESSAGE_ROLES).default("system"),
     content: z.string().max(MAX_TEXT_LENGTH),
@@ -969,7 +974,7 @@ const literalSection = z
 const plainMarkerSection = z
   .object({
     type: z.literal("marker"),
-    id: z.string().min(MIN_ID_LENGTH),
+    id: promptSectionIdSchema,
     name: z.string().max(MAX_NAME_LENGTH),
     marker: z.enum(PLAIN_MARKERS),
     role: z.enum(MESSAGE_ROLES).default("system"),
@@ -992,7 +997,7 @@ const plainMarkerSection = z
 const templatedMarkerSection = z
   .object({
     type: z.literal("marker"),
-    id: z.string().min(MIN_ID_LENGTH),
+    id: promptSectionIdSchema,
     name: z.string().max(MAX_NAME_LENGTH),
     marker: z.enum(TEMPLATED_MARKERS),
     role: z.enum(MESSAGE_ROLES).default("system"),
@@ -2815,7 +2820,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   sections: [
     {
       type: "marker",
-      id: "main",
+      id: promptSectionIdSchema.parse("main"),
       name: "Main",
       marker: "main_prompt",
       role: "system",
@@ -2826,7 +2831,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "wi-before",
+      id: promptSectionIdSchema.parse("wi-before"),
       name: "World info (before)",
       marker: "world_info_before",
       role: "system",
@@ -2834,7 +2839,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "char-desc",
+      id: promptSectionIdSchema.parse("char-desc"),
       name: "Description",
       marker: "char_description",
       role: "system",
@@ -2842,7 +2847,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "char-pers",
+      id: promptSectionIdSchema.parse("char-pers"),
       name: "Personality",
       marker: "char_personality",
       role: "system",
@@ -2850,7 +2855,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "scenario",
+      id: promptSectionIdSchema.parse("scenario"),
       name: "Scenario",
       marker: "scenario",
       role: "system",
@@ -2858,7 +2863,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "persona",
+      id: promptSectionIdSchema.parse("persona"),
       name: "User persona",
       marker: "persona",
       role: "system",
@@ -2866,7 +2871,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "wi-after",
+      id: promptSectionIdSchema.parse("wi-after"),
       name: "World info (after)",
       marker: "world_info_after",
       role: "system",
@@ -2874,7 +2879,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "examples",
+      id: promptSectionIdSchema.parse("examples"),
       name: "Dialogue examples",
       marker: "dialogue_examples",
       role: "system",
@@ -2883,7 +2888,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // THE PIVOT — sections before build the system block; sections after land after the conversation.
     {
       type: "marker",
-      id: "chat-history",
+      id: promptSectionIdSchema.parse("chat-history"),
       name: "Chat history",
       marker: "chat_history",
       role: "system",
@@ -2895,7 +2900,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // elsewhere.
     {
       type: "marker",
-      id: "memory",
+      id: promptSectionIdSchema.parse("memory"),
       name: "Memory",
       marker: "memory",
       role: "system",
@@ -2905,7 +2910,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // {{memory}}"; the rpg GM preset's `continuity` region, D58).
     {
       type: "marker",
-      id: "databank",
+      id: promptSectionIdSchema.parse("databank"),
       name: "Databank",
       marker: "databank",
       role: "system",
@@ -2913,7 +2918,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: "guided-instruction",
+      id: promptSectionIdSchema.parse("guided-instruction"),
       name: "Guided instruction",
       marker: "guided_instruction",
       role: "system",
@@ -2922,7 +2927,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // Post-history ("jailbreak") — after the pivot; a card's `post_history_instructions` overrides in place.
     {
       type: "marker",
-      id: "post-history",
+      id: promptSectionIdSchema.parse("post-history"),
       name: "Post-history",
       marker: "post_history",
       role: "system",
@@ -3131,7 +3136,7 @@ function overrideFields(prompt: StPrompt, marker: MarkerType): { template?: stri
 /** Build ONE section from an ST prompt + its prompt_order enabled flag. `dropped` collects the per-value
  *  clamps this section's foreign numbers needed (#1363). */
 function sectionFromPrompt(prompt: StPrompt, enabled: boolean, dropped: StDroppedField[]): PromptSection {
-  const id = prompt.identifier;
+  const id = promptSectionIdSchema.parse(prompt.identifier);
   const name = resolveSectionName(prompt.name, id);
   const marker = ST_IDENTIFIER_TO_MARKER[id];
   const inject = injectOf(prompt, dropped);

@@ -38,7 +38,6 @@ import type { SettingsImportOutcome } from "./import-results.ts";
 export type {
   AppearanceBackgroundFit,
   AppearanceSettings,
-  BackgroundEntryId,
   BackgroundLibraryEntry,
   BlurSurface,
   NewBackgroundEntryId,

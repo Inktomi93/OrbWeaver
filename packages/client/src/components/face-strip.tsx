@@ -70,9 +70,10 @@ import { foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
 
 const CAPTIONED_FACE_WIDTH = "inline-(--size-avatar-hero)";
 
-/** One face in the strip; a curation that feeds `FaceStrip` types its output with this. */
-export interface FaceStripItem {
-  readonly id: string;
+/** One face in the strip; a curation that feeds `FaceStrip` types its output with this. `Id` is the caller's own id
+ *  type, so a branded id comes back from `onSelect` still branded. */
+export interface FaceStripItem<Id extends string = string> {
+  readonly id: Id;
   readonly name: string;
   /** CAS key — null falls back to the hue-seeded initials blob. */
   readonly avatarHash: string | null;
@@ -94,11 +95,11 @@ interface FaceStripOverflow {
   readonly render: (args: { readonly close: () => void; readonly shownIds: readonly string[] }) => ReactNode;
 }
 
-export interface FaceStripProps {
-  readonly items: readonly FaceStripItem[];
+export interface FaceStripProps<Id extends string = string> {
+  readonly items: readonly FaceStripItem<Id>[];
   /** The face currently scoping the pane below (`aria-current` + the accent ring), or null. */
-  readonly selectedId: string | null;
-  readonly onSelect: (id: string) => void;
+  readonly selectedId: Id | null;
+  readonly onSelect: (id: Id) => void;
   /** The strip's name — its accessible name ALWAYS, and (with `kicker`) the word printed above the faces.
    *  ONE string for both by construction (#208): it used to be two, and they disagreed — the chats strip
    *  printed "Filter by character" and announced "Recent characters", so a speech-input user saying the
@@ -154,7 +155,7 @@ function faceKey(item: FaceStripItem): string {
 }
 
 /** The selected face first, everything else in its own order — the hoist that keeps a scoping face visible. */
-function hoistSelected(items: readonly FaceStripItem[], selectedId: string | null): readonly FaceStripItem[] {
+function hoistSelected<T extends FaceStripItem>(items: readonly T[], selectedId: string | null): readonly T[] {
   const selected = items.find((item) => item.id === selectedId);
   return selected === undefined ? items : [selected, ...items.filter((item) => item.id !== selectedId)];
 }
@@ -202,19 +203,19 @@ function computeFold({ row, items, selectedId, cache, tileWidth }: FoldMeasureme
   return { ...foldFaces({ ...geometry, widths: reordered }), hoisted: true };
 }
 
-interface FaceButtonProps {
+interface FaceButtonProps<Id extends string> {
   readonly ref: Ref<HTMLButtonElement>;
-  readonly item: FaceStripItem;
+  readonly item: FaceStripItem<Id>;
   readonly selected: boolean;
   readonly verb: string;
   readonly caption: boolean;
   /** Rendered in the overflow tile's narrow slot (the leftover-of-one rule) — the caption pays for it. */
   readonly squeezed: boolean;
   readonly selectMode: "current" | "toggle";
-  readonly onSelect: (id: string) => void;
+  readonly onSelect: (id: Id) => void;
 }
 
-function FaceButton({ ref, item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps): ReactElement {
+function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps<Id>): ReactElement {
   return (
     <PictureButton
       ref={ref}
@@ -333,7 +334,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
 
 /** A scrolling (or, with `overflow`, a self-folding) row of clickable faces; renders nothing when empty —
  *  unless the caller says its read is still `pending`, which reserves the strip's box instead. */
-export function FaceStrip({
+export function FaceStrip<Id extends string = string>({
   items,
   selectedId,
   onSelect,
@@ -344,7 +345,7 @@ export function FaceStrip({
   overflow,
   selectMode = "current",
   pending = false,
-}: FaceStripProps): ReactElement | null {
+}: FaceStripProps<Id>): ReactElement | null {
   const rowRef = useRef<HTMLUListElement>(null);
   const facesRef = useRef(new Map<string, HTMLButtonElement>());
   const overflowRef = useRef<HTMLButtonElement>(null);

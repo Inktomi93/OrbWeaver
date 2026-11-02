@@ -32,7 +32,7 @@ import type {
   ResponseCache,
   TokenDetails,
 } from "@orb/contracts/inference";
-import type { EffortLevel, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
+import type { EffortLevel, PromptSectionId, ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
@@ -170,7 +170,7 @@ export interface AssemblySlice {
    *  (`AssemblyBudgetPreview.sections`, D121-G). ABSENT for a delivered INJECTION: a `chat_injections` row is
    *  not a rack row, so it accounts under its source and belongs to no section (the absence is the fact, never
    *  a placeholder id). */
-  readonly sectionId?: string;
+  readonly sectionId?: PromptSectionId;
 }
 
 /** The `history` row of the budget breakdown (`assembly/budget`): the shaped+fitted wire history's COST and

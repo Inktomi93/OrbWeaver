@@ -1,7 +1,8 @@
 // @subject packages/server/src/domain/chat/assembly/macros.ts
 // Previews render {{random}} from a stable PRNG; a real turn renders it from the root's seeded PRNG. Neither reaches kit's ambient Math.random.
+
 import { createCharacterSchema } from "@orb/contracts/character";
-import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -35,8 +36,8 @@ async function root(random: () => number): ReturnType<typeof createChatRoot> {
     promptConfig: {
       ...DEFAULT_PROMPT_CONFIG,
       sections: [
-        { type: "literal", id: "picks", name: "picks", role: "system", enabled: true, content: PICKS },
-        { type: "literal", id: "mood", name: "mood", role: "system", enabled: true, content: "MOOD=<{{mood}}>" },
+        { type: "literal", id: promptSectionIdSchema.parse("picks"), name: "picks", role: "system", enabled: true, content: PICKS },
+        { type: "literal", id: promptSectionIdSchema.parse("mood"), name: "mood", role: "system", enabled: true, content: "MOOD=<{{mood}}>" },
         ...DEFAULT_PROMPT_CONFIG.sections,
       ],
       variables: [

@@ -2,7 +2,7 @@
 // the rack + inspector both branch on, plus the small static vocabularies the inspector selects over.
 // Deriving it once here keeps the three surfaces from drifting.
 
-import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/preset";
+import type { GenerationType, MarkerType, PromptSection, PromptSectionId } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Pencil } from "@orb/ui/icons";
@@ -181,9 +181,8 @@ export function addableSections(sections: readonly PromptSection[]): readonly Ad
 }
 
 /** Build a fresh section to append. Markers seed their default framing implicitly; a literal starts
- *  empty. `mint` supplies the section id — a plain unique string (section ids are config-local, not a
- *  branded entity id). */
-export function makeSection(marker: MarkerType | null, mint: () => string): PromptSection {
+ *  empty. `mint` supplies the section id, unique within the config. */
+export function makeSection(marker: MarkerType | null, mint: () => PromptSectionId): PromptSection {
   if (marker === null) {
     return {
       type: "literal",

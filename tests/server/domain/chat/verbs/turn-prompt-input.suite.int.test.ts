@@ -1,8 +1,9 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Saved host settings and public steering must reach actual native model input, not a reconstructed turn request.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
@@ -205,8 +206,24 @@ test.for([
       ...DEFAULT_PROMPT_CONFIG,
       sections: [
         ...DEFAULT_PROMPT_CONFIG.sections,
-        { type: "literal", id: "normal-probe", name: "Normal probe", role: "system", enabled: true, content: NORMAL_MARK, trigger: ["normal"] },
-        { type: "literal", id: "continue-probe", name: "Continue probe", role: "system", enabled: true, content: CONTINUE_MARK, trigger: ["continue"] },
+        {
+          type: "literal",
+          id: promptSectionIdSchema.parse("normal-probe"),
+          name: "Normal probe",
+          role: "system",
+          enabled: true,
+          content: NORMAL_MARK,
+          trigger: ["normal"],
+        },
+        {
+          type: "literal",
+          id: promptSectionIdSchema.parse("continue-probe"),
+          name: "Continue probe",
+          role: "system",
+          enabled: true,
+          content: CONTINUE_MARK,
+          trigger: ["continue"],
+        },
       ],
     },
     ...(scene.kind === "send"

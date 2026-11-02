@@ -32,8 +32,8 @@
 // whole in the CONTEXT readout (§16 row 29), and the zone budget went with it (§7's Prompt panel).
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { MarkerType, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_CONTINUE_POSTFIX, DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
+import type { MarkerType, PromptSection, PromptSectionId } from "@orb/contracts/preset";
+import { DEFAULT_CONTINUE_POSTFIX, DEFAULT_NAMES_BEHAVIOR, promptSectionIdSchema } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -149,7 +149,7 @@ function PromptTab({
   // WHICH chevron takes focus when the rack comes BACK (side-eye F-04). Set only by the drill-in's exit,
   // so a fresh Prompt-view mount never steals focus; the row consumes it on mount and nothing clears it,
   // because a re-render of the rack with the same id is the same restore.
-  const [restoreFocusSectionId, setRestoreFocusSectionId] = useState<string | null>(null);
+  const [restoreFocusSectionId, setRestoreFocusSectionId] = useState<PromptSectionId | null>(null);
   const selectedSectionId = useSelectedPresetSectionId();
   const ids = useIds();
 
@@ -164,7 +164,7 @@ function PromptTab({
   };
 
   const onAdd = (marker: MarkerType | null): void => {
-    const section = makeSection(marker, ids.uuid);
+    const section = makeSection(marker, () => promptSectionIdSchema.parse(ids.uuid()));
     // The autosave BOUNDARY's store driver persists structural array ops (D78 §3) — no manual flush.
     form.pushFieldValue("sections", section);
     // §16 row 16 — mint AND drill: the NAME field lives in the editor, so naming is part of creating.

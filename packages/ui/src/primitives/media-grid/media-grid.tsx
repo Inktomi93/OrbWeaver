@@ -49,8 +49,9 @@ function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
 
 export type MediaGridKey = string | number;
 
-export interface MediaGridItem {
-  readonly id: MediaGridKey;
+/** One cell. `Key` is the caller's own id type, so a branded id comes back from `onActivate` still branded. */
+export interface MediaGridItem<Key extends MediaGridKey = MediaGridKey> {
+  readonly id: Key;
   /**
    * The full-resolution/original asset. Always the rendered `src` when `animated` — resizing an
    * animated GIF/WebP freeze-frames it. Also the fallback `src` for a static item with no `thumbUrl`.

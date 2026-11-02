@@ -1,11 +1,12 @@
 // @subject packages/server/src/domain/chat/verbs/read.ts
 // The host's prompt preview is an honesty instrument: through the composed root it shows the bytes, costs, preset,
 // personas and clock the next real turn sends, read back from the physical provider request, and it changes nothing.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -19,7 +20,7 @@ type PreviewAssembly = ChatRoot["root"]["services"]["chat"]["previewAssembly"];
 type AssemblyPreview = Awaited<ReturnType<PreviewAssembly>>;
 
 function literal(id: string, content: string): PromptSection {
-  return { type: "literal", id, name: id, role: "system", content, enabled: true };
+  return { type: "literal", id: promptSectionIdSchema.parse(id), name: id, role: "system", content, enabled: true };
 }
 
 /** A preset whose rack leads with one marked row, so a render of that preset is findable in any prompt. */

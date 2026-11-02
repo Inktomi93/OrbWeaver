@@ -1,4 +1,4 @@
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { makePromptConfig } from "@orb/testkit/iso";
 
 export const MOOD_CONFIG = makePromptConfig({
@@ -29,7 +29,7 @@ export const MOOD_CONFIG = makePromptConfig({
     },
   ],
   sections: [
-    { type: "literal", id: "mood-line", name: "Mood", role: "system", content: "Scene tone: {{mood}}.", enabled: true },
+    { type: "literal", id: promptSectionIdSchema.parse("mood-line"), name: "Mood", role: "system", content: "Scene tone: {{mood}}.", enabled: true },
     ...DEFAULT_PROMPT_CONFIG.sections,
   ],
 });

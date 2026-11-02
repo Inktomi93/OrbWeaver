@@ -105,7 +105,7 @@ export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number
 
 /** A background-library row's own key: a client UUID or a deterministic `asset:index` backfill, never an entity TypeID.
  *  @remarks Byte-identical uploads share one `assetId`, so the row needs a key of its own. */
-export type BackgroundEntryId = Branded<"BackgroundEntryId">;
+type BackgroundEntryId = Branded<"BackgroundEntryId">;
 export const backgroundEntryIdSchema = brandedId("BackgroundEntryId");
 /** The one mint of a {@link BackgroundEntryId}, injected wherever a library row is created. */
 export type NewBackgroundEntryId = () => BackgroundEntryId;
