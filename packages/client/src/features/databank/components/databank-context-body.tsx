@@ -24,8 +24,8 @@
 // bank. The library pane pages now, so a document opened from page three is simply not in the first page,
 // and the list-miss test would have reported every one of them as deleted. `get` is the per-document read
 // the CONTENT pane already makes for the same document (same cache entry, no extra fetch), and its
-// NOT_FOUND is the real deletion signal — surfaced as this pane's own designed empty rather than the
-// boundary's generic failure, because "someone deleted this" is a state, not an error.
+// NOT_FOUND is the real deletion signal — the boundary's error render turns it into this pane's own designed
+// empty rather than the generic failure, because "someone deleted this" is a state, not an error.
 
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -33,7 +33,6 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { Section, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
@@ -66,25 +65,12 @@ export function DatabankContextBody(): ReactElement {
     // EVERY commit; a commit in which the child is a one-line pending arm is remembered exactly like a
     // settled one, and the rail thereafter reserves a box that lies about its own content.
     //
-    // #1726 ATTEMPTED THE KEYING AND REFUSED IT, so the next sweep does not pay for the same wall twice.
-    // Hoisting is not enough here, because this rail has TWO in-component readers, not one, and each is
-    // in-component by a RULING rather than by accident:
-    //   · `ContextBody`'s own `databank.get` — the GONE arm. Suspending it would report a deleted document
-    //     as a throw and force this panel to hand-roll a `renderError` (G29 RED). It IS hoistable above the
-    //     boundary, and #1726 did hoist it — that half worked.
-    //   · `databank-active-in.tsx`'s `listAttachments` — the "Checking…" arm. It is non-suspending because
-    //     a failed junction read must say so rather than claim the document feeds NOWHERE (#1500), and
-    //     because a slow junction read must not blank the Everywhere toggle above it. Hoisting THAT one
-    //     above the boundary would replace the whole rail with a loading line on every document switch —
-    //     strictly worse than the block-local wait it exists to give.
-    // With Active-in staying put, a settled COMMIT of this rail is not a settled RAIL, so there is no
-    // instant at which the measurement would be honest. And the boundary's only remaining suspending read
-    // is `EverywhereSection`'s `listGlobal`, which is not keyed by document and therefore never re-suspends
-    // on a switch — so a key here would buy nothing even if it were safe. Reversing this needs Active-in's
-    // #1500 ruling revisited first, which is not a reservation's call to make.
+    // Active-in keeps its own boundary (`databank-active-in.tsx`), so a document switch re-suspends only that
+    // block and a settled commit of this rail is not a settled rail: no instant at which a measurement would
+    // be honest.
     <QueryBoundary
       fallback={<SkeletonRows count={3} shape="datum" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this document's attachments" onRetry={retry} />}
+      renderError={(error, retry): ReactElement => (isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={retry} />)}
     >
       <ContextBody documentId={documentId} />
     </QueryBoundary>
@@ -132,26 +118,11 @@ function isDocumentGone(error: unknown): boolean {
   return trpcErrorCode(error) === "NOT_FOUND";
 }
 
-/** The open document's own row. NON-suspending, deliberately: a deleted document is a designed STATE with
- *  its own copy, and a suspending read can only report it as a thrown error to the boundary — which would
- *  make this panel hand-roll a `renderError` arm (G29 RED, and rightly: the boundary's error surface is one
- *  sealed component). The three arms are decided HERE instead. The `listGlobal`/`listAttachments` reads
- *  below still suspend, so the boundary keeps its job for everything that IS a failure. */
+/** The open document's own row. It suspends under the boundary above, whose error render turns a NOT_FOUND
+ *  into the gone state and anything else into the shared retry block. */
 function ContextBody({ documentId }: { readonly documentId: DocumentId }): ReactElement {
   const trpc = useTRPC();
-  const { data: doc, error, isPending, refetch } = useQuery(trpc.databank.get.queryOptions({ id: documentId }));
-
-  if (isPending) {
-    // The SAME line the boundary's fallback shows, so the panel reads identically whichever read is settling.
-    return <Text voice="gloss">Loading…</Text>;
-  }
-  if (error !== null) {
-    return isDocumentGone(error) ? (
-      <DocumentGone />
-    ) : (
-      <QueryErrorState label="this document" onRetry={(): void => void refetch().catch(globalThis.reportError)} />
-    );
-  }
+  const { data: doc } = useSuspenseQuery(trpc.databank.get.queryOptions({ id: documentId }));
 
   return (
     // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel).
