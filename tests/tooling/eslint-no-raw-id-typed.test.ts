@@ -95,7 +95,6 @@ test.for([
   { name: "a class field", source: "export class Holder {\n  chatId: string = raw;\n}", found: "ChatId" },
   { name: "an annotated variable", source: "export const chatId: string = raw;", found: "ChatId" },
   { name: "an owner is a user", source: "export interface Row { readonly ownerId: string }", found: "UserId" },
-  { name: "a qualified name keeps its brand", source: "export interface Row { readonly speakerCharacterId: string }", found: "CharacterId" },
   { name: "a brand declared beside its schema", source: "export interface Row { readonly providerId: string }", found: "ProviderId" },
   {
     name: "a stem that leaves off the brand's qualifier",
@@ -110,8 +109,14 @@ test.for([
   { name: "a nullable state seeded with a brand", source: "const [a] = useState<string | null>(id);\nexport const b = a;", found: "useState" },
   { name: "an inferred string state set to a brand", source: 'const [a, setA] = useState("");\nsetA(id);\nexport const b = a;', found: "useState" },
   { name: "a brand its module keeps private", source: "export interface Row { readonly localProbeId: string }", found: "LocalProbeId" },
+  { name: "a field typed by an alias of string", source: "type Raw = string;\nexport interface Row { readonly chatId: Raw }", found: "ChatId" },
   // Controls: the shapes the rule must leave alone.
+  { name: "a trailing-word match is only reported", source: "export interface Row { readonly speakerCharacterId: string }", found: null },
+  { name: "a foreign session handle is not the host session", source: "export interface Row { readonly claudeSessionId: string }", found: null },
+  { name: "a provider's message handle is not a message id", source: "export interface Row { readonly providerMessageId: string }", found: null },
+  { name: "an imported chat's own id is not a host chat id", source: "export interface Row { readonly stChatId: string }", found: null },
   { name: "a branded field", source: "export interface Row { readonly chatId: ChatId }", found: null },
+  { name: "an alias of a brand", source: "type Room = ChatId;\nexport interface Row { readonly chatId: Room }", found: null },
   { name: "a sandbox wire id", source: "export interface Row { readonly chatId: SandboxWireId<ChatId> }", found: null },
   { name: "a one-word stem is not the qualified brand", source: "export interface Row { readonly turnId: string }", found: null },
   { name: "an id with no brand", source: "export interface Row { readonly surfaceId: string }", found: null },

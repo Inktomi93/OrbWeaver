@@ -17,7 +17,7 @@
 // Nothing in this chain reads card TEXT to name a picture; `genre`/`tone` ride along as context chips only.
 
 import type { ArchetypeMember, VisualArchetype } from "@orb/contracts/discovery";
-import { passIdSchema } from "@orb/contracts/discovery";
+import { mintPassId } from "@orb/contracts/discovery";
 import type { ImageCaptionMeta, ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -362,7 +362,7 @@ async function visualArchetypes(db: Db, ownerId: UserId, k = DEFAULT_VISUAL_K): 
     if (first === undefined) {
       continue;
     }
-    const passId = passIdSchema.parse(
+    const passId = mintPassId(
       sha256Hex(
         stableStringify({
           k,

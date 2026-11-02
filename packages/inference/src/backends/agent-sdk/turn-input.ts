@@ -8,7 +8,7 @@
 // caller keeps every decision about the call. These are this backend's representation rules; the caller hands
 // over one neutral shape and never learns them (D177).
 
-import { toolCallIdSchema } from "@orb/contracts/chat";
+import { mintToolCallId } from "@orb/contracts/chat";
 import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServer, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "#contract";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
 import type { AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
@@ -348,7 +348,7 @@ function mountToolOffer(offer: ChatToolOffer): AgentToolServer {
     handler: async (args: Record<string, unknown>) => {
       ordinal += 1;
       const outcome = await offer.execute({
-        toolCallId: toolCallIdSchema.parse(`mcp_${definition.name}_${ordinal}`),
+        toolCallId: mintToolCallId(`mcp_${definition.name}_${ordinal}`),
         name: definition.name,
         arguments: JSON.stringify(args),
       });

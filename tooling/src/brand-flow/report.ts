@@ -116,7 +116,7 @@ const LINT_PROPOSALS = [
   "- **`castId` or `as Brand` of a plain `string` operand** (class 1, raw): type-aware and measured. The unsafe-cast rule refuses an `unknown` or `any` operand only; a `string` operand outside a literal, a `typeIdSchema` parse or a home file is the same lie. Needs a homes list for the real trusted seams (route params, row reads) before it can be an error.",
   "- **Widen-then-renarrow** (class 3): not a per-file rule. It needs the widen edge and the cast joined across files, which is what this tool does. A lint rule could catch the in-file case only: a `useState<string>` whose setter takes a brand and whose state is later compared to, or cast to, a brand.",
   "- **`useState<string>` fed a brand** (class 2, client state): held at zero by `orb/no-raw-id`.",
-  "- **Id-named declaration typed `string`** (class 4): held at zero by `orb/no-raw-id` for a declared `string` annotation, by the same name table as this report. A destructured or unannotated name takes its source's type, so the source carries the fix.",
+  "- **Id-named declaration typed `string`** (class 4): held at zero by `orb/no-raw-id` for a declared `string` annotation on an exact, qualifier or alias match, by the same name table as this report. Suffix matches stay report-only: a trailing word guesses (`providerMessageId` is a provider's handle). A destructured or unannotated name takes its source's type, so the source carries the fix.",
   "- **Widen into a contract or port slot** (class 2, tier 2): the fix is declaring the slot as the brand, so the rule is the declaration check above, not an edge check.",
   "- **Cross-brand by name** (class 5): heuristic, report-only. The measured cases are already compile errors.",
 ];

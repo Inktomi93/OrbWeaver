@@ -34,7 +34,7 @@
 // and no Placement/Triggers cluster (a trigger filter is silencing by another name).
 
 import type { GenerationType, PromptSection, PromptSectionId } from "@orb/contracts/preset";
-import { promptSectionIdSchema } from "@orb/contracts/preset";
+import { mintPromptSectionId } from "@orb/contracts/preset";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -411,7 +411,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
             }}
             label={PRESET_SECTION_ACTIONS_NAME}
           >
-            <MenuItem onClick={(): void => duplicate(form, section, index, () => promptSectionIdSchema.parse(ids.uuid()))}>
+            <MenuItem onClick={(): void => duplicate(form, section, index, () => mintPromptSectionId(ids.uuid()))}>
               <Icon icon={Copy} size="sm" />
               Duplicate
             </MenuItem>

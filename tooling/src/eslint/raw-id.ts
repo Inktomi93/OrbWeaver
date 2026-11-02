@@ -5,6 +5,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { NameMatch } from "../brand-names/index.ts";
 import { BrandTable } from "../brand-names/index.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
@@ -102,8 +103,9 @@ const NOTHING_TYPES = new Set<string>([AST_NODE_TYPES.TSNullKeyword, AST_NODE_TY
 
 const COLLECTIONS = new Set(["Array", "ReadonlyArray", "Set", "ReadonlySet"]);
 
-// `string`, `string[]`, `readonly string[]`, `Array<string>` or `ReadonlySet<string>`, optionally with null or undefined.
-function plainStringAnnotation(type: TSESTree.TypeNode): boolean {
+// `string`, `string[]`, `readonly string[]`, `Array<string>` or `ReadonlySet<string>`, optionally with null or undefined,
+// where `string` may also be an alias the caller resolves to a bare `string` (`type Raw = string`).
+function plainStringAnnotation(type: TSESTree.TypeNode, isPlainAlias: (reference: TSESTree.TSTypeReference) => boolean): boolean {
   const members = type.type === AST_NODE_TYPES.TSUnionType ? type.types.filter((each) => !NOTHING_TYPES.has(each.type)) : [type];
   if (members.length !== 1) {
     return false;
@@ -122,8 +124,25 @@ function plainStringAnnotation(type: TSESTree.TypeNode): boolean {
   ) {
     member = member.typeArguments.params[0] as TSESTree.TypeNode;
   }
-  return member.type === AST_NODE_TYPES.TSStringKeyword;
+  return member.type === AST_NODE_TYPES.TSStringKeyword || (member.type === AST_NODE_TYPES.TSTypeReference && isPlainAlias(member));
 }
+
+// A non-generic alias declared as a bare `string`, followed through an import. `SandboxWireId<…>` is generic, so it stays out.
+function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
+  const symbol = checker.getSymbolAtLocation(name);
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
+  const target = symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
+  const declaration = target?.declarations?.[0];
+  return (
+    declaration !== undefined &&
+    ts.isTypeAliasDeclaration(declaration) &&
+    declaration.typeParameters === undefined &&
+    declaration.type.kind === ts.SyntaxKind.StringKeyword
+  );
+}
+
+// A trailing-word match guesses (a foreign `providerMessageId` is no `MessageId`), so pnpm brand-flow reports it and the rule does not.
+const ENFORCED_MATCHES: ReadonlySet<NameMatch["match"]> = new Set<NameMatch["match"]>(["exact", "qualified", "alias"]);
 
 const BRAND_ALIAS = /^[A-Z]\w*Id$/u;
 
@@ -198,8 +217,14 @@ export const rawIdRule: OrbRule = {
     }
     const table = brandTable(program, checker, brand);
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
-      const match = annotation !== undefined && plainStringAnnotation(annotation.typeAnnotation) ? table.brandOf(name) : null;
-      if (match !== null) {
+      const plain =
+        annotation !== undefined &&
+        plainStringAnnotation(
+          annotation.typeAnnotation,
+          (reference) => reference.typeArguments === undefined && plainAliasOf(checker, toTs.get(reference.typeName)),
+        );
+      const match = plain ? table.brandOf(name) : null;
+      if (match !== null && ENFORCED_MATCHES.has(match.match)) {
         context.report({ node, message: declaredMessage(name, match.brand) });
       }
     };

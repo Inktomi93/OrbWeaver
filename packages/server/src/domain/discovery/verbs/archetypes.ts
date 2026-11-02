@@ -10,7 +10,7 @@
 // legitimately a member of — the member set comes from the EMBEDDINGS, which cover every indexed card.
 
 import type { Archetype, ArchetypeMember } from "@orb/contracts/discovery";
-import { passIdSchema } from "@orb/contracts/discovery";
+import { mintPassId } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -148,7 +148,7 @@ function archetypesForGroup(
     return [];
   }
   const model = first.model;
-  const passId = passIdSchema.parse(
+  const passId = mintPassId(
     sha256Hex(stableStringify({ k, rows: orderedGroup.map((row) => [row.characterId, row.generationId, row.contentHash, facetById.get(row.characterId)]) })),
   );
   return [...clusters.values()].map((acc) => {

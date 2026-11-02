@@ -258,6 +258,8 @@ export type TextSignature = z.infer<typeof textSignatureSchema>;
 export type ToolCallId = Branded<"ToolCallId">;
 // Any text, the empty string included: a provider's handle is kept verbatim, and stored rows hold what providers sent.
 export const toolCallIdSchema = z.string().pipe(z.custom<ToolCallId>());
+/** The one mint of a call handle the host itself composes, for a call no provider named. */
+export const mintToolCallId = (handle: string): ToolCallId => toolCallIdSchema.parse(handle);
 
 const contentSignatureSnapshotSchema = z
   .object({

@@ -15,7 +15,8 @@ const QUALIFIED_STEM_WORDS = 2;
 
 export interface NameMatch {
   readonly brand: string;
-  readonly match: "exact" | "suffix" | "alias";
+  /** `suffix` is a trailing-word guess (`providerMessageId` is a provider's handle, not a `MessageId`), so only a report reads it. */
+  readonly match: "exact" | "qualified" | "suffix" | "alias";
 }
 
 /** The table that maps an id-named declaration to a brand: one row per `ID_PREFIX` entity, plus every other brand
@@ -47,7 +48,7 @@ export class BrandTable {
     }
     const qualified = words.length >= QUALIFIED_STEM_WORDS ? [...this.#byTokens].filter(([token]) => token.endsWith(whole)) : [];
     if (qualified.length === 1) {
-      return { brand: (qualified[0] as [string, string])[1], match: "suffix" };
+      return { brand: (qualified[0] as [string, string])[1], match: "qualified" };
     }
     for (let start = 1; start < words.length; start += 1) {
       const brand = this.#byTokens.get(words.slice(start).join("").toLowerCase());

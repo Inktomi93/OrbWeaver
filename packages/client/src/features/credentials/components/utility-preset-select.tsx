@@ -36,7 +36,9 @@ function choiceOf(value: string): RolePresetChoice | null {
   if (value === SAME_AS_CHAT_VALUE) {
     return { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat };
   }
-  return { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: typeIdSchema(ID_PREFIX.preset).parse(value) };
+  // A Select value is UI text: an unknown one reads as task defaults rather than throwing in a change handler.
+  const presetId = typeIdSchema(ID_PREFIX.preset).safeParse(value);
+  return presetId.success ? { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: presetId.data } : null;
 }
 
 export function UtilityPresetSelect(): ReactElement {

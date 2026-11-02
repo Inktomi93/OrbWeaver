@@ -29,7 +29,9 @@ export interface ArchetypeMember {
 
 /** The SHA-256 fingerprint of one clustering pass's input, the identity two archetype reads compare; never a row id. */
 type PassId = Branded<"PassId">;
-export const passIdSchema = brandedId("PassId");
+const passIdSchema = brandedId("PassId");
+/** The one mint of a pass identity from the fingerprint the clustering computed. */
+export const mintPassId = (fingerprint: string): PassId => passIdSchema.parse(fingerprint);
 
 /** One character archetype — a k-means cluster of an owner's card embeddings, labelled from the dominant
  *  distilled facets. `members` retains the complete grouping; finders bound their own display. */

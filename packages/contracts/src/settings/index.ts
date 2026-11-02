@@ -46,8 +46,8 @@ export type {
 export {
   APPEARANCE_BACKGROUND_FITS,
   BLUR_SURFACES,
-  backgroundEntryIdSchema,
   backgroundLibraryEntrySchema,
+  mintBackgroundEntryId,
   OS_PREFERENCE_MODES,
 } from "./appearance.ts";
 export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
@@ -791,6 +791,22 @@ export const USER_SETTINGS_SECTIONS = [
   "theme",
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
+
+/** The id pointers a section patch may write, parsed strictly. The stored blob's read stays lenient and heals a
+ *  malformed pointer to null; a write that carries one is refused instead, so a bad id is never stored as "unset". */
+export const USER_SETTINGS_POINTER_WRITES: Readonly<Partial<Record<UserSettingsSection, z.ZodType>>> = {
+  // Loose: the patch carries the section's other keys, which the whole-blob parse judges.
+  seeds: z.looseObject({
+    defaultPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().optional(),
+    currentPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().optional(),
+    welcomeAssistantCharacterId: typeIdSchema(ID_PREFIX.character).nullable().optional(),
+    defaultPresetId: typeIdSchema(ID_PREFIX.preset).nullable().optional(),
+    summarizePreset: rolePresetChoiceSchema.nullable().optional(),
+  }),
+  theme: z.looseObject({ selectedThemeId: typeIdSchema(ID_PREFIX.theme).nullable().optional() }),
+  profile: z.looseObject({ avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional() }),
+  appearance: z.looseObject({ backgroundAssetId: z.union([typeIdSchema(ID_PREFIX.asset), z.literal("")]).optional() }),
+};
 
 export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
 

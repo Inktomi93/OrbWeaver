@@ -69,6 +69,30 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   expect(again.kinds.characters.items[0]).toMatchObject({ name: "Aria", inLibrary: true });
 });
 
+// A prompt with an empty identifier cannot key a section; the bad preset is one skip, never the whole profile.
+const UNKEYED_PRESET = JSON.stringify({
+  prompts: [{ identifier: "", name: "Unkeyed", content: "x", role: "system" }],
+  ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "", enabled: true }] }],
+});
+
+test("one unreadable preset file is skipped while the profile's cards, chats and worlds still import", async () => {
+  await using root = await harness();
+  const files = { ...profile(root), ["OpenAI Settings/Unkeyed.json"]: UNKEYED_PRESET };
+  const before = await tableContents(root);
+
+  const preview = await dryRun(root, files);
+  expect(preview.skipped.items.map((item) => item.source)).toContain("OpenAI Settings/Unkeyed.json");
+  expect(names(preview, "characters")).toEqual(["Aria"]);
+  expect(preview.kinds.chats.total).toBe(1);
+  expect(names(preview, "worlds")).toEqual(["Eldoria"]);
+
+  await finish(root, await admit(root, files));
+  const after = await tableContents(root);
+  expect(after["characters"]).toHaveLength((before["characters"] ?? []).length + 1);
+  expect(after["chats"]).toHaveLength((before["chats"] ?? []).length + 1);
+  expect(after["world_books"]).toHaveLength((before["world_books"] ?? []).length + 1);
+});
+
 test("a persona with no avatar file is listed by its name as importing without art, not as a skipped file", async () => {
   await using root = await harness();
 

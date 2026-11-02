@@ -956,6 +956,8 @@ type SectionInject = z.infer<typeof injectSchema>;
  *  @remarks The assembly readout keys each section's cost by it, so the two sides join on one brand. */
 export type PromptSectionId = Branded<"PromptSectionId">;
 export const promptSectionIdSchema = brandedId("PromptSectionId");
+/** The one mint of a section key the host chooses: a built-in key or a fresh uuid, never imported text. */
+export const mintPromptSectionId = (key: string): PromptSectionId => promptSectionIdSchema.parse(key);
 
 const literalSection = z
   .object({
@@ -2820,7 +2822,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   sections: [
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("main"),
+      id: mintPromptSectionId("main"),
       name: "Main",
       marker: "main_prompt",
       role: "system",
@@ -2831,7 +2833,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("wi-before"),
+      id: mintPromptSectionId("wi-before"),
       name: "World info (before)",
       marker: "world_info_before",
       role: "system",
@@ -2839,7 +2841,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("char-desc"),
+      id: mintPromptSectionId("char-desc"),
       name: "Description",
       marker: "char_description",
       role: "system",
@@ -2847,7 +2849,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("char-pers"),
+      id: mintPromptSectionId("char-pers"),
       name: "Personality",
       marker: "char_personality",
       role: "system",
@@ -2855,7 +2857,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("scenario"),
+      id: mintPromptSectionId("scenario"),
       name: "Scenario",
       marker: "scenario",
       role: "system",
@@ -2863,7 +2865,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("persona"),
+      id: mintPromptSectionId("persona"),
       name: "User persona",
       marker: "persona",
       role: "system",
@@ -2871,7 +2873,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("wi-after"),
+      id: mintPromptSectionId("wi-after"),
       name: "World info (after)",
       marker: "world_info_after",
       role: "system",
@@ -2879,7 +2881,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("examples"),
+      id: mintPromptSectionId("examples"),
       name: "Dialogue examples",
       marker: "dialogue_examples",
       role: "system",
@@ -2888,7 +2890,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // THE PIVOT — sections before build the system block; sections after land after the conversation.
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("chat-history"),
+      id: mintPromptSectionId("chat-history"),
       name: "Chat history",
       marker: "chat_history",
       role: "system",
@@ -2900,7 +2902,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // elsewhere.
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("memory"),
+      id: mintPromptSectionId("memory"),
       name: "Memory",
       marker: "memory",
       role: "system",
@@ -2910,7 +2912,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // {{memory}}"; the rpg GM preset's `continuity` region, D58).
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("databank"),
+      id: mintPromptSectionId("databank"),
       name: "Databank",
       marker: "databank",
       role: "system",
@@ -2918,7 +2920,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("guided-instruction"),
+      id: mintPromptSectionId("guided-instruction"),
       name: "Guided instruction",
       marker: "guided_instruction",
       role: "system",
@@ -2927,7 +2929,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // Post-history ("jailbreak") — after the pivot; a card's `post_history_instructions` overrides in place.
     {
       type: "marker",
-      id: promptSectionIdSchema.parse("post-history"),
+      id: mintPromptSectionId("post-history"),
       name: "Post-history",
       marker: "post_history",
       role: "system",
@@ -3135,8 +3137,7 @@ function overrideFields(prompt: StPrompt, marker: MarkerType): { template?: stri
 
 /** Build ONE section from an ST prompt + its prompt_order enabled flag. `dropped` collects the per-value
  *  clamps this section's foreign numbers needed (#1363). */
-function sectionFromPrompt(prompt: StPrompt, enabled: boolean, dropped: StDroppedField[]): PromptSection {
-  const id = promptSectionIdSchema.parse(prompt.identifier);
+function sectionFromPrompt(prompt: StPrompt, id: PromptSectionId, enabled: boolean, dropped: StDroppedField[]): PromptSection {
   const name = resolveSectionName(prompt.name, id);
   const marker = ST_IDENTIFIER_TO_MARKER[id];
   const inject = injectOf(prompt, dropped);
@@ -3305,13 +3306,22 @@ function buildWalk(order: StOrderGroup["order"], prompts: StPrompt[]): { identif
   }));
 }
 
-/** Build the section list from the id→prompt map walked in the authored order. */
-function buildSections(byId: Map<string, StPrompt>, walk: { identifier: string; enabled: boolean }[], dropped: StDroppedField[]): PromptSection[] {
+/** Build the section list from the id→prompt map walked in the authored order, or name the first prompt whose
+ *  identifier cannot key a section (the import refuses it rather than inventing a key). */
+function buildSections(
+  byId: Map<string, StPrompt>,
+  walk: { identifier: string; enabled: boolean }[],
+  dropped: StDroppedField[],
+): PromptSection[] | { readonly unkeyed: string } {
   const sections: PromptSection[] = [];
   for (const entry of walk) {
     const prompt = byId.get(entry.identifier);
     if (prompt !== undefined) {
-      sections.push(sectionFromPrompt(prompt, entry.enabled, dropped));
+      const id = promptSectionIdSchema.safeParse(prompt.identifier);
+      if (!id.success) {
+        return { unkeyed: prompt.identifier };
+      }
+      sections.push(sectionFromPrompt(prompt, id.data, entry.enabled, dropped));
     }
   }
   return sections;
@@ -3525,6 +3535,19 @@ export function tryImportStChatCompletionPreset(raw: unknown, powerUser?: unknow
 
   const dropped: StDroppedField[] = [];
   const sections = buildSections(byId, walk, dropped);
+  return Array.isArray(sections) ? stConfigOutcome(rawObj, sections, dropped, powerUser) : unkeyedRefusal(sections.unkeyed);
+}
+
+function unkeyedRefusal(identifier: string): StImportOutcome {
+  return {
+    ok: false,
+    recognised: true,
+    reason: `This SillyTavern preset has a prompt with no usable identifier ("${identifier}"), so nothing was imported.`,
+  };
+}
+
+/** The mapped config's validated outcome once every section is keyed. */
+function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSection[], dropped: StDroppedField[], powerUser: unknown): StImportOutcome {
   const params = mapParams(rawObj);
   dropped.push(...collectDroppableFields(rawObj));
 

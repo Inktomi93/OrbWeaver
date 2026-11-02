@@ -191,6 +191,7 @@ export {
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   messageViewSchema,
+  mintToolCallId,
   parseVariantMetadata,
   REATTRIBUTE_MESSAGES_MAX,
   reattributeScopeSchema,
