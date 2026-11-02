@@ -74,7 +74,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 ## Esoteric quirks
 
-**JWKS fails closed — every rejection returns `null`, never a 500, never a fall-through.** The forward-header signed path has FIVE fail-closed points: (1) JWT present but no meta-JWKS → reject (stripped/spoofed); (2) verify on but allowlist empty → refuse request-supplied JWKS entirely; (3) `jwksFor` nulls on bad-JSON/non-https/off-allowlist; (4) verified but no `preferred_username` → reject (never fall through to the unsigned path with a usernameless-but-valid JWT); (5) `jwtVerify` throws → reject. **A present-but-invalid JWT NEVER silently falls through to the unsigned path.**
+**JWKS fails closed — every rejection is a terminal refusal (`IdentityRefused`), never a 500, never a fall-through, never the owner fallback (Spine-Identity-and-Auth invariant 5).** The forward-header signed path has FIVE fail-closed points: (1) JWT present but no meta-JWKS → reject (stripped/spoofed); (2) verify on but allowlist empty → refuse request-supplied JWKS entirely; (3) `jwksFor` nulls on bad-JSON/non-https/off-allowlist; (4) verified but no `preferred_username` → reject (never fall through to the unsigned path with a usernameless-but-valid JWT); (5) `jwtVerify` throws → reject. **A present-but-invalid JWT NEVER silently falls through to the unsigned path.**
 
 **The GCM AAD binding.** `aad` binds `${userId}|${provider}` into the GCM tag; a row moved to a different slot fails tag verification loudly — never a silent wrong decrypt. The string must stay byte-identical across refactors; the box carries it verbatim and is the wrong place to "normalize" it.
 
