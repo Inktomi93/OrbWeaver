@@ -1,9 +1,9 @@
 import type { Branded } from "@orb/kit/ids";
 
-/** JSON-facing values erase compile-time ID brands without importing a concrete router. */
+/** JSON-facing values keep their compile-time ID brands, so a captured id reaches a branded input as itself. */
 export type TrpcWire<T> =
   T extends Branded<string>
-    ? string
+    ? T
     : T extends readonly (infer Item)[]
       ? readonly TrpcWire<Item>[]
       : T extends object

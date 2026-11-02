@@ -34,13 +34,14 @@ const IMPORTS = [
   'import type { ProbeRow } from "../../../../../db/src/schema/probe.ts";',
   "declare const raw: string;",
   "declare const loose: unknown;",
+  "declare const boundary: unknown;",
   "declare const anything: any;",
   "declare const id: ProbeId;",
   'declare const names: readonly ["a", "b"];',
   LOCAL_ROW,
 ].join("\n");
 
-const homes = [{ file: HOME_FILE, reason: "the probe host reads guest JSON that arrives untyped by construction" }];
+const homes = [{ file: HOME_FILE, site: "boundary", reason: "the probe host reads guest JSON that arrives untyped by construction" }];
 
 function lint(root: string, file: string, source: string): readonly string[] {
   const options: ts.CompilerOptions = {
@@ -111,6 +112,7 @@ test.for([
   expect(messages.every((message) => message.includes(found ?? ""))).toBe(true);
 });
 
-test("a home file keeps its boundary casts", ({ scratch }) => {
-  expect(lint(scratch, HOME_FILE, "export const a = JSON.parse(raw) as ProbeView;\nexport const b = loose as unknown as ProbeView;")).toEqual([]);
+test("a home keeps its one boundary cast and no other in that file", ({ scratch }) => {
+  expect(lint(scratch, HOME_FILE, "export const a = boundary as ProbeView;")).toEqual([]);
+  expect(lint(scratch, HOME_FILE, "export const a = boundary as ProbeView;\nexport const b = loose as ProbeView;")).toHaveLength(1);
 });

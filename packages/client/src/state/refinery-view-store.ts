@@ -6,6 +6,7 @@
 // store's clear does not cascade here by design: re-opening a session restores the same walk, which is
 // the per-section-memory posture).
 
+import type { RefineryRunId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store.ts";
 
 const REFINERY_WORKBENCH_DOORS = ["scope", "guidance", "score"] as const;
@@ -19,7 +20,7 @@ interface RefineryViewState {
   /** The run id CONTENT's viewer is pinned to; null = the latest of the active stage. */
   readonly viewedRunId: string | null;
   /** The operate-back arm: the rewrite run the NEXT apply/analyze targets; null = latest. */
-  readonly armedRewriteRunId: string | null;
+  readonly armedRewriteRunId: RefineryRunId | null;
   /** A pending {@link RefineryWorkbenchDoor} request; null = nothing asked for. */
   readonly requestedDoor: RefineryWorkbenchDoor | null;
 }
@@ -31,7 +32,7 @@ const useRefineryViewStore = createGatedStore<RefineryViewState>("refinery-view"
 }));
 
 export const useRefineryViewedRunId = (): string | null => useRefineryViewStore((s) => s.viewedRunId);
-export const useRefineryArmedRewriteId = (): string | null => useRefineryViewStore((s) => s.armedRewriteRunId);
+export const useRefineryArmedRewriteId = (): RefineryRunId | null => useRefineryViewStore((s) => s.armedRewriteRunId);
 export const useRefineryRequestedDoor = (): RefineryWorkbenchDoor | null => useRefineryViewStore((s) => s.requestedDoor);
 
 /** Ask the workbench to open the control that OWNS a concept (see {@link RefineryWorkbenchDoor}). */
@@ -49,6 +50,6 @@ export function setRefineryViewedRun(runId: string | null): void {
   useRefineryViewStore.setState({ viewedRunId: runId }, false, "refinery-view/view-run");
 }
 
-export function setRefineryArmedRewrite(runId: string | null): void {
+export function setRefineryArmedRewrite(runId: RefineryRunId | null): void {
   useRefineryViewStore.setState({ armedRewriteRunId: runId }, false, "refinery-view/arm-rewrite");
 }

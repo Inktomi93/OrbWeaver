@@ -28,7 +28,7 @@
 
 import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, Pin } from "@orb/ui/icons";
@@ -84,7 +84,7 @@ const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
  *  into one per-day stream by `createdAt`. */
 type ChronicleRow =
-  | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly label: string; readonly title: string; readonly content: string }
+  | { readonly kind: "beat"; readonly key: RpgJournalId; readonly type: string; readonly label: string; readonly title: string; readonly content: string }
   | { readonly kind: "card"; readonly card: ArchivedCard };
 
 /** The host "New entry" composer (no dead ends): TYPE + TITLE, fired as one `addJournalEntry`

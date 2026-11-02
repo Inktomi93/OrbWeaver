@@ -78,7 +78,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const api = ownerActor(origin);
-  const characterIds: string[] = [];
+  const characterIds: CharacterId[] = [];
   for (const card of CAST) {
     characterIds.push(await freshCharacter(api, card));
   }

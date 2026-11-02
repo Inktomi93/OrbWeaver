@@ -3,7 +3,8 @@ import process from "node:process";
 import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
 import { isPlainObject } from "@orb/kit/guards";
-import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, RpgCheckpointId, UserConnectionId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type {
@@ -299,7 +300,7 @@ export async function getActivePreset(): Promise<TrpcClientOutput<"preset.get"> 
   if (id === null) {
     return;
   }
-  return await trpc.preset.get.query({ id });
+  return await trpc.preset.get.query({ id: typeIdSchema(ID_PREFIX.preset).parse(id) });
 }
 
 /** Patch the active preset's config (preset.update). The harness sends the WHOLE merged config back (the
@@ -421,7 +422,7 @@ function listMessageVariants(chatId: ChatId, messageId: MessageId): Promise<Trpc
 }
 
 /** The FIRST (idx 0, original) variant id of a slot — the "original intact" comparand for the rewrite leg. */
-export async function firstVariantId(chatId: ChatId, messageId: MessageId): Promise<string> {
+export async function firstVariantId(chatId: ChatId, messageId: MessageId): Promise<MessageVariantId> {
   const variants = await listMessageVariants(chatId, messageId);
   const first = variants.find((v) => v.idx === 0) ?? variants[0];
   if (first === undefined) {
@@ -432,7 +433,7 @@ export async function firstVariantId(chatId: ChatId, messageId: MessageId): Prom
 
 /** Move a slot's SELECTED-variant pointer (`chat.selectVariant`) — a pure pointer move (no generation),
  *  so stepping back to idx 0 proves the original variant survived a rewrite intact. */
-export function selectVariant(chatId: ChatId, messageId: MessageId, variantId: string): Promise<unknown> {
+export function selectVariant(chatId: ChatId, messageId: MessageId, variantId: MessageVariantId): Promise<unknown> {
   return trpc.chat.selectVariant.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId, variantId });
 }
 
@@ -609,7 +610,7 @@ export function createCheckpoint(chatId: ChatId, label: string): Promise<TrpcCli
 }
 
 /** Clone a checkpointed snapshot forward BORN-COMMITTED (`rpg.restoreCheckpoint` — host). The rewind door. */
-export function restoreCheckpoint(chatId: ChatId, checkpointId: string): Promise<unknown> {
+export function restoreCheckpoint(chatId: ChatId, checkpointId: RpgCheckpointId): Promise<unknown> {
   return trpc.rpg.restoreCheckpoint.mutate({ chatId, checkpointId });
 }
 

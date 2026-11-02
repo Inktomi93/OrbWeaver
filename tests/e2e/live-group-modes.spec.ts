@@ -260,16 +260,19 @@ test.describe("group modes on the live local stack", () => {
     const muteRoom = await seedRoom("mute", 3, { output: "per-speaker", policy: "list" });
     try {
       const mutedSeat = muteRoom.seats[1];
-      expect(mutedSeat).toBeDefined();
-      await setSeatKnobs(muteRoom.chatId, mutedSeat?.id ?? "", { disabled: true });
+      const mutedCharacterId = mutedSeat?.characterId;
+      if (mutedSeat === undefined || mutedCharacterId === undefined || mutedCharacterId === null) {
+        throw new Error("the room has no second character seat");
+      }
+      await setSeatKnobs(muteRoom.chatId, mutedSeat.id, { disabled: true });
 
       // `list` means EVERY eligible seat speaks — so a missing member here can only be the mute.
       await sendGroupTurn(muteRoom.chatId, "Say hello.");
       expect(await speakerSequence(muteRoom.chatId)).toEqual([muteRoom.characterIds[0], muteRoom.characterIds[2]]);
 
       // Mute is passive arbitration exclusion, NOT a host-override block (verbs/turn.ts: presence-only).
-      await forceCharacterTurn(muteRoom.chatId, mutedSeat?.characterId ?? castId<CharacterId>(""));
-      expect((await speakerSequence(muteRoom.chatId)).at(-1)).toBe(mutedSeat?.characterId);
+      await forceCharacterTurn(muteRoom.chatId, mutedCharacterId);
+      expect((await speakerSequence(muteRoom.chatId)).at(-1)).toBe(mutedCharacterId);
     } finally {
       await teardown(muteRoom);
     }
@@ -280,8 +283,10 @@ test.describe("group modes on the live local stack", () => {
       // does, one seat with talkativeness above 0 is drawn. A 0 seat therefore never speaks unprompted beside
       // a positive one, so a message naming nobody is answered by the positive seat ALONE, every time.
       const quiet = weightRoom.seats[0];
-      expect(quiet).toBeDefined();
-      await setSeatKnobs(weightRoom.chatId, quiet?.id ?? "", { talkativeness: 0 });
+      if (quiet === undefined) {
+        throw new Error("the room has no first seat");
+      }
+      await setSeatKnobs(weightRoom.chatId, quiet.id, { talkativeness: 0 });
 
       await sendGroupTurn(weightRoom.chatId, "Say hello.");
       expect(await speakerSequence(weightRoom.chatId)).toEqual([weightRoom.characterIds[1]]);

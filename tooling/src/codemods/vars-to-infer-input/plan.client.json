@@ -1,58 +1,6 @@
 {
   "sites": [
     {
-      "file": "data/use-husk-reaper.ts",
-      "type": "{ readonly chatId: ChatId }"
-    },
-    {
-      "file": "components/regex-mutations.ts",
-      "type": "{ readonly characterId: CharacterId; readonly scriptId: RegexScriptId }"
-    },
-    {
-      "file": "components/regex-mutations.ts",
-      "type": "{ readonly presetId: PresetId; readonly scriptId: RegexScriptId }"
-    },
-    {
-      "file": "components/regex-mutations.ts",
-      "type": "{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }"
-    },
-    {
-      "file": "features/regex/hooks/use-regex-library.ts",
-      "type": "{ readonly input: CreateRegexScriptInput }"
-    },
-    {
-      "file": "features/regex/hooks/use-regex-library.ts",
-      "type": "{ readonly scriptId: RegexScriptId; readonly input: UpdateRegexScriptInput }"
-    },
-    {
-      "file": "features/regex/hooks/use-regex-library.ts",
-      "type": "{ readonly scriptId: RegexScriptId }"
-    },
-    {
-      "file": "features/regex/hooks/use-regex-library.ts",
-      "type": "{ readonly fileText: string }"
-    },
-    {
-      "file": "features/user-admin/hooks/use-admin-mutations.ts",
-      "type": "{ readonly partial: AppSettings }"
-    },
-    {
-      "file": "features/plugin/lib/plugin-mutations.ts",
-      "type": "{ readonly pluginId: PluginId }"
-    },
-    {
-      "file": "features/config/hooks/use-theme-mutations.ts",
-      "type": "{ readonly fileText: string; readonly filename: string }"
-    },
-    {
-      "file": "features/chat/hooks/use-chat-regex-mutations.ts",
-      "type": "{ readonly scriptId: RegexScriptId; readonly input: UpdateRegexScriptInput }"
-    },
-    {
-      "file": "features/chat/hooks/use-chat-regex-mutations.ts",
-      "type": "{ readonly chatId: ChatId; readonly scriptId: RegexScriptId }"
-    },
-    {
       "file": "data/use-start-chat.ts",
       "type": "StartChatVars"
     },

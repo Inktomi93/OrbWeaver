@@ -5,12 +5,14 @@ import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse, PortableParseFailure } from "@orb/contracts/portability";
 import { rpgSheetSchema } from "@orb/contracts/rpg";
+import { isPlainObject } from "@orb/kit/guards";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
-import { FROZEN_AT_MS, forged } from "@orb/testkit/iso";
+import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 import { describe } from "vitest";
+import { z } from "zod";
 import { DATABANK_SCHEMA_KIND } from "#server/primitives/serde/databank/index.ts";
 
 // Typed literals: a failure name the contract renames fails `tsc` here.
@@ -21,10 +23,17 @@ const ENC = new TextEncoder();
 const DEC = new TextDecoder();
 const AT = FROZEN_AT_MS;
 
-interface Wire {
-  messages: { variants: Record<string, unknown>[] }[];
-  rpg: unknown;
-  [key: string]: unknown;
+const wireRecordSchema = z.record(z.string(), z.unknown());
+const wireSchema = z.looseObject({ messages: z.array(z.looseObject({ variants: z.array(wireRecordSchema) })), rpg: z.unknown() });
+type Wire = z.infer<typeof wireSchema>;
+
+/** The records under `key`, the live ones, because a case edits them in place before the bytes are read back. */
+function recordsAt(value: unknown, key: string): Record<string, unknown>[] {
+  const records = isPlainObject(value) ? value[key] : undefined;
+  if (!(Array.isArray(records) && records.every(isPlainObject))) {
+    throw new Error(`the built bundle carries no ${key} records`);
+  }
+  return records;
 }
 
 function must<T>(result: PortableParse<T>): T {
@@ -152,7 +161,7 @@ function chat(over: Partial<PortableChat> = {}): PortableChat {
 }
 
 /** The built file as a mutable wire object, for a case that edits what a real file could carry. */
-const wireOf = (value: PortableChat = chat()): Wire => forged<Wire>(JSON.parse(DEC.decode(buildChatBundleFile(value))));
+const wireOf = (value: PortableChat = chat()): Wire => wireSchema.parse(JSON.parse(DEC.decode(buildChatBundleFile(value))));
 const bytesOf = (wire: unknown): Uint8Array => ENC.encode(JSON.stringify(wire));
 
 function variantOf(wire: Wire): Record<string, unknown> {
@@ -166,7 +175,7 @@ function variantOf(wire: Wire): Record<string, unknown> {
 describe("the envelope", () => {
   test("a built file is stamped with the bundle kind and version and reads back as the canonical chat", () => {
     const bytes = buildChatBundleFile(chat());
-    const wire = forged<Record<string, unknown>>(JSON.parse(DEC.decode(bytes)));
+    const wire = wireRecordSchema.parse(JSON.parse(DEC.decode(bytes)));
     expect(wire["schemaKind"]).toBe(CHAT_BUNDLE_SCHEMA_KIND);
     expect(wire["schemaVersion"]).toEqual(expect.any(Number));
     expect(must(parseChatBundleFile(bytes))).toEqual(chat());
@@ -278,7 +287,7 @@ describe("generation observations and usage", () => {
 describe("the rpg plane", () => {
   test("a recorded tool call with no issues list reads back with an empty one", () => {
     const wire = wireOf();
-    const call = forged<{ turnToolCalls: { calls: Record<string, unknown>[] }[] }>(wire.rpg).turnToolCalls[0]?.calls[0];
+    const call = recordsAt(recordsAt(wire.rpg, "turnToolCalls")[0], "calls")[0];
     if (call === undefined) {
       throw new Error("the built bundle carries no recorded tool call");
     }
@@ -304,7 +313,7 @@ describe("the rpg plane", () => {
     });
     expect(must(parseChatBundleFile(buildChatBundleFile(marked))).rpg?.snapshots[0]?.bookmark).toBe(true);
     const wire = wireOf();
-    const snapshot = forged<{ snapshots: Record<string, unknown>[] }>(wire.rpg).snapshots[0];
+    const snapshot = recordsAt(wire.rpg, "snapshots")[0];
     if (snapshot === undefined) {
       throw new Error("the built bundle carries no rpg snapshot");
     }
@@ -314,14 +323,14 @@ describe("the rpg plane", () => {
 
   test("sheet handles are opaque wire strings: blank heals to null and an over-cap string is carried", () => {
     const wire = wireOf();
-    const sheet = forged<{ sheets: { characterHandle: unknown }[] }>(wire.rpg).sheets[0];
+    const sheet = recordsAt(wire.rpg, "sheets")[0];
     if (sheet === undefined) {
       throw new Error("the built bundle carries no rpg sheet");
     }
     const overCap = "h".repeat(201);
-    sheet.characterHandle = "";
+    sheet["characterHandle"] = "";
     expect(must(parseChatBundleFile(bytesOf(wire))).rpg?.sheets[0]?.characterHandle).toBeNull();
-    sheet.characterHandle = overCap;
+    sheet["characterHandle"] = overCap;
     expect(must(parseChatBundleFile(bytesOf(wire))).rpg?.sheets[0]?.characterHandle).toBe(overCap);
   });
 

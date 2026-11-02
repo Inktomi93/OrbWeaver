@@ -8,24 +8,28 @@ import ts from "typescript";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { declaredInContract } from "./trpc-output.ts";
 
-/** A file whose casts are a real boundary, not a site waiting to be fixed. A home names the boundary in `reason`. */
+/** One cast that is a real boundary, not a site waiting to be fixed: `site` is the source text of the expression it casts. */
 export interface UnsafeCastHome {
   readonly file: string;
+  readonly site: string;
   readonly reason: string;
 }
 
-/** The files a cast is the boundary itself. Add a file only for data that arrives untyped by construction. */
+/** The casts that are the boundary itself. Add one only for data that arrives untyped by construction. */
 export const UNSAFE_CAST_HOMES: readonly UnsafeCastHome[] = [
   {
     file: "packages/contracts/src/plugin/manifest.ts",
+    site: 'Reflect.get(globalThis, "URL")',
     reason: "the WHATWG `URL` global exists in every runtime yet in neither lib this package compiles under, so it can only be read untyped",
   },
   {
     file: "packages/inference/src/backends/local-light/model-worker.ts",
+    site: "workerData",
     reason: "`workerData` arrives untyped across the thread boundary from this worker's own spawner",
   },
   {
     file: "packages/ui/src/lib/live-token-resolver.ts",
+    site: "globalThis as unknown",
     reason:
       "reads DOM globals through structural shims so the module compiles in the DOM-less node world; `globalThis` has no type in common with them in either world",
   },
@@ -105,7 +109,7 @@ function syntacticReason(node: TSESTree.TSAsExpression): string | null {
 }
 
 /** Refuses `x as unknown as T`, `JSON.parse(x) as T`, an `unknown` or `any` value cast to a contract, row or branded type,
- *  and a branded value cast to `string`. A file in `homes` is exempt. */
+ *  and a branded value cast to `string`. A cast named in `homes` is exempt. */
 export function noUnsafeCastRule(homes: readonly UnsafeCastHome[]): OrbRule {
   return {
     meta: { type: "problem", schema: [] },
@@ -114,9 +118,10 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[]): OrbRule {
       const program = services?.program ?? null;
       const toTs = services?.esTreeNodeToTSNodeMap;
       const filename = context.filename.replaceAll("\\", "/");
-      if (program === null || toTs === undefined || homes.some(({ file }) => filename.endsWith(file))) {
+      if (program === null || toTs === undefined) {
         return {};
       }
+      const sites = new Set(homes.filter(({ file }) => filename.endsWith(file)).map(({ site }) => site));
       const checker = program.getTypeChecker();
       const brand = brandedString(program, checker);
       const isBrand = (type: ts.Type): boolean => brand !== null && !isUntyped(type) && !isNever(type) && checker.isTypeAssignableTo(type, brand);
@@ -129,7 +134,12 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[]): OrbRule {
         return node.typeAnnotation.type === AST_NODE_TYPES.TSStringKeyword && isBrand(carried) ? STRIPPED_BRAND : null;
       };
       const judge = (node: TSESTree.TSAsExpression): void => {
-        if (isConstCast(node.typeAnnotation) || UNTYPED.has(node.typeAnnotation.type) || isIncludesReceiver(node)) {
+        if (
+          isConstCast(node.typeAnnotation) ||
+          UNTYPED.has(node.typeAnnotation.type) ||
+          isIncludesReceiver(node) ||
+          sites.has(context.sourceCode.getText(node.expression))
+        ) {
           return;
         }
         const message = syntacticReason(node) ?? typedReason(node);

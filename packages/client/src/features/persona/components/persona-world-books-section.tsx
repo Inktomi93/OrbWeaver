@@ -50,13 +50,12 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
   const items: SelectItems = [{ value: NONE_VALUE, label: "None" }, ...library.map((book) => ({ value: book.id, label: book.name }))];
 
   const onChange = (value: string | null): void => {
-    // `book.id` is already the branded `WorldBookId` (tRPC-inferred) — no re-cast.
     const previous = current?.id;
-    const next = value ?? NONE_VALUE;
-    if (next !== NONE_VALUE) {
-      attach.mutate({ personaId, bookId: next });
+    const picked = library.find((book) => book.id === value)?.id;
+    if (picked !== undefined) {
+      attach.mutate({ personaId, bookId: picked });
     }
-    if (previous !== undefined && previous !== next) {
+    if (previous !== undefined && previous !== picked) {
       detach.mutate({ personaId, bookId: previous });
     }
   };

@@ -63,8 +63,10 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
 
     const canon = await host.trpc.chat.listMessages.query({ chatId });
     const greeting = canon.messages.find((m) => m.role === "assistant");
-    expect(greeting).toBeDefined();
-    const greetingId = greeting?.id ?? "";
+    if (greeting === undefined) {
+      throw new Error("the room has no greeting");
+    }
+    const greetingId = greeting.id;
     await host.trpc.chat.editMessage.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
 
     // MEMBER: log in + join the chat (createInvite → redeemInvite).

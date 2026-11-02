@@ -4,8 +4,8 @@ import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
 
 test("a prefixless schema derives its plain brand from the required label", () => {
-  expectTypeOf(brandedId("UserId")).toEqualTypeOf<z.ZodType<UserId, string>>();
-  expectTypeOf(brandedId("PrefixlessProbe")).toEqualTypeOf<z.ZodType<Branded<"PrefixlessProbe">, string>>();
+  expectTypeOf(brandedId("UserId")).toEqualTypeOf<z.ZodType<UserId, UserId>>();
+  expectTypeOf(brandedId("PrefixlessProbe")).toEqualTypeOf<z.ZodType<Branded<"PrefixlessProbe">, Branded<"PrefixlessProbe">>>();
 });
 
 test("forbidden, widened and uninhabited labels cannot promise a branded output", () => {

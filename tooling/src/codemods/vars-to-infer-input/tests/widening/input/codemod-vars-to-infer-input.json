@@ -1,0 +1,9 @@
+{
+  "sites": [
+    {
+      "file": "widening.ts",
+      "type": "{ readonly chatId: ChatId }"
+    }
+  ],
+  "skip": []
+}

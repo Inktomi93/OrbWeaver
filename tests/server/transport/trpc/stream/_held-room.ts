@@ -50,7 +50,7 @@ export interface Frame {
 
 /** One device's real multiplexed socket, read frame by frame as the browser reads it. */
 export interface Device {
-  readonly socketId: string;
+  readonly socketId: ReturnType<typeof streamConnectInputSchema.parse>["socketId"];
   readonly frames: readonly Frame[];
   readonly attach: () => Promise<void>;
   readonly waitFor: (done: (frames: readonly Frame[]) => boolean) => Promise<void>;

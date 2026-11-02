@@ -1,13 +1,50 @@
 {
   "sites": [
-    { "file": "literal.ts", "type": "{ readonly id: string }" },
-    { "file": "chat.ts", "type": "StarVars" },
-    { "file": "chat.ts", "type": "RenameVars" },
-    { "file": "chat.ts", "type": "ReadVars" },
-    { "file": "chat.ts", "type": "ReadVars0" },
-    { "file": "chat.ts", "type": "KeepVars" },
-    { "file": "asserted.ts", "type": "SendVars" },
-    { "file": "bare.ts", "type": "PinVars" }
+    {
+      "file": "literal.ts",
+      "type": "{ readonly id: string }",
+      "proved": true
+    },
+    {
+      "file": "chat.ts",
+      "type": "StarVars",
+      "proved": true
+    },
+    {
+      "file": "chat.ts",
+      "type": "RenameVars",
+      "proved": true
+    },
+    {
+      "file": "chat.ts",
+      "type": "ReadVars",
+      "proved": true
+    },
+    {
+      "file": "chat.ts",
+      "type": "ReadVars0",
+      "proved": true
+    },
+    {
+      "file": "chat.ts",
+      "type": "KeepVars",
+      "proved": true
+    },
+    {
+      "file": "asserted.ts",
+      "type": "SendVars",
+      "proved": true
+    },
+    {
+      "file": "bare.ts",
+      "type": "PinVars",
+      "proved": true
+    }
   ],
-  "skip": [{ "type": "RuleActionVars", "reason": "carries a client-only chatId beside the procedure input" }]
+  "skip": [
+    {
+      "type": "RuleActionVars",
+      "reason": "carries a client-only chatId beside the procedure input"
+    }
+  ]
 }

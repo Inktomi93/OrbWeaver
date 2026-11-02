@@ -327,10 +327,10 @@ type PrefixlessBrand<Label extends string> = [PrefixlessLabel<Label>] extends [n
  *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix, and a TypeID
  *  brand is a compile error here. Additional proof brands such as {@link VerifiedUserId} require their
  *  dedicated verification seam, not a text parser. */
-export function brandedId<const Label extends string>(_label: PrefixlessLabel<Label>): z.ZodType<PrefixlessBrand<Label>, string> {
-  // `z.custom` supplies only the phantom output face after the string schema has done the real
-  // validation. `pipe` preserves the validated string input and the runtime value byte-for-byte.
-  return z.string().min(1).pipe(z.custom<PrefixlessBrand<Label>>());
+export function brandedId<const Label extends string>(_label: PrefixlessLabel<Label>): z.ZodType<PrefixlessBrand<Label>, PrefixlessBrand<Label>>;
+export function brandedId(_label: string): z.ZodType<string> {
+  // `z.custom` adds no check after the string schema has done the real validation; `pipe` keeps the value byte-for-byte.
+  return z.string().min(1).pipe(z.custom<string>());
 }
 
 /** Mint a fresh `prefix_<base32 uuidv7>` TypeID, typed as the corresponding canonical entity brand. */
@@ -386,26 +386,15 @@ export function createIdSource(generate?: RawIdGenerator): IdSource {
 /** Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…` shape AND that
  *  the prefix matches — a `chat_…` where a `persona_…` is expected is rejected, not silently accepted.
  *
- *  The explicit `string` Input generic is load-bearing: `z.ZodType`'s Input parameter defaults to
- *  `unknown` (zod 4.4.3, verified against the installed `v4/classic/schemas.d.ts:6`), so omitting it
- *  made `z.input<>` of every schema built from this `unknown` — and `unknown` as a property type accepts
- *  ANY value on assignment: not merely a wrong-prefixed string but a number, an object, anything. Pinning
- *  Input=`string` closes that. Not a behavior change; the schema always accepted a bare string pre-transform.
- *
- *  WHAT THIS DOES NOT DO, stated because the row that prompted it (#641) claimed otherwise and a reader
- *  would otherwise trust the wrong wall: it does NOT restore BRAND enforcement at the input seam, and no
- *  Input generic could. `z.input<>` of a validating `.transform()` is by definition the PRE-parse shape —
- *  the raw string a caller hands in BEFORE branding happens — so it never carried the brand in any zod
- *  version. The brand lives on Output (`z.infer<>`), which was always correctly typed here and was never
- *  the defect. A wrong-branded-but-right-SHAPED value is therefore structurally uncatchable through this
- *  schema; catching that class needs a typed resolution axis instead — the `entityRef` knob kind
- *  (`contracts/automation/presets.ts` + the real `.safeParse` at `domain/automation/substrate/presets.ts`)
- *  is the worked example, and is what actually fixed the case #641 mis-cited as this seam's evidence. */
-export function typeIdSchema<P extends TypeIdPrefix>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
-  return z.string().transform((value, ctx): TypeIdOf<P> => {
+ *  @remarks The declared Input is the brand, not `string`, so `z.input<>`, and through it tRPC's `inferInput`,
+ *  keep the id family and a wrong-branded id fails to compile at the call. The parser still takes a bare string:
+ *  the signature below states the type-law contract and the implementation is the runtime schema, unchanged. */
+export function typeIdSchema<P extends TypeIdPrefix>(prefix: P): z.ZodType<TypeIdOf<P>, TypeIdOf<P>>;
+export function typeIdSchema(prefix: TypeIdPrefix): z.ZodType<string> {
+  return z.string().transform((value, ctx): string => {
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.
-      return fromString(value, prefix) as string as TypeIdOf<P>;
+      return fromString(value, prefix);
     } catch {
       // A fixed message, never typeid-js's own: those echo the rejected value (a prefix mismatch up to the
       // last `_`, an empty prefix in full), and a failed tRPC output parse logs this issue, so a secret a

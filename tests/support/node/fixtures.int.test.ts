@@ -10,6 +10,7 @@
 // Also proves the happy paths (owner round-trip; admin passes the gate) and that these callers ride the
 // REAL tRPC error mapping — the matchers see genuine ladder-thrown TRPCErrors, not ducks.
 
+import { brandedId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import type { Fixtures } from "./fixtures.ts";
@@ -36,7 +37,9 @@ describe("cross-user isolation — NOT_FOUND, never FORBIDDEN", () => {
 
 describe("admin gating — FORBIDDEN for a plain user, open for admin/owner", () => {
   test("an admin-gated mutation by a non-admin rejects FORBIDDEN", async ({ otherCaller }) => {
-    await expect(otherCaller.admin.createUser({ handle: "sneaky", password: "not-gonna-happen-1234" })).toThrowTRPCError("FORBIDDEN");
+    await expect(otherCaller.admin.createUser({ handle: brandedId("Handle").parse("sneaky"), password: "not-gonna-happen-1234" })).toThrowTRPCError(
+      "FORBIDDEN",
+    );
   });
 
   test("an admin-gated query by a non-admin rejects FORBIDDEN (gate, not oracle — admin surfaces are advertised)", async ({ otherCaller }) => {

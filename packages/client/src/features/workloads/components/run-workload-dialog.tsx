@@ -9,6 +9,7 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
+import type { WorkloadId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -43,7 +44,7 @@ type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** A candidate for the `dependsOn` gate — one of the viewer's currently in-flight (queued/running) runs. */
 interface DependencyCandidate {
-  readonly id: string;
+  readonly id: WorkloadId;
   readonly kind: string;
   readonly createdAt: number;
 }
@@ -105,10 +106,12 @@ function RunWorkloadFormBody({
     const bulkOn = isMaintenance || bulkToggleOn;
     const needsTarget = !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
     const scheduledAt = parseRunAt(values.runAt);
+    const target = needsTarget ? users.find((user) => user.id === values.targetOwnerId)?.id : undefined;
+    const dependsOn = dependencyCandidates.filter((candidate) => values.dependsOn.includes(candidate.id)).map((candidate) => candidate.id);
     const scope = {
       input: buildStartInput(values.kind, values),
       mode: bulkOn ? "bulk" : "singular",
-      ...(needsTarget ? { targetOwnerId: values.targetOwnerId } : {}),
+      ...(target === undefined ? {} : { targetOwnerId: target }),
     } satisfies WorkloadRunScope;
     await paidRun.confirmThen({
       title: `Run ${WORKLOAD_KIND_LABELS[values.kind]}?`,
@@ -118,7 +121,7 @@ function RunWorkloadFormBody({
         await start.mutateAsync({
           ...scope,
           ...(scheduledAt === undefined ? {} : { scheduledAt }),
-          ...(values.dependsOn.length > 0 ? { dependsOn: [...values.dependsOn] } : {}),
+          ...(dependsOn.length > 0 ? { dependsOn } : {}),
         });
         onDone();
       },

@@ -14,7 +14,7 @@
 //
 
 import { setTimeout as sleep } from "node:timers/promises";
-import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
@@ -43,11 +43,13 @@ type PersonaRow = TrpcClientOutput<"persona.create">;
 
 /** The seeded member's `users.id` — read through the owner-only admin surface (the host IS the box owner in
  *  this mode), because `/api/auth/me` deliberately returns handle+role, not the id the D16 write needs. */
-async function memberUserId(host: ActorClient): Promise<string> {
+async function memberUserId(host: ActorClient): Promise<UserId> {
   const users = await host.trpc.admin.listUsers.query();
   const row = users.find((u) => u.handle.toLowerCase() === LOCAL_MEMBER.handle);
-  expect(row, `the seeded "${LOCAL_MEMBER.handle}" account must exist (global-setup ran the multi-user seed)`).toBeDefined();
-  return row?.id ?? "";
+  if (row === undefined) {
+    throw new Error(`the seeded "${LOCAL_MEMBER.handle}" account must exist (global-setup ran the multi-user seed)`);
+  }
+  return row.id;
 }
 
 /** Mint a spec-owned character, removing any residue from a crashed prior run (idempotent). */
@@ -486,10 +488,14 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     // `chat.send` resolves when the turn is ACCEPTED, not when it commits (the reply lands over the bus), so
     // poll the canon for the committed row rather than racing it.
     const reply = await pollForReply(host, chatId);
-    expect(reply, "the fixture turn's reply must have committed").toBeDefined();
-    const variants = await host.trpc.chat.listMessageVariants.query({ chatId, messageId: reply?.id ?? "" });
-    const variantId = variants.at(-1)?.variantId ?? "";
-    expect(variantId).not.toBe("");
+    if (reply === undefined) {
+      throw new Error("the fixture turn's reply must have committed");
+    }
+    const variants = await host.trpc.chat.listMessageVariants.query({ chatId, messageId: reply.id });
+    const variantId = variants.at(-1)?.variantId;
+    if (variantId === undefined) {
+      throw new Error("the committed reply carries no variant");
+    }
 
     // THE PROOF: the prompt STAMPED on that variant — the bytes that went to the model — carries the
     // member's persona name and description. Pre-D122 this read NULL for a non-host trigger and `{{user}}`
