@@ -8,12 +8,18 @@ import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
+import type { ReadingRow } from "./reading-row.ts";
+import { holdReadingRow, readingRowOf } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
 const OVERSCAN = 2;
+
+/** The slot of the leading chrome's box. A caller that renders its chrome without rows (an empty thread) wraps it in
+ *  the same slot, so a stylesheet that picks a copy by this slot reads one shape. */
+export const MESSAGE_LIST_LEADING_SLOT = "message-list-leading";
 
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
 const SCROLL_END_THRESHOLD_PX = 80;
@@ -77,6 +83,11 @@ export interface MessageListProps<T> {
    */
   readonly rowNavigation?: MessageListRowNavigation;
   readonly renderItem: (item: T, index: number) => ReactNode;
+  /**
+   * Chrome that scrolls with the rows, above the first one (a history pager). It is part of the scroll content, so
+   * it leaves with the oldest rows and comes back with them, and it is not a row: no position, no roving stop.
+   */
+  readonly leading?: ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
   readonly className?: string;
   /** Escape hatch to the real scroll DOM node, e.g. for an external scroll-restoration hook. */
@@ -101,11 +112,43 @@ export function MessageList<T>({
   keepMounted,
   rowNavigation = "none",
   renderItem,
+  leading,
   className,
   scrollContainerRef,
   ref,
 }: MessageListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [leadingNode, setLeadingNode] = useState<HTMLDivElement | null>(null);
+  // The leading chrome's content height, without its top inset. The inset and the `scrollMargin` that counts it apply only
+  // while there is chrome to show: a caller's chrome can be all `display: none`, and an empty header must shift nothing.
+  // virtual-core takes it as `scrollMargin`, so every offset it computes (ends, reveals, pins, a prepend's anchor) counts it.
+  const [leadingPx, setLeadingPx] = useState(0);
+  const leadingPxRef = useRef(0);
+  // The row at the reader's top edge and how far into it they are, kept from the last scroll; null while following.
+  const readingRowRef = useRef<ReadingRow | null>(null);
+  const holdingRef = useRef(false);
+  const holdReadingRowRef = useRef<() => void>(() => undefined);
+  const leadingInsetPx = Math.round(gapPxFor(blockPaddingToken));
+  useLayoutEffect((): (() => void) | undefined => {
+    if (leadingNode === null) {
+      setLeadingPx(0);
+      return undefined;
+    }
+    const measure = (): void => {
+      const next = Math.round(leadingNode.getBoundingClientRect().height - Number.parseFloat(getComputedStyle(leadingNode).paddingBlockStart));
+      // The chrome changes height when the caller's regime flips (a text-size change, a rotation), and rows re-measure in
+      // the same pass; together they lose the reader's row, so the row read before the change is held through it.
+      if (next !== leadingPxRef.current) {
+        leadingPxRef.current = next;
+        holdReadingRowRef.current();
+      }
+      setLeadingPx(next);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(leadingNode);
+    return (): void => observer.disconnect();
+  }, [leadingNode]);
   const reducedMotion = usePrefersReducedMotion();
   // Follow-the-tail intent, moved ONLY by an external scroll (never by virtual-core's own drift).
   const stickToBottomRef = useRef(true);
@@ -178,6 +221,7 @@ export function MessageList<T>({
     overscan: OVERSCAN,
     gap: Math.round(gapPxFor(gapToken)),
     paddingStart: Math.round(gapPxFor(blockPaddingToken)),
+    scrollMargin: leadingPx > 0 ? leadingPx + leadingInsetPx : 0,
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
     // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
     paddingEnd: Math.round(gapPxFor(blockPaddingToken) + pinSpacerPx),
@@ -260,6 +304,43 @@ export function MessageList<T>({
         });
   }, []);
 
+  // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
+  const keyAt = (index: number): unknown => getItemKey(itemAt(index), index);
+  const cancelHoldRef = useRef<() => void>(() => undefined);
+  useEffect((): void => {
+    holdReadingRowRef.current = (): void => {
+      const el = scrollRef.current;
+      const row = readingRowRef.current;
+      if (el === null || row === null || stickToBottomRef.current) {
+        return;
+      }
+      cancelHoldRef.current();
+      holdingRef.current = true;
+      cancelHoldRef.current = holdReadingRow({
+        scroller: el,
+        row,
+        count: items.length,
+        keyAt,
+        reveal: (index): void => virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" }),
+        // The reader's hand, or a jump that made the list follow its tail again, ends the hold.
+        yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current,
+        onWrite: (top): void => {
+          programmaticTopRef.current = top;
+        },
+        onDone: (): void => {
+          holdingRef.current = false;
+          readingRowRef.current = readingRowOf(el, items.length, keyAt);
+        },
+      });
+    };
+  });
+  useEffect((): (() => void) => (): void => cancelHoldRef.current(), []);
+  // Every explicit placement (a jump, a reveal, a pin) outranks a hold still in flight.
+  const stopHold = useCallback((): void => {
+    cancelHoldRef.current();
+    holdingRef.current = false;
+  }, []);
+
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
     virtualizer.scrollToEnd({ behavior: "auto" });
@@ -276,6 +357,9 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
+    if (!holdingRef.current) {
+      readingRowRef.current = readingRowOf(el, items.length, keyAt);
+    }
     // A gesture's scroll chain KEEPS the axis: every scroll event that lands while the reader still owns
     // it renews the yield, so the window means "until the scrolling their input started has stopped",
     // not "150ms of wall clock". Without this the window can expire mid-flick under load — measured as a
@@ -308,6 +392,7 @@ export function MessageList<T>({
     ref,
     (): MessageListHandle => ({
       scrollToEnd: () => {
+        stopHold();
         setFollowing(true);
         // An explicit jump abandons an active pin: clear the pinned index + collapse the
         // spacer BEFORE the end offset is computed, else getMaxScrollOffset() (= scrollHeight -
@@ -324,6 +409,7 @@ export function MessageList<T>({
         virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" });
       },
       revealIndex: (index): boolean => {
+        stopHold();
         setFollowing(false);
         pinnedIndexRef.current = null;
         setPinSpacerPx(0);
@@ -336,6 +422,7 @@ export function MessageList<T>({
         return document.activeElement === row;
       },
       pinToIndex: (index) => {
+        stopHold();
         // A real no-op outside pin-prompt mode: follow mode owns tail placement, so a stray pin would
         // arm the spacer and fight the sticky-tail. Keeps `follow` byte-identical.
         if (!pinMode) {
@@ -352,7 +439,7 @@ export function MessageList<T>({
         });
       },
     }),
-    [virtualizer, reducedMotion, setFollowing, pinMode],
+    [virtualizer, reducedMotion, setFollowing, pinMode, stopHold],
   );
 
   // Unbounded-height tripwire: thrown, not warned — identical to virtual-list.
@@ -386,6 +473,18 @@ export function MessageList<T>({
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
+      {leading === undefined ? null : (
+        // In flow above the row viewport, so it scrolls with the rows; its top inset is the rows' own block breathing.
+        // Paper says what the transcript leaves out on its own, so none of this chrome prints.
+        <div
+          ref={setLeadingNode}
+          className="print:hidden"
+          data-slot={MESSAGE_LIST_LEADING_SLOT}
+          style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}
+        >
+          {leading}
+        </div>
+      )}
       {/* A real list inside the log: semantic rows make the virtual position metadata valid. WHAT ANNOUNCES — why `log` not `feed`/`grid`, why only the tail is live: ./announce.ts. */}
       <ol ref={setViewportRef} className="relative m-0 list-none p-0 inline-full" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (

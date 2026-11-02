@@ -1,14 +1,17 @@
 // Every registered modal through the shell's one ModalHost: focus on open and on close, a locked document with the
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
-
+import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
 import type { ThemeId } from "@orb/kit/ids";
+import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -33,6 +36,90 @@ const SERVED = [
 ] as const;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+const WIDE_SHORT_VIEWPORTS = [
+  { width: 844, height: 390 },
+  { width: 1024, height: 420 },
+] as const;
+const STACKED_SHORT_VIEWPORT = { width: 568, height: 320 } as const;
+const ENLARGED_LANDSCAPE_CELLS = [
+  { width: 844, height: 390, factor: 2 },
+  { width: 844, height: 390, factor: 3 },
+  { width: 568, height: 320, factor: 2 },
+] as const;
+
+/** A saved roster for the owner, so New chat shows its saved-roster door. */
+async function seedRosterPreset(root: Root): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  if ((await caller.rosterPreset.list()).length > 0) {
+    return;
+  }
+  const [character] = (await caller.character.list({})).items;
+  if (character === undefined) {
+    throw new Error("The corpus has no character to save in a roster");
+  }
+  await caller.rosterPreset.create({ input: { name: "Landscape roster", members: [{ kind: "character", characterId: character.id, position: 0 }] } });
+}
+
+/** Where New chat's first row stands at open: its list and popup scroll positions, and whether it is whole and uncovered. */
+function firstRowAtOpen(option: Element): {
+  readonly listScrollTop: number | undefined;
+  readonly popupScrollTop: number | undefined;
+  readonly wholeInList: boolean;
+  readonly footClear: boolean;
+} {
+  const list = option.closest('[data-slot="command-list"]');
+  const popup = option.closest('[data-slot="dialog-popup"]');
+  const box = option.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.bottom - 2);
+  return {
+    listScrollTop: list?.scrollTop,
+    popupScrollTop: popup?.scrollTop,
+    wholeInList: list !== null && box.top >= list.getBoundingClientRect().top && box.bottom <= list.getBoundingClientRect().bottom,
+    footClear: hit !== null && option.contains(hit),
+  };
+}
+
+const BROWSER_DEFAULT_FONT_PX = 16;
+const LIST_BAND_MENU = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
+const DOOR_TIMEOUT_MS = 2000;
+
+/** Opens New chat through whichever door the Chats section shows: the list band's New button, the band menu's item when
+ *  the button moved there, or the landing's own New chat when the shell keeps the list off screen. */
+async function openNewChatFromList(page: Page): Promise<void> {
+  const list = page.locator('.shell-panel[data-panel-side="list"]');
+  const inline = list.getByRole("button", { name: "New", exact: true });
+  const bandMenu = list.locator(LIST_BAND_MENU);
+  const landing = page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
+  await expect(async () => {
+    if (await inline.isVisible()) {
+      // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
+      await inline.click({ timeout: DOOR_TIMEOUT_MS });
+    } else if (await bandMenu.isVisible()) {
+      // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
+      await bandMenu.click({ timeout: DOOR_TIMEOUT_MS });
+      // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
+      await page.getByRole("menuitem", { name: "New chat", exact: true }).click({ timeout: DOOR_TIMEOUT_MS });
+    } else {
+      // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
+      await landing.click({ timeout: DOOR_TIMEOUT_MS });
+    }
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: DOOR_TIMEOUT_MS });
+  }).toPass();
+}
+
+function rootFontPx(): number {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+}
+
+/** Whether a press at the control's centre lands on the control, not on something painted over it. A disabled control
+ *  takes no press itself, so its own row answering is the row leaving it uncovered. */
+function takesPressAtCentre(control: Element): boolean {
+  const box = control.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+  const inert = getComputedStyle(control).pointerEvents === "none" && hit === control.parentElement;
+  return (hit !== null && control.contains(hit)) || inert;
+}
 
 const COLORIZATION_ATTRIBUTE = channelName("enableThemeColorization");
 
@@ -103,6 +190,24 @@ test.describe("on the corpus owner's own settings", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(opener).toBeFocused();
+  });
+
+  // The second open is warm: the picker's rows are cached, so its body mounts in the same commit as the popup.
+  test("New chat lands the caret in its search on every open, so typing searches", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    for (const letter of ["a", "b"]) {
+      await openNewChatFromList(page);
+      const search = page.getByRole("dialog").getByRole("combobox");
+      await expect(search).toBeFocused();
+      await page.keyboard.type(letter);
+      await expect(search).toHaveValue(letter);
+      // A first Escape may only clear the search; the next one closes the dialog.
+      await expect(async () => {
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: DOOR_TIMEOUT_MS });
+      }).toPass();
+    }
   });
 
   test("switching Add document's mode moves neither its mode strip nor its footer, every arm offers Cancel, and its teaching line reads at least label size", async ({
@@ -186,6 +291,71 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
     // The positive control for the loop below: a real body does overflow here, and only inside the popup.
     await expect.poll(() => scrollPopupToEnd(page)).toBe(true);
+  });
+
+  // A short dialog wide enough for one footer row: a landscape phone and a short desktop window.
+  forEachNonEmpty(WIDE_SHORT_VIEWPORTS, "WIDE_SHORT_VIEWPORTS", (viewport) => {
+    test.describe(`at ${String(viewport.width)}x${String(viewport.height)}`, () => {
+      test.use({ viewport, hasTouch: true, isMobile: true });
+
+      test("New chat opens on its list's first row with Blank chat, the saved-roster door and Start pressable", async ({ mount, page }) => {
+        await seedRosterPreset(root);
+        await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+        const dialog = page.getByRole("dialog");
+        const row = dialog.getByRole("option").first();
+        await expect(row).toBeVisible();
+        await expect(dialog.getByRole("combobox")).toBeFocused();
+        await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
+        // Every door is on screen at open, with no scroll: nothing hides under the footer or past the body's clip.
+        const actions = dialog.locator('[data-slot="new-chat-actions"]');
+        for (const door of [
+          actions.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }),
+          dialog.getByRole("button", { name: SAVED_ROSTER_DOOR, exact: true }),
+          actions.getByRole("button").last(),
+        ]) {
+          await expect(door).toBeInViewport({ ratio: 1 });
+          await expect.poll(() => door.evaluate(takesPressAtCentre)).toBe(true);
+        }
+      });
+    });
+  });
+
+  // The smallest landscape phone: a dialog under the short step and narrow enough to stack, with touch-sized controls.
+  test.describe(`at ${String(STACKED_SHORT_VIEWPORT.width)}x${String(STACKED_SHORT_VIEWPORT.height)}`, () => {
+    test.use({ viewport: STACKED_SHORT_VIEWPORT, hasTouch: true, isMobile: true });
+
+    test("New chat opens on its list's first row, whole and clear of the pinned Start, with nothing scrolled", async ({ mount, page }) => {
+      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      const row = dialog.getByRole("option").first();
+      await expect(row).toBeVisible();
+      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
+      await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
+    });
+  });
+
+  // Opened at an enlarged root, the way a reader with a large browser text size opens it.
+  forEachNonEmpty(ENLARGED_LANDSCAPE_CELLS, "ENLARGED_LANDSCAPE_CELLS", (cell) => {
+    test.describe(`opened at ${String(cell.factor * 100)}% text on ${String(cell.width)}x${String(cell.height)}`, () => {
+      test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: true, isMobile: true });
+
+      test("New chat keeps its title and Close on screen", async ({ mount, page }) => {
+        // The Chats list docked, so its New door is on screen; the root scales first, so the dialog opens enlarged.
+        await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked" } } });
+        await mount<typeof AppShellStory>(STORY, {});
+        await expect(page.locator(".shell-topbar")).toBeVisible();
+        await setRootFontScale(page, channelName("fontScale"), cell.factor);
+        await expect.poll(() => page.evaluate(rootFontPx)).toBe(BROWSER_DEFAULT_FONT_PX * cell.factor);
+        await openNewChatFromList(page);
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("option").first()).toBeAttached();
+        await expect(dialog.getByRole("combobox")).toBeFocused();
+        await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
+        // At 300% on a 390px screen the close control's touch box is taller than its row: it must take a press, whole or not.
+        await expect.poll(() => dialog.getByRole("button", { name: "Close", exact: true }).evaluate(takesPressAtCentre)).toBe(true);
+      });
+    });
   });
 
   for (const modalId of MODAL_SLOT_IDS) {

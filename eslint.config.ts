@@ -1582,8 +1582,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}", "tests/**/*.ct.tsx"],
       rules: { "orb/custom-property-declared": "error" },
     },
-    // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338
-    // (docs/plans/css-system/feature-classname-sites.md), and the pre-push lint stays red until the last one goes.
+    // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338,
+    // and the pre-push lint stays red until the last one goes.
     {
       files: ["packages/client/src/**/*.tsx"],
       rules: { "orb/feature-classname-layout-only": "error", "orb/no-built-class-string": "error" },

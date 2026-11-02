@@ -210,6 +210,19 @@ export interface CommandItemProps extends Omit<ComponentProps<typeof BaseCommand
 export function CommandItem({ centerInList = false, ref, ...rest }: CommandItemProps): ReactElement {
   const rowRef = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => rowRef.current as HTMLDivElement);
+  // cmdk reveals its highlighted row with the row's own `scrollIntoView`, on mount and on every move. The native call
+  // scrolls every ancestor too: on arrival in a short dialog it scrolled the dialog's title away. The row's reveal is its
+  // list's job, so a list that scrolls is the only box it moves; a list that does not scroll keeps the native reveal.
+  useLayoutEffect((): (() => void) | undefined => {
+    const row = rowRef.current;
+    if (row === null) {
+      return undefined;
+    }
+    row.scrollIntoView = (options?: boolean | ScrollIntoViewOptions): void => revealInOwnList(row, options);
+    return (): void => {
+      Reflect.deleteProperty(row, "scrollIntoView");
+    };
+  }, []);
   useEffect(() => {
     if (!centerInList) {
       return;
@@ -218,6 +231,22 @@ export function CommandItem({ centerInList = false, ref, ...rest }: CommandItemP
     return (): void => cancelAnimationFrame(frame);
   }, [centerInList]);
   return <BaseCommandItem className={slots.item()} data-slot="command-item" ref={rowRef} {...rest} />;
+}
+
+/** Bring `row` whole into its cmdk list's own scroll box, nearest edge first; outside a scrolling list, the native reveal. */
+function revealInOwnList(row: HTMLElement, options?: boolean | ScrollIntoViewOptions): void {
+  const list = row.closest<HTMLElement>("[cmdk-list]");
+  if (list === null || list.scrollHeight <= list.clientHeight) {
+    HTMLElement.prototype.scrollIntoView.call(row, options);
+    return;
+  }
+  const frame = list.getBoundingClientRect();
+  const box = row.getBoundingClientRect();
+  if (box.top < frame.top) {
+    list.scrollTop -= frame.top - box.top;
+  } else if (box.bottom > frame.bottom) {
+    list.scrollTop += box.bottom - frame.bottom;
+  }
 }
 
 /** Put `row` at the centre of its cmdk list's own scroll box; a row outside a list is left where it is. */

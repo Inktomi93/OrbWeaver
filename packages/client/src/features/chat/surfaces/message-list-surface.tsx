@@ -19,7 +19,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { CurrentStack } from "@orb/ui/current";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
-import { MessageList } from "@orb/ui/message-list";
+import { MESSAGE_LIST_LEADING_SLOT, MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -95,10 +95,12 @@ export interface MessageListSurfaceProps {
   readonly busDeps: ChatBusDeps;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
+  /** Room chrome the transcript carries above its oldest row, ahead of its own history pager. */
+  readonly leading?: ReactNode;
 }
 
 /** The scrolling chat transcript for one chat. */
-export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -139,7 +141,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
           <TranscriptWindow
             chatId={chatId}
-            render={(messagesPage, window, edges): ReactElement => (
+            render={(messagesPage, window, edges, history): ReactElement => (
               <ChatThread
                 chatId={chatId}
                 chatStyle={chatStyle}
@@ -148,6 +150,12 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
                 messagesPage={messagesPage}
                 window={window}
                 edges={edges}
+                leading={
+                  <>
+                    {leading}
+                    {history}
+                  </>
+                }
               />
             )}
           />
@@ -176,7 +184,13 @@ function ChatThread({
   messagesPage,
   window,
   edges,
-}: ChatThreadProps & { readonly messagesPage: CanonPage; readonly window: AnchoredPage | null; readonly edges: TranscriptEdges }): ReactElement {
+  leading,
+}: ChatThreadProps & {
+  readonly messagesPage: CanonPage;
+  readonly window: AnchoredPage | null;
+  readonly edges: TranscriptEdges;
+  readonly leading: ReactNode;
+}): ReactElement {
   const trpc = useTRPC();
   const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const messages = messagesPage.messages;
@@ -399,6 +413,8 @@ function ChatThread({
     return (
       <Stack className="relative block-full min-block-0">
         {sourceStatus}
+        {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
+        <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
         <EmptyThread />
       </Stack>
     );
@@ -425,6 +441,7 @@ function ChatThread({
             );
           }}
           rowNavigation="roving"
+          leading={leading}
           scrollContainerRef={jump.scrollContainerRef}
           followTail={window === null}
           scrollMode={behaviorPrefs.streamScrollMode}

@@ -41,7 +41,11 @@
 // THE REFUSED ARMS (recorded so they are not re-minted): merging the character row into the TOPBAR would put a
 // second roster read beside `chat-header`'s member-count chip (§13 single-homing) and reaches into shell
 // chrome this component does not own; collapse-on-scroll leaves the worst case standing at first paint,
-// which is exactly when the reader is deciding whether the room is worth their thumb.
+// which is exactly when the reader is deciding whether the room is worth their thumb. A short room moves the strip into
+// the transcript's scroll content instead (`chat-room-surface.tsx`): it opens with the strip off screen, so no tall strip
+// stands at first paint, and the strip scrolls with the rows, so it can never be left over the reading. That copy is hidden
+// from assistive tech: the copy above the transcript stays in the tree in every regime, so the cast is heard once, before
+// the log.
 //
 // #490 — THE STRIP IS READ-ONLY AGAIN, WHICH IS WHAT THE PARAGRAPH ABOVE ALWAYS SAID. A host-only
 // `AddMemberPopover` had been mounted here as a trailing "+", so "add a character" had TWO doors visible at
@@ -67,6 +71,8 @@ import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
 export interface ChatCharacterBarProps {
   readonly chatId: ChatId;
+  /** The short room's copy inside the transcript, a visual twin of the copy above it. */
+  readonly inTranscript?: boolean;
 }
 
 const HUMAN_CHIP_CAP = 5;
@@ -86,9 +92,11 @@ interface CharacterSeat {
 function CharacterBarStrip({
   characters,
   humans,
+  inTranscript,
 }: {
   readonly characters: readonly CharacterSeat[];
   readonly humans: readonly ParticipantView[];
+  readonly inTranscript: boolean;
 }): ReactElement | null {
   if (characters.length <= 1 && humans.length <= 1) {
     return null;
@@ -104,8 +112,10 @@ function CharacterBarStrip({
       align="center"
       className="flex-wrap px-block py-row"
       plate="band"
+      data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}
       aria-label="Characters"
+      aria-hidden={inTranscript ? true : undefined}
       role="group"
     >
       {(characters.length > 1 ? characters : []).map((member) => (
@@ -126,7 +136,7 @@ function CharacterBarStrip({
 }
 
 /** Seats from the same `chat.getChat` the message list + Context panel already read. */
-export function ChatCharacterBar({ chatId }: ChatCharacterBarProps): ReactElement | null {
+export function ChatCharacterBar({ chatId, inTranscript = false }: ChatCharacterBarProps): ReactElement | null {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const roster = filterCharacters(chat?.participants ?? []);
@@ -138,7 +148,7 @@ export function ChatCharacterBar({ chatId }: ChatCharacterBarProps): ReactElemen
     avatarHash: member.avatarHash,
     disabled: member.disabled,
   }));
-  return <CharacterBarStrip characters={characters} humans={humans} />;
+  return <CharacterBarStrip characters={characters} humans={humans} inTranscript={inTranscript} />;
 }
 
 function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] }): ReactElement {
