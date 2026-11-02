@@ -5,6 +5,7 @@ import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { charactersRailButton, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -45,7 +46,7 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
     throw new Error("chat.startChat returned no chat id");
   }
   const id = typeIdSchema(ID_PREFIX.chat).parse(rawId);
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
   return id;
 }
 
@@ -57,7 +58,7 @@ async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: num
   expect(request?.closed).toBe(false);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(turn.prefix);
   await expect(page.locator('[data-slot="ghost-message-row"]')).not.toContainText(turn.suffix);
-  await expect(page.getByRole("button", { name: "Stop generating", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: CHAT_STOP_NAME, exact: true })).toBeVisible();
 }
 
 async function assertProviderSocketClosed(fixture: FixtureProvider, index: number): Promise<void> {
@@ -71,9 +72,9 @@ async function assertProviderSocketClosed(fixture: FixtureProvider, index: numbe
 }
 
 async function assertIdle(page: Page, timeout = 5000): Promise<void> {
-  await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible({ timeout });
-  await expect(page.getByRole("button", { name: "Stop generating", exact: true })).toHaveCount(0, { timeout });
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeEnabled({ timeout });
+  await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible({ timeout });
+  await expect(page.getByRole("button", { name: CHAT_STOP_NAME, exact: true })).toHaveCount(0, { timeout });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeEnabled({ timeout });
   await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout });
 }
 
@@ -125,11 +126,11 @@ for (const stopped of [false, true]) {
       ]);
       const turns = stopped ? [STOP] : [FIRST, SECOND];
       for (const [index, turn] of turns.entries()) {
-        await typeAndSend(page.getByRole("textbox", { name: "Message" }), turn.userMessage);
+        await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), turn.userMessage);
         await assertHeldPrefix(page, fixture, index, turn);
         await expect(assertIdle(page, 100)).rejects.toThrow(/Expected|Timed out/u);
         if (stopped) {
-          await page.getByRole("button", { name: "Stop generating", exact: true }).click();
+          await page.getByRole("button", { name: CHAT_STOP_NAME, exact: true }).click();
           // Peer closure must happen before teardown destroys any fixture socket.
           await assertProviderSocketClosed(fixture, index);
         } else {
@@ -167,7 +168,7 @@ for (const stopped of [false, true]) {
       await renameOpenChat(page, TITLE);
       await page.reload();
       await waitForAppReady(page);
-      await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
       await assertIdle(page);
       expect(await listCanon(chatId)).toEqual(before);
       assertRenderedCanon(await readRenderedCanon(page, before.length), before);

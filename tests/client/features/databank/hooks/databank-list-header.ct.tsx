@@ -6,10 +6,10 @@ import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { DatabankListHeaderStory } from "./_list-header-stories.tsx";
 
 const STORY = "tests/client/features/databank/hooks/_list-header-stories/DatabankListHeaderStory";
-const MAINTENANCE = "Databank maintenance";
 const REBUILD_ALL = "Rebuild all documents";
 const REREAD_ALL = "Re-read all documents";
 const CHECK_AGAIN = "Check the bank again";
@@ -84,7 +84,7 @@ async function closeMenu(page: Page): Promise<void> {
 async function openMaintenance(page: Page): Promise<void> {
   // A menu still closing from the last item click or Escape swallows the trigger click or leaves its inert layer over the page.
   await expect(page.getByRole("menu")).toHaveCount(0);
-  await page.getByRole("button", { name: MAINTENANCE, exact: true }).click();
+  await page.getByRole("button", { name: DATABANK_MAINTENANCE_NAME, exact: true }).click();
   await expect(page.getByRole("menu")).toBeVisible();
 }
 

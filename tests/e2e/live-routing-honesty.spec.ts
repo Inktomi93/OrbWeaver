@@ -22,6 +22,7 @@ import process from "node:process";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
@@ -61,7 +62,7 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
   await waitForStreamOpen(page, chatId, since);
 
   const beforePosts = await genPostCount();
-  await typeAndSend(page.getByRole("textbox", { name: "Message" }), "Reply with exactly: routing-probe-ok");
+  await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), "Reply with exactly: routing-probe-ok");
 
   // Wait for the ghost to RESOLVE into a durable reply (the greeting also matches a plain assistant-row
   // wait, so gate on the ghost being GONE — that means the generated row committed).

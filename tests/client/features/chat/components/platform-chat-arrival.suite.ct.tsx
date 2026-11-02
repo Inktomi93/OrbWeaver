@@ -16,6 +16,7 @@ import {
   seedMessage,
 } from "@orb/testkit/node/composed";
 import sharp from "sharp";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -51,7 +52,7 @@ test("the first message read preserves a typed draft, caret, focus and composer 
   const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId: first.id });
   try {
     await read.requested;
-    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await expect(input).toBeVisible();
     await expect(page.locator('[data-slot="message-row"]')).toHaveCount(0);
     await input.pressSequentially(DRAFT);
@@ -187,7 +188,7 @@ test("a delayed owned image reserves its frame and preserves the real room's rea
     expect(await port.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeGreaterThan(
       await port.evaluate((node) => node.clientHeight),
     );
-    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await expect(input).toBeVisible();
     await input.fill(DRAFT);
     await expect(input).toHaveValue(DRAFT);

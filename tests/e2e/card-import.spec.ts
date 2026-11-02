@@ -6,6 +6,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Page, Response } from "@playwright/test";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -125,7 +126,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     await expect(row).toBeVisible();
     await row.hover();
     await cta.click();
-    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
     await expect(page.locator('[data-slot="message-row"]').getByRole("paragraph")).toHaveText(GREETING);
   } finally {
     if (witnessId !== undefined) {

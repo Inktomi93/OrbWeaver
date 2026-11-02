@@ -12,6 +12,7 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
@@ -140,7 +141,7 @@ test("typing with rerank on settles to one reranked search, not one per keystrok
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "", targetId: "characters", rerank: true });
   await expect(component.getByRole("switch")).toBeChecked();
   const text = "orbital ledger";
-  await component.getByRole("combobox", { name: "Search your corpus", exact: true }).pressSequentially(text, { delay: 40 });
+  await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).pressSequentially(text, { delay: 40 });
   await expect.poll(() => sent.at(-1)?.query).toBe(text);
   await expect(component.getByText("How search works")).toBeVisible();
   const reranked = sent.filter((search) => search.rerank === true);

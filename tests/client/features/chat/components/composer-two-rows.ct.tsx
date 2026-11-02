@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -56,12 +57,12 @@ for (const viewport of VIEWPORTS) {
       await mount<typeof ChatRoomShellStory>(STORY, { chatId });
       const upper = page.locator('[data-slot="composer-utilities"]');
       const lower = page.locator('[data-slot="composer-input"]');
-      const input = lower.getByRole("textbox", { name: "Message", exact: true });
+      const input = lower.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       await expect(upper.getByRole("button", { name: "Message tools", exact: true })).toBeVisible();
       const plugins = upper.getByRole("button", { name: "Plugin actions", exact: true });
       await expect(plugins).toBeVisible();
       await expect(lower.getByRole("button", { name: "Chat options", exact: true })).toBeVisible();
-      await expect(lower.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+      await expect(lower.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible();
       await expect(input).toHaveValue("");
       await expect(input).toHaveAttribute("autocorrect", "off");
       await expect(input).toHaveAttribute("autocapitalize", "off");
@@ -187,7 +188,7 @@ for (const viewport of VIEWPORTS.slice(0, 2)) {
         }
       });
       const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-      const input = page.getByRole("textbox", { name: "Message", exact: true });
+      const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       await input.fill("Keep the observatory quiet.");
       try {
         if (state === "drafting") {
@@ -222,7 +223,7 @@ async function expectGroupControls(page: Page, names: readonly string[], guided:
 }
 
 async function expectDraftingFits(page: Page, requested: Promise<void>): Promise<void> {
-  const input = page.getByRole("textbox", { name: "Message", exact: true });
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   await page.getByRole("button", { name: "Guided draft your line", exact: true }).press("Enter");
   await page.getByRole("menuitem", { name: "1st person", exact: true }).click();
   await requested;
@@ -237,9 +238,9 @@ async function expectDraftingFits(page: Page, requested: Promise<void>): Promise
 async function expectRefusalFits(page: Page, viewportHeight: number): Promise<void> {
   await expect(page.locator('[data-slot="composer-next-turn"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Guided generate reply", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeDisabled();
   await expectRowsFit(page);
-  const bounds = await page.getByRole("group", { name: "Message composer", exact: true }).boundingBox();
+  const bounds = await page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }).boundingBox();
   expect(bounds).not.toBeNull();
   expect(bounds?.y).toBeGreaterThanOrEqual(0);
   expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(viewportHeight);
@@ -290,7 +291,7 @@ test("the attributed plugin menu collects arguments, runs native commands and un
     ]),
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId: chat.id });
-  const input = page.getByRole("textbox", { name: "Message", exact: true });
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   const draft = "A rough observatory line.";
   await input.fill(draft);
   const plugins = page.locator('[data-slot="composer-utilities"]').getByRole("button", { name: "Plugin actions", exact: true });
@@ -341,10 +342,10 @@ for (const unavailable of [false, true]) {
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await expect(page.locator('[data-slot="composer-next-turn"]')).toHaveCount(unavailable ? 1 : 0);
     await input.fill("A short draft.");
-    const send = page.getByRole("button", { name: "Send message", exact: true });
+    const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
     await expect(send).toHaveAttribute("data-tooltip-describes", unavailable ? "caller" : "name");
     await expect(send).toBeEnabled({ enabled: !unavailable });
     await expect(send).toHaveAccessibleDescription(unavailable ? ((await page.locator('[data-slot="composer-next-turn"]').textContent()) ?? "") : "");
@@ -461,5 +462,5 @@ async function expectKeyboardRefusalVisible(page: Page): Promise<void> {
     edge: (visualViewport?.offsetTop ?? 0) + (visualViewport?.height ?? innerHeight),
   }));
   expect(facts.bottom).toBeLessThanOrEqual(facts.edge);
-  await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeDisabled();
 }

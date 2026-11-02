@@ -3,6 +3,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, emulateSoftKeyboard, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -42,7 +43,7 @@ for (const rootFontPx of ROOT_FONT_PX) {
     await page.evaluate((px) => {
       document.documentElement.style.fontSize = `${px}px`;
     }, rootFontPx);
-    const input = page.locator('[data-slot="composer-input"]').getByRole("textbox", { name: "Message", exact: true });
+    const input = page.locator('[data-slot="composer-input"]').getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await input.fill(LONG_DRAFT);
     const measured = await input.evaluate((node) => ({
       height: node.getBoundingClientRect().height,
@@ -85,8 +86,8 @@ for (const text of LARGE_TEXT) {
     }, text.rootPx);
     await emulateSoftKeyboard(page, KEYBOARD_PX);
     const composer = page.locator('[data-slot="composer-input"]');
-    await composer.getByRole("textbox", { name: "Message", exact: true }).fill(SIX_LINES);
-    const send = composer.getByRole("button", { name: "Send message", exact: true });
+    await composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(SIX_LINES);
+    const send = composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
     await expect(send).toBeVisible();
     const view = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
     const sendBox = await send.boundingBox();

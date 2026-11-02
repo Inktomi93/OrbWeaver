@@ -2,6 +2,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CONFIG_ADVANCED_THEME_TOOLS_NAME } from "#client/features/config/lib/config-control-names.ts";
 import {
   OWNER_CSS_APPEARANCE_ATTRIBUTES,
   OWNER_CSS_SHELL_CLASSES,
@@ -39,7 +40,7 @@ async function openThemeCssEditor(page: Page): Promise<void> {
 
 async function typeIntoEditor(page: Page, text: string): Promise<void> {
   await page.getByRole("button", { name: /^New theme/u }).click();
-  await page.getByRole("button", { name: "Show advanced theme tools" }).click();
+  await page.getByRole("button", { name: CONFIG_ADVANCED_THEME_TOOLS_NAME }).click();
   const editor = page.getByRole("textbox", { name: "Custom theme CSS" });
   await editor.click();
   await page.keyboard.type(text);

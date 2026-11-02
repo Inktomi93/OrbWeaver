@@ -3,6 +3,7 @@
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { RegexMemberSaveStory } from "./_member-save-stories.tsx";
 
 const STORY = "tests/client/features/regex/surfaces/_member-save-stories/RegexMemberSaveStory";
@@ -16,7 +17,7 @@ test("an edited replacement saves through the update verb and the stored script 
   const script = await caller.regex.createScript({ input: { name: NAME, findRegex: "witness", replaceString: "before", placement: ["AI_OUTPUT"] } });
   const calls = await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript"]));
   await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
-  const field = page.getByRole("textbox", { name: "Replace with", exact: true });
+  const field = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });
   await expect(field).toHaveValue("before");
   await field.fill("after");
   await field.press("Tab");

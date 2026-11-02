@@ -7,6 +7,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { REFINERY_COMPARE_NAME, REFINERY_EDIT_SCOPE_NAME, REFINERY_HIDE_COMPARE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -100,12 +101,12 @@ for (const regime of REGIMES) {
         width: regime.width,
         appearance: regime.appearance,
       });
-      const compare = page.getByRole("button", { name: "Compare", exact: true });
+      const compare = page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
       const restore = page.getByRole("button", { name: "Restore", exact: true });
       await expectContained(compare.locator(".."), [compare, restore]);
       await compare.focus();
       await page.keyboard.press("Enter");
-      const hide = page.getByRole("button", { name: "Hide compare", exact: true });
+      const hide = page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true });
       await expect(hide).toBeFocused();
       await expect(page.getByText("description — this version vs live", { exact: true })).toBeVisible();
       await expectContained(hide.locator(".."), [hide, restore]);
@@ -123,7 +124,7 @@ for (const regime of REGIMES) {
       const { session, caller } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "content", width: regime.width, appearance: regime.appearance });
       const open = page.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true });
-      const scope = page.getByRole("button", { name: "Edit scope", exact: true });
+      const scope = page.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true });
       await expectContained(open.locator(".."), [open, scope]);
       await open.focus();
       await page.keyboard.press("Tab");

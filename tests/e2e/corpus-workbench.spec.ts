@@ -4,8 +4,9 @@
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
+import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
-import { TAG_FILTER_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -96,7 +97,7 @@ test.describe("committed corpus workbench", () => {
     await rail.getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
 
     const list = page.locator(CORPUS_LIST);
-    const modes = list.getByRole("radiogroup", { name: "Corpus mode" });
+    const modes = list.getByRole("radiogroup", { name: CORPUS_MODE_NAME });
     const main = page.locator(MAIN);
     const context = page.locator(CORPUS_CONTEXT);
     await expect(modes.getByRole("radio", { name: CORPUS_MODE_LABELS.explore })).toHaveAttribute("aria-checked", "true");
@@ -220,8 +221,8 @@ test.describe("committed corpus workbench", () => {
     await openCorpusOnPhone(page);
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
-    await list.getByRole("button", { name: "More tag actions", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Prune unused tags" }).click();
+    await list.getByRole("button", { name: TAG_MORE_ACTIONS_NAME, exact: true }).click();
+    await page.getByRole("menuitem", { name: TAG_PRUNE_NAME }).click();
     await page
       .getByRole("alertdialog")
       .getByRole("button", { name: pruneConfirmLabel(unused.length), exact: true })
