@@ -62,6 +62,7 @@ import {
   pluginFrameBodySchema,
   pluginSlugSchema,
   pluginSurfaceRegistrationMetaSchema,
+  pluginWorldEntryUpsertSchema,
 } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
@@ -885,7 +886,7 @@ function buildQuickReplyChoices(raw: unknown): readonly { readonly label: string
 /** Parse the guest's OPTIONAL `chat.applyVariableOps` preconditions (#1555). `undefined` when the guest passed
  *  none (an unconditional write); a THROW when it passed something that is not a precondition list.
  *
- *  THE ONLY GUEST INPUT ON THIS SURFACE THAT IS PARSED RATHER THAN PROJECTED, and the asymmetry is the point:
+ *  PARSED RATHER THAN PROJECTED, like {@link parseWorldEntry}, and the asymmetry is the point:
  *  `buildTurnHints`/`buildQuickReplyChoices` project junk to a harmless default because a dropped hint only
  *  weakens the GUEST's request, whereas a dropped precondition silently weakens the GUARD — the write would
  *  land unconditionally while the guest believes it was checked, which is the exact lost update the argument
@@ -913,6 +914,16 @@ function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: string; r
     ...(speakerCharacterId !== undefined ? { speakerCharacterId } : {}),
     ...(guided !== undefined ? { guided } : {}),
   };
+}
+
+/** Parse the guest's lore entry before it becomes a write or an ask, so a host is never asked about a shape the
+ *  writer would refuse. A malformed entry is a loud refusal of the call, the {@link parsePreconditions} posture. */
+function parseWorldEntry(raw: unknown): PluginWorldEntryUpsert {
+  const parsed = pluginWorldEntryUpsertSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error("plugin host: worldInfo.upsertEntry requires { bookId, entryKey, keys, contentTemplate, position }");
+  }
+  return parsed.data;
 }
 
 /** worldInfo.upsertEntry — capability worldinfo.write + host authority (room-state writes are host
@@ -959,17 +970,18 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.upsertEntry");
       const scope = resolveChat(runtime, args[0]);
+      const entry = parseWorldEntry(args[1]);
       if (!scope.canWrite) {
-        // POSTURE 2 — the ask carries the guest's entry VERBATIM; every domain gate it would have met
-        // directly (attachment, the per-plugin entry ceiling, `neutralizeMacros`) is met again when the host
-        // confirms, because the confirmed act re-enters through the plugin's OWN bridge.
-        await suggestAct(runtime, scope, { kind: "worldInfoUpsert", entry: args[1] as PluginWorldEntryUpsert }, signal);
+        // POSTURE 2 — the ask carries the parsed entry; every domain gate it would have met directly
+        // (attachment, the per-plugin entry ceiling, `neutralizeMacros`) is met again when the host confirms,
+        // because the confirmed act re-enters through the plugin's OWN bridge.
+        await suggestAct(runtime, scope, { kind: "worldInfoUpsert", entry }, signal);
       }
       // The ADMITTED chatId travels with the entry: the guest names the book, the DOMAIN decides whether that
       // book is attached to THIS room (the room's consent) and applies the per-plugin entry cap. Infra can
       // enforce neither — it holds no db — so its job is to hand the domain the scope it admitted, never to let
       // a guest-supplied bookId travel alone.
-      await runtime.bridge.worldInfo.upsertEntry(scope.chatId, args[1] as PluginWorldEntryUpsert, invocationLiveness(signal));
+      await runtime.bridge.worldInfo.upsertEntry(scope.chatId, entry, invocationLiveness(signal));
       return null;
     },
   });

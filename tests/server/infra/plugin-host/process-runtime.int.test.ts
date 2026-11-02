@@ -1,13 +1,17 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
+import { PLUGIN_QUIET_IMAGES_MAX } from "@orb/contracts/plugin";
+import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import {
+  bridgeRequest,
   createPluginProcessEdge,
   firstChild,
   frameField,
   hasOperation,
+  installGuest,
   NATIVE_TIMEOUT_MS,
   PLUGIN_PROCESS_OPERATIONS as OP,
   responseResult,
@@ -34,6 +38,46 @@ test.for([
   const frame = await delivery.reached;
   delivery.release(responseResult(frame, result));
   expect(await settled).toMatchObject([{ status: "rejected", reason: { message: expect.stringContaining(message) } }]);
+});
+
+const QUIET_OPERATION = "llm.quiet";
+const QUIET_COMMAND = "quiet";
+const QUIET_GUEST = `const h=orb.host(1);
+  h.ui.registerCommand({name:${JSON.stringify(QUIET_COMMAND)},describe:"Native quiet call",onRun:async()=>{
+    try{await h.llm.quiet("Report.");}catch(e){h.log.warn("refused="+e.name);}
+  }});`;
+const MALFORMED_REFUSAL = `refused=${TypeError.name}`;
+const assetIds = (count: number): string[] => Array.from({ length: count }, (_, index) => `asset-${String(index)}`);
+
+/** Run the quiet command with its broker frame replaced, and return what the guest was told. */
+async function forgedQuietOutcome(opts: JsonValue): Promise<readonly string[]> {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const guest = await installGuest(root, "quiet-frame", QUIET_GUEST, ["ui.surface", "llm.quiet"]);
+  await guest.enable();
+  using delivery = edge.holdNext((value) => hasOperation(value, QUIET_OPERATION));
+  const running = guest.invoke(QUIET_COMMAND);
+  delivery.release(bridgeRequest(await delivery.reached, QUIET_OPERATION, ["Report.", opts]));
+  await running;
+  return (await guest.log()).map(({ message }) => message);
+}
+
+test.for<{ name: string; opts: JsonValue }>([
+  { name: "more images than the cap", opts: { imageAssetIds: assetIds(PLUGIN_QUIET_IMAGES_MAX + 1) } },
+  { name: "images that are not a list", opts: { imageAssetIds: "asset-0" } },
+  { name: "an image id that is not text", opts: { imageAssetIds: [7] } },
+  { name: "a schema that is not an object", opts: { schema: 7 } },
+  { name: "a schema with no name", opts: { schema: { schema: {} } } },
+  { name: "a schema body that is a list", opts: { schema: { name: "shape", schema: [] } } },
+])("the app process refuses a broker's quiet options with $name", { timeout: NATIVE_TIMEOUT_MS }, async ({ opts }) => {
+  expect(await forgedQuietOutcome(opts)).toContainEqual(expect.stringContaining(MALFORMED_REFUSAL));
+});
+
+// The control: a frame at the cap passes the boundary and fails later, so the refusal above is the parse's own.
+test("the app process admits quiet options at the image cap", { timeout: NATIVE_TIMEOUT_MS }, async () => {
+  const outcome = await forgedQuietOutcome({ imageAssetIds: assetIds(PLUGIN_QUIET_IMAGES_MAX) });
+  expect(outcome).toContainEqual(expect.stringContaining("refused="));
+  expect(outcome).not.toContainEqual(expect.stringContaining(MALFORMED_REFUSAL));
 });
 
 test("holding an actual synchronous IPC message preserves its identity, result and live child ownership", { timeout: NATIVE_TIMEOUT_MS }, async () => {

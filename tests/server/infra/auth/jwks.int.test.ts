@@ -1,11 +1,14 @@
 // Native JOSE verification and bounded key retrieval run through the actual composed server capability.
 // @subject packages/server/src/infra/auth/jwks.ts
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
 import type { JWTPayload } from "jose";
+import { z } from "zod";
 
 const ALLOW = [new URL(ISSUER).hostname];
 const KEY_URL = new URL("jwks", ISSUER).href;
@@ -52,6 +55,23 @@ test("a JWKS JSON literal verifies without outbound retrieval", async ({ verifie
 
 test("bad JSON literal refuses before outbound retrieval", async ({ verifier, issuer }) => {
   expect(await verifier.verify({ jwt: await sign(issuer), metaJwks: "{ not json", allowlist: ALLOW })).toBeNull();
+  expect(issuer.calls).toEqual([]);
+});
+
+const jwksMembers = z.object({ keys: z.array(jsonValueSchema) });
+
+// The token is signed by a key the literal really holds, so only the refusal of the whole set stands between it and a verified identity.
+test.for<{ name: string; literal: (jwks: string) => JsonValue }>([
+  { name: "keys that are not a list", literal: () => ({ keys: "nope" }) },
+  { name: "keys that are null", literal: () => ({ keys: null }) },
+  { name: "no keys member", literal: () => ({ other: [] }) },
+  { name: "a real key beside a scalar member", literal: (jwks) => ({ keys: [...jwksMembers.parse(JSON.parse(jwks)).keys, 1] }) },
+  { name: "a real key beside a list member", literal: (jwks) => ({ keys: [...jwksMembers.parse(JSON.parse(jwks)).keys, []] }) },
+  { name: "a real key beside a null member", literal: (jwks) => ({ keys: [...jwksMembers.parse(JSON.parse(jwks)).keys, null] }) },
+])("a JSON literal with $name refuses before outbound retrieval", async ({ literal }, { verifier, issuer, jwks }) => {
+  const jwt = await sign(issuer);
+  issuer.calls.length = 0;
+  expect(await verifier.verify({ jwt, metaJwks: JSON.stringify(literal(jwks)), allowlist: ALLOW })).toBeNull();
   expect(issuer.calls).toEqual([]);
 });
 
