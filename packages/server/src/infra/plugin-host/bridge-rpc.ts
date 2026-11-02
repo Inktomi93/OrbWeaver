@@ -1,9 +1,16 @@
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
-import type { HostFunctionRef, InvocationChat, PluginBridge, PluginCapability, PluginInvocationLiveness, PluginWorldEntryUpsert } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS } from "@orb/contracts/plugin";
+import type {
+  HostFunctionRef,
+  InvocationChat,
+  PluginBridge,
+  PluginCapability,
+  PluginInvocationLiveness,
+  PluginQuietOptions,
+  PluginWorldEntryUpsert,
+} from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS, pluginQuietOptionsSchema, pluginWorldEntryUpsertSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
@@ -227,19 +234,13 @@ function nullableStringAt(args: readonly unknown[], index: number, operation: st
 }
 
 function worldEntryAt(args: readonly unknown[], index: number, operation: string): PluginWorldEntryUpsert {
-  const entry = recordAt(args, index, operation);
-  const keys = entry["keys"];
-  const position = ENTRY_POSITIONS.find((candidate) => candidate === entry["position"]);
-  if (!(Array.isArray(keys) && keys.every((item) => typeof item === "string")) || position === undefined) {
-    return invalid(operation);
-  }
-  return {
-    bookId: typeof entry["bookId"] === "string" ? entry["bookId"] : invalid(operation),
-    entryKey: typeof entry["entryKey"] === "string" ? entry["entryKey"] : invalid(operation),
-    keys,
-    contentTemplate: typeof entry["contentTemplate"] === "string" ? entry["contentTemplate"] : invalid(operation),
-    position,
-  };
+  const parsed = pluginWorldEntryUpsertSchema.safeParse(args[index]);
+  return parsed.success ? parsed.data : invalid(operation);
+}
+
+function quietOptionsAt(args: readonly unknown[], index: number, operation: string): PluginQuietOptions {
+  const parsed = pluginQuietOptionsSchema.safeParse(args[index]);
+  return parsed.success ? parsed.data : invalid(operation);
 }
 
 function suggestionCapability(args: readonly unknown[]): PluginCapability {
@@ -251,7 +252,7 @@ function suggestionCapability(args: readonly unknown[]): PluginCapability {
       return HOST_FUNCTION_CAPABILITY["chat.requestTurn"];
     }
     case "worldInfoUpsert":
-      if (typeof act["entry"] !== "object" || act["entry"] === null || Array.isArray(act["entry"])) {
+      if (!pluginWorldEntryUpsertSchema.safeParse(act["entry"]).success) {
         invalid("suggest");
       }
       return HOST_FUNCTION_CAPABILITY["worldInfo.upsertEntry"];
@@ -460,11 +461,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "llm.quiet":
       exact(args, 2, operation);
-      return await bridge.llm.quiet(
-        stringAt(args, 0, operation),
-        args[1] === undefined ? undefined : (recordAt(args, 1, operation) as Parameters<PluginBridge["llm"]["quiet"]>[1]),
-        liveness,
-      );
+      return await bridge.llm.quiet(stringAt(args, 0, operation), args[1] === undefined ? undefined : quietOptionsAt(args, 1, operation), liveness);
     case "suggest":
       exact(args, 2, operation);
       await bridge.suggest(chatAt(args, 0, operation), recordAt(args, 1, operation) as Parameters<PluginBridge["suggest"]>[1]);

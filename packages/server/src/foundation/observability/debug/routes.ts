@@ -29,7 +29,7 @@ import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { Context, Hono, MiddlewareHandler, Next } from "hono";
+import type { Context, Env, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "#foundation/env/record";
@@ -260,7 +260,7 @@ function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler 
 }
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
-export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions): void {
+export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugRoutesOptions): void {
   const {
     db: handle,
     appSettingRows,

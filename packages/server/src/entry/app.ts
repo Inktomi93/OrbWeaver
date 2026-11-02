@@ -385,10 +385,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     }),
   );
 
-  // healthz/auth/debug registrars are typed against the plain Hono env; Hono's env generic is invariant, so
-  // they take the same app instance via a type-only widening (mutates `app` in place).
-  const plain = app as unknown as Hono;
-  registerHealthz(plain, {
+  registerHealthz(app, {
     isShuttingDown: deps.isShuttingDown,
     credentialsKeyOk: deps.credentialsKeyOk,
     isHarnessStack: () => deps.env.E2E_HARNESS === "on",
@@ -458,7 +455,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     stagingDir: deps.importStagingDir,
     newOpaqueId: deps.newOpaqueId,
   });
-  registerAuthRoutes(plain, {
+  registerAuthRoutes(app, {
     logger: deps.logger,
     emitUserEvent: deps.liveBuses.user.publishUserEvent,
     sessions: deps.sessions,
@@ -497,9 +494,9 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     share: deps.shareState,
     trustedProxies,
   });
-  registerJoin(plain, { multiHumanCapable });
+  registerJoin(app, { multiHumanCapable });
 
-  registerDebugRoutes(plain, {
+  registerDebugRoutes(app, {
     log: deps.logger,
     rings: deps.rings,
     auditFailures: deps.auditFailures,
@@ -535,7 +532,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // reach the bundle/fallback. No bundle: prod boot-fatal (inside resolve), dev skipped (vite serves it).
   const spaDistDir = resolveSpaDistDir({ distDir: deps.env.CLIENT_DIST_DIR, prod: deps.env.NODE_ENV === "production", logger: deps.logger });
   if (spaDistDir !== null) {
-    registerSpa(plain, { distDir: spaDistDir });
+    registerSpa(app, { distDir: spaDistDir });
   }
 
   return app;

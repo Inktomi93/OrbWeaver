@@ -6,14 +6,14 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { earlyHints } from "@hono/node-server/early-hints";
 import { serveStatic } from "@hono/node-server/serve-static";
-import type { Context, Hono, Next } from "hono";
+import type { Context, Hono } from "hono";
 import { COMPRESSIBLE_CONTENT_TYPE_REGEX, compress } from "hono/compress";
 import { etag } from "hono/etag";
-import type { BlankEnv } from "hono/types";
 import { parseAccept } from "hono/utils/accept";
 import { getMimeType } from "hono/utils/mime";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 // Only vite's content-hashed output lives under /assets/ — cacheable forever. Everything name-stable
 // (index.html, public/-copied files) must revalidate so a new deploy is picked up on the next request.
@@ -130,7 +130,7 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
 // derive from the SAME static root the SPA serves (never a parallel guess that can drift to nothing).
 
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
-export function registerSpa(app: Hono, deps: SpaDeps): void {
+export function registerSpa(app: Hono<PrincipalEnv>, deps: SpaDeps): void {
   // Reject source files, compressed copies and invalid filenames before negotiation, hints or file serving.
   app.get("*", (c, next) => {
     if (isApiPath(c.req.path)) {
@@ -167,7 +167,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
   });
   // Register after the API routes so compression cannot buffer their streaming responses.
   app.use("*", compress({ threshold: 0 }));
-  app.use("*", (c: Context<BlankEnv, string>, next: Next) => {
+  app.use("*", (c: Context<PrincipalEnv, string>, next) => {
     if (
       c.req.method !== "GET" ||
       isApiPath(c.req.path) ||
@@ -186,7 +186,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
     return next();
   });
   const revalidate = etag({ weak: true });
-  app.use("*", async (c: Context<BlankEnv, string>, next: Next) => {
+  app.use("*", async (c: Context<PrincipalEnv, string>, next) => {
     await next();
     if (c.req.method === "GET" && c.res.status === OK_STATUS && c.res.headers.get("content-type")?.startsWith(HTML_MEDIA_TYPE) === true) {
       // Hono replaces the response on 304; restore the cache policy and negotiated representation key.

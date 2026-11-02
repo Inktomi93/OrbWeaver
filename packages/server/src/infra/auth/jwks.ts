@@ -23,6 +23,7 @@ import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { JWTPayload } from "jose";
 import { createLocalJWKSet, createRemoteJWKSet, customFetch, jwtVerify } from "jose";
+import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs, JwksKeySet, JwksReader } from "./contract.ts";
@@ -40,6 +41,9 @@ const PINNED_ALGS = ["RS256", "ES256"] as const;
 /** Bound on the LRU. JWKS rotation is rare so 32 is generous; the cap defeats the hostile upstream that
  *  varies the header per request, not a legitimate rotating key set. */
 const JWKS_CACHE_CAP = 32;
+
+// The set's own shape (RFC 7517 section 5). Members stay loose: jose owns what a key must hold.
+const jwksLiteralSchema = z.object({ keys: z.array(z.looseObject({})) });
 
 /** Tiny LRU: Map iteration order = insertion order; `delete+set` on read promotes to most-recent; on
  *  insert past cap, evict the least-recent (oldest key). No dep added. */
@@ -100,9 +104,8 @@ function readJwks({ cache, execution, log }: JwksReadState, metaJwks: string, al
   let set: JwksKeySet;
   if (trimmed.startsWith("{")) {
     try {
-      // JSON.parse returns `unknown` (ts-reset); createLocalJWKSet validates the shape and throws on a
-      // bad set, so the boundary cast is covered by the catch (both parse + shape errors).
-      set = createLocalJWKSet(JSON.parse(trimmed) as Parameters<typeof createLocalJWKSet>[0]);
+      // Both the JSON parse and the shape parse throw into this catch; createLocalJWKSet then judges the members.
+      set = createLocalJWKSet(jwksLiteralSchema.parse(JSON.parse(trimmed)));
     } catch {
       securityEvent("jwks_rejected", { reason: "parse" }, "security: forwarded JWKS literal failed to parse — rejecting", log);
       return null;

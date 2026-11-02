@@ -1566,19 +1566,6 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/trpc-output-declared-keys": "error" },
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error" } },
-    {
-      // Security-reviewed code: these casts change only under a security review, tracked in docs/work item 1773.
-      files: [
-        "packages/server/src/entry/app.ts",
-        "packages/server/src/entry/http/auth-routes.ts",
-        "packages/server/src/infra/auth/jwks.ts",
-        "packages/server/src/infra/network/egress.ts",
-        "packages/server/src/infra/plugin-host/bridge-rpc.ts",
-        "packages/server/src/infra/plugin-host/membrane.ts",
-        "packages/server/src/infra/plugin-host/module.ts",
-      ],
-      rules: { "orb/no-unsafe-cast": "off", "@typescript-eslint/no-unnecessary-type-assertion": "off" },
-    },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
