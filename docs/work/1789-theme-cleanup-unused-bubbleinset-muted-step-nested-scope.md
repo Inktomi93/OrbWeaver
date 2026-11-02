@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- The 64-entry cache stays; it has no felt cost.
