@@ -390,3 +390,5 @@ Not done: the layout-stability matrix, the evidence pass, and any other project 
 - `orb/dialog-needs-dismiss` now accepts a shared-verb Cancel, Close or Done button.
 - `corpusSemanticQuery` reads `CORPUS_NO_RESULT_TEXT` for an empty target. Refinery Restore has a confirm from main, and the driver accepts it. On the merged tip, `Rail independent corpus`, `presets`, `databank`, `refinery` and `Refinery disposable stage execution and versions` pass, load 12.
 
+
+- Final chain on 268a06a5bc: whole walk 56 of 56, unpaced, in 18 minutes (`surface-k2Hed1`).
