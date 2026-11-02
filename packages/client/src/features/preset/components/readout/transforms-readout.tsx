@@ -31,9 +31,9 @@ import type { PresetId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { regexPlacementStep } from "#lib";
 
 // ONE VOCABULARY WITH THE CENTER (side-eye F-23): every step's name below is the string the control that
@@ -80,32 +80,59 @@ export function TransformsReadout({
    *  flag, never by the sentinel literal (`domain/preset/constants.ts`: "Not cross-boundary"). */
   readonly attachable: boolean;
 }): ReactElement {
+  // NOT FIRED for a preset that cannot carry attachments: that query is a guaranteed NOT_FOUND, and the built-in
+  // default is the preset every new user has selected — a 404 per readout render, forever, to learn something
+  // already known. Only the attached read suspends: the pipeline's order and switches need no read, so they stay
+  // on screen while it pends and when it fails.
+  if (!attachable) {
+    return <Pipeline attached={{ kind: "off" }} config={config} />;
+  }
+  return (
+    <QueryBoundary
+      fallback={<Pipeline attached={{ kind: "pending" }} config={config} />}
+      renderError={(_error, retry): ReactElement => (
+        <Stack gap="section">
+          <QueryErrorState label="the attached scripts" onRetry={retry} />
+          <Pipeline attached={{ kind: "failed" }} config={config} />
+        </Stack>
+      )}
+    >
+      <AttachedPipeline config={config} presetId={presetId} />
+    </QueryBoundary>
+  );
+}
+
+/** What the readout knows about the preset's attached scripts. */
+type AttachedScripts =
+  | { readonly kind: "off" }
+  | { readonly kind: "pending" }
+  | { readonly kind: "failed" }
+  | { readonly kind: "ready"; readonly scripts: readonly RegexScriptRow[] };
+
+function AttachedPipeline({ config, presetId }: { readonly config: PromptConfig; readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();
-  // The ATTACHED set, not a config projection (see the header). NOT FIRED for a preset that cannot carry
-  // attachments: that query is a guaranteed NOT_FOUND, and the built-in default is the preset every new user
-  // has selected — a 404 per readout render, forever, to learn something already known.
-  const attached = useQuery({ ...trpc.regex.listForPreset.queryOptions({ presetId }), enabled: attachable });
-  const scripts: readonly RegexScriptRow[] = attached.data ?? [];
+  // The ATTACHED set, not a config projection (see the header).
+  const { data: scripts } = useSuspenseQuery(trpc.regex.listForPreset.queryOptions({ presetId }));
+  return <Pipeline attached={{ kind: "ready", scripts }} config={config} />;
+}
+
+function Pipeline({ config, attached }: { readonly config: PromptConfig; readonly attached: AttachedScripts }): ReactElement {
   // ONE count for one pipeline stage: the ENABLED scripts that bite there. The tab's picker shows the same
   // rows' enabled state per script, so `2 on` here and two enabled rows there are the same fact.
   //
-  // A COUNT IS A CLAIM, AND AN UNREAD COUNT IS NOT ONE. This used to answer "off" whenever `attached.data`
-  // was absent — which folded three different situations into one confident word: a real empty set, a read
-  // still in flight, and a read that FAILED. The first is a fact; the other two are the readout asserting
-  // something it does not know, on the one surface whose entire job is to be trustworthy (side-eye
-  // 2026-08-07 P2 — the same class this file's own leg killed in the ORDER). `off` is now said only when a
-  // count was actually obtained, or when the preset provably cannot carry one.
+  // A COUNT IS A CLAIM, AND AN UNREAD COUNT IS NOT ONE. `off` is said only when a count was actually obtained,
+  // or when the preset provably cannot carry one; a read still in flight or one that FAILED says so instead.
   const scriptState = (placement: RegexPlacement): string => {
-    if (!attachable) {
+    if (attached.kind === "off") {
       return "off";
     }
-    if (attached.isError) {
+    if (attached.kind === "failed") {
       return "couldn’t read";
     }
-    if (attached.data === undefined) {
+    if (attached.kind === "pending") {
       return "…";
     }
-    const count = scripts.filter((script) => script.enabled && script.placement.includes(placement)).length;
+    const count = attached.scripts.filter((script) => script.enabled && script.placement.includes(placement)).length;
     return count === 0 ? "off" : `${String(count)} on`;
   };
   const post = config.postProcess;
