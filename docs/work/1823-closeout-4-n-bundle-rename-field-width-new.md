@@ -26,3 +26,5 @@ The observable bar a verifier can check.
 Filled at landing: what ran and where its output is.
 
 Source: `reports/side-eye/2026-11-01-closeout-4.md` (gitignored, on main's checkout), run on 822d61a82e. Each finding there carries its run ids.
+
+- 3382ece657 fixed N1, N3, N4 and N5. N2 needs a compact stacked footer: dropping the list's scroller would undo the persistent footer ruling and break `CharacterPicker`'s tail loading. N6 needs a measurement pass first. F7 stays carried here.
