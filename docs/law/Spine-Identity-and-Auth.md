@@ -40,8 +40,11 @@ Code comments cite the numbered invariants below as "invariant N":
    `tests/server/entry/auth/identity-placement.int.test.ts` exercises the real request seam.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record`; a new
    `AUTH_MODES` member fails `tsc`).
-5. **JWKS/JWT verification fails closed.** Every reject path returns `null` (fallback or 401), never a
-   500 and never a fall-through to unsigned.
+5. **A refused presented identity is terminal.** A forwarded header or JWT that fails a source gate, a parse,
+   its claims or verification resolves anonymous (401). It never reaches the owner fallback, never a 500,
+   and never falls through to a lower header or to the unsigned path. The owner fallback applies only when
+   no identity was presented. `IdentityRefused` in `packages/server/src/infra/auth/contract.ts` carries the
+   refusal to `resolve`.
 6. **`can()` is the only privilege-comparison site.** No `role === 'admin'` or `role === 'host'` compare
    exists outside `packages/server/src/domain/admin/guard.ts`; chat feeds its loaded roster into
    `can(principal, action, {kind:'chat', roster})`. `roster` in this doc names the code-level

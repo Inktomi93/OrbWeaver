@@ -179,7 +179,13 @@ export interface SessionCookie {
   readonly attrs: string;
 }
 
-export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | null>;
+/** A presented identity the resolver refused (a gate, a parse or a verification failed). Terminal: `resolve` answers
+ *  anonymous and never consults the owner fallback, which applies only when no identity was presented (`null`). */
+export interface IdentityRefused {
+  readonly refused: true;
+}
+
+export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | IdentityRefused | null>;
 
 /** Verification-tier output: the pre-row identity plus its `via` signal. Carries no userId/role — the
  *  seam resolves the row and mints the Principal from this. Infra never resolves a cookie (the seam does

@@ -83,7 +83,7 @@ function cacheKey(metaJwks: string): string {
 /**
  * Build (or fetch from cache) the JWKS for verifying a forward-header JWT. Returns null on any rejection —
  * bad JSON, non-https URL, off-allowlist host (fail-closed point 3) — emitting `securityEvent`. Callers
- * treat null as "identity rejected" (→ owner fallback or 401). The literal `{…}` path accepts any JWKS
+ * treat null as "identity refused", which is terminal (a 401, never the owner fallback). The literal `{…}` path accepts any JWKS
  * regardless of the allowlist because it is not an egress vector; the URL path is the only user-influenced
  * outbound reference, so it is https-gated + allowlist-gated.
  */
