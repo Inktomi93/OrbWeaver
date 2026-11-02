@@ -5,6 +5,7 @@ import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostic
 import type { VersionIdentity } from "@orb/kit/version-identity";
 import type { Hono } from "hono";
 import { peerIp } from "#infra/network";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const SERVICE_UNAVAILABLE = 503;
 
@@ -32,7 +33,7 @@ export interface HealthzDeps {
 
 /** Register `GET /healthz`. 200 when live (body also carries the e2e-harness stamp); 503 during shutdown
  *  drain; 503 on a boot decrypt-probe mismatch. The build-identity block rides every arm, for the operator only. */
-export function registerHealthz(app: Hono, deps: HealthzDeps): void {
+export function registerHealthz(app: Hono<PrincipalEnv>, deps: HealthzDeps): void {
   app.get("/healthz", (c) => {
     const identity = deps.identityVisible(peerIp(c), c.req.raw.headers) ? { version: deps.version() } : {};
     if (deps.isShuttingDown()) {

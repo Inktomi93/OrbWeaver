@@ -5,6 +5,7 @@
 // tRPC verbs.
 
 import type { Hono } from "hono";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const FOUND = 302;
 const NOT_FOUND = 404;
@@ -14,7 +15,7 @@ export interface JoinDeps {
 }
 
 /** Register the `GET /join/:token` invite landing on `app`. */
-export function registerJoin(app: Hono, deps: JoinDeps): void {
+export function registerJoin(app: Hono<PrincipalEnv>, deps: JoinDeps): void {
   app.get("/join/:token", (c) => {
     if (!deps.multiHumanCapable()) {
       return c.text("Not Found", NOT_FOUND);

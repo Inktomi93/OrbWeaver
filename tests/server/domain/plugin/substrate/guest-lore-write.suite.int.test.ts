@@ -4,8 +4,9 @@
 // @subject packages/server/src/domain/plugin/substrate/bridge.ts
 
 import { spawn } from "node:child_process";
-import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX } from "@orb/contracts/plugin";
+import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginSuggestedError } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, GuestRun } from "@orb/testkit/node/composed";
@@ -19,6 +20,7 @@ import {
   guestRunner,
   installGuest,
 } from "@orb/testkit/node/composed";
+import { bridgeRequest, createPluginProcessEdge, hasOperation } from "../../../infra/plugin-host/process-runtime.fixtures.ts";
 
 const LORE_OPS = {
   lore: "(h, room, a) => h.worldInfo.upsertEntry(room, a.entry)",
@@ -26,6 +28,7 @@ const LORE_OPS = {
 } as const;
 const VARIABLE = "tension";
 const LIVE_TEMPLATE = `{{setvar::${VARIABLE}::99}}The tension rises.`;
+const ASK_WAIT_MS = 20_000;
 
 interface LoreRoom {
   readonly h: ChatRoot;
@@ -34,7 +37,7 @@ interface LoreRoom {
   readonly guest: (slug: string) => Promise<GuestRun>;
 }
 
-async function loreRoom(): Promise<LoreRoom> {
+async function loreRoom(pluginSpawn: ReturnType<typeof createPluginProcessEdge>["spawn"] = spawn): Promise<LoreRoom> {
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -42,7 +45,7 @@ async function loreRoom(): Promise<LoreRoom> {
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const h = await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn: spawn } });
+  const h = await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn } });
   const attached = (await h.caller.worldInfo.createBook({ input: { name: "Room lore" } })).id;
   const unattached = (await h.caller.worldInfo.createBook({ input: { name: "Another room's lore" } })).id;
   await h.caller.worldInfo.attachToChat({ chatId: h.chatId, bookId: attached });
@@ -114,6 +117,72 @@ test("each plugin writes its own entry per key: a re-write updates it, and a hum
   const entries = await entriesOf(h, room.attached);
   expect(entries.find(({ id }) => id === human.id)).toEqual(human);
   expect(entries.map(({ content }) => content).toSorted()).toEqual(["Another plugin.", "Second draft.", "Written by hand."]);
+});
+
+const SUGGESTED = new PluginSuggestedError("worldInfoUpsert").name;
+
+/** A member's guest, whose lore writes become asks, and the room's stream of raised asks. */
+async function memberAsks(h: ChatRoot, cancellation: AbortController): Promise<{ readonly run: GuestRun; readonly nextAsk: () => Promise<string> }> {
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invitation = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
+  const pluginId = await installGuest(h.root, member, { slug: "lore-asker", capabilities: ["chat.read", "worldinfo.write"] }, LORE_OPS);
+  const events = h.root.app.liveBuses.automation.subscribeAutomation(h.chatId, AbortSignal.any([cancellation.signal, AbortSignal.timeout(ASK_WAIT_MS)]));
+  const stream = events[Symbol.asyncIterator]();
+  const nextAsk = async (): Promise<string> => {
+    for (;;) {
+      const next = await stream.next();
+      if (next.done === true) {
+        throw new Error("the automation stream ended before an ask");
+      }
+      if (next.value.type === "suggestionRaised") {
+        return next.value.summary;
+      }
+    }
+  };
+  return { run: guestRunner({ root: h.root, caller: member, pluginId, chatId: h.chatId }), nextAsk };
+}
+
+test.for<{ name: string; malformed: Readonly<Record<string, JsonValue>> }>([
+  { name: "a book id that is not one", malformed: { bookId: "not-a-book" } },
+  { name: "keys that are not text", malformed: { keys: [1] } },
+  { name: "keys that are not a list", malformed: { keys: "mood" } },
+  { name: "a key that is not text", malformed: { entryKey: 7 } },
+  { name: "content that is not text", malformed: { contentTemplate: 7 } },
+  { name: "an unknown position", malformed: { position: "sideways" } },
+])("a member's guest raises no ask for a lore entry with $name", { tags: ["slow"] }, async ({ malformed }) => {
+  const room = await loreRoom();
+  await using h = room.h;
+  const cancellation = new AbortController();
+  const { run, nextAsk } = await memberAsks(h, cancellation);
+  try {
+    const raised = nextAsk();
+    expect(await run("lore", { entry: { ...entryOf(room.attached, "refused", "No."), ...malformed } })).not.toMatchObject({ name: SUGGESTED });
+    expect(await run("lore", { entry: entryOf(room.attached, "asked", "Yes.") })).toEqual({ ok: false, name: SUGGESTED });
+    expect(await raised).toContain("asked");
+  } finally {
+    cancellation.abort();
+  }
+});
+
+test("the app process raises no ask for a malformed lore entry a broker forges", { tags: ["slow"] }, async () => {
+  const edge = createPluginProcessEdge();
+  const room = await loreRoom(edge.spawn);
+  await using h = room.h;
+  const cancellation = new AbortController();
+  const { run, nextAsk } = await memberAsks(h, cancellation);
+  try {
+    const raised = nextAsk();
+    using delivery = edge.holdNext((value) => hasOperation(value, "suggest"));
+    const forged = run("lore", { entry: entryOf(room.attached, "asked", "Yes.") });
+    const frame = await delivery.reached;
+    delivery.release(bridgeRequest(frame, "suggest", [h.chatId, { kind: "worldInfoUpsert", entry: { entryKey: "forged" } }]));
+    expect(await forged).toEqual({ ok: false, name: TypeError.name });
+    expect(await run("lore", { entry: entryOf(room.attached, "asked", "Yes.") })).toEqual({ ok: false, name: SUGGESTED });
+    expect(await raised).toContain("asked");
+  } finally {
+    cancellation.abort();
+  }
 });
 
 test("a plugin's entries in one book stop at the ceiling, while updates and other plugins still write", { tags: ["slow"] }, async () => {
