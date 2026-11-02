@@ -157,8 +157,20 @@ export interface CorpusServerHarness extends ServerTestHarness {
   readonly corpus: PreparedCorpusFixture;
 }
 
+// A resumed root runs on the frozen replay clock, so a rate-limit window never rolls and each windowed cap becomes a
+// lifetime cap over every request the file's shared root serves; fewer workers put more cases on one root and trip it.
+// The record lifts the caps; production parses the process environment, and the test kit stays out of the image.
+const CORPUS_UNTHROTTLED_CAP = "100000";
+
 /** A resumed corpus root's record posture; a caller's `env` keys lay over it. */
-const CORPUS_RECORD_POSTURE = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } as const satisfies AuthModeEnv<"local">;
+const CORPUS_RECORD_POSTURE = {
+  [AUTH_MODE_KEY]: "local",
+  [AUTH_FALLBACK_KEY]: "deny",
+  ["RATE_LIMIT_AI_TURN"]: CORPUS_UNTHROTTLED_CAP,
+  ["RATE_LIMIT_AUTHED"]: CORPUS_UNTHROTTLED_CAP,
+  ["RATE_LIMIT_LOGIN"]: CORPUS_UNTHROTTLED_CAP,
+  ["RATE_LIMIT_PUBLIC_IP"]: CORPUS_UNTHROTTLED_CAP,
+} as const satisfies AuthModeEnv<"local">;
 
 // The retained owner's handle is the fallback placeholder, while the owner policy stays the default record's.
 async function retainedOwnerPolicy(handle: string): Promise<NonNullable<ServerHarnessOptions["rolePolicyConfig"]>> {

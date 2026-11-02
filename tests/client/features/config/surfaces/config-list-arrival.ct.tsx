@@ -82,11 +82,15 @@ test("a late settings list preserves the actual control selected by a content de
     showList: false,
     initialGroup: "appearance",
   });
-  const control = page.locator('[data-slot="config-content"]').getByRole("button").first();
-  await expect(control).toBeVisible();
-  await control.focus();
-  await expect(control).toBeFocused();
+  const first = page.locator('[data-slot="config-content"]').getByRole("button").first();
+  await expect(first).toBeVisible();
+  await first.focus();
+  // Sections can still arrive above the focused control, so a positional locator would re-resolve to a node that was
+  // never focused; the assertion holds the node the deep link actually focused.
+  const control = await first.evaluateHandle((node) => node);
+  const holdsFocus = (): Promise<boolean> => control.evaluate((node) => node.isConnected && node === node.ownerDocument.activeElement);
+  expect(await holdsFocus()).toBe(true);
   await mounted.update({ showList: true, initialGroup: "appearance" });
   await expect(page.locator(BANDS).first()).toBeVisible();
-  await expect(control).toBeFocused();
+  expect(await holdsFocus()).toBe(true);
 });

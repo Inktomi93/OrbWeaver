@@ -77,9 +77,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The whole component suite ran 39 of its 60 minutes on one runner, so each shard runs on its own.
   ct:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: ct (${{ matrix.shard }}/3)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -88,11 +94,11 @@ jobs:
         with:
           browsers: "true"
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm test:ct --workers=2
+      - run: pnpm test:ct --workers=2 --shard=${{ matrix.shard }}/3
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: component-results
+          name: component-results-${{ matrix.shard }}
           path: |
             reports/
             playwright-report/
