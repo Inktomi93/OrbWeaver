@@ -24,3 +24,5 @@ The observable bar a verifier can check.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+- The lint branch (b7b7b94c17) left 23 laundered-brand sites for this item.

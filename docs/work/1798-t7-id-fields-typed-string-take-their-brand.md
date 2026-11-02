@@ -26,3 +26,5 @@ The observable bar a verifier can check.
 Filled at landing: what ran and where its output is.
 
 - The 34 `orb/no-raw-id` suppressions in code are sites to drain or type properly, not exceptions.
+
+- The lint branch (b7b7b94c17) left 23 laundered-brand sites for this item.
