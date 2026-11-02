@@ -27,6 +27,7 @@ import {
   modelListingSchema,
   promptCacheSettingsSchema,
   providerAvailabilitySchema,
+  providerGenerationIdSchema,
   providerIdSchema,
   resolvedConnectionViewSchema,
   routableTaskSchema,
@@ -184,18 +185,17 @@ export const connectionRouter = t.router({
 
   accountCredits: authedProcedure
     .input(z.strictObject({ connectionId }))
-    .output(accountCreditsSchema.strict())
+    .output(accountCreditsSchema)
     .query(({ ctx, input, signal }) => ctx.services.connection.accountCredits({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   generationCost: authedProcedure
     .input(
       z.strictObject({
         connectionId,
-        // eslint-disable-next-line orb/no-raw-id -- Opaque upstream provider generation handle, not a minted Orbweaver entity identity.
-        generationId: z.string().min(1),
+        generationId: providerGenerationIdSchema,
       }),
     )
-    .output(generationCostSchema.strict())
+    .output(generationCostSchema)
     .query(({ ctx, input, signal }) =>
       ctx.services.connection.generationCost({ principal: ctx.auth, connectionId: input.connectionId, generationId: input.generationId, signal }),
     ),

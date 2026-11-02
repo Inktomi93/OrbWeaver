@@ -1,7 +1,9 @@
 // The outbound body of an openai-compat chat turn, read at the provider edge: the user's own body (extras,
 // includeBody, excludeBody) is the last word, and every computed key leaves a key they settled alone.
 // @subject packages/inference/src/backends/openai-compat/body.ts
-import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey, WARNING_CODE } from "@orb/contracts/inference";
+import { toolCallIdSchema } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
+import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey, providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
@@ -22,7 +24,7 @@ interface Sent {
 
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
-  row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: string; readonly model?: string },
+  row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: ProviderId; readonly model?: string },
   options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[] } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
@@ -74,7 +76,7 @@ test("the connection's own body beats the preset knob and a computed key, a belt
 
 test("the OpenRouter transport takes only the keys it models off the connection's extras and names every other one it drops", async () => {
   const sent = await send({
-    providerId: "openrouter",
+    providerId: providerIdSchema.parse("openrouter"),
     capability: NO_THINKING_SWITCH,
     extras: { provider: { order: ["Anthropic"] }, ["chat_template_kwargs"]: { ["enable_thinking"]: false }, ["mirostat_tau"]: 5 },
   });
@@ -134,25 +136,34 @@ test("the output cap keeps the row's word, and a cap the user's body states stan
 
 test("a reasoning-off turn tells the template not to think and zeroes the budget, and the user's own thinking switch outranks both", async () => {
   const off = { effort: "none" } satisfies UserIntent;
-  const control = await send({ providerId: "vllm", capability: EFFORT }, { params: off });
+  const control = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT }, { params: off });
   expect(control.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
   expect(control.body["thinking_token_budget"]).toBe(0);
 
   const keepsTheirKwargs = await send(
-    { providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["custom_flag"]: "x" } } },
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["custom_flag"]: "x" } } },
     { params: off },
   );
   expect(keepsTheirKwargs.body["chat_template_kwargs"]).toMatchObject({ ["custom_flag"]: "x", ["enable_thinking"]: false });
 
-  const theirsOn = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["enable_thinking"]: true } } }, { params: off });
+  const theirsOn = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["enable_thinking"]: true } } },
+    { params: off },
+  );
   expect(theirsOn.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
   expect(theirsOn.body).not.toHaveProperty("thinking_token_budget");
 
-  const excluded = await send({ providerId: "vllm", capability: EFFORT, transport: { excludeBody: ["chat_template_kwargs"] } }, { params: off });
+  const excluded = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, transport: { excludeBody: ["chat_template_kwargs"] } },
+    { params: off },
+  );
   expect(excluded.body).not.toHaveProperty("chat_template_kwargs");
   expect(excluded.body).not.toHaveProperty("thinking_token_budget");
 
-  const theirBudget = await send({ providerId: "vllm", capability: EFFORT, extras: { ["thinking_token_budget"]: 256 } }, { params: off });
+  const theirBudget = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["thinking_token_budget"]: 256 } },
+    { params: off },
+  );
   expect(theirBudget.body["thinking_token_budget"]).toBe(256);
 });
 
@@ -167,18 +178,21 @@ test("a delivered prefill sends the continue pair and turns thinking off for the
   const history = [USER_LINE, ASSISTANT_OPENING];
   const params = { effort: "high" } satisfies UserIntent;
 
-  const pair = await send({ providerId: "vllm", capability: prefill }, { params, history });
+  const pair = await send({ providerId: providerIdSchema.parse("vllm"), capability: prefill }, { params, history });
   expect(pair.body["continue_final_message"]).toBe(true);
   expect(pair.body["add_generation_prompt"]).toBe(false);
   expect(pair.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
   expect(pair.body).not.toHaveProperty("reasoning_effort");
   expect(warningCodes(pair.events)).toContain(WARNING_CODE.reasoningDroppedForPrefill);
 
-  const noPrefillTurn = await send({ providerId: "vllm", capability: prefill }, { params, history: [USER_LINE] });
+  const noPrefillTurn = await send({ providerId: providerIdSchema.parse("vllm"), capability: prefill }, { params, history: [USER_LINE] });
   expect(noPrefillTurn.body).not.toHaveProperty("continue_final_message");
   expect(warningCodes(noPrefillTurn.events)).not.toContain(WARNING_CODE.reasoningDroppedForPrefill);
 
-  const theirDecision = await send({ providerId: "vllm", capability: prefill, transport: { excludeBody: ["continue_final_message"] } }, { params, history });
+  const theirDecision = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: prefill, transport: { excludeBody: ["continue_final_message"] } },
+    { params, history },
+  );
   expect(theirDecision.body).not.toHaveProperty("continue_final_message");
   expect(theirDecision.body).not.toHaveProperty("add_generation_prompt");
   expect(warningCodes(theirDecision.events)).not.toContain(WARNING_CODE.reasoningDroppedForPrefill);
@@ -190,10 +204,13 @@ test("a messages array the user's body sets is theirs whole: the plan's prefill 
   const params = { effort: "high" } satisfies UserIntent;
   const history = [USER_LINE, ASSISTANT_OPENING];
 
-  const control = await send({ providerId: "vllm", capability: prefill }, { params, history });
+  const control = await send({ providerId: providerIdSchema.parse("vllm"), capability: prefill }, { params, history });
   expect(control.body["continue_final_message"]).toBe(true);
 
-  const owned = await send({ providerId: "vllm", capability: prefill, transport: { includeBody: { messages: theirs } } }, { params, history });
+  const owned = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: prefill, transport: { includeBody: { messages: theirs } } },
+    { params, history },
+  );
   expect(owned.body["messages"]).toEqual(theirs);
   expect(owned.body).not.toHaveProperty("continue_final_message");
   expect(owned.body).not.toHaveProperty("add_generation_prompt");
@@ -203,10 +220,13 @@ test("a messages array the user's body sets is theirs whole: the plan's prefill 
 
 test("a reasoning-on turn tells the template to think, but never over an off the user's own body already set", async () => {
   const on = { effort: "high" } satisfies UserIntent;
-  const thinks = await send({ providerId: "vllm", capability: EFFORT }, { params: on });
+  const thinks = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT }, { params: on });
   expect(thinks.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
 
-  const theirOff = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["enable_thinking"]: false } } }, { params: on });
+  const theirOff = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["enable_thinking"]: false } } },
+    { params: on },
+  );
   expect(theirOff.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
 });
 
@@ -219,36 +239,48 @@ test("an effort the row cannot spell is dropped with a warning, and one the user
   const theirs = await send({ capability: EFFORT, extras: { ["reasoning_effort"]: "low" } }, { params });
   expect(theirs.body["reasoning_effort"]).toBe("low");
 
-  const spelled = await send({ providerId: "vllm", capability: EFFORT }, { params });
+  const spelled = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT }, { params });
   expect(spelled.body["reasoning_effort"]).toBe("high");
 });
 
 test("a turn whose reasoning carry is off tells the template not to replay thinking, beside the user's kwargs and never over their decision", async () => {
   const params = { effort: "high", carryReasoning: "off" } satisfies UserIntent;
   const replaying = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], replay: "text" } });
-  const control = await send({ providerId: "vllm", capability: replaying }, { params: { effort: "high", carryReasoning: "conversation" } });
+  const control = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: replaying },
+    { params: { effort: "high", carryReasoning: "conversation" } },
+  );
   expect(control.body["chat_template_kwargs"]).not.toHaveProperty("preserve_reasoning");
 
-  const carried = await send({ providerId: "vllm", capability: EFFORT }, { params });
+  const carried = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT }, { params });
   expect(carried.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true, ["preserve_reasoning"]: false });
 
-  const theirKwargs = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["custom_flag"]: "x" } } }, { params });
+  const theirKwargs = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["custom_flag"]: "x" } } },
+    { params },
+  );
   expect(theirKwargs.body["chat_template_kwargs"]).toMatchObject({ ["custom_flag"]: "x", ["preserve_reasoning"]: false });
 
-  const theirKey = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["preserve_reasoning"]: true } } }, { params });
+  const theirKey = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: { ["preserve_reasoning"]: true } } },
+    { params },
+  );
   expect(theirKey.body["chat_template_kwargs"]).toMatchObject({ ["preserve_reasoning"]: true });
 
-  const excluded = await send({ providerId: "vllm", capability: EFFORT, transport: { excludeBody: ["chat_template_kwargs"] } }, { params });
+  const excluded = await send(
+    { providerId: providerIdSchema.parse("vllm"), capability: EFFORT, transport: { excludeBody: ["chat_template_kwargs"] } },
+    { params },
+  );
   expect(excluded.body).not.toHaveProperty("chat_template_kwargs");
 });
 
 test("template kwargs the user set to a non-object are theirs whole: no thinking switch, budget or preserve key merges into them", async () => {
   const off = { effort: "none", carryReasoning: "off" } satisfies UserIntent;
-  const control = await send({ providerId: "vllm", capability: EFFORT }, { params: off });
+  const control = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT }, { params: off });
   expect(control.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false, ["preserve_reasoning"]: false });
   expect(control.body["thinking_token_budget"]).toBe(0);
 
-  const theirs = await send({ providerId: "vllm", capability: EFFORT, extras: { ["chat_template_kwargs"]: "raw" } }, { params: off });
+  const theirs = await send({ providerId: providerIdSchema.parse("vllm"), capability: EFFORT, extras: { ["chat_template_kwargs"]: "raw" } }, { params: off });
   expect(theirs.body["chat_template_kwargs"]).toBe("raw");
   expect(theirs.body).not.toHaveProperty("thinking_token_budget");
 });
@@ -308,7 +340,7 @@ test("participant names, a prior reply's image and the image detail ride the wir
 const CACHEABLE = generationCapability({
   turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
 });
-const ANTHROPIC_ON_OPENROUTER = { providerId: "openrouter", model: "anthropic/claude-sonnet-4.5", capability: CACHEABLE } as const;
+const ANTHROPIC_ON_OPENROUTER = { providerId: providerIdSchema.parse("openrouter"), model: "anthropic/claude-sonnet-4.5", capability: CACHEABLE } as const;
 const MARKED = { cacheBreakpoint: true } as const;
 
 function contentOf(body: RecordedRequest["body"], index: number): unknown {
@@ -327,8 +359,8 @@ test("an OpenRouter cache marker rides its row's last text part, and a row with 
 
   const toolCallOnly: ChatHistoryMessage[] = [
     { role: "user", content: [{ type: "text", text: "One." }] },
-    { role: "assistant", wireMeta: MARKED, content: [{ type: "tool-call", toolCallId: "c1", name: "look", arguments: "{}" }] },
-    { role: "tool", content: [{ type: "tool-result", toolCallId: "c1", content: "{}" }] },
+    { role: "assistant", wireMeta: MARKED, content: [{ type: "tool-call", toolCallId: toolCallIdSchema.parse("c1"), name: "look", arguments: "{}" }] },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: toolCallIdSchema.parse("c1"), content: "{}" }] },
     { role: "user", content: [{ type: "text", text: "Three." }] },
   ];
   const moved = await send(ANTHROPIC_ON_OPENROUTER, { history: toolCallOnly });
@@ -361,8 +393,8 @@ test("a named row, a tool-call row and a replayed-reasoning row keep their own m
     { role: "user", content: [{ type: "text", text: "One." }] },
     { role: "user", name: "Mira", content: [{ type: "text", text: "Two." }] },
     { role: "assistant", content: [{ type: "text", text: "Three." }] },
-    { role: "assistant", content: [{ type: "tool-call", toolCallId: "c1", name: "look", arguments: "{}" }] },
-    { role: "tool", content: [{ type: "tool-result", toolCallId: "c1", content: "{}" }] },
+    { role: "assistant", content: [{ type: "tool-call", toolCallId: toolCallIdSchema.parse("c1"), name: "look", arguments: "{}" }] },
+    { role: "tool", content: [{ type: "tool-result", toolCallId: toolCallIdSchema.parse("c1"), content: "{}" }] },
     { role: "assistant", content: [{ type: "text", text: "Four." }] },
     {
       role: "assistant",
@@ -442,7 +474,7 @@ test("a mandatory-reasoning model keeps its thinking and its effort through a de
   const params = { effort: "high" } satisfies UserIntent;
   const history = [USER_LINE, ASSISTANT_OPENING];
 
-  const sent = await send({ providerId: "vllm", capability: mandatory }, { params, history });
+  const sent = await send({ providerId: providerIdSchema.parse("vllm"), capability: mandatory }, { params, history });
   expect(sent.body["continue_final_message"]).toBe(true);
   expect(sent.body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: true });
   expect(sent.body["reasoning_effort"]).toBe("high");

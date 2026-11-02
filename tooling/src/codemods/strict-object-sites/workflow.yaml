@@ -4,12 +4,12 @@ params:
   schema:
     sites:
       name: "Sites file"
-      description: "Path, relative to the target directory, of the JSON array of <path>:<line>:<ordinal> z.object sites"
+      description: "Path, relative to the target directory, of the JSON object mapping <path>:<line>:<ordinal> sites to strict, strip or loose"
       type: string
       default: "codemod-strict-object-sites.json"
 nodes:
   - id: strict-object-sites
-    name: Rewrite listed z.object calls to z.strictObject
+    name: Rewrite listed z.object calls to their declared mode
     type: automatic
     steps:
       - name: TypeScript files

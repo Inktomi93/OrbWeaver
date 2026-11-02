@@ -219,7 +219,7 @@ const rawSchemaNode = z.record(z.string(), z.unknown());
 /** A custom schema DOCUMENT — the whole authored artifact (name + NL description + stage + the schema).
  *  The ONE belt every write runs (and the client editor may run locally — same refusals, same paths). */
 export const refinerySchemaDocumentSchema = z
-  .object({
+  .strictObject({
     name: z.string().max(REFINERY_SCHEMA_NAME_MAX).regex(REFINERY_SCHEMA_NAME_PATTERN, "name must match ^[a-zA-Z_][a-zA-Z0-9_]*$"),
     description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
     stage: refinerySchemaStageSchema,
@@ -238,7 +238,7 @@ export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema
 // @typeonly-ok: server-trusted DB→wire projection (`schemaSummaryOf`) — nothing `.parse`s this schema at
 // runtime, but it is the one-home shape source for `RefinerySchemaSummary` (`no-inline-types`); the zod
 // literal IS the contract, consumed only through its inferred type.
-export const refinerySchemaSummarySchema = z.object({
+export const refinerySchemaSummarySchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.refinerySchema),
   name: z.string(),
   description: z.string(),

@@ -19,7 +19,6 @@
 // written back for the next boot.
 
 import type { Theme } from "@orb/contracts/theme";
-import type { ThemeId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useGatedQuery, useTRPC } from "#data";
@@ -41,7 +40,7 @@ export function useSelectedTheme(): { readonly theme: Theme | null; readonly dat
   const trpc = useTRPC();
   const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
   const settings = settingsQuery.data;
-  const selectedThemeId = (settings?.config.theme.selectedThemeId ?? null) as ThemeId | null;
+  const selectedThemeId = settings?.config.theme.selectedThemeId ?? null;
   const themeQuery = useGatedQuery(selectedThemeId, (id) => trpc.settings.getTheme.queryOptions({ id }));
   const data = themeQuery.data;
   const { dataTheme: hinted } = useAppearanceBootHint();

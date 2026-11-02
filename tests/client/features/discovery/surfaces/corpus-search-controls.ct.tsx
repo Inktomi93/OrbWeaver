@@ -1,6 +1,7 @@
 // @subject packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx
 // The Corpus omnibox sends the rerank ask the owner makes, and offers it only when a Rerank model can serve it.
 
+import { modelIdSchema } from "@orb/contracts/inference";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import {
@@ -16,7 +17,7 @@ import { CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-contro
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
-const RERANK_MODEL = "ledger/native-reranker";
+const RERANK_MODEL = modelIdSchema.parse("ledger/native-reranker");
 const SERVED = [
   "sessions.me",
   "connection.list",

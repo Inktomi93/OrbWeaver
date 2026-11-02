@@ -63,7 +63,7 @@ function sameControl(a: ChatControl, b: ChatControl): boolean {
   if (a.kind === "chip") {
     return b.kind === "chip" && a.disclosureLabel === b.disclosureLabel && sameAction(a.action, b.action);
   }
-  return b.kind === "card" && a.title === b.title && sameActions(a.actions, b.actions);
+  return b.kind === "card" && a.title === b.title && a.byline === b.byline && sameActions(a.actions, b.actions);
 }
 
 function sameControls(a: readonly ChatControl[], b: readonly ChatControl[]): boolean {

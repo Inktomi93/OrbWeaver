@@ -2,10 +2,11 @@
 // all. Read-only and never a gate. Every world is scanned over the files it is home to, so no file is counted twice.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { BrandTable } from "../brand-names/index.ts";
 import { homeFiles, isProduction, NativeWorld, packageWorlds, TEST_WORLDS } from "../unwired/index.ts";
 import type { CompareCandidate, DeclarationCandidate, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";
-import { BrandTable, sharesBrand } from "./facts.ts";
+import { sharesBrand } from "./facts.ts";
 import { layerOf } from "./slots.ts";
 import type { CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
 import { joinVocab } from "./vocab.ts";

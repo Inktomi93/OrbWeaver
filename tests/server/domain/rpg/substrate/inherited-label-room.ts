@@ -1,6 +1,6 @@
 // A real game whose one npc is re-stanced to a custom relationship labelled with an inherited member name; the
 // production SEND assembles the reminder and the delta, and the model-bound request bytes come back.
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
@@ -58,7 +58,14 @@ export async function secondBeatWire(): Promise<string> {
   await using h = await turnRpgRoom([reply, reply], {
     promptConfig: makePromptConfig({
       sections: [
-        { type: "literal", id: "inherited-label-delta", name: "Delta", role: "system", content: `${DELTA_MARKER}{{rpgDelta}}${DELTA_MARKER}`, enabled: true },
+        {
+          type: "literal",
+          id: promptSectionIdSchema.parse("inherited-label-delta"),
+          name: "Delta",
+          role: "system",
+          content: `${DELTA_MARKER}{{rpgDelta}}${DELTA_MARKER}`,
+          enabled: true,
+        },
         ...DEFAULT_PROMPT_CONFIG.sections,
       ],
     }),

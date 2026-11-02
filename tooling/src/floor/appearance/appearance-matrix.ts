@@ -1,5 +1,6 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
+import type { AssetId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 import { instrumentRefusal } from "../browser/page-validate.ts";
@@ -333,7 +334,7 @@ export function appearanceArmValueId(axes: readonly VariantAxis[], key: string, 
  *  arm's dependent carriers come from the real account state instead. The ten seeded scene plates are what
  *  guarantee the library is non-empty on any install this tool runs against. */
 export interface BackgroundCapability {
-  readonly assetId: string;
+  readonly assetId: AssetId;
   readonly assetHash: string;
   readonly mime: string;
 }

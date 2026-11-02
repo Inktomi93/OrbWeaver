@@ -28,8 +28,7 @@ import type { HandoffCardCopy } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
-import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
 import type { CharacterHandoffCopyAssemblyContext, CharacterHandoffCopyContext, CopyHandoffCards } from "../contract/handoff-copy.ts";
 import { handoffProvenance } from "../contract/handoff-copy.ts";
@@ -73,10 +72,10 @@ async function reownBackground(
   owners: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId },
   source: ThemeBackground | null,
 ): Promise<ThemeBackground | null> {
-  if (source === null || source.kind !== "asset" || source.assetId.length === 0) {
+  if (source === null || source.kind !== "asset" || source.assetId === "") {
     return source;
   }
-  const assetId = await ctx.copyAsset({ ...owners, assetId: castId<AssetId>(source.assetId), kind: "background" });
+  const assetId = await ctx.copyAsset({ ...owners, assetId: source.assetId, kind: "background" });
   return assetId === null ? canonicalBackgroundSource({ ...source, kind: "none" }) : { ...source, assetId };
 }
 

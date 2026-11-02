@@ -4,6 +4,7 @@
 // `inject` reuses the shared `@orb/kit/injection` directive; role is the canonical `MessageRole`, never a
 // world-info-local re-spell.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
@@ -48,9 +49,11 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 //  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
 //  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the
 //  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
-const loreEntryProvenanceSchema = z.object({
-  contentHash: z.string(),
-});
+const loreEntryProvenanceSchema = z
+  .object({
+    contentHash: z.string(),
+  })
+  .strip();
 export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
 // Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are

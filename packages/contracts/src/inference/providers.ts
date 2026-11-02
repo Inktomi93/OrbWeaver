@@ -11,6 +11,7 @@
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
+import type { ProviderId } from "./provider-id.ts";
 import { isPluginProviderId } from "./provider-id.ts";
 import type { ProviderDef } from "./provider-schema.ts";
 import { providerDefSchema } from "./provider-schema.ts";
@@ -35,7 +36,7 @@ export function builtinProvider(id: string): ProviderDef | undefined {
 }
 
 /** The placeholder Server URL for a built-in endpoint row; `undefined` for any other row. */
-export function exampleBaseUrl(providerId: string): string | undefined {
+export function exampleBaseUrl(providerId: ProviderId): string | undefined {
   return BUILTIN_EXAMPLE_BASE_URLS[providerId];
 }
 

@@ -272,6 +272,11 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
               </GlyphButton>
             </Tip>
           </Row>
+          {newest.byline === undefined ? null : (
+            <Text data-slot="chat-control-card-byline" voice="gloss">
+              {newest.byline}
+            </Text>
+          )}
           {newest.detail}
           <Row gap="field">
             {/* Keyed by the action's OWN id, never its label: a card may legitimately carry two

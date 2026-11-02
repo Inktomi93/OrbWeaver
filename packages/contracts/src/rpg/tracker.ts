@@ -19,8 +19,8 @@
 // CARRIER RESOLUTION IS ONE PURE FUNCTION ({@link carriesTracker}) — the effective carrier set is
 // `resolve(appliesTo) + grants − revokes`, and every consumer (the panel read, the reminder, the per-actor
 // write-schema assembly) derives from it rather than re-deciding who carries what.
-// Stored-blob reads here keep zod strip mode (Spine-Config "Degrading is read-only"); tRPC inputs and outputs parse its `strictTwin` (`@orb/kit/zod-schema`).
 
+// Strip mode: these schemas also read imported files and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { z } from "zod";
 import type { RpgTrackerCarrierClass } from "./enums.ts";
 import { rpgTrackerCarrierClassSchema, rpgTrackerShapeSchema, rpgTrackerSubjectSchema, rpgTrackerWriteSchema } from "./enums.ts";
@@ -65,21 +65,23 @@ type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
  *
  *  `locked` is R6 prevent-at-schema: a locked tracker is ABSENT from the write schema the model is handed
  *  (the apply-time lock strip stays as the backstop, never the primary gate). `pinned` is the band. */
-export const rpgTrackerDefSchema = z.object({
-  key: z.string().min(1),
-  label: z.string().min(1),
-  shape: rpgTrackerShapeSchema,
-  write: rpgTrackerWriteSchema,
-  subject: rpgTrackerSubjectSchema,
-  appliesTo: rpgTrackerAppliesToSchema.default("everyone"),
-  max: z.int().min(1).nullable().default(null),
-  hint: z.string().max(RPG_HINT_MAX).default(""),
-  color: z.string().regex(RPG_TRACKER_COLOR_RE).nullable().default(null),
-  icon: z.string().nullable().default(null),
-  sort: z.int().default(0),
-  pinned: z.boolean().default(false),
-  locked: z.boolean().default(false),
-});
+export const rpgTrackerDefSchema = z
+  .object({
+    key: z.string().min(1),
+    label: z.string().min(1),
+    shape: rpgTrackerShapeSchema,
+    write: rpgTrackerWriteSchema,
+    subject: rpgTrackerSubjectSchema,
+    appliesTo: rpgTrackerAppliesToSchema.default("everyone"),
+    max: z.int().min(1).nullable().default(null),
+    hint: z.string().max(RPG_HINT_MAX).default(""),
+    color: z.string().regex(RPG_TRACKER_COLOR_RE).nullable().default(null),
+    icon: z.string().nullable().default(null),
+    sort: z.int().default(0),
+    pinned: z.boolean().default(false),
+    locked: z.boolean().default(false),
+  })
+  .strip();
 export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
 
 /** ONE tracker's stored value, TOTAL by construction (every field always present — the weather-label lesson:
@@ -98,11 +100,13 @@ export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
  *  CLEARS it to null ({@link resolveTrackerMaxOverride}). So the two numbers can never quietly disagree about
  *  the same fact — a stored override always MEANS "different on purpose". Max stays HOST-AUTHORED: the model's
  *  write surface carries no max arm. Every read of a ceiling goes through {@link trackerCeiling}. */
-export const rpgTrackerValueSchema = z.object({
-  value: z.union([z.number(), z.string()]).nullable().default(null),
-  items: z.array(z.string()).nullable().default(null),
-  max: z.int().min(1).nullable().default(null),
-});
+export const rpgTrackerValueSchema = z
+  .object({
+    value: z.union([z.number(), z.string()]).nullable().default(null),
+    items: z.array(z.string()).nullable().default(null),
+    max: z.int().min(1).nullable().default(null),
+  })
+  .strip();
 export type RpgTrackerValue = z.infer<typeof rpgTrackerValueSchema>;
 
 /** The stored value plane: `key → value`. Actor-subject values live on `actorState[].trackerValues`,

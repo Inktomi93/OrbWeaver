@@ -3,7 +3,7 @@ import type { BeginEmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   BindingActor,
-  BindingActorKind,
+  BindingActorKey,
   ConnectionBinding,
   LocalLightCpuPercent,
   ProviderDef,
@@ -179,7 +179,7 @@ export interface ConnectionStore {
 }
 
 export interface BindingStore {
-  readonly lookup: (args: { readonly actorKind: BindingActorKind; readonly actorId: string; readonly task: RoutableTask }) => Promise<ConnectionBinding | null>;
+  readonly lookup: (args: BindingActorKey & { readonly task: RoutableTask }) => Promise<ConnectionBinding | null>;
 }
 
 /** The store's read: the deployment-wide admin rows, and one entry per claim an enabled install serves,

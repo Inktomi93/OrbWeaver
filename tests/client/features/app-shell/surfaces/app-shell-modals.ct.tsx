@@ -3,6 +3,7 @@
 import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
+import type { ThemeId } from "@orb/kit/ids";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -402,7 +403,7 @@ test.describe("on the corpus owner's own settings", () => {
 });
 
 /** A corpus root whose owner has a custom theme selected, with the appearance patch applied over the owner's own. */
-async function themedRoot(override: Record<string, string>, appearance: Record<string, unknown> = {}): Promise<{ root: Root; themeId: string }> {
+async function themedRoot(override: Record<string, string>, appearance: Record<string, unknown> = {}): Promise<{ root: Root; themeId: ThemeId }> {
   const root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const theme = await caller.settings.createTheme({

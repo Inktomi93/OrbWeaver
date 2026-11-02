@@ -44,8 +44,7 @@ import { batchMany } from "@orb/db/query";
 import type { DatabaseHandle, StatementToken } from "@orb/db/wiring";
 import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
@@ -575,8 +574,8 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     // ownership gate then runs whenever an asset ref SURVIVES (⇒ `kind:"asset"`) — belt-and-suspenders keyed on
     // `assetId` presence, not the kind literal — since a foreign asset would GC-root someone else's private blob.
     const source = canonicalBackgroundSource(resolved);
-    if (source.assetId.length > 0) {
-      const owned = await ctx.filterOwnedAssetIds(principal.userId, [castId<AssetId>(source.assetId)]);
+    if (source.assetId !== "") {
+      const owned = await ctx.filterOwnedAssetIds(principal.userId, [source.assetId]);
       if (owned.length === 0) {
         throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: an asset background must reference an asset you own`);
       }

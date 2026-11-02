@@ -20,7 +20,7 @@ type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
 /** A persona id → its display name. The room's identity producer covers every persona the room references,
  *  the pin included even after its player left; the viewer's own list is the second source. */
-function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id: string | null): string {
+function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id: PersonaId | null): string {
   if (id === null) {
     return "None";
   }

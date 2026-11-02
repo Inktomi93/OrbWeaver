@@ -21,8 +21,10 @@
 // Appearance (D294, UI-Theming-and-Content §12.1) — DISPLAY-ONLY, never touches stored content (content-processing is preset
 // territory, D53). Per-character COLOR theme layers on top; movingUI/waifuMode are OUT of scope here.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import { FONT_SCALE } from "@orb/kit/font-scale";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { Branded } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
 // the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
@@ -101,26 +103,36 @@ function liftReducedMotion(stored: unknown): unknown {
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain", "stretch", "center"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 
+/** A background-library row's own key: a client UUID or a deterministic `asset:index` backfill, never an entity TypeID.
+ *  @remarks Byte-identical uploads share one `assetId`, so the row needs a key of its own. */
+type BackgroundEntryId = Branded<"BackgroundEntryId">;
+const backgroundEntryIdSchema = brandedId("BackgroundEntryId");
+/** The one mint of a library row key from a fresh uuid. */
+export const mintBackgroundEntryId = (uuid: string): BackgroundEntryId => backgroundEntryIdSchema.parse(uuid);
+/** The one mint of a {@link BackgroundEntryId}, injected wherever a library row is created. */
+export type NewBackgroundEntryId = () => BackgroundEntryId;
+
 // A saved background-library entry (BG-D) — the per-user list of uploaded backgrounds the picker chooses
 // from. Lives in settings (the backgrounds concept's ONE home, D63), NOT a relational table: a flat
 // per-user list of dozens with names and zero relational joins. Every entry's `assetId` is GC-rooted by
 // the settings live-source scan (`domain/assets/persistence/asset-refs.ts`) so an unpicked upload is never
 // reaped. `mime` lets a picked VIDEO entry select the `<video>` background layer (BG-V) over the image one;
 // `assetHash` builds `blobUrl(hash)` for the grid thumbnail without an async id→hash round-trip.
-export const backgroundLibraryEntrySchema = z.object({
-  // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
-  // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
-  // stays the content pointer; `entryId` identifies the row.
-  // eslint-disable-next-line orb/no-raw-id -- Blob-local UI row key admits client UUIDs and deterministic asset:index backfills, not entity TypeIDs.
-  entryId: z.string(),
-  assetId: typeIdSchema(ID_PREFIX.asset),
-  assetHash: z.string(),
-  mime: z.string(),
-  name: z.string(),
-  // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
-  // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
-  provenanceUrl: z.string().optional(),
-});
+export const backgroundLibraryEntrySchema = z
+  .object({
+    // Stable per-ROW id, the key/select/delete/rename target (F-P2): a content-addressed `assetId` is SHARED by
+    // byte-identical uploads, so keying rows on it collided (dup React keys + deleting one wiped both). `assetId`
+    // stays the content pointer; `entryId` identifies the row.
+    entryId: backgroundEntryIdSchema,
+    assetId: typeIdSchema(ID_PREFIX.asset),
+    assetHash: z.string(),
+    mime: z.string(),
+    name: z.string(),
+    // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
+    // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
+    provenanceUrl: z.string().optional(),
+  })
+  .strip();
 export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -199,10 +211,9 @@ export const appearanceSettingsSchema = z
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
     // paintable external field (the BG-C invariant, side-eye F-P0-2). The kind enum keeps `external` only as a
     // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
-    // eslint-disable-next-line orb/no-raw-id -- Lenient settings pointer admits an empty sentinel and stale IDs; the consumer resolves owned assets.
+    // The empty string is the no-pick sentinel; a stale id degrades where the consumer resolves owned assets.
     backgroundAssetId: z
-      .string()
-      .regex(/^(asset_[a-z0-9]+)?$/u)
+      .union([typeIdSchema(ID_PREFIX.asset), z.literal("")])
       .catch("")
       .default(""),
     // The immutable content hash for the `asset` kind — the SYNC `resolveBackgroundUrl` builds
@@ -247,6 +258,7 @@ export const appearanceSettingsSchema = z
     blurStrength: z.number().min(BLUR_STRENGTH_MIN).max(BLUR_STRENGTH_MAX).catch(BLUR_STRENGTH_DEFAULT).default(BLUR_STRENGTH_DEFAULT),
     showLLMReasoningIcon: z.boolean().catch(false).default(false),
   })
+  .strip()
   .prefault({});
 
 export type AppearanceSettings = z.infer<typeof appearanceSettingsSchema>;

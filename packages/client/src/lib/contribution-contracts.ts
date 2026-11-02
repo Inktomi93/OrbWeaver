@@ -152,6 +152,9 @@ export type ChatControl =
       readonly kind: Extract<ChatControlKind, "card">;
       readonly id: string;
       readonly title: string;
+      /** Who raised the ask, as the HOST states it, drawn in its own element apart from `title`. A title can
+       *  carry third-party text (a plugin's name), so an attribution the product vouches for never rides in it. */
+      readonly byline?: string;
       readonly detail?: ReactNode;
       readonly actions: readonly ChatControlAction[];
       /** REQUIRED — every card carries an explicit dismiss (§3-S1). */
@@ -165,7 +168,7 @@ export type ChatControl =
  *  would hide the card the member is waiting for.
  *
  *  THE PUBLISH GUARD, and the ONE constraint it puts on you (read this before writing a source). The band
- *  IGNORES a publish whose controls are CONTENT-equal to the last one — same kind/id/title, same per-action
+ *  IGNORES a publish whose controls are CONTENT-equal to the last one — same kind/id/title/byline, same per-action
  *  id/disclosureLabel/action label/mode/text/pending — because a source that rebuilds its list every render
  *  (the natural bus-driven shape) would otherwise re-render the band, which re-renders the source, forever. Two things are NOT
  *  compared, and are therefore yours to keep honest:

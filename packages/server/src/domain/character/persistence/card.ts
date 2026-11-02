@@ -22,7 +22,6 @@ import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
@@ -39,7 +38,7 @@ type CharacterEdits = Partial<CharacterInsert>;
 type SnapshotInsert = typeof characterSnapshots.$inferInsert;
 
 function backgroundAssetId(value: CharacterInsert["backgroundOverride"]): AssetId | undefined {
-  return value?.kind === "asset" && value.assetId.length > 0 ? castId<AssetId>(value.assetId) : undefined;
+  return value?.kind === "asset" && value.assetId !== "" ? value.assetId : undefined;
 }
 
 // character creation may carry a background from an already-authorized duplicate/import source owned by someone else. This existence-only arbitration ends if carried backgrounds become owner-only or move to a normalized FK-backed relation.

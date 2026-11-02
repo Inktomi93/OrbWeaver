@@ -1,13 +1,15 @@
 // Finite physical replies and delegated I/O holds only; native registry, recursion and flush policy stay real.
+
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { ControlledTimers } from "../iso/timers.ts";
 import { createCorpusChatWire } from "./corpus-chat-wire.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
 import { CORPUS_RPG_JOURNAL_TOOL, CORPUS_RPG_SCENE_TOOL } from "./corpus-rpg-wire.ts";
 
-export const RPG_RECURSION_MODEL = "corpus-rpg-recursion-v1";
-export const RPG_ROUND_MODEL = "corpus-rpg-round-v1";
+export const RPG_RECURSION_MODEL = modelIdSchema.parse("corpus-rpg-recursion-v1");
+export const RPG_ROUND_MODEL = modelIdSchema.parse("corpus-rpg-round-v1");
 export const RPG_RECURSION_CARD = "Corpus recursive keeper";
 export const RPG_RECURSION_CUE = "Follow the recursive ledger through both observatories.";
 const RPG_DEPTH_ZERO_LOCATION = "Outer observatory";

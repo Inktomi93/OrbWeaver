@@ -1,5 +1,6 @@
 // Shared RPC batching limits, the page direction and resume token the tRPC client adds, and terminal subscription wire data.
 
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** Maximum procedure calls in one HTTP request; client splitting and server admission share this value. */
@@ -9,7 +10,7 @@ export const TRPC_BATCH_MAX_ITEMS = 22;
 export const TRPC_BATCH_MAX_URL_LENGTH = 1334;
 
 // A modelled subscription fault is terminal data, not an instruction to retry the source.
-const subscriptionErrorFrameSchema = z.object({
+const subscriptionErrorFrameSchema = z.strictObject({
   __subscriptionError: z.literal(true),
   code: z.string(),
   message: z.string(),
@@ -41,8 +42,8 @@ export const pageDirectionShape = { direction: z.enum(INFINITE_QUERY_DIRECTIONS)
  * whether it resumes from the token.
  */
 export const trackedEventIdShape = {
-  // eslint-disable-next-line orb/no-raw-id -- Opaque SSE resume token the tRPC client mints from the last tracked frame id; it names no entity.
-  lastEventId: z.string().optional(),
+  // The resume token the subscription client copies from the last tracked frame; it names no entity.
+  lastEventId: brandedId("TrackedEventId").optional(),
 };
 
 /** The acknowledgement a procedure returns when the write itself is the whole answer. */

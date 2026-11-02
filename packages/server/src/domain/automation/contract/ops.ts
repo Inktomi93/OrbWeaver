@@ -560,9 +560,9 @@ interface PendingSuggestionBase {
   readonly chatId: ChatId;
   /** The identity a confirmed execution runs AS: the rule AUTHOR, or the plugin's INSTALLER. The confirmer is
    *  the AUTHORIZER only (§3-S4: ownership, funding and the variable namespace all key off this user, never
-   *  off who clicked) — and it is the user whose HOST authority the confirm re-check re-runs, which is the
-   *  whole of the ruled host-handoff wall: an actor who lost host cannot have their pending ask executed by
-   *  the new host. Fail-closed, no re-mint, no transfer (owner ruling 2026-08-24). */
+   *  off who clicked). It is also the user whose standing the confirm re-check and the void sweep re-prove,
+   *  per origin (`substrate/authority.ts::askActorStillStands`): a rule author must still host, a plugin
+   *  installer must still hold the membership the ask recorded, under the host it recorded. */
   readonly actorUserId: UserId;
   readonly expiresAt: number;
 }
@@ -583,8 +583,24 @@ export type PendingSuggestion = PendingSuggestionBase &
         readonly kind: Extract<AutomationSuggestionKind, "confirm">;
         readonly source: Extract<AutomationEmitSource, { kind: "plugin" }>;
         readonly payload: Extract<SuggestionPayload, { via: "plugin-act" }>;
+        readonly standing: PluginAskStanding;
       }
   );
+
+/** One present membership of a user in a room. A rejoin restamps both fields on the same row. */
+export interface MembershipInstance {
+  readonly joinSeq: number;
+  readonly joinedAt: number;
+}
+
+/** What a plugin ask was raised against. Its authority is one host's yes, so it holds only while that host still
+ *  hosts and the installer is still on the same membership. */
+export interface PluginAskStanding {
+  /** The host whose card the ask raised. A handoff to anyone else voids it. */
+  readonly hostUserId: UserId;
+  /** The installer's membership at raise. A removal followed by a re-invite is a new membership. */
+  readonly installerMembership: MembershipInstance;
+}
 
 /** C3 — apply a HOST-CONFIRMED prose rewrite to one audited reply, wired at `entry/compose` to chat's own
  *  `applyProseRewrite` verb under the rule author's Principal (the `setChatBackground` wiring shape).

@@ -5,7 +5,7 @@
 // transport's plain fetches (§8.2), reached through the same door.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { ModelListing } from "@orb/contracts/inference";
+import type { ModelListing, ProviderGenerationId } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { ProviderScrubSet } from "./errors.ts";
 import type { Resolved } from "./resolved.ts";
@@ -19,7 +19,7 @@ export interface DiagnosticRequestCommon {
 }
 
 export interface GenerationCostRequest extends DiagnosticRequestCommon {
-  readonly generationId: string;
+  readonly generationId: ProviderGenerationId;
 }
 
 /** What a model-list read needs from a connection: which wire and provider, whose credential, which server.

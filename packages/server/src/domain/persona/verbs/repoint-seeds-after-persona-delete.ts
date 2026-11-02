@@ -2,8 +2,6 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { PersonaDeleteSeedsDeps } from "../contract/delete-seeds.ts";
 import type { PersonaContext } from "../contract/service.ts";
 import { loadNewestPersonaId } from "../persistence/newest-persona.ts";
@@ -16,8 +14,8 @@ export function createRepointSeedsAfterPersonaDelete(assembly: DbAssemblyInput<P
     const ownerId = principal.userId;
     const seeds = (await deps.loadUserSettings(ownerId)).seeds;
     const stored = {
-      defaultPersonaId: seeds.defaultPersonaId === null ? null : castId<PersonaId>(seeds.defaultPersonaId),
-      currentPersonaId: seeds.currentPersonaId === null ? null : castId<PersonaId>(seeds.currentPersonaId),
+      defaultPersonaId: seeds.defaultPersonaId,
+      currentPersonaId: seeds.currentPersonaId,
     };
     if (stored.defaultPersonaId !== deletedId && stored.currentPersonaId !== deletedId) {
       return { ...stored, defaultMoved: false };

@@ -1,33 +1,34 @@
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, noticeCooldownTooShort } from "@orb/contracts/automation";
 import { DEFAULT_ACTION_MODE, promptTemplateModeSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 export const RULE_NOTICE_COOLDOWN_ERROR = `Notices need a cooldown of at least ${AUTOMATION_NOTICE_COOLDOWN_SECONDS} seconds.`;
 
 const [variable, transform, lore, reply, notification, turn, image, background, analysis, tool] = automationActionSchema.options;
 
+// The empty string is a draft's unpicked book; the commit schema refuses it before transport.
+const draftBookIdSchema = z.union([typeIdSchema(ID_PREFIX.worldBook), z.literal("")]);
+
 // Drafts admit unfinished text; only the canonical authoring schema admits a server write.
 const draftActionSchema = z.discriminatedUnion("type", [
   variable.extend({ key: z.string(), value: z.string().optional() }),
   transform.extend({ template: z.string() }),
   lore.extend({
-    // eslint-disable-next-line orb/no-raw-id -- Unfinished draft selection; ruleEditorCommitSchema reparses canonical IDs before transport.
-    bookId: z.string(),
+    bookId: draftBookIdSchema,
     entryKey: z.string(),
     keys: z.array(z.string()),
     contentTemplate: z.string(),
   }),
   reply.extend({ choices: z.array(reply.shape.choices.element.extend({ label: z.string(), sendTemplate: z.string() })) }),
   notification.extend({ messageTemplate: z.string() }),
-  // eslint-disable-next-line orb/no-raw-id -- Unfinished draft speaker selection; the commit schema reparses canonical IDs before transport.
-  turn.extend({ speakerCharacterId: z.string().optional(), guidedTemplate: z.string().optional() }),
+  turn.extend({ speakerCharacterId: typeIdSchema(ID_PREFIX.character).optional(), guidedTemplate: z.string().optional() }),
   image.options[1].extend({
     mode: promptTemplateModeSchema.default(DEFAULT_ACTION_MODE),
     prompt: z.string().optional(),
     negative: z.string().optional(),
-    // eslint-disable-next-line orb/no-raw-id -- Unfinished draft subject selection; the commit schema reparses canonical IDs before transport.
-    subjectCharacterId: z.string().optional(),
+    subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
     n: z.number(),
   }),
   background.extend({ instruction: z.string().optional() }),
@@ -38,8 +39,7 @@ const draftActionSchema = z.discriminatedUnion("type", [
       lore: analysis.shape.routes.shape.lore
         .unwrap()
         .extend({
-          // eslint-disable-next-line orb/no-raw-id -- Unfinished draft lore selection; the commit schema reparses canonical IDs before transport.
-          bookId: z.string(),
+          bookId: draftBookIdSchema,
         })
         .optional(),
       vars: analysis.shape.routes.shape.vars.unwrap().extend({ key: z.string() }).optional(),

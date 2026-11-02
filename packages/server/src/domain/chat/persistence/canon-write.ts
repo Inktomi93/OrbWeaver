@@ -25,7 +25,7 @@ import type {
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
@@ -106,7 +106,7 @@ interface CanonVariantInput {
   readonly genFinishedAt?: number | null | undefined;
   /** The provider's response id for this generation (OpenRouter `gen-…` — the cost key; Anthropic
    *  `msg_…` — the support handle; B7). Absent/null where the wire reports none (agent-sdk / a user-authored row). */
-  readonly generationId?: string | null | undefined;
+  readonly generationId?: ProviderGenerationId | null | undefined;
   readonly ttftMs?: number | null | undefined;
   /** The generation's metadata sidecar (`message_variants.metadata`) — a CLOSED shape (§5.3c class 3), today
    *  carrying exactly one key on this path: the measured reasoning window

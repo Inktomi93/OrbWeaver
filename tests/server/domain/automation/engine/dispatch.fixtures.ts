@@ -3,6 +3,7 @@
 import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationProvenance } from "@orb/contracts/imagery";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { test } from "@orb/testkit/node";
@@ -19,7 +20,7 @@ import {
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 
-export const PORTRAIT_MODEL = "automation-portrait-fixture";
+export const PORTRAIT_MODEL = modelIdSchema.parse("automation-portrait-fixture");
 
 export interface PortraitFixture {
   readonly root: ServerTestHarness;

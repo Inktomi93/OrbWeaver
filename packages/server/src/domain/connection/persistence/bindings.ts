@@ -6,8 +6,7 @@ import type { ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
 import { connectionBindingSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
-import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { StoredActor } from "../contract/params.ts";
 
@@ -20,23 +19,23 @@ function toBinding(row: BindingRow): ConnectionBinding {
 /** The WHERE for one actor — its kind + the one id column that kind sets. */
 function actorWhere(actor: StoredActor): ReturnType<typeof and> {
   if (actor.actorKind === "user") {
-    return and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, castId<UserId>(actor.actorId)));
+    return and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, actor.actorId));
   }
   if (actor.actorKind === "automation-rule") {
-    return and(eq(connectionBindings.actorKind, "automation-rule"), eq(connectionBindings.ruleId, castId<AutomationRuleId>(actor.actorId)));
+    return and(eq(connectionBindings.actorKind, "automation-rule"), eq(connectionBindings.ruleId, actor.actorId));
   }
-  return and(eq(connectionBindings.actorKind, "plugin-grant"), eq(connectionBindings.pluginId, castId<PluginId>(actor.actorId)));
+  return and(eq(connectionBindings.actorKind, "plugin-grant"), eq(connectionBindings.pluginId, actor.actorId));
 }
 
 /** The id columns one actor's row carries (the kind-shape CHECK's shape). */
 function actorColumns(actor: StoredActor): Pick<BindingRow, "actorKind" | "userId" | "ruleId" | "pluginId"> {
   if (actor.actorKind === "user") {
-    return { actorKind: "user", userId: castId<UserId>(actor.actorId), ruleId: null, pluginId: null };
+    return { actorKind: "user", userId: actor.actorId, ruleId: null, pluginId: null };
   }
   if (actor.actorKind === "automation-rule") {
-    return { actorKind: "automation-rule", userId: null, ruleId: castId<AutomationRuleId>(actor.actorId), pluginId: null };
+    return { actorKind: "automation-rule", userId: null, ruleId: actor.actorId, pluginId: null };
   }
-  return { actorKind: "plugin-grant", userId: null, ruleId: null, pluginId: castId<PluginId>(actor.actorId) };
+  return { actorKind: "plugin-grant", userId: null, ruleId: null, pluginId: actor.actorId };
 }
 
 /** The runtime's `BindingStore.lookup`: ONE indexed read per fold hop. */

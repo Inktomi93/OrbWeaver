@@ -27,7 +27,6 @@ import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
 import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, not, or, sql } from "drizzle-orm";
 import type { WithSubqueryWithSelection } from "drizzle-orm/sqlite-core";
@@ -93,8 +92,8 @@ export async function ensureBackgroundOverrideOwned(db: Db, ownerId: UserId, bac
     return;
   }
   const source = canonicalBackgroundSource(backgroundOverride);
-  if (source.assetId.length > 0) {
-    await ensureAssetOwned(db, ownerId, castId<AssetId>(source.assetId));
+  if (source.assetId !== "") {
+    await ensureAssetOwned(db, ownerId, source.assetId);
   }
 }
 
@@ -741,12 +740,12 @@ export async function ownedCarriedBackground(db: Db, ownerId: UserId, background
           .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, background.assetHash)))
           .limit(LIMIT_ONE);
   const [held] =
-    byBytes !== undefined || background.assetId.length === 0
+    byBytes !== undefined || background.assetId === ""
       ? [byBytes]
       : await db
           .select(columns)
           .from(assets)
-          .where(and(eq(assets.ownerId, ownerId), eq(assets.id, castId<AssetId>(background.assetId))))
+          .where(and(eq(assets.ownerId, ownerId), eq(assets.id, background.assetId)))
           .limit(LIMIT_ONE);
   return held === undefined ? null : canonicalBackgroundSource({ ...background, assetId: held.id, assetHash: held.hash, mime: held.mime });
 }

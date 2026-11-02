@@ -4,8 +4,23 @@
 // union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
 // are typed-but-refused at `createRule` until their domains land.
 
-import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, PluginId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import type {
+  AssetId,
+  AutomationFireId,
+  AutomationRuleId,
+  AutomationSuggestionId,
+  CharacterId,
+  ChatId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  PluginId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
+import { ID_PREFIX, sandboxWireIdSchema, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -74,8 +89,8 @@ export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 // A rule's trigger: `{bus, type}` where `type` is a member of that bus's source union — no third
 //  vocabulary. The db pairs the two columns with a bus↔tuple CHECK derived from the same tuples.
 const automationTriggerSchema = z.discriminatedUnion("bus", [
-  z.object({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
-  z.object({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
+  z.strictObject({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
+  z.strictObject({ bus: z.literal("domain"), type: z.enum(DOMAIN_TRIGGER_TYPES) }),
 ]);
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
@@ -376,8 +391,9 @@ const TRANSFORM_TEMPLATE_MAX = 8192;
 const WI_ENTRY_KEY_MAX = 256;
 const WI_KEYS_MAX = 16;
 const WI_CONTENT_MAX = 8192;
-const QUICK_REPLY_LABEL_MAX = 80;
-const QUICK_REPLY_SEND_MAX = 2048;
+/** Quick-reply chip caps, shared by the rule arm's authoring schema and the plugin emitter. */
+export const QUICK_REPLY_LABEL_MAX = 80;
+export const QUICK_REPLY_SEND_MAX = 2048;
 const QUICK_REPLY_MIN_CHOICES = 1;
 export const QUICK_REPLY_MAX_CHOICES = 4;
 const NOTIFICATION_MESSAGE_MAX = 200;
@@ -498,67 +514,81 @@ const confirmFirstSchema = z.boolean().default(false);
 
 export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.1 set a chat/global variable (free — no model call).
-  z.object({
-    type: z.literal("set_variable"),
-    scope: z.enum(AUTOMATION_VARIABLE_SCOPES),
-    key: z.string().min(1).max(VAR_KEY_MAX),
-    op: z.enum(["set", "inc", "dec", "delete"]),
-    value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
-  }),
+  z
+    .object({
+      type: z.literal("set_variable"),
+      scope: z.enum(AUTOMATION_VARIABLE_SCOPES),
+      key: z.string().min(1).max(VAR_KEY_MAX),
+      op: z.enum(["set", "inc", "dec", "delete"]),
+      value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
+    })
+    .strip(),
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
   // `.min(1)` like the `run_analysis.brief` / `run_tool.name` arms: an arm with NO BODY is not a
   // configuration, it is an unfinished one, and this arm's blank was DESTRUCTIVE rather than inert — a blank
   // template rendered to "" and REPLACED the user's draft with nothing (#1368). The runtime half of that is
   // fixed at the seam (an empty render is a skip, not a rewrite); this half stops the rule being authorable.
-  z.object({
-    type: z.literal("transform_draft"),
-    target: z.enum(PROMPT_TRANSFORM_POINTS),
-    template: z.string().min(1).max(TRANSFORM_TEMPLATE_MAX),
-  }),
+  z
+    .object({
+      type: z.literal("transform_draft"),
+      target: z.enum(PROMPT_TRANSFORM_POINTS),
+      template: z.string().min(1).max(TRANSFORM_TEMPLATE_MAX),
+    })
+    .strip(),
   // 1.3 upsert a world-info entry into a book attached to the rule's chat.
-  z.object({
-    type: z.literal("insert_world_info_entry"),
-    bookId: typeIdSchema(ID_PREFIX.worldBook),
-    entryKey: z.string().max(WI_ENTRY_KEY_MAX),
-    keys: z.array(z.string()).max(WI_KEYS_MAX),
-    contentTemplate: z.string().max(WI_CONTENT_MAX),
-    position: z.enum(ENTRY_POSITIONS).default("before"),
-    confirmFirst: confirmFirstSchema,
-  }),
+  z
+    .object({
+      type: z.literal("insert_world_info_entry"),
+      bookId: typeIdSchema(ID_PREFIX.worldBook),
+      entryKey: z.string().max(WI_ENTRY_KEY_MAX),
+      keys: z.array(z.string()).max(WI_KEYS_MAX),
+      contentTemplate: z.string().max(WI_CONTENT_MAX),
+      position: z.enum(ENTRY_POSITIONS).default("before"),
+      confirmFirst: confirmFirstSchema,
+    })
+    .strip(),
   // 1.4 surface transient quick-reply chips. The template is rendered at FIRE time in the rule author's env
   // (`arm-executors.ts` renderArmTemplate), never at click time; the rendered text then reaches the clicking
   // member's own surface, where `mode` decides whether the click SENDS it as their turn or seeds their
   // composer draft. `mode` defaults to `send`, which is the arm's built semantic (a chip has always fired as
   // the clicking member's message) — an author who wants the member to own and edit the text says so.
-  z.object({
-    type: z.literal("surface_quick_reply"),
-    choices: z
-      .array(
-        // Both `.min(1)` (#1368): a blank label reaches the member's chat surface as an INVISIBLE button,
-        // and a blank `sendTemplate` sends/seeds nothing when they click it.
-        z.object({
-          label: z.string().min(1).max(QUICK_REPLY_LABEL_MAX),
-          sendTemplate: z.string().min(1).max(QUICK_REPLY_SEND_MAX),
-          mode: z.enum(QUICK_REPLY_MODES).default("send"),
-        }),
-      )
-      .min(QUICK_REPLY_MIN_CHOICES)
-      .max(QUICK_REPLY_MAX_CHOICES),
-  }),
+  z
+    .object({
+      type: z.literal("surface_quick_reply"),
+      choices: z
+        .array(
+          // Both `.min(1)` (#1368): a blank label reaches the member's chat surface as an INVISIBLE button,
+          // and a blank `sendTemplate` sends/seeds nothing when they click it.
+          z
+            .object({
+              label: z.string().min(1).max(QUICK_REPLY_LABEL_MAX),
+              sendTemplate: z.string().min(1).max(QUICK_REPLY_SEND_MAX),
+              mode: z.enum(QUICK_REPLY_MODES).default("send"),
+            })
+            .strip(),
+        )
+        .min(QUICK_REPLY_MIN_CHOICES)
+        .max(QUICK_REPLY_MAX_CHOICES),
+    })
+    .strip(),
   // 1.5 post an inbox notification (host-authored capped string — an argued exception).
-  z.object({
-    type: z.literal("post_notification"),
-    recipient: z.enum(NOTIFICATION_RECIPIENTS),
-    // `.min(1)` (#1368) — a blank message is delivered as an empty toast / an empty inbox row.
-    messageTemplate: z.string().min(1).max(NOTIFICATION_MESSAGE_MAX),
-  }),
+  z
+    .object({
+      type: z.literal("post_notification"),
+      recipient: z.enum(NOTIFICATION_RECIPIENTS),
+      // `.min(1)` (#1368) — a blank message is delivered as an empty toast / an empty inbox row.
+      messageTemplate: z.string().min(1).max(NOTIFICATION_MESSAGE_MAX),
+    })
+    .strip(),
   // 1.6 trigger an autonomous chat turn (SPEND-classed).
-  z.object({
-    type: z.literal("trigger_turn"),
-    speakerCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-    guidedTemplate: z.string().max(GUIDED_TEMPLATE_MAX).optional(),
-    confirmFirst: confirmFirstSchema,
-  }),
+  z
+    .object({
+      type: z.literal("trigger_turn"),
+      speakerCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+      guidedTemplate: z.string().max(GUIDED_TEMPLATE_MAX).optional(),
+      confirmFirst: confirmFirstSchema,
+    })
+    .strip(),
   // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (`no-inline-union-redecl`).
   z.discriminatedUnion("mode", [
     generateImageActionArgsSchema.options[0].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
@@ -568,11 +598,13 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // writing the CHAT background (host-scoped; scope-safe precisely because BG-C's composition rule makes a
   // chat background INERT for every viewer outside a true-solo room). `instruction` optionally biases the
   // pick (macro-rendered). No arg selects a background directly — the pick is the model's, over real names.
-  z.object({
-    type: z.literal("set_chat_background"),
-    instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
-    confirmFirst: confirmFirstSchema,
-  }),
+  z
+    .object({
+      type: z.literal("set_chat_background"),
+      instruction: z.string().max(AUTOBG_INSTRUCTION_MAX).optional(),
+      confirmFirst: confirmFirstSchema,
+    })
+    .strip(),
   // 1.8b run_analysis (S5, SPEND-classed) — the QUIET schema-constrained analysis pass, the honest carrier of
   // the purged crew director's think-first loop. A fire runs ONE structured model call over {the read window,
   // the rule's stored state, the host's steer} and routes each OUTPUT CLASS through the domain's closed union
@@ -588,33 +620,46 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // NOT suggestible (no `confirmFirst`): consent is PER-ROUTE (`apply: "confirm"`), because one pass can mix
   // postures — a direct steer beside a confirm-first lore write. `brief`/`steer` are HOST-authored and render
   // as templates like every arm field; the model's OUTPUTS are machine-authored DATA and never render (laws 6/7).
-  z.object({
-    type: z.literal("run_analysis"),
-    /** The analysis TASK the pass runs (preset-authored, host-editable) — what to watch, what to maintain. */
-    brief: z.string().min(1).max(ANALYSIS_BRIEF_MAX),
-    /** The host's standing direction ("slow burn", "keep it cozy") — rides every pass. Absent ⇒ no steer. */
-    steer: z.string().max(ANALYSIS_STEER_MAX).optional(),
-    routes: z.object({
-      /** The guidance slot: ONE narrator-facing instruction, stored verbatim, delivered by the S2 teaching
-       *  contribution. RULED F7: the pacing preset applies it DIRECT. */
-      steer: z.object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("direct") }).optional(),
-      /** Durable lore distillation into an attached book (the C2 route; settled-span windowed, watermarked,
-       *  `neutralizeMacros`-belted). Defaults CONFIRM — a durable canon write earns a card. */
-      lore: z.object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("confirm"), bookId: typeIdSchema(ID_PREFIX.worldBook) }).optional(),
-      /** Model-suggested guided-turn asks as S4 cards. Confirm-class BY NATURE (a suggestion IS an ask), so
-       *  it carries no apply knob — an empty object is the enable switch. */
-      suggest: z.object({}).optional(),
-      /** C3's PROSE AUDIT: the pass reads the newest reply and offers a conservative rewrite on a card that
-       *  PINS the audited variant + a hash of its bytes. Confirm-class BY NATURE — a rewrite of settled canon
-       *  is never a direct write, so like `suggest` it carries no apply knob and an empty object is the enable
-       *  switch. The pinning is what makes the confirm safe across time: a swipe or an edit between the ask and
-       *  the yes REFUSES typed, touching nothing (§3-S4's stale-accept guard). */
-      rewrite: z.object({}).optional(),
-      /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
-       *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
-      vars: z.object({ key: z.string().min(1).max(VAR_KEY_MAX) }).optional(),
-    }),
-  }),
+  z
+    .object({
+      type: z.literal("run_analysis"),
+      /** The analysis TASK the pass runs (preset-authored, host-editable) — what to watch, what to maintain. */
+      brief: z.string().min(1).max(ANALYSIS_BRIEF_MAX),
+      /** The host's standing direction ("slow burn", "keep it cozy") — rides every pass. Absent ⇒ no steer. */
+      steer: z.string().max(ANALYSIS_STEER_MAX).optional(),
+      routes: z
+        .object({
+          /** The guidance slot: ONE narrator-facing instruction, stored verbatim, delivered by the S2 teaching
+           *  contribution. RULED F7: the pacing preset applies it DIRECT. */
+          steer: z
+            .object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("direct") })
+            .strip()
+            .optional(),
+          /** Durable lore distillation into an attached book (the C2 route; settled-span windowed, watermarked,
+           *  `neutralizeMacros`-belted). Defaults CONFIRM — a durable canon write earns a card. */
+          lore: z
+            .object({ apply: z.enum(ANALYSIS_APPLY_MODES).default("confirm"), bookId: typeIdSchema(ID_PREFIX.worldBook) })
+            .strip()
+            .optional(),
+          /** Model-suggested guided-turn asks as S4 cards. Confirm-class BY NATURE (a suggestion IS an ask), so
+           *  it carries no apply knob — an empty object is the enable switch. */
+          suggest: z.object({}).strip().optional(),
+          /** C3's PROSE AUDIT: the pass reads the newest reply and offers a conservative rewrite on a card that
+           *  PINS the audited variant + a hash of its bytes. Confirm-class BY NATURE — a rewrite of settled canon
+           *  is never a direct write, so like `suggest` it carries no apply knob and an empty object is the enable
+           *  switch. The pinning is what makes the confirm safe across time: a swipe or an edit between the ask and
+           *  the yes REFUSES typed, touching nothing (§3-S4's stale-accept guard). */
+          rewrite: z.object({}).strip().optional(),
+          /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
+           *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
+          vars: z
+            .object({ key: z.string().min(1).max(VAR_KEY_MAX) })
+            .strip()
+            .optional(),
+        })
+        .strip(),
+    })
+    .strip(),
   // 1.9 run a registered TOOL by name (SPEND-classed — a tool may call a model, fetch, or generate an image).
   //
   // D146 (a): THIS IS THE CLOSED/OPEN BOUNDARY. The arm is first-party and `tsc`-forced; `name` is the
@@ -635,21 +680,23 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // Consent has also already happened twice by the time this arm can exist: the owner GRANTED `tools.register`
   // at install, and the rule's author is both the chat host and the tool's own installer (the mint gate below
   // admits nothing else).
-  z.object({
-    type: z.literal("run_tool"),
-    name: z.string().min(1).max(TOOL_NAME_MAX),
-    /** The macro-rendered JSON argument document. Defaults to the empty object — a zero-arg tool. */
-    argsTemplate: z.string().max(TOOL_ARGS_TEMPLATE_MAX).default("{}"),
-    /** Optionally capture the tool's result STRING into a variable, so a later arm / a later rule's predicate
-     *  can read it. Absent ⇒ nothing is captured. NEVER prose: a tool result is DATA back to the arm, and no
-     *  message-write op exists on this surface (the class-1 wall). The captured value is TRUNCATED to
-     *  {@link AUTOMATION_VARIABLE_VALUE_MAX} by the executor — see that constant for why the bound matters
-     *  more here than on an authored template. */
-    resultVar: z.string().min(1).max(VAR_KEY_MAX).optional(),
-    /** Which variable plane `resultVar` writes — the SAME vocabulary `set_variable.scope` uses (one axis, one
-     *  spelling). `chat` (the default) writes the room's runtime fold; `global` writes the AUTHOR's own plane. */
-    resultScope: z.enum(AUTOMATION_VARIABLE_SCOPES).default("chat"),
-  }),
+  z
+    .object({
+      type: z.literal("run_tool"),
+      name: z.string().min(1).max(TOOL_NAME_MAX),
+      /** The macro-rendered JSON argument document. Defaults to the empty object — a zero-arg tool. */
+      argsTemplate: z.string().max(TOOL_ARGS_TEMPLATE_MAX).default("{}"),
+      /** Optionally capture the tool's result STRING into a variable, so a later arm / a later rule's predicate
+       *  can read it. Absent ⇒ nothing is captured. NEVER prose: a tool result is DATA back to the arm, and no
+       *  message-write op exists on this surface (the class-1 wall). The captured value is TRUNCATED to
+       *  {@link AUTOMATION_VARIABLE_VALUE_MAX} by the executor — see that constant for why the bound matters
+       *  more here than on an authored template. */
+      resultVar: z.string().min(1).max(VAR_KEY_MAX).optional(),
+      /** Which variable plane `resultVar` writes — the SAME vocabulary `set_variable.scope` uses (one axis, one
+       *  spelling). `chat` (the default) writes the room's runtime fold; `global` writes the AUTHOR's own plane. */
+      resultScope: z.enum(AUTOMATION_VARIABLE_SCOPES).default("chat"),
+    })
+    .strip(),
 ]);
 export type AutomationAction = z.infer<typeof automationActionSchema>;
 
@@ -709,38 +756,34 @@ export const automationActionsSchema = z
  *  contract (the membrane may `.parse` a fact before cloning it into the guest); the TS type is DERIVED from
  *  it, one home, the `automationActionSchema` / `pluginManifestSchema` posture — the interface can never drift
  *  from the runtime validator. */
-const triggerFactPayloadSchema = z.object({
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  chatId: z.string().nullable(),
+const triggerFactPayloadSchema = z.strictObject({
+  chatId: sandboxWireIdSchema<ChatId>().nullable(),
   // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
-    .object({
-      id: z.string(),
+    .strictObject({
+      id: sandboxWireIdSchema<MessageId>(),
       role: z.enum(MESSAGE_ROLES),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      authorUserId: z.string().nullable(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      characterId: z.string().nullable(),
+      authorUserId: sandboxWireIdSchema<UserId>().nullable(),
+      characterId: sandboxWireIdSchema<CharacterId>().nullable(),
       seq: z.number(),
       content: z.string(),
     })
     .optional(),
   // turnStarted / turnCompleted / turnAborted
   turn: z
-    .object({
+    .strictObject({
       intent: z.string(),
       api: z.string(),
       // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
       provider: z.string(),
       model: z.string(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      speakerCharacterId: z.string().nullable(),
+      speakerCharacterId: sandboxWireIdSchema<CharacterId>().nullable(),
       abortReason: z.string().optional(), // turnAborted only
       automationDepth: z.number(), // 0 = human-initiated (the cascade guard reads this)
     })
     .optional(),
   // worldInfoActivated
-  worldInfo: z.object({ entryIds: z.array(z.string()).readonly() }).optional(),
+  worldInfo: z.strictObject({ entryIds: z.array(sandboxWireIdSchema<WorldEntryId>()).readonly() }).optional(),
   /** reactionsChanged (B6/MR0). NESTED because it carries four fields (the `message`/`turn` reason).
    *
    *  `added` is the DIRECTION — a removal fires the same trigger as an addition, and a rule that means
@@ -750,18 +793,16 @@ const triggerFactPayloadSchema = z.object({
    *  widens. Ids cross UNBRANDED like every other id on this shape. The REACTOR is deliberately absent: a
    *  seat id is roster data a predicate has no way to resolve, and the useful facts are what and where. */
   reaction: z
-    .object({
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      messageId: z.string(),
-      // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-      variantId: z.string(),
+    .strictObject({
+      messageId: sandboxWireIdSchema<MessageId>(),
+      variantId: sandboxWireIdSchema<MessageVariantId>(),
       emoji: z.string(),
       added: z.boolean(),
     })
     .optional(),
   // personaSwitched (the CHAT-bus member — a seat changed face mid-room). Distinct from the domain-bus
   // `personaId` below, which reports that a persona's own CONTENT was edited; two events, two shapes.
-  persona: z.object({ from: z.string().nullable(), to: z.string().nullable() }).optional(),
+  persona: z.strictObject({ from: sandboxWireIdSchema<PersonaId>().nullable(), to: sandboxWireIdSchema<PersonaId>().nullable() }).optional(),
   // domain-bus members
   /** character.updated. NESTED because it carries TWO fields, which is the same reason `message`/`turn`/
    *  `worldInfo` nest and `assetId` does not.
@@ -774,13 +815,10 @@ const triggerFactPayloadSchema = z.object({
    *  `event.character.contentChanged` and mean it. The field is REQUIRED inside the object (the source
    *  event always carries it), so a predicate needs only the `has(event.character)` guard law 1 already
    *  demands. */
-  character: z.object({ id: z.string(), contentChanged: z.boolean() }).optional(),
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  assetId: z.string().optional(), // asset.created
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  personaId: z.string().optional(), // persona.updated (S7) — the persona whose CONTENT changed
-  // eslint-disable-next-line orb/no-raw-id -- Guest predicate facts cross the sandbox as unbranded structured-clone text, not host identities.
-  worldBookId: z.string().optional(), // world-info.updated (S7) — the OWNING book of the changed row
+  character: z.strictObject({ id: sandboxWireIdSchema<CharacterId>(), contentChanged: z.boolean() }).optional(),
+  assetId: sandboxWireIdSchema<AssetId>().optional(), // asset.created
+  personaId: sandboxWireIdSchema<PersonaId>().optional(), // persona.updated (S7) — the persona whose CONTENT changed
+  worldBookId: sandboxWireIdSchema<WorldBookId>().optional(), // world-info.updated (S7) — the OWNING book of the changed row
 });
 export const triggerFactSchema = z.discriminatedUnion("bus", [
   triggerFactPayloadSchema.extend({ bus: z.literal("chat"), type: z.enum(CHAT_TRIGGER_TYPES) }),
@@ -894,23 +932,24 @@ export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | 
  *  strings for the same reason the chips do: the pending record is in RAM (RULED F1), so there is nothing to
  *  re-read. */
 // The optional STRUCTURED half of a raised ask — what a card needs to show that one line of summary prose
-//  cannot. It exists for exactly one reason and gains members the same way: a REWRITE card must show the host
-//  WHAT WOULD CHANGE before they say yes, and a "Fix the prose?" summary is not that. Both strings are capped
-//  at {@link ANALYSIS_REWRITE_MAX} at the producer.
+//  cannot. Each arm exists because the host must see exactly what they approve before they say yes:
+//  - `rewrite`: WHAT WOULD CHANGE. A "Fix the prose?" summary is not that. Both strings are capped at
+//    {@link ANALYSIS_REWRITE_MAX} at the producer.
+//  - `steer`: a plugin turn's whole steer. The summary is cut to {@link AUTOMATION_SUGGESTION_SUMMARY_MAX}, and
+//    the host pays for the turn the full steer drives. Capped at the chat steer cap at the bridge.
 //
 //  IT RIDES THE EVENT rather than a query for the same reason `summary` does: the pending record is in RAM
 //  (RULED F1), so there is no row to re-read. And it is safe to ride a host-only event: `suggestionRaised` is
-//  never forwarded to a member subscriber (the room source's member filter is default-deny), so the audited
-//  text crosses to exactly the host who could already read it in the transcript.
-//
-//  DISCRIMINATED FROM ONE MEMBER: `kind` is spelled today so the second detail is a union arm rather than a
-//  re-type of every consumer (the single-arm-union seam shape).
-export interface SuggestionCardDetail {
-  readonly kind: "rewrite";
-  /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
-  readonly before: string;
-  readonly after: string;
-}
+//  never forwarded to a member subscriber (the room source's member filter is default-deny), so the text
+//  crosses only to the host being asked.
+export type SuggestionCardDetail =
+  | {
+      readonly kind: "rewrite";
+      /** The audited variant's bytes AS THEY WERE at the ask — the diff's left side and the host's "before". */
+      readonly before: string;
+      readonly after: string;
+    }
+  | { readonly kind: "steer"; readonly text: string };
 
 export type AutomationBusEvent =
   | { type: "quickReplySurfaced"; chatId: ChatId; source: AutomationEmitSource; choices: readonly { label: string; sendText: string; mode: QuickReplyMode }[] }
@@ -930,9 +969,13 @@ export type AutomationBusEvent =
       /** The injected-clock deadline the pending record dies at — the client drops its card on the same
        *  edge the server sweeps, so a stale card never sits offering an ask that would refuse. */
       expiresAt: number;
+      /** The handle of the member who installed the asking plugin; present exactly for a plugin-origin ask. It is
+       *  its own field, never part of `summary`: the summary carries the plugin's own name, which is free text,
+       *  so an attribution inside it could be imitated by that text. */
+      installerHandle?: string;
       /** OPTIONAL structured body ({@link SuggestionCardDetail}) — present only for the ask classes whose card
-       *  shows more than a question (today: C3's rewrite diff). Absent ⇒ the card is title + actions, exactly
-       *  as every A4 card renders today, so this field changes no existing event's bytes. */
+       *  shows more than a question (C3's rewrite diff, a plugin turn's steer). Absent ⇒ the card is title +
+       *  actions. */
       detail?: SuggestionCardDetail;
     }
   /** S4 RETIREMENT (host-only, id-only) — the twin of `suggestionRaised`: a pending ask was ANSWERED

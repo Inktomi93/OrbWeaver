@@ -37,11 +37,12 @@ test("a rerank window is a positive whole token count and its inputs come from t
   });
 });
 
-test("a valid capability strips another kind's payload", () => {
-  expect(capabilitySchema.parse({ kind: "embedding", embedding: EMBEDDING_FLOOR, generation: GENERATION_FLOOR })).toEqual({
-    kind: "embedding",
-    embedding: EMBEDDING_FLOOR,
-  });
+// Only procedure outputs parse a capability, so another kind's payload is a producer defect, not stored residue.
+test("a capability refuses another kind's payload", () => {
+  expect(capabilitySchema.safeParse({ kind: "embedding", embedding: EMBEDDING_FLOOR, generation: GENERATION_FLOOR }).error?.issues).toMatchObject([
+    { code: "unrecognized_keys", keys: ["generation"] },
+  ]);
+  expect(capabilitySchema.parse({ kind: "embedding", embedding: EMBEDDING_FLOOR })).toEqual({ kind: "embedding", embedding: EMBEDDING_FLOOR });
 });
 
 test("the canonical kinds parse and partition all production tasks", () => {

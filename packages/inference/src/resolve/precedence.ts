@@ -4,23 +4,20 @@
 // an owner has ONE space. A binding whose connection was deleted reads as `no-connection` (SET NULL), never a
 // dangling id. There is NO born default (D142 retired, F2/F16): the fold ends at the funder's own rows.
 
-import type { BindingActor, BindingActorKind, RoutableTask, Task } from "@orb/contracts/inference";
+import type { BindingActor, BindingActorKey, RoutableTask, Task } from "@orb/contracts/inference";
 import { bindingTaskOf, isRoutableTask, TASK_DEFS } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import type { BindingStore } from "../deps.ts";
 
-interface Hop {
-  readonly actorKind: BindingActorKind;
-  readonly actorId: string;
-  readonly task: RoutableTask;
-}
+type Hop = BindingActorKey & { readonly task: RoutableTask };
 
 function actorHops(actor: BindingActor | undefined, tasks: readonly RoutableTask[]): readonly Hop[] {
   if (actor === undefined) {
     return [];
   }
-  const actorId = actor.kind === "automation-rule" ? actor.ruleId : actor.pluginId;
-  return tasks.map((task) => ({ actorKind: actor.kind, actorId, task }));
+  const key: BindingActorKey =
+    actor.kind === "automation-rule" ? { actorKind: actor.kind, actorId: actor.ruleId } : { actorKind: actor.kind, actorId: actor.pluginId };
+  return tasks.map((task) => ({ ...key, task }));
 }
 
 /** The routable tasks to try, most specific first: the task itself when routable, then what it rides. */

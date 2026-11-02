@@ -8,6 +8,7 @@
 // control embeds the row's SUBJECT — spent only on collision (#443/#458).
 
 import { blobUrl } from "@orb/contracts/assets";
+import type { PersonaId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -39,7 +40,7 @@ export interface SwitchRoom {
   readonly cardPinId: string | null;
   readonly viewerIsHost: boolean;
   /** The room's one character and the viewer's personas connected to it; `null` unless exactly one character sits. */
-  readonly connected: { readonly characterName: string; readonly personaIds: ReadonlySet<string> } | null;
+  readonly connected: { readonly characterName: string; readonly personaIds: ReadonlySet<PersonaId> } | null;
   /** True when preset text follows the viewer's seat (ADR 0250). */
   readonly seatBindsPresets: boolean;
   readonly onSwitch: (persona: PersonaListItem) => void;
@@ -86,7 +87,7 @@ export function PersonaSwitchList({ personas, defaultId, room, onSetDefault, onC
   // ONE TAB STOP in a room (APG composite shape): only the row that last held focus (first load: the playing
   // row) keeps its controls in the tab order; ArrowUp/ArrowDown/Home/End move between the rows' switch buttons.
   // With no room there are no switch buttons, so every row's controls keep their own tab stops.
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<PersonaId | null>(null);
   const stopId = personas.some((persona) => persona.id === activeId)
     ? activeId
     : (personas.find((persona) => persona.id === room?.seatId)?.id ?? personas[0]?.id);

@@ -32,6 +32,7 @@
 
 import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgActorVolatileLockBase } from "@orb/contracts/rpg";
+import type { UserId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
@@ -53,7 +54,7 @@ import { RpgSubjectSelect } from "./rpg-subject-select.tsx";
 import { AddRow } from "./tracker-blocks/index.ts";
 
 /** The viewer's own `user` actor, or the first participant actor as a fallback. */
-function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {
+function viewerActor(actors: readonly RpgActorView[], viewerUserId: UserId): RpgActorView | undefined {
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
 

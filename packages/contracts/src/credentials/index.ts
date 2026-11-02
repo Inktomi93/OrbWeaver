@@ -22,10 +22,10 @@ import { providerIdSchema } from "#inference";
  *  is a sealed secret with a label, and connections give it meaning. `.nullable()`: most rows carry none. */
 export const providerMetadataSchema = z
   .discriminatedUnion("auth", [
-    z.object({ auth: z.literal("apiKey") }).loose(),
-    z.object({ auth: z.literal("oauthToken") }).loose(),
+    z.looseObject({ auth: z.literal("apiKey") }),
+    z.looseObject({ auth: z.literal("oauthToken") }),
     /** An `auth: endpoint` row's OPTIONAL bearer (`vllm --api-key`, a proxied Ollama); the plaintext is the key. */
-    z.object({ auth: z.literal("endpoint") }).loose(),
+    z.looseObject({ auth: z.literal("endpoint") }),
   ])
   .nullable();
 /** Provider-specific metadata, inferred from the schema so the type and the runtime gate can't drift. */

@@ -1,8 +1,10 @@
 // @subject tests/support/node/factories/stats.ts
 // @subject packages/server/src/domain/stats/persistence/latency.ts
 // @subject packages/server/src/domain/stats/persistence/messages-economics.ts
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { characterStatsViewSchema, latencyStatsSchema, modelStatRowSchema, ownerStatsViewSchema } from "@orb/contracts/stats";
 import { createFrozenClock } from "../iso/clock.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -19,8 +21,8 @@ import { captureStatsPopulations } from "./factories/rows/stats.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
-const PRICED_MODEL = "stats-priced-native";
-const UNPRICED_MODEL = "stats-unpriced-native";
+const PRICED_MODEL = modelIdSchema.parse("stats-priced-native");
+const UNPRICED_MODEL = modelIdSchema.parse("stats-unpriced-native");
 
 test("native selected latency and economics separate model populations, retained swipe tokens and unstarted greetings", async () => {
   const clock = createFrozenClock();

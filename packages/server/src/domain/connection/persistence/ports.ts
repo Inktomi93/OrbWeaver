@@ -16,7 +16,7 @@ export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps
       get: (id) => fetchConnectionById(db, id),
     },
     bindings: {
-      lookup: ({ actorKind, actorId, task }) => lookupBinding(db, { actorKind, actorId }, task),
+      lookup: ({ task, ...actor }) => lookupBinding(db, actor, task),
     },
     providerStore: {
       list: () => listProviderRows(db),

@@ -21,7 +21,7 @@
 // transform, and this repo's ids are transform-based (`typeIdSchema`). (zod `.brand()` no longer throws on
 // 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
 // a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
-// Model tool args keep zod strip mode: a model-invented key is stripped and itemized, never a refused call (D112 (3)).
+// Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import { z } from "zod";
 import { rpgNpcSlug } from "./actor.ts";
 import type { UpdateSceneArgs } from "./tools.ts";
@@ -47,14 +47,16 @@ import { actorTrackerWriteKeys } from "./tracker.ts";
  *    • `trackers`   ⟵ `set_tracker`       (GAME-subject tracker writes — the retired widget plane)
  *    • `quests`     ⟵ `upsert_quest`      (create/update/complete/fail)
  *    • `journal`    ⟵ `add_journal_entry` (STAGED → flushed stamped with the committed variant, §2.5) */
-export const rpgExtractionSchema = z.object({
-  party: z.array(updatePartyArgsSchema).default([]),
-  inventory: z.array(updateInventoryArgsSchema).default([]),
-  scene: updateSceneArgsSchema.optional(),
-  trackers: z.array(setTrackerArgsSchema).default([]),
-  quests: z.array(upsertQuestArgsSchema).default([]),
-  journal: z.array(addJournalEntryArgsSchema).default([]),
-});
+export const rpgExtractionSchema = z
+  .object({
+    party: z.array(updatePartyArgsSchema).default([]),
+    inventory: z.array(updateInventoryArgsSchema).default([]),
+    scene: updateSceneArgsSchema.optional(),
+    trackers: z.array(setTrackerArgsSchema).default([]),
+    quests: z.array(upsertQuestArgsSchema).default([]),
+    journal: z.array(addJournalEntryArgsSchema).default([]),
+  })
+  .strip();
 export type RpgExtraction = z.infer<typeof rpgExtractionSchema> & {
   /** Every `update_scene` call after the one in `scene`, in call order (the tool vehicles only; the structured
    *  extraction states one scene). The fold applies `scene` and then each of these over the running state, so
@@ -703,21 +705,25 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
 //  Both are OPTIONAL in the zod (a card that implies neither must still PARSE) and both are re-marked REQUIRED
 //  in the projected grammar ({@link constrainPopulateSchema}) — the LOOSE-ZOD + STRICT-PROJECTION pattern
 //  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing".
-const rpgPopulateSheetSchema = z.object({
-  title: z.string().min(1).optional(),
-  level: z.int().min(0).optional(),
-});
+const rpgPopulateSheetSchema = z
+  .object({
+    title: z.string().min(1).optional(),
+    level: z.int().min(0).optional(),
+  })
+  .strip();
 type RpgPopulateSheet = z.infer<typeof rpgPopulateSheetSchema>;
 
 /** The populate round's whole payload: the identity sheet + the two BORN-STATE planes a background implies —
  *  what this character CARRIES (`inventory`, incl. `walletDeltas` = the starting purse) and what they are
  *  already chasing (`quests`, the background-implied hooks). Array planes `.default([])` so an empty round is
  *  the empty object, exactly like the extraction schema. */
-export const rpgPopulateSchema = z.object({
-  sheet: rpgPopulateSheetSchema.optional(),
-  inventory: z.array(updateInventoryArgsSchema).default([]),
-  quests: z.array(upsertQuestArgsSchema).default([]),
-});
+export const rpgPopulateSchema = z
+  .object({
+    sheet: rpgPopulateSheetSchema.optional(),
+    inventory: z.array(updateInventoryArgsSchema).default([]),
+    quests: z.array(upsertQuestArgsSchema).default([]),
+  })
+  .strip();
 
 /** What a salvaging populate parse yields: the sheet half (`null` = the model wrote none), the state half as
  *  an `RpgExtraction` whose LIVE-PLAY planes are empty BY CONSTRUCTION (so the one `extractionToStateDelta`

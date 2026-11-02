@@ -1,6 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { GAME_MOOD } from "./turn-rpg-macro-data.ts";
@@ -46,7 +46,7 @@ test.for(ROWS)("public SEND macro delivery: $label", async (row) => {
           },
         ],
         sections: [
-          { type: "literal", id: "game-mood", name: "Game mood", role: "system", content: "Scene tone: {{mood}}.", enabled: true },
+          { type: "literal", id: promptSectionIdSchema.parse("game-mood"), name: "Game mood", role: "system", content: "Scene tone: {{mood}}.", enabled: true },
           ...DEFAULT_PROMPT_CONFIG.sections,
         ],
       }),

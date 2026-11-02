@@ -39,6 +39,14 @@ export const DB_SCHEMA_RESTRICTIONS = [
   },
 ];
 
+const WIRE_OBJECT_MESSAGE =
+  "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` under a one-line reason, or `z.looseObject` to keep unknown keys (Spine-TypeScript-and-Patterns.md, type law 1).";
+// The mode check reads the `z` binding by name, so any other value spelling of zod would hide a call from it.
+const ZOD_SPELLING_MESSAGE = 'Reach zod only as `import { z } from "zod"` and `z.<builder>(...)`, so the wire-object mode check sees every object call.';
+const ZOD_SOURCE = String.raw`/^zod(\W.*)?$/`;
+const OBJECT_MODE_METHODS = alternation(["strip", "strict", "loose", "passthrough", "catchall"]);
+const DECLARED_CONSTRUCTORS = alternation(["strictObject", "looseObject"]);
+
 const STRING_LITERAL_MEMBER = "TSLiteralType[literal.type='Literal'][literal.value=type(string)]";
 
 export const TYPE_SHAPE_RESTRICTIONS = [
@@ -50,6 +58,30 @@ export const TYPE_SHAPE_RESTRICTIONS = [
         message:
           "A string-union axis is declared once as an `as const` tuple and the union derived with `(typeof X)[number]`, never re-spelled as an inline alias (Spine-TypeScript-and-Patterns.md §7.5).",
       },
+    ],
+  },
+  {
+    id: "wire-object-declares-mode",
+    selectors: [
+      {
+        // `z.object(...).strip()` is the one spelling left: the call is the receiver of a called `.strip`.
+        selector: `CallExpression[callee.object.name='z'][callee.property.name='object']:not(CallExpression > MemberExpression.callee[property.name='strip'] > CallExpression.object)`,
+        message: WIRE_OBJECT_MESSAGE,
+      },
+      {
+        selector: "MemberExpression[object.name='z'][property.name='object']:not(CallExpression > MemberExpression.callee)",
+        message: `An uncalled \`z.object\` escapes the mode check at its call. ${WIRE_OBJECT_MESSAGE}`,
+      },
+      {
+        selector: `CallExpression[callee.property.name=${OBJECT_MODE_METHODS}][callee.object.type='CallExpression']:matches([callee.object.callee.property.name='strip'], [callee.object.callee.object.name='z'][callee.object.callee.property.name=${DECLARED_CONSTRUCTORS}])`,
+        message: "A declared object mode is re-declared by a later mode method: keep the one the constructor or `.strip()` states.",
+      },
+      {
+        selector: `ImportDeclaration[source.value=${ZOD_SOURCE}][importKind!='type'] > :matches(ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier[importKind!='type']:not([imported.name='z'][local.name='z']))`,
+        message: ZOD_SPELLING_MESSAGE,
+      },
+      { selector: "MemberExpression[object.name='z'][computed=true]", message: ZOD_SPELLING_MESSAGE },
+      { selector: "VariableDeclarator[init.type='Identifier'][init.name='z']", message: ZOD_SPELLING_MESSAGE },
     ],
   },
 ];

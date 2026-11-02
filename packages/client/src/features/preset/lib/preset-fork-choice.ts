@@ -8,6 +8,7 @@
 // `findConvergenceFork` mirrors `persistence/queries.ts#findOwnedForkOf` (the OLDEST fork by `createdAt`,
 // ties broken by id) rather than trusting the list's own ordering.
 
+import type { PresetId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
@@ -15,7 +16,7 @@ export type PresetForkRow = Pick<inferOutput<Trpc["preset"]["list"]>[number], "i
 
 /** The caller's OLDEST fork of `sourceId` — the row a `converge` intent would land on — or null when they
  *  have none (the silent copy-on-write case). */
-export function findConvergenceFork<Row extends PresetForkRow>(rows: readonly Row[], sourceId: string): Row | null {
+export function findConvergenceFork<Row extends PresetForkRow>(rows: readonly Row[], sourceId: PresetId): Row | null {
   let oldest: Row | null = null;
   for (const row of rows) {
     if (row.forkedFrom !== sourceId) {

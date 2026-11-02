@@ -50,7 +50,9 @@ async function selectSeededPicks(db: Db, ownerId: UserId | null): Promise<readon
  *  `asset`; anything else — the four deleted landscape placeholders, a slug from an install that shipped a
  *  plate we no longer carry — becomes `none`, which is what the schema would have healed it to anyway. */
 function repointedConfig(config: UserSettings, plate: ThemeBackground | null): UserSettings {
-  const cleared = { backgroundImageKind: "none" as const, backgroundAssetId: "", backgroundAssetHash: "", backgroundAssetMime: "" };
+  const cleared = { backgroundImageKind: "none", backgroundAssetId: "", backgroundAssetHash: "", backgroundAssetMime: "" } satisfies Partial<
+    UserSettings["appearance"]
+  >;
   const pointed =
     plate === null
       ? cleared

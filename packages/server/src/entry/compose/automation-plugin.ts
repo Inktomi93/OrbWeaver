@@ -1,6 +1,7 @@
 // Wire automation and plugin onto the same effect ports, feedback registries and enforcement belts.
 // Author and installer Principals are row-derived through the injected entry resolver.
 
+import { mintToolCallId } from "@orb/contracts/chat";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
@@ -24,7 +25,7 @@ import {
   createSuggestionStore,
 } from "#domain/automation";
 import { findPluginCardData, readPluginCardData, writePluginCardData } from "#domain/character";
-import { createPluginChatAuthority, emitPictureWarnings, requireWiredHost } from "#domain/chat";
+import { createPluginChatAuthority, emitPictureWarnings, loadPresentHostUserId, requireWiredHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -199,7 +200,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     toolUse: deps.toolUse,
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
-    newToolCallId: () => `automation_${newOpaqueId()}`,
+    newToolCallId: () => mintToolCallId(`automation_${newOpaqueId()}`),
   });
   const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });
@@ -342,7 +343,15 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assets: { read: assetReads.read, storeFetched: pluginRuntime.storeFetched },
     search: { documents: createPluginDocumentSearch((params) => deps.search.documents(params)) },
     suggestions: {
-      raise: createPluginSuggestionRaiser({ suggestions: automationSuggestions, notify: automationNotify, newSuggestionId, now }),
+      raise: createPluginSuggestionRaiser({
+        db,
+        suggestions: automationSuggestions,
+        notify: automationNotify,
+        newSuggestionId,
+        now,
+        installerHandle: async (userId) => (await resolveOwnerPrincipal(userId)).handle,
+        presentHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
+      }),
       voidForPlugin: (pluginId) => {
         automationSuggestions.voidPlugin(pluginId);
       },

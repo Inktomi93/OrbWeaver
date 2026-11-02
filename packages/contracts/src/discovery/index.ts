@@ -9,6 +9,7 @@
 // `IMAGE_LENSES` in `@orb/contracts/embeddings`. Characters have NO fork lineage (D28 snapshots), so only
 // `duplicate_chat_pairs` carries the column; `duplicate_character_pairs` has none.
 
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -91,14 +92,14 @@ export const CARD_NOT_DISTILLABLE_REASON = "card_not_distillable";
 
 /** compute-themes: the k-means theme pass. `k` is an optional per-run cluster count; precedence is
  *  param → `UserSettings.workloads.computeThemesK` → discovery's own floor, resolved in the contribution. */
-export const computeThemesWorkloadParams = z.object({ k: z.int().positive().optional() });
+export const computeThemesWorkloadParams = z.object({ k: z.int().positive().optional() }).strip();
 export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadParams>;
 
 /** find-duplicates: the near-dup analytics pass. `threshold` is an optional per-run raw-COSINE floor for
  *  the CHARACTER arm (0..1); precedence is param → `UserSettings.workloads.dupThreshold` → discovery's
  *  floor. The chat arm is Jaccard of segment content-hash sets — an incompatible scale — so it keeps its
  *  own floor internally and this knob never touches it. */
-export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() });
+export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() }).strip();
 export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkloadParams>;
 
 // Why a pass wrote nothing — the honest-accounting discriminator (issue #166).
@@ -132,7 +133,7 @@ export interface AnalyticsResult {
 }
 
 export type { Archetype, ArchetypeMember, ModelRoutingRow, ThemeRow, VisualArchetype } from "./artifacts.ts";
-export { archetypeMemberSchema, archetypeSchema, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
+export { archetypeMemberSchema, archetypeSchema, mintPassId, modelRoutingRowSchema, visualArchetypeSchema } from "./artifacts.ts";
 // The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
 // to compose `PROSE_SLOTS`.
 export { DISCOVERY_PROSE_SLOTS } from "./prose.ts";

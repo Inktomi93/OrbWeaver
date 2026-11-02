@@ -308,6 +308,13 @@ export type SocketId = Branded<"SocketId">;
  *  `orb/sandbox-wire-id` refuses a bare `string` in its place across the plugin contracts. */
 export type SandboxWireId<Id extends Branded<string>> = Id extends string ? string : never;
 
+/** The zod field of a {@link SandboxWireId}: plain text that records which id it carries, structured-clone and JSON-Schema clean.
+ *  @remarks It validates nothing and brands nothing, the boundary {@link SandboxWireId} records. */
+export function sandboxWireIdSchema<Id extends Branded<string>>(): z.ZodType<SandboxWireId<Id>>;
+export function sandboxWireIdSchema(): z.ZodType<string> {
+  return z.string();
+}
+
 // --- Cross-cutting -----------------------------------------------------------
 export type AuditLogId = TypeIdOf<"audit_log">;
 

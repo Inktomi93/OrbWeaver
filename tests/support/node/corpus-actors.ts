@@ -4,6 +4,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { assemblyPreviewSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -124,7 +125,7 @@ export interface CorpusConnections {
 }
 
 /** The model id of the second embedding encoder a case adds beside the corpus encoder. */
-export const CORPUS_ALTERNATE_EMBED_MODEL = `${CORPUS_EMBED_MODEL}-alternate`;
+export const CORPUS_ALTERNATE_EMBED_MODEL = modelIdSchema.parse(`${CORPUS_EMBED_MODEL}-alternate`);
 
 /** One embedding connection on the corpus endpoint, unbound: the declaration every corpus encoder carries, over the model it names
  *  and the inputs it takes. A different model is a different encoder identity, so binding it moves the owner's embedding space. */

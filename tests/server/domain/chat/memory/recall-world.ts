@@ -4,6 +4,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
 import { expect } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -21,7 +22,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
-const RERANK_MODEL = "corpus-rerank";
+const RERANK_MODEL = modelIdSchema.parse("corpus-rerank");
 const RERANK_WINDOW_TOKENS = 2048;
 export const TURN_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
 /** A window no history can fill: the whole transcript stays verbatim in the prompt. */

@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/imagery/verbs/image-provider-ops.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/resync.ts
 
+import { providerIdSchema } from "@orb/contracts/inference";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { auditLogs } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
@@ -95,7 +96,7 @@ test("an HTTP stream transport failure preserves the normalized error without in
 });
 
 test("a native SDK utility rejection settles its owned timer and strikes once", async ({ app, harness, db, ownerCaller, nativeSdk }) => {
-  const providerId = "claude-sub";
+  const providerId = providerIdSchema.parse("claude-sub");
   const key = await ownerCaller.credentials.add({ provider: providerId, key: "sdk-utility-funding-token", metadata: { auth: "oauthToken" } });
   const connection = await fundingConnection({ ownerCaller, harness, task: "summarize", providerId, baseUrl: null, credentialId: key.id, cachedFacts: true });
   await harness.settleBackground();

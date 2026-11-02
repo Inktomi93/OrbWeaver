@@ -1,3 +1,4 @@
+import type { ChatId } from "@orb/kit/ids";
 /** The section whose CONTENT is the chat room: the only surface a carried background may dress, and on a
  *  phone the room screen, which has no tab bar. */
 export const ROOM_SECTION = "chats";
@@ -9,7 +10,7 @@ export function roomScreenShell(args: {
   readonly mobileViewport: boolean;
   readonly activeSection: string;
   readonly listIsPrimaryContent: boolean;
-  readonly activeChatId: string | null;
+  readonly activeChatId: ChatId | null;
 }): { readonly roomScreen: true | undefined; readonly showMobileRail: boolean } {
   const roomScreen = args.mobileViewport && args.activeSection === ROOM_SECTION && !args.listIsPrimaryContent && args.activeChatId !== null;
   // `undefined`, not `false`: the grid carries the attribute only on the room screen.

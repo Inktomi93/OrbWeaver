@@ -1,3 +1,4 @@
+import type { TagId } from "@orb/kit/ids";
 // The Labels panes' programmatic focus stops, named once: the surfaces stamp them and a closing confirm lands
 // on them, because the control that opened the confirm leaves the tree with the tag it removed. The finder and the
 // library are different shell regions with no shared React ancestor, so each is addressed by its stamped `data-slot`;
@@ -46,6 +47,6 @@ export function focusFinderSearch(): void {
 }
 
 /** A label row's actions trigger in the finder, where a cancelled delete confirm returns. */
-export function labelRowOpener(tagId: string): HTMLElement | null {
+export function labelRowOpener(tagId: TagId): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-label-row="${tagId}"] [data-slot="list-row-actions"] button`);
 }
