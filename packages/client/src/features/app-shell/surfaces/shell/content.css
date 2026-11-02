@@ -47,25 +47,6 @@
     flex-direction: column;
   }
 
-  /* The topbar and the composer can fill a landscape phone whose on-screen keyboard is open, or any room at enlarged
-   * text, which squeezes the transcript to nothing. The room scrolls instead, and the transcript keeps a floor, until
-   * the reader is writing: then the room is the composer's, or the field would sit off screen under the keyboard. With the
-   * keyboard up, focus anywhere in the composer counts, or pressing a control (or closing its menu) would blur the field,
-   * re-floor the room and throw the focused control off screen. */
-  @container shell-main (height <= 20rem) {
-    :root[data-keyboard-up] [data-slot="chat-room-surface"]:not(:has(.orb-composer-track:focus-within), :has(.orb-composer-track [data-popup-open])) > *,
-    :root:not([data-keyboard-up]) [data-slot="chat-room-surface"]:not(:has(.orb-composer-track textarea:focus)) > * {
-      flex-shrink: 0;
-    }
-    :root[data-keyboard-up]
-      [data-slot="chat-room-surface"]:not(:has(.orb-composer-track:focus-within), :has(.orb-composer-track [data-popup-open]))
-      > :has(> [data-slot="chat-room-flank-row"]),
-    :root:not([data-keyboard-up]) [data-slot="chat-room-surface"]:not(:has(.orb-composer-track textarea:focus)) > :has(> [data-slot="chat-room-flank-row"]) {
-      flex: none;
-      block-size: var(--height-scroll-sm);
-      min-block-size: var(--height-scroll-sm);
-    }
-  }
   /* The composer parks its moved actions out of flow past the room's edge at the enlarged root; only they reach that far. */
   @container shell-main (inline-size < 20rem) {
     [data-slot="chat-room-surface"] {
