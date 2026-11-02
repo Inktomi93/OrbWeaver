@@ -106,7 +106,9 @@
     min-inline-size: var(--dimension-shell-title-floor);
     overflow: hidden;
   }
-  .shell-topbar-title-group:has(.shell-topbar-subtitle) {
+  /* The editing group keeps the title button's width, which a short title leaves under the field's own floor. */
+  .shell-topbar-title-group:has(.shell-topbar-subtitle),
+  .shell-topbar-title-group[data-editing] {
     min-inline-size: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
   }
   .shell-topbar-title-group:has(.shell-topbar-subtitle) .shell-topbar-title,

@@ -6,7 +6,15 @@ import { CHAT_NAME_FIELD_NAME, censusTitle, chatRoomTitle, contextToggleLabel, R
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
-import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  holdCorpusProcedure,
+  ROOM_PROCEDURES,
+  routeTrpc,
+  SECTION_LABELS,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -385,6 +393,39 @@ test.describe("an open named group room", () => {
       await expectPrimaryRoomHeading(page, room.title);
     });
   });
+
+  for (const [name, rootPx] of [
+    ["100%", 16],
+    ["125%", 20],
+  ] as const) {
+    test(`the rename field of the shortest unnamed room keeps its own floor inside the frozen title group at ${name}`, async ({ corpus, mount, page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+      const caller = await ownerCaller();
+      const unnamed = (await caller.chat.listChats({ limit: 100 })).items.filter((row) => (row.title ?? "") === "");
+      const room = unnamed.toSorted((a, b) => a.participantNames.join(", ").length - b.participantNames.join(", ").length)[0];
+      if (room === undefined) {
+        throw new Error("The corpus has no unnamed room");
+      }
+      await routeShell(page, corpus, caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+      await page.evaluate((px) => {
+        document.documentElement.style.fontSize = `${px}px`;
+      }, rootPx);
+      await page.getByRole("button", { name: RENAME_CHAT_NAME }).click();
+      const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+      await expect(field).toBeFocused();
+      await page.keyboard.type("The harbour job");
+      await expect.poll(() => field.evaluate((element) => element.clientWidth >= Number.parseFloat(getComputedStyle(element).minWidth) - 1)).toBe(true);
+      const group = page.locator(".shell-topbar-title-group").filter({ has: field });
+      await expect
+        .poll(async () => {
+          const [within, box] = await Promise.all([group.boundingBox(), field.boundingBox()]);
+          return within !== null && box !== null && box.x >= within.x - 1 && box.x + box.width <= within.x + within.width + 1;
+        })
+        .toBe(true);
+    });
+  }
 
   test.describe("room heading at 390", () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });

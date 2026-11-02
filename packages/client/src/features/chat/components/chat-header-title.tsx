@@ -62,7 +62,12 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
  *  chips beside it (the floor lives on the box, never on the text inside it). */
 function TitleGroup({ children, width }: { readonly children: ReactNode; readonly width?: number }): ReactElement {
   return (
-    <Row gap="row" align="baseline" className="shell-topbar-title-group min-inline-0" {...(width === undefined ? {} : { style: { width } })}>
+    <Row
+      gap="row"
+      align="baseline"
+      className="shell-topbar-title-group min-inline-0"
+      {...(width === undefined ? {} : { style: { width }, "data-editing": "" })}
+    >
       {children}
     </Row>
   );
