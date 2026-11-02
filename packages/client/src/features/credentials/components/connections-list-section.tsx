@@ -68,6 +68,7 @@ export function ConnectionsListSection({ anchorId }: { readonly anchorId: string
   return (
     // RESERVED (#1098) — a config section that settles into one row per connection.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your connections" onRetry={retry} />}
       reserveBlock={firstBootBox}

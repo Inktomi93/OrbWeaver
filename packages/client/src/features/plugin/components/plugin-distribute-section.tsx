@@ -49,6 +49,7 @@ export function PluginDistributeSection({ anchorId }: { readonly anchorId: strin
     // RESERVED (#1098) — a config section that settles into the published-plugin list; it sits above the
     // rest of the Plugins pane, so its read landing moved every section below it.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the distribution list — it's available to administrators only" onRetry={retry} />}
       reserveKey="config.plugins.distribute"

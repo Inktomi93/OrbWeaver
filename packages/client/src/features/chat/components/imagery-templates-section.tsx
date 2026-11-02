@@ -96,6 +96,7 @@ const CARDS: readonly CardDescriptor[] = [
 export function ImageryTemplatesSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your image-prompt templates" onRetry={retry} />}
     >

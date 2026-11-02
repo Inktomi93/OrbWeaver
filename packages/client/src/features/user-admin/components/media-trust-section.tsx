@@ -56,6 +56,7 @@ export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: 
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="media & trust — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

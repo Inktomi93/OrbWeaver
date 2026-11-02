@@ -16,7 +16,11 @@ function NativePluginPage({ pluginId, surfaceId }: { readonly pluginId: PluginId
   if (typeof content !== "function") {
     throw new Error("the Extensions contribution must provide its production content");
   }
-  return <QueryBoundary fallback={<SkeletonRows count={2} shape="line" />}>{content()}</QueryBoundary>;
+  return (
+    <QueryBoundary resetKeys={[]} fallback={<SkeletonRows count={2} shape="line" />}>
+      {content()}
+    </QueryBoundary>
+  );
 }
 
 /** The production shell with one room open, so the top bar and You sheet read their real plugin commands. */

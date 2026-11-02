@@ -385,6 +385,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               </CollapsibleTrigger>
               <CollapsiblePanel>
                 <QueryBoundary
+                  resetKeys={[rule.id]}
                   fallback={<SkeletonRows count={2} shape="line" />}
                   renderError={(_error, retry): ReactElement => <QueryErrorState label="the recent activity" onRetry={retry} />}
                   reserveKey="automation.rule.activity"

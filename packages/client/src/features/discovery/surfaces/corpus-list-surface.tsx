@@ -251,6 +251,7 @@ function CorpusRestState({ targetId }: { readonly targetId: string }): ReactElem
   if (targetId === DEFAULT_TARGET) {
     return (
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
         fill={true}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the corpus catalog" onRetry={retry} />}

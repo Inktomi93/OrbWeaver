@@ -37,7 +37,7 @@ import { CharacterFacetInspector } from "../components/character-facet-inspector
 import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
 import { CharacterTrustTab } from "../components/character-trust-tab.tsx";
-import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
+import { useCharacterContextResetKeys, useCharacterContextState } from "../hooks/use-character-context-state.ts";
 import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
@@ -87,6 +87,7 @@ export function makeCharactersSection(
     // the 2253px-in-a-693px-pane measurement that made the split due.
     context: defineContextTabs<CharacterContextState>({
       useContextState: useCharacterContextState,
+      useResetKeys: useCharacterContextResetKeys,
       // THE IDENTITY BAND (#860): portrait · name · handle line · chips (Own look · N chats · N tokens) in the
       // context bracket's band slot — the pane's identity, under its header tab strip.
       header: (s) => <CharacterContextBand characterId={s.characterId} />,

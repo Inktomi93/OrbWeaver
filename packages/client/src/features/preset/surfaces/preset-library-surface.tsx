@@ -65,7 +65,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
           scroll box. The key is minted here, not in the shared shell: one literal there would be one box for
           every library. */}
-      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library">
+      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library" resetKeys={[]}>
         <PresetList listRootRef={surfaceRef} onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
     </ListPage>

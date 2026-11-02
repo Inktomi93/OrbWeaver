@@ -41,6 +41,7 @@ const MESSAGE_HANDLING_ENTITY_ID = "chat-message-handling";
 export function ChatMessageHandlingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your chat behavior settings" onRetry={retry} />}
     >

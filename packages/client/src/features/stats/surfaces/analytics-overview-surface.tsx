@@ -74,6 +74,7 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
           slot ride the scroller. */}
       <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
         <QueryBoundary
+          resetKeys={[]}
           fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
           reserveKey="analytics.overview"

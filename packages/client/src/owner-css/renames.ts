@@ -53,6 +53,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "compare-blocks-accept-all", to: null },
   { kind: "slot", name: "table-select-cell", to: null },
   { kind: "slot", name: "table-select-header", to: null },
+  // The shared error block replaced it on every read, so a one-to-one rename would restyle every failed read.
+  { kind: "slot", name: "provenance-error", to: null, see: "query-error" },
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),

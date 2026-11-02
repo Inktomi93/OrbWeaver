@@ -23,8 +23,8 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { FormDialog, QueryBoundary } from "#components";
+import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, useOpenRequests, viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
@@ -195,14 +195,20 @@ function RecallSummary({ recall }: { readonly recall: RecallState | null }): Rea
  *  host-gated source the Preview tab renders). Mounted only when the popover is open (base-ui lazily mounts
  *  popup children) and gated on host, so a member never fires the `requireHost` read. */
 function RecallHostDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[chatId]}
+      fallback={<Text voice="gloss">Loading recall detail…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the recall detail" onRetry={retry} />}
+    >
+      <LoadedRecallDetail chatId={chatId} />
+    </QueryBoundary>
+  );
+}
+
+function LoadedRecallDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data, isPending, isError } = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
-  if (isPending) {
-    return <Text voice="gloss">Loading recall detail…</Text>;
-  }
-  if (isError) {
-    return <Text voice="gloss">Couldn't load the recall detail.</Text>;
-  }
+  const { data } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
   return (
     <Stack gap="row">
       <Text voice="gloss">Detail below is what recall does with the room's CURRENT config — not a byte-exact replay of this turn.</Text>

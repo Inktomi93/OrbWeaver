@@ -1,4 +1,5 @@
 // @subject packages/client/src/features/app-shell/components/background-upload-field.tsx
+import type { StoredAsset } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -14,7 +15,9 @@ test("an uploaded background is saved under the id the runtime's source minted",
     throw new Error("The committed corpus omitted the user settings read");
   }
   const assetId = mintTypeId(ID_PREFIX.asset, createSeededIds().next);
-  await page.route(UPLOAD_ROUTE, (route) => route.fulfill({ json: { assetId, hash: HASH, size: 4, created: true } }));
+  // The route answers exactly a StoredAsset; the client parses it strictly, so an undeclared key is a refused upload.
+  const stored = { assetId, hash: HASH, created: true } satisfies StoredAsset;
+  await page.route(UPLOAD_ROUTE, (route) => route.fulfill({ json: stored }));
   const saved: unknown[] = [];
   await routeTrpc(page, {
     "settings.getUserSettings": () => settings,

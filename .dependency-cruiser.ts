@@ -649,6 +649,16 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/components/character-tags-row.tsx":
       "CharacterTagsRow: the editor's tag row, which no door forwards and only the hero band renders",
   },
+  "tests/client/features/refinery/components/_versions-stories.tsx": {
+    "packages/client/src/features/refinery/components/context-tabs.tsx":
+      "VersionsTab: the refinery Versions tab, which only the section's tab body renders and no door forwards",
+  },
+  "tests/client/features/chat/components/_chat-reads-boundary-stories.tsx": {
+    "packages/client/src/features/chat/components/variant-wire-viewer.tsx":
+      "VariantWireViewer: the wire dialog, which only the message row opens behind a host-only trigger and no door forwards",
+    "packages/client/src/features/chat/components/chat-list-character-filter.tsx":
+      "ChatListFacesStrip: the chat list's faces strip, which only the list header renders and no door forwards",
+  },
   "tests/client/lib/platform-polyfills.test.ts": {
     "packages/client/src/lib/platform-polyfills.ts": "the polyfill entry main.tsx imports for its side effect; it exports nothing for a door to forward",
     "packages/client/src/lib/platform-shims.ts": "regExpEscape and isError: the shims the entry installs, compared with the builtins",

@@ -19,6 +19,7 @@ export function PersonaListSection({ anchorId }: { readonly anchorId: string }):
           (F14): everything below jumps by the whole list when the read lands. `avatar-row` is the settled
           anatomy (portrait + name + gloss), so the wait looks like what arrives. */}
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={4} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your personas" onRetry={retry} />}
         reserveKey="config.personas.list"

@@ -172,6 +172,7 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
   return (
     <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />} sectionId="injections">
       <QueryBoundary
+        resetKeys={[chatId]}
         fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
       >
@@ -237,6 +238,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           simply gets no visibility toggle, no detach and no add (the §8.1 permission-OMIT at ROW level). */}
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<DocumentsHeading chatId={chatId} />} sectionId="documents">
         <QueryBoundary
+          resetKeys={[chatId]}
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
           reserveKey="chat.context.documents"
@@ -252,6 +254,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           write into a book attached HERE, so this is where a room with none goes to get one. */}
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<LorebooksHeading chatId={chatId} />} sectionId="lorebooks">
         <QueryBoundary
+          resetKeys={[chatId]}
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's world books" onRetry={retry} />}
           reserveKey="chat.context.lorebooks"
@@ -277,6 +280,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           and the section count of this tab is unchanged. */}
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<RegexHeading chatId={chatId} isHost={isHost} />} sectionId="regex">
         <QueryBoundary
+          resetKeys={[chatId]}
           fallback={<SkeletonRows count={3} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's regex" onRetry={retry} />}
           reserveKey="chat.context.regex"
@@ -289,6 +293,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           sits with Field overrides/Injections rather than in the host-only band below. */}
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Macro picks" sectionId="macro-picks">
         <QueryBoundary
+          resetKeys={[chatId]}
           // A THREE-LINE PARAGRAPH IS WHAT THIS SECTION SETTLES TO (#823). Its production default is the
           // empty state — no preset in the app declares a user-macro input or a ChoiceBlock until an author
           // writes one — and that empty state is a 65px gloss paragraph, not rows of controls. Two
@@ -307,6 +312,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           member-gated and each child is gated on the viewer's own seat in it. */}
       <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<ForksHeading chatId={chatId} />} sectionId="forks">
         <QueryBoundary
+          resetKeys={[chatId]}
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's forks" onRetry={retry} />}
           reserveKey="chat.context.forks"
@@ -352,6 +358,7 @@ function HostControls({
           {showGroup ? (
             <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
               <QueryBoundary
+                resetKeys={[chatId]}
                 // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
                 // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
                 // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
@@ -375,6 +382,7 @@ function HostControls({
             getChat this tab already loaded, plus the host's own settings default for offer choices. */}
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
             <QueryBoundary
+              resetKeys={[chatId]}
               fallback={<SkeletonRows count={2} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="the storytelling settings" onRetry={retry} />}
               reserveKey="chat.context.storytelling"
@@ -390,6 +398,7 @@ function HostControls({
             reach every member (one gates their writes, one the room's prompt). */}
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Reactions" sectionId="reactions">
             <QueryBoundary
+              resetKeys={[chatId]}
               fallback={<SkeletonRows count={2} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
               reserveKey="chat.context.reactions"
@@ -404,6 +413,7 @@ function HostControls({
             matches the getChat suspense. */}
           <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Tool use" sectionId="tool-use">
             <QueryBoundary
+              resetKeys={[chatId]}
               fallback={<SkeletonRows count={1} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
               reserveKey="chat.context.toolUse"

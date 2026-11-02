@@ -98,6 +98,7 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
     // may not mint one SURVIVES: many owners, one literal, one box for all of them. What changed is that
     // every owner now supplies its own, so the reservation is reachable without the collision.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
       {...(props.reserveKey === undefined ? {} : { reserveKey: props.reserveKey })}

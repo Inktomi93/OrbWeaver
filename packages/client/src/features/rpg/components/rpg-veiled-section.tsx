@@ -161,6 +161,7 @@ export function RpgVeiledSection({ chatId }: RpgVeiledSectionProps): ReactElemen
     // participants above it and everything below shift by the ledger's whole height when it lands. The
     // remembered box holds that space open; nothing is painted into it, which is the point.
     <QueryBoundary
+      resetKeys={[chatId]}
       fallback={null}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the veiled ledger" onRetry={retry} />}
       reserveKey="rpg.veiledLedger"

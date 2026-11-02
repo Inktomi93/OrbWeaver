@@ -40,10 +40,10 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
-import { testId, viewerTimeZone } from "#lib";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
 import { openSectionInPrompt } from "#src/features/preset/lib/preset-nav.ts";
 import type { TemplateRow } from "#src/features/preset/lib/template-rows.ts";
 import {
@@ -183,11 +183,33 @@ function UnboundPreview({ row, templateText }: { readonly row: TemplateRow; read
 /** The BOUND arm — the ONE `previewActionTemplates` read, projected. The read answers for the WHOLE registry
  *  in one round trip, so switching the selected row re-projects a cached answer instead of refetching. */
 function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; readonly presetId: PresetId; readonly row: TemplateRow }): ReactElement {
+  // `previewActionTemplates` is host-gated: a member inspecting a room they do not host gets a typed FORBIDDEN,
+  // said as the refusal it is; any other failure gets the shared Retry.
+  return (
+    <QueryBoundary
+      resetKeys={[chatId, presetId]}
+      fallback={<SkeletonRows count={RESOLVING_SKELETON_ROWS} shape="datum" />}
+      renderError={(error, retry): ReactElement =>
+        trpcErrorCode(error) === "FORBIDDEN" ? (
+          <Text voice="gloss">This chat cannot be inspected — its host resolves the prompt, and you are not it.</Text>
+        ) : (
+          <QueryErrorState label="the resolved preview" onRetry={retry} />
+        )
+      }
+    >
+      <ResolvedPreview chatId={chatId} presetId={presetId} row={row} />
+    </QueryBoundary>
+  );
+}
+
+const RESOLVING_SKELETON_ROWS = 2;
+
+function ResolvedPreview({ chatId, presetId, row }: { readonly chatId: ChatId; readonly presetId: PresetId; readonly row: TemplateRow }): ReactElement | null {
   const trpc = useTRPC();
-  const preview = useQuery(trpc.chat.previewActionTemplates.queryOptions({ chatId, presetId, timeZone: viewerTimeZone() }));
-  const resolved = preview.data?.templates.find((template) => template.id === row.def.id)?.resolved;
+  const { data: preview } = useSuspenseQuery(trpc.chat.previewActionTemplates.queryOptions({ chatId, presetId, timeZone: viewerTimeZone() }));
+  const resolved = preview.templates.find((template) => template.id === row.def.id)?.resolved;
   if (resolved === undefined) {
-    return <Text voice="gloss">{preview.isError ? "This chat cannot be inspected — its host resolves the prompt, and you are not it." : "Resolving…"}</Text>;
+    return null;
   }
   const runs = scanMacroRuns(resolved);
   return (
@@ -195,7 +217,7 @@ function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; read
       <Stack data-testid={testId("presetResolvedPreview")} gap="tight">
         <MacroText tokens={runs} />
       </Stack>
-      <Text voice="gloss">{boundGloss(runs, preview.data?.identity.user, TEMPLATE_KIND_FIRE_TIME[row.def.kind])}</Text>
+      <Text voice="gloss">{boundGloss(runs, preview.identity.user, TEMPLATE_KIND_FIRE_TIME[row.def.kind])}</Text>
     </Stack>
   );
 }

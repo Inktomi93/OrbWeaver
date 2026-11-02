@@ -42,6 +42,7 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 export function MemorySettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your memory settings" onRetry={retry} />}
     >

@@ -1,8 +1,8 @@
 // The preset editor surface — the Presets tabbed editor. Binds the nested `PromptConfig` directly (no
 // flat mapper); AUTOSAVE through `preset.update` (D66 A4 / north-star §7) — no Save button, the header
 // carries the shared `AutosaveStatus` where Save used to be. A preset carries no model; the Params deck
-// resolves capability for the user's configured chat-role connection, and stands its model-fed clusters down
-// to `CapabilityGate` (skeleton while pending, the server's message when the resolve fails) until it lands.
+// resolves capability for the user's configured chat-role connection; its model-fed clusters read under a
+// QueryBoundary whose arms are `CapabilityGate` (skeleton while pending, the server's message on failure).
 //
 // D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityForm)
 // — the factory owns entity identity (its keyed Session), the teardown flush, and reseed. Reset-to-starter
@@ -71,7 +71,6 @@ import { PRESET_EDITOR_NAME } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import type { ViewContentProps } from "../lib/preset-view-content.tsx";
 import { viewContent } from "../lib/preset-view-content.tsx";
-import type { ReadFailure } from "../lib/resolve-failure.ts";
 
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
@@ -122,6 +121,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
           only the first-boot guess (the reserved box re-fills it). The scroll box is the Stack ABOVE this
           boundary, so the measuring wrapper sits INSIDE the scroller and cannot flatten it (#1133). */}
       <QueryBoundary
+        resetKeys={[presetId]}
         fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
         reserveKey="preset.editor"
@@ -160,9 +160,9 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
 
   // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
   // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
-  // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A resolve failure
-  // leaves `capability` undefined AND `capabilityError` set ⇒ the deck stands down to `CapabilityGate`'s
-  // FAILURE arm, quoting the server (F-02); an unlanded read leaves both empty ⇒ the gate's PENDING skeleton.
+  // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A value with a
+  // default: an unlanded or failed read leaves `capability` undefined, and the deck's own boundary over the
+  // model-fed clusters reads the same key and shows its pending or failure state (`CapabilityGate`).
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   // The read carries the resolved `(api, source, model)` alongside the descriptor (the Connections pane names
   // the fallback from it); this panel gates on the descriptor only.
@@ -190,10 +190,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
       { onSuccess: (): void => notifyActivePreset(preset.name) },
     );
   };
-  // isError ≠ no-model (F-02): a FAILED read must not render as "connect a chat model" to someone who has one.
-  // The ERROR goes down WHOLE (2026-08-08) so the gate discriminates on `data.code` — the routing verdict is
-  // EARNED, never asserted. `null` = PENDING.
-  const capabilityError = capabilityQuery.error;
   // The staleness row names a dropped sampler under the target server's own spelling: its provider row, then the
   // connection's declared override, both already in the client's hands.
   const providersQuery = useQuery(trpc.connection.providersAvailable.queryOptions());
@@ -234,7 +230,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onActivate={onActivate}
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
-            capabilityError={capabilityError}
             editorConnection={
               target === undefined
                 ? undefined
@@ -277,8 +272,6 @@ interface PresetEditorBodyProps {
   /** Commit a new name (#483) — the header owns the door + its dialog; this is the write. */
   readonly onRename: (name: string) => void;
   readonly capability: GenerationCapability | undefined;
-  /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
-  readonly capabilityError: ReadFailure | null;
   readonly editorConnection: string | undefined;
   readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
@@ -299,7 +292,6 @@ function PresetEditorBody({
   onActivate,
   onRename,
   capability,
-  capabilityError,
   editorConnection,
   samplerSpelling,
   effective,
@@ -329,7 +321,6 @@ function PresetEditorBody({
   const viewProps: ViewContentProps = {
     form: boundForm,
     capability,
-    capabilityError,
     effective,
     presetId,
     attachable: !isSystemDefault,

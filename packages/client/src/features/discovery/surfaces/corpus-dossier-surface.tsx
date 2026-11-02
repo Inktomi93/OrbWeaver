@@ -23,7 +23,6 @@ import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
@@ -64,6 +63,7 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
           a sentence between the list and the dossier. Neither this surface nor its body owns a scroll box
           (`corpus-content.tsx` does, above the boundary), so the measuring wrapper is layout-inert here. */}
       <QueryBoundary
+        resetKeys={[characterId]}
         fallback={<SkeletonRows count={6} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
         reserveKey="corpus.dossier"
@@ -287,21 +287,27 @@ function SimilarArtSection({ characterId }: { readonly characterId: CharacterId 
 }
 
 function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }): ReactElement {
-  const trpc = useTRPC();
-  const art = useQuery(trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }));
+  return (
+    <QueryBoundary
+      resetKeys={[characterId]}
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the similar art" onRetry={retry} />}
+    >
+      <SimilarArtRead characterId={characterId} />
+    </QueryBoundary>
+  );
+}
 
-  if (art.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
-  if (art.error !== null) {
-    return <QueryErrorState label="the similar art" onRetry={art.refetch} />;
-  }
-  if (art.data.length === 0) {
+function SimilarArtRead({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  const trpc = useTRPC();
+  const { data: art } = useSuspenseQuery(trpc.search.similarArt.queryOptions({ characterId, topN: SIMILAR_ART_TOP_N }));
+
+  if (art.length === 0) {
     return <Text voice="gloss">No look-alike portraits found.</Text>;
   }
   return (
     <Stack gap="row" role="list">
-      {art.data.map((hit, index) => (
+      {art.map((hit, index) => (
         <ListRow
           key={hit.characterId}
           clickable={true}
@@ -339,11 +345,8 @@ function Relevance({ rank, value }: { readonly rank: number; readonly value: num
 }
 
 function AskPanel({ characterId }: { readonly characterId: CharacterId }): ReactElement {
-  const trpc = useTRPC();
   const [draft, setDraft] = useState("");
   const [question, setQuestion] = useState<string | null>(null);
-
-  const answer = useQuery(trpc.discovery.askCard.queryOptions({ characterId, question: question ?? "" }, { enabled: question !== null && question !== "" }));
 
   const ask = (): void => {
     const trimmed = draft.trim();
@@ -368,32 +371,25 @@ function AskPanel({ characterId }: { readonly characterId: CharacterId }): React
             Ask
           </Button>
         </Row>
-        <AskAnswer isPending={answer.isFetching} hasQuestion={question !== null} error={answer.error} data={answer.data ?? null} />
+        {question === null ? null : (
+          <QueryBoundary
+            resetKeys={[characterId, question]}
+            fallback={<SkeletonRows count={ANSWER_SKELETON_ROWS} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="that answer" onRetry={retry} />}
+          >
+            <AskAnswer characterId={characterId} question={question} />
+          </QueryBoundary>
+        )}
       </Stack>
     </Section>
   );
 }
 
-function AskAnswer({
-  isPending,
-  hasQuestion,
-  error,
-  data,
-}: {
-  readonly isPending: boolean;
-  readonly hasQuestion: boolean;
-  readonly error: unknown;
-  readonly data: AskCardAnswer | null;
-}): ReactElement | null {
-  if (!hasQuestion) {
-    return null;
-  }
-  if (isPending) {
-    return <Text voice="gloss">Reading the recent scenes…</Text>;
-  }
-  if (error !== null) {
-    return <Text voice="gloss">Couldn't answer that one.</Text>;
-  }
+const ANSWER_SKELETON_ROWS = 2;
+
+function AskAnswer({ characterId, question }: { readonly characterId: CharacterId; readonly question: string }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.discovery.askCard.queryOptions({ characterId, question }));
   if (data === null) {
     return <Text voice="gloss">No played scenes to answer from yet.</Text>;
   }

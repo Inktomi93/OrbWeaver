@@ -30,6 +30,7 @@ export function OperationsSection({ anchorId, sectionId }: { readonly anchorId: 
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="operations — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

@@ -20,7 +20,7 @@ export const savedRostersModal: ModalDefinition = {
   title: ROSTER_SAVED_NAME,
   trigger: { placement: "surface", label: ROSTER_SAVED_NAME, icon: Users },
   body: (): ReactElement => (
-    <QueryBoundary fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />} reserveKey="rosterPreset.savedRosters">
+    <QueryBoundary resetKeys={[]} fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />} reserveKey="rosterPreset.savedRosters">
       <RosterPicker />
     </QueryBoundary>
   ),

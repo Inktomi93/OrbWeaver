@@ -16,6 +16,7 @@ const ENTITY_ID = "chat-attachment-quality";
 export function ChatAttachmentQualitySection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your attachment quality" onRetry={retry} />}
     >

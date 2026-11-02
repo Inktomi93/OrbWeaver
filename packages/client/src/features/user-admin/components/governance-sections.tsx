@@ -45,6 +45,7 @@ export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: s
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

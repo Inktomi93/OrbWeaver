@@ -106,7 +106,7 @@ export function RefineryListSurface(): ReactElement {
       search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setSearch} placeholder="Search sessions…" value={search} />}
       skipTo="Skip to sessions"
     >
-      <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…">
+      <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…" resetKeys={[]}>
         <RefineryList
           listRootRef={surfaceRef}
           onClearSearch={(): void => {

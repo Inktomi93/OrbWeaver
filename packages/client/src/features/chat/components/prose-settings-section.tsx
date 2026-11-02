@@ -84,6 +84,7 @@ function slotSuggestions(id: ProseSlotId): readonly MacroSuggestion[] {
 export function ProseSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your prose overrides" onRetry={retry} />}
     >

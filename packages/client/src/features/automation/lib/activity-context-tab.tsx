@@ -30,7 +30,7 @@ export const automationActivityTab: ContextTabDef<CommittedChatContext> = {
   body: (s): ReactNode => (
     // RESERVED (#1098) — a context-tab body that settles into a run-activity list; the sentence it replaced
     // was one line where the log is many, so the tab resized under the reader the moment the read landed.
-    <QueryBoundary fallback={<SkeletonRows count={4} />} reserveKey="automation.activityTab">
+    <QueryBoundary resetKeys={[s.chatId]} fallback={<SkeletonRows count={4} />} reserveKey="automation.activityTab">
       <RoomActivityLog chatId={s.chatId} />
     </QueryBoundary>
   ),

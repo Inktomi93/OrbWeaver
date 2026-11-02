@@ -89,7 +89,7 @@ export function AdmitPrivateHost(props: AdmitPrivateHostProps): ReactElement {
   // `QueryErrorState`. The settings read inside only ever runs for the box OWNER — the member arm returns
   // before mounting it — so this boundary is about a transient failure, not a 403.
   return (
-    <QueryBoundary fallback={<SkeletonRows count={3} shape="line" />}>
+    <QueryBoundary resetKeys={[]} fallback={<SkeletonRows count={3} shape="line" />}>
       <EndpointAdmission {...props} />
     </QueryBoundary>
   );

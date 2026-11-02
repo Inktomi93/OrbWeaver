@@ -45,6 +45,7 @@ export function SchedulesSection({ anchorId }: { readonly anchorId: string }): R
   return (
     // RESERVED (#1098) — a config section that settles into one row per schedule.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your schedules" onRetry={retry} />}
       reserveBlock={firstBootBox}

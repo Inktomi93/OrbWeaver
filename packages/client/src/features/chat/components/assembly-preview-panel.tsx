@@ -43,6 +43,7 @@ export interface AssemblyPreviewPanelProps {
 export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[chatId]}
       fallback={<SkeletonRows count={6} shape="datum" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
     >

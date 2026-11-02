@@ -57,6 +57,7 @@ export function RateLimitsSection({ anchorId, sectionId }: { readonly anchorId: 
   return (
     // RESERVED (#1098) — an admin settings section that settles into one row per limit.
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
       reserveBlock={firstBootBox}

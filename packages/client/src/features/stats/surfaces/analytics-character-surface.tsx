@@ -58,6 +58,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
           slot ride the scroller. */}
       <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
         <QueryBoundary
+          resetKeys={[characterId]}
           fallback={<SkeletonRows count={3} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
           reserveKey="analytics.character"

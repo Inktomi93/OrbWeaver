@@ -3,11 +3,10 @@ import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CharacterPicker } from "#components";
-import { useTRPC } from "#data";
+import { CharacterPicker, QueryBoundary } from "#components";
+import { SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 
 /** A selected character is read by identity, never searched for in the first library page. */
 export function RuleCharacterField({
@@ -19,17 +18,30 @@ export function RuleCharacterField({
   readonly value: CharacterId | undefined;
   readonly onChange: (value: CharacterId | undefined) => void;
 }): ReactElement {
-  const trpc = useTRPC();
   const [open, setOpen] = useState(false);
-  const character = useQuery(trpc.character.get.queryOptions(value === undefined ? skipToken : { characterId: value }));
   return (
     <Stack gap="tight">
-      <Text>
-        {label}: {value === undefined ? "Automatic" : (character.data?.name ?? value)}
-      </Text>
-      {value !== undefined && character.isError ? (
-        <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
-      ) : null}
+      {value === undefined ? (
+        <Text>{label}: Automatic</Text>
+      ) : (
+        <QueryBoundary
+          resetKeys={[value]}
+          fallback={<SkeletonRows count={1} shape="line" />}
+          renderError={(_error, retry): ReactElement => (
+            <Stack gap="tight">
+              <Text>
+                {label}: {value}
+              </Text>
+              <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
+              <Button variant="ghost" className="justify-start" onClick={retry}>
+                Retry
+              </Button>
+            </Stack>
+          )}
+        >
+          <SelectedCharacterName characterId={value} label={label} />
+        </QueryBoundary>
+      )}
       <Button variant="ghost" className="justify-start" onClick={(): void => setOpen(!open)}>
         <Icon icon={ChevronRight} size="sm" />
         {open ? "Close character picker" : `Choose ${label.toLowerCase()}`}
@@ -52,5 +64,15 @@ export function RuleCharacterField({
         />
       ) : null}
     </Stack>
+  );
+}
+
+function SelectedCharacterName({ characterId, label }: { readonly characterId: CharacterId; readonly label: string }): ReactElement {
+  const trpc = useTRPC();
+  const { data: character } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
+  return (
+    <Text>
+      {label}: {character.name}
+    </Text>
   );
 }

@@ -145,6 +145,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
       }}
     >
       <QueryBoundary
+        resetKeys={[characterId]}
         fallback={<SkeletonRows count={EDITOR_SKELETON_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
         reserveKey="character.editor"

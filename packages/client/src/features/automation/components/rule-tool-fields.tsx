@@ -8,13 +8,17 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleToolArgumentGuidance, ruleToolParameterGuidance } from "../lib/rule-tool-arguments.ts";
 
-/** Catalog visibility is the caller's; selecting a tool never impersonates the stored rule author. */
+type RunToolAction = Extract<RuleEditorValues["actions"][number], { type: "run_tool" }>;
+
+/** Catalog visibility is the caller's; selecting a tool never impersonates the stored rule author. Only the tool Select and its
+ *  descriptions wait on the catalog: the saved tool name and the argument template stay on screen while it loads or fails. */
 export function RuleToolFields({
   form,
   index,
@@ -23,59 +27,32 @@ export function RuleToolFields({
 }: {
   readonly form: AutosaveSession<RuleEditorValues>["form"];
   readonly index: number;
-  readonly action: Extract<RuleEditorValues["actions"][number], { type: "run_tool" }>;
+  readonly action: RunToolAction;
   readonly chatId: ChatId | null;
 }): ReactElement {
   const trpc = useTRPC();
-  const catalog = useQuery(trpc.automation.listRuleTools.queryOptions());
-  const tools = catalog.data ?? [];
-  const selected = tools.find((tool) => tool.name === action.name);
-  const items = tools.map((tool) => ({ value: tool.name, label: tool.name }));
-  if (selected === undefined && action.name.length > 0) {
-    items.push({ value: action.name, label: `${action.name} (not listed for you)` });
-  }
+  // The template's guidance names the selected tool's schema once the catalog is known, and says the metadata is unavailable until then.
+  const { data: tools } = useQuery(trpc.automation.listRuleTools.queryOptions());
+  const selected = tools?.find((tool) => tool.name === action.name);
   return (
     <Stack gap="block">
-      <form.AppField name={`actions[${index}].name`}>
-        {(field): ReactElement => (
-          <Field label="Tool" error={touchedFieldError(field.state.meta)}>
-            {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- Base UI's FieldRootContext injects `aria-labelledby` at render time, as in SelectField. */}
-            <Select
-              onOpenChange={(open): void => {
-                if (!open) {
-                  field.handleBlur();
-                }
-              }}
-              value={field.state.value || null}
-              items={items}
-              placeholder="Choose a tool…"
-              onValueChange={(value): void => {
-                if (value !== null) {
-                  field.handleChange(value);
-                }
-              }}
-            />
-          </Field>
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={
+          <Stack gap="tight">
+            <SavedToolName name={action.name} />
+            <SkeletonRows count={2} shape="line" />
+          </Stack>
+        }
+        renderError={(_error, retry): ReactElement => (
+          <Stack gap="tight">
+            <SavedToolName name={action.name} />
+            <QueryErrorState label="your tool catalog" onRetry={retry} />
+          </Stack>
         )}
-      </form.AppField>
-      {catalog.isPending ? <Text voice="gloss">Loading your available tools…</Text> : null}
-      {catalog.isError ? (
-        <>
-          <Text voice="gloss">Couldn't load your tool catalog. Existing selections are kept.</Text>
-          <Button
-            variant="ghost"
-            onClick={(): void => {
-              catalog.refetch().catch(() => undefined);
-            }}
-          >
-            Retry tools
-          </Button>
-        </>
-      ) : null}
-      {!(catalog.isPending || catalog.isError) && tools.length === 0 ? (
-        <Text voice="gloss">You have no available automation tools. Activate a plugin with a tool you have permitted.</Text>
-      ) : null}
-      {selected === undefined ? null : <Text voice="gloss">{selected.description}</Text>}
+      >
+        <ToolCatalogFields form={form} index={index} action={action} />
+      </QueryBoundary>
       <form.AppField name={`actions[${index}].argsTemplate`}>
         {(field): ReactElement => (
           <field.MacroField
@@ -86,23 +63,6 @@ export function RuleToolFields({
         )}
       </form.AppField>
       {action.name.length === 0 ? null : <Text voice="gloss">{ruleToolArgumentGuidance(action.argsTemplate, selected)}</Text>}
-      {selected === undefined ? null : (
-        <Stack gap="tight">
-          {ruleToolParameterGuidance(selected).map((line) => (
-            <Text key={line} voice="gloss">
-              {line}
-            </Text>
-          ))}
-        </Stack>
-      )}
-      <Button
-        variant="ghost"
-        onClick={(): void => {
-          catalog.refetch().catch(() => undefined);
-        }}
-      >
-        Refresh tools
-      </Button>
       <form.AppField name={`actions[${index}].resultVar`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
@@ -139,6 +99,78 @@ export function RuleToolFields({
           </Text>
         </>
       )}
+    </Stack>
+  );
+}
+
+/** The stored tool, named while the catalog that would list it is unknown, so an unread catalog never hides what the rule runs. */
+function SavedToolName({ name }: { readonly name: string }): ReactElement | null {
+  if (name.length === 0) {
+    return null;
+  }
+  return <Text voice="gloss">Saved tool: {name}. Existing selections are kept.</Text>;
+}
+
+function ToolCatalogFields({
+  form,
+  index,
+  action,
+}: {
+  readonly form: AutosaveSession<RuleEditorValues>["form"];
+  readonly index: number;
+  readonly action: RunToolAction;
+}): ReactElement {
+  const trpc = useTRPC();
+  const catalog = useSuspenseQuery(trpc.automation.listRuleTools.queryOptions());
+  const tools = catalog.data;
+  const selected = tools.find((tool) => tool.name === action.name);
+  const items = tools.map((tool) => ({ value: tool.name, label: tool.name }));
+  if (selected === undefined && action.name.length > 0) {
+    items.push({ value: action.name, label: `${action.name} (not listed for you)` });
+  }
+  return (
+    <Stack gap="block">
+      <form.AppField name={`actions[${index}].name`}>
+        {(field): ReactElement => (
+          <Field label="Tool" error={touchedFieldError(field.state.meta)}>
+            {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- Base UI's FieldRootContext injects `aria-labelledby` at render time, as in SelectField. */}
+            <Select
+              onOpenChange={(open): void => {
+                if (!open) {
+                  field.handleBlur();
+                }
+              }}
+              value={field.state.value || null}
+              items={items}
+              placeholder="Choose a tool…"
+              onValueChange={(value): void => {
+                if (value !== null) {
+                  field.handleChange(value);
+                }
+              }}
+            />
+          </Field>
+        )}
+      </form.AppField>
+      {tools.length === 0 ? <Text voice="gloss">You have no available automation tools. Activate a plugin with a tool you have permitted.</Text> : null}
+      {selected === undefined ? null : <Text voice="gloss">{selected.description}</Text>}
+      {selected === undefined ? null : (
+        <Stack gap="tight">
+          {ruleToolParameterGuidance(selected).map((line) => (
+            <Text key={line} voice="gloss">
+              {line}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      <Button
+        variant="ghost"
+        onClick={(): void => {
+          catalog.refetch().catch(() => undefined);
+        }}
+      >
+        Refresh tools
+      </Button>
     </Stack>
   );
 }

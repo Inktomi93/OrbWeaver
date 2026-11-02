@@ -30,6 +30,7 @@ function formatTimestamp(ms: number): string {
 export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[characterId]}
       key={characterId}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this character's snapshots" onRetry={retry} />}

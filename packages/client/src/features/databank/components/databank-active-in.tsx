@@ -34,9 +34,9 @@ import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { CharacterAttachments } from "./databank-character-attachments.tsx";
@@ -44,47 +44,45 @@ import { CharacterAttachments } from "./databank-character-attachments.tsx";
 /**
  * Server-confirmed provenance: WHERE this document is switched on, plus owner-character writes.
  *
- * Non-suspending — the panel's own two reads already resolved, and a slow junction read must not blank the
- * Everywhere toggle above it.
+ * The read suspends under the block's own boundary, so a slow junction read blanks only this block and never
+ * the Everywhere toggle above it. "Nowhere yet" is a claim about the junction table, so a failed read shows
+ * the shared error with a re-read and never that sentence.
  */
 export function ActiveInSection({ documentId, documentName }: { readonly documentId: DocumentId; readonly documentName: string }): ReactElement {
+  return (
+    <Section kicker="Active in">
+      <QueryBoundary
+        resetKeys={[documentId]}
+        fallback={<SkeletonRows count={2} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="where this document is active" onRetry={retry} />}
+      >
+        <ActiveInBody documentId={documentId} documentName={documentName} />
+      </QueryBoundary>
+    </Section>
+  );
+}
+
+function ActiveInBody({ documentId, documentName }: { readonly documentId: DocumentId; readonly documentName: string }): ReactElement {
   const trpc = useTRPC();
-  const attachments = useQuery(trpc.databank.listAttachments.queryOptions({ id: documentId }));
+  const { data: attachments } = useSuspenseQuery(trpc.databank.listAttachments.queryOptions({ id: documentId }));
+  const nowhere = !attachments.global && attachments.chats.length === 0 && attachments.characters.length === 0;
 
-  const rooms = attachments.data?.chats ?? [];
-  const characters = attachments.data?.characters ?? [];
-  const everywhere = attachments.data?.global === true;
-  const nowhere = !everywhere && rooms.length === 0 && characters.length === 0;
-
-  // "NOWHERE YET" IS A CLAIM ABOUT THE JUNCTION TABLE, SO IT NEEDS THE JUNCTION TABLE (#1500). The block
-  // branched on `isPending` alone, so a failed `listAttachments` left every list empty and the panel stated
-  // that this document feeds nothing — a confident answer about the reader's own data that the pane had no
-  // basis for. A read that failed says so, and offers the re-read.
-  let body: ReactElement;
-  if (attachments.isError) {
-    body = <QueryErrorState label="where this document is active" onRetry={(): void => void attachments.refetch().catch(globalThis.reportError)} />;
-  } else if (attachments.isPending) {
-    body = <Text voice="gloss">Checking…</Text>;
-  } else {
-    body = (
-      <Stack gap="row">
-        {everywhere ? (
-          <Row>
-            <Badge tone="success" size="sm">
-              Everywhere
-            </Badge>
-          </Row>
-        ) : null}
-        <RoomDoors rooms={rooms} />
-        <CharacterAttachments characters={characters} documentId={documentId} documentName={documentName} />
-        {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
-            failed load (empty states are load-bearing). */}
-        {nowhere ? <Text voice="gloss">Nowhere yet — attach it to one of your characters, or from a chat's Databank panel.</Text> : null}
-      </Stack>
-    );
-  }
-
-  return <Section kicker="Active in">{body}</Section>;
+  return (
+    <Stack gap="row">
+      {attachments.global ? (
+        <Row>
+          <Badge tone="success" size="sm">
+            Everywhere
+          </Badge>
+        </Row>
+      ) : null}
+      <RoomDoors rooms={attachments.chats} />
+      <CharacterAttachments characters={attachments.characters} documentId={documentId} documentName={documentName} />
+      {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
+          failed load. */}
+      {nowhere ? <Text voice="gloss">Nowhere yet — attach it to one of your characters, or from a chat's Databank panel.</Text> : null}
+    </Stack>
+  );
 }
 
 /** The rooms, named by the ONE chain and stamped only where two of them would otherwise read alike. Split

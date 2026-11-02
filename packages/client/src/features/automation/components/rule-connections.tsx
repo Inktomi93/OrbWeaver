@@ -19,6 +19,7 @@ export interface RuleConnectionsProps {
 export function RuleConnections(props: RuleConnectionsProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[props.ruleId]}
       fallback={<SkeletonRows count={props.tasks.length} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={`the connections for ${props.ruleName}`} onRetry={retry} />}
     >

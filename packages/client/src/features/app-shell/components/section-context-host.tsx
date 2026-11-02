@@ -60,7 +60,29 @@ export function SectionContextHost({ definition, headerRef, dismissLabel, onDism
     return context.body();
   }
   return (
+    <TabsContextHost
+      context={context}
+      definition={definition}
+      headerRef={headerRef}
+      {...(dismissLabel === undefined ? {} : { dismissLabel })}
+      {...(onDismiss === undefined ? {} : { onDismiss })}
+    />
+  );
+}
+
+type TabsContext = Extract<SectionDefinition["context"], { readonly kind: "tabs" }>;
+
+// The boundary resets on the section's selection, so a selection whose read failed gives way to the next one picked.
+function TabsContextHost({
+  context,
+  definition,
+  headerRef,
+  dismissLabel,
+  onDismiss,
+}: SectionContextHostProps & { readonly context: TabsContext }): ReactElement {
+  return (
     <QueryBoundary
+      resetKeys={context.useResetKeys()}
       fallback={
         <ContextTabsPanel
           headerRef={headerRef}

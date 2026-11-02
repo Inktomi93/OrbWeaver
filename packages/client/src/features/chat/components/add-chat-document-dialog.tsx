@@ -120,6 +120,7 @@ function PickerBody({
       <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents…" value={query} />
       {/* Keyed by the term, so a failed read for one term does not stay on screen for the next. */}
       <QueryBoundary
+        resetKeys={[needle]}
         fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
         key={needle}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your documents" onRetry={retry} />}

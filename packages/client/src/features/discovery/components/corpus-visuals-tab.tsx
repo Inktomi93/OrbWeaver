@@ -14,7 +14,6 @@ import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -63,6 +62,7 @@ const FACET_VIEWS = [
 export function CorpusVisualsTab(): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the visuals" onRetry={retry} />}
       reserveKey="corpus.visuals"
@@ -180,21 +180,27 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
 }
 
 function FacetDrill({ facet, value }: { readonly facet: FacetKey; readonly value: string }): ReactElement {
-  const trpc = useTRPC();
-  const members = useQuery(trpc.discovery.charactersByImageFacet.queryOptions({ facet, value }));
+  return (
+    <QueryBoundary
+      resetKeys={[facet, value]}
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="those avatars" onRetry={retry} />}
+    >
+      <FacetMembers facet={facet} value={value} />
+    </QueryBoundary>
+  );
+}
 
-  if (members.isPending) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
-  if (members.error !== null) {
-    return <QueryErrorState label="those avatars" onRetry={members.refetch} />;
-  }
-  if (members.data.length === 0) {
+function FacetMembers({ facet, value }: { readonly facet: FacetKey; readonly value: string }): ReactElement {
+  const trpc = useTRPC();
+  const { data: members } = useSuspenseQuery(trpc.discovery.charactersByImageFacet.queryOptions({ facet, value }));
+
+  if (members.length === 0) {
     return <Text voice="gloss">No avatars carry “{value}”.</Text>;
   }
   return (
     <Stack gap="row" role="list">
-      {members.data.map((member) => (
+      {members.map((member) => (
         <ListRow
           key={member.characterId}
           clickable={true}

@@ -27,15 +27,18 @@ export interface LibrarySurfaceShellProps {
    * own (`preset.library`, `databank.library`, …); omitted, the boundary reserves nothing, as before.
    */
   readonly reserveKey?: string | undefined;
+  /** The list's read inputs, handed to the boundary's `resetKeys` (`[]` for a list whose read takes none). */
+  readonly resetKeys: readonly unknown[];
   /** The querying list component (calls `useSuspenseQuery` — mounted inside the boundary). */
   readonly children: ReactNode;
 }
 
 /** The library-surface QueryBoundary shell: shared load and error/retry copy. Its `ListPage` sits above it and
  *  owns the focus root and, with a `scroll` body, the scroll box the boundary must not sever. */
-export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, children }: LibrarySurfaceShellProps): ReactElement {
+export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, resetKeys, children }: LibrarySurfaceShellProps): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={resetKeys}
       fallback={
         <Stack role="status" aria-label={loadingLabel}>
           <SkeletonRows count={LIBRARY_LOADING_ROWS} />

@@ -33,6 +33,7 @@ import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.t
 export function AboutSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     <QueryBoundary
+      resetKeys={[]}
       fallback={<SkeletonRows count={2} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this install's version" onRetry={retry} />}
       reserveKey="config.about.version"

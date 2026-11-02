@@ -27,7 +27,7 @@ export function TagEditorStory({ tagId }: { readonly tagId: TagId }): ReactEleme
   return (
     <CtClientProviders>
       <TagEvents>
-        <QueryBoundary fallback={<SkeletonRows count={3} />}>
+        <QueryBoundary resetKeys={[tagId]} fallback={<SkeletonRows count={3} />}>
           <TagEditor tagId={tagId} />
         </QueryBoundary>
       </TagEvents>

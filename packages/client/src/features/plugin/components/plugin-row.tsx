@@ -325,6 +325,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   </CollapsibleTrigger>
                   <CollapsiblePanel>
                     <QueryBoundary
+                      resetKeys={[plugin.id]}
                       fallback={<SkeletonRows count={grantTasks.length} shape="line" />}
                       renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's model" onRetry={retry} />}
                       reserveKey="plugin.row.model"
@@ -343,6 +344,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 </CollapsibleTrigger>
                 <CollapsiblePanel>
                   <QueryBoundary
+                    resetKeys={[plugin.id]}
                     fallback={<SkeletonRows count={2} shape="line" />}
                     renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's activity" onRetry={retry} />}
                     reserveKey="plugin.row.activity"

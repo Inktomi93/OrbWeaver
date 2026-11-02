@@ -131,6 +131,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
     <Container className="relative overflow-y-auto overscroll-contain block-full">
       <QueryBoundary
+        resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
         reserveKey="character.libraryWelcome"

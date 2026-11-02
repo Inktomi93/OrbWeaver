@@ -92,6 +92,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
     <Stack gap="field" data-slot="rpg-card-archive">
       <Kicker>Cards</Kicker>
       <QueryBoundary
+        resetKeys={[chatId]}
         fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}

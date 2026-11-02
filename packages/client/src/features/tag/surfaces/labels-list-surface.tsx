@@ -44,7 +44,7 @@ export function LabelsListSurface(): ReactElement {
         </>
       }
     >
-      <LibrarySurfaceShell errorLabel="tags" loadingLabel="Loading tags…">
+      <LibrarySurfaceShell errorLabel="tags" loadingLabel="Loading tags…" resetKeys={[]}>
         <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
       </LibrarySurfaceShell>
     </ListPage>

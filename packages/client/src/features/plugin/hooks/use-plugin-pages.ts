@@ -18,7 +18,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import type { PluginPageKey } from "#state";
 import { pluginPageKey } from "#state";
 
@@ -41,32 +41,17 @@ export function pluginReviewKey(pluginId: PluginId): PluginPageKey {
   return pluginPageKey(pluginId, REVIEW_SURFACE);
 }
 
-export interface PluginPagesState {
-  readonly pages: readonly PluginPageView[];
-  readonly isPending: boolean;
-  readonly isError: boolean;
-  readonly retry: () => void;
-}
+type PluginRow = inferOutput<Trpc["plugin"]["list"]>[number];
 
 /**
  * Every extension page the caller can open, in a stable order: by plugin name, then by surface title. The order
  * is DERIVED and not a registration order on purpose — a switcher whose rows reshuffle when a plugin
  * re-registers is a list nobody can build muscle memory in.
- *
- * Not a suspense read: the Extensions section renders its own boundary and its own empty, and a switcher that
- * suspends the whole CONTENT region while the page you are reading is already painted is the wrong trade.
  */
-export function usePluginPagesState(): PluginPagesState {
-  const trpc = useTRPC();
-  const surfacesQuery = useQuery(trpc.plugin.listSurfaces.queryOptions());
-  const pluginsQuery = useQuery(trpc.plugin.list.queryOptions());
-  const surfaces = surfacesQuery.data;
-  const plugins = pluginsQuery.data;
-  const rows = plugins ?? [];
-  const pluginsById = new Map(rows.map((plugin) => [plugin.id, plugin] as const));
-  const allSurfaces = surfaces ?? [];
+function joinPluginPages(surfaces: readonly RegisteredSurface[], plugins: readonly PluginRow[]): readonly PluginPageView[] {
+  const pluginsById = new Map(plugins.map((plugin) => [plugin.id, plugin] as const));
   const pages: PluginPageView[] = [];
-  for (const surface of allSurfaces) {
+  for (const surface of surfaces) {
     if (surface.anchor !== "page") {
       continue;
     }
@@ -82,20 +67,26 @@ export function usePluginPagesState(): PluginPagesState {
       title: surface.title,
       tier: surface.tier,
       grants: plugin.grantedCapabilities,
-      scriptedIds: allSurfaces.filter((candidate) => candidate.pluginId === surface.pluginId && candidate.tier === "scripted").map((candidate) => candidate.id),
+      scriptedIds: surfaces.filter((candidate) => candidate.pluginId === surface.pluginId && candidate.tier === "scripted").map((candidate) => candidate.id),
       spec: surface.spec,
     });
   }
-  return {
-    pages: pages.toSorted((a, b) => a.pluginName.localeCompare(b.pluginName) || a.title.localeCompare(b.title)),
-    isPending: surfacesQuery.isPending || pluginsQuery.isPending,
-    isError: surfacesQuery.isError || pluginsQuery.isError,
-    retry: (): void => {
-      void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]).catch((error: unknown) => globalThis.reportError(error));
-    },
-  };
+  return pages.toSorted((a, b) => a.pluginName.localeCompare(b.pluginName) || a.title.localeCompare(b.title));
 }
 
+/** The pages as a value with a default, for the switcher, the list header and the selection title: a switcher that
+ *  suspends the whole CONTENT region while the page you are reading is already painted is the wrong trade. */
 export function usePluginPages(): readonly PluginPageView[] {
-  return usePluginPagesState().pages;
+  const trpc = useTRPC();
+  const surfaces = useQuery(trpc.plugin.listSurfaces.queryOptions()).data;
+  const plugins = useQuery(trpc.plugin.list.queryOptions()).data;
+  return joinPluginPages(surfaces ?? [], plugins ?? []);
+}
+
+/** The pages for the CONTENT pane's selected page, which suspends under that pane's own boundary until both reads land. */
+export function useSuspensePluginPages(): readonly PluginPageView[] {
+  const trpc = useTRPC();
+  const { data: surfaces } = useSuspenseQuery(trpc.plugin.listSurfaces.queryOptions());
+  const { data: plugins } = useSuspenseQuery(trpc.plugin.list.queryOptions());
+  return joinPluginPages(surfaces, plugins);
 }
