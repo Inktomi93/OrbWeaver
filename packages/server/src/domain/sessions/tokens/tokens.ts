@@ -1,6 +1,6 @@
 import { createHmac, hkdfSync, randomBytes } from "node:crypto";
 import type { SessionToken } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { SecretBox } from "#infra/crypto";
 import type { SessionsCryptoOps } from "../contract/service.ts";
@@ -41,10 +41,9 @@ export const SLIDE_THROTTLE_MS = SLIDE_THROTTLE_MINUTES * MS_PER_MINUTE;
 
 /** THE session-token mint — the one site a `SessionToken` comes into existence (256 bits of CSPRNG entropy,
  *  base64url so it is cookie-safe verbatim). The brand is applied HERE rather than at the verb so no other
- *  module can conjure one: `castId` is the sanctioned cast, and the value it brands is a freshly generated
- *  opaque secret, never a re-used string from elsewhere. */
+ *  module can conjure one: the value it parses is a freshly generated opaque secret, never a re-used string. */
 export function mintSessionToken(): SessionToken {
-  return castId<SessionToken>(randomBytes(RANDOM_TOKEN_BYTES).toString("base64url"));
+  return brandedId("SessionToken").parse(randomBytes(RANDOM_TOKEN_BYTES).toString("base64url"));
 }
 
 /** Build the bound, peppered token hasher; throws if the pepper is unset/empty (loud misconfiguration beats

@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { crc32, deflateRawSync, inflateRawSync, constants as zlibConstants } from "node:zlib";
 import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
+import { errnoCode } from "#primitives/errno";
 import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
 
 const SIG_LOCAL = 0x04_03_4b_50;
@@ -366,7 +367,7 @@ function inflateWithCap(compressed: Uint8Array, rec: CentralRecord): Uint8Array 
       finishFlush: zlibConstants.Z_FINISH,
     });
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    const code = errnoCode(err);
     if (code === "ERR_BUFFER_TOO_LARGE") {
       // biome-ignore lint/style/useErrorCause: cause IS forwarded — ZipRejectedError passes its 3rd-arg ErrorOptions to super(); biome only inspects the 2nd constructor arg.
       throw new ZipRejectedError("bomb", `entry ${rec.name} inflates beyond its declared size`, {

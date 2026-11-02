@@ -34,7 +34,7 @@
 import type { ClaimChatOp } from "@orb/contracts/chat";
 import { chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, batchStmt } from "@orb/db/query";
+import { batchLed } from "@orb/db/query";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context.ts";
@@ -149,15 +149,12 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
     const hostUserId = hostUserIdOf(participants);
     // A hostless room (an archived orphan / a racing delete) has nobody to attribute economics to, so the
     // replay is skipped — but the visibility flip still lands: the row is claimed either way.
-    const statements: BatchStmt[] = [
-      batchStmt(
-        ctx.db
-          .update(chats)
-          .set({ startedAt: now })
-          .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
-          .returning({ id: chats.id }),
-      ),
-    ];
+    const claim = ctx.db
+      .update(chats)
+      .set({ startedAt: now })
+      .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
+      .returning({ id: chats.id });
+    const statements: BatchStmt[] = [];
     if (hostUserId !== null) {
       const characterIds = participants.flatMap((r) => {
         const actor = classifyParticipant(r);
@@ -165,8 +162,7 @@ export function createClaimChat(ctx: ChatContext): ClaimChatOp {
       });
       await pushClaimStatsDeltas(ctx, statements, { chatId, ownerId: hostUserId, characterIds, createdAt: candidate.createdAt, now });
     }
-    const results = await ctx.db.batch(batchMany(statements));
-    const stamped = results[0] as readonly { readonly id: ChatId }[];
+    const [stamped] = await ctx.db.batch(batchLed(claim, statements));
     if (stamped.length === 0) {
       return;
     }

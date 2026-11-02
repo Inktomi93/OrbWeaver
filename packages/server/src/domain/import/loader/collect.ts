@@ -6,12 +6,12 @@
 // /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
+import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/character";
 import type { ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { chatContentHash, parseChatJsonl } from "#primitives/serde/chat";
 import { portableParseError } from "#primitives/serde/lib";
@@ -220,12 +220,13 @@ async function planeFiles(fs: ImportFsPort, profile: ListedProfile, plane: strin
 }
 
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
-// filename-derived slug becomes a card handle — castId here, so every downstream position stays branded.
+// filename-derived slug becomes a card handle: it parses here, so every downstream position stays branded.
 function disambiguate(state: CollectState, base: string): CharacterHandle {
-  let handle = castId<CharacterHandle>(base);
+  const parsed = characterHandleSchema.parse(base);
+  let handle = parsed;
   let n = 2;
   while (state.byHandle.get(handle)?.card !== undefined) {
-    handle = castId<CharacterHandle>(`${base}-${n}`);
+    handle = deriveCharacterHandle(parsed, `-${n}`);
     n += 1;
   }
   return handle;
@@ -275,7 +276,7 @@ async function collectChatsForDir(args: {
   readonly wallClockZone: string | undefined;
 }): Promise<void> {
   const { fs, chatsDir, dirName, state, wallClockZone } = args;
-  const handle = castId<CharacterHandle>(slugifyHandle(dirName));
+  const handle = characterHandleSchema.parse(slugifyHandle(dirName));
   if (state.skippedHandles.has(handle)) {
     return;
   }
@@ -792,8 +793,8 @@ export async function collectBundlesFromDir(
       orphanChatDirs.push(handle);
       // The orphan wave's input: the transcripts WITH their evidence (dir name + parsed headers) — before
       // 2026-08-15 these chats were counted, named in the report, and then thrown away. The map key IS the
-      // collect-time handle (the same castId seam `collectChatsForDir` minted it through).
-      orphanBundles.push({ dirName: g.dirName ?? handle, handle: castId<CharacterHandle>(handle), chats: g.chats });
+      // collect-time handle (the same parse `collectChatsForDir` minted it through).
+      orphanBundles.push({ dirName: g.dirName ?? handle, handle: characterHandleSchema.parse(handle), chats: g.chats });
     }
   }
 

@@ -11,8 +11,8 @@
 import type { CreateInviteInput } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { AuthConfigShare } from "@orb/contracts/identity";
+import { handleSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { trimEndWhile } from "@orb/kit/strings";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { SelectItems } from "@orb/ui/select/items";
@@ -153,7 +153,7 @@ export function toCreateInviteInput(values: InviteFormValues, now: number): Crea
   // form's own defaults say (`expiry: "never"`, `maxUses: null` = unlimited). Spelling the nulls is what
   // keeps the dialog honest: what the picker shows is what gets minted.
   return {
-    ...(values.mode === "handle" ? { invitedHandle: castId<Handle>(values.handle.trim()) } : {}),
+    ...(values.mode === "handle" ? { invitedHandle: handleSchema.parse(values.handle.trim()) } : {}),
     maxUses: values.maxUses,
     // The wire takes whole epoch ms; the dialog's performance-based clock carries a fraction.
     expiresAt: expiryMs === null ? null : Math.floor(now) + expiryMs,

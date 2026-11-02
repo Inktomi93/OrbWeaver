@@ -1,5 +1,4 @@
-import type { ChatTurnId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import type { RpgTraceInspector } from "#foundation/observability";
 
@@ -9,7 +8,7 @@ export function createRpgTraceInspector(recorder: RpgTraceRecorder): RpgTraceIns
     recent: (filter) =>
       recorder.recent({
         ...(filter.chatId === undefined ? {} : { chatId: filter.chatId }),
-        ...(filter.turnId === undefined ? {} : { turnId: castId<ChatTurnId>(filter.turnId) }),
+        ...(filter.turnId === undefined ? {} : { turnId: typeIdSchema(ID_PREFIX.chatTurn).parse(filter.turnId) }),
         ...(filter.limit === undefined ? {} : { limit: filter.limit }),
       }),
   };

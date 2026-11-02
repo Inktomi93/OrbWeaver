@@ -12,8 +12,6 @@
 // shared-plane arm so a member never SEES a control that would refuse.
 
 import { actorRefKey } from "@orb/contracts/rpg";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { omitKey } from "@orb/kit/objects";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -51,19 +49,16 @@ type TrackerView = inferOutput<Trpc["rpg"]["getTrackerView"]>;
 /**
  * The actor-ref key for a ref taken off the WIRE INPUT rather than off a view.
  *
- * `actorRefKey` (`\@orb/contracts/rpg`) stays the ONE projection — this only re-brands the ids on the way in.
- * The ref is `rpgActorRefSchema`, whose id fields are TRANSFORM-backed TypeIDs, and the CLIENT's tsc program
- * infers those through `inferInput` as `unknown` (the graph program resolves them fine — the two programs
- * genuinely disagree here). The values ARE the ids; `castId` is the house runtime no-op for saying so, and
- * `String()` is what makes that honest rather than an `as`-through-`unknown`. A total switch, so a fourth
- * actor kind fails to compile here exactly as it does in `actorRefKey`.
+ * `actorRefKey` (`\@orb/contracts/rpg`) stays the ONE projection. The ref is `rpgActorRefSchema`, whose
+ * `typeIdSchema` fields keep their brand on the input side, so the ids arrive branded. A total switch, so a
+ * fourth actor kind fails to compile here exactly as it does in `actorRefKey`.
  */
 function wireActorRefKey(ref: inferInput<Trpc["rpg"]["patchSheet"]>["actorRef"]): string {
   if (ref.kind === "character") {
-    return actorRefKey({ kind: "character", characterId: castId<CharacterId>(ref.characterId) });
+    return actorRefKey({ kind: "character", characterId: ref.characterId });
   }
   if (ref.kind === "user") {
-    return actorRefKey({ kind: "user", userId: castId<UserId>(ref.userId) });
+    return actorRefKey({ kind: "user", userId: ref.userId });
   }
   return actorRefKey({ kind: "npc", npcKey: ref.npcKey });
 }

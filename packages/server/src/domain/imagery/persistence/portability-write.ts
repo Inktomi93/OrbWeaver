@@ -1,12 +1,13 @@
 // The first WRITE arbitrates the owned call identity; every later output selects that winning claim.
 // Complete asset-group admission is repeated inside each write, so an invalid sibling admits nothing.
+
+import { characterHandleSchema } from "@orb/contracts/character";
 import type { ImageryImportSource, PortableImageryCall, PortableImageryImage } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, imageryImportCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
-import type { CharacterHandle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, or, sql } from "drizzle-orm";
 import { imageryCallImportHash, imageryRowImportHash } from "#primitives/serde/imagery";
@@ -88,9 +89,13 @@ function importedRowExists(db: Db, ownerId: UserId, call: PortableImageryCall, i
 }
 
 async function subjectIsLinked(db: Db, ownerId: UserId, call: PortableImageryCall, native: NativeImageryImportMatch | null): Promise<boolean> {
-  const handle = call.execution.subjectCharacterHandle;
-  if (handle === null) {
+  if (call.execution.subjectCharacterHandle === null) {
     return true;
+  }
+  // Exports write every handle through the alphabet, so a carried handle outside it names no restored card.
+  const handle = characterHandleSchema.safeParse(call.execution.subjectCharacterHandle).data;
+  if (handle === undefined) {
+    return false;
   }
   const claim = db
     .select({ id: imageryImportCalls.id })
@@ -116,7 +121,7 @@ async function subjectIsLinked(db: Db, ownerId: UserId, call: PortableImageryCal
         eq(assets.ownerId, ownerId),
         eq(characters.ownerId, ownerId),
         eq(characters.synthetic, false),
-        eq(characters.handle, castId<CharacterHandle>(handle)),
+        eq(characters.handle, handle),
         or(eq(imageryGenerations.callId, sql`(${claim})`), nativeLegacy),
       ),
     );
@@ -147,19 +152,14 @@ function outputStatement(
     .from(imageryImportCalls)
     .where(and(eq(imageryImportCalls.ownerId, ownerId), eq(imageryImportCalls.identity, imageryCallImportHash(call))));
   // SECURITY: the carried handle is untrusted; a synthetic group row is never a restored subject.
+  const subjectHandle = execution.subjectCharacterHandle === null ? undefined : characterHandleSchema.safeParse(execution.subjectCharacterHandle).data;
   const subject =
-    execution.subjectCharacterHandle === null
+    subjectHandle === undefined
       ? sql`null`
       : sql`(${db
           .select({ id: characters.id })
           .from(characters)
-          .where(
-            and(
-              eq(characters.ownerId, ownerId),
-              eq(characters.synthetic, false),
-              eq(characters.handle, castId<CharacterHandle>(execution.subjectCharacterHandle)),
-            ),
-          )
+          .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(characters.handle, subjectHandle)))
           .limit(1)})`;
   return db.insert(imageryGenerations).select(
     db

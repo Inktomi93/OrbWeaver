@@ -34,10 +34,10 @@
 // narrower than every other privileged surface in the app (D17 — see the verdict's own doc).
 
 import type { Principal, RequestTransport } from "@orb/contracts/identity";
-import { isCookieAuthMode } from "@orb/contracts/identity";
+import { handleSchema, isCookieAuthMode } from "@orb/contracts/identity";
 import type { UserPrincipalFields } from "@orb/contracts/session";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
 import type { Logger } from "#foundation/observability";
@@ -46,6 +46,8 @@ import { readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } 
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { mintPrincipal } from "./principal-mint.ts";
+
+const SESSION_TOKEN = brandedId("SessionToken");
 
 /** The boot-time deps the seam binds once. `config` is the root's one `AuthConfig` (`authConfigFromEnv` over its
  *  parsed env record). `verifyForwardJwt` is the port the signed forward-header path needs; absent ⇒ that layer is
@@ -125,7 +127,7 @@ export interface AuthSeam {
  */
 export function readSessionCookie(headers: Headers, transport: RequestTransport): SessionToken | null {
   const value = readRequestCookie(headers, sessionCookieFor(transport).name);
-  return value === null ? null : castId<SessionToken>(value);
+  return value === null ? null : (SESSION_TOKEN.safeParse(value).data ?? null);
 }
 
 /** The cookie arm's product: the Principal PLUS the session row that admitted it (see `AuthSeamResolution`). */
@@ -176,7 +178,7 @@ async function resolveCookiePrincipal(sessions: SessionsService, headers: Header
  * embedder), and removing it would resolve the arm to nothing there.
  */
 function ownerHandleForFallback(sessions: SessionsService, verificationHandle: Handle): Handle {
-  return castId<Handle>(sessions.rolePolicy.ownerHandles()[0] ?? verificationHandle);
+  return handleSchema.parse(sessions.rolePolicy.ownerHandles()[0] ?? verificationHandle);
 }
 
 /** Owner-fallback or SSO header path. `null` for an anonymous/disabled caller (→ transport 401). */
@@ -250,7 +252,7 @@ function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): P
   return mintPrincipal({
     userId,
     role: fields?.role ?? captureUserRole("user"),
-    handle: fields?.handle ?? castId<Handle>(userId),
+    handle: fields?.handle ?? handleSchema.parse(userId),
     externalId: fields?.externalId ?? null,
     via: "fallback",
   });

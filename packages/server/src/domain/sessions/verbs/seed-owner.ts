@@ -1,10 +1,10 @@
 // Trusted boot owner provisioning preserves the guarded durable backfill without inventing a Principal.
 // Private users persistence owns the SQL; ordinary runtime role changes still require admin authority.
 
+import { handleSchema } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { SeedOwnerContext, SeedOwnerParams } from "../contract/boot.ts";
 import {
@@ -69,13 +69,13 @@ async function seedOwner(deps: SeedOwnerContext): Promise<readonly UserId[]> {
   // insert-then-collide path that made a moved OWNER_HANDLES a fatal boot.
   const seedKey = deps.ownerHandles[0];
   if (seedKey !== undefined) {
-    await adoptMovedSeedKey(deps, castId<Handle>(seedKey), at);
+    await adoptMovedSeedKey(deps, handleSchema.parse(seedKey), at);
   }
   const seedPassword = deps.initialPassword !== undefined && deps.hashPassword !== undefined ? { plain: deps.initialPassword, hash: deps.hashPassword } : null;
   let passwordsSeeded = 0;
   const ids = await Promise.all(
     deps.ownerHandles.map(async (handle): Promise<UserId> => {
-      const userId = await deps.sessions.ensureUser(castId<Handle>(handle));
+      const userId = await deps.sessions.ensureUser(handleSchema.parse(handle));
       // Boot invariant: the owner row is always role=owner AND enabled. `enabled:true` self-heals a
       // disabled owner (a raw-write brick with no in-app exit — admin.setEnabled refuses the owner row).
       // The WHERE must fire on an ALREADY-owner-but-disabled row too, so it widens past the role backfill

@@ -23,12 +23,12 @@ import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
+import { userIdSchema } from "@orb/contracts/identity";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
-import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Context, Env, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
@@ -57,6 +57,7 @@ import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-
 import type { WireCaptureFilter } from "./wire-capture.ts";
 import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
+const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
 const MAX_RING_READ = 2000;
 const DEFAULT_LOG_LIMIT = 200;
 const DEFAULT_LIST_LIMIT = 100;
@@ -374,7 +375,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   if (sockets !== undefined) {
     app.get("/api/_debug/stream/sockets", (c) => {
       const userId = c.req.query("userId");
-      return c.json({ liveSockets: sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) });
+      return c.json({ liveSockets: sockets.liveSocketCount(userId === undefined ? undefined : userIdSchema.parse(userId)) });
     });
   }
 
@@ -400,7 +401,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     // object as `WireCaptureFilter` makes the next divergence a COMPILE error rather than a silent superset.
     const chatId = c.req.query("chatId");
     const filter: WireCaptureFilter = {
-      chatId: chatId === undefined ? undefined : castId<ChatId>(chatId),
+      chatId: chatId === undefined ? undefined : CHAT_ID.parse(chatId),
       providerId: c.req.query("backend"),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     };
@@ -418,7 +419,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
     const outcomes = recentTurnOutcomes(rings.turnOutcomes, {
-      ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+      ...(chatId !== undefined ? { chatId: CHAT_ID.parse(chatId) } : {}),
       limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
     return c.json({ enabled: wireCaptureEnabled(), count: outcomes.length, outcomes });
@@ -459,7 +460,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   if (db !== undefined) {
     app.get("/api/_debug/db/stats", async (c) => c.json({ tables: await tableCounts(db), auditFailures: options.auditFailures() }));
     app.get("/api/_debug/db/integrity", async (c) => c.json(await integrityProbe(db, log)));
-    app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, castId<ChatId>(c.req.param("id")))));
+    app.get("/api/_debug/db/chat/:id", async (c) => c.json(await inspectChatState(db, CHAT_ID.parse(c.req.param("id")))));
     // LIST probes: id-discovery so a harness stops re-deriving ids through the client query cache.
     app.get("/api/_debug/db/chats", async (c) => {
       const chats = await chatListSummaries(db);
@@ -485,12 +486,12 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
 
     app.get("/api/_debug/config/user", async (c) => {
       const userId = c.req.query("userId");
-      const users = await userSettingsRows(db, userId === undefined ? undefined : castId<UserId>(userId));
+      const users = await userSettingsRows(db, userId === undefined ? undefined : userIdSchema.parse(userId));
       return c.json({ count: users.length, users });
     });
 
     app.get("/api/_debug/config/chat/:id", async (c) => {
-      const chatId = castId<ChatId>(c.req.param("id"));
+      const chatId = CHAT_ID.parse(c.req.param("id"));
       const room = await chatConfigRow(db, chatId);
       if (room === null) {
         return c.json({ error: "no such chat" }, NOT_FOUND);
@@ -506,7 +507,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     });
 
     app.get("/api/_debug/config/character/:id", async (c) => {
-      const detail = await characterDetailRow(db, castId<CharacterId>(c.req.param("id")), deploymentFloor());
+      const detail = await characterDetailRow(db, typeIdSchema(ID_PREFIX.character).parse(c.req.param("id")), deploymentFloor());
       return detail === null ? c.json({ error: "no such character" }, NOT_FOUND) : c.json(detail);
     });
 
@@ -514,13 +515,13 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     // knobs a wire capture shows the EFFECT of without naming the source. `?ownerId=` narrows.
     app.get("/api/_debug/config/presets", async (c) => {
       const ownerId = c.req.query("ownerId");
-      const rows = await presetRows(db, ownerId === undefined ? undefined : castId<UserId>(ownerId));
+      const rows = await presetRows(db, ownerId === undefined ? undefined : userIdSchema.parse(ownerId));
       return c.json({ count: rows.length, presets: rows });
     });
 
     app.get("/api/_debug/config/personas", async (c) => {
       const ownerId = c.req.query("ownerId");
-      const rows = await personaRows(db, ownerId === undefined ? undefined : castId<UserId>(ownerId));
+      const rows = await personaRows(db, ownerId === undefined ? undefined : userIdSchema.parse(ownerId));
       return c.json({ count: rows.length, personas: rows });
     });
 
@@ -533,8 +534,8 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
       const chatId = c.req.query("chatId");
       const ruleId = c.req.query("ruleId");
       const fires = await automationFireRows(db, {
-        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
-        ...(ruleId !== undefined ? { ruleId: castId<AutomationRuleId>(ruleId) } : {}),
+        ...(chatId !== undefined ? { chatId: CHAT_ID.parse(chatId) } : {}),
+        ...(ruleId !== undefined ? { ruleId: typeIdSchema(ID_PREFIX.automationRule).parse(ruleId) } : {}),
         limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: fires.length, fires });
@@ -550,7 +551,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
       const chatId = c.req.query("chatId");
       const turnId = c.req.query("turnId");
       const events = rpgTrace.recent({
-        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+        ...(chatId !== undefined ? { chatId: CHAT_ID.parse(chatId) } : {}),
         ...(turnId !== undefined ? { turnId } : {}),
         limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
@@ -564,7 +565,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     app.get("/api/_debug/memory/recalls", (c) => {
       const chatId = c.req.query("chatId");
       const recalls = memoryRecall.recent({
-        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+        ...(chatId !== undefined ? { chatId: CHAT_ID.parse(chatId) } : {}),
         limit: toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
       return c.json({ count: recalls.length, recalls });

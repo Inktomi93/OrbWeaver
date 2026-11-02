@@ -3,8 +3,7 @@
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginRuntimeDeps, PluginRuntimeOps, PluginSuggestionExecutor } from "../contract/runtime-ports.ts";
@@ -30,7 +29,7 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
         automationDepth,
         // A plugin's turn has no viewer and its installer stamped no clock, so it reads the no-viewer zone.
         timeZone: UTC_TIME_ZONE,
-        ...(speakerCharacterId !== undefined ? { speakerCharacterId: castId<CharacterId>(speakerCharacterId) } : {}),
+        ...(speakerCharacterId !== undefined ? { speakerCharacterId: typeIdSchema(ID_PREFIX.character).parse(speakerCharacterId) } : {}),
         ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
       });
     },
@@ -57,13 +56,13 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
     },
     cardState: {
       setCardData: async ({ installerUserId, slug, characterId, data }): ReturnType<PluginRuntimeOps["cardState"]["setCardData"]> => {
-        const written = await deps.writeCardData({ characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug }, data);
+        const written = await deps.writeCardData({ characterId: typeIdSchema(ID_PREFIX.character).parse(characterId), ownerId: installerUserId, slug }, data);
         if (!written) {
           throw new PluginNotFoundError(characterId);
         }
       },
       getCardData: async ({ installerUserId, slug, characterId }): ReturnType<PluginRuntimeOps["cardState"]["getCardData"]> => {
-        const read = await deps.readCardData({ characterId: castId<CharacterId>(characterId), ownerId: installerUserId, slug });
+        const read = await deps.readCardData({ characterId: typeIdSchema(ID_PREFIX.character).parse(characterId), ownerId: installerUserId, slug });
         if (!read.found) {
           throw new PluginNotFoundError(characterId);
         }

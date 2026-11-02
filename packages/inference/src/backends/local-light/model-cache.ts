@@ -446,7 +446,10 @@ async function readRepoFile(
   }
   const url = `${mod.env.remoteHost}${mod.env.remotePathTemplate.replace("{model}", modelId).replace("{revision}", revision ?? "main")}${file}`;
   // The lib's own transport, so these files take the same path (and the same egress rules) as the weights do.
-  const res = (await mod.env.fetch(url)) as Response;
+  const res: unknown = await mod.env.fetch(url);
+  if (!(res instanceof Response)) {
+    throw rerankLoadError(modelId, `${file} fetch returned no Response`);
+  }
   if (!res.ok) {
     throw new ProviderError({
       kind: "server",

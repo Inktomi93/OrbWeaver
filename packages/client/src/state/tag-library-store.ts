@@ -10,6 +10,7 @@
 // follow them to another machine, and it writes on every dropdown change — traffic the synced blob should
 // not carry. Registered as device-local in packages/client/src/state/device-local-registry.ts.
 
+import { isPlainObject } from "@orb/kit/guards";
 import type { TagSortMode } from "#lib";
 import { DEFAULT_TAG_SORT_MODE, TAG_SORT_MODES } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
@@ -38,7 +39,7 @@ function isSortMode(v: unknown): v is TagSortMode {
 
 // TOTAL migrate: an unknown/corrupt persisted shape degrades to the default rather than throwing.
 function migrate(persisted: unknown): TagLibraryState {
-  const stored = (persisted as { sortMode?: unknown } | null)?.sortMode;
+  const stored = isPlainObject(persisted) ? persisted["sortMode"] : undefined;
   return { sortMode: isSortMode(stored) ? stored : DEFAULT_TAG_SORT_MODE, pruneConfirmOpen: false, filter: "" };
 }
 

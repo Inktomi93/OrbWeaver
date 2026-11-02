@@ -6,15 +6,11 @@
 // supported fallback and every model a plugin or endpoint learns after startup.
 
 import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** Parse a provider-owned model id: trim transport/import whitespace, refuse empty, then apply the brand. */
-export const modelIdSchema: z.ZodType<ModelId, string> = z
-  .string()
-  .trim()
-  .min(1)
-  .transform((value): ModelId => castId<ModelId>(value));
+export const modelIdSchema: z.ZodType<ModelId, string> = z.string().trim().min(1).pipe(brandedId("ModelId"));
 
 // huggingface_hub's repo-id rule with the owner segment required: each segment starts and ends with a word
 // character, so no segment is empty, `.` or `..`, and no id is absolute, drive-lettered or a URL.

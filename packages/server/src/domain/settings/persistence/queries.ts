@@ -20,7 +20,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
@@ -65,10 +65,10 @@ function backgroundUnavailable(): DomainOperationError {
  *  deduped. These are exactly the ids the write predicate has to clear. Exported for
  *  `heal-legacy-background-pins.ts` (#1600), the ONE other reader of this predicate. */
 export function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
-  const current =
-    config.appearance.backgroundImageKind === "asset" && config.appearance.backgroundAssetId.length > 0
-      ? [castId<AssetId>(config.appearance.backgroundAssetId)]
-      : [];
+  // An empty or unparseable pointer names no asset, so it pins nothing.
+  const pinned =
+    config.appearance.backgroundImageKind === "asset" ? typeIdSchema(ID_PREFIX.asset).safeParse(config.appearance.backgroundAssetId).data : undefined;
+  const current = pinned === undefined ? [] : [pinned];
   const ids = [...current, ...config.appearance.backgroundLibrary.map((entry) => entry.assetId)];
   return ids.filter((id, index, all) => all.indexOf(id) === index);
 }

@@ -3,11 +3,11 @@
 // `findCharacterByHandle`, and an unresolved/null handle writes the row un-charactered. Gates on asset
 // ownership and dedups on `(assetId, subjectCharacterId)`. Never throws for a bad file — `{ok:false, error}`.
 
+import { characterHandleSchema } from "@orb/contracts/character";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
 import { GALLERY_SCHEMA_KIND, parseGallery } from "#primitives/serde/gallery";
 import { portableParseError } from "#primitives/serde/lib";
@@ -26,11 +26,9 @@ async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalG
     return false;
   }
   let subjectCharacterId: CharacterId | null = null;
-  if (item.subjectCharacterHandle !== null && ctx.findCharacterByHandle !== undefined) {
-    subjectCharacterId = await ctx.findCharacterByHandle({
-      ownerId,
-      handle: castId<CharacterHandle>(item.subjectCharacterHandle),
-    });
+  const subjectHandle = item.subjectCharacterHandle === null ? undefined : characterHandleSchema.safeParse(item.subjectCharacterHandle).data;
+  if (subjectHandle !== undefined && ctx.findCharacterByHandle !== undefined) {
+    subjectCharacterId = await ctx.findCharacterByHandle({ ownerId, handle: subjectHandle });
   }
   const result = await importGalleryItem(ctx.db, {
     id: ctx.newGalleryItemId(),

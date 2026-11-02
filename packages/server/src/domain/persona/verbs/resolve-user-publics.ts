@@ -6,7 +6,6 @@ import type { ResolveUserPublicsOp } from "@orb/contracts/persona";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { UserPublicsDeps } from "../contract/ops.ts";
 import type { PersonaContext } from "../contract/service.ts";
 import { loadOwnedPersonaPublic } from "../persistence/queries.ts";
@@ -24,7 +23,7 @@ export function createResolveUserPublics(input: DbAssemblyInput<Pick<PersonaCont
       // only source of `displayName`/`handle`.
       try {
         const raw = (await deps.loadUserSettings(userId)).profile.avatarAssetId ?? null;
-        avatarAssetId = raw === null ? null : castId<AssetId>(raw);
+        avatarAssetId = raw === null ? null : raw;
       } catch {
         // The fallback stays absent.
       }

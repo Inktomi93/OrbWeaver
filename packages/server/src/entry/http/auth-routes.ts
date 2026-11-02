@@ -31,12 +31,11 @@ import {
   signupResultSchema,
 } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
-import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
+import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { Context, Hono, MiddlewareHandler } from "hono";
@@ -710,7 +709,7 @@ function registerLoginRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, authe
     if (handleThrottled !== null) {
       return handleThrottled;
     }
-    const userId = await authenticate(castId<Handle>(handle), password);
+    const userId = await authenticate(handleSchema.parse(handle), password);
     if (userId === null) {
       return c.json({ error: "invalid credentials" }, UNAUTHORIZED);
     }
@@ -839,7 +838,7 @@ function registerSignupRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, sign
     if (request instanceof Response) {
       return request;
     }
-    const handle = castId<Handle>(request.handle);
+    const handle = handleSchema.parse(request.handle);
     const refusal = await admitSignupAttempt(
       c,
       signup,
@@ -1481,7 +1480,7 @@ function registerBackchannelLogout(
         return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
       }
 
-      const { revoked, userIds } = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+      const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(subject.sub));
       // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
       // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
       // users and evicts nothing.
@@ -1601,9 +1600,9 @@ function identityFromClaims(
     );
     return null;
   }
-  // Branded ONCE here, so the two observability calls below and the returned identity all speak about the
+  // Parsed ONCE here, so the two observability calls below and the returned identity all speak about the
   // same `Handle` and no bare `string` stands where a handle is meant.
-  const handle = castId<Handle>(username);
+  const handle = handleSchema.parse(username);
   const rawUid = readClaimPath(claims, claimMap.uidClaim);
   const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
   if (uid === null) {
@@ -1643,7 +1642,7 @@ function identityFromClaims(
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {
-    externalId: uid === null ? null : castId<ExternalId>(uid),
+    externalId: uid === null ? null : externalIdSchema.parse(uid),
     handle,
     groups,
     email,

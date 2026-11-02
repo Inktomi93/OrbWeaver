@@ -1,8 +1,3 @@
-// The ModelPicker's typed-only arm: no list to pick from (empty, failed, or none read). Split out of
-// model-picker.tsx to keep that file under the component-size cap.
-
-import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -27,7 +22,7 @@ export function TypedModelField({
   onRetry,
 }: {
   readonly value: string;
-  readonly onValueChange: (modelId: ModelId) => void;
+  readonly onValueChange: (value: string) => void;
   readonly error: string | null;
   readonly placeholder: string;
   readonly notice: string;
@@ -48,7 +43,7 @@ export function TypedModelField({
           error={error}
           label="Model"
         >
-          <Input autoComplete="off" onChange={(event): void => onValueChange(castId<ModelId>(event.target.value))} placeholder={placeholder} value={value} />
+          <Input autoComplete="off" onChange={(event): void => onValueChange(event.target.value)} placeholder={placeholder} value={value} />
         </Field>
       ) : (
         <>

@@ -15,7 +15,6 @@ import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts
 import type { Db } from "@orb/db";
 import { characters, messages, messageVariants } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import type { SelectedCostMaps } from "../contract/cost-samples.ts";
 import { aggregateTokenProvenance, recordedTokens } from "../substrate/rates.ts";
@@ -103,9 +102,7 @@ export async function readCharacterEconomics(db: Db, ownerId: UserId): Promise<C
     GROUP BY m.character_id
   `);
   return rows.map((r) => ({
-    // Raw-SQL boundary mint: `m.character_id` is the branded characters.id column; sql`` rows come back
-    // untyped.
-    characterId: castId<CharacterId>(r.characterId),
+    characterId: r.characterId,
     // The sample counters, not this sum, decide recorded-vs-null (see recordedTokens) — coalescing here is safe.
     tokensOut: recordedTokens(r.tokensOut ?? 0, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
@@ -140,7 +137,7 @@ export async function readCharacterModelEconomics(db: Db, ownerId: UserId): Prom
     GROUP BY m.character_id, v.model, v.provider
   `);
   return rows.map((r) => ({
-    characterId: castId<CharacterId>(r.characterId),
+    characterId: r.characterId,
     model: r.model,
     provider: r.provider,
     generations: r.generations,

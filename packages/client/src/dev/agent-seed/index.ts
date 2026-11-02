@@ -28,7 +28,6 @@
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { RpgActorOp, RpgActorRef } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { OrbSeedHandle, SeedProfile } from "../../lib/agent-bridge.ts";
 import type { AgentSeedClient } from "./client.ts";
 import { GameSeedFlights, PendingGameSeed } from "./retry-attempt.ts";
@@ -331,7 +330,7 @@ export function buildAgentSeed(client: AgentSeedClient): OrbSeedHandle {
     const page = await client.character.list.query({ limit: CHARACTER_LIST_MAX_LIMIT, search: PLAYER_HANDLE });
     const existing = page.items.find((c) => c.handle === PLAYER_HANDLE);
     if (existing !== undefined) {
-      return castId<CharacterId>(existing.id);
+      return existing.id;
     }
     const created = await client.character.create.mutate({
       input: {
@@ -341,7 +340,7 @@ export function buildAgentSeed(client: AgentSeedClient): OrbSeedHandle {
         greetings: [{ text: "Rain again. Fitting, for the night everything changes." }],
       },
     });
-    return castId<CharacterId>(created.id);
+    return created.id;
   }
 
   function game(args: { profile: SeedProfile; title?: string }): Promise<{ readonly chatId: ChatId }> {
@@ -364,7 +363,7 @@ export function buildAgentSeed(client: AgentSeedClient): OrbSeedHandle {
 
       // 1) The room. The caller (auto-resolved owner) becomes the host participant; the card joins the roster.
       const started = await client.chat.startChat.mutate({ characterIds: [characterId], title });
-      const chatId = castId<ChatId>(started.chat.id);
+      const chatId = started.chat.id;
 
       const actorWrites: readonly { readonly targetRef: RpgActorRef; readonly ops: readonly RpgActorOp[] }[] = [
         {

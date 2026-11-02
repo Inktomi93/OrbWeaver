@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { ImportFsPort } from "@orb/contracts/import";
+import { errnoCode } from "#primitives/errno";
 import { readStorageFileNoFollow } from "./stage-dir.ts";
 
 type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];
@@ -32,7 +33,7 @@ export function createNodeFsImportPort(): ImportFsPort {
         const ents = await readdirFs(dir, { withFileTypes: true });
         return ents.map((e): FsEntry => ({ name: e.name, kind: direntKind(e) }));
       } catch (error) {
-        if (!ABSENT_DIR_CODES.has((error as NodeJS.ErrnoException).code ?? "")) {
+        if (!ABSENT_DIR_CODES.has(errnoCode(error) ?? "")) {
           throw error;
         }
         return [];

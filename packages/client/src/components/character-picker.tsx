@@ -20,7 +20,6 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -273,7 +272,7 @@ interface CharacterPickerRowProps {
 
 // keywords carries the display name so cmdk's value-based filter still matches what the user reads.
 function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPickerRowProps): ReactElement {
-  const id = castId<CharacterId>(character.id);
+  const id = character.id;
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>

@@ -3,12 +3,13 @@
 // account's seed ledger, so an item the user deleted is never seeded again and an item a later build adds
 // here reaches existing accounts on their next boot.
 
-import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import type { SeedManifestItem } from "./contract/index.ts";
 
+const CHARACTER_HANDLE = brandedId("CharacterHandle");
+
 function character(handle: string): SeedManifestItem {
-  return { kind: "character", key: `character:${handle}`, handle: castId<CharacterHandle>(handle) };
+  return { kind: "character", key: `character:${handle}`, handle: CHARACTER_HANDLE.parse(handle) };
 }
 
 type RosterItem = Extract<SeedManifestItem, { readonly kind: "rosterPreset" }>;
@@ -19,7 +20,7 @@ function roster(slug: string, name: string, description: string, handles: readon
     key: `roster:${slug}`,
     name,
     description,
-    characters: handles.map((handle) => castId<CharacterHandle>(handle)),
+    characters: handles.map((handle) => CHARACTER_HANDLE.parse(handle)),
     startsGame: false,
   };
 }

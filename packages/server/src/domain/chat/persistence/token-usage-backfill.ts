@@ -7,7 +7,7 @@ import type { CompareAndSetImportedTokenUsage, ImportedTokenUsageCandidate, List
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany } from "@orb/db/query";
+import { batchLed } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle } from "@orb/db/wiring";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
@@ -88,27 +88,25 @@ export function createCompareAndSetImportedTokenUsage(
           tokensOut: resolution.tokensOut,
           tokenProvenance: resolution.tokenProvenance,
         };
-    const statements: BatchStmt[] = [
-      db
-        .update(messageVariants)
-        .set(values)
-        .where(
-          and(
-            eq(messageVariants.id, candidate.variantId),
-            eq(messageVariants.tokenProvenance, "unrecorded"),
-            eq(messageVariants.content, candidate.content),
-            candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
-            candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
-            candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),
-          ),
-        )
-        .returning({ id: messageVariants.id }),
-    ];
+    const update = db
+      .update(messageVariants)
+      .set(values)
+      .where(
+        and(
+          eq(messageVariants.id, candidate.variantId),
+          eq(messageVariants.tokenProvenance, "unrecorded"),
+          eq(messageVariants.content, candidate.content),
+          candidate.metadata === null ? isNull(messageVariants.metadata) : eq(messageVariants.metadata, candidate.metadata),
+          candidate.tokensIn === null ? isNull(messageVariants.tokensIn) : eq(messageVariants.tokensIn, candidate.tokensIn),
+          candidate.tokensOut === null ? isNull(messageVariants.tokensOut) : eq(messageVariants.tokensOut, candidate.tokensOut),
+        ),
+      )
+      .returning({ id: messageVariants.id });
+    const statements: BatchStmt[] = [];
     // A losing CAS may conservatively advance the token. That costs at most a retry; separating the update
     // from its fence would let a winning write escape the rebuild snapshot entirely.
     bumpCanonVersion(batchHandle(statements), input, candidate.ownerId);
-    const results = await db.batch(batchMany(statements));
-    const changed = results[0] as readonly { readonly id: string }[];
+    const [changed] = await db.batch(batchLed(update, statements));
     return changed.length === 1;
   };
 }

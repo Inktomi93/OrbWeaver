@@ -25,7 +25,6 @@
 
 import type { RefinerySessionStatus } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import { selectRefinerySession, setActiveSection } from "#state";
@@ -73,7 +72,7 @@ function resumableSessionIdOf(roster: readonly SessionSummaryView[], characterId
       newest = row;
     }
   }
-  return newest === null ? null : castId<RefinerySessionId>(newest.id);
+  return newest === null ? null : newest.id;
 }
 
 export interface UseOpenRefineryResult {
@@ -100,7 +99,7 @@ export function useOpenRefinery(): UseOpenRefineryResult {
       // a failed roster explicitly takes the mint arm rather than locking this door (header); createEntityMutation's errorToast owns a failed startSession. Ends if roster failure stops permitting mint or the mutation loses its failure owner.
       const roster = await (peekQueryData(queryClient, options.queryKey) ?? queryClient.query(options).catch((): SessionList => []));
       const resumable = resumableSessionIdOf(roster, characterId);
-      const sessionId = resumable ?? castId<RefinerySessionId>((await start.mutateAsync({ characterId })).id);
+      const sessionId = resumable ?? (await start.mutateAsync({ characterId })).id;
       selectRefinerySession(sessionId);
       setActiveSection("refinery");
       return sessionId;

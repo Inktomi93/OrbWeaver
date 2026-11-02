@@ -11,8 +11,7 @@ import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { IdSource, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { TRPCError } from "@trpc/server";
@@ -505,7 +504,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     appSettingRows: () => readGlobalSettings(deps.db),
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
     // foundation sits BELOW transport in the tier list and may not import it.
-    sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) },
+    sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : userId) },
     // The SAME live read every other consumer above uses — so the /config probes report the deployment tier
     // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
     // verdict instead of leaving the reader to infer what it inherits.

@@ -38,7 +38,7 @@ import type {
   ImageEmbeddingId,
   UserId,
 } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
@@ -604,7 +604,7 @@ function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): Await
         db
           .update(characterEmbeddings)
           .set({ hubScore: u.hubScore })
-          .where(and(eq(characterEmbeddings.id, castId<CharacterEmbeddingId>(u.id)), eq(characterEmbeddings.model, u.model)))
+          .where(and(eq(characterEmbeddings.id, typeIdSchema(ID_PREFIX.characterEmbedding).parse(u.id)), eq(characterEmbeddings.model, u.model)))
           .returning({ id: characterEmbeddings.id }),
       );
     case "image_embeddings":
@@ -612,7 +612,7 @@ function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): Await
         db
           .update(imageEmbeddings)
           .set({ hubScore: u.hubScore })
-          .where(and(eq(imageEmbeddings.id, castId<ImageEmbeddingId>(u.id)), eq(imageEmbeddings.model, u.model)))
+          .where(and(eq(imageEmbeddings.id, typeIdSchema(ID_PREFIX.imageEmbedding).parse(u.id)), eq(imageEmbeddings.model, u.model)))
           .returning({ id: imageEmbeddings.id }),
       );
     case "chat_digests":
@@ -620,7 +620,7 @@ function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): Await
         db
           .update(chatDigests)
           .set({ hubScore: u.hubScore })
-          .where(and(eq(chatDigests.id, castId<ChatDigestId>(u.id)), eq(chatDigests.model, u.model)))
+          .where(and(eq(chatDigests.id, typeIdSchema(ID_PREFIX.chatDigest).parse(u.id)), eq(chatDigests.model, u.model)))
           .returning({ id: chatDigests.id }),
       );
     case "chat_segments":
@@ -628,7 +628,7 @@ function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): Await
         db
           .update(chatSegments)
           .set({ hubScore: u.hubScore })
-          .where(and(eq(chatSegments.id, castId<ChatSegmentId>(u.id)), eq(chatSegments.model, u.model)))
+          .where(and(eq(chatSegments.id, typeIdSchema(ID_PREFIX.chatSegment).parse(u.id)), eq(chatSegments.model, u.model)))
           .returning({ id: chatSegments.id }),
       );
     case "document_chunks":
@@ -637,7 +637,7 @@ function hubScoreStatement(db: Db, table: VectorTable, u: HubScoreUpdate): Await
         db
           .update(documentChunks)
           .set({ hubScore: u.hubScore })
-          .where(and(eq(documentChunks.id, castId<DocumentChunkId>(u.id)), eq(documentChunks.model, u.model)))
+          .where(and(eq(documentChunks.id, typeIdSchema(ID_PREFIX.documentChunk).parse(u.id)), eq(documentChunks.model, u.model)))
           .returning({ id: documentChunks.id }),
       );
     default:

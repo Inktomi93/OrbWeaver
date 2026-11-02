@@ -5,7 +5,7 @@ import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, SandboxWireId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { PluginHostOps } from "../contract/ops.ts";
 import type { PluginQuietLlmDeps } from "../contract/quiet-llm.ts";
@@ -36,7 +36,7 @@ export function buildPluginQuietLlm(deps: PluginQuietLlmDeps): PluginHostOps["ll
       return [];
     }
     const caller = await deps.resolveOwnerPrincipal(installerUserId);
-    const owned = await Promise.all(assetIds.map((id) => deps.assets.readOwnedAssetBytes(caller, castId<AssetId>(id))));
+    const owned = await Promise.all(assetIds.map((id) => deps.assets.readOwnedAssetBytes(caller, typeIdSchema(ID_PREFIX.asset).parse(id))));
     return owned.map((asset) => asset.bytes);
   };
   return async ({ installerUserId, pluginId, prompt, signal, opts }) => {

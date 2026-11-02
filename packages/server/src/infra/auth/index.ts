@@ -15,8 +15,7 @@
 // `foundation/observability` (securityEvent), `infra/network` (the CIDR matcher), `@orb/contracts/*`,
 // `@orb/kit/*`, `node:*`.
 
-import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { handleSchema } from "@orb/contracts/identity";
 import type { IdentityResolution, ResolveDeps } from "./contract.ts";
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 import { hasForwardingHeader } from "./forwarded.ts";
@@ -42,6 +41,12 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
   const { config } = deps;
   const identity = await MODE_RESOLVERS[config.mode](headers, config, deps);
 
+  // SECURITY (invariant 5): a presented identity that was refused is terminal. It answers anonymous and never reaches
+  // the owner fallback, or a failed credential from a fallback-admitted peer would become the owner.
+  if (identity !== null && "refused" in identity) {
+    return { identity: null, via: "header" };
+  }
+
   if (identity !== null) {
     // A non-null identity from infra is always the forward-header path (post-D40 infra never resolves a
     // cookie — the seam does). `via:"header"`.
@@ -55,7 +60,7 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
       return {
         identity: {
           externalId: null,
-          handle: castId<Handle>(config.defaultHandle),
+          handle: handleSchema.parse(config.defaultHandle),
           groups: [],
           email: null,
         },

@@ -27,7 +27,7 @@
 // synchronous, void and total by construction, and neither is a durable fact — the committed rows are.
 
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
-import { batchMany } from "@orb/db/query";
+import { batchLed } from "@orb/db/query";
 import type { AuditEntry } from "#foundation/observability";
 import type { AdminContext } from "../contract/service.ts";
 
@@ -47,8 +47,6 @@ interface AuditedWrite<TRow> {
  * refusal, and no audit row was written for it).
  */
 export async function commitAuditedWrite<TRow>(ctx: AdminContext, args: AuditedWrite<TRow>): Promise<TRow[]> {
-  const results = await ctx.db.batch(batchMany([args.write, ctx.auditStatementAfterWrite(args.entry, args.at), ...(args.tails ?? [])]));
-  // Statement 1 is the primary write; `batchMany` erases the tuple type, so the first result is re-narrowed
-  // to its RETURNING shape here (the house shape — `domain/chat/verbs/claim-chat.ts`).
-  return results[0] as TRow[];
+  const [rows] = await ctx.db.batch(batchLed(args.write, [ctx.auditStatementAfterWrite(args.entry, args.at), ...(args.tails ?? [])]));
+  return rows;
 }

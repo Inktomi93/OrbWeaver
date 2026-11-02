@@ -4,14 +4,12 @@
 // position ties deterministically. Uniqueness of characterIds is the wire schema's refinement (and the
 // junction PK's physics) — not re-checked here.
 //
-// The `castId` at the seam is the sanctioned untyped-boundary cast, not a mint: the LENIENT input's
-// `characterId` is a plain string (`z.input` of the TypeID schema), and the write verbs run
-// `ensureMembersOwned` on the result BEFORE any row lands — a fabricated id matches no owned row and
-// collapses to the same leak-free NotFound a foreign one does.
+// The input's `characterId` arrives parsed by its TypeID schema, and the write verbs run `ensureMembersOwned`
+// on the result BEFORE any row lands — a foreign id matches no owned row and collapses to the same leak-free
+// NotFound a missing one does.
 
 import type { CreateRosterPresetInput, RosterPresetMemberView } from "@orb/contracts/roster-preset";
-import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { RosterPresetId } from "@orb/kit/ids";
 import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
 
 /** Wire seats → normalized junction writes: sorted by wire position, re-stamped dense 0..n-1, knob
@@ -20,7 +18,7 @@ export function normalizeMembers(members: CreateRosterPresetInput["members"]): M
   return [...members]
     .sort((a, b) => a.position - b.position)
     .map((member, index) => ({
-      characterId: castId<CharacterId>(member.characterId),
+      characterId: member.characterId,
       position: index,
       talkativeness: member.talkativeness ?? null,
       disabled: member.disabled ?? false,

@@ -2,8 +2,6 @@
 
 import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/inference";
-import type { PresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { GreetingCompletionDeps, GreetingTemplateDeps } from "../contract/greeting-ops.ts";
 import type { CharacterContext } from "../contract/service.ts";
 
@@ -14,7 +12,7 @@ export function createGreetingTemplate(deps: GreetingTemplateDeps): CharacterCon
     if (defaultPresetId === null) {
       return { template: fallback, prose: {} };
     }
-    const config = await deps.readPresetConfig(caller.userId, castId<PresetId>(defaultPresetId));
+    const config = await deps.readPresetConfig(caller.userId, defaultPresetId);
     if (config === null) {
       return { template: fallback, prose: {} };
     }

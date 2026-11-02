@@ -28,6 +28,7 @@
 
 import type { RegexAttachScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronUp, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -95,7 +96,7 @@ export function RegexScopeOrder({ scope, scripts, renderItem }: RegexScopeOrderP
       itemLabel={(script: RegexScriptRow): string => regexScriptTitle(script)}
       items={scripts}
       onReorder={(orderedKeys): void => {
-        commit(orderedKeys.map((key) => key as RegexScriptId));
+        commit(orderedKeys.map((key) => typeIdSchema(ID_PREFIX.regexScript).parse(key)));
       }}
       renderItem={renderItem}
     />

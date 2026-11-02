@@ -26,8 +26,7 @@
 // `component-size` cap; the split is also the honest one — the landing joins a different read set than the
 // session pipeline does and shares none of its state.
 
-import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -53,13 +52,7 @@ function ResumeSessions(): ReactElement | null {
         <Text voice="kicker">Continue a session</Text>
         <Stack gap="tight">
           {active.map((session) => (
-            <Button
-              className="justify-start"
-              variant="outline"
-              key={session.id}
-              onClick={(): void => selectRefinerySession(castId<RefinerySessionId>(session.id))}
-              size="sm"
-            >
+            <Button className="justify-start" variant="outline" key={session.id} onClick={(): void => selectRefinerySession(session.id)} size="sm">
               <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
                 {session.name ?? session.characterName}
               </Text>

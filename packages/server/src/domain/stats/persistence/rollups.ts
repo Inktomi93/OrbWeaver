@@ -23,7 +23,6 @@ import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
 import { escapeLikeTerm } from "@orb/db/query";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
 import { aggregateTokenProvenance, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
@@ -304,9 +303,7 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
     ORDER BY p.created_at DESC
   `);
   return rows.map((r) => ({
-    // Raw-SQL boundary mint: `p.id` is the branded personas.id column, but sql`` template rows come back
-    // untyped.
-    personaId: castId<PersonaId>(r.personaId),
+    personaId: r.personaId,
     name: r.name,
     chatCount: r.chatCount,
     messageCount: r.messageCount,

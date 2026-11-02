@@ -1,5 +1,6 @@
 import type { ComboboxPositionerProps as BasePositionerProps, ComboboxRootProps as BaseRootProps } from "@base-ui/react/combobox";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
+import { isPlainObject } from "@orb/kit/guards";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
@@ -89,7 +90,7 @@ export interface ComboboxProps extends ComboboxPassthrough {
 function ComboboxResultStatus(): ReactElement {
   const filtered = BaseCombobox.useFilteredItems<unknown>();
   const count = filtered.reduce<number>((total, entry) => {
-    const nested = (entry as { items?: readonly unknown[] }).items;
+    const nested = isPlainObject(entry) ? entry["items"] : undefined;
     return total + (Array.isArray(nested) ? nested.length : 1);
   }, 0);
   return (

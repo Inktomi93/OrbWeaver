@@ -3,8 +3,6 @@
 // the write (one spelling — imported from `create.ts`); the not-owned and not-found answers collapse
 // into one leak-free NotFound.
 
-import type { PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { RosterPresetNameConflictError, RosterPresetNotFoundError } from "../contract/errors.ts";
 import type { UpdateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetContext, RosterPresetService } from "../contract/service.ts";
@@ -22,7 +20,7 @@ export function createUpdate(ctx: RosterPresetContext): RosterPresetService["upd
     // The SAME validation ladder as create (one spelling, full replace) — see create.ts's header.
     const members = normalizeMembers(input.members);
     await ensureMembersOwned(ctx, ownerId, members);
-    const anchorPersonaId = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? null : castId<PersonaId>(input.anchorPersonaId);
+    const anchorPersonaId = input.anchorPersonaId ?? null;
     await ensureAnchorOwned(ctx, ownerId, anchorPersonaId);
     const groupConfig = parsedGroupConfig(input.groupConfig);
     const gameTemplate = parsedGameTemplate(input.game);

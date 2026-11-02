@@ -11,7 +11,6 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import { isConstraintViolation } from "@orb/db/query";
 import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
@@ -57,7 +56,7 @@ export function createRebuildFromTree(ctx: AssetsContext): AssetsService["rebuil
     let ownersWalked = 0;
     const skippedOwners: UserId[] = [];
     for await (const owner of ctx.cas.listOwners()) {
-      const ownerId = castId<UserId>(owner);
+      const ownerId = owner;
       try {
         const walked = await rebuildOwner(ctx, ownerId, kind, signal);
         scanned += walked.scanned;

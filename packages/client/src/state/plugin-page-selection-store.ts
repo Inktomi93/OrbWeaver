@@ -14,14 +14,17 @@
 // persisted blob to sanitize.
 
 import type { Branded, PluginId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 /** The composite drill key: `<pluginId>:<surfaceId>`. */
 export type PluginPageKey = Branded<"PluginPageKey">;
 
+const PLUGIN_PAGE_KEY = brandedId("PluginPageKey");
+
 /** Join the pair into the drill key — the ONE mint. */
 export function pluginPageKey(pluginId: PluginId, surfaceId: string): PluginPageKey {
-  return `${pluginId}:${surfaceId}` as PluginPageKey;
+  return PLUGIN_PAGE_KEY.parse(`${pluginId}:${surfaceId}`);
 }
 
 const store = createDrillSelectionStore<PluginPageKey>("plugin-page-selection");

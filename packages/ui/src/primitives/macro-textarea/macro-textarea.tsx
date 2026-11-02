@@ -126,7 +126,7 @@ function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly 
       name: h["name"] as string,
       ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
       ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
-      ...(h["args"] !== undefined ? { args: h["args"] as string[] } : {}),
+      ...(Array.isArray(h["args"]) ? { args: h["args"].filter((arg): arg is string => typeof arg === "string") } : {}),
       ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
     }),
   );

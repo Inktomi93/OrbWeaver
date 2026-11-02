@@ -453,6 +453,8 @@ export interface AppearanceMatrixContract {
  * The debug bridge adds current
  *  reached-subject counts; tooling never owns a second list of Appearance keys or arms. */
 export function appearanceMatrixContract(): AppearanceMatrixContract {
+  // Read the optional list through the declared row shape: no row carries it yet, so `in` would narrow it to `unknown`.
+  const declared: AppearanceCarrierManifest = APPEARANCE_CARRIER_MANIFEST;
   const rows = (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).map((key): AppearanceMatrixContractRow => {
     const row = APPEARANCE_CARRIER_MANIFEST[key];
     const executable = "requiredDistinctArms" in row;
@@ -465,7 +467,7 @@ export function appearanceMatrixContract(): AppearanceMatrixContract {
       portal: row.portal,
       arms: executable ? row.requiredDistinctArms : null,
       dependsOn: "dependsOn" in row ? row.dependsOn : [],
-      incompatibleWith: "incompatibleWith" in row ? (row.incompatibleWith as readonly AppearanceCarrierKey[]) : [],
+      incompatibleWith: declared[key].incompatibleWith ?? [],
       observable: executable ? APPEARANCE_CARRIER_OBSERVABLES[key as keyof typeof APPEARANCE_CARRIER_OBSERVABLES] : null,
     };
   });

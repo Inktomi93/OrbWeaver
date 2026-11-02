@@ -17,6 +17,7 @@ import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads"
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { ZIP_STAGING_PREFIX } from "#infra/storage";
+import { isMissingFile } from "#primitives/errno";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
@@ -220,7 +221,7 @@ async function entriesOf(dir: string): Promise<readonly Dirent[]> {
   try {
     return await readdir(dir, { withFileTypes: true });
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+    if (isMissingFile(err)) {
       return [];
     }
     throw err;

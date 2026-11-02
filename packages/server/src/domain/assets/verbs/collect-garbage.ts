@@ -10,7 +10,6 @@
 
 import type { Db } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
 import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
@@ -84,7 +83,7 @@ export function createCollectGarbage(ctx: AssetsContext): AssetsService["collect
         cas: ctx.cas,
         variants: ctx.variants,
         // The CAS owner segment IS the `UserId` (D21 — the partition key is the branded id verbatim).
-        ownerId: castId<UserId>(owner),
+        ownerId: owner,
         referenced,
         now,
         dryRun,

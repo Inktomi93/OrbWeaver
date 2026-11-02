@@ -4,7 +4,6 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 import type { ActiveQuerySpace, QueryEmbedConnection, SearchContext } from "../contract/service.ts";
@@ -69,7 +68,7 @@ async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: Embed
   if (active.connectionId === null) {
     throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library no longer exists — re-indexing is required");
   }
-  const connection = await resolveConnection(ctx, ownerId, active.via, castId<UserConnectionId>(active.connectionId));
+  const connection = await resolveConnection(ctx, ownerId, active.via, active.connectionId);
   if (connection === null || generationIdOf({ ownerId, task, via: active.via, connection, space: active.space }) !== active.id) {
     throw new SearchError(SEARCH_SPACE_REINDEXING, "the connection for your indexed library changed — re-indexing is required");
   }

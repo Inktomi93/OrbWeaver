@@ -4,7 +4,7 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Capability } from "@orb/contracts/inference";
 import { embedDimsOf } from "@orb/contracts/inference";
 import type { EmbedGenerationId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#primitives/content-hash";
 
@@ -77,7 +77,7 @@ export function generationIdOf(params: {
 }): EmbedGenerationId {
   const { ownerId, task, via, connection, space } = params;
   const dims = embedDimsOf(connection.capability);
-  return castId<EmbedGenerationId>(
+  return brandedId("EmbedGenerationId").parse(
     sha256Hex(
       stableStringify({
         ownerId,

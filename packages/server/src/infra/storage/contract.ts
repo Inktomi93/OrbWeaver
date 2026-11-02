@@ -36,7 +36,7 @@ export interface Cas {
   verify: (ownerId: UserId, hash: string) => Promise<boolean>;
   remove: (ownerId: UserId, hash: string) => Promise<void>;
   listHashes: (ownerId: UserId) => AsyncIterable<string>;
-  listOwners: () => AsyncIterable<string>;
+  listOwners: () => AsyncIterable<UserId>;
 }
 
 export interface VariantKey {

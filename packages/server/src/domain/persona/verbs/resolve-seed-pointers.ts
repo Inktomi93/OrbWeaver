@@ -1,6 +1,3 @@
-// Only missing or foreign persona pointers degrade to absent; an operational failure must propagate.
-import type { PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { PersonaSeedPointerDeps, PersonaSeedPointers } from "../contract/seed-pointers.ts";
 /** Resolve each founding pointer under its own user's authority. */
@@ -15,7 +12,7 @@ export function createResolvePersonaSeedPointers(deps: PersonaSeedPointerDeps): 
       try {
         const persona = await deps.get({
           principal: deps.principalForUser(userId),
-          personaId: castId<PersonaId>(raw),
+          personaId: raw,
         });
         return persona.id;
       } catch (err) {
@@ -36,7 +33,7 @@ export function createResolvePersonaSeedPointers(deps: PersonaSeedPointerDeps): 
       try {
         const persona = await deps.get({
           principal: deps.principalForUser(userId),
-          personaId: castId<PersonaId>(raw),
+          personaId: raw,
         });
         return persona.id;
       } catch (err) {

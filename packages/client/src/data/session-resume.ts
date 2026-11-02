@@ -19,7 +19,7 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 
 /** The tab-scoped key the bounce writes under. */
 const RESUME_KEY = "orb:session-resume";
@@ -70,7 +70,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
       return null;
     }
     const { chatId } = parsed;
-    return { chatId: typeof chatId === "string" ? castId<ChatId>(chatId) : null };
+    return { chatId: typeIdSchema(ID_PREFIX.chat).safeParse(chatId).data ?? null };
   } catch {
     return null; // a corrupt blob is discarded, never trusted (#11 autosave doctrine)
   }

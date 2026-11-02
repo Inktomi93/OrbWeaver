@@ -21,8 +21,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
 import { createBundlePaths } from "#domain/export";
@@ -107,6 +106,10 @@ function serveDownload(body: Uint8Array | string, mime: string, filename: string
   });
 }
 
+function transcriptMime(format: ExportChatFormat | undefined): string {
+  return (format ?? "jsonl") === "jsonl" ? JSONL_MIME : TXT_MIME;
+}
+
 /** Register the download routes on `app`. A downstream verb `null` (not-owned/not-host, or missing) → 404. */
 export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void {
   app.get(PORTABILITY_ROUTES.exportCharacter, async (c) => {
@@ -120,7 +123,11 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
       return c.json({ error: `invalid "${FORMAT_QUERY}" — expected png or json` }, BAD_REQUEST);
     }
     const format = formatRaw as ExportCardFormat | undefined;
-    const characterId = castId<CharacterId>(c.req.param("characterId"));
+    // An id that does not parse names no character, so it answers the same 404 as a foreign one.
+    const characterId = typeIdSchema(ID_PREFIX.character).safeParse(c.req.param("characterId")).data;
+    if (characterId === undefined) {
+      return c.body(null, NOT_FOUND);
+    }
     const card = await deps.export.exportCharacter({ principal, characterId, format });
     if (card === null) {
       return c.body(null, NOT_FOUND);
@@ -137,7 +144,10 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (formatRaw !== undefined && formatRaw !== CHAT_FORMAT_ORB && !CHAT_FORMATS.has(formatRaw)) {
       return c.json({ error: `invalid "${FORMAT_QUERY}" — expected jsonl, txt or orb` }, BAD_REQUEST);
     }
-    const chatId = castId<ChatId>(c.req.param("chatId"));
+    const chatId = typeIdSchema(ID_PREFIX.chat).safeParse(c.req.param("chatId")).data;
+    if (chatId === undefined) {
+      return c.body(null, NOT_FOUND);
+    }
     if (formatRaw === CHAT_FORMAT_ORB) {
       // The FIDELITY container — the whole room (injections, the tag overlay, room overrides, the
       // variable/macro picks, the rpg campaign), not the ST interchange's message subset.
@@ -149,8 +159,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (transcript === null) {
       return c.body(null, NOT_FOUND);
     }
-    const mime = (format ?? "jsonl") === "jsonl" ? JSONL_MIME : TXT_MIME;
-    return serveDownload(transcript.text, mime, transcript.filename);
+    return serveDownload(transcript.text, transcriptMime(format), transcript.filename);
   });
 
   app.get(PORTABILITY_ROUTES.exportLibrary, (c) => {

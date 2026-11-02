@@ -55,6 +55,7 @@
 // the belt to judge. The renderer keeps its union widget for those.
 
 // Strip mode: these schemas also read model output, which can carry keys this release does not declare.
+import { isPlainObject } from "@orb/kit/guards";
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { PROTO_KEY, readOwnKey } from "@orb/kit/objects";
 import { z } from "zod";
@@ -362,18 +363,44 @@ function fieldKeyOf(segment: string): string {
   return segment.endsWith("[]") ? segment.slice(0, -2) : segment;
 }
 
+// Every object node this module mints carries `properties` and `required`; a node without them is a defect here.
+function propertiesOf(node: Record<string, unknown>): Record<string, unknown> {
+  const properties = node["properties"];
+  if (!isPlainObject(properties)) {
+    throw new Error("schema forge: an object node has no properties map");
+  }
+  return properties;
+}
+
+function requiredOf(node: Record<string, unknown>): unknown[] {
+  const required = node["required"];
+  if (!Array.isArray(required)) {
+    throw new Error("schema forge: an object node has no required list");
+  }
+  return required;
+}
+
+function itemsOf(node: unknown): unknown {
+  return isPlainObject(node) ? node["items"] : undefined;
+}
+
+// The object node a property holds, through one array wrapper; `undefined` for a leaf.
+function objectChildOf(child: unknown): Record<string, unknown> | undefined {
+  const inner = isPlainObject(child) && child["type"] === "array" ? child["items"] : child;
+  return isPlainObject(inner) && inner["type"] === "object" ? inner : undefined;
+}
+
 /** The container a path segment addresses: the object node that owns the NEXT segment. A `[]` suffix wraps
  *  that object in an array first. Returns the owning object node, minting it when absent. */
 function descend(parent: Record<string, unknown>, segment: string): Record<string, unknown> | null {
   const isArray = segment.endsWith("[]");
   const key = fieldKeyOf(segment);
-  const properties = parent["properties"] as Record<string, unknown>;
+  const properties = propertiesOf(parent);
   const existing = readOwnKey(properties, key);
   if (existing !== undefined) {
     // Re-entering a container two rows share. A leaf already sitting here is a collision, not a container.
-    const node = isArray ? (existing as Record<string, unknown>)["items"] : existing;
-    const owner = node as Record<string, unknown> | undefined;
-    return owner !== undefined && owner["type"] === "object" ? owner : null;
+    const node = isArray ? itemsOf(existing) : existing;
+    return isPlainObject(node) && node["type"] === "object" ? node : null;
   }
   const owner: Record<string, unknown> = { type: "object", properties: {}, required: [] };
   properties[key] = isArray ? { type: "array", items: owner } : owner;
@@ -398,14 +425,14 @@ function placeRow(root: Record<string, unknown>, row: ForgeFieldRow): string | n
   const last = segments.at(-1) ?? "";
   const isList = last.endsWith("[]");
   const key = fieldKeyOf(last);
-  const properties = owner["properties"] as Record<string, unknown>;
+  const properties = propertiesOf(owner);
   if (readOwnKey(properties, key) !== undefined) {
     return `"${key}" is declared twice`;
   }
   const leaf = leafNodeOf(row);
   properties[key] = isList ? { type: "array", items: leaf } : leaf;
   if (row.required) {
-    (owner["required"] as string[]).push(key);
+    requiredOf(owner).push(key);
   }
   return null;
 }
@@ -413,11 +440,9 @@ function placeRow(root: Record<string, unknown>, row: ForgeFieldRow): string | n
 /** Every object node reachable from the root, so a post-pass can walk containers uniformly. */
 function objectNodesOf(node: Record<string, unknown>, path: string, out: { node: Record<string, unknown>; path: string }[]): void {
   out.push({ node, path });
-  const properties = node["properties"] as Record<string, unknown> | undefined;
-  for (const [key, child] of Object.entries(properties ?? {})) {
-    const record = child as Record<string, unknown>;
-    const inner = record["type"] === "array" ? (record["items"] as Record<string, unknown> | undefined) : record;
-    if (inner !== undefined && inner["type"] === "object") {
+  for (const [key, child] of Object.entries(propertiesOf(node))) {
+    const inner = objectChildOf(child);
+    if (inner !== undefined) {
       objectNodesOf(inner, `${path}.${key}`, out);
     }
   }
@@ -429,12 +454,10 @@ function propagateRequired(root: Record<string, unknown>): void {
   const nodes: { node: Record<string, unknown>; path: string }[] = [];
   objectNodesOf(root, "#", nodes);
   for (const { node } of nodes.reverse()) {
-    const properties = (node["properties"] ?? {}) as Record<string, unknown>;
-    const required = node["required"] as string[];
-    for (const [key, child] of Object.entries(properties)) {
-      const record = child as Record<string, unknown>;
-      const inner = record["type"] === "array" ? (record["items"] as Record<string, unknown> | undefined) : record;
-      const childRequired = inner !== undefined && inner["type"] === "object" && Array.isArray(inner["required"]) && inner["required"].length > 0;
+    const required = requiredOf(node);
+    for (const [key, child] of Object.entries(propertiesOf(node))) {
+      const inner = objectChildOf(child);
+      const childRequired = inner !== undefined && Array.isArray(inner["required"]) && inner["required"].length > 0;
       if (childRequired && !required.includes(key)) {
         required.push(key);
       }
@@ -472,9 +495,8 @@ export function transpileForgeDesign(design: ForgeDesignEnvelope, stage: Refiner
     }
   }
   propagateRequired(root);
-  const properties = root["properties"] as Record<string, unknown>;
-  properties[core.name] = { ...core.node };
-  root["required"] = [core.name, ...(root["required"] as string[]).filter((n) => n !== core.name)];
+  propertiesOf(root)[core.name] = { ...core.node };
+  root["required"] = [core.name, ...requiredOf(root).filter((n) => n !== core.name)];
   return { schema: root, dropped };
 }
 

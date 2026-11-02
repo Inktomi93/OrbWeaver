@@ -1,5 +1,5 @@
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { handleSchema } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectAuthByHandle } from "../persistence/users.ts";
@@ -11,8 +11,9 @@ import { selectAuthByHandle } from "../persistence/users.ts";
 
 export function createAuthenticate(ctx: SessionsContext): Pick<SessionsService, "authenticate"> {
   async function authenticate(rawHandle: string, password: string): Promise<UserId | null> {
-    const handle = castId<Handle>(rawHandle.trim());
-    const row = await selectAuthByHandle(ctx.db, handle);
+    // A handle the schema refuses names no row; it still burns the KDF below.
+    const handle = handleSchema.safeParse(rawHandle.trim()).data;
+    const row = handle === undefined ? undefined : await selectAuthByHandle(ctx.db, handle);
     // Constant-time floor: always run the KDF, even for a missing/SSO-only row, against the dummy hash.
     const ok = await ctx.verifyPassword(password, row?.passwordHash ?? ctx.dummyPasswordHash);
     if (!ok || row === undefined || !row.enabled) {

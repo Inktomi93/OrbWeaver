@@ -65,6 +65,7 @@ import {
   pluginSurfaceRegistrationMetaSchema,
   pluginWorldEntryUpsertSchema,
 } from "@orb/contracts/plugin";
+import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
@@ -750,8 +751,8 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     impl: async (args, signal) => {
       requireCapability(runtime, "chat.listMessages");
       const { chatId } = resolveChat(runtime, args[0]);
-      const opts = args[1] as { limit?: unknown } | undefined;
-      const limit = typeof opts?.limit === "number" ? opts.limit : undefined;
+      const opts = args[1];
+      const limit = isPlainObject(opts) && typeof opts["limit"] === "number" ? opts["limit"] : undefined;
       return await runtime.bridge.chat.listMessages(chatId, limit, invocationLiveness(signal));
     },
   });
@@ -1057,8 +1058,9 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
       if (typeof queryText !== "string") {
         throw new Error("plugin host: search.documents requires a queryText string");
       }
-      const opts = args[1] as { limit?: unknown } | undefined;
-      const limit = typeof opts?.limit === "number" ? Math.min(Math.max(1, Math.trunc(opts.limit)), PLUGIN_SEARCH_RESULTS_MAX) : undefined;
+      const opts = args[1];
+      const limit =
+        isPlainObject(opts) && typeof opts["limit"] === "number" ? Math.min(Math.max(1, Math.trunc(opts["limit"])), PLUGIN_SEARCH_RESULTS_MAX) : undefined;
       return await runtime.bridge.search.documents(queryText, limit, invocationLiveness(signal));
     },
   });

@@ -11,7 +11,7 @@
 // nothing is threaded through props that the store already carries.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
@@ -109,7 +109,7 @@ function FacesStripView({
       clearChatListCharacterFilter();
       return;
     }
-    setChatListCharacterFilter({ avatarHash: face.avatarHash, id: castId<CharacterId>(id), name: face.name });
+    setChatListCharacterFilter({ avatarHash: face.avatarHash, id, name: face.name });
   };
   // Captions on: this strip is a NAMED shortcut list (the library's favorites strip stays portraits-only),
   // so a face you haven't opened in a week is still identifiable without hovering it. The kicker is the
@@ -151,7 +151,7 @@ function FacesStripView({
           <CharacterPicker
             autoFocusSearch={true}
             emptyText="No other characters to filter by."
-            excludeIds={shownIds.map((id) => castId<CharacterId>(id))}
+            excludeIds={shownIds.map((id) => typeIdSchema(ID_PREFIX.character).parse(id))}
             label="Filter by another character"
             onSelect={(id, name, avatarHash): void => {
               setChatListCharacterFilter({ avatarHash, id, name });

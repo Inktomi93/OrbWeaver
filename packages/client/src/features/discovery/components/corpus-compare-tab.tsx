@@ -8,7 +8,7 @@
 // selection.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, Sparkles } from "@orb/ui/icons";
@@ -31,6 +31,8 @@ import {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "#state";
+
+const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 
 const NONE = "";
 const REDUNDANCY_PRECISION = 2;
@@ -63,9 +65,9 @@ function CompareBody(): ReactElement {
   const b = useCorpusCompareB();
   const aName = useCorpusCompareAName();
   const bName = useCorpusCompareBName();
-  const ready = a !== NONE && b !== NONE && a !== b;
-  const idA = castId<CharacterId>(a);
-  const idB = castId<CharacterId>(b);
+  const idA = CHARACTER_ID.safeParse(a).data;
+  const idB = CHARACTER_ID.safeParse(b).data;
+  const ready = idA !== undefined && idB !== undefined && idA !== idB;
 
   const listed: readonly SelectOption[] = [{ value: NONE, label: "Pick a character" }, ...catalog.items.map((c) => ({ value: c.characterId, label: c.name }))];
 

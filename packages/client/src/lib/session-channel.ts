@@ -25,6 +25,7 @@
 // and both fall back to a same-tab-only path: the channel becomes a no-op, and single-flight falls back to a
 // module-level latch that still prevents an intra-tab stampede.
 
+import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 
 /** The channel name — one per origin. */
@@ -77,18 +78,22 @@ function lockManager(): LockManagerLike | undefined {
 /** A `SessionMessage` or nothing — a channel is a public origin-wide bus, so an unknown payload is ignored
  *  rather than trusted (a browser extension or a stale tab from a previous deploy can post anything). */
 function asSessionMessage(data: unknown): SessionMessage | null {
-  const kind = (data as { kind?: unknown } | null | undefined)?.kind;
+  if (!isPlainObject(data)) {
+    return null;
+  }
+  const { kind } = data;
   if (kind === "signed-out" || kind === "session-recovering") {
     return { kind };
   }
   if (kind === "session-recovered") {
-    const handle = (data as { handle?: unknown }).handle;
+    const { handle } = data;
     // Parsing the transport shape proves only "string". The next authenticated session read is what can
     // restore the Handle brand; accepting the sibling's assertion here would smuggle any string into it.
     return { kind, handle: typeof handle === "string" ? handle : null };
   }
-  if (kind === "durable-local-written" && typeof (data as { storeName?: unknown }).storeName === "string") {
-    return { kind, storeName: (data as { storeName: string }).storeName };
+  const { storeName } = data;
+  if (kind === "durable-local-written" && typeof storeName === "string") {
+    return { kind, storeName };
   }
   return null;
 }

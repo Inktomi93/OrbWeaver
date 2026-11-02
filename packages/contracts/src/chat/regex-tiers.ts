@@ -49,7 +49,7 @@ export function characterRegexTierKey(characterId: CharacterId): RegexTierKey {
 
 /** The character id inside a character tier key, or `null` for one of the three fixed keys. The ONE reader. */
 export function parseCharacterRegexTierKey(key: RegexTierKey): CharacterId | null {
-  return key.startsWith(CHARACTER_TIER_PREFIX) ? (key.slice(CHARACTER_TIER_PREFIX.length) as CharacterId) : null;
+  return key.startsWith(CHARACTER_TIER_PREFIX) ? typeIdSchema(ID_PREFIX.character).parse(key.slice(CHARACTER_TIER_PREFIX.length)) : null;
 }
 
 const tierCharacterIdSchema = typeIdSchema(ID_PREFIX.character);

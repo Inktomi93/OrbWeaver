@@ -2,8 +2,7 @@
 
 import { PLUGIN_ASSET_READ_MAX_BYTES } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { PluginAssetReadDeps, PluginAssetReads } from "../contract/plugin-reads.ts";
 
 /** Bind the reduced asset surface and the two lifecycle byte readers. */
@@ -17,7 +16,7 @@ export function createPluginAssetReads(deps: PluginAssetReadDeps): PluginAssetRe
       // unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no
       // existence oracle). Ends if this needs to tell "foreign" apart from an infra failure.
       try {
-        const owned = await assets.readOwnedAssetBytes(caller, castId<AssetId>(assetId));
+        const owned = await assets.readOwnedAssetBytes(caller, typeIdSchema(ID_PREFIX.asset).parse(assetId));
         const sizeBytes = owned.bytes.length;
         return {
           mime: owned.mime,

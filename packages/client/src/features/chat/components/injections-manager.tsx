@@ -29,8 +29,8 @@
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
-import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -341,12 +341,12 @@ export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): R
       onSave={(key, values): Promise<unknown> =>
         setInjection.mutateAsync({
           chatId,
-          id: castId<ChatInjectionId>(key),
+          id: typeIdSchema(ID_PREFIX.chatInjection).parse(key),
           ...fromInjectionForm(values),
         })
       }
       onDelete={(key): void => {
-        deleteInjection.mutate({ chatId, injectionId: castId<ChatInjectionId>(key) });
+        deleteInjection.mutate({ chatId, injectionId: typeIdSchema(ID_PREFIX.chatInjection).parse(key) });
       }}
     />
   );

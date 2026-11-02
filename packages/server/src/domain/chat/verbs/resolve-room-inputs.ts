@@ -4,8 +4,7 @@ import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse } from "@orb/contracts/prose";
-import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "../contract/memory.ts";
 import type { ChatRoomInputDeps, ChatRoomInputs } from "../contract/room-inputs.ts";
 
@@ -120,7 +119,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
     resolveTempChatTtlHours: async (userId) => (await deps.loadUserSettings(userId)).chat.tempChatTtlHours,
     resolveWelcomeAssistantId: async (userId): ReturnType<ChatRoomInputs["resolveWelcomeAssistantId"]> => {
       const id = (await deps.loadUserSettings(userId)).seeds.welcomeAssistantCharacterId;
-      return id === null ? null : castId<CharacterId>(id);
+      return id === null ? null : id;
     },
     readReactionDefaults: async (userId): ReturnType<ChatRoomInputs["readReactionDefaults"]> => {
       const us = await deps.loadUserSettings(userId);

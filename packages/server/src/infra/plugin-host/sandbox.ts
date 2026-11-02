@@ -1,4 +1,5 @@
 import type { InvocationChat, PluginBridge, PluginBudgets } from "@orb/contracts/plugin";
+import { brandedId } from "@orb/kit/ids";
 // The Sandbox — one guest instance = one QuickJSContext (own globals, own memory cap, own interrupt budget).
 // It provides the skeleton (boot/teardown, injected-seam realm, per-invocation DoS budget, the async promise
 // bridge) and the MEMBRANE: the capability-gated host-fn call surface (membrane.ts),
@@ -47,6 +48,7 @@ import { installRealm, LogRing } from "./realm.ts";
 /** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
  *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
  *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
+const PLUGIN_HANDLER_REF = brandedId("PluginHandlerRef");
 const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 
 /** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
@@ -236,7 +238,7 @@ export class Sandbox implements Disposable {
             inFlight: state.inFlight,
             pending: state.pending,
             collectTool: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.tools.push({
                 name: reg.name,
@@ -248,27 +250,27 @@ export class Sandbox implements Disposable {
               });
             },
             collectTransform: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.transforms.push({ name: reg.name, point: reg.point, handler: ref });
             },
             collectEvent: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.events.push({ type: reg.type, handler: ref });
             },
             collectPubsub: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.pubsub.push({ emitterSlug: reg.emitterSlug, name: reg.name, handler: ref });
             },
             collectDisplayTransform: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.displayTransforms.push({ name: reg.name, handler: ref });
             },
             collectMacro: (reg, handler): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);
               state.macros.push({ name: reg.name, description: reg.description, handler: ref });
             },
@@ -281,12 +283,12 @@ export class Sandbox implements Disposable {
                 upsertSurface(state.surfaces, { ...meta, ...body });
                 return;
               }
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, onAction);
               upsertSurface(state.surfaces, { ...meta, ...body, onAction: ref });
             },
             collectCommand: (meta, onRun): void => {
-              const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
+              const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, onRun);
               state.commands.push({ ...meta, onRun: ref });
             },

@@ -187,6 +187,14 @@ function liftNumber(node: Record<string, unknown>, isInt: boolean): RuntimeGener
   return boxGeneratedSchema(schema);
 }
 
+function enumOf(node: Record<string, unknown>, path: string): readonly unknown[] {
+  const values = node["enum"];
+  if (!Array.isArray(values)) {
+    throw new JsonSchemaLiftError("enum (not an array)", path);
+  }
+  return values;
+}
+
 function liftEnum(values: readonly unknown[], path: string): RuntimeGeneratedSchema {
   if (values.length === 0) {
     throw new JsonSchemaLiftError("enum (empty)", path);
@@ -340,7 +348,7 @@ function liftNode(node: Record<string, unknown>, path: string, depth: number): R
   }
   if ("enum" in node && node["type"] === undefined) {
     rejectUnsupportedKeys(node, STRING_TYPE, path);
-    return liftEnum(node["enum"] as readonly unknown[], path);
+    return liftEnum(enumOf(node, path), path);
   }
 
   const type = node["type"];
@@ -355,7 +363,7 @@ function liftNode(node: Record<string, unknown>, path: string, depth: number): R
   // A typed node may still pin an enum (e.g. type:"string" + enum:[…]) — the enum wins (narrower). Which
   // types may carry one, and why, is `liftTypedEnum`'s own doc.
   if ("enum" in node) {
-    return liftTypedEnum(node["enum"] as readonly unknown[], type, path);
+    return liftTypedEnum(enumOf(node, path), type, path);
   }
 
   switch (type) {

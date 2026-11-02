@@ -29,11 +29,10 @@
 // `rpgPromotedCardDescription` home) and `mood`/`relationship` are dropped. The panel's promotion affordance
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
+import { characterHandleSchema } from "@orb/contracts/character";
 import type { PromoteActorResult } from "@orb/contracts/rpg";
 import { actorRefKey, clampActorCardName, rpgPromotedCardDescription } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
-import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import type { PromoteActorParams } from "../contract/params.ts";
 import type { RpgContext, RpgService } from "../contract/service.ts";
@@ -92,7 +91,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // what crosses here is the VALUE, minted on the receiving side's terms. Minted from `rawName`, never the
       // display-clamped `name`: `slugifyHandle` folds + bounds independently (its own `MAX_FOLDED_POINTS`), so
       // truncating twice would only shorten the handle's disambiguator for no reason.
-      handle: castId<CharacterHandle>(slugifyHandle(rawName)),
+      handle: characterHandleSchema.parse(slugifyHandle(rawName)),
       description: rpgPromotedCardDescription(identity),
     });
     if (!minted.ok) {

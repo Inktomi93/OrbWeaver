@@ -35,8 +35,7 @@ import type { GeneratePicturePrompt } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { parseCompleteInteger } from "@orb/kit/macro";
 import { readOwnKey, writeOwnKey } from "@orb/kit/objects";
@@ -316,7 +315,8 @@ async function runGenerateImage(
   } else {
     promptArgs = { mode: action.mode };
   }
-  const subjectCharacterId = action.subjectCharacterId ?? (frame.fact.character === undefined ? undefined : castId<CharacterId>(frame.fact.character.id));
+  const subjectCharacterId =
+    action.subjectCharacterId ?? (frame.fact.character === undefined ? undefined : typeIdSchema(ID_PREFIX.character).parse(frame.fact.character.id));
   await deps.ops.imagery.generatePicture({
     authorUserId: frame.authorUserId,
     ruleId: frame.origin.ruleId,

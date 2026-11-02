@@ -5,7 +5,7 @@
 
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { cosineToMany, mean } from "@orb/kit/vector-math";
 import type { SimilarChat } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
@@ -75,7 +75,7 @@ async function similarChats(db: Db, ownerId: UserId, chatId: ChatId, limit = DEF
   }
   const sims = cosineToMany(targetCentroid, otherCentroids);
   const scored = otherIds.map((id, i) => ({
-    chatId: castId<ChatId>(id),
+    chatId: typeIdSchema(ID_PREFIX.chat).parse(id),
     title: titleByChat.get(id) ?? null,
     similarity: sims[i] ?? 0,
   }));
