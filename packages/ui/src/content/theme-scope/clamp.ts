@@ -32,7 +32,7 @@
 import type { MessageRole } from "@orb/kit/message-role";
 import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { bubbleInset, carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
+import { bubbleInsetForeground, carriedReadingHosts, derivedForegroundLightness, proseInkCorrection, surfacePolarity } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "#lib";
 import { PROSE_INK_FIELDS } from "#lib";
@@ -245,6 +245,11 @@ const PROSE_INK_TOKENS = {
   bodyColor: "color.prose-body",
 } as const satisfies Record<(typeof PROSE_INK_FIELDS)[number], keyof typeof TOKENS>;
 
+/** The ambient base when a seed painted it. A carried scope's pixel can spell a seed's base exactly (a duplicated seed theme) yet derive its own hosts and inks. */
+function seedBackgroundOf(ambientBackground: string | undefined, palette: AmbientPalette): string | undefined {
+  return palette === "seed" ? ambientBackground : undefined;
+}
+
 /** A seed's value for a token, read through its base: the root palette's, or the value set that paints that base. `null` when no seed paints it. */
 function seedValuesOf(background: string | undefined): ((token: keyof typeof TOKENS) => string) | null {
   if (background === undefined) {
@@ -273,12 +278,13 @@ function seedReadingHosts(background: string | undefined): readonly Oklch[] | nu
   return seed === null ? null : SEED_READING_HOSTS.flatMap((token) => toOklch(seed(token)) ?? []);
 }
 
-function insideBox(t: ThemeScopeTokens, inside: boolean): ThemeScopeTokens {
-  if (!inside) {
+/** A scope inside a box keeps only what it holds there: its accent is read as text on the fill, as the box's own links are. */
+function insideBox(t: ThemeScopeTokens, fill: string | undefined): ThemeScopeTokens {
+  if (fill === undefined) {
     return t;
   }
   const { background: _background, userBubble: _user, aiBubble: _ai, systemBubble: _system, ...held } = t;
-  return held;
+  return held.accent === undefined ? held : { ...held, accent: boxAccentOn(fill, held.accent) };
 }
 
 /** What a scope's prose inks are judged over: the base under them, the seed's painted hosts over a seed, or the fill they sit inside. */
@@ -393,7 +399,7 @@ function pickedBubbleVars(t: ThemeScopeTokens, under: string | undefined): Reado
       const pixel = compositedBase(picked, under);
       out[names.bg] = picked;
       if (pixel !== null) {
-        out[names.fg] = `oklch(from ${picked} ${bubbleInset(pixel).foreground} 0 h / 1)`;
+        out[names.fg] = `oklch(from ${picked} ${bubbleInsetForeground(pixel)} 0 h / 1)`;
       }
     }
   }
@@ -618,7 +624,7 @@ export function clampThemeTokens(
 ): ClampedTheme {
   const parsed = themeScopeTokensSchema.safeParse(raw);
   // Inside a box the box is the surface: a nested scope's background and bubble fills paint nothing there, only its inks hold.
-  const t = insideBox(parsed.success ? parsed.data : {}, inside !== undefined && asBox !== true);
+  const t = insideBox(parsed.success ? parsed.data : {}, asBox === true ? undefined : inside);
   const vars: Record<string, string> = {};
   const put = (name: string, value: string | undefined): void => {
     if (value !== undefined) {
@@ -654,7 +660,8 @@ export function clampThemeTokens(
   const fillUnder = carriedBase === null ? ambientBackground : serializeOpaqueOklch(carriedBase);
   const fills = bubbleFillsOn(t, fillUnder, ambientFills);
   const insideFill = inside === undefined ? null : toOklch(inside);
-  const seedHosts = t.background === undefined ? seedReadingHosts(ambientBackground) : null;
+  const seedBackground = seedBackgroundOf(ambientBackground, palette);
+  const seedHosts = t.background === undefined ? seedReadingHosts(seedBackground) : null;
   // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
   // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
   // fallback from the resolved carried pixel; with no carried background there is deliberately no
@@ -687,7 +694,7 @@ export function clampThemeTokens(
     vars,
     proseInks,
     bubbleFills: fills,
-    bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(ambientBackground), ...proseInks }, accentSource),
+    bubbleScopes: bubbleScopesOn(fills, { ...seedInksOf(seedBackground), ...proseInks }, accentSource),
     ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
     ...inheritedInkOn(vars),

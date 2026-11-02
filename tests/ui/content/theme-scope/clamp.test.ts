@@ -1,7 +1,7 @@
-import { carriedLiteralRoles, proseInkCorrection } from "@orb/kit/theme-derivation";
+import { AA_NORMAL_RATIO, carriedLiteralRoles, carriedReadingHosts, oklchToSrgb, proseInkCorrection, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
-import { TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
@@ -107,6 +107,29 @@ test("an ink-only scope over a seed base is judged on that base's reading hosts,
   const lightness = Number(/ ([\d.]+) c h \/ 1\)$/u.exec(emitted)?.[1]);
   expect(lightness).toBeLessThan(0.55);
   expect(lightness).toBeGreaterThan(0.5);
+});
+
+test("a carried scope that spells a seed's base judges its inks on the hosts it derives, not the seed's retuned ones", () => {
+  const seedBase = SEED_THEME_VALUE_SETS.light.vars[TOKENS["color.background"].cssVar];
+  const base = parsed(seedBase);
+  const ink = parsed("oklch(0.6 0.05 60)");
+  const hosts = carriedReadingHosts({ l: base.l, c: base.c, h: base.h });
+  const fix = proseInkCorrection({ l: ink.l, c: ink.c, h: ink.h }, 1, { l: base.l, c: base.c, h: base.h }, hosts);
+  const emitted = (palette: "seed" | "carried"): number =>
+    Number(
+      / ([\d.]+) c h \/ 1\)$/u.exec(
+        clampThemeTokens({ dialogueColor: "oklch(0.6 0.05 60)" }, seedBase, undefined, { palette }).vars[TOKENS["color.dialogue"].cssVar] ?? "",
+      )?.[1],
+    );
+  expect(emitted("carried")).toBe(fix?.l);
+  expect(emitted("seed")).not.toBe(fix?.l);
+});
+
+test("an accent picked inside a bubble's box holds the text floor on the fill it sits in", () => {
+  const fill = "oklch(0.34 0.06 35)";
+  const { vars } = clampThemeTokens({ accent: "oklch(0.3 0.1 260)" }, undefined, undefined, { inside: fill });
+  const accent = parsed(vars[TOKENS["color.primary"].cssVar] ?? "");
+  expect(wcagContrastRatio(oklchToSrgb(accent), oklchToSrgb(parsed(fill)))).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
 });
 
 test("a picked fill restates its inks on its own box and leaves the scope's vars to the page", () => {
