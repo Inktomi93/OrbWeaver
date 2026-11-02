@@ -1,7 +1,7 @@
 // Rewrites a plan-listed input type argument of `createEntityMutation<…>`, named or an inline literal, to `inferInput<Trpc["a"]["b"]>`,
 // taking the procedure from its `options: (trpc) => trpc.a.b.mutationOptions()` call. Mode `assert` instead appends
 // one type-level check per site, so a typecheck proves the derived type is not wider than the type it replaces: a
-// lost brand or a widened union fails there, and would pass every caller. Rewrite touches only a site the plan marks `proved`.
+// lost brand or a widened union fails there, and would pass every caller. Rewrite touches only a site whose `proved` names its procedure.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
@@ -18,8 +18,8 @@ const NEWLINE = 0x0a;
 const PROCEDURE_PATH_LENGTH = 3;
 
 interface Plan {
-  /** Sites to judge, as `file` (relative to the target) and `type`. `proved` records a passing `assert` typecheck. */
-  readonly sites: readonly { readonly file: string; readonly type: string; readonly proved: boolean }[];
+  /** Sites to judge, as `file` (relative to the target) and `type`. `proved` names the procedure whose `assert` typecheck passed. */
+  readonly sites: readonly { readonly file: string; readonly type: string; readonly proved: string | null }[];
   /** Named types that must stay, each with the reason the router input is not the same type. */
   readonly skip: readonly { readonly type: string; readonly reason: string }[];
 }
@@ -55,7 +55,7 @@ function readPlan(targetDir: string, planFile: string): Plan {
     if (site === null || typeof site !== "object" || !("file" in site && typeof site.file === "string") || !("type" in site && typeof site.type === "string")) {
       throw new Error(`${planFile}: site ${index} needs file and type`);
     }
-    return { file: site.file, type: site.type, proved: "proved" in site && site.proved === true };
+    return { file: site.file, type: site.type, proved: "proved" in site && typeof site.proved === "string" ? site.proved : null };
   });
   const skip = parsed.skip.map((entry: unknown, index: number) => {
     if (
@@ -152,10 +152,13 @@ function unusedDeclaration(
   return { startPos: start.index, endPos: bytes[afterLine] === NEWLINE ? afterLine + 1 : afterLine, insertedText: "" };
 }
 
+const derived = (site: Site): string => `import("${INFER_INPUT.module}").inferInput<import("${TRPC.module}").${site.procedure}>`;
+
 function assertEdit(sites: readonly Site[], bytes: Uint8Array): Edit {
   const lines = sites.map(
     (site, index) =>
-      `export const __varsNotWider${index}: [import("${INFER_INPUT.module}").inferInput<import("${TRPC.module}").${site.procedure}>] extends [${site.typeArgument.text()}] ? true : false = true;`,
+      // The `0 extends 1 & T` arm fails an `any`, which would otherwise pass as narrower than everything.
+      `export const __varsNotWider${index}: 0 extends 1 & ${derived(site)} ? false : [${derived(site)}] extends [${site.typeArgument.text()}] ? true : false = true;`,
   );
   return { startPos: bytes.length, endPos: bytes.length, insertedText: `\n${ASSERT_MARKER}\n${lines.join("\n")}\n` };
 }
@@ -186,15 +189,16 @@ const codemod: Codemod<TS> = (root, options) => {
   const file = root.relativeFilename();
   const listed = plan.sites.filter((site) => site.file === file);
   const types = new Set(listed.map((site) => site.type));
-  const proved = new Set(listed.filter((site) => site.proved).map((site) => site.type));
+  // Per site, not per type text: two calls can share a literal and take different procedures.
+  const isProved = ({ typeArgument, procedure }: Site): boolean => listed.some(({ type, proved }) => type === typeArgument.text() && proved === procedure);
   const rootNode = root.root();
   const bytes = new TextEncoder().encode(rootNode.text());
   const candidates = plannedSites(rootNode, types);
   if (options.params["mode"] === "assert") {
     return Promise.resolve(candidates.length === 0 ? null : rootNode.commitEdits([assertEdit(candidates, bytes)]));
   }
-  const sites = candidates.filter((site) => proved.has(site.typeArgument.text()));
-  for (const site of candidates.filter((candidate) => !proved.has(candidate.typeArgument.text()))) {
+  const sites = candidates.filter(isProved);
+  for (const site of candidates.filter((candidate) => !isProved(candidate))) {
     // biome-ignore lint/suspicious/noConsole: the sandbox's only output channel; a silent skip would read as a clean run.
     console.warn(`vars-to-infer-input: skipped ${file} ${site.typeArgument.text()}: not proved; run mode=assert and typecheck first`);
   }

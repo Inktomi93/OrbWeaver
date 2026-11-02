@@ -50,9 +50,9 @@ Copy the closest existing codemod to start a new one. Do not run `codemod init`;
 
 A rewrite that changes a type proves the new type is not wider. A wider type compiles at every call site, so a green typecheck proves nothing. `tooling/src/codemods/vars-to-infer-input/scripts/codemod.ts` shows the shape.
 
-1. Run the codemod with a `mode` param set to `assert`. It appends one `[New] extends [Old]` check per planned site. Use this relation, not identity: identity also fails on `readonly`, which pushes a run to skip the check.
+1. Run the codemod with a `mode` param set to `assert`. It appends one `[New] extends [Old]` check per planned site. Use this relation, not identity: identity also fails on `readonly`, which pushes a run to skip the check. Fail `any` first with `0 extends 1 & New`, because `any` passes the relation.
 2. Run `pnpm typecheck` on the target. The type checker proves each site.
-3. Mark each passing site as proved in the plan. Remove every failing site and list it with a reason under `skip`.
+3. Mark each passing site as proved in the plan, keyed to the site and never to its type text alone. Remove every failing site and list it with a reason under `skip`.
 4. Run the rewrite. It rewrites only proved sites, prints a reason for any other, and deletes the appended check lines in the same pass.
 
 ## Verify

@@ -3,42 +3,47 @@
     {
       "file": "literal.ts",
       "type": "{ readonly id: string }",
-      "proved": true
+      "proved": "Trpc[\"thing\"][\"touch\"]"
     },
     {
       "file": "chat.ts",
       "type": "StarVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"star\"]"
     },
     {
       "file": "chat.ts",
       "type": "RenameVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"rename\"]"
     },
     {
       "file": "chat.ts",
       "type": "ReadVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"read\"]"
     },
     {
       "file": "chat.ts",
       "type": "ReadVars0",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"read0\"]"
     },
     {
       "file": "chat.ts",
       "type": "KeepVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"keep\"]"
     },
     {
       "file": "asserted.ts",
       "type": "SendVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"send\"]"
     },
     {
       "file": "bare.ts",
       "type": "PinVars",
-      "proved": true
+      "proved": "Trpc[\"chat\"][\"pin\"]"
+    },
+    {
+      "file": "shared.ts",
+      "type": "{ readonly id: string }",
+      "proved": "Trpc[\"thing\"][\"touch\"]"
     }
   ],
   "skip": [

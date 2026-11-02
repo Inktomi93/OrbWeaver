@@ -1,7 +1,7 @@
 // `orb/no-unsafe-cast` refuses a cast the checker cannot hold to account: a double cast through `unknown`, a parsed JSON
 // blob named as a type, an untyped value named as a contract, row or brand, and a brand stripped with `as string`.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { Linter } from "eslint";
 import ts from "typescript";
@@ -28,18 +28,21 @@ const CONTRACT_SOURCE = "export interface ProbeView { readonly id: string; reado
 const ROWS_SOURCE = "export interface ProbeRow { readonly id: string }";
 const LOCAL_ROW = "interface SnapshotRow { readonly id: string }";
 
-const IMPORTS = [
-  'import type { ProbeId } from "../../../../../kit/src/ids/index.ts";',
-  'import type { ProbeView } from "../../../../../contracts/src/probe.ts";',
-  'import type { ProbeRow } from "../../../../../db/src/schema/probe.ts";',
-  "declare const raw: string;",
-  "declare const loose: unknown;",
-  "declare const boundary: unknown;",
-  "declare const anything: any;",
-  "declare const id: ProbeId;",
-  'declare const names: readonly ["a", "b"];',
-  LOCAL_ROW,
-].join("\n");
+const importsFor = (file: string): string => {
+  const from = (target: string): string => relative(dirname(file), target);
+  return [
+    `import type { ProbeId } from "${from(KIT)}";`,
+    `import type { ProbeView } from "${from(CONTRACT)}";`,
+    `import type { ProbeRow } from "${from(ROWS)}";`,
+    "declare const raw: string;",
+    "declare const loose: unknown;",
+    "declare const boundary: unknown;",
+    "declare const anything: any;",
+    "declare const id: ProbeId;",
+    'declare const names: readonly ["a", "b"];',
+    LOCAL_ROW,
+  ].join("\n");
+};
 
 const homes = [{ file: HOME_FILE, site: "boundary", reason: "the probe host reads guest JSON that arrives untyped by construction" }];
 
@@ -53,7 +56,7 @@ function lint(root: string, file: string, source: string): readonly string[] {
     noEmit: true,
     types: [],
   };
-  const text = `${IMPORTS}\n${source}`;
+  const text = `${importsFor(file)}\n${source}`;
   for (const [path, body] of [
     [KIT, KIT_SOURCE],
     [CONTRACT, CONTRACT_SOURCE],
