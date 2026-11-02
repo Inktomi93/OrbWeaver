@@ -1836,10 +1836,9 @@ export function bubbleFills(base: Oklch): BubbleFills {
   };
 }
 
-/** A picked bubble fill's inset step, which inline code paints on, and the one ink that covers the fill and that step. */
-export function bubbleInset(fill: Oklch): { readonly muted: Oklch; readonly foreground: number } {
-  const muted = rampSurface(fill, rampDeltas(fill).muted);
-  return { muted: opaquePixel(muted), foreground: derivedForegroundLightnessForSurfaces([fill, muted]) };
+/** The lightness of the one ink that covers a picked bubble fill and its inset step, which inline code paints on. */
+export function bubbleInsetForeground(fill: Oklch): number {
+  return derivedForegroundLightnessForSurfaces([fill, rampSurface(fill, rampDeltas(fill).muted)]);
 }
 
 /** The bubble roles whose fill paints closer to the page than {@link BUBBLE_PAGE_SEPARATION}. */
