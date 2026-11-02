@@ -901,7 +901,7 @@ function reachInDialog(popup: Element, { stride }: { readonly stride: number }):
     }
     scroller.scrollTop = 0;
   };
-  for (const inner of [0, (row as HTMLElement).offsetTop]) {
+  for (const inner of [0, row instanceof HTMLElement ? row.offsetTop : 0]) {
     list.scrollTop = inner;
     walk(0);
   }
