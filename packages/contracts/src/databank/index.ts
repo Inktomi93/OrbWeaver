@@ -458,6 +458,13 @@ export type CreateDocumentFromText = (params: CreateFromTextParams) => Promise<U
 
 /** Maximum authored document name and name-search length. */
 export const DATABANK_NAME_MAX = 500;
+const DATABANK_TEXT_MIN = 1;
+/** A text document as a caller hands it to `createFromText`: the tRPC door and the plugin `databank.ingest` bridge
+ *  both parse with it, so a plugin ingests only what the app's own door accepts. */
+export const databankTextDocumentSchema = z.strictObject({
+  name: z.string().min(1).max(DATABANK_NAME_MAX),
+  text: z.string().min(DATABANK_TEXT_MIN),
+}) satisfies z.ZodType<Pick<CreateFromTextParams, "name" | "text">>;
 const DATABANK_LIST_LIMIT_MIN = 1;
 const DATABANK_LIST_LIMIT_MAX = 500;
 /** How many documents Home's tile shows: four, not the library's eight, because the half-span tile also carries a health

@@ -17,10 +17,12 @@
 //      the re-checks and is not rolled back if they fail, because a claimed ask is spent either way — the
 //      alternative (put it back) is what turns a refusal into a retry loop against dead state.
 //   3. RE-CHECK the two things that can have died since the ask was raised — BY ORIGIN. For a rule: it still
-//      exists and is enabled (the host may have withdrawn consent). For a PLUGIN: it is still installed and
-//      enabled (the injected read). For BOTH: the ACTOR still holds host, which is one ruling with two
-//      spellings — the confirmer's own host role never stands in for the actor's, and on a handoff the
-//      pending ask dies fail-closed (owner ruling 2026-08-24: no re-mint, no transfer).
+//      exists and is enabled, and its AUTHOR still hosts. The confirmer's host role never stands in for the
+//      author's. For a PLUGIN: it is still installed and enabled (the injected read), the host its card was
+//      raised to still hosts, and its INSTALLER holds the same membership. Here that host's yes IS the
+//      authority, so the installer need not host (owner ruling; the one exception to the rule origin's
+//      actor-must-host check). On a handoff both die fail-closed: no re-mint, no transfer.
+//      `substrate/authority.ts::askActorStillStands` owns both answers.
 //   4. EXECUTE by ORIGIN, then by class. A rule's `confirm` runs the STASHED arm through the injected
 //      dispatcher with `confirmFirst` cleared, in the STORED frame, and records a `fired` row stamped with
 //      the confirmer; its `invitation` has no stored payload by construction (`budget_refused` precedes
@@ -50,7 +52,7 @@ import { loadCallerRole } from "../persistence/canon-reads.ts";
 import { insertFireWithRuleStamp } from "../persistence/fires.ts";
 import { selectRuleRow } from "../persistence/rules.ts";
 import { runAnalysisConfirm } from "../substrate/analysis-confirm.ts";
-import { holdsChatHostAuthority } from "../substrate/authority.ts";
+import { askActorStillStands } from "../substrate/authority.ts";
 import type { ArmsResult } from "../substrate/run-now.ts";
 import { dispatchRuleNow, runStashedContinuation } from "../substrate/run-now.ts";
 import { automationChatLaneKey } from "../substrate/serial-lanes.ts";
@@ -68,13 +70,11 @@ async function requireSuggestionHost(ctx: AutomationContext, principal: Principa
   ctx.can(principal, "host", { kind: "chat", membership: { role } });
 }
 
-/** The ACTOR-authority half of the liveness re-check, shared by BOTH origins because it is one ruling, not
- *  two. §3-S4: confirm re-runs `holdsAuthority(actor)` exactly as dispatch does, and the CONFIRMER's own host
- *  role never stands in for the actor's. Owner ruling 2026-08-24: on a host handoff this VOIDS the pending
- *  ask, fail-closed — no re-mint, no transfer to the new host. The ask was "may THIS actor do this here", and
- *  the actor no longer may. */
-async function assertActorStillHosts(ctx: AutomationContext, pending: PendingSuggestion, lostMessage: string): Promise<void> {
-  if (!(await holdsChatHostAuthority(ctx, pending.chatId, pending.actorUserId))) {
+/** The ACTOR half of the liveness re-check. The standing each origin requires is
+ *  {@link askActorStillStands}'s, the same predicate the chat-change void sweep runs, so a card the sweep
+ *  keeps is a card this verb can execute. */
+async function assertActorStillStands(ctx: AutomationContext, pending: PendingSuggestion, lostMessage: string): Promise<void> {
+  if (!(await askActorStillStands(ctx, pending))) {
     throw new SuggestionRefusedError("author_lost_authority", lostMessage);
   }
 }
@@ -88,20 +88,20 @@ async function assertRuleStillLive(ctx: AutomationContext, pending: PendingSugge
   if (!rule.enabled) {
     throw new SuggestionRefusedError("rule_disabled", "the rule behind this suggestion has been disabled");
   }
-  await assertActorStillHosts(ctx, pending, "the rule's author no longer hosts this room");
+  await assertActorStillStands(ctx, pending, "the rule's author no longer hosts this room");
   return rule;
 }
 
-/** The PLUGIN origin's liveness — the exact twin, one branch down: the plugin is still installed AND enabled
- *  (the INJECTED read; automation holds no `plugins` table and may not query one), and its INSTALLER still
- *  hosts. Fail-CLOSED both ways, and both ways matter: a disabled plugin's card must not be a way to run one
- *  more act after the owner turned it off, and a demoted installer's card must not be executable by the new
- *  host. Each refuses typed, so a host who kept a card open learns WHICH thing changed. */
+/** The PLUGIN origin's liveness: the plugin is still installed AND enabled (the INJECTED read; automation holds
+ *  no `plugins` table and may not query one), and the standing the ask recorded still holds. Fail-CLOSED both
+ *  ways: a disabled plugin's card must not run one more act after the owner turned it off, and an installer who
+ *  left or was removed must not have an act run under their grants. Each refuses typed, so a host who kept a
+ *  card open learns WHICH thing changed. */
 async function assertPluginStillLive(ctx: AutomationContext, pending: PendingSuggestion, pluginId: PluginId): Promise<void> {
   if (!(await ctx.isPluginLive(pluginId, pending.actorUserId))) {
     throw new SuggestionRefusedError("rule_disabled", "the plugin behind this suggestion is no longer installed or enabled");
   }
-  await assertActorStillHosts(ctx, pending, "the plugin's installer no longer hosts this room");
+  await assertActorStillStands(ctx, pending, "the room's host or the plugin installer's place in it has changed since the ask");
 }
 
 const ACT_FAILED = "act_failed";

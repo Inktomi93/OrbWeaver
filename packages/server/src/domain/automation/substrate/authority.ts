@@ -1,15 +1,15 @@
-// domain/automation/substrate/authority — the ONE "does this user still hold host on this chat" predicate.
+// domain/automation/substrate/authority — the ONE "does this user still hold host on this chat" predicate,
+// and the ONE "does this ask's actor still stand" predicate the S4 confirm re-check and the void sweep share.
 //
-// It exists as a substrate helper because THREE planes ask the same question and must not answer it
-// differently: the dispatch gate (a rule fires only while its AUTHOR still holds host), the S4 confirm
-// re-check (§3-S4: confirm re-runs `holdsAuthority(author)` — a confirmer's own host role never stands in
-// for the author's), and the RULED host-handoff VOID sweep. A second spelling is how one of the three ends
-// up comparing `role === "host"` itself, which is precisely what `can()` exists to prevent.
+// Three planes ask the host question and must not answer it differently: the dispatch gate (a rule fires only
+// while its AUTHOR still holds host), the confirm re-check of a RULE ask, and the sweep. A second spelling is
+// how one of them ends up comparing `role === "host"` itself, which is precisely what `can()` exists to prevent.
 //
 // Fail-CLOSED on every uncertainty: no such user, not a present member, or a `can()` throw ⇒ false.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { AuthorityDeps } from "../contract/ops.ts";
+import type { AuthorityDeps, PendingSuggestion } from "../contract/ops.ts";
+import { loadMembershipInstance } from "../persistence/ask-standing.ts";
 import { loadCallerRole } from "../persistence/canon-reads.ts";
 
 /** C5 — the OWNER-GLOBAL twin of {@link holdsChatHostAuthority}: may this author's chat-less rules still act?
@@ -44,4 +44,29 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   } catch {
     return false;
   }
+}
+
+/** Does an open ask's ACTOR still hold the standing its ORIGIN requires? The answer differs by origin, and the
+ *  difference is an owner ruling, not a convenience. Both origins die on a host handoff: no re-mint, no transfer.
+ *
+ *  - RULE: the author must still host. The ask was "may THIS author's rule act here".
+ *  - PLUGIN: the installer need not host, because the authority is the yes of the host who saw the card. So the
+ *    host recorded at raise must still host (re-proved through `can()`, like every host check here), and the
+ *    installer must still hold the SAME membership: a removal
+ *    followed by a re-invite reuses the row, and only the recorded instance tells the two stays apart. The
+ *    plugin's installed-and-enabled half is the confirm verb's injected `isPluginLive` read.
+ *
+ *  Never widen the plugin arm to "the confirmer hosts": the act runs as the installer, on their grants, so an
+ *  installer who left must leave no executable card behind. */
+export async function askActorStillStands(deps: AuthorityDeps, ask: PendingSuggestion): Promise<boolean> {
+  // Only the plugin arm of the union carries a recorded standing; a nested `source.kind` check cannot narrow it.
+  if (!("standing" in ask)) {
+    return await holdsChatHostAuthority(deps, ask.chatId, ask.actorUserId);
+  }
+  const { hostUserId, installerMembership } = ask.standing;
+  const [stillHosts, membership] = await Promise.all([
+    holdsChatHostAuthority(deps, ask.chatId, hostUserId),
+    loadMembershipInstance(deps.db, ask.chatId, ask.actorUserId),
+  ]);
+  return stillHosts && membership !== undefined && membership.joinSeq === installerMembership.joinSeq && membership.joinedAt === installerMembership.joinedAt;
 }

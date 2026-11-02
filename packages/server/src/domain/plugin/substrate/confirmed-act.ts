@@ -14,9 +14,11 @@
 // is deliberate: a host confirming an act does not top up the plugin's egress or spend budget.
 //
 // WHAT IT DOES **NOT** RE-CHECK, and why that is correct rather than a gap: authority. The confirm verb
-// already gated the caller as HOST of the ask's own chat, claimed the ask take-once, and re-ran
-// `holdsChatHostAuthority(installer)` — the ruled host-handoff wall. Re-deriving any of that here would be a
-// second spelling of a decision that has exactly one home, which is how two planes end up disagreeing.
+// already gated the caller as HOST of the ask's own chat, claimed the ask take-once, and re-proved that the host
+// is the one the card was raised to and the installer holds the same membership. That host's yes IS the
+// authority for a plugin ask (owner ruling), so the installer need not host. That is why the confirmed turn
+// skips the bridge's `requireHost(installer)` gate, which belongs to the DIRECT call; chat's `requestTurn`
+// still refuses an initiator who is not present.
 //
 // NO GUEST RUNS. Every act is a HOST-side op; the sandbox is not involved, so a confirmed act works whether or
 // not the plugin still has a resident instance. It works because the ACT is data, not a closure — a pending
@@ -54,8 +56,12 @@ export function buildConfirmedActRunner(
         const turn = act as Extract<PluginSuggestedAct, { kind: "requestTurn" }>;
         // The stashed CHILD depth is replayed verbatim, never re-derived: the confirmed turn must sit at the
         // same point in the cascade the asked-for turn would have, so a delay cannot re-base the
-        // loop-prevention ceiling. `requestTurn` refuses past the hard cap downstream either way.
-        await bridge.chat.requestTurn(chatId, turn.automationDepth, {
+        // loop-prevention ceiling. `requestTurn` refuses past the hard cap downstream either way. The op is
+        // called past the bridge's host gate on purpose (see the header): the host's yes replaced it.
+        await ops.chat.requestTurn({
+          triggeredBy: installerUserId,
+          chatId,
+          automationDepth: turn.automationDepth,
           ...(turn.speakerCharacterId !== undefined ? { speakerCharacterId: turn.speakerCharacterId } : {}),
           ...(turn.guided !== undefined ? { guided: turn.guided } : {}),
         });

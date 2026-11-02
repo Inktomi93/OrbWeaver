@@ -1,4 +1,5 @@
-import { variableDeltaSchema, variablePreconditionsSchema } from "@orb/contracts/chat";
+import { GUIDED_STEER_INPUT_MAX, variableDeltaSchema, variablePreconditionsSchema } from "@orb/contracts/chat";
+import { databankTextDocumentSchema } from "@orb/contracts/databank";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type {
@@ -92,14 +93,16 @@ const SUGGESTED_ACT_HOST_FUNCTION = {
   generatePicture: "imagery.generatePicture",
 } as const satisfies Record<PluginSuggestedActKind, HostFunctionRef>;
 
+// The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it. The steer
+// takes the cap the app's own steer input has, so an ask cannot carry more text than a member could type.
+const turnHintsSchema = z.object({
+  speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+  guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
+}) satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
+
 // An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.
 const suggestedActSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("requestTurn"),
-    automationDepth: z.int().nonnegative(),
-    speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
-    guided: z.string().exactOptional(),
-  }),
+  turnHintsSchema.extend({ kind: z.literal("requestTurn"), automationDepth: z.int().nonnegative() }),
   z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }),
   z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }),
 ]) satisfies z.ZodType<PluginSuggestedAct>;
@@ -396,7 +399,7 @@ export async function dispatchBridgeCall(
       );
     case "chat.requestTurn":
       exact(args, THREE_ARGUMENTS, operation);
-      await bridge.chat.requestTurn(chatAt(args, 0, operation), numberAt(args, 1, operation), recordAt(args, 2, operation));
+      await bridge.chat.requestTurn(chatAt(args, 0, operation), numberAt(args, 1, operation), parsedAt(turnHintsSchema, args, 2, operation));
       return undefined;
     case "worldInfo.listBooks":
       exact(args, 1, operation);
@@ -487,7 +490,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "databank.ingest":
       exact(args, 1, operation);
-      return await bridge.databank.ingest(recordAt(args, 0, operation) as Parameters<PluginBridge["databank"]["ingest"]>[0]);
+      return await bridge.databank.ingest(parsedAt(databankTextDocumentSchema, args, 0, operation));
     case "character.ingest":
       exact(args, 1, operation);
       return await bridge.character.ingest(recordAt(args, 0, operation));

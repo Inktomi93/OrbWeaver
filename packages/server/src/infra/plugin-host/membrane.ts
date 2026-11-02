@@ -357,12 +357,21 @@ function handleSafeToDump(ctx: QuickJSContext, rootH: QuickJSHandle): boolean {
 type DumpGuestResult = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
 
 /** The ONE guest-handle materialization doorway. The explicit walk is deliberately inside the helper so a
- *  caller cannot remember the guard but accidentally put it after `ctx.dump`. */
+ *  caller cannot remember the guard but accidentally put it after `ctx.dump`.
+ *
+ *  `ctx.dump` serializes an object with the realm's own `JSON.stringify`, and when that throws (a value too
+ *  large for the realm's memory limit) it returns the realm's string fallback instead of failing. An object
+ *  that reads back as a string is that fallback, so it refuses here rather than reaching a host fn as a
+ *  string its parser degrades to an empty default. */
 function tryDumpGuestValue(ctx: QuickJSContext, handle: QuickJSHandle): DumpGuestResult {
   if (!handleSafeToDump(ctx, handle)) {
     return { ok: false };
   }
-  return { ok: true, value: ctx.dump(handle) as unknown };
+  const value: unknown = ctx.dump(handle);
+  if (ctx.typeof(handle) === "object" && typeof value === "string") {
+    return { ok: false };
+  }
+  return { ok: true, value };
 }
 
 /** The props `ui.register` reads off a guest def. Named as data so the materialize step is ONE shared helper
@@ -791,7 +800,12 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
         throw new Error("plugin host: chat.variables.write requires host authority on this chat");
       }
       // Only inert data crosses here: the app's bridge dispatch parses every op before it can reach the delta log.
-      const ops = Array.isArray(args[1]) ? (args[1] as readonly VarOp[]) : [];
+      // A non-list is refused, never read as no ops: an empty write answers `applied` and the guest would
+      // believe a write landed that never happened.
+      if (!Array.isArray(args[1])) {
+        throw new Error("plugin host: chat.applyVariableOps requires a list of variable ops");
+      }
+      const ops = args[1] as readonly VarOp[];
       // The OPTIONAL compare-and-set (#1555). A malformed precondition would silently WEAKEN the guard it was
       // passed to strengthen, so it is PARSED, and a shape that does not parse is a loud refusal of the call (the
       // forged-handle arm's posture) rather than a write that quietly skipped its own check.
@@ -870,8 +884,8 @@ async function suggestAct(runtime: MembraneRuntime, scope: InvocationChat, act: 
 
 /** Project the guest-supplied quick-reply choices to the JSON-safe `{label, sendText}[]` shape. Non-array input
  *  ⇒ `[]` (fail-safe: an empty surface, never a throw); each entry keeps ONLY string `label`/`sendText`, dropping
- *  a malformed entry (a non-string field yields "" — inert, never a coerced object). The host-side caps
- *  (count/length) live in the domain op the bridge calls. */
+ *  a malformed entry (a non-string field yields "" — inert, never a coerced object). The count and length caps
+ *  are the rule chips' own, refused in `packages/server/src/domain/automation/verbs/plugin-feedback.ts`. */
 function buildQuickReplyChoices(raw: unknown): readonly { readonly label: string; readonly sendText: string }[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -1838,7 +1852,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     for (const handle of argHandles) {
       const dumped = tryDumpGuestValue(ctx, handle);
       if (!dumped.ok) {
-        using err = ctx.newError(`plugin host: ${name} argument is too deeply nested`);
+        using err = ctx.newError(`plugin host: ${name} argument is too deeply nested or too large to read`);
         deferred.reject(err);
         return deferred.handle;
       }
