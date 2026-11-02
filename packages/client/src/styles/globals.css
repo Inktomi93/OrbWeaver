@@ -208,11 +208,14 @@
    * composer leaves less. A writer gets the room: the floor gives way, and `use-room-end-while-writing.ts` holds the room
    * at its end so Send stays above the keyboard. Writing is the old rule's own test: with the keyboard up, focus anywhere
    * in the composer or an open composer menu, so pressing a control cannot re-floor the room; without it, the field.
-   * 28rem is the `container.cq-28` token's value: a query cannot read a var, and a landscape phone is over 24rem. */
+   * 28rem is the `container.cq-28` token's value: a query cannot read a var, and a landscape phone is over 24rem.
+   * The copies above the transcript stay in the accessibility tree and the tab order, visually hidden, so a keyboard or a
+   * screen reader meets them in every regime and focus on them survives a regime flip. Earlier shows while it holds focus;
+   * the copies inside the transcript are pointer-only (`transcript-window.tsx`). */
   @container shell-main (height <= 28rem) {
     [data-slot="chat-room-surface"] > [data-slot="character-bar"],
-    [data-slot="chat-room-thread"] [data-slot="transcript-history"]:not([data-slot="message-list-leading"] *) {
-      display: none;
+    [data-slot="chat-room-thread"] [data-slot="transcript-history"]:not([data-slot="message-list-leading"] *, :focus-within) {
+      @apply sr-only;
     }
     [data-slot="message-list-leading"] :is([data-slot="character-bar"], [data-slot="transcript-history"]) {
       display: flex;

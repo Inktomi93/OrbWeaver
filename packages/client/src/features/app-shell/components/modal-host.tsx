@@ -182,12 +182,16 @@ function DialogModal({
 
   // Base UI scrolls to any initial-focus element but the popup itself. A short popup that scrolls as one sheet would lose its
   // title and Close to that scroll, so the body takes focus without scrolling and Base UI is told to move nothing more.
+  // A body that already placed its own arrival focus keeps it: on a warm open the picker's search focuses before this runs,
+  // and on a cold one after it, so either order ends on the body's choice.
   const focusBodyInPlace = (): boolean => {
     const target = bodyRef.current;
     if (target === null) {
       return true;
     }
-    target.focus({ preventScroll: true });
+    if (!target.contains(document.activeElement)) {
+      target.focus({ preventScroll: true });
+    }
     return false;
   };
 

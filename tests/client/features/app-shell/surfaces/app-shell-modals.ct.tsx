@@ -192,6 +192,24 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(opener).toBeFocused();
   });
 
+  // The second open is warm: the picker's rows are cached, so its body mounts in the same commit as the popup.
+  test("New chat lands the caret in its search on every open, so typing searches", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    for (const letter of ["a", "b"]) {
+      await openNewChatFromList(page);
+      const search = page.getByRole("dialog").getByRole("combobox");
+      await expect(search).toBeFocused();
+      await page.keyboard.type(letter);
+      await expect(search).toHaveValue(letter);
+      // A first Escape may only clear the search; the next one closes the dialog.
+      await expect(async () => {
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: DOOR_TIMEOUT_MS });
+      }).toPass();
+    }
+  });
+
   test("switching Add document's mode moves neither its mode strip nor its footer, every arm offers Cancel, and its teaching line reads at least label size", async ({
     mount,
     page,

@@ -126,7 +126,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
             chatId={chatId}
             surfaceContributors={surfaceContributors}
             toolRenderers={toolRenderers}
-            leading={<ChatCharacterBar chatId={chatId} />}
+            leading={<ChatCharacterBar chatId={chatId} inTranscript={true} />}
           />
         </ChoiceSendProvider>
       </MessageThreadAnchor>

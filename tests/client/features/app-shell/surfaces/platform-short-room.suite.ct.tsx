@@ -83,9 +83,21 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
+const BROWSER_DEFAULT_FONT_PX = 16;
+
+function rootFontPx(): number {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+}
+
 async function scaleRoot(page: Page, factor: number): Promise<void> {
   await setRootFontScale(page, channelName("fontScale"), factor);
-  await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
+  await expect.poll(() => page.evaluate(rootFontPx)).toBeGreaterThanOrEqual(BROWSER_DEFAULT_FONT_PX * factor);
+}
+
+// Scaling back down passes `scaleRoot`'s floor at once, so a crossing waits for the exact root size.
+async function scaleRootExactly(page: Page, factor: number): Promise<void> {
+  await setRootFontScale(page, channelName("fontScale"), factor);
+  await expect.poll(() => page.evaluate(rootFontPx)).toBe(BROWSER_DEFAULT_FONT_PX * factor);
 }
 
 /** Scrolls the transcript into its tallest reply, where a pinning name band holds the top. */
@@ -145,6 +157,50 @@ async function wheelOver(list: Locator, direction: 1 | -1): Promise<void> {
   await list.page().mouse.wheel(0, direction * box.height);
 }
 
+/** The short room's pointer copy of Earlier messages, inside the transcript and hidden from assistive tech. */
+function pointerEarlier(list: Locator): Locator {
+  return list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true, includeHidden: true });
+}
+
+/** The keyboard copy: the one a Tab or a screen reader reaches, outside the transcript. */
+function keyboardEarlier(page: Page): Locator {
+  return page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+}
+
+/** The message at the transcript's top edge, by id, with the share of it above the edge. */
+function readingRow(list: Element): { readonly id: string | null; readonly into: number } {
+  const edge = list.getBoundingClientRect().top;
+  const rows = [...list.querySelectorAll<HTMLElement>('[data-slot="message-row"]')]
+    .map((row) => ({ row, box: row.getBoundingClientRect() }))
+    .filter(({ box }) => box.bottom > edge && box.height > 0)
+    .toSorted((a, b) => a.box.top - b.box.top);
+  const top = rows[0];
+  return top === undefined ? { id: null, into: 0 } : { id: top.row.dataset["messageId"] ?? null, into: (edge - top.box.top) / top.box.height };
+}
+
+/** Parks the reader mid-transcript, the way a scroll leaves them, and returns the row they read. */
+async function parkMidway(list: Locator): Promise<string | null> {
+  await expect(list.locator('[data-slot="message-row"]').first()).toBeAttached();
+  await list.evaluate((node) => {
+    node.scrollTop = node.scrollHeight / 2;
+  });
+  return settledReadingRow(list);
+}
+
+/** The row at the transcript's top edge once it reads the same on two polls running. */
+async function settledReadingRow(list: Locator): Promise<string | null> {
+  let parked: string | null = null;
+  await expect
+    .poll(async () => {
+      const now = (await list.evaluate(readingRow)).id;
+      const still = now === parked;
+      parked = now;
+      return still && now !== null;
+    })
+    .toBe(true);
+  return parked;
+}
+
 async function wheelOverUntilShown(list: Locator, control: Locator): Promise<void> {
   await expect(async () => {
     await wheelOver(list, -1);
@@ -160,12 +216,12 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
-    const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
-    // Whichever copy of the strip the room paints; the other is `display: none`.
-    const strip = page.getByTestId(testId("chatCharacterBar")).filter({ visible: true });
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    const earlier = pointerEarlier(list);
+    // The copy of the strip the room paints inside the transcript.
+    const strip = list.getByTestId(testId("chatCharacterBar"));
     await expect(input).toBeVisible();
     await expect(earlier).toBeAttached();
-    const list = page.locator('[data-slot="message-list-scroll"]');
     await list.evaluate(intoTallestReply);
     const gap = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`);
     // With the band pinned, the reader keeps everything from the room's top edge to the composer, less the band itself:
@@ -198,9 +254,9 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
   test("Earlier messages, pressed inside the transcript, loads older rows without moving the row the reader was on", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
-    await expect(earlier).toBeAttached();
     const list = page.locator('[data-slot="message-list-scroll"]');
+    const earlier = pointerEarlier(list);
+    await expect(earlier).toBeAttached();
     await list.evaluate((node) => {
       node.scrollTop = 0;
     });
@@ -217,6 +273,52 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
         return settled === null || before === null ? Number.POSITIVE_INFINITY : Math.abs(settled.y - before.y);
       })
       .toBeLessThanOrEqual(SUBPIXEL);
+  });
+});
+
+test.describe("a keyboard reader parked mid-transcript on a landscape phone", () => {
+  test.use({ viewport: LANDSCAPE_PHONE });
+
+  test("reaches Earlier messages outside the transcript, on screen, and the transcript keeps the row they were reading", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    const parked = await parkMidway(list);
+    const earlier = keyboardEarlier(page);
+    await earlier.focus();
+    await expect(earlier).toBeFocused();
+    await expect(earlier).toBeInViewport({ ratio: 1 });
+    expect(await earlier.evaluate((button) => button.closest('[role="log"]') === null)).toBe(true);
+    await expect.poll(() => list.evaluate(readingRow).then((row) => row.id)).toBe(parked);
+  });
+});
+
+// A tall phone at normal text is the tall regime; 200% text takes it into the short one, and back.
+test.describe("a reader on a tall phone whose text size crosses the short room's step", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("keeps the row they were reading through each crossing", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    const parked = await parkMidway(list);
+    for (const factor of [2, 1, 2, 1]) {
+      await scaleRootExactly(page, factor);
+      expect(await settledReadingRow(list)).toBe(parked);
+    }
+  });
+
+  test("keeps focus on Earlier messages through each crossing", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    const earlier = keyboardEarlier(page);
+    await earlier.focus();
+    await expect(earlier).toBeFocused();
+    for (const factor of [2, 1]) {
+      await scaleRootExactly(page, factor);
+      await expect(earlier).toBeFocused();
+      await expect(earlier).toBeInViewport({ ratio: 1 });
+    }
   });
 });
 
