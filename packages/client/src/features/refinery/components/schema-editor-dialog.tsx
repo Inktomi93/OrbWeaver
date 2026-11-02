@@ -30,6 +30,7 @@ import type { RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -39,7 +40,7 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { RefusalNote } from "./refusal-note.tsx";
@@ -140,7 +141,7 @@ type ForgeResult =
   | { kind: "failed"; message: string; raw: string | null };
 
 interface DraftSetters {
-  readonly nameRef: RefObject<HTMLTextAreaElement | null>;
+  readonly nameRef: RefObject<HTMLInputElement | null>;
   readonly setNameFilled: (filled: boolean) => void;
   readonly setSchemaText: (text: string) => void;
   readonly setForgeNote: (note: string | null) => void;
@@ -259,7 +260,7 @@ function RefineRow({
   return (
     <>
       <Field className="flex-1 min-inline-0" label="Refine the draft">
-        <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} />
+        <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} maxRows={6} />
       </Field>
       <Button
         disabled={busy}
@@ -279,7 +280,7 @@ function RefineRow({
 }
 
 export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved }: SchemaEditorDialogProps): ReactElement {
-  const nameRef = useRef<HTMLTextAreaElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const instructionRef = useRef<HTMLTextAreaElement>(null);
   const schemaTextRef = useRef<HTMLTextAreaElement>(null);
   const [nameFilled, setNameFilled] = useState(editing !== null && editing.name.length > 0);
@@ -381,11 +382,10 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
           <Text voice="gloss">{previewEmptyTextOf(schemaText)}</Text>
         )}
         <Field label="Name">
-          <Textarea
+          <Input
             defaultValue={editing === null ? "" : editing.name}
             onInput={(e): void => setNameFilled(e.currentTarget.value.trim().length > 0)}
             ref={nameRef}
-            rows={1}
           />
         </Field>
         <DialogFooter>
@@ -395,14 +395,14 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
               SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
               behaviour rather than two that drift. */}
           <Button variant="ghost" onClick={requestClose} size="sm" type="button">
-            Cancel
+            {DIALOG_VERBS.cancel}
           </Button>
           <Button
             disabled={busy || schema === null || !nameFilled}
             onClick={(): void => saveDraft(nameRef.current?.value.trim() ?? "", schema, { editing, description, stage, create, update, onSaved, onOpenChange })}
             size="sm"
           >
-            {editing === null ? "Save schema" : "Save changes"}
+            Save
           </Button>
         </DialogFooter>
         {/* The guard. `forceRender` because it nests inside an open Dialog, which Base UI would otherwise

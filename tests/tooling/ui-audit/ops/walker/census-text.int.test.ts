@@ -287,7 +287,7 @@ auditRuleTest(
     const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div>`;
     const report = await auditFixture(scratch, runCli, "masked-ancestor", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
-    expect(report.populationAccounting?.["contrast"]?.withheld).toMatchObject({ maskedForeground: 1 });
+    expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ maskedForeground: 1 });
   },
 );
 
@@ -304,7 +304,7 @@ auditRuleTest(
     const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div><div style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Balance</span></div>`;
     const report = await auditFixture(scratch, runCli, "masked-and-unmasked", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
-    expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 2, judged: 1, withheld: { maskedForeground: 1 } });
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 2, judged: 1, excluded: { maskedForeground: 1 } });
   },
 );
 

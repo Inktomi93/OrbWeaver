@@ -47,7 +47,7 @@ export function useCharactersListHeader(): ListPaneHeaderView {
   // rule is `:has(> *:not([data-slot="list-pane-identity"]))` — CSS cannot un-see it.
   const mobile = useMobileViewport();
   return {
-    count: count ?? 0,
+    ...(count === undefined ? {} : { count }),
     title: CHARACTERS_SECTION_LABEL,
     ...(mobile ? {} : { actions: [{ id: "character-create", inline: <CharacterCreateActions />, menu: CHARACTER_DOOR_FORMS }] }),
   };

@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { PRESET_EDITOR_NAME, PRESET_RENAME_NAME, PRESET_SECTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -59,17 +60,17 @@ for (const regime of REGIMES) {
         subject: "editor",
         presetId: preset.id,
       });
-      const editor = page.getByRole("region", { name: "Preset editor", exact: true });
+      const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
       const title = editor.getByRole("heading", { name: preset.name, exact: true });
       // The heading stays in the outline; the identity that has to fit the row is its painted twin.
       const paintedName = editor.getByText(preset.name, { exact: true }).and(editor.locator('[aria-hidden="true"]'));
-      const rename = editor.getByRole("button", { name: "Rename preset", exact: true });
+      const rename = editor.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
       const activate = editor.getByRole("button", { name: "Activate — use this preset for generation", exact: true });
       const reset = editor.getByRole("button", { name: "Reset to starter arrangement", exact: true });
       const status = editor.locator('[data-slot="autosave-status"]');
       await expect(title).toBeVisible();
       await expect(status).toHaveText("Saved");
-      const tabs = editor.getByRole("tablist", { name: "Preset sections", exact: true });
+      const tabs = editor.getByRole("tablist", { name: PRESET_SECTIONS_NAME, exact: true });
       await expect(tabs).toHaveCount(1);
       const tabBoxes = await tabs.getByRole("tab").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().y));
       expect(new Set(tabBoxes).size).toBe(1);
@@ -126,7 +127,7 @@ test.describe("coarse narrow save failure", () => {
       }),
     });
     await mount<typeof PresetActionGroupsStory>(STORY, { width: 390, appearance, subject: "editor", presetId: preset.id });
-    const editor = page.getByRole("region", { name: "Preset editor", exact: true });
+    const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
     const quality = editor.getByRole("combobox", { name: "Quality", exact: true });
     await quality.focus();
     await page.keyboard.press("Space");
@@ -175,8 +176,8 @@ test.describe("coarse phone tab navigation", () => {
     const preset = await caller.preset.create({ name: "Keyboard view witness", kind: "generation" });
     await routeTrpc(page, serveCorpusProcedures(caller, [...READS, "regex.listForPreset", "regex.listScripts"]));
     await mount<typeof PresetActionGroupsStory>(STORY, { width: 390, appearance, subject: "editor", presetId: preset.id });
-    const editor = page.getByRole("region", { name: "Preset editor", exact: true });
-    const tabs = editor.getByRole("tablist", { name: "Preset sections", exact: true });
+    const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
+    const tabs = editor.getByRole("tablist", { name: PRESET_SECTIONS_NAME, exact: true });
     const clip = tabs.locator("..");
     await tabs.getByRole("tab", { name: "Params", exact: true }).focus();
     const before = await editor.evaluate((node) => node.scrollTop);

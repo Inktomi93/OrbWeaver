@@ -59,15 +59,13 @@ function assertBase(base: Oklch): { readonly inputProjected: boolean; readonly r
   for (const host of opaqueHosts) {
     assertContrast(mutedInk, oklchToSrgb(host), target, `${label}: muted`);
   }
-  const inputInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h });
+  const inputInk = oklchToSrgb({ l: pair.inputWash, c: 0, h });
   for (const backing of [base, card, popover]) {
-    assertContrast(mutedInk, compositeSrgb(inputInk, pair.inputAlpha, oklchToSrgb(backing)), target, `${label}: input`);
+    assertContrast(mutedInk, compositeSrgb(inputInk, THEME_DERIVATION.inputAlpha, oklchToSrgb(backing)), target, `${label}: input`);
   }
-  expect(pair.inputAlpha).toBeGreaterThanOrEqual(0);
-  expect(pair.inputAlpha).toBeLessThanOrEqual(THEME_DERIVATION.inputAlpha);
   const arm = THEME_DERIVATION.ramp[surfacePolarity(base)];
   return {
-    inputProjected: pair.inputAlpha < THEME_DERIVATION.inputAlpha,
+    inputProjected: pair.inputWash !== derivedForegroundLightness(base),
     rampProjected: SHARED_ROLES.some((role) => deltas[role] !== arm[role]),
   };
 }

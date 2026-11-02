@@ -8,6 +8,7 @@ import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { auditSurface, formatFindings } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
@@ -49,7 +50,7 @@ test("the loaded preset detail has no name-quality findings", async ({ corpus, m
     name: "loaded preset detail",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("heading", { name: preset.name, exact: true }), page.getByRole("button", { name: "Rename preset", exact: true })],
+    witnesses: [page.getByRole("heading", { name: preset.name, exact: true }), page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true })],
     checks: ["names"],
   });
   expect(formatFindings(report.names)).toBe("");

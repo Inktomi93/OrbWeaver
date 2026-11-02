@@ -24,8 +24,9 @@
     min-block-size: 0;
     background: var(--color-background);
     /* The named query container for the topbar's progressive disclosure: the content column narrows independently
-     * of the viewport when panes dock, and the name keeps deeper thread queries off this box. */
-    container: shell-main / inline-size;
+     * of the viewport when panes dock, and the name keeps deeper thread queries off this box. It answers height
+     * too, in the enlarged root's rem and past the keyboard inset, where a media query's rem and height do neither. */
+    container: shell-main / size;
   }
   .shell-topbar {
     flex: none;
@@ -105,7 +106,9 @@
     min-inline-size: var(--dimension-shell-title-floor);
     overflow: hidden;
   }
-  .shell-topbar-title-group:has(.shell-topbar-subtitle) {
+  /* The editing group keeps the title button's width, which a short title leaves under the field's own floor. */
+  .shell-topbar-title-group:has(.shell-topbar-subtitle),
+  .shell-topbar-title-group[data-editing] {
     min-inline-size: calc(var(--dimension-shell-title-floor) * 3 + var(--spacing-row));
   }
   .shell-topbar-title-group:has(.shell-topbar-subtitle) .shell-topbar-title,
@@ -123,9 +126,10 @@
     .shell-topbar-title {
     display: none;
   }
-  /* The rename field sizes to its content above a floor; the group caps it. */
+  /* The rename field sizes to its content above a floor; the group caps it, and the text scrolls inside the field. */
   .shell-topbar-rename {
-    flex: 1 0 auto;
+    flex: 1 1 auto;
+    max-inline-size: 100%;
     min-inline-size: calc(var(--dimension-shell-title-floor) * 2);
     field-sizing: content;
   }
@@ -147,6 +151,22 @@
   .shell-context-header {
     block-size: calc(var(--dimension-chrome-row) - var(--border-width-accent));
     box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
+  }
+  /* A pane narrower than this cannot seat its tabs beside the row's own controls at the enlarged root, so the strip
+   * takes a whole line and the controls keep their trailing edge on the next. The default-text slide-over (17rem) seats
+   * both on one row, and a second line there would push the notice stack past a keyboard-shortened viewport. */
+  @container shell-panel (inline-size < 16rem) {
+    .shell-context-header {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      block-size: auto;
+      min-block-size: calc(var(--dimension-chrome-row) - var(--border-width-accent));
+    }
+    .shell-context-header > [data-slot="context-tab-strip"] {
+      flex: none;
+      inline-size: 100%;
+      min-block-size: var(--dimension-chrome-row);
+    }
   }
   /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
   .shell-context-tab-strip {

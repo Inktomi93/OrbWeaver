@@ -15,12 +15,12 @@
 // spans (`HIDDEN_TAGS` registrants); `unknown-directive` noise is display-filtered client-side but is NOT a
 // secret and stays in the payload.
 //
-// THE STRIP IS TOTAL OVER FENCE BODIES. `stripHiddenSpans` runs a fence-blind hidden-scan pass rather than
-// tokenizing with the render grammar — grammar-aware tokenizing treats a CLOSED `:::card` fence as one span
+// THE STRIP IS TOTAL OVER FENCE BODIES AND CODE BLOCKS. `stripHiddenSpans` walks the tags of the whole body rather
+// than tokenizing with the render grammar — grammar-aware tokenizing treats a CLOSED `:::card` fence as one span
 // carrying its whole body as `raw`, which would re-emit a `<lie …/>` the model wrote inside a card body
 // verbatim into the member's committed payload (invisible on their screen, since a card body renders as
-// HTML, but present in their DOM). The ``` code-fence exclusion is the one named, ratified hole (the reader
-// SEES that tag — a visible model bug, not a silent leak).
+// HTML, but present in their DOM), and it leaves a tag inside a ``` block literal. The host's render and the
+// model's wire keep both (D285).
 //
 // THE MID-STREAM CHANNEL (§3.6 — closed by the PRODUCER-SIDE stamper): the live token DELTA stream + the
 // durable event replay carry raw model text char-by-char, so a member watching a turn stream would see

@@ -16,6 +16,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type {
@@ -83,7 +84,7 @@ test("the loaded preset detail reads clean", async ({ corpus, mount, page }) => 
     name: "loaded preset detail",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("button", { name: "Rename preset", exact: true })],
+    witnesses: [page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true })],
     checks: ["density"],
   });
   expect(boundary).toEqual([]);

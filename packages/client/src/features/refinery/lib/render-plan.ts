@@ -107,9 +107,17 @@ function formatLabel(key: string): string {
  *  / "CREATOR NOTES" instead of the mashed "EXAMPLEMESSAGES" (side-eye 2026-08-09 P3). */
 export function scopeChipLabelOf(field: string, greetingIndexes: readonly number[] | undefined): string {
   if (field === "greetings" && greetingIndexes !== undefined) {
-    return `greetings ${greetingIndexes.join(",")}`;
+    return `Greetings ${greetingIndexes.map((index) => index + 1).join(", ")}`;
   }
   return formatLabel(field);
+}
+
+/** What an appended greeting is called: it has no slot number yet. */
+export const NEW_GREETING_LABEL = "New greeting";
+
+/** One slot's name, from the one source every dialog reads: a field is humanized, a greeting slot is counted from one. */
+export function slotLabelOf(field: string, greetingIndex?: number): string {
+  return greetingIndex === undefined ? formatLabel(field) : `Greeting ${greetingIndex + 1}`;
 }
 
 function hintAt(node: Record<string, unknown>, path: string, overlay: HintOverlay): RenderHint | null {

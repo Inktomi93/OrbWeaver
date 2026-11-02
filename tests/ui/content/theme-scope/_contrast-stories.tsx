@@ -1,10 +1,14 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
 import { keysOf } from "@orb/testkit/iso";
+import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ListRow } from "@orb/ui/list-row";
+import { Markdown } from "@orb/ui/markdown";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { TrackBar } from "@orb/ui/meter";
+import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
@@ -16,6 +20,10 @@ const SEMANTIC_PAIRS = [
   ["surface-raised", "foreground"],
   ["card", "foreground"],
   ["card", "card-foreground"],
+  ["card", "prose-body"],
+  ["accent", "foreground"],
+  ["muted", "foreground"],
+  ["background", "sidebar-foreground"],
   ["popover", "popover-foreground"],
   ["sidebar", "sidebar-foreground"],
   ["accent", "accent-foreground"],
@@ -24,6 +32,7 @@ const SEMANTIC_PAIRS = [
 ] as const;
 const MUTED_HOSTS = ["background", "card", "popover", "sidebar", "secondary", "muted"] as const;
 const INPUT_HOSTS = ["background", "card", "popover"] as const;
+const FIELD_HOSTS = ["background", "surface-raised", "card", "popover", "sidebar"] as const;
 // Columns wrap so every sample stays inside a phone viewport as well as a desktop one.
 const GRID_COLUMNS = "repeat(auto-fill, minmax(10rem, 1fr))";
 const SAMPLE_STYLE: CSSProperties = { margin: 0, padding: "1rem", minHeight: "3rem" };
@@ -70,7 +79,36 @@ function SemanticPairs(): ReactElement {
           >{`input on ${surface}`}</p>
         </div>
       ))}
+      {FIELD_HOSTS.map((surface) => (
+        <div key={`field-${surface}`} style={{ backgroundColor: `var(${TOKENS[`color.${surface}`].cssVar})` }}>
+          <p
+            style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS["color.field-fill"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})` }}
+          >{`field value on ${surface}`}</p>
+        </div>
+      ))}
     </div>
+  );
+}
+
+/** The ramp members a picker row and a rail track are told apart by, each a bare fill over the card or popover it sits on. */
+export function NeutralFillStory({ background }: { readonly background: string }): ReactElement {
+  const fill = (name: string, token: "muted" | "accent" | "popover" | "card" | "input", host: "card" | "popover"): ReactElement => (
+    <div style={{ backgroundColor: `var(${TOKENS[`color.${host}`].cssVar})` }}>
+      <div data-fill={name} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.${token}`].cssVar})` }} />
+    </div>
+  );
+  return (
+    <CtIsolation subject="ThemeScope" isolates="The neutral ramp and the input rail a custom scope paints">
+      <ThemeScope tokens={{ background }}>
+        <div style={{ display: "grid", gridTemplateColumns: GRID_COLUMNS }}>
+          {fill("muted", "muted", "popover")}
+          {fill("accent", "accent", "popover")}
+          {fill("popover", "popover", "popover")}
+          {fill("card", "card", "card")}
+          {fill("rail", "input", "card")}
+        </div>
+      </ThemeScope>
+    </CtIsolation>
   );
 }
 
@@ -143,27 +181,38 @@ const HUE_SAMPLE_ROLES = ["solid", "tint", "tint-active"] as const satisfies rea
  * Each colored tone's text on the page and its solid and tints as fills, inside a custom ThemeScope on `background`, with
  * Hearth's base and accent as the ambient the shell root hands down.
  */
-export function ToneHueStory({ background }: { readonly background: string }): ReactElement {
+export function ToneHueStory({ background, theme }: { readonly background?: string; readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
+  const samples = <ToneHueSamples />;
   return (
-    <CtIsolation subject="Tone hues" isolates="Literal tone roles a custom ThemeScope emits over a mid-lightness page">
-      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
-        <div
-          data-sample="ground"
-          style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}
-        >
-          {TONES.filter((tone) => tone !== "neutral").map((tone) => (
-            <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
-              <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
-                {`${tone} text`}
-              </p>
-              {HUE_SAMPLE_ROLES.map((role) => (
-                <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
-              ))}
-            </div>
+    <CtIsolation subject="Tone hues" isolates="Tone roles a custom ThemeScope emits over a mid-lightness page, and a seed palette's own">
+      {background === undefined ? (
+        <div data-theme={theme}>{samples}</div>
+      ) : (
+        <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
+          {samples}
+        </ThemeScope>
+      )}
+    </CtIsolation>
+  );
+}
+
+function ToneHueSamples(): ReactElement {
+  return (
+    <div
+      data-sample="ground"
+      style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, display: "grid", gridTemplateColumns: GRID_COLUMNS, padding: "1rem" }}
+    >
+      {TONES.filter((tone) => tone !== "neutral").map((tone) => (
+        <div key={tone} data-tone={tone} style={{ display: "grid", gap: "0.5rem" }}>
+          <p data-sample="text" style={{ ...SAMPLE_STYLE, color: `var(${TOKENS["color.tone-text"].cssVar})`, fontWeight: 700 }}>
+            {`${tone} text`}
+          </p>
+          {HUE_SAMPLE_ROLES.map((role) => (
+            <div key={role} data-sample={role} style={{ ...SAMPLE_STYLE, backgroundColor: `var(${TOKENS[`color.tone-${role}`].cssVar})` }} />
           ))}
         </div>
-      </ThemeScope>
-    </CtIsolation>
+      ))}
+    </div>
   );
 }
 
@@ -305,6 +354,229 @@ export function BubbleSeparationStory({
   return (
     <CtIsolation subject="ThemeScope" isolates="Message bubble fills against the page under shipped palettes and custom scopes">
       {background === undefined ? <div data-theme={theme}>{content}</div> : <ThemeScope tokens={{ background }}>{content}</ThemeScope>}
+    </CtIsolation>
+  );
+}
+
+/** A speaker's ink-only scope nested in a custom scope, as a transcript row sits in a custom app theme: its dialogue on each bubble. */
+export function SpeakerInkStory({ background, dialogueColor }: { readonly background: string; readonly dialogueColor: string }): ReactElement {
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A nested ink-only scope judged on the bubbles of the carried palette around it">
+      <ThemeScope tokens={{ background }}>
+        <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
+          <ThemeScope tokens={{ dialogueColor }}>
+            {MESSAGE_ROLES.map((role) => (
+              <MessageBubble key={role} messageRole={role}>
+                <span data-dialogue={role} style={{ color: `var(${TOKENS["color.dialogue"].cssVar})` }}>
+                  {role}
+                </span>
+              </MessageBubble>
+            ))}
+          </ThemeScope>
+        </div>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/** A theme's narration pick under a card scope that picks the assistant bubble's fill and no ink. */
+export function InheritedInkStory({
+  background,
+  narrationColor,
+  aiBubble,
+}: {
+  readonly background: string;
+  readonly narrationColor: string;
+  readonly aiBubble: string;
+}): ReactElement {
+  return (
+    <CtIsolation subject="ThemeScope" isolates="An inherited prose pick judged again on a bubble fill a nested scope picked">
+      <ThemeScope tokens={{ background, narrationColor }}>
+        <ThemeScope tokens={{ aiBubble: { bg: aiBubble } }}>
+          <MessageBubble messageRole="assistant">
+            <span data-inherited-ink="" style={{ color: `var(${TOKENS["color.narration"].cssVar})` }}>
+              Staff meeting
+            </span>
+          </MessageBubble>
+        </ThemeScope>
+      </ThemeScope>
+    </CtIsolation>
+  );
+}
+
+/**
+ * A speaker's row over a seed or custom palette: a card scope that picks the assistant bubble's fill and no background,
+ * the production Markdown inside it, and a nested ink-only span as a merged narrator row stamps.
+ */
+export function PickedBubbleStory({
+  theme,
+  background,
+  aiBubble,
+  inks,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly background?: string;
+  readonly aiBubble: string;
+  readonly inks: Pick<ThemeScopeTokens, "dialogueColor" | "narrationColor">;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  const row = (
+    <ThemeScope tokens={{ aiBubble: { bg: aiBubble }, ...inks }}>
+      <MessageBubble messageRole="assistant">
+        <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+          {'"Quoted speech" and *narration* with `inline code`.'}
+        </Markdown>
+        <ThemeScope tokens={{ dialogueColor: "oklch(0.7 0.14 250)" }}>
+          <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+            {'"Span speech"'}
+          </Markdown>
+        </ThemeScope>
+      </MessageBubble>
+    </ThemeScope>
+  );
+  return (
+    <CtIsolation subject="ThemeScope" isolates="Prose inks and inline code on a bubble fill a scope picked, beside its surrounding palette">
+      <div data-theme={theme}>
+        <ThemeScope tokens={background === undefined ? {} : { background }} ambientBackground={seed}>
+          {row}
+        </ThemeScope>
+      </div>
+    </CtIsolation>
+  );
+}
+
+function StoryProse({ dialogue = true }: { readonly dialogue?: boolean }): ReactElement {
+  return (
+    <>
+      <div data-body="">
+        <Markdown trust="untrusted" mode="static">
+          Body prose.
+        </Markdown>
+      </div>
+      {dialogue ? (
+        <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+          {'"Quoted speech" and *narration* with `inline code`.'}
+        </Markdown>
+      ) : null}
+    </>
+  );
+}
+
+/** A turn on the fill a boxed skin paints, or on the page as a box-less skin leaves it, in the reading ink that skin takes. */
+function StoryTurn({
+  boxed,
+  speaker,
+  readingInk,
+}: {
+  readonly boxed: boolean;
+  readonly speaker: "user" | "assistant";
+  readonly readingInk: boolean;
+}): ReactElement {
+  return boxed ? (
+    <MessageBubble messageRole={speaker} data-turn={speaker}>
+      <StoryProse />
+    </MessageBubble>
+  ) : (
+    <div data-turn={speaker} style={readingInk ? { color: `var(${TOKENS["color.prose-body"].cssVar})` } : undefined}>
+      <StoryProse />
+    </div>
+  );
+}
+
+/** The picks a room's root scope holds: a carried theme's sit beside its background on one scope. */
+function rootPicks(level: "room" | "row" | "carried", background: string | undefined, picks: ThemeScopeTokens): ThemeScopeTokens {
+  if (level === "carried") {
+    return { ...picks, ...(background === undefined ? {} : { background }) };
+  }
+  return level === "room" ? picks : {};
+}
+
+/**
+ * A room over a seed or custom palette: page chrome, a user turn and an assistant turn. `level` puts the picks on the room
+ * scope, as a carried room theme does, or on the assistant row's scope, as a card's row does.
+ */
+export function PickedRoomStory({
+  theme,
+  background,
+  picks,
+  level,
+  boxed,
+  readingInk,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly background?: string;
+  readonly picks: ThemeScopeTokens;
+  readonly level: "room" | "row" | "carried";
+  readonly boxed: boolean;
+  readonly readingInk: boolean;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A picked bubble fill reaching only the box that paints it">
+      <div data-theme={theme}>
+        <ThemeScope tokens={level === "carried" || background === undefined ? {} : { background }} ambientBackground={seed}>
+          <ThemeScope tokens={rootPicks(level, background, picks)}>
+            <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}>
+              <p data-chip="" style={{ backgroundColor: `var(${TOKENS["color.muted"].cssVar})`, color: `var(${TOKENS["color.accent-foreground"].cssVar})` }}>
+                Modified
+              </p>
+              <StoryTurn boxed={boxed} speaker="user" readingInk={readingInk} />
+              <ThemeScope tokens={level === "row" ? picks : {}}>
+                <StoryTurn boxed={boxed} speaker="assistant" readingInk={readingInk} />
+              </ThemeScope>
+            </div>
+          </ThemeScope>
+        </ThemeScope>
+      </div>
+    </CtIsolation>
+  );
+}
+
+const BOX_PROSE = ["> Quoted letter.", "", "| Head |", "| - |", "| Cell |", "", "[A link](https://example.com)"].join("\n");
+
+function BoxElements({ card, name }: { readonly card: ThemeScopeTokens; readonly name: string }): ReactElement {
+  return (
+    <ThemeScope tokens={card}>
+      <MessageBubble messageRole="assistant">
+        <ThemeScope tokens={card} className="contents">
+          <Text as="span" voice="label" ink="speaker" data-element="speaker name">
+            {name}
+          </Text>
+        </ThemeScope>
+        <Markdown trust="trusted" mode="static">
+          {BOX_PROSE}
+        </Markdown>
+        <Text as="span" voice="gloss" ink="muted" data-element="swipe foot">
+          2/3
+        </Text>
+        <Button variant="ghost" size="sm" data-element="kebab">
+          More
+        </Button>
+        <Badge data-element="soft chip">Modified</Badge>
+      </MessageBubble>
+    </ThemeScope>
+  );
+}
+
+/** A card's assistant turn with each primitive a bubble holds, its row and its attribution scopes shaped as the transcript stamps them. */
+export function BoxElementsStory({
+  theme,
+  card,
+  second,
+}: {
+  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
+  readonly card: ThemeScopeTokens;
+  readonly second?: ThemeScopeTokens;
+}): ReactElement {
+  const seed = theme === undefined ? TOKENS["color.background"].value : SEED_THEME_VALUE_SETS[theme].vars[TOKENS["color.background"].cssVar];
+  return (
+    <CtIsolation subject="ThemeScope" isolates="A bubble box as a whole surface for what it holds">
+      <div data-theme={theme}>
+        <ThemeScope tokens={{}} ambientBackground={seed} ambientAccent={TOKENS["color.primary"].value}>
+          <BoxElements card={card} name="Pamela" />
+          {second === undefined ? null : <BoxElements card={second} name="Mira" />}
+        </ThemeScope>
+      </div>
     </CtIsolation>
   );
 }

@@ -16,6 +16,7 @@ import type { ChatId, ChatInviteId, NotificationId, UserId } from "@orb/kit/ids"
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handoffOfferContentsSchema } from "../chat/roster.ts";
+import { pageDirectionShape } from "../rpc/index.ts";
 
 const recipientUserIdSchema = brandedId("UserId");
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
@@ -246,7 +247,6 @@ interface InboxViewFields {
   /** null = unread; epoch-ms when the recipient first read it (idempotent — set once). */
   readonly readAt: number | null;
   /** null = active in the inbox; epoch-ms when the recipient dismissed it (idempotent — set once). */
-  // @view-server-only: `notifications.list` is dismissedAt-EXCLUDED at the query (persistence/queries.ts:86 `isNull(dismissedAt)`), so every row the client receives carries null here — the value exists for the idempotent dismiss flip, not for a reader. Ends if the inbox grows a "dismissed" tab that pages the excluded rows.
   readonly dismissedAt: number | null;
   readonly createdAt: number;
 }
@@ -304,24 +304,32 @@ export const inboxViewSchema = z.discriminatedUnion("type", [
  *  cap is what stops it degenerating into "enumerate the deployment" by brute force. */
 export const PRESENCE_READ_MAX_USER_IDS = 100;
 
-/** The presence DISCLOSURE wire shape (#1039) — the ONLINE SUBSET of the user ids the caller asked about,
- *  and nothing else.
+/** When an asked-about user's last device left. Absent for an online user and for one this process has not
+ *  seen, so a missing entry never means "long gone". */
+export interface PresenceLastSeen {
+  readonly userId: UserId;
+  readonly lastSeenAt: number;
+}
+
+/** The presence DISCLOSURE wire shape (#1039) — of the user ids the caller asked about, who is online and
+ *  when the others were last around.
  *
- *  IT IS A PROJECTION OF {@link PresenceView}, NEVER THE VIEW ITSELF, and the shape is the enforcement.
- *  `PresenceView` also carries `lastSeenAt` — an activity timestamp saying WHEN someone's last device went
- *  dark, which is a behavioural disclosure the roster dot does not need and nobody asked for. Returning ids
- *  instead of per-user objects means there is no field for it to ride on: a future widening has to be an
- *  explicit wire change with its own review, not a struct that quietly grew a member.
+ *  IT IS A PROJECTION OF {@link PresenceView}, NEVER THE VIEW ITSELF, so a new `PresenceView` member reaches
+ *  the wire only by an explicit change here.
  *
- *  A user id the caller asked about and does not get back is OFFLINE **or** not disclosable to them — one
- *  indistinguishable answer, deliberately. That is what keeps a later membership/privacy tightening
- *  (`transport/trpc/presence-disclosure.ts`) free of an existence oracle. */
+ *  An id in `lastSeen` proves that user connected since the server booted, so a caller who types an arbitrary
+ *  id learns whether that account has been online this run. That is the v1 audience (everyone sees presence),
+ *  and it is as wide as `onlineUserIds`. An id absent from both lists is never-seen-this-run **or** not
+ *  disclosable: one answer, so a later membership/privacy tightening
+ *  (`transport/trpc/presence-disclosure.ts`) can still withhold without telling the asker which. */
 export interface PresenceSnapshot {
   readonly onlineUserIds: readonly UserId[];
+  readonly lastSeen: readonly PresenceLastSeen[];
 }
 
 export const presenceSnapshotSchema = z.strictObject({
   onlineUserIds: z.array(brandedId("UserId")).readonly(),
+  lastSeen: z.array(z.strictObject({ userId: brandedId("UserId"), lastSeenAt: z.number() })).readonly(),
 }) satisfies z.ZodType<PresenceSnapshot>;
 
 /** The per-user presence shape transport derives from the live SSE connection ref-count. A read-model
@@ -333,7 +341,11 @@ export interface PresenceView {
   lastSeenAt: number | null;
 }
 
-/** Newest-first, dismissedAt-excluded (active inbox only). */
+/** Which half of the caller's inbox `notifications.list` pages. */
+const INBOX_STATES = ["active", "dismissed"] as const;
+export type InboxState = (typeof INBOX_STATES)[number];
+
+/** Newest-first rows of one {@link InboxState}. */
 export interface ListInboxResult {
   readonly items: readonly InboxView[];
   readonly nextCursor: number | null;
@@ -356,7 +368,12 @@ export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() 
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
 export const listInboxInputSchema = z
-  .strictObject({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() })
+  .strictObject({
+    cursor: z.number().optional(),
+    limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional(),
+    state: z.enum(INBOX_STATES).optional(),
+    ...pageDirectionShape,
+  })
   .optional();
 
 /** What the inbox asks chat about: the ids on ONE page of rows that carry a chat-owned decision. The op

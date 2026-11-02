@@ -42,10 +42,11 @@ import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
+import { DATABANK_MAINTENANCE_NAME } from "../lib/databank-names.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 import { useOwnerSweep } from "./use-owner-sweep.tsx";
 
-const MAINTENANCE_LABEL = "Databank maintenance";
+const MAINTENANCE_LABEL = DATABANK_MAINTENANCE_NAME;
 const ADD_DOCUMENT_LABEL = "Add a document";
 
 export function useDatabankListHeader(): ListPaneHeaderView {

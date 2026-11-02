@@ -43,6 +43,7 @@ import { castId } from "@orb/kit/ids";
 import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
@@ -416,7 +417,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     await openGamePanel(page);
 
     // The turn: one real Agent-SDK character turn.
-    const composer = page.getByRole("textbox", { name: "Message" });
+    const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
     await expect(composer).toBeVisible();
     await typeAndSend(composer, STATE_CHANGE_NARRATION);
 
@@ -517,7 +518,7 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
 
     await openNewestChat(page);
     await openGamePanel(page);
-    const composer = page.getByRole("textbox", { name: "Message" });
+    const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
     await typeAndSend(composer, STATE_CHANGE_NARRATION);
 
     const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');

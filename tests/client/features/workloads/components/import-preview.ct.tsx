@@ -277,3 +277,23 @@ test("a pick brings the preflight, with its progress bar, into view and focuses 
   await expect(preflight).toBeFocused();
   await expect(preflight.getByRole("progressbar")).toBeInViewport();
 });
+
+test("a refused persona review says so in plain words, not the raw request error", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-methods": "POST", "access-control-allow-headers": `${CSRF_HEADER}, content-type` };
+  await page.route(`**${PORTABILITY_ROUTES.importTreeReview}`, (route) =>
+    route.request().method() === "OPTIONS"
+      ? route.fulfill({ status: 204, headers: cors })
+      : route.fulfill({ status: 500, contentType: "application/json", body: '{"error":"planted failure"}', headers: cors }),
+  );
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  await expect(page.getByText("The server could not read this folder.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/reviewTreePersonas|planted failure/u)).toHaveCount(0);
+});

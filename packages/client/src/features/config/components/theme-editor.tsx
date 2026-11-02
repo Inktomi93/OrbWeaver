@@ -15,7 +15,7 @@
 // never per-keystroke and never by opening the editor. A save that races the mint awaits the same promise,
 // so it can never patch the seed it was customizing.
 
-import type { Theme, ThemeRadius } from "@orb/contracts/theme";
+import type { Theme } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
@@ -30,14 +30,16 @@ import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
 import { lazy, Suspense, useEffect, useState } from "react";
+import { CORNER_RADIUS_NAME } from "#components";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
-import { DENSITY_ITEMS } from "#lib";
+import { DENSITY_ITEMS, THEME_RADIUS_LABELS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
+import { CONFIG_ADVANCED_THEME_TOOLS_NAME, CONFIG_CUSTOM_CSS_NAME, CONFIG_THEME_NAME_FIELD_NAME } from "../lib/config-control-names.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
@@ -56,15 +58,9 @@ const FONT_ITEMS: SelectItems<string> = THEME_FONT_ALLOWLIST.map((value) => ({
   label: value,
   labelStyle: { fontFamily: value },
 }));
-const RADIUS_LABELS: Record<ThemeRadius, string> = {
-  base: "Base",
-  control: "Tight",
-  card: "Card",
-  full: "Round",
-};
 const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
   value,
-  label: RADIUS_LABELS[value],
+  label: THEME_RADIUS_LABELS[value],
 }));
 
 // The session-boundary autosave form (D78 §1, mirroring the preset editor's `PresetForm`). Module-scope so
@@ -113,7 +109,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
       <Row gap="field" align="center" className="justify-end">
         <AutosaveStatus state={isUnmintedDraft && status === "saved" ? "draft" : status} onRetry={retrySave} />
       </Row>
-      <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label="Theme name" />}</boundForm.AppField>
+      <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label={CONFIG_THEME_NAME_FIELD_NAME} />}</boundForm.AppField>
 
       <Grid cols="wide" gap="gutter">
         <Section heading="Surface">
@@ -151,14 +147,16 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
 
         <Section heading="Type & shape">
           <boundForm.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</boundForm.AppField>
-          <boundForm.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</boundForm.AppField>
+          <boundForm.AppField name="radius">
+            {(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}
+          </boundForm.AppField>
           <boundForm.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</boundForm.AppField>
         </Section>
       </Grid>
 
       {advancedToolsVisible ? (
         <>
-          <Section heading="Custom CSS">
+          <Section heading={CONFIG_CUSTOM_CSS_NAME}>
             <boundForm.AppField name="css">
               {(field): ReactElement => (
                 <Suspense fallback={null}>
@@ -178,7 +176,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
       ) : (
         <Row>
           <Button variant="outline" onClick={(): void => setAdvancedToolsVisible(true)}>
-            Show advanced theme tools
+            {CONFIG_ADVANCED_THEME_TOOLS_NAME}
           </Button>
         </Row>
       )}

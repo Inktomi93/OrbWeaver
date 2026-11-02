@@ -9,6 +9,12 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import {
+  DATABANK_DOCUMENT_NAME_FIELD_NAME,
+  DATABANK_HIDE_SOURCE_NAME,
+  DATABANK_RENAME_NAME,
+  DATABANK_VIEW_SOURCE_NAME,
+} from "#client/features/databank/lib/databank-names.ts";
 import type { DatabankCompositionShellStory } from "./_databank-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -86,8 +92,8 @@ for (const regime of REGIMES) {
       const rename = detail.getByRole("button", { name: renameActionName(DOCUMENT_NAME), exact: true });
       await rename.focus();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Rename document", exact: true });
-      const nameInput = dialog.getByRole("textbox", { name: "Document name", exact: true });
+      const dialog = page.getByRole("dialog", { name: DATABANK_RENAME_NAME, exact: true });
+      const nameInput = dialog.getByRole("textbox", { name: DATABANK_DOCUMENT_NAME_FIELD_NAME, exact: true });
       await expect(nameInput).toBeFocused();
       await nameInput.fill("An abandoned document name");
       await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -144,7 +150,7 @@ for (const regime of REGIMES) {
       const { document, calls } = await prepare(root, page, corpus, appearance);
       await mount<typeof DatabankCompositionShellStory>(STORY, { documentId: document.id });
       const detail = page.locator('[data-slot="databank-detail-editor"]');
-      await detail.getByRole("button", { name: "View source text", exact: true }).click();
+      await detail.getByRole("button", { name: DATABANK_VIEW_SOURCE_NAME, exact: true }).click();
       const source = detail.getByText(SOURCE_TEXT, { exact: true });
       await expect(source).toBeVisible();
       await expect.poll(() => source.textContent()).toBe(SOURCE_TEXT);
@@ -174,7 +180,7 @@ for (const regime of REGIMES) {
       await expect.poll(() => viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
       await region.scrollIntoViewIfNeeded();
       await page.screenshot({ path: test.info().outputPath("document-source.png") });
-      await detail.getByRole("button", { name: "Hide source text", exact: true }).click();
+      await detail.getByRole("button", { name: DATABANK_HIDE_SOURCE_NAME, exact: true }).click();
       await expect(source).toHaveCount(0);
       for (const section of ["Details", "Maintenance", "Source text"]) {
         await expect(detail.getByRole("heading", { name: section, exact: true })).toBeVisible();

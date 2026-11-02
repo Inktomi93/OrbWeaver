@@ -13,7 +13,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
-import { trpcErrorReason } from "#lib";
+import { DIALOG_VERBS, trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
@@ -96,7 +96,7 @@ export function AddConnectionFormBody({
 }: AddConnectionFormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
   const addCredential = useAddCredentialOwned(deps);
-  const createConnection = useCreateConnection({ ...deps, failureShownInline: true });
+  const createConnection = useCreateConnection(deps);
   const checkSignIn = useSignInCheckAfterSave(deps);
   const draftModels = useDraftCatalogModels(deps);
   const [listing, setListing] = useState<DraftListing | null>(null);
@@ -315,7 +315,7 @@ export function AddConnectionFormBody({
               return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
                 <DialogFooter>
                   {onCancel === undefined ? (
-                    <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+                    <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
                   ) : (
                     <Button variant="ghost" onClick={onCancel} type="button">
                       Back

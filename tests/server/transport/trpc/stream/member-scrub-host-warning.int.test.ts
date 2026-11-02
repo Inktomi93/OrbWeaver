@@ -10,6 +10,7 @@ import { ended, memberWatching, openDevice, openRoom, SECRET_HEAD, textOf } from
 
 const BROKEN = ["Opening. ", '<LIE character="Witness" ', `truth="${SECRET_HEAD}">`, " The story goes on."];
 const CLEAN = "A clean reply lands.";
+const OVER_HIDDEN_BOUND = "x".repeat(17_000);
 
 const isBrokenTagWarning = (event: ChatBusEvent): boolean => event.type === "warning" && event.code === HIDDEN_TAG_BROKEN_CODE;
 
@@ -64,8 +65,44 @@ test("a member who joins after the warning never receives it, and a later clean 
 });
 
 test.each([
+  ["an unclosed quote", `Opening. <lie truth="${SECRET_HEAD}\n\nThree paragraphs members lose.`],
+  ["a quote its own backslash left open", `Opening. <lie truth="C:\\"/>\n\nThree paragraphs members lose.`],
+  ["a tag past the hidden scan bound", `Opening. <lie truth="${OVER_HIDDEN_BOUND}"/> Three paragraphs members lose.`],
+  ["a nest past the pass bound", `Opening. ${"<l".repeat(12)}<lie a="1"/>${'ie a="1"/>'.repeat(12)} Three paragraphs members lose.`],
+])("%s that hides the rest of a finished reply warns the host alone", async (_name, body) => {
+  await using room = await openRoom();
+  const { device: member, guest } = await memberWatching(room, "unfinished-member");
+  try {
+    room.answerWith(body);
+    await room.send();
+    await member.waitFor(ended);
+    expect(await replayedWarnings(room, room.host)).toHaveLength(1);
+    expect(warningsIn(member.frames)).toEqual([]);
+    expect(await replayedWarnings(room, guest)).toEqual([]);
+  } finally {
+    await member.close();
+  }
+});
+
+test.each([
+  ["the output limit", "length"],
+  ["the content filter", "content_filter"],
+])("%s cutting a reply inside a tag raises no warning", async (_name, finishReason) => {
+  await using room = await openRoom();
+  room.answerInChunks([`Opening. <lie truth="${SECRET_HEAD}`], finishReason);
+  await room.send();
+  expect(await replayedWarnings(room, room.host)).toEqual([]);
+});
+
+test("a broken tag warns even on a reply the output limit cut off", async () => {
+  await using room = await openRoom();
+  room.answerInChunks(BROKEN, "length");
+  await room.send();
+  expect(await replayedWarnings(room, room.host)).toHaveLength(1);
+});
+
+test.each([
   ["a closed tag", `Opening. <LIE truth="${SECRET_HEAD}"/> The end.`],
-  ["a reply cut inside a tag", `Opening. <lie truth="${SECRET_HEAD}`],
   ["prose", "She will <lie down on the bed."],
 ])("%s raises no warning", async (_name, body) => {
   await using room = await openRoom();

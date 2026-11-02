@@ -7,6 +7,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { REFINERY_EDIT_SCOPE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type {
   CollectionGridMatrixStory,
   DetailHeaderMatrixStory,
@@ -106,7 +107,7 @@ for (const coarse of [false, true]) {
         await expect(cell.getByRole("heading", { level: 2, name: "Elias Thorn", exact: true }), id).toHaveCount(1);
         const name = cell.locator('[data-shell-identity="defer"]');
         expect(await px(name, "font-size"), `${id}: the name is at the title step`).toBe(await resolved(cell, TOKENS["text.title"].cssVar));
-        const verb = cell.getByRole("button", { name: "Edit scope", exact: true });
+        const verb = cell.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true });
         expect(Math.round((await box(verb)).x + (await box(verb)).width), `${id}: the verbs end at the header's edge`).toBe(
           Math.round((await box(cell)).x + (await box(cell)).width),
         );

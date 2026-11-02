@@ -5,18 +5,16 @@ import { EllipsisVertical, Icon, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
-import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ListPage, QueryBoundary } from "#components";
-import { QueryErrorState } from "#data";
+import { LibrarySurfaceShell, ListPage } from "#components";
 import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
-import { TAG_FILTER_NAME } from "../lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -46,12 +44,9 @@ export function LabelsListSurface(): ReactElement {
         </>
       }
     >
-      <QueryBoundary
-        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
-      >
+      <LibrarySurfaceShell errorLabel="tags" loadingLabel="Loading tags…">
         <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
-      </QueryBoundary>
+      </LibrarySurfaceShell>
     </ListPage>
   );
 }
@@ -81,7 +76,7 @@ function LabelsOverflow(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button aria-label="More tag actions" variant="ghost" size="sm" square={true}>
+          <Button aria-label={TAG_MORE_ACTIONS_NAME} variant="ghost" size="sm" square={true}>
             <Icon icon={EllipsisVertical} size="sm" />
           </Button>
         }
@@ -89,7 +84,7 @@ function LabelsOverflow(): ReactElement {
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
           <Icon icon={Trash} size="sm" />
-          Prune unused tags
+          {TAG_PRUNE_NAME}
         </MenuItem>
       </MenuPopup>
     </Menu>

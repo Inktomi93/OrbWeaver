@@ -6,6 +6,7 @@ import { auditSurface, formatFormIdentityFindings } from "@orb/testkit/browser/s
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { BareFieldPrimitivesStory, FieldWrappedPrimitivesStory, FormKeysStory } from "./_field-identity-stories.tsx";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
@@ -66,7 +67,7 @@ test("the loaded preset detail identifies and labels every form field", async ({
     name: "loaded preset detail",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("heading", { name: preset.name, exact: true }), page.getByRole("button", { name: "Rename preset", exact: true })],
+    witnesses: [page.getByRole("heading", { name: preset.name, exact: true }), page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true })],
     checks: ["forms"],
   });
   expect(formatFormIdentityFindings(report.forms)).toBe("");

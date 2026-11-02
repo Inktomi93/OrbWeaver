@@ -49,6 +49,7 @@ import { InlineToken } from "@orb/ui/inline-token";
 import { MenuItem } from "@orb/ui/menu";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { PRESET_UNREADABLE_ROW_MARKER, timeLib, unreadableConfigCause } from "#lib";
@@ -80,12 +81,14 @@ export interface PresetLibraryRowProps {
   /** The row is the ACTIVE-for-generation preset (the built-in row ⇔ `defaultPresetId === null`). */
   readonly active: boolean;
   readonly onSelect: (id: PresetId) => void;
-  readonly onDelete: (id: PresetId) => void;
+  readonly onDelete: (id: PresetId) => Promise<void>;
   readonly onDuplicate: (id: PresetId) => void;
   /** Make THIS row the active-for-generation pick (§16 row 3 — the one `setDefault` mutation). */
   readonly onActivate: (id: PresetId) => void;
   /** Download this preset as an `orb.preset` file (G6). Never offered on the built-in row. */
   readonly onExport: (id: PresetId) => void;
+  /** Where focus goes when this row is deleted (`useRowDeleteFocus`). */
+  readonly rowFocus: RowDeleteFocus;
 }
 
 /** A single preset library row (its Duplicate/Delete menu + delete-confirm come from LibraryRow). */
@@ -100,6 +103,7 @@ export function PresetLibraryRow({
   onDuplicate,
   onActivate,
   onExport,
+  rowFocus,
 }: PresetLibraryRowProps): ReactElement {
   // ONE label in both states: the press only ever ACTIVATES, so a pressed-state name that promised an
   // un-activate would describe an action this control does not have. `aria-pressed` carries the state.
@@ -112,6 +116,7 @@ export function PresetLibraryRow({
 
   return (
     <LibraryRow
+      bodyRef={rowFocus.bodyRef(preset.id)}
       // The cluster carries a rest-visible control (the pressed dot), so the strip is reserved in flow —
       // see the file header.
       // The LIST's widest cluster is TWO (state dot · kebab) and every row now renders both, so the dot
@@ -206,7 +211,7 @@ export function PresetLibraryRow({
               // (the regex list minted the omission). Nothing else about this row changes: Duplicate,
               // Delete and Export are lifecycle and stay list-side (O-16★).
               onDuplicate: (): void => onDuplicate(preset.id),
-              onDelete: (): void => onDelete(preset.id),
+              ...rowFocus.delete(preset.id, (): Promise<void> => onDelete(preset.id)),
               // G6: the single-preset export door. Its bytes are `buildPresetFile`'s — the same serde the
               // whole-profile bundle writes (the surface owns the download; this is just its home).
               menuItemsAfter: (

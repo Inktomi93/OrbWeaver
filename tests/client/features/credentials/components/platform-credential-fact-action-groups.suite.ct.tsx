@@ -148,6 +148,13 @@ for (const regime of REGIMES) {
       await expect(resetRow).toBeFocused();
       expect((await actionGroupGeometry(resetRow, [reset])).inlineOverflow).toBeLessThanOrEqual(1);
       await reset.click();
+      const confirm = page.getByRole("alertdialog");
+      await expect(confirm).toBeVisible();
+      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(confirm).toHaveCount(0);
+      expect((await caller.connection.get({ connectionId: connection.id })).declared).not.toBeNull();
+      await reset.click();
+      await confirm.getByRole("button", { name: "Reset", exact: true }).click();
       await expect(page.getByRole("button", { name: "Override max output", exact: true })).toBeVisible();
       expect((await caller.connection.get({ connectionId: connection.id })).declared).toBeNull();
     });

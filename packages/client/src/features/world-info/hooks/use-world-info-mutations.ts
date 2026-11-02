@@ -1,3 +1,9 @@
+import type { EntryView } from "@orb/contracts/world-info";
+import type { InvalidateQueryFilters } from "@tanstack/react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { SectionPatchVars, Trpc } from "#data";
+import { createEntityMutation } from "#data";
+
 // The world-info CRUD + attachment mutations, one createEntityMutation per verb. Attachment writes
 // (global/character/persona) are the "activation" surface: a book fires in a chat's per-turn pool when
 // attached at one of those scopes. Only the three OWNER-scoped surfaces are wired here: the fourth scope
@@ -8,12 +14,6 @@
 // rows, and its two DERIVED numbers move on writes that touch neither the book list nor a single book —
 // creating or deleting an ENTRY changes the count, and every ATTACH/DETACH changes the scent. Any write
 // below that can move a book's name, its entry count, or its attachment total names `listRead`.
-
-import type { EntryView } from "@orb/contracts/world-info";
-import type { InvalidateQueryFilters } from "@tanstack/react-query";
-import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
 
 /** The Configuration list's read (book row = name · entry count · attachment scent). */
 function listRead(trpc: Trpc): InvalidateQueryFilters {
@@ -158,4 +158,10 @@ export const useDetachWorldBookFromPersona = createEntityMutation<inferInput<Trp
   options: (trpc) => trpc.worldInfo.detachFromPersona.mutationOptions(),
   invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), trpc.worldInfo.listAttachmentsForBook.pathFilter(), listRead(trpc)],
   errorToast: "Couldn't detach the book from the persona.",
+});
+
+export const useUpdateWorldInfoSettings = createEntityMutation<SectionPatchVars<"worldInfo">, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
+  errorToast: "Couldn't save your world-info settings.",
 });

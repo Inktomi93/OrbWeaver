@@ -171,7 +171,7 @@ function TrackerRow({
           {WRITE_GLOSS[def.write]}
         </Text>
         {def.subject === "game" ? (
-          <Badge size="sm">game-wide</Badge>
+          <Badge size="sm">Game-wide</Badge>
         ) : (
           <Tip text={`Who carries ${def.label}`}>
             <Button variant="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })}>

@@ -3,6 +3,7 @@ kind: work
 status: open
 updated: 2026-10-06
 priority: P3
+plan: cross-surface-consistency
 area: ui
 ---
 

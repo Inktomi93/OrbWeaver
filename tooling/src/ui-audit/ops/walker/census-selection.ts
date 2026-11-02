@@ -313,8 +313,11 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     // the fact that tells a bulk-default group (11 of 11) from a genuinely single-member one (1 of 1), and
     // it costs one string.
     var cohortCensus = " (" + group.selected.length + " of " + (group.selected.length + group.unselected.length) + " chosen)";
+    // Zero chosen at rest: the selected state only exists once the surface is driven, and design-audit is
+    // read-only, so no rest run can ever judge this cohort. That is a measured structural fact, not a
+    // missing measurement, so it is excluded and does not void the run.
     if (group.selected.length === 0) {
-      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected", describe(group.unselected[0]) + cohortCensus);
+      excludeRelational(relationalAccounting["selection-idiom"], "noneChosenAtRest");
       return;
     }
     if (group.unselected.length === 0) {

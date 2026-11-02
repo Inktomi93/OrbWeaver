@@ -15,7 +15,6 @@ import {
 import { SURFACE_HTTP_ANNOTATION } from "../iso/surface-pass.ts";
 import { nativeAttachmentExtension } from "./native-attachments.ts";
 import { assertSurfaceRunOutput } from "./surface-data.ts";
-import { writeSurfaceCaseAdmission } from "./surface-run.ts";
 
 export const SURFACE_AGENT_ENTRY = "agent-entry.md";
 export const SURFACE_AGENT_SUMMARY = "agent-summary.txt";
@@ -160,7 +159,6 @@ export default class SurfaceIndexReporter implements Reporter {
   private selectionLimited = true;
   private outcome: FullResult["status"] | null = null;
   private nextAttachment = 0;
-  private lastCaseCompletedAt: number | null = null;
 
   constructor(options: { readonly runRoot: string; readonly nativeJson: string; readonly htmlDirectory: string; readonly blobDirectory: string }) {
     this.root = options.runRoot;
@@ -186,7 +184,6 @@ export default class SurfaceIndexReporter implements Reporter {
   }
 
   onTestBegin(test: TestCase, result: TestResult): void {
-    writeSurfaceCaseAdmission(this.root, test.id, this.lastCaseCompletedAt);
     this.route(test, result);
     this.writeEntry();
   }
@@ -218,8 +215,6 @@ export default class SurfaceIndexReporter implements Reporter {
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
-    this.lastCaseCompletedAt = Date.now();
-    writeSurfaceCaseAdmission(this.root, test.id, this.lastCaseCompletedAt);
     const route = this.route(test, result);
     route.test.expectedStatus = test.expectedStatus;
     const { status, retry, duration, startTime, error, errors, annotations } = result;

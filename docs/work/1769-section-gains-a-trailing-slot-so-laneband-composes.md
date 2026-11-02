@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-01
 priority: P3
 area: ui
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # Section gains a trailing slot so LaneBand composes from it

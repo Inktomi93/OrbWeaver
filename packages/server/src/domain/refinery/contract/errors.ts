@@ -99,6 +99,14 @@ export class RefineryNotConfiguredError extends DomainUnavailableError {
   }
 }
 
+/** The owner's `structured` connection is bound but withholds background consent (`canFund`), so refinery work is refused. */
+export class RefineryBackgroundRefusedError extends DomainUnavailableError {
+  constructor() {
+    super("The summarize connection does not allow background work — enable it under Connections to run the refinery.");
+    this.name = this.constructor.name;
+  }
+}
+
 export class RefineryRunFailedError extends DomainUnavailableError {
   constructor(message: string, options?: ErrorOptions) {
     super(message);

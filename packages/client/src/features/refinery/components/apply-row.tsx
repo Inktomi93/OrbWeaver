@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
 import type { TerminalActs } from "../hooks/use-terminal-acts.ts";
+import { REFINERY_SAVE_AS_COPY_NAME } from "../lib/refinery-names.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 // Re-derived locally from the wire (§7.4 — never an exported alias).
@@ -37,9 +38,9 @@ export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRo
           Applied. Run a stage to start another round.
         </Text>
       ) : null}
-      {armedRewrite !== null ? <RefineryChip tone="good">applying round {armedRewrite.iteration}'s rewrite</RefineryChip> : null}
+      {armedRewrite !== null ? <RefineryChip tone="good">Applying round {armedRewrite.iteration}'s rewrite</RefineryChip> : null}
       <Button disabled={unsendable} variant="outline" onClick={(): void => acts.run("copy", keptAccepts)} size="sm">
-        Save as copy
+        {REFINERY_SAVE_AS_COPY_NAME}
       </Button>
       <Button
         {...(completed ? { "aria-describedby": appliedNoteId } : {})}

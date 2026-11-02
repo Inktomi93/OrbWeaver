@@ -24,7 +24,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { fetchLiveShare, useAuthConfig, useInvalidation, useLiveShare, useSettingsViewerView, useTRPC } from "#data";
-import { notify, testId, timeLib, trpcErrorCode } from "#lib";
+import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorCode } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -50,7 +50,7 @@ export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteD
       title="Invite people"
       description="Anyone with an invite link can join until it expires or runs out of uses."
       testKey="inviteDialog"
-      dismissLabel="Done"
+      dismissLabel={DIALOG_VERBS.done}
     >
       <Stack gap="block">
         <InviteMintForm

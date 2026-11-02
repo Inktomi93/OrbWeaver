@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 const SHELL_DIRECTORY = "/features/app-shell/";
 const PAINT_ATTRIBUTES = new Set(["className", "style"]);
@@ -89,7 +90,7 @@ export function rawIntrinsicPaintRule(shellClasses: ReadonlySet<string>): OrbRul
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
-      const inShell = context.filename.includes(SHELL_DIRECTORY);
+      const inShell = posixPath(context.filename).includes(SHELL_DIRECTORY);
       return {
         "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]": (element: TSESTree.JSXOpeningElement): void => {
           for (const attribute of element.attributes) {

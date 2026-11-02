@@ -12,10 +12,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 
@@ -59,8 +60,27 @@ function rowCopy(payload: NotificationEvent, pluginName: string | undefined): st
   return handler(payload, pluginName);
 }
 
+/** A dismissed row: what it said and when it arrived and left. Read-only, because a dismissal is set once and
+ *  the decision it carried is settled. Focusable only by script, as the landing point of a page or reveal. */
+export function DismissedInboxRow({ item, ref }: { readonly item: InboxItem; readonly ref?: Ref<HTMLDivElement> | undefined }): ReactElement {
+  const pluginName = useDisabledPluginName(item.payload);
+  const copy = rowCopy(item.payload, pluginName);
+  return (
+    <Stack aria-label={copy} gap="tight" data-slot="inbox-dismissed-row" ref={ref} role="group" tabIndex={-1}>
+      <Text as="span" voice="gloss" prose={true} className="wrap-anywhere">
+        {copy}
+      </Text>
+      <Text as="span" voice="gloss" ink="muted">
+        {`${timeLib.formatRelative(item.createdAt)} · dismissed ${timeLib.formatRelative(item.dismissedAt ?? item.createdAt)}`}
+      </Text>
+    </Stack>
+  );
+}
+
 export interface InboxRowProps {
   readonly item: InboxItem;
+  /** Takes the landing focus when this row is the first of a newly loaded page. */
+  readonly ref?: Ref<HTMLDivElement> | undefined;
   readonly onAccepted: (chatId: ChatId) => void;
   /** Open the DISCLOSURE confirm for this nomination (#1762) — the row no longer accepts anything itself. */
   readonly onRequestHandoff: (item: InboxItem) => void;
@@ -74,7 +94,7 @@ export interface InboxRowProps {
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
  *  Accept/Dismiss; the rest → Dismiss). The handoff's Accept OPENS the disclosure confirm rather than
  *  firing the verb — what a nomination copies into your library is the bell's one two-step decision. */
-export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins, onOpenPlugin }: InboxRowProps): ReactElement {
+export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins, onOpenPlugin }: InboxRowProps): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const invalidation = useInvalidation();
@@ -176,22 +196,35 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
     // copy sat ~30px from its buttons while the NEXT row's copy sat ~35px from those same buttons — near
     // enough that the cluster read as belonging to whichever row you looked at first. 4px against 12px is
     // unambiguous without a rule between rows.
-    <Stack gap="tight" data-slot="inbox-row" {...(item.actionable ? { "data-pending": "" } : {})}>
+    <Stack
+      aria-label={rowCopy(item.payload, disabledPluginName)}
+      gap="tight"
+      data-slot="inbox-row"
+      ref={ref}
+      role="group"
+      tabIndex={-1}
+      {...(item.actionable ? { "data-pending": "" } : {})}
+    >
       <Row gap="field" align="start">
         {/* THE SAME MARK THE BELL WEARS. A row that is still waiting on you gets the dot the trigger got
             (the `IndicatorDot`), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
         {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
-        <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true}>
-          {rowCopy(item.payload, disabledPluginName)}
-        </Text>
+        <Stack gap="tight" className="min-inline-0">
+          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} className="wrap-anywhere">
+            {rowCopy(item.payload, disabledPluginName)}
+          </Text>
+          <Text as="span" voice="gloss" ink="muted">
+            {timeLib.formatRelative(item.createdAt)}
+          </Text>
+        </Stack>
       </Row>
-      <Row gap="field" align="center" justify="end">
+      <Row gap="field" align="center" className="flex-wrap" justify="end">
         {isInvite && !acted ? (
           <>
             <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
-              Accept
+              {DIALOG_VERBS.accept}
             </Button>
             <Button
               aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
@@ -207,7 +240,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
         ) : null}
         {isHandoff && !acted && !acceptedHandoff ? (
           <Button aria-label="Accept the host handoff" type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
-            Accept
+            {DIALOG_VERBS.accept}
           </Button>
         ) : null}
         {isConsent ? (

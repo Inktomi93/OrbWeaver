@@ -29,6 +29,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { DialogFooter } from "@orb/ui/dialog";
+import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
@@ -94,8 +95,6 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [size, setSize] = useState<SizePresetName | undefined>(undefined);
   const [negative, setNegative] = useState("");
   const modeLabelId = useId();
-  const galleryLabelId = useId();
-  const galleryCheckboxId = useId();
   const trpc = useTRPC();
   const room = useImagineRoom(trpc, seed.chatId);
   const galleryCharacterName = room.galleryCharacterName;
@@ -219,21 +218,9 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         size={size}
       />
       {galleryCharacterName === undefined ? null : (
-        <Row align="center" gap="field">
-          <Checkbox
-            aria-labelledby={galleryLabelId}
-            checked={toGallery}
-            disabled={busy}
-            id={galleryCheckboxId}
-            onCheckedChange={(next): void => setToGallery(next)}
-          />
-          {/* A real label, so a tap on the words toggles the box as well as naming it. */}
-          <label htmlFor={galleryCheckboxId}>
-            <Text as="span" id={galleryLabelId} voice="label">
-              Add to {galleryCharacterName}'s gallery
-            </Text>
-          </label>
-        </Row>
+        <Field label={`Add to ${galleryCharacterName}'s gallery`} orientation="inline">
+          <Checkbox checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next)} />
+        </Field>
       )}
       <GeneratingNotice pending={generate.isPending} />
       {/* Pinned to the dialog footer, with the count in the label, so the spend stays on screen however tall the options grow. */}

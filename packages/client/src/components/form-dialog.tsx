@@ -8,8 +8,8 @@ import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, Dial
 import { Icon, X } from "@orb/ui/icons";
 import { DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { useId } from "react";
-import { testId } from "#lib";
+import { useId, useRef } from "react";
+import { DIALOG_VERBS, testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
@@ -30,6 +30,8 @@ export interface FormDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly title: ReactNode;
+  /** Land focus on the title: a body filled by one tall control would otherwise open scrolled past the heading. */
+  readonly arriveOnTitle?: boolean;
   /** Supporting copy under the title (DialogDescription IS a `<p>` — plain text/fragment only). Omit for a title-only dialog. */
   readonly description?: ReactNode;
   /** A registered test-id key for the popup (never a new literal — the registry is the API). Omit where the dialog has no test-id. */
@@ -87,7 +89,9 @@ export function FormDialog({
   dismissLabel,
   closeButton = false,
   finalFocus,
+  arriveOnTitle = false,
 }: FormDialogProps): ReactElement {
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const promptFormId = useId();
   const titleId = useId();
   return (
@@ -97,11 +101,12 @@ export function FormDialog({
         {...(anchor === undefined ? {} : { anchor })}
         {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
         {...(finalFocus === undefined ? {} : { finalFocus })}
+        {...(arriveOnTitle ? { initialFocus: titleRef } : {})}
       >
         {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
             stays visible on a phone. */}
         <DialogBody grow={true} gap="block">
-          <DialogTitle className={closeButton ? "pe-(--size-control-md)" : ""} id={titleId}>
+          <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
             {title}
           </DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
@@ -117,7 +122,7 @@ export function FormDialog({
         {closeButton ? (
           <DialogClose
             render={
-              <Button aria-label="Close" className="absolute inset-e-field inset-bs-field" variant="ghost" square={true} type="button">
+              <Button aria-label={DIALOG_VERBS.close} className="absolute inset-e-field inset-bs-field" variant="ghost" square={true} type="button">
                 <Icon icon={X} size="sm" />
               </Button>
             }
@@ -141,7 +146,7 @@ function OwnedFooter({
   if (submit !== undefined) {
     return (
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={submit.disabled ?? false} form={formId} tone="primary" loading={submit.loading ?? false} type="submit">
           {submit.label}
         </Button>
@@ -207,7 +212,7 @@ export interface FormSubmitButtonProps {
 export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
   return (
     <DialogFooter>
-      <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+      <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       <Button data-testid={testId(testKey)} disabled={disabled} onClick={onSubmit}>
         {label}
       </Button>

@@ -305,7 +305,7 @@ export function useLibraryImport(): LibraryImport {
           }
         }
       })
-      .catch((error: unknown) => fail(epoch, errorMessage(error)));
+      .catch((error: unknown) => fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error)));
   };
   const cancel = (): void => {
     dropPreview();

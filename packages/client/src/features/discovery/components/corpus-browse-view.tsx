@@ -42,6 +42,7 @@ import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from 
 import { testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
+import { CORPUS_DISTILLED_CATALOG_NAME } from "../lib/corpus-control-names.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -177,7 +178,7 @@ function BrowseRows({
     // which is the primitive refusing to be a list that silently renders everything.
     <Stack className="flex-1 min-block-0">
       <VirtualList
-        aria-label="Distilled catalog"
+        aria-label={CORPUS_DISTILLED_CATALOG_NAME}
         className="block-full"
         endApproachRows={collection.listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}

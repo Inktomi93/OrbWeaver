@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useOpenRequests } from "#lib";
+import { DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
@@ -40,6 +40,7 @@ import { CharacterImportDialog } from "./character-import-dialog.tsx";
 function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  // A coded refusal also has a line here while the dialog shows it; the toast speaks every failure.
   const create = useCreateCharacter({ trpc, invalidation });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -128,17 +129,16 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
           requirement/error line grammar), never the receding `gloss`. It speaks for BOTH fields, so this
           is where it belongs — unlike the #542 refusal line, which moved up under the Name field it is
-          about (#548, see its note there). The string is the mapper's, so the toast and that line can
-          never become two spellings of one refusal. */}
+          about (#548, see its note there). */}
       {incomplete ? (
         <Text ink="muted" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}
       <DialogFooter>
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={incomplete || create.isPending} onClick={onCreate}>
-          Create
+          {DIALOG_VERBS.create}
         </Button>
       </DialogFooter>
     </FormDialog>

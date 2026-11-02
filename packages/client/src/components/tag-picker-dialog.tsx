@@ -25,6 +25,7 @@ import { useId, useState } from "react";
 import { useTRPC } from "#data";
 import { sortTagsBy } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
+import { TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
 
 /** How many suggestions the inline list renders at once — a scroll of 400 is not a suggestion list (the
  *  box itself shows ~4 and scrolls, so this is the depth of the scroll, not the height of the box). */
@@ -126,7 +127,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           // The helper line carries the whole meaning of this dialog — which of create/attach the confirm
           // is about to do — and it was a bare paragraph nothing pointed at, so AT never heard any of it.
           aria-describedby={helperId}
-          aria-label="Tag name"
+          aria-label={TAG_NAME_FIELD_NAME}
           inline={true}
           items={matches}
           limit={SUGGESTION_LIMIT}
@@ -137,7 +138,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
           open={true}
           // The field's PRIMARY job is finding a tag you already have; "e.g. adventure" invited inventing a
           // name in the one place where inventing one is the failure mode.
-          placeholder="Search or create a tag"
+          placeholder="Search or create a tag…"
           value={name}
         />
         <Row align="center" gap="field">

@@ -27,6 +27,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
@@ -130,7 +131,7 @@ export async function openChatsList(page: Page): Promise<void> {
   const closeDetails = page.getByRole("button", { name: "Close details", exact: true });
   const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
   const showList = page.getByRole("button", { name: "Show list panel", exact: true });
-  const chatsList = page.getByRole("list", { name: "Chats list" });
+  const chatsList = page.getByRole("list", { name: CHAT_LIST_NAME });
   const emptyState = page.getByText("No chats yet");
   if (await closeDetails.isVisible()) {
     await closeDetails.click();
@@ -169,7 +170,7 @@ async function createChatViaSend(page: Page): Promise<void> {
   await chatRow.hover();
   await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
 
-  const composer = page.getByRole("textbox", { name: "Message" });
+  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
   await expect(composer).toBeVisible();
   await composer.pressSequentially(BOOTSTRAP_MESSAGE);
   await composer.press("Enter");
@@ -190,13 +191,13 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   // reuse branch is the normal path.
   await gotoChatsList(page);
 
-  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
+  const rows = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button");
   if ((await rows.count()) === 0) {
     await createChatViaSend(page);
     return;
   }
   await rows.first().click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Type and send once; a lost controlled value fails instead of being retyped. */
@@ -216,10 +217,10 @@ export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, messa
  *  ALL its rows (no virtualization), so DOM↔canon full-length parity is deterministic. */
 export async function openNewestChat(page: Page): Promise<void> {
   await gotoChatsList(page);
-  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
+  const rows = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button");
   await expect(rows.first()).toBeVisible({ timeout: CHAT_SURFACE_TIMEOUT });
   await rows.first().click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Open the active chat's ⋯ options menu — since D111's relocation (owner ruling 2026-08-09) it is the
@@ -287,15 +288,15 @@ const CHARACTER_CHIP = '[data-slot="character-chip"]';
  *  unambiguous on the shared DB. */
 export async function openChatByTitle(page: Page, title: string): Promise<void> {
   await gotoChatsList(page);
-  const search = page.getByRole("textbox", { name: "Search chats", exact: true });
+  const search = page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true });
   if (!(await search.isVisible())) {
     await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
   }
   await search.fill(title);
-  const row = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: title }).first();
+  const row = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button", { name: title }).first();
   await expect(row).toBeVisible({ timeout: CHAT_SURFACE_TIMEOUT });
   await row.click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** Expand the CONTEXT (detail) panel if it is collapsed — the ONE toggle is the pane's
@@ -405,11 +406,11 @@ export async function openMemberRowMenu(page: Page, displayName: string): Promis
  *  So: click only when the row is NOT already current, and barrier on the composer either way. */
 export async function reopenFirstChat(page: Page): Promise<void> {
   await gotoChatsList(page);
-  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
+  const rows = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button");
   const first = rows.first();
   await expect(first).toBeVisible({ timeout: WAIT_SURFACE_MS });
   if ((await first.getAttribute("aria-current")) !== "true") {
     await first.click();
   }
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }

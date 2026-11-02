@@ -45,6 +45,7 @@ import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
@@ -104,7 +105,7 @@ const UTILITY_MENU = "Message tools";
 const CORRECTIONS_ITEM = COMPOSER_CORRECTIONS_NAME;
 
 function composer(page: Page): ReturnType<Page["getByRole"]> {
-  return page.getByRole("textbox", { name: "Message" });
+  return page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
 }
 
 /** Type a steer into the composer. That is the whole arming step now: with text present each guided icon

@@ -22,10 +22,10 @@ import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
-import type { SectionPatchVars } from "#data";
-import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { useUpdateBackground } from "../hooks/use-appearance-mutations.ts";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
@@ -33,12 +33,6 @@ import { BackgroundUploadField } from "./background-upload-field.tsx";
 import { ExternalBackgroundField } from "./external-background-field.tsx";
 
 type BackgroundForm = Pick<AppearanceSettings, (typeof APPEARANCE_BACKGROUND_KEYS)[number]>;
-
-const useUpdateBackground = createEntityMutation<SectionPatchVars<"appearance">, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your background settings.",
-});
 
 const BackgroundAutosaveForm = createAutosaveEntityForm<BackgroundForm>({
   defaultValues: pickKeys(DEFAULT_APPEARANCE_SETTINGS, APPEARANCE_BACKGROUND_KEYS),

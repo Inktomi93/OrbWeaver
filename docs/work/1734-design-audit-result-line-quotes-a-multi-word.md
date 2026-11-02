@@ -11,15 +11,15 @@ area: tooling
 
 ## What
 
-The change, in a sentence.
+The design audit's RESULT line quotes a theme name that contains spaces, instead of splitting it into tokens.
 
 ## Why
 
-The symptom or the ruling behind it.
+`themePairs` in `tooling/src/snap/lib/design-audit-report.ts` prints "Pale paper" as `theme-request=Pale`, so the line misreports the theme.
 
 ## Done when
 
-The observable bar a verifier can check.
+A run with a multi-word theme name prints the whole name in one token, covered by a test.
 
 ## Evidence
 

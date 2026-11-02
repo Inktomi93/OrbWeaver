@@ -10,6 +10,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { REFINERY_EDIT_SCOPE_NAME, REFINERY_SESSION_STATE_NAME, REFINERY_VERSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -80,9 +81,9 @@ async function expectIdentity(masthead: Locator, title: string, deferred: boolea
   }, CARD_NAME);
   await test.info().attach("masthead-card-identity-paint", { body: JSON.stringify({ title, deferred, facts }), contentType: "application/json" });
   expect(facts).toHaveLength(deferred ? 0 : 1);
-  await expect(masthead.getByRole("group", { name: "Session state", exact: true })).toBeVisible();
+  await expect(masthead.getByRole("group", { name: REFINERY_SESSION_STATE_NAME, exact: true })).toBeVisible();
   await expect(masthead.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true })).toBeVisible();
-  await expect(masthead.getByRole("button", { name: "Edit scope", exact: true })).toBeVisible();
+  await expect(masthead.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true })).toBeVisible();
   await expect(masthead.getByRole("group", { name: "Scope", exact: true })).toBeVisible();
 }
 
@@ -249,6 +250,42 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("Versions asks before Restore overwrites the live card, and Cancel writes nothing", async ({ corpus, page, mount }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const session = await seedSession(caller, null);
+  await caller.character.snapshot({ characterId: session.characterId, label: "manual: keep this" });
+  const calls = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [
+      ...SECTION_PROCEDURES,
+      "refinery.getSession",
+      "refinery.listRuns",
+      "refinery.preflight",
+      "refinery.listSchemas",
+      "character.listSnapshots",
+      "character.restore",
+    ]),
+  });
+  await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
+  await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
+  await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  const context = page.locator(CONTEXT);
+  await context.getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true }).click();
+  await context.getByRole("button", { name: "Restore", exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  expect(calls.count("character.restore")).toBe(0);
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  expect(calls.count("character.restore")).toBe(0);
+  await context.getByRole("button", { name: "Restore", exact: true }).click();
+  await confirm.getByRole("button", { name: "Restore", exact: true }).click();
+  await expect.poll(() => calls.count("character.restore")).toBe(1);
+});
 
 test.describe("explicitly named equal to the card", () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

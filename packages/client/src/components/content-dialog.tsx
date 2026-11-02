@@ -3,6 +3,7 @@ import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTit
 import type { Stack } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { DIALOG_VERBS } from "#lib";
 
 export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, "children"> {
   readonly title: ReactNode;
@@ -57,7 +58,7 @@ export function ContentDialogClose(): ReactElement {
     <DialogClose
       render={
         <Button variant="ghost" size="sm">
-          Close
+          {DIALOG_VERBS.close}
         </Button>
       }
     />

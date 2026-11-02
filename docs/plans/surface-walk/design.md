@@ -201,8 +201,7 @@ Follow "Journey authoring method" per file. Run `pnpm e2e:surface --data=synthet
 1. Replace `inspectMenu`, `inspectTrigger`, `menuTerminal` and `dismissMenu` with `walkMenuTrigger`, using a `menuLeaves` hook for `accountMessageLeaves`.
 2. Replace `contextCells` and the context walk with `walkScope` over the Context pane.
 3. Replace `closeContextOverlay` with `dismissContext` where no action window is asserted.
-4. Fix the `reachMessage` progress wait. It fails in different styles from run to run. The failing poll never turns true while the retained geometry shows forward progress, so check each poll locator for a strict-mode double match before blaming load.
-5. Move names to production copy modules.
+4. Move names to production copy modules.
 
 ### tests/e2e/support/surface-config.ts
 
@@ -211,10 +210,7 @@ Follow "Journey authoring method" per file. Run `pnpm e2e:surface --data=synthet
 
 ### tests/e2e/support/surface-sections.ts
 
-1. Add a witness for the Home Databank document rows.
-2. Run the Corpus semantic target queries against the synthetic embedding, or record their boundary.
-3. Explain the Presets `preset.get` 404 after deletion: a product finding or an expected refusal.
-4. Move names to production copy modules.
+1. Move names to production copy modules.
 
 Keep these functions; the walker cannot reach what they drive:
 

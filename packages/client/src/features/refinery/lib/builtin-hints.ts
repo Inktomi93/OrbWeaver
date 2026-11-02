@@ -4,15 +4,9 @@
 // overlay by JSON-pointer path onto `projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage])`. Keyed per
 // stage; the derivation-pin test asserts the mock anatomy falls out of plan + hints alone.
 
-import type { RefineryStage, RenderHint } from "@orb/contracts/refinery";
+import type { RefineryStage } from "@orb/contracts/refinery";
 import type { HintOverlay } from "./render-plan.ts";
-
-const VERDICT_TONES: RenderHint["tone"] = {
-  // The uppercase spellings are the wire enum's own — the banner words ARE the data (word-primary).
-  ACCEPT: "good",
-  NEEDS_REFINEMENT: "warn",
-  REGRESSION: "bad",
-};
+import { VERDICT_TONE } from "./verdict.ts";
 
 const SCORE_HINTS: HintOverlay = {
   "#/properties/overallScore": { role: "hero" },
@@ -26,7 +20,7 @@ const REWRITE_HINTS: HintOverlay = {
 };
 
 const ANALYZE_HINTS: HintOverlay = {
-  "#/properties/verdict": { role: "verdict", tone: VERDICT_TONES },
+  "#/properties/verdict": { role: "verdict", tone: VERDICT_TONE },
   "#/properties/soulScore": { role: "axis", label: "Soul" },
   "#/properties/soulAssessment": { role: "prose", label: "Soul assessment" },
   "#/properties/preserved": { tone: {}, label: "Preserved" },

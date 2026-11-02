@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { notify, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, notify, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
@@ -93,8 +93,8 @@ function RosterRow(props: {
                 same face as one that only adds seats. Same badge grammar as the rules pill; the word is the
                 settings section's own ("Group behavior"), and the fact rides the apply doors' accessible
                 names through `rosterCountsSuffix` — a `<span>` badge has no name to carry it. */}
-            {roster.hasGroupConfig ? <Badge className="shrink-0">group behavior</Badge> : null}
-            {roster.game === null ? null : <Badge className="shrink-0">game</Badge>}
+            {roster.hasGroupConfig ? <Badge className="shrink-0">Group behavior</Badge> : null}
+            {roster.game === null ? null : <Badge className="shrink-0">Game</Badge>}
           </Row>
           <Text voice="gloss" className="truncate">
             {characterCountPhrase(roster.characterCount)} · {memberNames}
@@ -156,7 +156,7 @@ function RosterRulesIncludeLine(props: {
           Couldn't check this room's rules.
         </Text>
         <Button variant="ghost" size="sm" onClick={capture.retry}>
-          Retry
+          {DIALOG_VERBS.retry}
         </Button>
       </Row>
     );

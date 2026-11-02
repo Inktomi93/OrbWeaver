@@ -19,6 +19,7 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -172,7 +173,7 @@ for (const regime of [
       });
       const mounted = await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
       const port = page.locator('[data-slot="message-list-scroll"]');
-      const earlier = page.getByRole("button", { name: "Earlier messages", exact: true });
+      const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
       await expect(earlier).toBeVisible();
       await port.evaluate((node) => {
         node.scrollTop = 0;
@@ -266,7 +267,7 @@ for (const regime of [
       await expect(page.locator(`[data-message-id="${original.id}"]`)).toHaveCount(0);
       await mounted.update({ chatId: room.id, socket: true });
       await expect(earlier).toBeDisabled();
-      await expect(page.getByRole("textbox", { name: "Message", exact: true })).toBeVisible();
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
     });
     test("a newly created room renders its complete warm opening while confirmation is held", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
@@ -323,7 +324,7 @@ for (const regime of [
       expect(pageData.nextCursor).toBeNull();
       await expect(page.locator(`[data-message-id="${opening.id}"]`)).toContainText("A fresh greeting has no unseen history.");
       await expect(page.locator(`[data-message-id="${before.id}"]`)).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Earlier messages", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toHaveCount(0);
       await page.screenshot({ path: test.info().outputPath("new-room-warm-opening.png") });
       confirmation.release();
       await expect(page.locator(`[data-message-id="${opening.id}"]`)).toBeVisible();

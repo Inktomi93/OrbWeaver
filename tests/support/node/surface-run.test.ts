@@ -1,20 +1,19 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Env } from "@orb/server/foundation/env/record";
+import { parseEnv } from "@orb/server/foundation/env/record";
 import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { expect, test } from "./fixtures.ts";
 import {
-  readSurfaceCaseAdmission,
   readSurfaceOutputRoot,
   readSurfaceRunConfig,
   SURFACE_CLIENT_BUILD_MODE,
   SURFACE_OUTPUT_ROOT_ENV,
   SURFACE_RUN_CONFIG_ENV,
   surfaceArtifactModes,
-  surfaceCaseDelayMs,
   surfaceClientBuildEnvironment,
   surfaceClientBuildKey,
   surfaceNativeTimeout,
-  writeSurfaceCaseAdmission,
 } from "./surface-run.ts";
 
 for (const flag of ["CI", "GITHUB_ACTIONS"] as const) {
@@ -48,6 +47,18 @@ test("measurement accepts native object-shaped off options and evidence retains 
   });
 });
 
+test("a production parse reads nothing from the walk's launcher environment", () => {
+  const parseProduction = (launcher: Readonly<Record<string, string>>): Env =>
+    parseEnv({
+      source: { ["NODE_ENV"]: "production", ...launcher },
+      envFileKeys: new Set(),
+      host: { containerMarker: false, hostname: "orb-production-machine" },
+      readFile: () => "",
+    });
+  const launched = parseProduction({ [SURFACE_RUN_CONFIG_ENV]: "/run/native-config.json", [SURFACE_OUTPUT_ROOT_ENV]: "/run" });
+  expect(launched).toEqual(parseProduction({}));
+});
+
 test("explicit native execution deadlines govern the outer owner without replacing the selected budget", () => {
   expect(surfaceNativeTimeout(["--global-timeout=3600000"], 100)).toBe(3_600_000);
   expect(surfaceNativeTimeout(["--global-timeout", "3600000"], 100)).toBe(3_600_000);
@@ -55,27 +66,6 @@ test("explicit native execution deadlines govern the outer owner without replaci
   for (const args of [["--global-timeout=0"], ["--global-timeout"], ["--global-timeout=10", "--global-timeout=20"]]) {
     expect(() => surfaceNativeTimeout(args, 100)).toThrow("one positive integer native --global-timeout");
   }
-});
-
-test("independent native cases wait only for the preceding completion window", () => {
-  expect(surfaceCaseDelayMs(null, 245, 100)).toBe(0);
-  expect(surfaceCaseDelayMs(210, 245, 100)).toBe(55);
-  expect(surfaceCaseDelayMs(299, 299, 100)).toBe(1);
-  expect(surfaceCaseDelayMs(299, 300, 100)).toBe(0);
-  expect(surfaceCaseDelayMs(210, 450, 100)).toBe(0);
-  expect(surfaceCaseDelayMs(20, 25, 30)).toBe(5);
-});
-
-test("persisted reporter admissions distinguish the next case from the preceding completion", ({ importStagingDir }) => {
-  expect(readSurfaceCaseAdmission(importStagingDir)).toBeNull();
-  writeSurfaceCaseAdmission(importStagingDir, "failed-case", null);
-  expect(readSurfaceCaseAdmission(importStagingDir)).toEqual({ testId: "failed-case", completedAt: null });
-  writeSurfaceCaseAdmission(importStagingDir, "failed-case", 210);
-  expect(readSurfaceCaseAdmission(importStagingDir)?.testId).not.toBe("next-case");
-  writeSurfaceCaseAdmission(importStagingDir, "next-case", 210);
-  const admission = readSurfaceCaseAdmission(importStagingDir);
-  expect(admission).toEqual({ testId: "next-case", completedAt: 210 });
-  expect(surfaceCaseDelayMs(admission?.completedAt ?? null, 245, 100)).toBe(55);
 });
 
 test("a client build is current exactly while its build inputs are unchanged", ({ importStagingDir: root }) => {

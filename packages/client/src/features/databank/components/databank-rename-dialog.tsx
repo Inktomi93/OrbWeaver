@@ -1,15 +1,13 @@
-// The document RENAME flow — a SMALL single-field Dialog (§13.4's "single rename" allowlist: controlled
-// local state, no form factory), the `PresetRenameDialog` shape. Renaming touches display metadata only:
-// nothing derived moves, no re-index is triggered. Owns its overlay (a component, not a surface).
+// The document RENAME flow — a SMALL single-field prompt (§13.4's "single rename" allowlist: controlled
+// local state, no form factory), the `RenameChatDialog` shape on `FormDialog` prompt mode. Renaming touches
+// display metadata only: nothing derived moves, no re-index is triggered. Owns its overlay (a component, not a surface).
 
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { FormDialog } from "#components";
-import { useFocusOnMount } from "#lib";
+import { DIALOG_VERBS } from "#lib";
+import { DATABANK_DOCUMENT_NAME_FIELD_NAME, DATABANK_RENAME_NAME } from "../lib/databank-names.ts";
 
 export interface DatabankRenameDialogProps {
   readonly open: boolean;
@@ -20,8 +18,6 @@ export interface DatabankRenameDialogProps {
 
 export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename }: DatabankRenameDialogProps): ReactElement {
   const [name, setName] = useState(currentName);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useFocusOnMount(inputRef);
 
   const trimmed = name.trim();
   const canSave = trimmed !== "" && trimmed !== currentName;
@@ -36,30 +32,17 @@ export function DatabankRenameDialog({ open, onOpenChange, currentName, onRename
         onOpenChange(next);
       }}
       open={open}
-      title="Rename document"
+      submit={{
+        label: DIALOG_VERBS.save,
+        disabled: !canSave,
+        onSubmit: (): void => {
+          onRename(trimmed);
+          onOpenChange(false);
+        },
+      }}
+      title={DATABANK_RENAME_NAME}
     >
-      <form
-        aria-label="Rename document"
-        onSubmit={(event): void => {
-          event.preventDefault();
-          if (canSave) {
-            onRename(trimmed);
-            onOpenChange(false);
-          }
-        }}
-      >
-        <Stack gap="block">
-          {/* Focus lands on the field through the shared mount hook rather than `autoFocus` — same behavior,
-              no a11y suppression to carry (the suppressions ratchet only shrinks). */}
-          <Input aria-label="Document name" onValueChange={setName} placeholder="Document name" ref={inputRef} value={name} />
-          <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-            <Button disabled={!canSave} type="submit">
-              Save
-            </Button>
-          </DialogFooter>
-        </Stack>
-      </form>
+      <Input aria-label={DATABANK_DOCUMENT_NAME_FIELD_NAME} onValueChange={setName} placeholder="Document name" value={name} />
     </FormDialog>
   );
 }

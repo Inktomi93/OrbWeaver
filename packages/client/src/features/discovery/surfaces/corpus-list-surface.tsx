@@ -35,6 +35,7 @@ import {
 } from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
+import { CORPUS_SEARCH_NAME, CORPUS_SEARCH_TARGET_NAME } from "../lib/corpus-control-names.ts";
 import {
   CORPUS_SEARCH_TARGETS,
   CORPUS_SUGGEST_LIMIT,
@@ -109,7 +110,7 @@ export function CorpusListSurface(): ReactElement {
       // select above the omnibox.
       lead={
         <Select
-          aria-label="Search target"
+          aria-label={CORPUS_SEARCH_TARGET_NAME}
           data-testid={testId("corpusSearchTarget")}
           items={TARGET_ITEMS}
           onValueChange={(picked): void => setCorpusSearchTarget(picked ?? DEFAULT_TARGET)}
@@ -197,7 +198,7 @@ function SearchOmnibox({
   return (
     <Stack className="flex-1 min-inline-0" data-testid={testId("corpusSearchSuggest")}>
       <Autocomplete
-        aria-label="Search your corpus"
+        aria-label={CORPUS_SEARCH_NAME}
         inline={true}
         inputRef={inputRef}
         mode="none"

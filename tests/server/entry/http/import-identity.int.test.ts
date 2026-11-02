@@ -33,7 +33,8 @@ const ENCODER = new TextEncoder();
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    // The first authed request starts the default-content seeder in the background; it would land its own books beside the import's.
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner", ["SEED_CONTENT"]: "off" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });

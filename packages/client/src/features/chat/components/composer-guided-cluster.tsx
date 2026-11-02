@@ -56,6 +56,7 @@ import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ReplyRowOverflowLevel } from "../hooks/use-reply-row-overflow.ts";
 import { replyBox, useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
+import { CHAT_CONTINUE_REPLY_NAME } from "../lib/chat-surface-names.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
@@ -150,7 +151,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const bandRefusal = refusalStatedBy === undefined ? sendRefusal : undefined;
   const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
   const swipeLabel = hasText ? "Try another reply with this direction" : "Try another reply";
-  const continueLabel = hasText ? "Continue the reply with this direction" : "Continue the reply";
+  const continueLabel = hasText ? `${CHAT_CONTINUE_REPLY_NAME} with this direction` : CHAT_CONTINUE_REPLY_NAME;
   const replyEnabled = canTargetTail && idle;
   const {
     level,

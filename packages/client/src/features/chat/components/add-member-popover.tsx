@@ -38,7 +38,7 @@ function AddMemberShell({
           because the trigger had no word of its own. */}
       <PopoverTrigger
         render={
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" wrap={true}>
             <Icon icon={UserPlus} size="sm" />
             Add a character
           </Button>

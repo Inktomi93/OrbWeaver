@@ -223,10 +223,10 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 
 | Concept | Home | Notes |
 | - | - | - |
-| **Connection** (api/source/model/providerRouting) | its own selection in user settings (a real `connection` domain owns resolution) | separate from the preset; one resolver; provider vocab is one derived map (runner/family derived from source+protocol) |
+| **Connection** (provider/model/credential/transport) | `domain/connection` owns the `user_connections` and `connection_bindings` tables and the provider rows; the `@orb/inference` runtime resolves a task through them | a connection is a per-user table row, never a settings value; separate from the preset; see [`Tier-3b-Providers.md`](Tier-3b-Providers.md) |
 | **Generation config** (params/customParameters/sections) | the **preset** | preset = "how to generate," NOT the connection |
 | **Credentials** | the `credentials` domain owns ALL of it (resolve + CRUD + metadata) | un-inverted: logic lives in the feature, not a `_shared` drawer |
-| **Roles** (the `TASKS` tuple in `packages/contracts/src/inference/tasks.ts`) | one `resolveRole(role)` | all roles honor settings |
+| **Roles** (the `TASKS` tuple in `packages/contracts/src/inference/tasks.ts`) | the runtime's `roleClientsFor(funder)` bundle, folded per call over the funder's bindings | every role resolves through the runtime and the role clients; no domain resolves a role itself |
 | **Regex** | a regex *library* + scope junctions (global/character/preset), assembled + executed by placement | the world-info pattern — one store, attached at scopes |
 | **World info** | one books/entries store + scope junctions | the canonical scope-junction pattern (regex reuses it) |
 | **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (discovery) |

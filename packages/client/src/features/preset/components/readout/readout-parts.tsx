@@ -19,6 +19,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import type { EffectiveProfileRow } from "#src/features/preset/lib/effective-knobs.ts";
 import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "#src/features/preset/lib/effective-knobs.ts";
 import { formatCount } from "#src/features/preset/lib/format-count.ts";
@@ -193,7 +194,7 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
           {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
             reads as the band's own primary action rather than as the recovery for the line above it. */}
           <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
-            Retry
+            {DIALOG_VERBS.retry}
           </Button>
         </Stack>
       </Row>

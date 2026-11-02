@@ -1,4 +1,4 @@
-import type { Oklch } from "@orb/kit/theme-derivation";
+import type { Oklch, Rgb } from "@orb/kit/theme-derivation";
 import {
   AA_NON_TEXT_RATIO,
   AA_NORMAL_RATIO,
@@ -11,20 +11,40 @@ import {
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
 import { keysOf } from "@orb/testkit/iso";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
+  BoxElementsStory,
   BubbleSeparationStory,
+  InheritedInkStory,
   NestedSeedStory,
   NestedSeedSurfaceStory,
+  NeutralFillStory,
+  PickedBubbleStory,
+  PickedRoomStory,
   ReadingBandStory,
   SelectedRowStory,
   SemanticContrastStory,
+  SpeakerInkStory,
   ToneHueStory,
   ToneMarkStory,
   ToneRoleContrastStory,
 } from "./_contrast-stories.tsx";
-import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
+
+import {
+  BASES,
+  BOX_ELEMENT_CASES,
+  CARRIED_BUBBLE_PALETTES,
+  INHERITED_INK_CASE,
+  keepsHue,
+  MID_GREY,
+  PICKED_BUBBLE_FILLS,
+  PICKED_BUBBLE_INKS,
+  PICKED_BUBBLE_PALETTES,
+  PICKED_ROOM_CASES,
+  PICKED_ROOM_PALETTES,
+  SPEAKER_DIALOGUE,
+} from "./contrast-cases.ts";
 
 const SEED_THEMES = keysOf(SEED_THEME_VALUE_SETS);
 
@@ -39,7 +59,7 @@ for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
     const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
-    await expect(subjects).toHaveCount(18);
+    await expect(subjects).toHaveCount(27);
     for (const subject of await subjects.all()) {
       await expect(subject).toBeVisible();
       await subject.scrollIntoViewIfNeeded();
@@ -49,6 +69,41 @@ for (const { name, ...props } of SEMANTIC_CASES) {
     const screenshot = testInfo.outputPath("settled-theme.png");
     await component.screenshot({ path: screenshot, animations: "disabled" });
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
+  });
+}
+
+for (const { name, background } of BASES) {
+  test(`${name}: a speaker's dialogue ink clears every bubble it renders on`, async ({ mount, page }) => {
+    const component = await mount<typeof SpeakerInkStory>("tests/ui/content/theme-scope/_contrast-stories/SpeakerInkStory", {
+      background,
+      dialogueColor: SPEAKER_DIALOGUE,
+    });
+    const samples = await component.locator("[data-dialogue]").all();
+    expect(samples.length).toBeGreaterThan(0);
+    for (const sample of samples) {
+      await sample.scrollIntoViewIfNeeded();
+      const receipt = await pixelContrast(page, sample);
+      expect(receipt.ratio, `${(await sample.getAttribute("data-dialogue")) ?? "bubble"}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
+  });
+}
+
+// The light arm steps accent exactly the tint separation from muted, so 8-bit pixels can spend up to one step of it.
+const NEUTRAL_FILL_SEPARATION = TONE_TINT_SEPARATION - 0.004;
+
+for (const { name, background } of BASES) {
+  test(`${name}: the keyboard highlight and the input rail paint apart from what they sit on`, async ({ mount, page }) => {
+    const component = await mount<typeof NeutralFillStory>("tests/ui/content/theme-scope/_contrast-stories/NeutralFillStory", { background });
+    const painted = async (fill: string): Promise<Oklch> => srgbToOklch((await pixelSurface(page, component.locator(`[data-fill="${fill}"]`))).rgb);
+    const accent = await painted("accent");
+    const distances = {
+      "highlight from muted": oklabDistance(accent, await painted("muted")),
+      "highlight from popover": oklabDistance(accent, await painted("popover")),
+      "rail from card": oklabDistance(await painted("rail"), await painted("card")),
+    };
+    for (const [pair, distance] of Object.entries(distances)) {
+      expect(distance, pair).toBeGreaterThanOrEqual(NEUTRAL_FILL_SEPARATION);
+    }
   });
 }
 
@@ -127,6 +182,156 @@ for (const { name, background } of BASES.slice(0, 4)) {
     await testInfo.attach("settled-theme", { path: screenshot, contentType: "image/png" });
   });
 }
+
+for (const { name, ...props } of SEMANTIC_CASES) {
+  test(`${name}: every colored tone's solid holds the non-text floor as a glyph on its own tints`, async ({ mount, page }) => {
+    const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", props);
+    const tones = await component.locator("[data-tone]").all();
+    expect(tones.length).toBeGreaterThan(0);
+    for (const tone of tones) {
+      await tone.scrollIntoViewIfNeeded();
+      const fill = async (sample: string): Promise<Rgb> => (await pixelSurface(page, tone.locator(`[data-sample="${sample}"]`))).rgb;
+      const solid = await fill("solid");
+      for (const tint of ["tint", "tint-active"]) {
+        const ratio = wcagContrastRatio(solid, await fill(tint));
+        expect(ratio, `${(await tone.getAttribute("data-tone")) ?? "tone"} on ${tint}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+      }
+    }
+  });
+}
+
+for (const palette of PICKED_BUBBLE_PALETTES) {
+  for (const { name: bubble, aiBubble } of PICKED_BUBBLE_FILLS) {
+    for (const { name: carries, inks } of PICKED_BUBBLE_INKS) {
+      test(`${palette.name}: ${bubble} picked bubble ${carries}: story text and inline code clear AA on the fill`, async ({ mount, page }) => {
+        const { name: _name, ...scope } = palette;
+        const component = await mount<typeof PickedBubbleStory>("tests/ui/content/theme-scope/_contrast-stories/PickedBubbleStory", {
+          ...scope,
+          aiBubble,
+          inks,
+        });
+        const samples = component.locator('[data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+        await expect(samples).toHaveCount(4);
+        for (const sample of await samples.all()) {
+          const receipt = await pixelContrast(page, sample);
+          expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+        }
+      });
+    }
+  }
+}
+
+for (const palette of PICKED_ROOM_PALETTES) {
+  for (const room of PICKED_ROOM_CASES) {
+    test(`${palette.name}: ${room.name}: every turn, the page and its chips clear AA in the painted pixels`, async ({ mount, page }) => {
+      const { name: _palette, dark, light, ...scope } = palette;
+      const { name: _room, picks, ...shape } = room;
+      const component = await mount<typeof PickedRoomStory>("tests/ui/content/theme-scope/_contrast-stories/PickedRoomStory", {
+        ...scope,
+        ...shape,
+        picks: picks({ opposed: dark, matched: light }),
+      });
+      const samples = component.locator('[data-chip], [data-body] p, [data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+      await expect(samples).toHaveCount(9);
+      for (const sample of await samples.all()) {
+        await sample.scrollIntoViewIfNeeded();
+        const receipt = await pixelContrast(page, sample);
+        expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
+    });
+  }
+}
+
+const BUILDER_BUBBLES = {
+  aiBubble: { bg: TOKENS["color.ai-bubble"].value },
+  userBubble: { bg: TOKENS["color.user-bubble"].value },
+  systemBubble: { bg: TOKENS["color.system-bubble"].value },
+};
+
+for (const { name, background, fills } of CARRIED_BUBBLE_PALETTES) {
+  const cases = [
+    ...fills.map((fill) => ({ label: `${fill} picked bubble`, picks: { aiBubble: { bg: fill }, userBubble: { bg: fill } } })),
+    { label: "the theme builder's Hearth bubbles", picks: BUILDER_BUBBLES },
+  ];
+  for (const { label, picks } of cases) {
+    test(`carried ${name} with ${label}: the bubbles paint, and every turn and the page clear AA`, async ({ mount, page }) => {
+      const component = await mount<typeof PickedRoomStory>("tests/ui/content/theme-scope/_contrast-stories/PickedRoomStory", {
+        background,
+        picks,
+        level: "carried",
+        boxed: true,
+        readingInk: false,
+      });
+      const turn = component.locator('[data-turn="assistant"]');
+      const painted = await turn.evaluate((element) => getComputedStyle(element).backgroundColor);
+      const probe = await turn.evaluate((element, bg) => {
+        const swatch = document.createElement("span");
+        swatch.style.backgroundColor = bg;
+        element.append(swatch);
+        const value = getComputedStyle(swatch).backgroundColor;
+        swatch.remove();
+        return value;
+      }, picks.aiBubble.bg);
+      expect(painted).toBe(probe);
+      const samples = component.locator('[data-chip], [data-body] p, [data-slot="dialogue"], em, [data-streamdown="inline-code"]');
+      await expect(samples).toHaveCount(9);
+      for (const sample of await samples.all()) {
+        await sample.scrollIntoViewIfNeeded();
+        const receipt = await pixelContrast(page, sample);
+        expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+      }
+    });
+  }
+}
+
+const BOX_ELEMENTS = {
+  blockquote: "blockquote p",
+  "table cell": "td",
+  link: '[data-streamdown="link"]',
+  "swipe foot": '[data-element="swipe foot"]',
+  kebab: '[data-element="kebab"]',
+  "soft chip": '[data-element="soft chip"]',
+  "speaker name": '[data-element="speaker name"]',
+} as const;
+
+for (const { name, theme, card, carried } of BOX_ELEMENT_CASES) {
+  for (const [element, selector] of Object.entries(BOX_ELEMENTS)) {
+    test(`${name}: ${element} clears AA inside the box`, async ({ mount, page }) => {
+      const tokens = carried === undefined ? card : { ...card, background: carried };
+      const component = await mount<typeof BoxElementsStory>("tests/ui/content/theme-scope/_contrast-stories/BoxElementsStory", {
+        ...(theme === undefined ? {} : { theme }),
+        card: tokens,
+      });
+      const receipt = await pixelContrast(page, component.locator(selector).first());
+      expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    });
+  }
+}
+
+test("a group room's two speakers each read on their own picked fill", async ({ mount, page }) => {
+  const [dark, light] = BOX_ELEMENT_CASES;
+  const component = await mount<typeof BoxElementsStory>("tests/ui/content/theme-scope/_contrast-stories/BoxElementsStory", {
+    theme: "light",
+    card: dark.card,
+    second: light.card,
+  });
+  const samples = component.locator(Object.values(BOX_ELEMENTS).join(", "));
+  await expect(samples).toHaveCount(14);
+  for (const sample of await samples.all()) {
+    await sample.scrollIntoViewIfNeeded();
+    const receipt = await pixelContrast(page, sample);
+    expect(receipt.ratio, `${await sample.textContent()}: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  }
+});
+
+test("an inherited narration pick clears a bubble fill a nested scope picked", async ({ mount, page }) => {
+  const component = await mount<typeof InheritedInkStory>("tests/ui/content/theme-scope/_contrast-stories/InheritedInkStory", {
+    background: BASES[0].background,
+    ...INHERITED_INK_CASE,
+  });
+  const receipt = await pixelContrast(page, component.locator("[data-inherited-ink]"));
+  expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+});
 
 test("a custom mid-grey page keeps every colored tone's hue in its painted text, tints and solid", async ({ mount, page }) => {
   const component = await mount<typeof ToneHueStory>("tests/ui/content/theme-scope/_contrast-stories/ToneHueStory", { background: MID_GREY });

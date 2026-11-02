@@ -33,12 +33,11 @@ import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog } from "#components";
-import { SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { FormDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DIALOG_VERBS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
@@ -83,7 +82,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
   return (
     <FormDialog
       closeButton={true}
-      dismissLabel="Cancel"
+      dismissLabel={DIALOG_VERBS.cancel}
       description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -93,7 +92,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
       open={open}
       title="Add a document to this chat"
     >
-      {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
+      {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody activeIds={activeIds} failure={failure} isOwned={attach.isPending} onAttach={attachDocument} />
     </FormDialog>
@@ -111,54 +110,52 @@ function PickerBody({
   readonly isOwned: boolean;
   readonly onAttach: (documentId: DocumentId) => Promise<void>;
 }): ReactElement {
-  const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const needle = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
-  const bank = useQuery(trpc.databank.list.queryOptions(needle === "" ? {} : { search: needle }));
-  const documents = bank.data?.items ?? [];
-  const candidates = attachableDocuments(documents, activeIds);
 
   return (
     <Stack gap="row">
       {/* The box stays mounted through every body state — including "No matches", whose only way out is to
           edit or clear the term that produced it. */}
-      <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents" value={query} />
-      <PickerCandidates
-        candidates={candidates}
-        failure={failure}
-        isPending={bank.isPending}
-        isOwned={isOwned}
-        needle={needle}
-        onAttach={onAttach}
-        onClearSearch={(): void => setQuery("")}
-        bankIsEmpty={documents.length === 0}
-      />
+      <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents…" value={query} />
+      {/* Keyed by the term, so a failed read for one term does not stay on screen for the next. */}
+      <QueryBoundary
+        fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
+        key={needle}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your documents" onRetry={retry} />}
+      >
+        <PickerCandidates
+          activeIds={activeIds}
+          failure={failure}
+          isOwned={isOwned}
+          needle={needle}
+          onAttach={onAttach}
+          onClearSearch={(): void => setQuery("")}
+        />
+      </QueryBoundary>
     </Stack>
   );
 }
 
 function PickerCandidates({
-  candidates,
+  activeIds,
   failure,
-  isPending,
   isOwned,
   needle,
   onAttach,
   onClearSearch,
-  bankIsEmpty,
 }: {
-  readonly candidates: readonly { readonly id: DocumentId; readonly name: string; readonly byteSize: number }[];
+  readonly activeIds: readonly DocumentId[];
   readonly failure: string | null;
-  readonly isPending: boolean;
   readonly isOwned: boolean;
   readonly needle: string;
   readonly onAttach: (documentId: DocumentId) => Promise<void>;
   readonly onClearSearch: () => void;
-  readonly bankIsEmpty: boolean;
 }): ReactElement {
-  if (isPending) {
-    return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
-  }
+  const trpc = useTRPC();
+  const { data: bank } = useSuspenseQuery(trpc.databank.list.queryOptions(needle === "" ? {} : { search: needle }));
+  const bankIsEmpty = bank.items.length === 0;
+  const candidates = attachableDocuments(bank.items, activeIds);
 
   // THREE different nothings, said differently (empty states are load-bearing): a search that matched
   // nothing is about the TERM (and the server searched the whole bank, so the sentence is honest), an empty
@@ -182,7 +179,7 @@ function PickerCandidates({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           bankIsEmpty
             ? "Add one in Databank — upload a file, paste text, or pull in a page — and it can feed this chat."

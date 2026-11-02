@@ -126,8 +126,8 @@ async function expectPaintedLabel(row: Locator, label: string): Promise<void> {
 
 async function expectModelFacts(row: Locator, entry: ModelCatalogEntry, testInfo: TestInfo): Promise<void> {
   await expect(row).toContainText(entry.id);
-  await expect(row.getByText("vision", { exact: true })).toBeVisible();
-  await expect(row.getByText("tools", { exact: true })).toBeVisible();
+  await expect(row.getByText("Vision", { exact: true })).toBeVisible();
+  await expect(row.getByText("Tools", { exact: true })).toBeVisible();
   await expect(row.getByText("200K", { exact: true })).toBeVisible();
   await expect(row.getByText("$1/M", { exact: true })).toBeVisible();
   const geometry = await actionGroupGeometry(row, await row.locator('[data-slot="badge"]').all());

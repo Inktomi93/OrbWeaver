@@ -8,6 +8,15 @@ function captureKey(value: unknown): string | undefined {
   return value === undefined ? undefined : stableStringify(value);
 }
 
+// tRPC's infinite client stamps `direction` on every page; it selects no data, so a capture of the plain read answers it.
+function requestKey<T>(input: T): string | undefined {
+  if (typeof input === "object" && input !== null && "direction" in input) {
+    const { direction: _direction, ...request } = input;
+    return captureKey(request);
+  }
+  return captureKey(input);
+}
+
 /** Bind one explicitly selected snapshot to its captured viewer; this selects fixture data, not authentication. */
 export function createCorpusViewerReadResponder<P extends CorpusProcedurePath>(
   path: P,
@@ -37,8 +46,7 @@ export function createCorpusReadResponder<P extends CorpusProcedurePath>(
     captures.set(key, record);
   }
   return (input) => {
-    const key = captureKey(input);
-    const record = captures.get(key);
+    const record = captures.get(requestKey(input));
     if (record === undefined) {
       throw new Error(`Uncaptured corpus read for ${path}`);
     }

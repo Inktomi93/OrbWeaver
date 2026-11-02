@@ -21,7 +21,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
-import { REGEX_PLACEMENT_ITEMS } from "#lib";
+import { DIALOG_VERBS, REGEX_PLACEMENT_ITEMS } from "#lib";
 
 /** The picker's accessible group name — the editor's own "Runs on" question, phrased for a whole selection. */
 const PICKER_LABEL = "Which text streams these scripts run on";
@@ -84,7 +84,7 @@ export function RegexBulkPlacementDialog({ open, onOpenChange, count, onApply }:
       }}
       open={open}
       submit={{
-        label: "Apply",
+        label: DIALOG_VERBS.apply,
         onSubmit: (): void => {
           if (!empty) {
             onApply(placement);

@@ -8,6 +8,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { Icon, Pencil, Plus, Trash, WandSparkles } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
@@ -22,7 +23,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import {
@@ -273,6 +274,7 @@ function GreetingActions({
             type="button"
             size="sm"
             variant="ghost"
+            wrap={true}
             onClick={(): void => {
               // The D78 store-subscription driver persists structural array ops (removeFieldValue routes
               // through setFieldValue) — no call-site flush (D78).
@@ -293,6 +295,7 @@ function GreetingActions({
           type="button"
           size="sm"
           variant="ghost"
+          wrap={true}
           onClick={(): void => {
             // The D78 store-subscription driver persists the structural push (pushFieldValue routes through
             // setFieldValue) — no call-site flush (D78). The new slot then
@@ -306,7 +309,7 @@ function GreetingActions({
         </Button>
         <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
-          {editing ? "Done" : "Edit"}
+          {editing ? DIALOG_VERBS.done : "Edit"}
         </Toggle>
         <Toggle size="sm" pressed={studioOpen} onPressedChange={setStudioOpen}>
           <Icon icon={WandSparkles} size="sm" />
@@ -370,25 +373,14 @@ function GreetingAttributeRow({
 /** The per-alternate "group chats only" flag (folded ST `group_only_greetings`). A labeled Switch bound to
  *  `greetings[i].groupOnly`; the autosave driver persists the flag like any other field. Rides its OWN row
  *  (not a `justify-end` action) so it reads as an attribute OF this greeting AND can't be pushed off-canvas
- *  at phone widths. `aria-labelledby` names the switch (statically, for AT + the linter); the label's
- *  `htmlFor` adds mouse/touch click-through onto the switch button (a labelable element). The Switch already
- *  carries the ≥44px `TOUCH_TARGET_PSEUDO` hit area. */
+ *  at phone widths. The Field names the switch and forwards a label click onto it. */
 function GreetingGroupOnlyToggle({ form, index }: { readonly form: CardForm; readonly index: number }): ReactElement {
-  const labelId = `greeting-group-only-${index}`;
-  const switchId = `greeting-group-only-switch-${index}`;
   return (
     <form.Field name={greetingGroupOnlyName(index)}>
       {(field): ReactElement => (
-        <Row gap="field" align="center">
-          <label htmlFor={switchId}>
-            {/* A control's visible name IS `label` (#573); its muted ink rides className because `tone` is
-                declared before `voice` and loses the merge. */}
-            <Text id={labelId} as="span" voice="label" ink="muted">
-              Group chats only
-            </Text>
-          </label>
-          <Switch id={switchId} aria-labelledby={labelId} checked={field.state.value === true} onCheckedChange={(on): void => field.handleChange(on)} />
-        </Row>
+        <Field label="Group chats only" orientation="inline">
+          <Switch checked={field.state.value === true} onCheckedChange={(on): void => field.handleChange(on)} />
+        </Field>
       )}
     </form.Field>
   );

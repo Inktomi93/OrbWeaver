@@ -7,6 +7,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import type { Locator } from "@playwright/test";
+import { REFINERY_SESSION_STATE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -16,13 +18,20 @@ const REWRITE = "The rewrite preserves a quieter observatory keeper.";
 const NOTE = "Creator notes that must survive a discarded clear.";
 const GREETING = "Welcome to the observatory.";
 const RECONFIRM = "re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text";
-const DIVERGENCE_LABEL = "changed since the session started";
+const DIVERGENCE_LABEL = "Changed since the session started";
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: DEFAULT_APPEARANCE_SETTINGS },
   { name: "narrow desktop enlarged", width: 300, viewport: { width: 1280, height: 900 }, coarse: false, appearance: ENLARGED_APPEARANCE_SETTINGS },
   { name: "coarse portrait enlarged", width: 390, viewport: { width: 390, height: 844 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
   { name: "coarse landscape enlarged", width: 844, viewport: { width: 844, height: 390 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
+
+/** The queue's target names, in queue order, read from each row's Discard button. */
+async function queueLabels(scope: Locator): Promise<string[]> {
+  const discards = scope.getByRole("button", { name: /^Discard /u });
+  await expect(discards.first()).toBeVisible();
+  return (await discards.allTextContents()).map((text) => text.replace(/^Discard /u, ""));
+}
 
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
@@ -70,7 +79,7 @@ for (const regime of REGIMES) {
       const review = page.getByTestId(testId("refineryAcceptReview"));
       await expect(review.getByText(RECONFIRM, { exact: true })).toBeVisible();
       const masthead = page.getByTestId(testId("refineryMasthead"));
-      const sessionState = masthead.getByRole("group", { name: "Session state", exact: true });
+      const sessionState = masthead.getByRole("group", { name: REFINERY_SESSION_STATE_NAME, exact: true });
       const sessionStateGeometry = await actionGroupGeometry(masthead, [sessionState, ...(await sessionState.getByTestId(testId("refineryChip")).all())]);
       await test.info().attach("session-state-bounds", { body: JSON.stringify(sessionStateGeometry), contentType: "application/json" });
       expect(sessionStateGeometry.inlineOverflow).toBeLessThanOrEqual(1);
@@ -80,22 +89,30 @@ for (const regime of REGIMES) {
       for (const text of [PIN, LIVE, REWRITE]) {
         await expect(review.getByText(text, { exact: true })).toBeVisible();
       }
-      await review.getByRole("button", { name: "Discard description", exact: true }).click();
-      await expect(review.getByRole("button", { name: "Keep (empties field) creatorNotes", exact: true })).toBeVisible();
-      await review.getByRole("button", { name: "reopen description", exact: true }).click();
-      await review.getByRole("button", { name: "Keep description", exact: true }).click();
+      // The queue names its targets in its own words; the buttons are found by those words, read from the page.
+      const labels = await queueLabels(review);
+      const notesLabel = ((await review.getByRole("button", { name: /^Keep \(empties field\) /u }).textContent()) ?? "").replace(
+        /^Keep \(empties field\) /u,
+        "",
+      );
+      const greetingLabel = labels.find((label) => label.includes("greeting")) ?? "";
+      const descriptionLabel = labels.find((label) => label !== notesLabel && label !== greetingLabel) ?? "";
+      await review.getByRole("button", { name: `Discard ${descriptionLabel}`, exact: true }).click();
+      await expect(review.getByRole("button", { name: `Keep (empties field) ${notesLabel}`, exact: true })).toBeVisible();
+      await review.getByRole("button", { name: `Reopen ${descriptionLabel}`, exact: true }).click();
+      await review.getByRole("button", { name: `Keep ${descriptionLabel}`, exact: true }).click();
       const queued = review.getByTestId(testId("refineryQueueRow")).filter({ hasText: DIVERGENCE_LABEL });
       const queuedWarning = queued.getByTestId(testId("refineryChip")).filter({ hasText: DIVERGENCE_LABEL });
       await queuedWarning.scrollIntoViewIfNeeded();
       const queuedGeometry = await actionGroupGeometry(queued, [queuedWarning]);
       await test.info().attach("queued-divergence-bounds", { body: JSON.stringify(queuedGeometry), contentType: "application/json" });
       expect(queuedGeometry.inlineOverflow).toBeLessThanOrEqual(1);
-      await review.getByRole("button", { name: "Discard creatorNotes", exact: true }).click();
+      await review.getByRole("button", { name: `Discard ${notesLabel}`, exact: true }).click();
       await expect(review.getByText("A new greeting is added at the end — no existing greeting is touched.", { exact: true })).toBeVisible();
-      await review.getByRole("button", { name: "Discard greetings [new]", exact: true }).click();
+      await review.getByRole("button", { name: `Discard ${greetingLabel}`, exact: true }).click();
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([true, false, false]);
       expect((await caller.character.get({ characterId: card.id })).description).toBe(LIVE);
-      await review.getByRole("button", { name: "reopen description", exact: true }).click();
+      await review.getByRole("button", { name: `Reopen ${descriptionLabel}`, exact: true }).click();
       const warning = review.getByText(RECONFIRM, { exact: true });
       const row = warning.locator("..");
       const chip = row.getByTestId(testId("refineryChip"));

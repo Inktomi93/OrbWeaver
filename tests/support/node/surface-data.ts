@@ -363,6 +363,10 @@ async function datasetInventory(layout: DataLayout, idleRequired: boolean): Prom
   }
 }
 
+// Every case spends one owner's buckets on a disposable loopback copy, so the walk's own record lifts the windowed caps.
+// This record never reaches a shipped path: production parses the process environment, and the test kit stays out of the image.
+const SURFACE_UNTHROTTLED_CAP = "100000";
+
 function surfaceHarnessOptions(
   prepared: Pick<PreparedSurfaceData, "layout" | "runRoot" | "owner">,
   mode: AuthMode,
@@ -382,7 +386,13 @@ function surfaceHarnessOptions(
     relayDir: prepared.layout.relay,
     secretsDir: prepared.layout.secrets,
     rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: prepared.owner.handle, [OWNER_HANDLES_KEY]: prepared.owner.handle },
-    env: { [AUTH_MODE_KEY]: mode },
+    env: {
+      [AUTH_MODE_KEY]: mode,
+      ["RATE_LIMIT_AI_TURN"]: SURFACE_UNTHROTTLED_CAP,
+      ["RATE_LIMIT_AUTHED"]: SURFACE_UNTHROTTLED_CAP,
+      ["RATE_LIMIT_LOGIN"]: SURFACE_UNTHROTTLED_CAP,
+      ["RATE_LIMIT_PUBLIC_IP"]: SURFACE_UNTHROTTLED_CAP,
+    },
     ...execution,
   };
 }
@@ -681,6 +691,8 @@ export async function openPreparedSurfaceRoot(prepared: PreparedSurfaceData, opt
     }
     await assertSurfaceInventory(root, prepared, false);
     const principal = await root.principalFor(prepared.owner.userId);
+    // A stored override outranks the record's floors; only this disposable copy loses it, never the source database.
+    await root.services.settings.updateAppSettings({ principal, partial: { rateLimits: null } });
     const seededVersions = (await root.services.settings.getUserSettings({ principal })).config.onboarding.seededPluginVersions;
     const authentication = await prepareSurfaceAuthentication(root, prepared, mode);
     await assertSurfaceOwnerAdmission(root, origin, authentication);

@@ -6,6 +6,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
@@ -55,7 +56,7 @@ for (const regime of [
       });
       await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof SectionShellStory>(STORY, { section: "corpus" });
-      const mode = page.getByRole("radiogroup", { name: "Corpus mode", exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true });
+      const mode = page.getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true });
       await mode.click();
       await expect(mode).toHaveAttribute("aria-checked", "true");
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();

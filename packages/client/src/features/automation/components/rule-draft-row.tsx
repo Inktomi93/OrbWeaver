@@ -6,7 +6,7 @@ import { useIsMutating } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { useTRPC } from "#data";
-import { notify } from "#lib";
+import { DIALOG_VERBS, notify } from "#lib";
 import type { RuleCreation } from "#state";
 import { ruleEditorDraftSchema } from "../lib/contract/rule-editor.ts";
 import { discardRuleDraft, ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
@@ -66,7 +66,7 @@ export function RuleDraftRow({
             }
           }}
         >
-          Discard
+          {DIALOG_VERBS.discard}
         </Button>
       </Row>
       {pending ? (

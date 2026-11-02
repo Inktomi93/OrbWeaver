@@ -153,7 +153,7 @@ interface NestedRing {
 function nestedRing(background: string, accent: string): NestedRing {
   const base = parsed(background);
   const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
-  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, "carried");
+  const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, { palette: "carried" });
   const vars = { ...outer.vars, ...nested.vars };
   const card = pixel(rampSurface(base, rampDeltas(base).card));
   return {

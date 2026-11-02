@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
+import { REFINERY_LIST_TITLE } from "../lib/refinery-section-label.ts";
 import { startSessionRequests } from "../lib/start-session-requests.ts";
 import { useRefineryCensus } from "./use-refinery-sessions.ts";
 
@@ -66,7 +67,8 @@ export function useRefineryListHeader(): ListPaneHeaderView {
             },
           ],
         }),
-    count: census ?? 0,
-    title: "Sessions",
+    // An unread census is an absent count, never a printed 0.
+    ...(census === undefined ? {} : { count: census }),
+    title: REFINERY_LIST_TITLE,
   };
 }

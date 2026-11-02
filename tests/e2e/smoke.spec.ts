@@ -18,6 +18,7 @@ import { START_TEMP_CHAT_NAME } from "@orb/client/lib";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso";
+import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
@@ -91,7 +92,7 @@ test("a section deep link boots the app and lands on the one app URL", { tag: "@
   await expect(page.getByRole("main")).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.locator(NOT_FOUND_DECLARE)).toHaveCount(0);
   const main = isMobile
-    ? page.getByRole("main").filter({ has: page.getByRole("list", { name: "Chats list", exact: true }) })
+    ? page.getByRole("main").filter({ has: page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }) })
     : page.getByRole("main", { name: "Chats content", exact: true });
   await expect(main).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
@@ -151,6 +152,6 @@ test("the selected corpus clone serves the captured room identity, content and v
   }
   await page.goto("/chats");
   // The corpus room can be outside the virtualized viewport; search through the real server-backed control.
-  await page.getByRole("textbox", { name: "Search chats", exact: true }).fill(title);
-  await expect(page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button", { name: title, exact: true }).first()).toBeVisible();
+  await page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(title);
+  await expect(page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: title, exact: true }).first()).toBeVisible();
 });

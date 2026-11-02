@@ -11,7 +11,7 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { useFocusOnSwap } from "#lib";
+import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import { openConfigTo } from "#state";
 import { useRemoveConnection } from "../hooks/use-connections-mutations.ts";
 
@@ -42,7 +42,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
       </Row>
       <Row className="grow" gap="field" justify="end">
         <Button variant="outline" onClick={onDone} size="sm">
-          Done
+          {DIALOG_VERBS.done}
         </Button>
       </Row>
     </Row>

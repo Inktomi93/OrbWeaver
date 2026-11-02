@@ -21,7 +21,7 @@ updated: 2026-10-17
 3. **One registry primitive, no static maps.** Keep each section, settings pane, modal and contributor in one definition, assembled at the composition root. Do not add a parallel registry map. "Derive, don't re-declare."
 4. **The `/` route is a thin mount.** Do not add a sections map or feature imports to a route body. Assemble feature definitions and contributors at the composition door, and it is two modules: `main.tsx` (boot, assembles nothing) plus `packages/client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 states the split and why.
 5. **Cross-feature needs have exactly one channel each** — the decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (§12 row 4 lists the families; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
-6. **Use shared client primitives.** Route mutations through `createEntityMutation`, paginated browsing through `createCollectionSurface`, multi-field forms through a form factory, and destructive confirms through `ConfirmDialog`.
+6. **Use shared client primitives.** Route mutations through `createEntityMutation`, paginated browsing through `createCollectionSurface`, multi-field forms through a form factory, and destructive confirms through `ConfirmDialog`. Call `createEntityMutation` in a hooks file (`hooks/`, `*-mutations.ts` or `data/`) and import the hook into the component (`orb/mutation-factory-in-hooks-file`).
 7. **Every suspending read sits in `QueryBoundary`; every surface ships designed empty/loading/error states** (§11). A bare spinner or an unhandled throw is a defect.
 8. **Events:** shared-room truth rides the durable seq-stamped chat bus; per-person freshness rides the user bus; the invalidation seam routes client events into the cache (§13).
 9. **Features hold no hand-rolled DOM.** Hold a node with a ref or a part handle. `orb/no-dom-lookup-in-features` refuses id and selector lookups outside the named homes in `eslint.config.ts`. `orb/no-class-list-write` refuses a class toggled by hand. `orb/no-sealed-library-internals` refuses a string that names a sealed library's attribute or class. `orb/no-render-layout-read` refuses a layout read in render.
@@ -83,6 +83,14 @@ sub-dirs. Grouping is presentation for the reader and never alters a file's role
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never
 duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and changing together) decides
 when to hoist. Review repeated composites before hoisting them; semantic near-duplicates need a design decision.
+
+**Composites are typed to be used right.** This is type law 5 ([Spine-TypeScript-and-Patterns.md](Spine-TypeScript-and-Patterns.md#the-type-laws)). A composite or primitive takes what its safe use needs as a required prop, so a wrong composition fails `tsc`. A lint rule covers only what a type cannot express. Open items:
+
+- [1769](../work/1769-section-gains-a-trailing-slot-so-laneband-composes.md): `Section` takes a trailing slot, so `LaneBand` composes from it.
+- [1775](../work/1775-every-dialog-has-a-dismiss-path-by-type.md): a dialog has a dismiss path by type.
+- [1776](../work/1776-destructiveaction-takes-its-confirm-copy-as-a-required.md): `DestructiveAction` requires its confirm copy.
+- [1777](../work/1777-status-chips-take-one-tone-and-label-from.md): a status chip takes one tone and label from a typed union.
+- [1780](../work/1780-orb-destructive-needs-confirm-judges-each-control-not.md): the confirm lint judges each control.
 
 **What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
 
@@ -237,7 +245,7 @@ Applications: sections (§6) · settings panes (§8) · contributors (§6c) · m
 A `SectionDefinition` carries its rail identity, panel defaults, placeholder, content, content-inset declaration, selection title, and context.
 A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
-The shell applies `--spacing-section` as the CONTENT inline inset. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
+The shell applies `--spacing-section` as the CONTENT inline inset. Where the shell main is under 20rem wide, an inset region takes `--spacing-block` instead, so a control row of its own width fits. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
 Every LIST pane is a `#components` `ListPage`, which marks its search with `ListSearch`. `orb/page-template-shapes` refuses `ListSearch` in a feature.
 A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).

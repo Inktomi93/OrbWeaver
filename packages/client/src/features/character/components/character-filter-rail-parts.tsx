@@ -311,6 +311,7 @@ export function RailAction({
       // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
       // for the two rulings this reconciles. This affordance has no selected arm, so it carries it flat.
       variant="ghost"
+      wrap={true}
       ink="muted"
       underline="dotted"
       onClick={onClick}

@@ -3,7 +3,9 @@
 import { COLLECTION_LARGE_GROUP, connectionSummary } from "@orb/client/lib";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { WORLD_BOOKS_LIST_NAME } from "#client/features/world-info/lib/world-books-list-name.ts";
+import { WORLD_INFO_BOOK_DETAILS_NAME, WORLD_INFO_EDIT_DETAILS_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -33,7 +35,7 @@ test.describe("committed corpus collection settings", () => {
     }
     await openConfigGroup(page, "regex");
     await page.getByRole("button", { name: before.name, exact: true }).click();
-    const field = page.getByRole("textbox", { name: "Replace with", exact: true });
+    const field = page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true });
     const original = await field.inputValue();
     const next = `${original} corpus smoke`;
     await field.fill(next);
@@ -78,8 +80,8 @@ test.describe("committed corpus collection settings", () => {
     await expect(list.getByRole("button", { name: leading.name, exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: before.name, exact: true })).toHaveCount(0);
     await selectWorldBook(page, before.name);
-    await page.getByRole("button", { name: "Edit details", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Book details", exact: true });
+    await page.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: WORLD_INFO_BOOK_DETAILS_NAME, exact: true });
     const description = `${before.description ?? ""} corpus smoke`;
     await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(description);
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
@@ -87,7 +89,7 @@ test.describe("committed corpus collection settings", () => {
     await page.reload();
     await openConfigGroup(page, "worldInfo");
     await selectWorldBook(page, before.name);
-    await page.getByRole("button", { name: "Edit details", exact: true }).click();
+    await page.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
     await expect(dialog.getByRole("textbox", { name: "Description", exact: true })).toHaveValue(description.trim());
     await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(before.description ?? "");
     const saved = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("worldInfo.updateBook"));

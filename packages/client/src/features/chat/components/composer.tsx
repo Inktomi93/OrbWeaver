@@ -28,6 +28,7 @@ import { useSharedRoom } from "../hooks/use-shared-room.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
+import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME } from "../lib/chat-surface-names.ts";
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { nextTurnStatesRefusal } from "../lib/next-turn-line.ts";
@@ -41,6 +42,9 @@ import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
+
+// The draft grows to this many lines, then scrolls inside the box (about the old 16rem cap).
+const COMPOSER_MAX_ROWS = 10;
 
 // Teach the empty-Enter action in the placeholder, including the adjacent Response icon when it generates.
 function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {
@@ -314,7 +318,7 @@ export function Composer({
   };
 
   return (
-    <Stack aria-label="Message composer" className="min-block-0" data-testid={testId("composer")} gap="tight" role="group">
+    <Stack aria-label={CHAT_COMPOSER_NAME} className="min-block-0" data-testid={testId("composer")} gap="tight" role="group">
       {/* The registered commands' invisible runner mounts — one fiber each, so a runner may use hooks.
           Zero registrants renders nothing at all. */}
       {slash.mounts}
@@ -339,7 +343,7 @@ export function Composer({
           messageInput={
             <Textarea
               ref={textareaRef}
-              aria-label="Message"
+              aria-label={CHAT_MESSAGE_INPUT_NAME}
               // Editable-combobox wiring for the slash strip (a11y): while the strip is open the textarea
               // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
               // screen reader announces the highlighted offer without focus ever leaving the textarea.
@@ -375,7 +379,8 @@ export function Composer({
               onPaste={mediaDrop.onPaste}
               disabled={sendMessage.isPending}
               chrome="bare"
-              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 max-block-(--height-scroll-md) min-inline-0"
+              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 min-inline-0"
+              maxRows={COMPOSER_MAX_ROWS}
               rows={1}
               size="compact"
             />

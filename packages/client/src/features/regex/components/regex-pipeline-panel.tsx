@@ -29,6 +29,7 @@ import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PLACEMENT_LABELS, regexScriptTitle } from "#lib";
+import { REGEX_TEXT_AFTER_STREAM_NAME, REGEX_TEXT_GOING_IN_NAME } from "../lib/regex-names.ts";
 // `REGEX_SKIP_REASONS` is imported as a TYPE: the tuple is only ever read in a `typeof` position here (the
 // mapped `SKIP_COPY` Record), so a value import would pull it into the bundle for nothing.
 import type { REGEX_SKIP_REASONS, RegexPipelineStage } from "../lib/regex-pipeline.ts";
@@ -134,7 +135,7 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
             and two controls with the same accessible name on one pane is the exact defect side-eye X-1 found
             (the two "Display only"s, 320px apart). The pair here also READS as a pipeline — text going in,
             text after the whole stream. */}
-        <Field label="Text going in">
+        <Field label={REGEX_TEXT_GOING_IN_NAME}>
           <Textarea
             maxLength={REGEX_PREVIEW_MAX_INPUT}
             onChange={(event: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -151,7 +152,7 @@ export function RegexPipelinePanel({ script, scriptId }: RegexPipelinePanelProps
 
         <Field
           description={ran === 0 ? "Nothing bit this sample on this stream." : `${String(ran)} script${ran === ONE_MATCH ? "" : "s"} changed the text.`}
-          label="Text after the whole stream"
+          label={REGEX_TEXT_AFTER_STREAM_NAME}
         >
           <Textarea readOnly={true} rows={OUTPUT_ROWS} value={run.output} />
         </Field>

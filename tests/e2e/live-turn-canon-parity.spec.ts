@@ -27,6 +27,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
 import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
@@ -73,7 +74,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
 
     const beforePosts = await genPostCount();
 
-    await typeAndSend(page.getByRole("textbox", { name: "Message" }), USER_PROMPT);
+    await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), USER_PROMPT);
 
     // ── (a) GHOST LIFECYCLE ──
     // The ghost appears (hard), streamed content renders into its body (hard), and it RESOLVES into a durable

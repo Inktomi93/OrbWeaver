@@ -5,6 +5,7 @@ import ts from "typescript";
 import { lexicalVariable } from "./general.ts";
 import { accessedName, constantInitializer, STATIC_CONST_DEPTH, staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 const LOOKUPS = new Set([
   "getElementById",
@@ -189,7 +190,7 @@ function lookupSite(context: OrbRuleContext, call: TSESTree.CallExpression): Loo
 export const domLookupRule = (homes: readonly DomLookupHome[]): OrbRule => ({
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const unused = homes.filter((home) => context.filename.endsWith(`/${home.file}`));
+    const unused = homes.filter((home) => posixPath(context.filename).endsWith(`/${home.file}`));
     if (new Set(unused.map(siteIdentity)).size !== unused.length) {
       throw new Error(`Duplicate DOM home in ${context.filename}`);
     }

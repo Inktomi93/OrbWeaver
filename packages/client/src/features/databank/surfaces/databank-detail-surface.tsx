@@ -36,6 +36,7 @@ import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from 
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
+import { databankSourceToggleName } from "../lib/databank-names.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -178,19 +179,19 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
     <EditorPage data-slot="databank-detail-editor" gap="section" inset="section">
       <DetailHeader
         actions={
-          <>
-            {/* The detail keeps its phase chip: here it answers the question the reader asked by opening the
-                  document. The act-now glyph rides it too, one chip anatomy in both panes. */}
-            <Badge tone={badge.tone} size="sm">
-              {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
-              {badge.label}
-            </Badge>
-            <Tip text={renameActionName(doc.name)}>
-              <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true}>
-                <Icon icon={Pencil} size="sm" />
-              </Button>
-            </Tip>
-          </>
+          <Tip text={renameActionName(doc.name)}>
+            <Button aria-label={renameActionName(doc.name)} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true}>
+              <Icon icon={Pencil} size="sm" />
+            </Button>
+          </Tip>
+        }
+        // The detail keeps its phase chip: here it answers the question the reader asked by opening the
+        // document. State belongs in `meta`; the act-now glyph rides it too, one chip anatomy in both panes.
+        meta={
+          <Badge tone={badge.tone} size="sm">
+            {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
+            {badge.label}
+          </Badge>
         }
         title={doc.name}
       >
@@ -254,7 +255,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           <Row justify="start">
             <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">
               <Icon icon={FileText} size="sm" />
-              {showSource ? "Hide source text" : "View source text"}
+              {databankSourceToggleName(showSource)}
             </Button>
           </Row>
           {showSource ? <SourceText documentId={documentId} /> : null}

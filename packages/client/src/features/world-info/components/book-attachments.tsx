@@ -51,11 +51,11 @@ function BookAttachmentsBody({ bookId }: BookAttachmentsProps): ReactElement {
     ],
   });
   return (
-    <Stack gap="section" padding="block">
+    <>
       <GlobalSection bookId={bookId} isGlobal={globalBooks.some((book) => book.id === bookId)} />
       <PersonasSection bookId={bookId} attachments={attachments} personas={personas} />
       <CharactersSection bookId={bookId} attachments={attachments} attachedCount={usage.find((book) => book.id === bookId)?.usage.characters ?? 0} />
-    </Stack>
+    </>
   );
 }
 
@@ -136,7 +136,7 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
   const needle = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
   return (
     <Stack gap="row">
-      <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters" value={term} />
+      <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters…" value={term} />
       <QueryBoundary
         fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="avatar-row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}

@@ -89,6 +89,7 @@ import {
   searchEmptyDescription,
 } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { CHAT_CLEAR_SEARCH_NAME, CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "../lib/chat-surface-names.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
  *  collection hook deliberately exports no second name for it. */
@@ -104,8 +105,8 @@ const ESTIMATED_ROW_PX = 44;
 // carries them. The FOLD is no longer that component's: since #1718 arm A a phone puts BOTH secondary
 // filters behind ONE `ChatListPhoneFilters` row, and this surface picks the arm.
 const SKIP_TO_LIST_LABEL = "Skip to chats";
-const SEARCH_LABEL = "Search chats";
-const CLEAR_SEARCH_LABEL = "Clear the search";
+const SEARCH_LABEL = CHAT_SEARCH_NAME;
+const CLEAR_SEARCH_LABEL = CHAT_CLEAR_SEARCH_NAME;
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -373,7 +374,7 @@ function ChatRows({
         // shell's own pattern for a list region is the noun plus the word (`Presets list`, and the
         // `"<section> list"` the pane landmark used before #493 made it read its visible band). The RAIL
         // keeps "Chats" — it names the SECTION, which is what a nav button names.
-        aria-label="Chats list"
+        aria-label={CHAT_LIST_NAME}
         className="block-full"
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}

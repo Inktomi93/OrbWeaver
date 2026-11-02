@@ -35,7 +35,7 @@ import { useEffect, useRef } from "react";
 import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
-import { testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { planNotes } from "../lib/portability-model.ts";
@@ -137,7 +137,7 @@ function ImportPreflight({
             Import
           </Button>
           <Button variant="outline" onClick={onCancel}>
-            Cancel
+            {DIALOG_VERBS.cancel}
           </Button>
         </Row>
       </Stack>

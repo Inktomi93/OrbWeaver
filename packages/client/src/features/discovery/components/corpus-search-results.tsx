@@ -15,6 +15,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY, trpcErrorReason } from "#lib";
 import { openChatMoment, openConfigTo } from "#state";
+import { CORPUS_NO_RESULT_TEXT } from "../lib/corpus-control-names.ts";
 import { groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -255,10 +256,11 @@ function FieldsResults({
  *  engines behind this one box answer different questions, and only the lexical one cares about exact
  *  words. The second line names the engine and the next thing to try. */
 function NoMatches({ label, query, lexical }: { readonly label: string; readonly query: string; readonly lexical: boolean }): ReactElement {
+  const headline = lexical ? `Nothing in your ${label.toLowerCase()} matched “${query}”.` : CORPUS_NO_RESULT_TEXT;
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
-      <Text>{lexical ? `Nothing in your ${label.toLowerCase()} matched “${query}”.` : "No result in this preview."}</Text>
+      <Text>{headline}</Text>
       <Text voice="gloss">
         {lexical
           ? "Text searches card wording with prefix and fuzzy matching. Check the spelling, or try Memories or Scenes — those search by meaning."

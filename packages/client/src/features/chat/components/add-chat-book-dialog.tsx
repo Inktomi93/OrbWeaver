@@ -31,11 +31,11 @@ import { BookOpen, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog } from "#components";
-import { SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { FormDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
 import { attachableBooks } from "../lib/chat-books-model.ts";
 
@@ -77,7 +77,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
   return (
     <FormDialog
       closeButton={true}
-      dismissLabel="Cancel"
+      dismissLabel={DIALOG_VERBS.cancel}
       description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -87,32 +87,36 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
       open={open}
       title="Attach a world book to this chat"
     >
-      {/* Non-suspending: the dialog frame paints at once and the candidate list fills in, so opening the
+      {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody attachedIds={attachedIds} failure={failure} isOwned={attach.isPending} onAttach={attachBook} />
     </FormDialog>
   );
 }
 
-function PickerBody({
-  attachedIds,
-  failure,
-  isOwned,
-  onAttach,
-}: {
+interface PickerBodyProps {
   readonly attachedIds: readonly WorldBookId[];
   readonly failure: string | null;
   readonly isOwned: boolean;
   readonly onAttach: (bookId: WorldBookId) => Promise<void>;
-}): ReactElement {
-  const trpc = useTRPC();
-  const library = useQuery(trpc.worldInfo.listBooks.queryOptions());
-  const books = library.data ?? [];
-  const candidates = attachableBooks(books, attachedIds);
+}
 
-  if (library.isPending) {
-    return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
-  }
+// The boundary is the dialog body's own, so a failed library read says so with a Retry instead of reading as "no books".
+function PickerBody(props: PickerBodyProps): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your world books" onRetry={retry} />}
+    >
+      <PickerList {...props} />
+    </QueryBoundary>
+  );
+}
+
+function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps): ReactElement {
+  const trpc = useTRPC();
+  const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooks.queryOptions());
+  const candidates = attachableBooks(books, attachedIds);
 
   // TWO different nothings, said differently (empty states are load-bearing): an empty LIBRARY is "go make
   // one", and a library whose every book already reaches this room is a success state, not a failure.
@@ -121,7 +125,7 @@ function PickerBody({
       <EmptyState
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
-        action={<DialogClose render={<Button variant="outline">Close</Button>} />}
+        action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           books.length === 0
             ? "Make one in World info — a book of entries that fire on the keywords you give them — and it can feed this chat."

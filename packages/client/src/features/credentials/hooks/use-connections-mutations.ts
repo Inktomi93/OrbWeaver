@@ -15,8 +15,8 @@ type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 
 const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
 
-/** Create a connection row (label auto-minted server-side when omitted). The add dialog calls it with
- *  `failureShownInline`: it states every submit failure in the dialog, where a toast would sit under the scrim. */
+/** Create a connection row (label auto-minted server-side when omitted). The add dialog also states every submit
+ *  failure inline, because a toast can sit under the scrim. */
 export const useCreateConnection = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
   options: (trpc) => trpc.connection.create.mutationOptions(),
   invalidates: connectionReads,
@@ -68,10 +68,11 @@ export const useReplaceCredential = createEntityMutation<inferInput<Trpc["creden
   errorToast: "Couldn't replace that key — check the value and try again.",
 });
 
-/** The add dialog's key mint. No toast: the dialog states the failure inline, and this mint has no other caller. */
+/** The add dialog's key mint. The dialog also states the failure inline; the toast is there if no surface is left to say it. */
 export const useAddCredentialOwned = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
   options: addCredentialOptions,
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
+  errorToast: "Couldn't save that key.",
 });
 
 /** The USER-FACING revoke (invariant #6) — the user pre-empts the next turn's 401 when they know a key was

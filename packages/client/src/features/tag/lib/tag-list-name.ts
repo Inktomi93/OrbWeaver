@@ -4,3 +4,5 @@ export const TAG_LIST_NAME = "Tags";
 
 /** The Labels finder's filter box. */
 export const TAG_FILTER_NAME = "Filter tags";
+export const TAG_MORE_ACTIONS_NAME = "More tag actions";
+export const TAG_PRUNE_NAME = "Prune unused tags";

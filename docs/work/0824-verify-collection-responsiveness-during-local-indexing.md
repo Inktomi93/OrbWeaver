@@ -1,6 +1,7 @@
 ---
 kind: work
 status: blocked
+plan: test-foundation
 updated: 2026-10-10
 blocked: owner
 ---

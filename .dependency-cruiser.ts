@@ -409,6 +409,20 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/character/lib/character-names.ts":
     "CHARACTER_SEARCH_NAME and its siblings: the accessible names the Characters library, editor and dialogs print",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
+  "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
+  "packages/client/src/components/shared-control-names.ts":
+    "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
+  "packages/client/src/features/chat/lib/chat-surface-names.ts":
+    "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery picker and message confirm names",
+  "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
+  "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
+  "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
+  "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile and add dialog names",
+  "packages/client/src/features/preset/lib/preset-names.ts": "PRESET_DELETE_SECTION_TITLE: the section delete confirmation's title",
+  "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
+  "packages/client/src/features/discovery/lib/corpus-control-names.ts":
+    "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
+  "packages/client/src/features/refinery/lib/refinery-names.ts": "REFINERY_VERSIONS_NAME: the context pane's version history tab",
   "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":

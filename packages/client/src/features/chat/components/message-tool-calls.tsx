@@ -12,14 +12,13 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { use } from "react";
 import { ConfirmDialog } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
+import { useEditToolCall } from "../hooks/use-message-mutations.ts";
 
 export interface MessageToolCallsProps {
   readonly message?: MessageView;
@@ -29,12 +28,6 @@ export interface MessageToolCallsProps {
    *  renders through the generic fallback (a build/test with no contributions). */
   readonly renderers?: ContributorRegistry<ToolRenderer> | undefined;
 }
-
-const useEditToolCall = createEntityMutation<inferInput<Trpc["chat"]["editToolCall"]>, MessageView>({
-  options: (trpc) => trpc.chat.editToolCall.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't update that tool call.",
-});
 
 function ToolCallControls({ message, record }: { readonly message: MessageView; readonly record: ToolCallRecord }): ReactElement {
   const trpc = useTRPC();

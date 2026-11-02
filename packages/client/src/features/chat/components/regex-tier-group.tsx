@@ -127,7 +127,7 @@ function TierKicker({ allowed, count, label }: { readonly allowed: boolean; read
       {allowed ? null : (
         <>
           {" "}
-          <InlineToken>off here</InlineToken>
+          <InlineToken>Off here</InlineToken>
         </>
       )}
     </>

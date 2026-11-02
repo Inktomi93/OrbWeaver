@@ -14,6 +14,7 @@ import { prepareBackupFolder } from "@orb/testkit/node/composed";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
+import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -126,7 +127,7 @@ async function assertRestoredWitness(
   await openGroup(page, "regex");
   await page.getByRole("button", { name: witness.name, exact: true }).click();
   // The editor reads the script while the restored library's follow-up work still loads the server.
-  await expect(page.getByRole("textbox", { name: "Replace with", exact: true })).toHaveValue(witness.replaceString, { timeout: settleMs });
+  await expect(page.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true })).toHaveValue(witness.replaceString, { timeout: settleMs });
   return restoredScript;
 }
 

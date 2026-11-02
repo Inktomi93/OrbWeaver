@@ -35,12 +35,13 @@ import { Section, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingSwitchRow } from "#components";
+import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorCode } from "#lib";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
+import { DATABANK_USE_IN_EVERY_CHAT_NAME } from "../lib/databank-names.ts";
 import { ActiveInSection } from "./databank-active-in.tsx";
 
 export function DatabankContextBody(): ReactElement {
@@ -155,7 +156,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
   return (
     // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel).
     <Surface tier="instrument">
-      <Stack gap="section" padding="block">
+      <ContextTabBody>
         <EverywhereSection documentId={doc.id} name={doc.name} />
         <ActiveInSection documentId={doc.id} documentName={doc.name} />
         {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): these three are compact groupings in a
@@ -183,7 +184,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
             </Button>
           </Stack>
         </Section>
-      </Stack>
+      </ContextTabBody>
     </Surface>
   );
 }
@@ -204,9 +205,9 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
           so the name never flips with it. */}
       <SettingSwitchRow
         checked={isGlobal}
-        description="Feed this document to every chat, on top of any per-chat or per-character attachments."
+        description="Use this document in every chat, on top of any per-chat or per-character attachments."
         disabled={isPending}
-        label="Use in every chat"
+        label={DATABANK_USE_IN_EVERY_CHAT_NAME}
         onChange={(on): void => {
           if (on) {
             attach.mutate({ documentId });
@@ -217,7 +218,7 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
       />
       {isPending ? (
         <Text role="status" voice="gloss">
-          {isGlobal ? `Stopping ${name} everywhere…` : `Feeding ${name} everywhere…`}
+          {isGlobal ? `Stopping use of ${name} in every chat…` : `Using ${name} in every chat…`}
         </Text>
       ) : null}
     </Section>

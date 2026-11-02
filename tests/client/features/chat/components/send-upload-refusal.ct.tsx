@@ -2,6 +2,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -38,7 +39,7 @@ for (const { status, reason } of REFUSALS) {
     const chatId = (await caller.chat.getChat({ chatId: room.id })).id;
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
 
-    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     await input.fill(DRAFT);
     await input.evaluate((element) => {
       const transfer = new DataTransfer();
@@ -47,7 +48,7 @@ for (const { status, reason } of REFUSALS) {
     });
     await expect(page.locator('[data-slot="composer-attachment"]')).toHaveCount(1);
 
-    await page.getByRole("button", { name: "Send message", exact: true }).click();
+    await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
 
     await expect(page.getByRole("region", { name: "Alerts" }).getByText(reason, { exact: true })).toBeVisible();
     await expect(input).toHaveValue(DRAFT);

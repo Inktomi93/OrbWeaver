@@ -20,26 +20,16 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast, viewerTimeZone } from "#lib";
+import { useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
+import { useSwipeMutation } from "../hooks/use-message-mutations.ts";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME, variantCountName } from "../lib/message-action-names.ts";
 import type { SwipeFoot } from "../lib/pager-chrome.ts";
-
-// The ONE turn-error mapper (`lib/turn-abort-notice.ts`), not a bare string: a swipe refused for CONTENTION
-// (`locked` — another turn holds this room) is the one turn failure the reader can act on, and the bare
-// fallback hid it behind "Couldn't generate that swipe" while the old variant sat there with no ghost.
-const useSwipeMutation = createEntityMutation<inferInput<Trpc["chat"]["swipe"]>, unknown>({
-  options: (trpc) => trpc.chat.swipe.mutationOptions(),
-  busDriven: true,
-  errorToast: (error) => turnMutationToast(error, "Couldn't generate that swipe."),
-});
 
 export interface SwipeStripProps {
   readonly message: MessageView;
@@ -49,10 +39,11 @@ export interface SwipeStripProps {
 
 // An inside foot never sets its container's width: `contain: inline-size` takes it out of a shrink-to-fit bubble's
 // intrinsic width, so a "Hi." bubble stays as narrow as its header and the foot stretches to fit.
-const FOOT_INSIDE = "contain-inline-size";
+const FOOT_INSIDE = "flex-wrap contain-inline-size";
 // Echo's foot reaches across the art pane to the card's bottom edge (`--row-reach-*`), and its group ends at the card's
 // corner: the inset it keeps on each side is `--row-foot-inset-*`, the card inset in client globals.css.
-const FOOT_CARD = "contain-inline-size -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row";
+const FOOT_CARD =
+  "flex-wrap contain-inline-size -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row";
 
 /** The foot line's own box for the chat style's edge: its reach past the reading inset, and any fill or plate. */
 function FootRow({ edge, ...props }: ComponentProps<typeof Row> & { readonly edge: SwipeFoot["edge"] }): ReactElement {
@@ -60,7 +51,7 @@ function FootRow({ edge, ...props }: ComponentProps<typeof Row> & { readonly edg
     return <Row {...props} ground="bubble" cardCorners="bottom" className={FOOT_CARD} />;
   }
   if (edge === "plate") {
-    return <Row {...props} plate="card" className="px-field" />;
+    return <Row {...props} plate="card" className="flex-wrap px-field" />;
   }
   return <Row {...props} className={FOOT_INSIDE} />;
 }

@@ -21,6 +21,7 @@
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
@@ -72,8 +73,8 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
     expect(restingPreview.boundaryMessageId).toBeNull();
 
     await gotoChatsList(page);
-    await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
-    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+    await page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button").first().click();
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
 

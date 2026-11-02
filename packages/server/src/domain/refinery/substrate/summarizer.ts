@@ -3,18 +3,26 @@
 // `structured` rides the summarize binding, inference program §7.5-1). One read per verb call, never a
 // boot-frozen string: a run stamped with a model the owner has since moved off would be false provenance.
 
-import { windowForPreset } from "@orb/contracts/inference";
+import { canFund, windowForPreset } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
-import { RefineryNotConfiguredError } from "../contract/errors.ts";
+import type { UserId } from "@orb/kit/ids";
+import { RefineryBackgroundRefusedError, RefineryNotConfiguredError } from "../contract/errors.ts";
+import type { ResolveStructuredBinding } from "../contract/planning.ts";
 import type { SummarizerFacts } from "../contract/results.ts";
 
 /** The window is the one the call sends: on a route whose window the request sets, the Utility preset's Max
- *  context (`windowForPreset`), so the budget and the sent window agree. */
-export async function summarizerFactsOf(rc: RoleClients, presetParams: Pick<UserIntent, "maxContextTokens"> | undefined): Promise<SummarizerFacts> {
+ *  context (`windowForPreset`), so the budget and the sent window agree. `resolved` reads `null` for both nothing
+ *  bound and background consent withheld, so that case asks the plan line's `resolveStructuredBinding` which one it is. */
+export async function summarizerFactsOf(
+  rc: RoleClients,
+  presetParams: Pick<UserIntent, "maxContextTokens"> | undefined,
+  binding: { readonly ownerId: UserId; readonly resolveStructuredBinding: ResolveStructuredBinding },
+): Promise<SummarizerFacts> {
   const resolved = await rc.resolved("structured");
   if (resolved === null) {
-    throw new RefineryNotConfiguredError();
+    const bound = await binding.resolveStructuredBinding(binding.ownerId);
+    throw bound !== null && !canFund(bound, "structured") ? new RefineryBackgroundRefusedError() : new RefineryNotConfiguredError();
   }
   const contextTokens =
     resolved.capability.kind === "generation" ? windowForPreset(resolved.capability.generation, presetParams?.maxContextTokens).context.window : null;

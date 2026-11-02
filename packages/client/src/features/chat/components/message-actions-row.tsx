@@ -29,18 +29,17 @@
 // gate's census, so a THIRD door would land silently — and a third door on any of these three is the drift
 // the budget exists to red on.
 
-import type { ForkResult, MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { Code, Copy, Eye, EyeOff, FaceSlightlySmilingPlus, GitFork, Icon, Pencil, Redo2, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { useInvalidation, useTRPC } from "#data";
+import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
+import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";
@@ -57,38 +56,6 @@ import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 // A failed copy's next step; the message is on screen right above the menu.
 const MESSAGE_COPY_FALLBACK = "Select the message text to copy it by hand.";
-
-const useHideMutation = createEntityMutation<inferInput<Trpc["chat"]["setMessageHidden"]>, unknown>({
-  options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't change that message's visibility.",
-});
-
-const useDeleteMutation = createEntityMutation<inferInput<Trpc["chat"]["deleteMessages"]>, unknown>({
-  options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't delete that message.",
-});
-
-const useForkMutation = createEntityMutation<inferInput<Trpc["chat"]["forkChat"]>, ForkResult>({
-  options: (trpc) => trpc.chat.forkChat.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't fork this chat.",
-});
-
-// Undo/revert the last continuation on THIS reply's shown swipe (F2). Bus-driven like the other row
-// mutations — the verb emits `messageCommitted`, the surface refetches; no manual cache write here.
-const useUndoContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["undoContinue"]>, unknown>({
-  options: (trpc) => trpc.chat.undoContinue.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't undo the continuation.",
-});
-
-const useRevertContinueMutation = createEntityMutation<inferInput<Trpc["chat"]["revertContinue"]>, unknown>({
-  options: (trpc) => trpc.chat.revertContinue.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't re-apply the continuation.",
-});
 
 function isEditableRole(role: MessageView["role"]): boolean {
   return role === "user" || role === "assistant";
@@ -137,8 +104,12 @@ export interface MessageActionsRowProps {
 
 // The document chip paints the reading band under the cluster at the card radius, positioned and raised so it paints
 // over the line it sits on, not under its words.
-function ActionsFrame({ chip, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
-  return chip ? <Row {...row} ground="readingBand" cardCorners="all" className="relative z-(--z-raised)" /> : <Row {...row} />;
+function ActionsFrame({ chip, className, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
+  return chip ? (
+    <Row {...row} ground="readingBand" cardCorners="all" className={cn("relative z-(--z-raised)", className) ?? ""} />
+  ) : (
+    <Row {...row} className={className ?? ""} />
+  );
 }
 
 export function MessageActionsRow({
@@ -245,7 +216,15 @@ export function MessageActionsRow({
   };
 
   return (
-    <ActionsFrame chip={chip} gap="glyph" align="center" justify="end" data-slot="message-actions-row" reveal={ACTIONS_REVEAL_POSTURE[messageActions]}>
+    <ActionsFrame
+      chip={chip}
+      gap="glyph"
+      align="center"
+      className="@max-cq-20:flex-wrap"
+      justify="end"
+      data-slot="message-actions-row"
+      reveal={ACTIONS_REVEAL_POSTURE[messageActions]}
+    >
       <MessageActionsCluster
         credit={renderGenerationCredit(generationCredit, message)}
         editable={editable}

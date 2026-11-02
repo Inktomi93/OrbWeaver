@@ -10,7 +10,7 @@
 import { Input } from "@orb/ui/input";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
-import { CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME } from "#lib";
+import { CHAT_TITLE_FIELD_NAME, DIALOG_VERBS, RENAME_CHAT_NAME } from "#lib";
 
 export interface RenameChatDialogProps {
   readonly open: boolean;
@@ -23,7 +23,7 @@ export interface RenameChatDialogProps {
 /** The chat rename dialog — a controlled title Input + Cancel/Save. */
 export function RenameChatDialog({ open, onOpenChange, value, onValueChange, onSave }: RenameChatDialogProps): ReactElement {
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={RENAME_CHAT_NAME} size="sm" submit={{ label: "Save", onSubmit: onSave }}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={RENAME_CHAT_NAME} size="sm" submit={{ label: DIALOG_VERBS.save, onSubmit: onSave }}>
       <Input aria-label={CHAT_TITLE_FIELD_NAME} value={value} onValueChange={onValueChange} placeholder="Untitled chat" />
     </FormDialog>
   );

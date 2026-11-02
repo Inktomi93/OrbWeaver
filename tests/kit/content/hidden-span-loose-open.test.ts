@@ -20,8 +20,13 @@ const AGREEMENT_RUNS = 4000;
 const MAX_FRAGMENTS = 9;
 const LEHMER_MULTIPLIER = 48_271;
 const LEHMER_MODULUS = 2_147_483_647;
+// The longest attr name the walkers read whole.
+const WINDOW_NAME = "k".repeat(64);
+const OVER_HIDDEN_BOUND = "x".repeat(17_000);
 
 const concealed: readonly (readonly [string, string])[] = [
+  ["a first attr name past the identifier window", `Before <lie ${WINDOW_NAME}k="1" truth="${SECRET}"/> after`],
+  ["a first attr name far past the identifier window", `Before <lie ${WINDOW_NAME}${WINDOW_NAME}="1" truth="${SECRET}"/> after`],
   ["an HTML-style close", `Before <lie truth="${SECRET}"> after`],
   ["an HTML-style close with its own end tag", `Before <lie truth="${SECRET}">a claim</lie> after`],
   ["prose after a well-formed attr", `Before <lie truth="${SECRET}" and then he left.`],
@@ -43,6 +48,7 @@ const closed: readonly (readonly [string, string])[] = [
   ["an upper-case name", `<LIE truth="${SECRET}"/>`],
   ["an odd-case name", `<lIe character="W" truth="${SECRET}"/>`],
   ["the second registered name", `<oFilter reason="${SECRET}"/>`],
+  ["an attr name that fills the identifier window", `<lie ${WINDOW_NAME}="${SECRET}"/>`],
 ];
 
 const prose: readonly (readonly [string, string])[] = [
@@ -53,6 +59,8 @@ const prose: readonly (readonly [string, string])[] = [
   ["an HTML-style element", `She said <lie>${SECRET}</lie> and left`],
   ["an upper-case HTML-style element", `She said <LIE>${SECRET}</LIE> and left`],
   ["an upper-case bare name", "She will <LIE down on the bed"],
+  ["a word one short of the identifier window", `She will <lie ${WINDOW_NAME.slice(1)} on the bed`],
+  ["a word ahead of an attr, by the first-word rule", `She will <lie secret truth="${SECRET}"/> and left`],
 ];
 
 /** One stream of `body`, fed in the given pieces, as a member's bytes. */
@@ -109,16 +117,27 @@ test.each([...concealed.map(([, body]) => body), ...prose.map(([, body]) => body
   }
 });
 
-test("only a tag that broke counts as broken", () => {
+test("a tag that broke counts as broken, and one left unfinished counts unless the output was cut off", () => {
   const broken = [
     `${LEAD}<lie truth="${SECRET}"> after`,
     `${LEAD}<LIE truth=${SECRET} and more`,
     `${LEAD}<lie\ntruth="${SECRET}"/>`,
     `${LEAD}<lie character="W"\n truth="${SECRET}`,
   ];
-  const sound = [`${LEAD}<lie truth="${SECRET}"/>`, `${LEAD}<lie truth="${SECRET}`, `${LEAD}<LIE truth="${SECRET}`, ...prose.map(([, text]) => text), "plain"];
-  expect(broken.filter((body) => !concealsBrokenHiddenTag(body))).toEqual([]);
-  expect(sound.filter(concealsBrokenHiddenTag)).toEqual([]);
+  const unfinished = [
+    `${LEAD}<lie truth="${SECRET}`,
+    `${LEAD}<LIE truth="${SECRET}\n\nThree paragraphs members lose.`,
+    `${LEAD}<lie truth="C:\\"/>\n\nThree paragraphs members lose.`,
+    `${LEAD}<lie truth="${OVER_HIDDEN_BOUND}"/> Three paragraphs members lose.`,
+    `${LEAD}${"<l".repeat(12)}<lie a="1"/>${'ie a="1"/>'.repeat(12)} Three paragraphs members lose.`,
+  ];
+  const sound = [`${LEAD}<lie truth="${SECRET}"/>`, `${LEAD}<l<lie a="1"/>ie truth="${SECRET}"/> after`, ...prose.map(([, text]) => text), "plain"];
+  for (const cutOff of [false, true]) {
+    expect(broken.filter((body) => !concealsBrokenHiddenTag(body, cutOff))).toEqual([]);
+    expect(sound.filter((body) => concealsBrokenHiddenTag(body, cutOff))).toEqual([]);
+  }
+  expect(unfinished.filter((body) => !concealsBrokenHiddenTag(body, false))).toEqual([]);
+  expect(unfinished.filter((body) => concealsBrokenHiddenTag(body, true))).toEqual([]);
 });
 
 test("a prefix cut in front of a held open keeps the prose the commit strip keeps", () => {

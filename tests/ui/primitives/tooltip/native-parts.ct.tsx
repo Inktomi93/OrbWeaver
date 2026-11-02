@@ -1,5 +1,22 @@
 import { expect, test } from "@playwright/test";
-import type { TooltipCallerDescriptionStory, TooltipDescriptionStory, TooltipHandleStory } from "./_native-parts-stories.tsx";
+import { CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import type { TooltipCallerDescriptionStory, TooltipDescriptionStory, TooltipHandleStory, TooltipOverNeighborStory } from "./_native-parts-stories.tsx";
+
+test("an open tooltip popup never takes pointer events from what lies beneath it", async ({ mount, page }) => {
+  await mount<typeof TooltipOverNeighborStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipOverNeighborStory");
+  await page.keyboard.press("Tab");
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toBeVisible();
+  const box = await popup.boundingBox();
+  if (box === null) {
+    throw new Error("open popup has no box");
+  }
+  const hitsPopup = await page.evaluate(
+    ([x, y]) => document.elementFromPoint(x ?? 0, y ?? 0)?.closest('[data-slot="tooltip-popup"]') !== null,
+    [box.x + box.width / 2, box.y + box.height / 2],
+  );
+  expect(hitsPopup).toBe(false);
+});
 
 test("native arrow and viewport do not duplicate portal parts into the at-rest accessible description", async ({ mount, page }) => {
   await mount<typeof TooltipDescriptionStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipDescriptionStory");
@@ -40,7 +57,7 @@ test("caller opt-out distinguishes a name-only tooltip from an unavailable contr
   const component = await mount<typeof TooltipCallerDescriptionStory>("tests/ui/primitives/tooltip/_native-parts-stories/TooltipCallerDescriptionStory", {
     refused: false,
   });
-  const trigger = page.getByRole("button", { name: "Send message", exact: true });
+  const trigger = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
   await expect(trigger).toBeEnabled();
   await expect(trigger).toHaveAttribute("data-tooltip-describes", "name");
   await expect(trigger).toHaveAccessibleDescription("");

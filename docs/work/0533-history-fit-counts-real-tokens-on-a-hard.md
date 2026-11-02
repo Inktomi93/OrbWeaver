@@ -3,6 +3,7 @@ kind: work
 status: blocked
 updated: 2026-10-05
 priority: P2
+plan: inference-flow
 area: chat
 blocked: owner
 ---

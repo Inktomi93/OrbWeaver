@@ -4,6 +4,8 @@
   /* The one viewport condition: the desktop columns become a bottom tab bar and sliding sheets. */
   @variant shell-mobile {
     .shell-grid {
+      --shell-topbar-block: var(--dimension-shell-topbar-block);
+
       /* The tab bar's row carries the bottom inset, so the grid's own payment is refunded here; zero, not
        * `revert`, which rolls past the whole author origin. */
       padding-block-end: 0;
@@ -26,8 +28,18 @@
       --drawer-bottom-inset: 0px;
     }
     /* The scrim spans the band between the topbar and the tab bar. */
+    .shell-topbar {
+      block-size: var(--shell-topbar-block);
+    }
+    /* The keyboard leaves no line to spend on the name while the reader is writing. */
+    :root[data-keyboard-up] .shell-grid {
+      --shell-topbar-block: var(--dimension-chrome-row);
+    }
+    :root[data-keyboard-up] .shell-topbar-identity[data-identity="narrow"] {
+      display: none;
+    }
     .shell-scrim {
-      inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+      inset-block: var(--shell-topbar-block) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
     }
     /* The room screen has no tab bar (owner ruling, UI-Architecture-and-Layout.md), so the frame pays the
      * bottom inset itself again. */
@@ -96,11 +108,7 @@
       border-radius: 0;
       color: var(--color-muted-foreground);
     }
-    /* The active glow and ring are column affordances; a tab uses colour alone. */
-    .shell-rail .shell-rail-button[data-active] {
-      background: none;
-      color: var(--color-primary);
-    }
+    /* The active glow and ring are column affordances; a tab keeps the rail's tint and on-tint ink, a judged pair on every palette. */
     .shell-rail .shell-rail-button[data-active]::before,
     .shell-rail .shell-rail-button[data-active]::after {
       content: none;
@@ -130,7 +138,7 @@
     .shell-panel[data-panel-mode="overlay"],
     .shell-panel[data-panel-mode="collapsed"] {
       position: fixed;
-      inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+      inset-block: var(--shell-topbar-block) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
       inline-size: 100dvw;
       /* The shell's own overlay step, as on desktop: inside the grid's isolated scope a fixed pane still paints
        * inside it, so a portal-tier number would order nothing more. */
@@ -205,6 +213,28 @@
         :has([data-slot="list-pane-title"][data-scoped])
       ) {
       display: none;
+    }
+    /* A phone this narrow at the enlarged root cannot seat a name between the row's two controls, and neither its tab bar
+     * nor a room names the screen, so the name takes the second line `--shell-topbar-block` reserves. */
+    @container shell-main (inline-size <= 16rem) {
+      .shell-topbar {
+        flex-wrap: wrap;
+        align-content: flex-start;
+        row-gap: 0;
+      }
+      .shell-topbar-lead {
+        display: contents;
+      }
+      .shell-topbar-identity[data-identity="narrow"] {
+        order: 1;
+        flex: none;
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+        font-size: var(--text-title);
+        line-height: var(--leading-title);
+      }
     }
     /* No blur kill-switch here: the glass rules (client globals) are scoped to `shell-desktop`, this block's exact
      * complement, so none is emitted at this width, and an override here would lose to the appearance layer. */

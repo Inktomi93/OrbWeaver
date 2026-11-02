@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { forged } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import {
   MESSAGE_EDIT_NAME,
   MESSAGE_MOVE_DOWN_NAME,
@@ -180,12 +181,12 @@ test("the host's edit toolbar moves a row down and disables the arrows at the tr
   const top = await enterEdit(page, first);
   await expect(upArrow(top)).toBeDisabled();
   await expect(downArrow(top)).toBeEnabled();
-  await top.getByRole("button", { name: "Cancel edit", exact: true }).click();
+  await top.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
 
   const bottom = await enterEdit(page, last);
   await expect(downArrow(bottom)).toBeDisabled();
   await expect(upArrow(bottom)).toBeEnabled();
-  await bottom.getByRole("button", { name: "Cancel edit", exact: true }).click();
+  await bottom.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
 
   const middle = await enterEdit(page, second);
   await downArrow(middle).click();
@@ -293,7 +294,7 @@ test("a member's edit toolbar has no move arrows", async ({ corpus, mount, page,
 
   const row = await enterEdit(page, ownLine);
   // The member's own editor is open and carries its controls; only the host-only pair is absent.
-  await expect(row.getByRole("button", { name: "Save edit", exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true })).toBeVisible();
   await expect(upArrow(row)).toHaveCount(0);
   await expect(downArrow(row)).toHaveCount(0);
 });

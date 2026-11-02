@@ -18,6 +18,7 @@ import { useId, useRef, useState } from "react";
 import { EditableTagChip, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
 import { CHARACTER_ADD_TAG_NAME, CHARACTER_TAG_DIALOG_TITLE } from "../lib/character-names.ts";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
@@ -119,7 +120,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         // Every ACCEPTED tag on this card, hidden ones included: a hidden tag is still attached, and
         // offering it would be a suggestion whose only outcome is a no-op write.
         attachedNames={tags.map((tag) => tag.name)}
-        confirmLabel="Apply"
+        confirmLabel={DIALOG_VERBS.apply}
         description="Attach an existing tag, or type a new one to create it."
         onOpenChange={setOpen}
         onSubmit={applyTag}

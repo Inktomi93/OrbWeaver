@@ -24,6 +24,7 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model.ts";
+import { CHARACTER_EXPAND_TO_EDIT_NAME } from "../lib/character-names.ts";
 import { parseExampleBlocks } from "../lib/example-messages.ts";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
 import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
@@ -279,6 +280,7 @@ function ExampleMessagesField({
   readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   const [editing, setEditing] = useState(false);
+  const toggleName = editing ? "Done editing" : CHARACTER_EXPAND_TO_EDIT_NAME;
   return (
     <Stack gap="field">
       <Spoiler gap="field" concealed={!editing && spoilerBlur}>
@@ -300,7 +302,7 @@ function ExampleMessagesField({
         )}
       </Spoiler>
       <Toggle size="sm" pressed={editing} onPressedChange={setEditing}>
-        {editing ? "Done editing" : "Expand to edit"}
+        {toggleName}
       </Toggle>
     </Stack>
   );

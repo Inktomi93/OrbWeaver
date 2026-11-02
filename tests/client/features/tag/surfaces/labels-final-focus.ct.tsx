@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { TAG_FILTER_NAME, TAG_LIST_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_LIST_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import type { LabelsListStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsListStory";
@@ -37,11 +37,11 @@ for (const pointer of POINTERS) {
     await caller.tag.createTag({ input: { name: UNUSED } });
     await routeTrpc(page, serveCorpusProcedures(caller, LABEL_READS));
     await mount<typeof LabelsListStory>(STORY, {});
-    const overflow = page.getByRole("button", { name: "More tag actions", exact: true });
+    const overflow = page.getByRole("button", { name: TAG_MORE_ACTIONS_NAME, exact: true });
     await expect(page.getByRole("list", { name: TAG_LIST_NAME, exact: true })).toBeVisible();
 
     await press(overflow, pointer);
-    await press(page.getByRole("menuitem", { name: "Prune unused tags" }), pointer);
+    await press(page.getByRole("menuitem", { name: TAG_PRUNE_NAME }), pointer);
     const confirm = page.getByRole("alertdialog");
     await press(confirm.getByRole("button", { name: /^Delete/u }), pointer);
     // The rows refresh from the user bus, which no component mount carries; the focus handoff is the subject.

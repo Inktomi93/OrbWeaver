@@ -19,6 +19,7 @@ import {
   unwrapTsValue,
 } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 const TOKEN_BACKED_STYLE_PROPS = new Set(
   [
@@ -198,7 +199,7 @@ function chartOptionType(context: OrbRuleContext, node: TSESTree.TypeNode | unde
   return (
     imported?.name === "OrbChartOption" &&
     imported.source.startsWith(".") &&
-    resolve(dirname(context.filename), imported.source).endsWith("/packages/ui/src/charts/chart/echarts-setup.ts")
+    posixPath(resolve(dirname(context.filename), imported.source)).endsWith("/packages/ui/src/charts/chart/echarts-setup.ts")
   );
 }
 
@@ -231,7 +232,7 @@ function importedUiElement(context: OrbRuleContext, element: TSESTree.JSXOpening
   return (
     imported !== undefined &&
     (imported.source.startsWith("@orb/ui/") ||
-      (imported.source.startsWith(".") && resolve(dirname(context.filename), imported.source).includes("/packages/ui/src/")))
+      (imported.source.startsWith(".") && posixPath(resolve(dirname(context.filename), imported.source)).includes("/packages/ui/src/")))
   );
 }
 

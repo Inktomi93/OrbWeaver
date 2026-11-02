@@ -41,15 +41,16 @@ import { useToastManager } from "@orb/ui/toast";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { CharacterPicker } from "#components";
 import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
-import { notify, testId } from "#lib";
+import { DIALOG_VERBS, testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { DOCUMENT_UPLOAD_FORMAT_HINT } from "../lib/databank-model.ts";
+import { DATABANK_PASTE_TEXT_NAME } from "../lib/databank-names.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
@@ -57,7 +58,7 @@ import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.
 const ADD_MODES = ["upload", "paste", "link"] as const;
 type AddMode = (typeof ADD_MODES)[number];
 
-const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: "Paste text", link: "From a link" };
+const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: DATABANK_PASTE_TEXT_NAME, link: "From a link" };
 
 /** The add-document modal BODY: a three-mode toggle over upload · paste · scrape. */
 export function AddDocumentBody(): ReactElement {
@@ -74,7 +75,7 @@ export function AddDocumentBody(): ReactElement {
   };
   const destination = destinations[scope];
   const scopeCopy: Record<DocumentScopeSource, string> = {
-    global: "Feeds every chat you are in. Switch Everywhere off on the document to stop that; any other attachments remain.",
+    global: "Feeds every chat you are in. Switch off Use in every chat on the document to stop that; any other attachments remain.",
     character: "Feeds chats with the selected character. Existing attachments stay unchanged.",
     chat: destination === null ? "Open a chat you host before choosing This chat." : "Feeds only the current chat. Existing attachments stay unchanged.",
   };
@@ -266,7 +267,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       </DialogFooter>
     </Stack>
   );
@@ -311,7 +312,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={!canCreate} loading={create.isPending} onClick={onSubmit} type="button">
           Add
         </Button>
@@ -326,6 +327,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  // The failure is told once, by the form's own line below, so the global error toast stays quiet.
   const scrapeWeb = useScrapeWeb({ trpc, invalidation });
   const scrapeYoutube = useScrapeYoutube({ trpc, invalidation });
   const scrapeWiki = useScrapeWiki({ trpc, invalidation });
@@ -368,11 +370,20 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
   };
 
   const { form } = useScrapeForm({ entityId: "databank-scrape", serverValues: undefined, save });
+  const failureId = useId();
 
   return (
     <Stack className="flex-1" gap="block">
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
-      <form.AppField name="url">{(field): ReactElement => <field.TextField label="Link" placeholder="https://…" />}</form.AppField>
+      <form.Subscribe selector={(state): ScraperKind => state.values.source}>
+        {(source): ReactElement => (
+          <form.AppField name="url">
+            {(field): ReactElement => (
+              <field.TextField {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})} label="Link" placeholder="https://…" />
+            )}
+          </form.AppField>
+        )}
+      </form.Subscribe>
       {/* The caption language is a REVEAL, not a required field: the server defaults it, and it means
           nothing for the other two sources. */}
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
@@ -393,7 +404,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement | null =>
           runnerFailed[source] ? (
-            <Text tone="destructive" voice="gloss">
+            <Text id={failureId} role="alert" tone="destructive" voice="gloss">
               {source === "youtube"
                 ? "Couldn't fetch that video. Check the address and the caption language, then try again."
                 : "Couldn't fetch that link. Check the address, then try again."}
@@ -402,14 +413,15 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         }
       </form.Subscribe>
       <DialogFooter className="mbs-auto">
-        <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
             <Button
               data-testid={testId("databankScrapeSubmit")}
               disabled={destination === null || urlEmpty || pending}
               onClick={(): void => {
-                form.handleSubmit().catch(() => notify.error("Couldn't add the document."));
+                // A rejected submit is a failed runner, which `runnerFailed` already prints.
+                form.handleSubmit().catch(() => undefined);
               }}
             >
               {pending ? "Fetching…" : "Fetch and add"}

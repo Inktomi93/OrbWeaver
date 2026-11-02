@@ -22,6 +22,7 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import {
   assistantRows,
   characterChipNames,
@@ -174,7 +175,7 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
 
     // A unique body so `getByText` in tab B is unambiguous proof it received THIS message.
     const probe = `hub-probe-${Date.now()}`;
-    await typeAndSend(tabA.getByRole("textbox", { name: "Message" }), probe);
+    await typeAndSend(tabA.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), probe);
 
     // The human line fans first (persistUserMessage emits `messageCommitted` before the AI round runs)…
     await expect(tabB.getByText(probe).first()).toBeVisible({ timeout: WAIT_SETTLE_MS });

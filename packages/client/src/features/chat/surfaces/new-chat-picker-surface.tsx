@@ -71,7 +71,7 @@ import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#st
 const SKELETON_ROW_COUNT = 6;
 
 /** Intrinsic label, icon and padding widths determine whether the footer can share a row at the active font scale. */
-const ACTION_BUTTON = "flex-1 min-inline-max @cq-28:flex-none";
+const ACTION_BUTTON = "grow basis-auto @cq-28:flex-none";
 
 /** The Start button's full label — also its accessible name at `@cq-28` and up. */
 function startLabelFor(count: number, pending: boolean): string {
@@ -163,12 +163,13 @@ export function NewChatPicker(): ReactElement {
         </Row>
       ) : null}
       {hasRosters ? (
-        <Row justify="end" padding="block">
+        <Row className="flex-wrap" justify="end" padding="block">
           {/* #26 — hop to the saved-roster picker (the slot is the destination — no feature import). The
               intent is cleared like any dismiss: a roster start carries its own creation parameters. */}
           <Button
             variant="ghost"
             size="sm"
+            wrap={true}
             onClick={(): void => {
               clearNewChatIntent();
               closeModal();
@@ -195,12 +196,15 @@ export function NewChatPicker(): ReactElement {
       />
       {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
           list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
-          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
-      <Row align="center" className="sticky inset-be-0 flex-wrap" divider="top" gap="field" ground="popover" justify="end" padding="block">
+          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. Below the `cq-8` step
+          (the dialog measures 6.6 to 7.4rem on a 390 to 430px phone at 300% text) the stacked buttons would take the
+          whole dialog and leave no list, so there the footer scrolls with the list instead. At 200% the dialog measures
+          8.4rem (320px) to 11.9rem (430px), so the footer stays pinned. */}
+      <Row align="center" className="sticky inset-be-0 flex-wrap @max-cq-8:static" divider="top" gap="field" ground="popover" justify="end" padding="block">
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" onClick={(): void => found([])}>
+        <Button className={ACTION_BUTTON} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
           <Icon icon={Plus} size="sm" />
           {BLANK_CHAT_NAME}
         </Button>
@@ -209,9 +213,10 @@ export function NewChatPicker(): ReactElement {
           quietDisabled={teaching}
           disabled={teaching || isPending}
           variant={teaching ? "outline" : "solid"}
+          wrap={true}
           onClick={(): void => found([...selected])}
         >
-          <Icon icon={MessagesSquare} size="sm" />
+          <Icon className="@max-cq-20:hidden" icon={MessagesSquare} size="sm" />
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}

@@ -478,9 +478,11 @@ For example, a three-line sign is enough:
   // fact by construction.
   "rpg.extract.tool.updateParty": {
     home: "preset",
-    version: 1,
+    version: 2,
     text:
-      "Record changes to any actor's body, condition, or tracked values. " +
+      "Record changes to any actor's body, condition, or tracked values. Call it on a beat that wounds, tires, heals, " +
+      "buffs or otherwise changes an actor; do not call it for items or coin (update_inventory) or for where " +
+      "people are (update_scene). targetRef names the actor. " +
       "trackerDeltas: spend/restore a tracked RESOURCE (negative = spent, e.g. damage on an HP meter). trackerSets: record the " +
       "new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with " +
       "an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line " +
@@ -511,9 +513,11 @@ For example, a three-line sign is enough:
     // none, so this description is the fold's ONLY write-surface teaching. Compressed (a description budget is
     // tighter than a system prompt's): the plane clause's "calls update_inventory with an add" collapses to
     // "calls add" inside the tool's own description, and "exactly what add exists for" loses the adverb.
-    version: 5,
+    version: 7,
     text:
-      "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
+      "Items and coin on an actor. Call it when an item or coin is gained, used, lost or given away, or when its " +
+      "quantity, description or carrying location changes; do not call it for a mere mention of an item, or for " +
+      "stats and conditions (update_party). add: new items — ALWAYS give a `description` and a `location` (where it's " +
       "carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or " +
       "stows something ALWAYS calls add — an EMPTY pack is never a reason to skip; first acquisitions are what " +
       "add exists for. update: existing items whose description, quantity, or " +
@@ -556,9 +560,11 @@ For example, a three-line sign is enough:
   },
   "rpg.extract.tool.setTracker": {
     home: "preset",
-    version: 1,
+    version: 2,
     text:
-      "Write a GAME-WIDE tracked reading (not tied to one character). A resource tracker takes a signed `delta`; " +
+      "Write a GAME-WIDE tracked reading (not tied to one character). Call it when the story moves a world-level " +
+      "reading, such as a town's alarm or a faction's standing; do not call it for one actor's own meters or " +
+      "states (update_party). `key` names the tracker. A resource tracker takes a signed `delta`; " +
       "a state tracker takes the new `value` (or `items` for a list).{{gameTrackerCatalogue}}\nEXAMPLE — the town's alarm rises: " +
       "`{key:'{{exampleTrackerKey}}', value:35}`.",
     requiredMacros: ["{{gameTrackerCatalogue}}", "{{exampleTrackerKey}}"],
@@ -568,9 +574,10 @@ For example, a three-line sign is enough:
   },
   "rpg.extract.tool.upsertQuest": {
     home: "preset",
-    version: 1,
+    version: 2,
     text:
-      "Create/update/complete/fail a quest. Give a description and objectives[] on create; use action " +
+      "Create/update/complete/fail a quest. Call it only when the story opens, advances or resolves a goal; do not " +
+      "call it for a passing errand nobody tracks, or to log an event (add_journal_entry). Give a description and objectives[] on create; use action " +
       "'complete'/'fail' when the WHOLE quest resolves. To tick ONE objective off, pass its exact text in " +
       "completeObjectives — never re-send objectives[] to report progress (send objectives[] only to change " +
       "the list itself; repeated lines keep the progress already on them). EXAMPLE — a new task opens: " +
@@ -584,10 +591,12 @@ For example, a three-line sign is enough:
   },
   "rpg.extract.tool.addJournalEntry": {
     home: "preset",
-    version: 1,
+    version: 2,
     text:
-      "Log a notable beat with the right type (location/npc/combat/quest/item/event/note, or 'custom' with a " +
-      "short `label` when none of those fits) + a short title + content. EXAMPLE: `{type:'combat', title:'Ambush " +
+      "Log a notable beat the player may want to look back on: a fight, a discovery, a promise, a new place. " +
+      "Skip routine moments and anything a quest update or an inventory change already records. `type` is " +
+      "location/npc/combat/quest/item/event/note, or 'custom' with a " +
+      "short `label` when none of those fits; `title` is a short headline; `content` says what happened. EXAMPLE: `{type:'combat', title:'Ambush " +
       "at the Chapel', content:'Corvin drew on you at the altar; you took a cut but stayed up.'}`.",
     requiredMacros: [],
     requiredTokens: [],
@@ -699,6 +708,19 @@ For example, a three-line sign is enough:
     requiredTokens: [],
     title: "Folded reconcile",
     fires: "A reconcile beat on a FOLDED game — rides the character turn's own reminder, not a round.",
+  },
+  "rpg.extract.toolRoundUserLine": {
+    home: "preset",
+    version: 1,
+    // Models that reject a forced tool choice run the state round under `auto`; Anthropic's guidance for that case
+    // is an explicit "use the tool" line in the user message. It tails the cheap round's user message, which its
+    // inventory audit pass reuses. A host resync re-states the whole scene, so a "latest beat" cue misleads there,
+    // and a folded turn's narrator prompt keeps bookkeeping out.
+    text: "Record what changed in the latest beat by calling the state tools. If nothing trackable changed, call no_changes.",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Tool round cue",
+    fires: "Last line of the cheap tool round's user message, and of its inventory audit pass.",
   },
   "rpg.extract.lockedPaths": {
     home: "preset",

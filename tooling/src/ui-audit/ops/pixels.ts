@@ -23,13 +23,16 @@
 // `paint-layer-over-base` earns this: `no-opaque-base` carries no evidence of an image layer and stays
 // `unresolved` (withheld).
 import { errorMessage } from "@orb/kit/error-message";
-import { clampBoxToImage, ringBackdropOfRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Backdrop } from "../contract/backdrop.ts";
 import type { ContrastInput, RawSamples } from "../contract/samples.ts";
+import type { HoverForcedReadRow } from "../contract/samples-hover.ts";
+import type { BorderContrastInput } from "../contract/samples-interactive.ts";
 import type { BackdropRefusal, PixelPass } from "../contract/types.ts";
+import type { PixelRaw } from "../lib/pixel-regions.ts";
+import { OFF_SCREEN_REFUSAL, surroundBackdropRing, textBackdropRing } from "../lib/pixel-regions.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -52,7 +55,7 @@ function reclassifyUnsampleable(text: ContrastInput): ContrastInput {
 }
 
 /** ONE viewport screenshot decoded to raw pixels, or the reason there are none. */
-async function viewportPixels(page: Page): Promise<{ data: Buffer; info: { width: number; height: number; channels: number } } | { error: string }> {
+async function viewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
   try {
     const shot: Buffer = await page.screenshot({ animations: "disabled", scale: "css" });
     const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
@@ -66,35 +69,68 @@ async function viewportPixels(page: Page): Promise<{ data: Buffer; info: { width
  *  `flat` backdrop from pixel data, or reclassified to `image-indeterminate` for paint-layer samples the
  *  sampler cannot reach), plus any refusal and whether a pixel sample was taken. Extracted from the map
  *  body so `resolvePixelBackdrops` stays under the cognitive-complexity ceiling. */
-function settleOneSample(
-  text: ContrastInput,
-  raw: { data: Buffer; info: { width: number; height: number; channels: number } },
-  refusals: BackdropRefusal[],
-): { text: ContrastInput; sampled: boolean } {
+function settleOneSample(text: ContrastInput, raw: PixelRaw, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
   // Painted over: sampling the box would measure the OCCLUDER's pixels, which is how the first run of
   // this path reported 1.33:1 on a paragraph under the topbar (snap refuses the same case as OCCLUDED).
   if (text.occludedBy !== undefined && text.occludedBy !== null) {
     refusals.push({ selector: text.selector, reason: `painted over by ${text.occludedBy}` });
     return { text: reclassifyUnsampleable(text), sampled: false };
   }
-  const region = text.box === undefined ? null : clampBoxToImage(text.box, raw.info.width, raw.info.height);
-  if (region === null) {
-    refusals.push({ selector: text.selector, reason: text.box === undefined ? "walker sample carries no box" : "box is off-screen" });
+  if (text.box === undefined) {
+    refusals.push({ selector: text.selector, reason: "walker sample carries no box" });
     return { text: reclassifyUnsampleable(text), sampled: false };
   }
+  const read = textBackdropRing(raw, text.box, text.inkBox);
+  if ("refusal" in read) {
+    refusals.push({ selector: text.selector, reason: read.refusal });
+    // A ring that is not one backdrop stays UNRESOLVED: calling it art would turn a measurement we could
+    // not take into a finding. Only a box the screenshot cannot see is reclassified.
+    return { text: read.refusal === OFF_SCREEN_REFUSAL ? reclassifyUnsampleable(text) : text, sampled: false };
+  }
   return {
-    text: {
-      ...text,
-      backdrop: { kind: "flat", color: ringBackdropOfRegion(raw.data, raw.info.width, raw.info.channels, region) },
-      backdropMethod: "pixel-sample",
-    } satisfies ContrastInput,
+    text: { ...text, backdrop: { kind: "flat", color: read.color }, backdropMethod: "pixel-sample" } satisfies ContrastInput,
     sampled: true,
   };
 }
 
+/** A control's border is judged against the surface outside it; settle an unresolved one from the band
+ *  just beyond its box. */
+function settleOneBorder(input: BorderContrastInput, raw: PixelRaw, refusals: BackdropRefusal[]): { input: BorderContrastInput; sampled: boolean } {
+  if (input.box === undefined) {
+    refusals.push({ selector: input.selector, reason: "border sample carries no box" });
+    return { input, sampled: false };
+  }
+  const read = surroundBackdropRing(raw, input.box);
+  if ("refusal" in read) {
+    refusals.push({ selector: input.selector, reason: read.refusal });
+    return { input, sampled: false };
+  }
+  return { input: { ...input, surround: { kind: "flat", color: read.color } }, sampled: true };
+}
+
+/** Settle forced-`:hover` reads whose backdrop the DOM walk could not resolve, from a screenshot taken
+ *  WHILE the subject is held. A ring that is not uniform stays unresolved and the rule withholds it. */
+export async function settleHeldBackdrops(page: Page, reads: readonly HoverForcedReadRow[]): Promise<readonly HoverForcedReadRow[]> {
+  if (!reads.some((read) => read.backdrop.kind === "unresolved" && read.box !== undefined)) {
+    return reads;
+  }
+  const raw = await viewportPixels(page);
+  if ("error" in raw) {
+    return reads;
+  }
+  return reads.map((read) => {
+    if (read.backdrop.kind !== "unresolved" || read.box === undefined) {
+      return read;
+    }
+    const ring = textBackdropRing(raw, read.box);
+    return "refusal" in ring ? read : { ...read, backdrop: { kind: "flat", color: ring.color } };
+  });
+}
+
 export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Promise<PixelPass> {
-  const pending = samples.texts.filter(isUnresolved);
-  if (pending.length === 0) {
+  const pendingTexts = samples.texts.filter(isUnresolved);
+  const pendingBorders = (samples.borderContrasts ?? []).filter((input) => input.surround.kind === "unresolved");
+  if (pendingTexts.length === 0 && pendingBorders.length === 0) {
     return { samples, sampled: 0, refusals: [] };
   }
   const raw = await viewportPixels(page);
@@ -103,7 +139,7 @@ export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Pr
     return {
       samples,
       sampled: 0,
-      refusals: pending.map((t) => ({ selector: t.selector, reason: `pixel sample unavailable (${raw.error})` })),
+      refusals: [...pendingTexts, ...pendingBorders].map((t) => ({ selector: t.selector, reason: `pixel sample unavailable (${raw.error})` })),
     };
   }
   const refusals: BackdropRefusal[] = [];
@@ -118,5 +154,15 @@ export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Pr
     }
     return settled.text;
   });
-  return { samples: { ...samples, texts }, sampled, refusals };
+  const borderContrasts = samples.borderContrasts?.map((input) => {
+    if (input.surround.kind !== "unresolved") {
+      return input;
+    }
+    const settled = settleOneBorder(input, raw, refusals);
+    if (settled.sampled) {
+      sampled += 1;
+    }
+    return settled.input;
+  });
+  return { samples: { ...samples, texts, ...(borderContrasts === undefined ? {} : { borderContrasts }) }, sampled, refusals };
 }

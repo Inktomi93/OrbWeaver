@@ -8,22 +8,16 @@ import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
+import { useEditMessageMutation } from "../hooks/use-message-mutations.ts";
+import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "../lib/chat-surface-names.ts";
 import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { MessageMoveArrows } from "./message-move-arrows.tsx";
-
-const useEditMessageMutation = createEntityMutation<inferInput<Trpc["chat"]["editMessage"]>, unknown>({
-  options: (trpc) => trpc.chat.editMessage.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't save that edit.",
-});
 
 export interface MessageEditTextareaProps {
   readonly message: MessageView;
@@ -103,7 +97,7 @@ export function MessageEditTextarea({ message, moveNeighbours }: MessageEditText
       />
       <Row gap="field" align="center" justify="end">
         {moveNeighbours === undefined ? null : <MessageMoveArrows message={message} neighbours={moveNeighbours} />}
-        <Button type="button" variant="ghost" size="sm" disabled={editMessage.isPending} aria-label="Cancel edit" onClick={cancel}>
+        <Button type="button" variant="ghost" size="sm" disabled={editMessage.isPending} aria-label={CHAT_CANCEL_EDIT_NAME} onClick={cancel}>
           <Icon icon={X} size="sm" />
         </Button>
         <Button
@@ -112,7 +106,7 @@ export function MessageEditTextarea({ message, moveNeighbours }: MessageEditText
           size="sm"
           loading={editMessage.isPending}
           disabled={text.length === 0}
-          aria-label="Save edit"
+          aria-label={CHAT_SAVE_EDIT_NAME}
           onClick={(): void => void save().catch(globalThis.reportError)}
         >
           <Icon icon={Check} size="sm" />

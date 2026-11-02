@@ -282,3 +282,5 @@ Production values added for the sweep, each built into the array that held it: t
 Two suites pin a wire spelling and are excluded by path in `eslint.config.ts`: `tests/contracts/inference/warnings.contract.test.ts` and `tests/tooling/container-security-config.int.test.ts`. Each carries a one-line reason.
 
 This item stays open for the work the rule cannot see: the accessible names that no production module exports, which need one copy module per feature (the 2456 literal sites above).
+
+- The 12 `orb/no-hand-copied-label` suppressions are sites, not exceptions. Also find out why the rule misses the walk drivers' hand-typed names.

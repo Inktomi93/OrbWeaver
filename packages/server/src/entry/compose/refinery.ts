@@ -53,6 +53,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     newRefineryRunId: minter(ID_PREFIX.refineryRun, deps.idSource),
     newRefinerySchemaId: minter(ID_PREFIX.refinerySchema, deps.idSource),
     roleClientsFor: deps.roleClientsFor,
+    resolveStructuredBinding: deps.resolveStructuredBinding,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveUserProse,
     planSchema: createPlanSchema({ resolveStructuredBinding: deps.resolveStructuredBinding, resolveUtilityPresetParams: deps.resolveUtilityPresetParams }),
@@ -70,6 +71,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     refineryWorkloads: {
       logger: deps.logger,
       roleClientsFor: deps.roleClientsFor,
+      resolveStructuredBinding: deps.resolveStructuredBinding,
       resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),

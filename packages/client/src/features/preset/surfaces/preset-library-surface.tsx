@@ -24,12 +24,12 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { LibraryListRows, LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
-import { selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
+import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
@@ -60,19 +60,25 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     <ListPage
       label="Presets list"
       ref={surfaceRef}
-      search={<Input aria-label="Search presets" onValueChange={setPresetSearchQuery} placeholder="Search presets" value={query} />}
+      search={<Input aria-label="Search presets" onValueChange={setPresetSearchQuery} placeholder="Search presets…" value={query} />}
     >
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
           scroll box. The key is minted here, not in the shared shell: one literal there would be one box for
           every library. */}
       <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library">
-        <PresetList onSelectPreset={onSelectPreset ?? selectPreset} />
+        <PresetList listRootRef={surfaceRef} onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
     </ListPage>
   );
 }
 
-function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId) => void }): ReactElement {
+function PresetList({
+  onSelectPreset,
+  listRootRef,
+}: {
+  readonly onSelectPreset: (id: PresetId) => void;
+  readonly listRootRef: RefObject<HTMLElement | null>;
+}): ReactElement {
   const trpc = useTRPC();
   const client = useTRPCClient();
   const invalidation = useInvalidation();
@@ -163,17 +169,28 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
       .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
-  const onDelete = (id: PresetId): void => {
+  const onDelete = (id: PresetId): Promise<void> => {
     if (activeId === id) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
     }
-    remove.mutate({ id });
+    // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
+    // selected, every refetch answers 404.
+    return remove.mutateAsync({ id }).then((): void => {
+      if (getSelectedPresetId() === id) {
+        presetSectionSelection.clear();
+      }
+    });
   };
 
   const qualifiers = rowQualifiers(
     filtered.map((preset) => ({ name: preset.name, at: preset.updatedAt })),
     timeLib.formatRelative,
     timeLib.formatDateTime,
+  );
+
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    filtered.map((preset) => preset.id),
   );
 
   return (
@@ -227,6 +244,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
           onExport={onExport}
           onSelect={onSelectPreset}
           preset={preset}
+          rowFocus={rowFocus}
           // The action-name disambiguator, resolved across the WHOLE list (side-eye P2c): the fork
           // workflow mints rows that share a name exactly, and eight minted in the same hour also share
           // "9h ago" — the per-row stamp then produced eight identical accessible names.

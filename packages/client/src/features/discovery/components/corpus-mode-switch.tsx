@@ -9,12 +9,13 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { CORPUS_MODE_LABELS, CORPUS_MODES, isCorpusMode } from "#lib";
 import { setCorpusMode, useCorpusMode } from "#state";
+import { CORPUS_MODE_NAME } from "../lib/corpus-control-names.ts";
 
 export function CorpusModeSwitch(): ReactElement {
   const mode = useCorpusMode();
   return (
     <ToggleGroup
-      aria-label="Corpus mode"
+      aria-label={CORPUS_MODE_NAME}
       data-slot="corpus-mode-switch"
       fill={true}
       onValueChange={(picked): void => {

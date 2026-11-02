@@ -20,6 +20,7 @@ import { useRef, useState } from "react";
 import { PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 import { GalleryAddPicker } from "../components/gallery-add-picker.tsx";
 import { GalleryLightbox } from "../components/gallery-lightbox.tsx";
 import { GalleryLoadMore } from "../components/gallery-load-more.tsx";
@@ -209,7 +210,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
             <DialogClose
               render={
                 <Button variant="ghost" size="sm">
-                  Close
+                  {DIALOG_VERBS.close}
                 </Button>
               }
             />
