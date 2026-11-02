@@ -33,6 +33,7 @@ import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
 import { useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
+import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { MessageListSurface } from "./message-list-surface.tsx";
@@ -89,6 +90,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const surfaceRef = useRef<HTMLDivElement>(null);
   // Gated on the body so this parent effect runs after the transcript's and the composer's own focus effects.
   useFocusOnMount(surfaceRef, bodyMounted);
+  const composerRef = useRef<HTMLDivElement>(null);
+  useRoomEndWhileWriting(surfaceRef, composerRef);
 
   const roomState: ChatRoomSurfaceState = { chatId };
   const flankColumnRef = useRef<HTMLDivElement>(null);
@@ -116,7 +119,15 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
         <ChoiceSendProvider chatId={chatId}>
-          <MessageListSurface busDeps={busDeps} chatId={chatId} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />
+          {/* The strip's second copy rides in the transcript, above its oldest row: a short room shows this one and hides
+              the copy above the transcript (styles/globals.css), so the strip scrolls with the reading instead of over it. */}
+          <MessageListSurface
+            busDeps={busDeps}
+            chatId={chatId}
+            surfaceContributors={surfaceContributors}
+            toolRenderers={toolRenderers}
+            leading={<ChatCharacterBar chatId={chatId} />}
+          />
         </ChoiceSendProvider>
       </MessageThreadAnchor>
     </Stack>
@@ -154,8 +165,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           </Heading>
           {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}
           <ChatCharacterBar chatId={chatId} />
-          {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can give it the whole room and
-              let the chrome above scroll away. */}
+          {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can split it between reading
+              and writing. */}
           <Stack className="flex-1 min-block-0" gap="field" data-slot="chat-room-body">
             {bodyMounted ? (
               <>
@@ -253,12 +264,15 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                     ))}
                   </Track>
                 )}
-                <ComposerSlot
-                  chatId={chatId}
-                  actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                  roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                  mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                />
+                {/* The writing region the short room holds at its end while focus is in it. */}
+                <Stack ref={composerRef}>
+                  <ComposerSlot
+                    chatId={chatId}
+                    actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                    roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                    mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                  />
+                </Stack>
               </>
             ) : (
               <RoomTranscriptSkeleton />

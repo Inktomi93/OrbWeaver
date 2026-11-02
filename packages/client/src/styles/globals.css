@@ -197,46 +197,42 @@
     justify-self: end;
   }
 
-  /* The short room (UI-Architecture-and-Layout.md §4b axis 4): a landscape phone, an open keyboard or enlarged text. Chrome
-   * above a scroller scrolls away with it. The room and the transcript window each scroll from their end
-   * (`column-reverse`), where the body and the list fill the box, so the room opens on the transcript and the composer
-   * with Send in view, and a swipe past the list's top carries on into the paging chrome and the member strip. The
-   * transcript keeps its floor, above the end when the composer leaves less. 28rem is the `container.cq-28` token's
-   * value: a query cannot read a var, and a landscape phone's 390px is over the 24rem step. */
+  /* The copies of the member strip and the history pager inside the transcript (`chat-room-surface.tsx`,
+   * `transcript-window.tsx`) are the short room's; elsewhere both stand above the transcript. */
+  [data-slot="message-list-leading"] :is([data-slot="character-bar"], [data-slot="transcript-history"]) {
+    display: none;
+  }
+  /* The short room (UI-Architecture-and-Layout.md §4b axis 4): a landscape phone, an open keyboard or enlarged text. The
+   * member strip and the history pager ride in the transcript's scroll content above the oldest row, so nothing stays
+   * pinned over the reading. A reader opens on the transcript, which keeps its floor and scrolls the room when the
+   * composer leaves less. A writer gets the room: the floor gives way, and `use-room-end-while-writing.ts` holds the room
+   * at its end so Send stays above the keyboard. Writing is the old rule's own test: with the keyboard up, focus anywhere
+   * in the composer or an open composer menu, so pressing a control cannot re-floor the room; without it, the field.
+   * 28rem is the `container.cq-28` token's value: a query cannot read a var, and a landscape phone is over 24rem. */
   @container shell-main (height <= 28rem) {
-    [data-slot="chat-room-surface"],
-    [data-slot="transcript-window"] {
-      flex-direction: column-reverse;
+    [data-slot="chat-room-surface"] > [data-slot="character-bar"],
+    [data-slot="chat-room-thread"] [data-slot="transcript-history"]:not([data-slot="message-list-leading"] *) {
+      display: none;
     }
-    [data-slot="chat-room-surface"] > *,
-    [data-slot="chat-room-body"] > *,
-    [data-slot="transcript-window"] > * {
-      flex-shrink: 0;
-    }
-    /* The scrolling part is the end of its box. `order` puts it there without reversing the chrome above it. */
-    [data-slot="chat-room-body"],
-    [data-slot="transcript-window"] > :last-child {
-      order: -1;
+    [data-slot="message-list-leading"] :is([data-slot="character-bar"], [data-slot="transcript-history"]) {
+      display: flex;
     }
     [data-slot="chat-room-body"] {
-      flex: none;
-      min-block-size: 100%;
+      flex: 1 0 auto;
+    }
+    [data-slot="chat-room-body"] > * {
+      flex-shrink: 0;
     }
     /* A zero basis keeps the transcript's own content out of the body's height, which only the floor and the composer set. */
     [data-slot="chat-room-body"] > :has(> [data-slot="chat-room-flank-row"]) {
       flex: 1 1 0;
       min-block-size: var(--height-scroll-sm);
     }
-    [data-slot="transcript-window"] {
-      overflow-y: auto;
-      /* Its only overflow is the chrome a swipe or Tab reaches; a second bar beside the list's own would read as two lists. */
-      scrollbar-width: none;
-    }
-    [data-slot="transcript-window"] > :last-child {
-      block-size: 100%;
-    }
-    [data-slot="message-list-scroll"] {
-      overscroll-behavior-block: auto;
+    :root[data-keyboard-up]
+      [data-slot="chat-room-surface"]:has(.orb-composer-track:focus-within, .orb-composer-track [data-popup-open])
+      :has(> [data-slot="chat-room-flank-row"]),
+    :root:not([data-keyboard-up]) [data-slot="chat-room-surface"]:has(.orb-composer-track textarea:focus) :has(> [data-slot="chat-room-flank-row"]) {
+      min-block-size: 0;
     }
   }
   /* A two-row composer in a room this short keeps its height, because squeezed its controls lie on the text being typed. */

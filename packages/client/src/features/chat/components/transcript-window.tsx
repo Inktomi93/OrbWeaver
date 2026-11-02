@@ -5,7 +5,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
@@ -19,7 +19,8 @@ type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 
 interface TranscriptWindowProps {
   readonly chatId: ChatId;
-  readonly render: (page: CanonPage, window: AnchoredPage | null, edges: TranscriptEdges) => ReactElement;
+  /** `history` is the ordinary pager's second copy, which a short room's transcript carries as its leading chrome. */
+  readonly render: (page: CanonPage, window: AnchoredPage | null, edges: TranscriptEdges, history: ReactNode) => ReactElement;
 }
 
 export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
@@ -30,9 +31,8 @@ export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
 }
 
 const EARLIER_MESSAGES_LABEL = CHAT_EARLIER_MESSAGES_NAME;
-// Both arms put their paging chrome in one group before the transcript: the short room rule (styles/globals.css) keys on
-// this slot and that order to scroll the chrome away above the list.
-const TRANSCRIPT_WINDOW_SLOT = "transcript-window";
+// Paired by name with the short room rule in styles/globals.css, which picks which pager copy shows.
+const TRANSCRIPT_HISTORY_SLOT = "transcript-history";
 
 function mergePages(pages: readonly CanonPage[]): CanonPage {
   return {
@@ -50,6 +50,7 @@ function OrdinaryThread(props: TranscriptWindowProps): ReactElement {
 
 function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly tail: HistoryPage }): ReactElement {
   const description = useId();
+  const leadingDescription = useId();
   const trpc = useTRPC();
   const initialCursor = { kind: "before" as const, seq: tail.messages.reduce((seq, message) => Math.max(seq, message.seq), 0) + 1 };
   const pages = useSuspenseInfiniteQuery({
@@ -73,32 +74,41 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
     }
   }, [bridging, hasNextPage, isFetching, fetchNextPage]);
   const historyAvailable = pages.hasPreviousPage || pages.data.pages.length > 1;
+  // The pager renders twice and the stylesheet shows one copy (styles/globals.css): above the transcript, or in a short
+  // room inside it as its leading chrome, where it scrolls with the oldest row and cannot be stranded over the reading.
+  const historyWith = (describedBy: string): ReactNode =>
+    historyAvailable || pages.isError ? (
+      <Stack className="print:hidden" gap="field" data-slot={TRANSCRIPT_HISTORY_SLOT}>
+        {historyAvailable ? (
+          <Row gap="field" align="center">
+            <Button
+              aria-describedby={describedBy}
+              variant="ghost"
+              size="sm"
+              disabled={!pages.hasPreviousPage || pages.isFetching}
+              onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
+            >
+              {EARLIER_MESSAGES_LABEL}
+            </Button>
+            <Text id={describedBy} className="sr-only" role="status">
+              {pages.hasPreviousPage ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
+            </Text>
+          </Row>
+        ) : null}
+        {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
+      </Stack>
+    ) : null;
   return (
-    <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching} data-slot={TRANSCRIPT_WINDOW_SLOT}>
-      {historyAvailable || pages.isError ? (
-        <Stack gap="field">
-          {historyAvailable ? (
-            <Row className="print:hidden" gap="field" align="center">
-              <Button
-                aria-describedby={description}
-                variant="ghost"
-                size="sm"
-                disabled={!pages.hasPreviousPage || pages.isFetching}
-                onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
-              >
-                {EARLIER_MESSAGES_LABEL}
-              </Button>
-              <Text id={description} className="sr-only" role="status">
-                {pages.hasPreviousPage ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
-              </Text>
-            </Row>
-          ) : null}
-          {pages.isError ? <QueryErrorState label="conversation history" onRetry={pages.refetch} /> : null}
-        </Stack>
-      ) : null}
+    <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching}>
+      {historyWith(description)}
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
-      {props.render(mergePages([...pages.data.pages, tail]), null, { earlier: pages.hasPreviousPage, later: false, settling: bridging })}
+      {props.render(
+        mergePages([...pages.data.pages, tail]),
+        null,
+        { earlier: pages.hasPreviousPage, later: false, settling: bridging },
+        historyWith(leadingDescription),
+      )}
     </Stack>
   );
 }
@@ -155,40 +165,40 @@ function AnchoredThread({
       ? { earlier: fallback.data.previousCursor !== null, later: false, settling: false }
       : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
   return (
-    <Stack className="block-full min-block-0" gap="field" data-slot={TRANSCRIPT_WINDOW_SLOT}>
-      <Stack gap="field">
-        <Row className="flex-wrap print:hidden" gap="field">
-          <Button
-            aria-describedby={pagingDescription}
-            variant="ghost"
-            size="sm"
-            disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
-            onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
-          >
-            {EARLIER_MESSAGES_LABEL}
-          </Button>
-          <Button
-            aria-describedby={pagingDescription}
-            variant="ghost"
-            size="sm"
-            disabled={!pages.hasNextPage || pages.isFetchingNextPage}
-            onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
-          >
-            Later messages
-          </Button>
-          <Button variant="ghost" size="sm" onClick={clearChatMoment}>
-            Latest messages
-          </Button>
-          <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
-            Back to Corpus
-          </Button>
-        </Row>
-        <Text className="print:hidden" id={pagingDescription} voice="gloss">
-          Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
-        </Text>
-        {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
-      </Stack>
-      {props.render(messagesPage, initial, edges)}
+    // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
+    // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
+    <Stack className="block-full min-block-0" gap="field">
+      <Row className="flex-wrap print:hidden" gap="field">
+        <Button
+          aria-describedby={pagingDescription}
+          variant="ghost"
+          size="sm"
+          disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
+          onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
+        >
+          {EARLIER_MESSAGES_LABEL}
+        </Button>
+        <Button
+          aria-describedby={pagingDescription}
+          variant="ghost"
+          size="sm"
+          disabled={!pages.hasNextPage || pages.isFetchingNextPage}
+          onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
+        >
+          Later messages
+        </Button>
+        <Button variant="ghost" size="sm" onClick={clearChatMoment}>
+          Latest messages
+        </Button>
+        <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
+          Back to Corpus
+        </Button>
+      </Row>
+      <Text className="print:hidden" id={pagingDescription} voice="gloss">
+        Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
+      </Text>
+      {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
+      {props.render(messagesPage, initial, edges, null)}
     </Stack>
   );
 }

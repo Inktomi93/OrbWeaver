@@ -378,5 +378,5 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 
 - **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
 - **The keyboard:** no viewport unit shrinks for it and WebKit ignores `interactive-widget=resizes-content`, so the shell subtracts the `visualViewport` inset (`packages/ui/src/lib/keyboard-inset.ts`).
-- **The short room:** under the `shell-main` cq-28 height step, chrome above the transcript scrolls away with it and the room opens on the transcript and composer (`packages/client/src/styles/globals.css`).
-- **`env(safe-area-inset-*)`** on shell and composer; **`overscroll-behavior: contain`** on every scroll region but a short room's, which chains into its chrome; `inputmode`/`type=` on inputs.
+- **The short room:** under the `shell-main` cq-28 height step, room chrome rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
+- **`env(safe-area-inset-*)`** on shell and composer; **`overscroll-behavior: contain`** on every scroll region; `inputmode`/`type=` on inputs.

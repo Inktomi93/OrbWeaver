@@ -41,7 +41,9 @@
 // THE REFUSED ARMS (recorded so they are not re-minted): merging the character row into the TOPBAR would put a
 // second roster read beside `chat-header`'s member-count chip (§13 single-homing) and reaches into shell
 // chrome this component does not own; collapse-on-scroll leaves the worst case standing at first paint,
-// which is exactly when the reader is deciding whether the room is worth their thumb.
+// which is exactly when the reader is deciding whether the room is worth their thumb. A short room moves the strip into
+// the transcript's scroll content instead (`chat-room-surface.tsx`): it opens with the strip off screen, so no tall strip
+// stands at first paint, and the strip scrolls with the rows, so it can never be left over the reading.
 //
 // #490 — THE STRIP IS READ-ONLY AGAIN, WHICH IS WHAT THE PARAGRAPH ABOVE ALWAYS SAID. A host-only
 // `AddMemberPopover` had been mounted here as a trailing "+", so "add a character" had TWO doors visible at
@@ -104,6 +106,7 @@ function CharacterBarStrip({
       align="center"
       className="flex-wrap px-block py-row"
       plate="band"
+      data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}
       aria-label="Characters"
       role="group"

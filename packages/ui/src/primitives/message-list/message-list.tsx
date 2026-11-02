@@ -77,6 +77,11 @@ export interface MessageListProps<T> {
    */
   readonly rowNavigation?: MessageListRowNavigation;
   readonly renderItem: (item: T, index: number) => ReactNode;
+  /**
+   * Chrome that scrolls with the rows, above the first one (a history pager). It is part of the scroll content, so
+   * it leaves with the oldest rows and comes back with them, and it is not a row: no position, no roving stop.
+   */
+  readonly leading?: ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
   readonly className?: string;
   /** Escape hatch to the real scroll DOM node, e.g. for an external scroll-restoration hook. */
@@ -101,11 +106,30 @@ export function MessageList<T>({
   keepMounted,
   rowNavigation = "none",
   renderItem,
+  leading,
   className,
   scrollContainerRef,
   ref,
 }: MessageListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [leadingNode, setLeadingNode] = useState<HTMLDivElement | null>(null);
+  // The leading chrome's content height, without its top inset. The inset and the `scrollMargin` that counts it apply only
+  // while there is chrome to show: a caller's chrome can be all `display: none`, and an empty header must shift nothing.
+  // virtual-core takes it as `scrollMargin`, so every offset it computes (ends, reveals, pins, a prepend's anchor) counts it.
+  const [leadingPx, setLeadingPx] = useState(0);
+  const leadingInsetPx = Math.round(gapPxFor(blockPaddingToken));
+  useLayoutEffect((): (() => void) | undefined => {
+    if (leadingNode === null) {
+      setLeadingPx(0);
+      return undefined;
+    }
+    const measure = (): void =>
+      setLeadingPx(Math.round(leadingNode.getBoundingClientRect().height - Number.parseFloat(getComputedStyle(leadingNode).paddingBlockStart)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(leadingNode);
+    return (): void => observer.disconnect();
+  }, [leadingNode]);
   const reducedMotion = usePrefersReducedMotion();
   // Follow-the-tail intent, moved ONLY by an external scroll (never by virtual-core's own drift).
   const stickToBottomRef = useRef(true);
@@ -178,6 +202,7 @@ export function MessageList<T>({
     overscan: OVERSCAN,
     gap: Math.round(gapPxFor(gapToken)),
     paddingStart: Math.round(gapPxFor(blockPaddingToken)),
+    scrollMargin: leadingPx > 0 ? leadingPx + leadingInsetPx : 0,
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
     // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
     paddingEnd: Math.round(gapPxFor(blockPaddingToken) + pinSpacerPx),
@@ -386,6 +411,13 @@ export function MessageList<T>({
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
+      {leading === undefined ? null : (
+        // In flow above the row viewport, so it scrolls with the rows; its top inset is the rows' own block breathing.
+        // Paper says what the transcript leaves out on its own, so none of this chrome prints.
+        <div ref={setLeadingNode} className="print:hidden" data-slot="message-list-leading" style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}>
+          {leading}
+        </div>
+      )}
       {/* A real list inside the log: semantic rows make the virtual position metadata valid. WHAT ANNOUNCES — why `log` not `feed`/`grid`, why only the tail is live: ./announce.ts. */}
       <ol ref={setViewportRef} className="relative m-0 list-none p-0 inline-full" data-slot="message-list-viewport">
         {virtualizer.getVirtualItems().map((virtualItem) => (

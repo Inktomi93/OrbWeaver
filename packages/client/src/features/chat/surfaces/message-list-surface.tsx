@@ -95,10 +95,12 @@ export interface MessageListSurfaceProps {
   readonly busDeps: ChatBusDeps;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
+  /** Room chrome the transcript carries above its oldest row, ahead of its own history pager. */
+  readonly leading?: ReactNode;
 }
 
 /** The scrolling chat transcript for one chat. */
-export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -139,7 +141,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
           <TranscriptWindow
             chatId={chatId}
-            render={(messagesPage, window, edges): ReactElement => (
+            render={(messagesPage, window, edges, history): ReactElement => (
               <ChatThread
                 chatId={chatId}
                 chatStyle={chatStyle}
@@ -148,6 +150,12 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
                 messagesPage={messagesPage}
                 window={window}
                 edges={edges}
+                leading={
+                  <>
+                    {leading}
+                    {history}
+                  </>
+                }
               />
             )}
           />
@@ -176,7 +184,13 @@ function ChatThread({
   messagesPage,
   window,
   edges,
-}: ChatThreadProps & { readonly messagesPage: CanonPage; readonly window: AnchoredPage | null; readonly edges: TranscriptEdges }): ReactElement {
+  leading,
+}: ChatThreadProps & {
+  readonly messagesPage: CanonPage;
+  readonly window: AnchoredPage | null;
+  readonly edges: TranscriptEdges;
+  readonly leading: ReactNode;
+}): ReactElement {
   const trpc = useTRPC();
   const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const messages = messagesPage.messages;
@@ -397,8 +411,9 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative block-full min-block-0">
+      <Stack className="relative block-full min-block-0" gap="field">
         {sourceStatus}
+        {leading}
         <EmptyThread />
       </Stack>
     );
@@ -425,6 +440,7 @@ function ChatThread({
             );
           }}
           rowNavigation="roving"
+          leading={leading}
           scrollContainerRef={jump.scrollContainerRef}
           followTail={window === null}
           scrollMode={behaviorPrefs.streamScrollMode}

@@ -1,26 +1,42 @@
-// A paged group room on a landscape phone, the short room's hardest shape: the member strip and Earlier messages sit above
-// the transcript, and a long reply's name band would pin inside it. The room opens on the transcript and the composer
-// alone, and the chrome scrolls back in when a swipe carries on past the transcript's top.
+// A paged group room in the short room regime, its hardest shape: the member strip and Earlier messages would sit above
+// the transcript, and a long reply's name band pins inside it. A reader opens on story text, the strip and the pager ride
+// in the transcript's own scroll content, and a writer keeps Send above the keyboard, on a first open too.
 
 import { testId } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
-import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
+import type { Locator, Page } from "@playwright/test";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEARCH_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
+const SHELL_STORY = `${SHELL_STORIES}/AppShellStory`;
 const LANDSCAPE_PHONE = { width: 844, height: 390 } as const;
 const SUBPIXEL = 1;
-// A swipe's worth of wheel travel, larger than the chrome it has to bring back.
-const WHEEL_STEP_PX = 400;
+// A unique title, so the Chats list row that opens the room can be found by what it shows.
+const ROOM_TITLE = "Short room witness";
 // Long enough for one wheel step's scroll to land, short enough that `toPass` wheels again soon.
 const WHEEL_SETTLE_MS = 500;
+
+// Enlarged text in landscape and on a tall phone at 300%: the cells where the room cannot hold its floor and the composer.
+const READING_CELLS = [
+  { width: 844, height: 390, factor: 2 },
+  { width: 844, height: 390, factor: 3 },
+  { width: 568, height: 320, factor: 2 },
+  { width: 568, height: 320, factor: 3 },
+  { width: 390, height: 844, factor: 3 },
+] as const;
+// The first-open cells the review measured off the room's end, each with the keyboard it used.
+const FIRST_OPEN_CELLS = [
+  { width: 568, height: 320, factor: 1, keyboard: 170 },
+  { width: 320, height: 568, factor: 2, keyboard: 260 },
+] as const;
 
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
@@ -40,12 +56,13 @@ async function seatPagedGroupRoom(): Promise<ChatId> {
       throw new Error("The corpus has no character left to seat");
     }
     await caller.chat.addCharacterToChat({ chatId: row.id, characterId: guest.id });
+    await caller.chat.updateTitle({ chatId: row.id, title: ROOM_TITLE });
     return row.id;
   }
   throw new Error("The corpus has no room with paged history");
 }
 
-test.use({ viewport: LANDSCAPE_PHONE, hasTouch: true, isMobile: true });
+test.use({ hasTouch: true, isMobile: true });
 
 test.beforeAll(async () => {
   root = await createCorpusHarness();
@@ -66,7 +83,12 @@ test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
 
-/** Scrolls the transcript into its tallest reply, where a pinning name band would hold the top. */
+async function scaleRoot(page: Page, factor: number): Promise<void> {
+  await setRootFontScale(page, channelName("fontScale"), factor);
+  await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
+}
+
+/** Scrolls the transcript into its tallest reply, where a pinning name band holds the top. */
 function intoTallestReply(list: Element): void {
   const tallest = [...list.querySelectorAll('[data-slot="message-bubble"]')].toSorted(
     (a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height,
@@ -81,6 +103,7 @@ function intoTallestReply(list: Element): void {
 interface ReadingWindow {
   readonly listTop: number;
   readonly roomTop: number;
+  readonly roomHeight: number;
   readonly composerTop: number;
   /** The pinned name band's share of the transcript's top edge. */
   readonly band: number;
@@ -101,51 +124,144 @@ function readingWindow(list: Element, subpixel: number): ReadingWindow {
   const box = list.getBoundingClientRect();
   const pinned = [...list.querySelectorAll("[data-pinned]")].filter((header) => Math.abs(header.getBoundingClientRect().top - box.top) <= 2 * subpixel);
   const band = Math.max(0, ...pinned.map((header) => header.getBoundingClientRect().bottom - box.top));
-  const readable = Math.min(box.bottom, frame.bottom) - Math.max(box.top, frame.top) - band;
-  return { listTop: box.top, roomTop: frame.top, composerTop: composer.getBoundingClientRect().top, band, readable };
+  const readable = Math.max(0, Math.min(box.bottom, frame.bottom) - Math.max(box.top, frame.top) - band);
+  return { listTop: box.top, roomTop: frame.top, roomHeight: frame.height, composerTop: composer.getBoundingClientRect().top, band, readable };
 }
 
-/** Wheels over the transcript until `control` is whole on screen, the way a swipe carries on past the list's top. */
-async function wheelUntilShown(list: Locator, control: Locator): Promise<void> {
+/** Whether a control paints whole inside the visual viewport, the part of the screen a soft keyboard leaves. */
+function aboveKeyboard(control: Element, subpixel: number): boolean {
+  const box = control.getBoundingClientRect();
+  const top = visualViewport?.offsetTop ?? 0;
+  return box.top >= top - subpixel && box.bottom <= top + (visualViewport?.height ?? innerHeight) + subpixel;
+}
+
+/** One wheel step over the transcript's centre, a box height down (1) or up (-1): CT's raw wheel, with no hover first. */
+async function wheelOver(list: Locator, direction: 1 | -1): Promise<void> {
   const box = await list.boundingBox();
   if (box === null) {
     throw new Error("The transcript has no box");
   }
   await list.page().mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await list.page().mouse.wheel(0, direction * box.height);
+}
+
+async function wheelOverUntilShown(list: Locator, control: Locator): Promise<void> {
   await expect(async () => {
-    await list.page().mouse.wheel(0, -WHEEL_STEP_PX);
+    await wheelOver(list, -1);
     await expect(control).toBeInViewport({ ratio: 1, timeout: WHEEL_SETTLE_MS });
   }).toPass();
 }
 
-test("on a landscape phone a paged group room opens on the transcript and the composer, and the chrome scrolls back in above it", async ({ mount, page }) => {
-  await seedShellState(page, { activeSection: "chats" });
-  await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
-  const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
-  const strip = page.getByTestId(testId("chatCharacterBar"));
-  await expect(input).toBeVisible();
-  await expect(earlier).toBeAttached();
-  await expect(strip).toBeAttached();
-  const list = page.locator('[data-slot="message-list-scroll"]');
-  await list.evaluate(intoTallestReply);
-  const gap = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`);
-  // With the band pinned, the reader keeps everything from the room's top edge to the composer, less the band itself:
-  // the reading height a solo room gets, with the band open.
-  await expect.poll(() => list.evaluate(readingWindow, SUBPIXEL).then((facts) => facts.band)).toBeGreaterThan(0);
-  const reading = await list.evaluate(readingWindow, SUBPIXEL);
-  await test.info().attach("reading-window", { body: JSON.stringify(reading), contentType: "application/json" });
-  expect({
-    startsAtRoomTop: Math.abs(reading.listTop - reading.roomTop) <= SUBPIXEL,
-    readsToComposer: reading.readable >= reading.composerTop - gap - reading.roomTop - reading.band - SUBPIXEL,
-  }).toEqual({ startsAtRoomTop: true, readsToComposer: true });
-  await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeInViewport({ ratio: 1 });
-  await expect(earlier).not.toBeInViewport();
-  await expect(strip).not.toBeInViewport();
-  // Past the transcript's top, the same swipe brings back the paging chrome and then the member strip.
-  await list.evaluate((node) => {
-    node.scrollTop = 0;
+test.describe("a paged group room on a landscape phone at normal text", () => {
+  test.use({ viewport: LANDSCAPE_PHONE });
+
+  test("opens on the transcript and the composer, and the strip and Earlier messages scroll with the transcript, never over it", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+    const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
+    const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+    // Whichever copy of the strip the room paints; the other is `display: none`.
+    const strip = page.getByTestId(testId("chatCharacterBar")).filter({ visible: true });
+    await expect(input).toBeVisible();
+    await expect(earlier).toBeAttached();
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    await list.evaluate(intoTallestReply);
+    const gap = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`);
+    // With the band pinned, the reader keeps everything from the room's top edge to the composer, less the band itself:
+    // the reading height a solo room gets, with the band open.
+    await expect.poll(() => list.evaluate(readingWindow, SUBPIXEL).then((facts) => facts.band)).toBeGreaterThan(0);
+    const reading = await list.evaluate(readingWindow, SUBPIXEL);
+    await test.info().attach("reading-window", { body: JSON.stringify(reading), contentType: "application/json" });
+    expect({
+      startsAtRoomTop: Math.abs(reading.listTop - reading.roomTop) <= SUBPIXEL,
+      readsToComposer: reading.readable >= reading.composerTop - gap - reading.roomTop - reading.band - SUBPIXEL,
+    }).toEqual({ startsAtRoomTop: true, readsToComposer: true });
+    await expect(send).toBeInViewport({ ratio: 1 });
+    await expect(earlier).not.toBeInViewport();
+    // Scrolling up past the oldest loaded row brings the pager and the strip into view, with Send still on screen.
+    await list.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await wheelOverUntilShown(list, earlier);
+    await wheelOverUntilShown(list, strip);
+    await expect(send).toBeInViewport({ ratio: 1 });
+    // The first swipe down takes them away with the oldest rows: nothing is left over the reading, and Send stays.
+    await wheelOver(list, 1);
+    await expect(earlier).not.toBeInViewport();
+    await expect(strip).not.toBeInViewport();
+    await expect(send).toBeInViewport({ ratio: 1 });
+    const after = await list.evaluate(readingWindow, SUBPIXEL);
+    expect(Math.abs(after.listTop - after.roomTop)).toBeLessThanOrEqual(SUBPIXEL);
   });
-  await wheelUntilShown(list, earlier);
-  await wheelUntilShown(list, strip);
+
+  test("Earlier messages, pressed inside the transcript, loads older rows without moving the row the reader was on", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+    await expect(earlier).toBeAttached();
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    await list.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await expect(earlier).toBeInViewport({ ratio: 1 });
+    const first = list.locator('[data-slot="message-row"]').first();
+    const id = await first.getAttribute("data-message-id");
+    const row = list.locator(`[data-slot="message-row"][data-message-id="${id ?? ""}"]`);
+    const before = await row.boundingBox();
+    await earlier.click();
+    await expect.poll(() => list.locator('[data-slot="message-row"]').first().getAttribute("data-message-id")).not.toBe(id);
+    await expect
+      .poll(async () => {
+        const settled = await row.boundingBox();
+        return settled === null || before === null ? Number.POSITIVE_INFINITY : Math.abs(settled.y - before.y);
+      })
+      .toBeLessThanOrEqual(SUBPIXEL);
+  });
+});
+
+forEachNonEmpty(READING_CELLS, "READING_CELLS", (cell) => {
+  test.describe(`a reader at ${String(cell.factor * 100)}% text on ${String(cell.width)}x${String(cell.height)}`, () => {
+    test.use({ viewport: { width: cell.width, height: cell.height } });
+
+    test("opens on story text, with the transcript's floor or the whole room to read", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeAttached();
+      await scaleRoot(page, cell.factor);
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(list.locator('[data-slot="message-bubble"]').first()).toBeAttached();
+      const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`);
+      await expect
+        .poll(async () => {
+          const reading = await list.evaluate(readingWindow, SUBPIXEL);
+          return reading.readable + reading.band >= Math.min(floor, reading.roomHeight) - SUBPIXEL;
+        })
+        .toBe(true);
+    });
+  });
+});
+
+forEachNonEmpty(FIRST_OPEN_CELLS, "FIRST_OPEN_CELLS", (cell) => {
+  test.describe(`a first open from the Chats list at ${String(cell.factor * 100)}% text on ${String(cell.width)}x${String(cell.height)}`, () => {
+    test.use({ viewport: { width: cell.width, height: cell.height } });
+
+    test("keeps the field and Send above the keyboard once the reader starts writing", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellStory>(SHELL_STORY, {});
+      await scaleRoot(page, cell.factor);
+      // A press on the row is the first-open path: arrival focus moves into the room, which a direct mount never does.
+      // The Chats list is a virtual window, so the room is found the way a reader finds it: by searching for it.
+      await page.getByLabel(CHAT_SEARCH_NAME, { exact: true }).fill(ROOM_TITLE);
+      await page.getByText(ROOM_TITLE, { exact: true }).first().click();
+      const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+      await expect(input).toBeAttached();
+      await expect(page.locator('[data-slot="message-list-scroll"] [data-slot="message-bubble"]').first()).toBeAttached();
+      await input.focus();
+      await emulateSoftKeyboard(page, cell.keyboard);
+      const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
+      await expect.poll(() => Promise.all([input.evaluate(aboveKeyboard, SUBPIXEL), send.evaluate(aboveKeyboard, SUBPIXEL)])).toEqual([true, true]);
+      await emulateSoftKeyboard(page, 0);
+    });
+  });
 });

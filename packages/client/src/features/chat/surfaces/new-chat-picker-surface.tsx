@@ -39,10 +39,12 @@
 // The `orb/surface-a11y-focus` home that records this decision is in eslint.config.js; the reason is on `NewChatPicker` below.
 //
 // A WHOLE ROW SHOWS AT ANY HEIGHT, WITH START IN REACH. `dialog-short` fires when the pinned footer cannot sit over a row
-// of the list (primitives.css has the step). There the list drops its heading and inset, so its one-row floor is a whole
+// of the list (primitives.css has the steps). There the list drops its heading and inset, so its one-row floor is a whole
 // row; it stays a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains to the body.
-// Start stays pinned; Blank chat and the saved-roster door flow after it. `dialog-tiny` unpins Start too, because under
-// that step one control would cover the row, and the popup scrolls as one sheet.
+// A wide short dialog keeps Blank chat and Start in the pinned row and the saved-roster door in its own row above the
+// list, all on screen at open. A narrow one (`dialog-stacked`) keeps Start pinned and flows Blank chat and the roster door
+// after it. `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup
+// scrolls as one sheet.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
@@ -73,6 +75,7 @@ import { CharacterPicker } from "#components";
 import { useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
+import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -174,7 +177,7 @@ export function NewChatPicker(): ReactElement {
       }}
     >
       <Icon icon={Users} size="sm" />
-      Start from a saved roster
+      {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
   ) : null;
   const blankAction = (className: string): ReactElement => (
@@ -198,7 +201,8 @@ export function NewChatPicker(): ReactElement {
         </Row>
       ) : null}
       {hasRosters ? (
-        <Row className="flex-wrap dialog-short:hidden" justify="end" padding="block">
+        // A short dialog spends no block inset on this row, or the pinned footer would lie over the list's one row.
+        <Row className="flex-wrap dialog-short:py-0 dialog-stacked:hidden" justify="end" padding="block">
           {rosterDoor}
         </Row>
       ) : null}
@@ -231,7 +235,7 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        {blankAction(`${ACTION_BUTTON} dialog-short:hidden`)}
+        {blankAction(`${ACTION_BUTTON} dialog-stacked:hidden`)}
         <Button
           className={ACTION_BUTTON}
           quietDisabled={teaching}
@@ -244,13 +248,13 @@ export function NewChatPicker(): ReactElement {
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}
-          <Row className="@cq-28:hidden dialog-short:hidden">{compactStartLabel}</Row>
-          <Row className="hidden @cq-28:flex dialog-short:hidden">{startLabel}</Row>
-          <Row className="hidden dialog-short:flex">{shortStartLabel}</Row>
+          <Row className="@cq-28:hidden dialog-stacked:hidden">{compactStartLabel}</Row>
+          <Row className="hidden @cq-28:flex dialog-stacked:hidden">{startLabel}</Row>
+          <Row className="hidden dialog-stacked:flex">{shortStartLabel}</Row>
         </Button>
       </Row>
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
-      <Stack className="hidden dialog-short:flex" gap="field" padding="block">
+      <Stack className="hidden dialog-stacked:flex" gap="field" padding="block">
         {blankAction("inline-full")}
         {rosterDoor}
       </Stack>
