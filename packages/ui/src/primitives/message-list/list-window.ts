@@ -2,9 +2,10 @@
 // under the 450-line cap (UI-Primitives-and-Reuse.md §13.7): what the reader can see past each edge, and
 // which indices the virtualizer must render regardless of where the window sits.
 
-import type { Range } from "@tanstack/react-virtual";
+import type { Range, Virtualizer } from "@tanstack/react-virtual";
 import { defaultRangeExtractor } from "@tanstack/react-virtual";
-import { useSyncExternalStore } from "react";
+import type { RefObject } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 // An edge fades only when more than this many px of content lie beyond it — sub-pixel rounding must
 // not flicker the fade on an unscrolled list.
@@ -40,6 +41,41 @@ function subscribePrinting(notify: () => void): () => void {
  */
 export function usePrinting(): boolean {
   return useSyncExternalStore(subscribePrinting, () => printing);
+}
+
+/** Mounting every row for paper re-measures the rows above a scrolled-up reader, so the row they were on is put back
+ *  after the print. A reader at the tail follows it and needs nothing. */
+export function usePrintAnchor(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  following: RefObject<boolean>,
+  virtualizer: Virtualizer<HTMLDivElement, HTMLLIElement>,
+): void {
+  useEffect((): (() => void) => {
+    let anchor: { readonly index: number; readonly past: number } | null = null;
+    const hold = (): void => {
+      const top = scrollRef.current?.scrollTop ?? 0;
+      const item = following.current ? undefined : virtualizer.getVirtualItemForOffset(top);
+      anchor = item === undefined ? null : { index: item.index, past: top - item.start };
+    };
+    const put = (): void => {
+      const held = anchor;
+      anchor = null;
+      if (held !== null) {
+        requestAnimationFrame(() => {
+          const [start] = virtualizer.getOffsetForIndex(held.index, "start") ?? [];
+          if (start !== undefined) {
+            virtualizer.scrollToOffset(start + held.past);
+          }
+        });
+      }
+    };
+    addEventListener("beforeprint", hold);
+    addEventListener("afterprint", put);
+    return (): void => {
+      removeEventListener("beforeprint", hold);
+      removeEventListener("afterprint", put);
+    };
+  }, [scrollRef, following, virtualizer]);
 }
 
 /** Paper has no scroll window: every row prints. */

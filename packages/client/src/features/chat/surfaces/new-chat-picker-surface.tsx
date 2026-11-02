@@ -38,11 +38,11 @@
 // claims focus any more.
 // The `orb/surface-a11y-focus` home that records this decision is in eslint.config.js; the reason is on `NewChatPicker` below.
 //
-// A SHORT DIALOG KEEPS START AND THE LIST, AND LETS THE REST SCROLL. `dialog-short` keys on the dialog's height, not its
-// width: enlarged text makes a phone narrow and a desktop short, and only height separates the cells that cannot hold
-// the footer (at most 20rem tall) from those that can, with normal text far above it. In that step the list is down to
-// its one-row floor, still a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains
-// to the body instead of stopping there. Start stays pinned under it; Blank chat and the saved-roster door flow after it.
+// A WHOLE ROW SHOWS AT ANY HEIGHT, WITH START IN REACH. `dialog-short` fires when the pinned footer cannot sit over a row
+// of the list (primitives.css has the step). There the list drops its heading and inset, so its one-row floor is a whole
+// row; it stays a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains to the body.
+// Start stays pinned; Blank chat and the saved-roster door flow after it. `dialog-tiny` unpins Start too, because under
+// that step one control would cover the row, and the popup scrolls as one sheet.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
@@ -190,8 +190,8 @@ export function NewChatPicker(): ReactElement {
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
       {intent?.temporary === true ? (
-        <Row align="center" gap="field" padding="block">
-          <Badge>{TEMPORARY_CHAT_BADGE}</Badge>
+        <Row align="center" className="flex-wrap" gap="field" padding="block">
+          <Badge className="truncate max-inline-full">{TEMPORARY_CHAT_BADGE}</Badge>
           <Text ink="muted" voice="gloss" prose={true}>
             This room won't join your chats list, and you can't switch it later.
           </Text>
@@ -207,7 +207,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-block-(--height-picker-window) dialog-short:overflow-x-hidden dialog-short:overscroll-auto"
+        listClassName="max-block-(--height-picker-window) dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0 dialog-short:**:[[cmdk-group-heading]]:hidden"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
@@ -220,7 +220,7 @@ export function NewChatPicker(): ReactElement {
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row
         align="center"
-        className="sticky inset-be-0 flex-wrap dialog-short:py-tight"
+        className="sticky inset-be-0 flex-wrap dialog-short:py-tight dialog-tiny:static"
         data-slot="new-chat-actions"
         divider="top"
         gap="field"

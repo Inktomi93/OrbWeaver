@@ -3,7 +3,7 @@
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
-import { dockListPanel, openModal, selectCharacter, selectChatFromList } from "@orb/client/state";
+import { dockListPanel, openModal, openNewChatPicker, selectCharacter, selectChatFromList } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
@@ -79,6 +79,23 @@ export function AppShellRoomStory({ chatId }: { readonly chatId: ChatId }): Reac
   return (
     <CtClientProviders>
       <SelectChatOnMount chatId={chatId} />
+      <AppShell />
+    </CtClientProviders>
+  );
+}
+
+function OpenTemporaryNewChatOnMount(): null {
+  useEffect(() => {
+    openNewChatPicker({ temporary: true });
+  }, []);
+  return null;
+}
+
+/** The production shell with New chat opened the way the Home temporary tile opens it. */
+export function AppShellTemporaryNewChatStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <OpenTemporaryNewChatOnMount />
       <AppShell />
     </CtClientProviders>
   );

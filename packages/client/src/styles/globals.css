@@ -80,6 +80,15 @@
     animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
   }
 
+  /* New chat in a dialog this short: the popup scrolls as one sheet, because a separate body would be squeezed to nothing
+   * under the heading. This is `dialog-tiny`'s step (packages/ui/src/styles/primitives.css). */
+  @container dialog (height <= 14rem) {
+    [data-slot="dialog-popup"]:has([data-slot="new-chat-actions"]) > :not([data-slot="dialog-header"]) {
+      flex: none;
+      overflow: visible;
+    }
+  }
+
   /* Equal padding and negative margin give the inset ring clearance without moving the content. */
   [data-settings-flash] {
     border-radius: var(--radius-card);

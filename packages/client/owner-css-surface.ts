@@ -1030,6 +1030,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--color-user-bubble-foreground",
   "--color-warning",
   "--color-warning-foreground",
+  "--container-cq-14",
   "--container-cq-15",
   "--container-cq-16",
   "--container-cq-20",

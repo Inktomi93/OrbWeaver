@@ -46,7 +46,6 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
-import { CHAT_PRINT_COVERAGE } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
@@ -58,6 +57,7 @@ import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 import { moveNeighboursAt } from "../lib/move-neighbours.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { settledLastRowId } from "../lib/row-placement.ts";
+import { CHAT_PRINT_COVERAGE } from "../lib/transcript-copy.ts";
 
 /** Initial row-height model. A flat 96px guess made a 3k-character RPG turn look like a one-line bubble,
  *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up.

@@ -75,8 +75,8 @@ export interface CharacterPickerProps {
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
   /**
-   * The OWNER's surface-box id (#885/#1748). This picker is mounted by EIGHT owners, so it can never mint a
-   * key of its own — one literal here would hand all eight the same remembered box, the copy-paste collision
+   * The OWNER's surface-box id (#885/#1748). Many owners mount this picker, so it can never mint a
+   * key of its own — one literal here would hand all of them the same remembered box, the copy-paste collision
    * the `query-boundary-reservation` gate's duplicate arm reds and which its literal census could not see
    * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
    */
@@ -96,7 +96,7 @@ export interface CharacterPickerProps {
 export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   return (
     // THE KEY IS THE CALLER'S (#1748 — the pass-through design §1.4 prescribed). The ruling that this file
-    // may not mint one SURVIVES: eight owners, one literal, one box for all of them. What changed is that
+    // may not mint one SURVIVES: many owners, one literal, one box for all of them. What changed is that
     // every owner now supplies its own, so the reservation is reachable without the collision.
     <QueryBoundary
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}

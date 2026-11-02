@@ -16,8 +16,9 @@ import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_PRINT_COVERAGE, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_PRINT_COVERAGE } from "#client/features/chat/lib/transcript-copy.ts";
+import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory, AppShellTemporaryNewChatStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -129,6 +130,7 @@ const COMPOSER_MOVED_COUNT: Record<string, number> = {
 let root: Root;
 let longRoomId: ChatId;
 let gameRoomId: ChatId;
+let pagedRoom: Promise<ChatId> | undefined;
 
 /** A corpus room whose last turn is a long reply, so its swipe foot sits past a reading window. */
 async function seedLongReplyRoom(): Promise<ChatId> {
@@ -144,7 +146,12 @@ async function seedLongReplyRoom(): Promise<ChatId> {
 }
 
 /** A corpus room with older history behind its loaded page. Stops at the first: every read here spends the harness's rate limit. */
-async function findPagedRoom(): Promise<ChatId> {
+function findPagedRoom(): Promise<ChatId> {
+  pagedRoom ??= scanForPagedRoom();
+  return pagedRoom;
+}
+
+async function scanForPagedRoom(): Promise<ChatId> {
   const caller = await root.internalCallerFor(root.ownerId);
   for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
     if ((await caller.chat.listMessages({ chatId: row.id })).previousCursor !== null) {
@@ -737,8 +744,12 @@ for (const [viewport, scale] of QUALIFIED.newChat) {
 const NARROW_300 = { name: "320 phone", touch: true, size: { width: 320, height: 568 } } as const;
 const PHONE_360 = { name: "360 phone", touch: true, size: { width: 360, height: 800 } } as const;
 const PHONE_430 = { name: "430 phone", touch: true, size: { width: 430, height: 932 } } as const;
+const PHONE_375 = { name: "375 phone", touch: true, size: { width: 375, height: 667 } } as const;
+const TEXT_250 = { name: "250% text", factor: 2.5 } as const;
 const SHORT_CELLS = [
   [NARROW_300, TEXT_200],
+  [PHONE_375, TEXT_200],
+  [PHONE, TEXT_250],
   [PHONE_360, LAYOUT_300],
   [PHONE, LAYOUT_300],
   [PHONE_430, LAYOUT_300],
@@ -779,12 +790,36 @@ async function expectPressable(control: Locator): Promise<void> {
   await expect.poll(() => control.evaluate(coverOf)).toBeNull();
 }
 
-for (const [viewport, scale] of [...SHORT_CELLS, ...TALL_CELLS]) {
+/** A short dialog's list stays a scroller, so the tail still loads by scroll, and is shorter than the body around it, so a
+ *  swipe that ends on the list hands off to the body. A taller one keeps both actions pinned, and the step stays out. */
+async function expectFooterStep(dialog: Locator, short: boolean): Promise<void> {
+  const footer = dialog.locator('[data-slot="new-chat-actions"]');
+  await expect(footer).toHaveCSS("position", "sticky");
+  await expect(footer).toBeInViewport({ ratio: 1 });
+  await expect(footer.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toHaveCount(short ? 0 : 1);
+  const geometry = await dialog.locator('[data-slot="command-list"]').evaluate((list) => {
+    let body = list.parentElement;
+    while (body !== null && !/auto|scroll/u.test(getComputedStyle(body).overflowY)) {
+      body = body.parentElement;
+    }
+    return {
+      fits: list.clientHeight < (body?.clientHeight ?? 0) / 2,
+      scrolls: list.scrollHeight > list.clientHeight,
+      chain: getComputedStyle(list).overscrollBehaviorY,
+    };
+  });
+  expect(geometry.chain).toBe(short ? "auto" : "contain");
+  expect({ fits: geometry.fits || !short, scrolls: geometry.scrolls || !short }).toEqual({ fits: true, scrolls: true });
+}
+
+// One mount per named cell: the rate limit is a window, and the grid below carries the geometry at no request cost.
+for (const [viewport, scale, short] of [...SHORT_CELLS.map((cell) => [...cell, true] as const), ...TALL_CELLS.map((cell) => [...cell, false] as const)]) {
   test.describe(`New chat's list and Start at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
 
-    test("keeps the focused search clear, and Start in reach after a deep pick by real keys", async ({ mount, page }) => {
+    test("holds its footer step, the focused search and Start after a deep pick by real keys, then Tab reaches Blank chat", async ({ mount, page }) => {
       const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
+      await expectFooterStep(dialog, short);
       const search = dialog.getByRole("combobox");
       await expect(search).toBeFocused();
       await expectPressable(search);
@@ -801,81 +836,126 @@ for (const [viewport, scale] of [...SHORT_CELLS, ...TALL_CELLS]) {
       await expect(dialog.getByRole("option").first()).toBeVisible();
       await expect.poll(() => findings(dialog)).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
-    });
-
-    test("shows a whole row in the list's own window, and Blank chat by keyboard", async ({ mount, page }) => {
-      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
-      const list = dialog.locator('[data-slot="command-list"]');
-      const row = dialog.getByRole("option").first();
-      await row.scrollIntoViewIfNeeded();
-      await expect
-        .poll(() => row.evaluate((node) => node.getBoundingClientRect().height <= (node.closest('[data-slot="command-list"]')?.clientHeight ?? 0)))
-        .toBe(true);
-      await expect(row).toBeInViewport({ ratio: 1 });
-      await expect.poll(() => row.evaluate(coverOf)).toBeNull();
       const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
       await expect(async () => {
         await page.keyboard.press("Tab");
         await expect(blank).toBeFocused({ timeout: DOOR_TIMEOUT_MS });
       }).toPass();
       await expectPressable(blank);
-      await expect(list).toBeAttached();
     });
   });
 }
 
-// 300% on 320 leaves the dialog body 240px: the search and Start fill it, so nothing is clipped and each is reached by scrolling.
-test.describe("New chat at 300% layout on the 320 phone", () => {
-  test.use({ viewport: NARROW_300.size, hasTouch: true, isMobile: true });
+const GRID_WIDTHS = [320, 360, 375, 390, 430, 844];
+const GRID_HEIGHTS = [568, 667, 844, 932, 390, 900];
+const GRID_SCALES = [1, 1.25, 1.5, 2, 2.5, 3];
 
-  test("clips nothing and keeps Start and Blank chat pressable", async ({ mount, page }) => {
-    const dialog = await openNewChat(newChatMount(mount), page, LAYOUT_300.factor);
-    await expect.poll(() => findings(dialog)).toEqual([]);
-    await expect(startAction(dialog)).toBeInViewport({ ratio: 1 });
-    const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
-    await expect(async () => {
-      await page.keyboard.press("Tab");
-      await expect(blank).toBeFocused({ timeout: DOOR_TIMEOUT_MS });
-    }).toPass();
-    await expect(blank).toBeInViewport();
-    await expect.poll(() => blank.evaluate(coverOf)).toBeNull();
-  });
-});
-
-// A short dialog's list stays a scroller, so the tail still loads by scroll, and it is shorter than the body around it,
-// so a swipe that ends on the list hands off and the body's end comes into reach.
-for (const [viewport, scale] of SHORT_CELLS) {
-  test.describe(`New chat's short step at ${scale.name} on the ${viewport.name}`, () => {
-    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
-
-    test("bounds the list inside the body and hands a finished swipe to it", async ({ mount, page }) => {
-      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
-      const geometry = await dialog.locator('[data-slot="command-list"]').evaluate((list) => {
-        const style = getComputedStyle(list);
-        let body = list.parentElement;
-        while (body !== null && !/auto|scroll/u.test(getComputedStyle(body).overflowY)) {
-          body = body.parentElement;
-        }
-        return { list: list.clientHeight, scrolls: list.scrollHeight > list.clientHeight, body: body?.clientHeight ?? 0, chain: style.overscrollBehaviorY };
-      });
-      expect(geometry.scrolls).toBe(true);
-      expect(geometry.list).toBeLessThan(geometry.body / 2);
-      expect(geometry.chain).toBe("auto");
-      await expect(dialog.locator('[data-slot="new-chat-actions"]')).toHaveCSS("position", "sticky");
+/**
+ * Whether a row, Start and Blank chat can each be read and pressed whole at some scroll: every scroller around the list
+ * is walked in small strides, and each point of the control is hit tested, so a pinned footer over it counts.
+ */
+function reachInDialog(popup: Element, { stride }: { readonly stride: number }): readonly string[] {
+  const list = popup.querySelector('[data-slot="command-list"]');
+  const row = popup.querySelector('[role="option"]');
+  const actions = popup.querySelector('[data-slot="new-chat-actions"]');
+  const start = actions?.querySelector("button:last-of-type");
+  const blank = [...popup.querySelectorAll("button")].find((button) => button.textContent.includes("Blank") && button.checkVisibility());
+  if (list === null || row === null || start === null || start === undefined || blank === undefined) {
+    return ["the dialog has no list, row, Start or Blank chat"];
+  }
+  const scrollers: Element[] = [];
+  for (let up = list.parentElement; up !== null && up !== popup.parentElement; up = up.parentElement) {
+    if (/auto|scroll/u.test(getComputedStyle(up).overflowY) && up.scrollHeight > up.clientHeight) {
+      scrollers.push(up);
+    }
+  }
+  const whole = (control: Element): boolean => {
+    const box = control.getBoundingClientRect();
+    const inert = getComputedStyle(control).pointerEvents === "none";
+    return [box.top + 2, box.top + box.height / 2, box.bottom - 2].every((y) => {
+      const hit = document.elementFromPoint(box.left + box.width / 2, y);
+      return hit !== null && (control.contains(hit) || (inert && hit === control.parentElement));
     });
-  });
+  };
+  const seen = new Set<Element>();
+  const look = (): void => {
+    for (const control of [row, start, blank]) {
+      if (whole(control)) {
+        seen.add(control);
+      }
+    }
+  };
+  const walk = (index: number): void => {
+    const scroller = scrollers[index];
+    if (scroller === undefined) {
+      look();
+      return;
+    }
+    const reach = scroller.scrollHeight - scroller.clientHeight;
+    for (let at = 0; at < reach + stride; at += stride) {
+      scroller.scrollTop = at;
+      walk(index + 1);
+    }
+    scroller.scrollTop = 0;
+  };
+  for (const inner of [0, (row as HTMLElement).offsetTop]) {
+    list.scrollTop = inner;
+    walk(0);
+  }
+  list.scrollTop = 0;
+  return [...(seen.has(row) ? [] : ["row"]), ...(seen.has(start) ? [] : ["Start"]), ...(seen.has(blank) ? [] : ["Blank chat"])];
 }
 
-for (const [viewport, scale] of TALL_CELLS) {
-  test.describe(`New chat's footer at ${scale.name} on the ${viewport.name}`, () => {
-    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+/** Walks one mounted dialog across the grid, resizing in place: geometry only, so a cell costs a layout and no request. */
+async function walkGrid(page: Page, dialog: Locator, widths: readonly number[]): Promise<{ readonly cells: number; readonly failures: readonly string[] }> {
+  const failures: string[] = [];
+  let cells = 0;
+  for (const width of widths) {
+    for (const height of GRID_HEIGHTS) {
+      await page.setViewportSize({ width, height });
+      for (const factor of GRID_SCALES) {
+        await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
+        await expect(dialog.getByRole("option").first()).toBeAttached();
+        cells += 1;
+        const missing = await dialog.evaluate(reachInDialog, { stride: GRID_STRIDE_PX });
+        const clipped = await dialog.evaluate(cutOffControls, SUBPIXEL);
+        failures.push(...[...missing, ...clipped].map((what) => `${String(width)}x${String(height)} at ${String(factor * 100)}%: ${what}`));
+      }
+    }
+  }
+  return { cells, failures };
+}
 
-    test("stays pinned with both actions, and the short step does not fire", async ({ mount, page }) => {
-      const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
-      const footer = dialog.locator('[data-slot="new-chat-actions"]');
-      await expect(footer).toHaveCSS("position", "sticky");
-      await expect(footer.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeInViewport({ ratio: 1 });
-      await expect(dialog.locator('[data-slot="command-list"]')).toHaveCSS("overscroll-behavior-y", "contain");
+/** Controls or text painted past the dialog's sides: a stack that overflows there reads as a clipped sentence. */
+function cutOffControls(popup: Element, subpixel: number): string[] {
+  const frame = popup.getBoundingClientRect();
+  return [...popup.querySelectorAll("button, p, span")]
+    .filter((element) => {
+      const box = element.getBoundingClientRect();
+      return box.width > subpixel && element.checkVisibility() && (box.left < frame.left - subpixel || box.right > frame.right + subpixel);
+    })
+    .map((element) => `"${element.textContent.trim().slice(0, 30)}" leaves the dialog`);
+}
+
+// Under the slack of a control that barely fits its window, so the walk cannot step over the one position that shows it.
+const GRID_STRIDE_PX = 24;
+const GRID_TIMEOUT_MS = 180_000;
+
+for (const pointer of ["touch", "fine"] as const) {
+  test.describe(`New chat's reach over the size grid, ${pointer} pointer`, () => {
+    test.use(pointer === "touch" ? { viewport: PHONE.size, hasTouch: true, isMobile: true } : { viewport: DESKTOP.size });
+    const widths = pointer === "touch" ? GRID_WIDTHS : [DESKTOP.size.width];
+
+    test("shows a whole row, Start and Blank chat at every size", async ({ mount, page }) => {
+      test.setTimeout(GRID_TIMEOUT_MS);
+      const dialog = await openNewChat(newChatMount(mount), page, 1);
+      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
+    });
+
+    test("holds with the temporary-room notice above the list", async ({ mount, page }) => {
+      test.setTimeout(GRID_TIMEOUT_MS);
+      const dialog = await openNewChat(() => mount<typeof AppShellTemporaryNewChatStory>(`${SHELL_STORIES}/AppShellTemporaryNewChatStory`, {}), page, 1);
+      expect(await walkGrid(page, dialog, widths)).toEqual({ cells: widths.length * GRID_HEIGHTS.length * GRID_SCALES.length, failures: [] });
     });
   });
 }
@@ -889,8 +969,39 @@ function printedRowTops(list: Element): { readonly tops: readonly number[]; read
   };
 }
 
+const SETTLE_FRAMES = 12;
+
 test.describe("printing a room", () => {
   test.use({ viewport: DESKTOP.size });
+
+  // `page.pdf` is the one real print a test can drive: the events alone lay out no paper, so nothing moves.
+  test("leaves a scrolled-up reader on the row they were reading", async ({ browserName, mount, page }) => {
+    test.skip(browserName !== "chromium", "Only Chromium prints to PDF");
+    const pagedRoomId = await findPagedRoom();
+    await openRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page, pagedRoomId);
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    await expect(page.locator('[data-slot="message-bubble"]').last()).toBeVisible();
+    const topRow = (): Promise<{ readonly index: string | null; readonly offset: number }> =>
+      list.evaluate((node) => {
+        const top = node.getBoundingClientRect().top;
+        const row = [...node.querySelectorAll('[data-slot="message-list-row"]')].find((candidate) => candidate.getBoundingClientRect().bottom > top);
+        return { index: row?.getAttribute("data-index") ?? null, offset: Math.round((row?.getBoundingClientRect().top ?? 0) - top) };
+      });
+    await list.evaluate((node) => {
+      node.scrollTop -= 2000;
+    });
+    await expect.poll(() => list.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeGreaterThan(500);
+    await expect.poll(topRow).toEqual(await topRow());
+    const reading = await topRow();
+    await page.pdf();
+    // The drift lands as the rows re-measure after the print, so a first equal read proves nothing.
+    await page.evaluate(async (frames) => {
+      for (let frame = 0; frame < frames; frame += 1) {
+        await new Promise(requestAnimationFrame);
+      }
+    }, SETTLE_FRAMES);
+    expect(await topRow()).toEqual(reading);
+  });
 
   test("flows every loaded message down the page on paper-coloured ground, says what it leaves out, and windows again after", async ({ mount, page }) => {
     const pagedRoomId = await findPagedRoom();

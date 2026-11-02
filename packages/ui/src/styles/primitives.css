@@ -1,8 +1,11 @@
 /* @orb/ui region: document floors and the primitive-wide treatments no utility can spell. Imported by globals.css inside its layer. */
 
-/* A dialog too short to spare fixed chrome. The step sits in a container query, and not a media query, because a `rem`
- * there follows the enlarged root; it fires at enlarged text on a phone or a desktop and not at normal text. */
-@custom-variant dialog-short (@container dialog (height <= 20rem));
+/* A dialog that cannot hold its pinned footer over a row of its list: any dialog under the cq-20 step, or a narrow one
+ * under cq-24, whose footer stacks. It reads a container and not a media query because a `rem` there follows the enlarged
+ * root, and the box it reads is the viewport less its gutters. A query cannot read a var, so these are the `container.cq-*`
+ * tokens' values. `dialog-tiny` is the cq-14 step, where even a one-control footer would cover the row. */
+@custom-variant dialog-short (@container dialog (height <= 20rem) or ((height <= 24rem) and (width <= 24rem)));
+@custom-variant dialog-tiny (@container dialog (height <= 14rem));
 
 /* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
 @utility orb-paint-carrier {

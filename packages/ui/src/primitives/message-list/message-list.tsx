@@ -7,7 +7,7 @@ import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefers
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
-import { composeRangeExtractor, everyRow, updateEdgeFades, usePrinting } from "./list-window.ts";
+import { composeRangeExtractor, everyRow, updateEdgeFades, usePrintAnchor, usePrinting } from "./list-window.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -259,6 +259,8 @@ export function MessageList<T>({
           userScrollAtRef.current = performance.now();
         });
   }, []);
+
+  usePrintAnchor(scrollRef, stickToBottomRef, virtualizer);
 
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
