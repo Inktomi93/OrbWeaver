@@ -19,7 +19,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { CurrentStack } from "@orb/ui/current";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
-import { MessageList } from "@orb/ui/message-list";
+import { MESSAGE_LIST_LEADING_SLOT, MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -411,9 +411,10 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative block-full min-block-0" gap="field">
+      <Stack className="relative block-full min-block-0">
         {sourceStatus}
-        {leading}
+        {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
+        <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
         <EmptyThread />
       </Stack>
     );

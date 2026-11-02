@@ -32,6 +32,10 @@ const READING_CELLS = [
   { width: 568, height: 320, factor: 3 },
   { width: 390, height: 844, factor: 3 },
 ] as const;
+const EMPTY_ROOM_VIEWPORTS = [
+  { width: 1280, height: 900 },
+  { width: 844, height: 390 },
+] as const;
 // The first-open cells the review measured off the room's end, each with the keyboard it used.
 const FIRST_OPEN_CELLS = [
   { width: 568, height: 320, factor: 1, keyboard: 170 },
@@ -40,6 +44,39 @@ const FIRST_OPEN_CELLS = [
 
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
+let emptyRoomId: ChatId;
+
+/** A corpus room with no older pages, a second character seated and every message deleted: an empty group room. */
+async function seatEmptyGroupRoom(): Promise<ChatId> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    const page = await caller.chat.listMessages({ chatId: row.id });
+    if (row.id === roomId || page.previousCursor !== null) {
+      continue;
+    }
+    const seated = new Set(
+      (await caller.chat.getChat({ chatId: row.id })).participants.flatMap((seat) => (seat.kind === "character" ? [seat.characterId] : [])),
+    );
+    const guest = (await caller.character.list({})).items.find((character) => !seated.has(character.id));
+    if (guest === undefined) {
+      continue;
+    }
+    await caller.chat.addCharacterToChat({ chatId: row.id, characterId: guest.id });
+    if (page.messages.length > 0) {
+      await caller.chat.deleteMessages({ chatId: row.id, messageIds: page.messages.map((message) => message.id) });
+    }
+    return row.id;
+  }
+  throw new Error("The corpus has no room to empty");
+}
+
+/** How many of the matched copies paint: a visually hidden copy keeps a one-pixel box. */
+function paintedCopies(copies: readonly Element[], subpixel: number): number {
+  return copies.filter((copy) => {
+    const box = copy.getBoundingClientRect();
+    return copy.checkVisibility() && box.width > subpixel && box.height > subpixel;
+  }).length;
+}
 
 /** The corpus's paged room with a second character seated: no corpus room is both, and the strip needs two. */
 async function seatPagedGroupRoom(): Promise<ChatId> {
@@ -67,6 +104,7 @@ test.use({ hasTouch: true, isMobile: true });
 test.beforeAll(async () => {
   root = await createCorpusHarness();
   roomId = await seatPagedGroupRoom();
+  emptyRoomId = await seatEmptyGroupRoom();
 });
 
 test.beforeEach(async ({ corpus, page }) => {
@@ -319,6 +357,23 @@ test.describe("a reader on a tall phone whose text size crosses the short room's
       await expect(earlier).toBeFocused();
       await expect(earlier).toBeInViewport({ ratio: 1 });
     }
+  });
+});
+
+// A desktop window is the tall regime; the landscape phone is the short one. Either way the room paints one strip.
+forEachNonEmpty(EMPTY_ROOM_VIEWPORTS, "EMPTY_ROOM_VIEWPORTS", (viewport) => {
+  test.describe(`an empty group room at ${String(viewport.width)}x${String(viewport.height)}`, () => {
+    test.use({ viewport });
+
+    test("paints its member strip once, and Earlier messages at most once", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: emptyRoomId });
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeAttached();
+      await expect(page.getByTestId(testId("chatCharacterBar")).first()).toBeAttached();
+      await expect(page.locator('[data-slot="message-row"]')).toHaveCount(0);
+      await expect.poll(() => page.getByTestId(testId("chatCharacterBar")).evaluateAll(paintedCopies, SUBPIXEL)).toBe(1);
+      expect(await pointerEarlier(page.locator('[data-slot="chat-room-surface"]')).evaluateAll(paintedCopies, SUBPIXEL)).toBeLessThanOrEqual(1);
+    });
   });
 });
 

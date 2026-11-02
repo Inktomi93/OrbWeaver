@@ -17,6 +17,10 @@ import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
 const OVERSCAN = 2;
 
+/** The slot of the leading chrome's box. A caller that renders its chrome without rows (an empty thread) wraps it in
+ *  the same slot, so a stylesheet that picks a copy by this slot reads one shape. */
+export const MESSAGE_LIST_LEADING_SLOT = "message-list-leading";
+
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
 const SCROLL_END_THRESHOLD_PX = 80;
 
@@ -472,7 +476,12 @@ export function MessageList<T>({
       {leading === undefined ? null : (
         // In flow above the row viewport, so it scrolls with the rows; its top inset is the rows' own block breathing.
         // Paper says what the transcript leaves out on its own, so none of this chrome prints.
-        <div ref={setLeadingNode} className="print:hidden" data-slot="message-list-leading" style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}>
+        <div
+          ref={setLeadingNode}
+          className="print:hidden"
+          data-slot={MESSAGE_LIST_LEADING_SLOT}
+          style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}
+        >
           {leading}
         </div>
       )}
