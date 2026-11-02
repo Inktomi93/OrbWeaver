@@ -106,7 +106,10 @@ async function openEditor(page: Page, ruleName: string): Promise<Locator> {
 
 const MOUNT_PROPS = { width: 960, appearance: appearanceSettingsSchema.parse({}) };
 
-test("a held tool catalog read shows the loading skeleton, a failed one the error block, and Retry shows the Tool field", async ({ mount, page }) => {
+test("a held tool catalog read shows the loading skeleton, a failed one the error block, the argument template stays editable, and Retry shows the Tool field", async ({
+  mount,
+  page,
+}) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const read = heldThenFailing();
@@ -119,10 +122,12 @@ test("a held tool catalog read shows the loading skeleton, a failed one the erro
   await editor.getByRole("button", { name: "Add action", exact: true }).click();
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
-  // The result-capture control is read-independent and stays standing.
+  // The result-capture control and the editable argument template are read-independent and stay standing.
   await expect(editor.getByRole("button", { name: "Capture tool result", exact: true })).toBeVisible();
+  await expect(editor.getByText("Argument template (JSON)", { exact: true })).toBeVisible();
   read.hold.fail();
   await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toBeVisible();
+  await expect(editor.getByText("Argument template (JSON)", { exact: true })).toBeVisible();
   read.recover();
   await editor.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toHaveCount(0);

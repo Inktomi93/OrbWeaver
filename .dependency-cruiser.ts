@@ -653,10 +653,6 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/refinery/components/context-tabs.tsx":
       "VersionsTab: the refinery Versions tab, which only the section's tab body renders and no door forwards",
   },
-  "tests/client/features/credentials/components/_account-credits-stories.tsx": {
-    "packages/client/src/features/credentials/components/connection-account.tsx":
-      "ConnectionAccount: the Diagnostics account block, which only the connection editor renders and no door forwards",
-  },
   "tests/client/features/chat/components/_chat-reads-boundary-stories.tsx": {
     "packages/client/src/features/chat/components/variant-wire-viewer.tsx":
       "VariantWireViewer: the wire dialog, which only the message row opens behind a host-only trigger and no door forwards",

@@ -30,51 +30,45 @@
 // nothing. (With it goes the knob-naming line that existed so the empty state didn't read as "this feature
 // doesn't exist": the state it explained no longer renders, and the kicker still names the clusters.)
 //
-// The `error === null` ⇒ PENDING derivation is the read's own exhaustiveness, not a coincidence: the deck
-// renders this gate only when the descriptor is absent, and an absent descriptor with no error is by
-// construction a read that has not landed.
+// The deck mounts `CapabilityGate` as the error render of its model-fed clusters' QueryBoundary, and
+// `CapabilityGatePending` as that boundary's fallback, so each arm is the boundary's own state.
 
+import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
-import { MODEL_ROLES_PATH_TEXT } from "#lib";
-import type { ReadFailure } from "../lib/resolve-failure.ts";
+import { DIALOG_VERBS, MODEL_ROLES_PATH_TEXT } from "#lib";
 import { failureCause, resolveFailureMessage } from "../lib/resolve-failure.ts";
 
 /** One placeholder bar per model-fed cluster the settled read will fill (SAMPLING, REASONING and the seed
  *  row) — enough to hold the column's height so the deck does not jump when the descriptor lands. */
 const PENDING_ROWS = 3;
 
-export interface CapabilityGateProps {
-  /** The capability read's THROWN error — `null` while the read is still PENDING. Those two states are
-   *  exhaustive here (see the header): a settled-successful read carries a descriptor, so the deck renders
-   *  its real clusters and never mounts this gate.
-   *
-   *  It is the error OBJECT, not a pre-extracted message: the band discriminates on the structured
-   *  `error.data.code` tRPC puts there (via `failureCause`) to decide whether it has EARNED the routing
-   *  verdict. A caller that flattened it to `.message` first would take that choice away.
-   *
-   *  TYPED `ReadFailure | null`, never `unknown` (graduation verifier, 2026-08-08): the FAILED arm is
-   *  selected by `error !== null`, so a widened prop let an `undefined` — the shape a query that has not
-   *  landed hands up — select a permanent failure band under a read that never failed. (Not `Error`
-   *  either: `useQuery().error` is a `TRPCClientErrorLike`, an interface with no `name`, so `tsc` refuses
-   *  it — see `ReadFailure`'s own note.) */
-  readonly error: ReadFailure | null;
+/** The PENDING arm: a shape-matched skeleton that asserts nothing. */
+export function CapabilityGatePending(): ReactElement {
+  return (
+    <Section kicker="Sampling · reasoning · output">
+      {/* The ONE placeholder-row home (`SkeletonRows`, rollup-audit C2) — never a hand-assembled stack of
+          `Skeleton`s, and never a spinner flash (UIP-309). It carries its own `aria-busy`. */}
+      <SkeletonRows count={PENDING_ROWS} />
+    </Section>
+  );
 }
 
-export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
-  if (error === null) {
-    return (
-      <Section kicker="Sampling · reasoning · output">
-        {/* The ONE placeholder-row home (`SkeletonRows`, rollup-audit C2) — never a hand-assembled stack of
-            `Skeleton`s, and never a spinner flash (UIP-309). It carries its own `aria-busy`. */}
-        <SkeletonRows count={PENDING_ROWS} />
-      </Section>
-    );
-  }
+export interface CapabilityGateProps {
+  /** The capability read's THROWN error, as the boundary hands it. It is the error OBJECT, not a pre-extracted
+   *  message: the band discriminates on the structured `error.data.code` tRPC puts there (via `failureCause`)
+   *  to decide whether it has EARNED the routing verdict. */
+  readonly error: unknown;
+  /** Resets the boundary, so the read is made again. */
+  readonly onRetry: () => void;
+}
+
+/** The FAILED arm. */
+export function CapabilityGate({ error, onRetry }: CapabilityGateProps): ReactElement {
   // ONLY a `BAD_REQUEST` (the routing refusal `assertCoherent` throws) earns a CAUSE here; every other code
   // — a `NOT_FOUND`, a missing precondition, a 500, a dropped socket — withholds it. BOTH LINES SWING
   // TOGETHER (graduation verifier, 2026-08-08): the first cut discriminated only the guidance, so the
@@ -104,6 +98,9 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
                 ? `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`
                 : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
             </Text>
+            <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
+              {DIALOG_VERBS.retry}
+            </Button>
           </Stack>
         </Row>
       </Card>

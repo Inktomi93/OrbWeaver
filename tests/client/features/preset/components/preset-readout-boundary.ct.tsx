@@ -147,6 +147,22 @@ test("Prompt keeps its estimates while pricing is held, a host-only refusal is s
   await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toHaveCount(0);
 });
 
+test("Prompt keeps the assembled preview open and focused while the pricing lands", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { host, presetId, chatId } = await setup(root, page);
+  const read = failThenRecover();
+  read.recover();
+  await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewAssembly"], read.intercept) });
+  await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
+  await read.hold.requested;
+  await page.getByRole("button", { name: "Show assembled preview", exact: true }).click();
+  const hide = page.getByRole("button", { name: "Hide assembled preview", exact: true });
+  await expect(hide).toBeFocused();
+  read.hold.release();
+  await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toHaveCount(0);
+  await expect(hide).toBeFocused();
+});
+
 test("Prompt says a member cannot price a room they do not host, with no Retry", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId, chatId } = await setup(root, page);
@@ -173,6 +189,60 @@ test("Actions holds, fails and retries the resolved preview, and says the host-o
   read.recover();
   await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toHaveCount(0);
+});
+
+test("Params says a no-chat-model refusal through the profile's failure band beside a standing Select, and Retry shows the profile", async ({
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  const { host, presetId } = await setup(root, page);
+  const hold = holdServed();
+  let phase: "hold" | "refuse" | "serve" = "hold";
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(host, READOUT_READS),
+    ...serveCorpusProcedures(host, ["preset.resolveEffective"], () => {
+      if (phase === "hold") {
+        phase = "refuse";
+        return hold;
+      }
+      return phase === "refuse" ? trpcError({ code: "BAD_REQUEST", message: "No chat model resolves for this role" }) : undefined;
+    }),
+  });
+  await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
+  await hold.requested;
+  const select = page.getByRole("combobox", { name: "Connection to describe", exact: true });
+  await expect(select).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
+  hold.fail();
+  await expect(page.getByText("No chat model resolves for this role", { exact: true })).toBeVisible();
+  await expect(select).toBeVisible();
+  phase = "serve";
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByText("No chat model resolves for this role", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/· chat role/u)).toBeVisible();
+});
+
+test("Params keeps the settled profile on screen while a switched connection's profile is held", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { host, presetId } = await setup(root, page);
+  const hold = holdServed();
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(host, READOUT_READS),
+    ...serveCorpusProcedures(host, ["preset.resolveEffective"], (input) =>
+      input.target?.kind === "role" && input.target.task === "summarize" ? hold : undefined,
+    ),
+  });
+  await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
+  const signature = page.getByText(/· chat role/u);
+  await expect(signature).toBeVisible();
+  await page.getByRole("combobox", { name: "Connection to describe", exact: true }).click();
+  await page.getByRole("option", { name: "Utility model role", exact: true }).click();
+  await hold.requested;
+  await expect(signature).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  hold.release();
+  await expect(page.getByText(/· utility model role/u)).toBeVisible();
 });
 
 test("Actions says a member cannot inspect a room they do not host, with no Retry", async ({ mount, page }) => {

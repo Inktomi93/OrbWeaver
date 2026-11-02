@@ -41,6 +41,10 @@ export interface CorpusSearchResultsProps {
 /** Dispatch to the engine the active target names — the unified `search.search`, or the lexical `fields`. */
 export function CorpusSearchResults({ query, targetId, retainFinderScroll = false, rerank = false, onTextInstead }: CorpusSearchResultsProps): ReactElement {
   const target = resolveSearchTarget(targetId);
+  // The contract refuses an empty query, and a debounced query is empty until typing settles; nothing is read until it is not.
+  if (query.trim() === "") {
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
+  }
   if (target.kind === "fields") {
     return <FieldsResults query={query} label={target.label} retainFinderScroll={retainFinderScroll} />;
   }
@@ -82,6 +86,7 @@ function UnifiedResults({
           <QueryErrorState label="the search" onRetry={retry} />
         )
       }
+      resetKeys={[query.trim(), over, rerank]}
     >
       <UnifiedResultsRead label={label} over={over} query={query} rerank={rerank} retainFinderScroll={retainFinderScroll} />
     </QueryBoundary>
@@ -227,6 +232,7 @@ function FieldsResults({
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the text search" onRetry={retry} />}
+      resetKeys={[query.trim()]}
     >
       <FieldsResultsRead label={label} query={query} retainFinderScroll={retainFinderScroll} />
     </QueryBoundary>

@@ -1,3 +1,4 @@
+import type { ChatListCharacterFilter } from "@orb/client/state";
 import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
@@ -15,11 +16,11 @@ export function VariantWireViewerStory({ chatId, variantId }: { readonly chatId:
   );
 }
 
-/** The chat list's faces strip with no character scoped. */
-export function ChatListFacesStripStory(): ReactElement {
+/** The chat list's faces strip, scoped to `characterFilter` when one is given. */
+export function ChatListFacesStripStory({ characterFilter = null }: { readonly characterFilter?: ChatListCharacterFilter | null }): ReactElement {
   return (
     <CtClientProviders>
-      <ChatListFacesStrip characterFilter={null} />
+      <ChatListFacesStrip characterFilter={characterFilter} />
     </CtClientProviders>
   );
 }

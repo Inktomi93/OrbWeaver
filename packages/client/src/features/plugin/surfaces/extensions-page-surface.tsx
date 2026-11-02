@@ -31,8 +31,10 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
+import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { cn, testId, useFocusOnMount } from "#lib";
+import type { PluginPageKey } from "#state";
 import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
 import { ExtensionsPaneAnchor } from "../anchors/extensions-pane-anchor.tsx";
 import { PluginFrame } from "../components/plugin-frame.tsx";
@@ -43,7 +45,7 @@ import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
 import type { ExtensionsEmptyView } from "../hooks/use-extensions-empty.ts";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import type { PluginPageView } from "../hooks/use-plugin-pages.ts";
-import { pluginReviewKey, usePluginPagesState } from "../hooks/use-plugin-pages.ts";
+import { pluginReviewKey, usePluginPages, useSuspensePluginPages } from "../hooks/use-plugin-pages.ts";
 import {
   EXTENSIONS_EMPTY_COPY,
   EXTENSIONS_GONE_BODY,
@@ -167,8 +169,7 @@ export function ExtensionsPageSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
   const trpc = useTRPC();
   const key = usePluginPageKey();
-  const pageState = usePluginPagesState();
-  const pages = pageState.pages;
+  const pages = usePluginPages();
   const empty = useExtensionsEmpty();
   // The reviewed plugin is resolved against the WHOLE list, not the waiting subset, so its row stays on screen
   // after approval and shows the outcome (on, or the error that stopped it).
@@ -190,29 +191,11 @@ export function ExtensionsPageSurface(): ReactElement {
       })
       .catch((error: unknown) => globalThis.reportError(error));
   };
-  const page = key === null ? undefined : pages.find((candidate) => candidate.key === key);
 
   if (reviewed !== undefined) {
     return (
       <InsetPane className="py-section" surfaceRef={surfaceRef}>
         <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
-      </InsetPane>
-    );
-  }
-  if (key !== null && pageState.isPending) {
-    return (
-      <InsetPane surfaceRef={surfaceRef}>
-        <Stack gap="block" role="status">
-          <Text voice="label">Loading plugin page…</Text>
-          <SkeletonRows count={3} shape="line" />
-        </Stack>
-      </InsetPane>
-    );
-  }
-  if (key !== null && pageState.isError) {
-    return (
-      <InsetPane surfaceRef={surfaceRef}>
-        <QueryErrorState label="this plugin page" onRetry={pageState.retry} />
       </InsetPane>
     );
   }
@@ -223,6 +206,30 @@ export function ExtensionsPageSurface(): ReactElement {
       </InsetPane>
     );
   }
+  return (
+    <QueryBoundary
+      fallback={
+        <InsetPane surfaceRef={surfaceRef}>
+          <Stack gap="block" role="status">
+            <Text voice="label">Loading plugin page…</Text>
+            <SkeletonRows count={3} shape="line" />
+          </Stack>
+        </InsetPane>
+      }
+      renderError={(_error, retry): ReactElement => (
+        <InsetPane surfaceRef={surfaceRef}>
+          <QueryErrorState label="this plugin page" onRetry={retry} />
+        </InsetPane>
+      )}
+    >
+      <SelectedPage pageKey={key} surfaceRef={surfaceRef} />
+    </QueryBoundary>
+  );
+}
+
+/** The selected page, read through the pane's boundary: the page itself, or the gone state when nothing resolves the key. */
+function SelectedPage({ pageKey, surfaceRef }: { readonly pageKey: PluginPageKey; readonly surfaceRef: RefObject<HTMLDivElement | null> }): ReactElement {
+  const page = useSuspensePluginPages().find((candidate) => candidate.key === pageKey);
   if (page === undefined) {
     // The drill outlived what it named — the plugin was disabled or removed while it was open. The honest line,
     // not a blank pane, and NO write from a render: a dead reference never self-heals by pruning itself (D138

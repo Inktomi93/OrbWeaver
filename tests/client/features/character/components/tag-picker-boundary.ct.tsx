@@ -1,6 +1,6 @@
 // @subject packages/client/src/components/tag-picker-dialog.tsx
 // The tag picker dialog reads the tag library through the shared boundary only while open: a held read shows the loading skeleton, a failed one
-// the shared error block, and Retry shows the picker field.
+// the shared error block, and Retry brings the create arm. The field and the dialog shell stay mounted throughout.
 
 import { createTagSchema } from "@orb/contracts/tag";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -36,7 +36,7 @@ function heldThenFailing(): { readonly hold: Held; readonly intercept: () => Hel
   };
 }
 
-test("a held tag library read shows the loading skeleton in the tag picker, a failed one the error block, and Retry shows the field", async ({
+test("the tag picker field stays typeable in one dialog while the library is held and failed, and Retry brings the create-or-attach line", async ({
   mount,
   page,
 }) => {
@@ -50,9 +50,17 @@ test("a held tag library read shows the loading skeleton in the tag picker, a fa
   const dialog = page.getByRole("dialog");
   await read.hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
+  const field = dialog.getByRole("combobox", { name: TAG_NAME_FIELD_NAME });
+  await field.fill("Pic");
+  const shell = await dialog.elementHandle();
   read.hold.fail();
   await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toBeVisible();
+  await expect(field).toHaveValue("Pic");
   read.recover();
   await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByRole("combobox", { name: TAG_NAME_FIELD_NAME })).toBeVisible();
+  await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toHaveCount(0);
+  await expect(field).toHaveValue("Pic");
+  await expect(dialog.getByRole("button", { name: 'Create "Pic"', exact: true })).toBeVisible();
+  // The dialog shell is the same node from the held read to the settled one: it never remounts, so its open animation never replays.
+  expect(await shell.evaluate((node) => node.isConnected)).toBe(true);
 });

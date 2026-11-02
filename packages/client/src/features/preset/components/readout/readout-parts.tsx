@@ -82,9 +82,9 @@ function readingSuffix(
  *  model the caller has, THROWING when routing is broken — so an absent profile is a read that has not
  *  LANDED or one that FAILED, and there is no settled "you have no chat model" arm for this component to
  *  render. A "Connect a chat model" line on every absent read would flash at users who have one connected,
- *  and on a routing failure it would name the wrong cause. The two REACHABLE arms render as themselves: a
- *  shape-matched skeleton that asserts nothing while `error === null`, and the server's own message when the
- *  read has failed.
+ *  and on a routing failure it would name the wrong cause. The two REACHABLE arms are the caller's boundary
+ *  states: {@link EffectiveProfilePending}, a shape-matched skeleton that asserts nothing, and
+ *  {@link EffectiveProfileFailure}, the server's own message when the read has failed.
  *
  *  WHICH CAUSE THAT FAILURE NAMES IS DERIVED, NOT ASSERTED. An unconditional "this is a routing problem"
  *  over a RAW TRANSPORT STRING would tell a preset deleted in another tab (`NOT_FOUND`), a 500 and a dropped
@@ -93,27 +93,16 @@ function readingSuffix(
  *  be a dead end (UI-Arch §4.3 rule 1, the `QueryErrorState` grammar). */
 export function EffectiveProfile({
   effective,
-  error,
-  onRetry,
   contextWindow,
   contextSetByPreset = false,
   subject,
   skipped,
 }: {
-  readonly effective: EffectiveProfileRow | undefined;
+  readonly effective: EffectiveProfileRow;
   /** The knobs the server will not run this turn (`mirostatSkipped`): their rows say so in place of a rung. */
   readonly skipped?: ReadonlySet<string> | undefined;
   /** What the profile was resolved against, as the signature line names it (`chat role`, a connection's name). */
   readonly subject: string;
-  /** The resolve's THROWN error — `null` while the read is still PENDING. With `effective` undefined those
-   *  two are exhaustive (see above); a settled-successful read always carries a profile.
-   *
-   *  It is the error OBJECT, not a pre-extracted message: the band discriminates on the structured
-   *  `data.code` tRPC puts there, and a caller that flattened it to `.message` first would take that choice
-   *  away from the one place that owns the words. */
-  readonly error: unknown;
-  /** Refetches the failed resolve. Wired to the query's own `refetch`, so Retry actually re-reads. */
-  readonly onRetry: () => void;
   /** The model's context window — the ONE row the funnel deliberately does not resolve (`maxContextTokens`
    *  is our history soft-cap, not a wire knob), and which the mock nonetheless prints because it IS part of
    *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
@@ -122,22 +111,6 @@ export function EffectiveProfile({
   /** The preset's Max context set that window (a route whose window the request sends), so the row says so. */
   readonly contextSetByPreset?: boolean;
 }): ReactElement {
-  if (effective === undefined) {
-    if (error === null) {
-      return (
-        <Section kicker="Effective generation">
-          {/* The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
-              never a spinner flash. It carries its own `aria-busy`. */}
-          <SkeletonRows count={PENDING_ROWS} shape="datum" />
-        </Section>
-      );
-    }
-    return (
-      <Section kicker="Effective generation">
-        <EffectiveProfileFailure error={error} onRetry={onRetry} />
-      </Section>
-    );
-  }
   const rows = Object.entries(effective.knobs);
   return (
     <Section kicker="Effective generation">
@@ -169,36 +142,52 @@ export function EffectiveProfile({
   );
 }
 
+/** The profile's PENDING arm — a shape-matched skeleton that asserts nothing. */
+export function EffectiveProfilePending(): ReactElement {
+  return (
+    <Section kicker="Effective generation">
+      {/* The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
+          never a spinner flash. It carries its own `aria-busy`. */}
+      <SkeletonRows count={PENDING_ROWS} shape="datum" />
+    </Section>
+  );
+}
+
 /** The failure band: what failed, the server's own words, what to do, and a Retry. `role="alert"` so AT
  *  announces the state rather than leaving a silently-swapped region (the `RpgErrorState` grammar); the
- *  cause it names comes from `lib/resolve-failure.ts`, never from this file's opinion. */
-function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; readonly onRetry: () => void }): ReactElement {
+ *  cause it names comes from `lib/resolve-failure.ts`, never from this file's opinion.
+ *
+ *  `error` is the thrown OBJECT, not a pre-extracted message: the band discriminates on the structured
+ *  `data.code` tRPC puts there, so the typed no-chat-model refusal names its own cause. */
+export function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; readonly onRetry: () => void }): ReactElement {
   const copy = resolveFailureCopy(error);
   const message = resolveFailureMessage(error);
   return (
-    <Card tone="warning" variant="soft">
-      <Row align="start" gap="field" role="alert">
-        <Icon icon={TriangleAlert} size="sm" tone="warning" />
-        <Stack gap="tight">
-          <Text prose={true} voice="label">
-            {copy.headline}
-          </Text>
-          {message === null ? null : (
-            <Text prose={true} voice="gloss">
-              {message}
+    <Section kicker="Effective generation">
+      <Card tone="warning" variant="soft">
+        <Row align="start" gap="field" role="alert">
+          <Icon icon={TriangleAlert} size="sm" tone="warning" />
+          <Stack gap="tight">
+            <Text prose={true} voice="label">
+              {copy.headline}
             </Text>
-          )}
-          <Text prose={true} voice="gloss">
-            {copy.guidance}
-          </Text>
-          {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
+            {message === null ? null : (
+              <Text prose={true} voice="gloss">
+                {message}
+              </Text>
+            )}
+            <Text prose={true} voice="gloss">
+              {copy.guidance}
+            </Text>
+            {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
             reads as the band's own primary action rather than as the recovery for the line above it. */}
-          <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
-            {DIALOG_VERBS.retry}
-          </Button>
-        </Stack>
-      </Row>
-    </Card>
+            <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
+              {DIALOG_VERBS.retry}
+            </Button>
+          </Stack>
+        </Row>
+      </Card>
+    </Section>
   );
 }
 

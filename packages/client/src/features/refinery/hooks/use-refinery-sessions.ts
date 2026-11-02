@@ -9,8 +9,7 @@
 //
 // THE `TError` HALF IS `TrpcReadError`, NEVER `UseQueryResult`'s DEFAULT. That default is `Error`, which the
 // real client result does not satisfy: a tRPC error is `TRPCClientErrorLike`, an INTERFACE with no `name`
-// (measured here — `UseQueryResult<SessionList>` is tsc TS2322; the same measurement
-// `features/preset/lib/resolve-failure.ts` records for its `ReadFailure` prop). The alias is derived off
+// (measured here — `UseQueryResult<SessionList>` is tsc TS2322). The alias is derived off
 // `AppRouter` in `data/trpc.ts` precisely so a feature hook can satisfy `useExplicitReturnType` without
 // re-spelling the router's error shape here (§5.4 — one home, derive, never re-spell).
 //

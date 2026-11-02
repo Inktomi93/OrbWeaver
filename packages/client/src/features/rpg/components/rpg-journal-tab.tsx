@@ -38,6 +38,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
@@ -309,15 +310,25 @@ export interface RpgJournalTabProps {
   readonly state: RpgPanelState;
 }
 
+const NO_CARDS: readonly ArchivedCard[] = [];
+
+/** The chronicle with the cards it has. An unread or failed transcript costs the chronicle nothing: its cards merge in only once
+ *  both reads settle, so the entries and the host's composer never wait on, or blank for, the transcript. */
+function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: RpgPanelState; readonly cardsEnabled: boolean }): ReactElement {
+  const trpc = useTRPC();
+  const messages = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const chat = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const cards =
+    messages.data === undefined || chat.data === undefined
+      ? NO_CARDS
+      : collectArchivedCards(messages.data.messages, { participants: chat.data.participants, viewerUserId: state.viewerUserId });
+  return <JournalEntries state={state} cards={cards} />;
+}
+
 /** The scope's body — a Record over the closed scope axis (never a nested ternary). A game that crafts no cards never reads the
  *  transcript, so its archive is empty rather than pending. */
 const SCOPE_BODY: Readonly<Record<JournalScope, (state: RpgPanelState, cardsEnabled: boolean) => ReactElement>> = {
-  all: (state, cardsEnabled) =>
-    cardsEnabled ? (
-      <CardArchive state={state}>{(cards): ReactElement => <JournalEntries state={state} cards={cards} />}</CardArchive>
-    ) : (
-      <JournalEntries state={state} cards={[]} />
-    ),
+  all: (state, cardsEnabled) => <ChronicleWithSettledCards cardsEnabled={cardsEnabled} state={state} />,
   marks: (state) => <JournalMarks state={state} />,
   cards: (state) => <CardArchive state={state}>{(cards): ReactElement => <JournalCards cards={cards} chatId={state.chatId} />}</CardArchive>,
 };

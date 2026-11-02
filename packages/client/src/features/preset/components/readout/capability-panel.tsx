@@ -1,6 +1,10 @@
 // The Params readout's capability half with its CONNECTION SWITCHER (inference program §5.3a): the effective
 // profile and the capability card describe one role or connection, named as role · provider · model. The pick is
 // view state only; the panel still writes nothing (the readout's read-only pin).
+//
+// The Select stays outside the boundary; the profile and the card read under it against a DEFERRED pick, so a
+// switch keeps the settled profile on screen until the new one lands. A resolve that throws — the typed no-chat-model
+// refusal included — renders through the boundary's error render as the profile's failure band.
 
 import type { CapabilityTarget } from "@orb/contracts/inference";
 import { windowForPreset } from "@orb/contracts/inference";
@@ -11,14 +15,16 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useDeferredValue } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { useTRPC } from "#data";
+import { useSuspenseQuery, useTRPC } from "#data";
 import { CONNECTION_ROLE_LABELS } from "#lib";
 import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "#src/features/preset/lib/capability-target.ts";
 import { chatCapabilityOf } from "#src/features/preset/lib/chat-capability.ts";
 import { mirostatSkipped } from "#src/features/preset/lib/effective-knobs.ts";
 import { setPresetReadoutTarget, usePresetReadoutTarget } from "#state";
-import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
+import { CapabilityCard, EffectiveProfile, EffectiveProfileFailure, EffectiveProfilePending } from "./readout-parts.tsx";
 
 type ConnectionRow = inferOutput<Trpc["connection"]["list"]>[number];
 type EffectiveRead = inferOutput<Trpc["preset"]["resolveEffective"]>;
@@ -26,26 +32,20 @@ type EffectiveRead = inferOutput<Trpc["preset"]["resolveEffective"]>;
 export interface CapabilityPanelProps {
   readonly presetId: PresetId;
   /** Rendered under the card with the same effective read (the open preset's quality mapping). */
-  readonly footer?: ((effective: EffectiveRead | undefined) => ReactNode) | undefined;
+  readonly footer?: ((effective: EffectiveRead) => ReactNode) | undefined;
 }
 
 export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): ReactElement {
   const trpc = useTRPC();
   const picked = usePresetReadoutTarget() ?? CHAT_ROLE_TARGET;
+  // The Select's items and the in-view line are values with a default: an unread list offers the roles alone.
   const connections = useQuery(trpc.connection.list.queryOptions());
   // Only a row that can chat has sampling and effort for this panel to describe.
   const chatRows = connections.data?.filter((row) => row.tasks.includes("chat"));
-  const { target, removed } = effectiveTarget(
-    picked,
-    chatRows?.map((row) => row.id),
-  );
-  const capability = useQuery(trpc.connection.resolveChatCapability.queryOptions({ target }));
-  const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId, target }));
-  const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
-  const inView = capability.data === undefined ? undefined : connections.data?.find((row) => row.id === capability.data.connectionId);
-  const generation = chatCapabilityOf(capability.data);
-  // The window a send runs: on a route whose window the request sets, every role sends its preset's Max context.
-  const turnGeneration = generation === undefined ? generation : windowForPreset(generation, preset.data?.config.params.maxContextTokens);
+  const chatRowIds = chatRows?.map((row) => row.id);
+  const { target, removed } = effectiveTarget(picked, chatRowIds);
+  const described = effectiveTarget(useDeferredValue(picked), chatRowIds).target;
+  const inView = useQuery(trpc.connection.resolveChatCapability.queryOptions({ target })).data;
 
   return (
     <>
@@ -63,13 +63,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
             },
           ]}
           onValueChange={(value): void => {
-            const next =
-              value === null
-                ? null
-                : targetFromValue(
-                    value,
-                    (chatRows ?? []).map((row) => row.id),
-                  );
+            const next = value === null ? null : targetFromValue(value, chatRowIds ?? []);
             if (next !== null) {
               setPresetReadoutTarget(next);
             }
@@ -81,23 +75,46 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
             The connection you were looking at was removed, so this shows your Chat role.
           </Text>
         ) : null}
-        <InViewLine model={capability.data?.model} row={inView} target={target} />
+        <InViewLine model={inView?.model} row={connections.data?.find((row) => row.id === inView?.connectionId)} target={target} />
       </Section>
-      {/* The resolve's ERROR rides alongside its data (F-02): absent + no error is PENDING, absent + error is a
-          settled failure, and the band discriminates on the structured code. */}
+      <QueryBoundary
+        fallback={<EffectiveProfilePending />}
+        renderError={(error, retry): ReactElement => <EffectiveProfileFailure error={error} onRetry={retry} />}
+      >
+        <DescribedProfile footer={footer} presetId={presetId} target={described} />
+      </QueryBoundary>
+    </>
+  );
+}
+
+/** The profile and the capability card for one target: the resolve, the funnel against it, and the preset's own window. */
+function DescribedProfile({
+  presetId,
+  target,
+  footer,
+}: {
+  readonly presetId: PresetId;
+  readonly target: CapabilityTarget;
+  readonly footer: CapabilityPanelProps["footer"];
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data: capability } = useSuspenseQuery(trpc.connection.resolveChatCapability.queryOptions({ target }));
+  const { data: effective } = useSuspenseQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId, target }));
+  const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
+  const generation = chatCapabilityOf(capability);
+  // The window a send runs: on a route whose window the request sets, every role sends its preset's Max context.
+  const turnGeneration = generation === undefined ? generation : windowForPreset(generation, preset.config.params.maxContextTokens);
+  return (
+    <>
       <EffectiveProfile
         contextSetByPreset={turnGeneration !== generation}
         contextWindow={turnGeneration?.context.window}
-        effective={effective.data ?? undefined}
-        error={effective.error}
-        onRetry={(): void => {
-          effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
-        }}
-        skipped={mirostatSkipped(effective.data ?? undefined, generation?.sampling.mirostatSkips)}
+        effective={effective}
+        skipped={mirostatSkipped(effective, generation?.sampling.mirostatSkips)}
         subject={subjectOf(target)}
       />
-      <CapabilityCard capability={generation} model={effective.data?.model} />
-      {footer?.(effective.data ?? undefined)}
+      <CapabilityCard capability={generation} model={effective.model} />
+      {footer?.(effective)}
     </>
   );
 }

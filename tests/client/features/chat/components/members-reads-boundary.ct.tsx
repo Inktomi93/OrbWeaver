@@ -79,12 +79,15 @@ test("a held member card read shows the loading skeleton, a failed one the error
   const dialog = page.getByRole("dialog");
   await hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
+  const shell = await dialog.elementHandle();
   hold.fail();
   await expect(dialog.getByText("Couldn't load this character card.", { exact: true })).toBeVisible();
   failing = false;
   await dialog.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(dialog.getByText("Couldn't load this character card.", { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: characterName, exact: true })).toBeVisible();
+  // The dialog shell is the same node from the held read to the settled card: it never remounts, so its open animation never replays.
+  expect(await shell.evaluate((node) => node.isConnected)).toBe(true);
 });
 
 test("a card that left the room is the gone state, not the error block", async ({ mount, page }) => {

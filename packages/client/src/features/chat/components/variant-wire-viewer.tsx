@@ -48,10 +48,9 @@ import { LogViewer } from "@orb/ui/log-viewer";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 
-const TRANSIENT_RETRIES = 2;
 const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 export interface VariantWireViewerProps {
@@ -245,9 +244,8 @@ function LoadedWire({ chatId, variantId }: { readonly chatId: ChatId; readonly v
   const trpc = useTRPC();
   const { data } = useSuspenseQuery({
     ...trpc.chat.getVariantWire.queryOptions({ chatId, variantId }),
-    // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner; any other failure retries a bounded
-    // number of times and then reaches the error block instead of loading forever.
-    retry: (failureCount, error): boolean => failureCount < TRANSIENT_RETRIES && !isNotFound(error),
+    // A variant that vanished (or was never ours) shouldn't retry a NOT_FOUND into a spinner; any other failure keeps the shared rule.
+    retry: (failureCount, error): boolean => !isNotFound(error) && retryUnlessBadRequest(failureCount, error),
   });
   return <WireBody wire={data} />;
 }

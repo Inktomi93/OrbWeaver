@@ -34,7 +34,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
@@ -88,16 +88,21 @@ function sectionName(section: PromptSection): string {
 /** The panel, with the binding resolved to its arm. The bound arm is its own component so the read's hook is
  *  unconditional and the unbound arm fires NO round trip at all (there is nothing to resolve against). */
 export function PromptReadout({ sections, selectedSectionId, presetId, boundChatId }: PromptReadoutProps): ReactElement {
-  if (boundChatId === null) {
-    return <PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />;
-  }
-  return <BoundPromptReadout chatId={boundChatId} presetId={presetId} sections={sections} selectedSectionId={selectedSectionId} />;
+  return (
+    <PromptReadoutBody sections={sections}>
+      {boundChatId === null ? (
+        <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
+      ) : (
+        <BoundPricing chatId={boundChatId} presetId={presetId} sections={sections} selectedSectionId={selectedSectionId} />
+      )}
+    </PromptReadoutBody>
+  );
 }
 
 /** The BOUND arm — the ONE `chat.previewAssembly` read with `presetOverride`, projected onto the rack. The
  *  read answers for the WHOLE assembly in one round trip, so selecting a different row re-projects a cached
  *  answer instead of refetching (the `previewActionTemplates` posture). */
-function BoundPromptReadout({
+function BoundPricing({
   chatId,
   presetId,
   sections,
@@ -108,24 +113,25 @@ function BoundPromptReadout({
   readonly sections: readonly PromptSection[];
   readonly selectedSectionId: string | null;
 }): ReactElement {
-  // Only the pricing suspends. The author-text estimates need no read, so they stay on screen while it pends and
-  // when it fails; `previewAssembly` is host-gated, so a member inspecting a room they do not host gets a typed
-  // FORBIDDEN, said as the refusal it is. Any other failure keeps the estimates and adds the shared Retry.
+  // Only the pricing suspends; the pivot and the preview disclosure sit outside it, so the pricing landing never closes an open
+  // preview. The author-text estimates need no read, so they stay on screen while it pends and when it fails; `previewAssembly`
+  // is host-gated, so a member inspecting a room they do not host gets a typed FORBIDDEN, said as the refusal it is. Any other
+  // failure keeps the estimates and adds the shared Retry.
   return (
     <QueryBoundary
-      fallback={<PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
+      fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (
-          <PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={NOT_HOST_STATUS} />
+          <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={NOT_HOST_STATUS} />
         ) : (
-          <Stack gap="section">
+          <>
             <QueryErrorState label="the bound chat's costs" onRetry={retry} />
-            <PromptReadoutBody costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
-          </Stack>
+            <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
+          </>
         )
       }
     >
-      <PricedPromptReadout chatId={chatId} presetId={presetId} sections={sections} selectedSectionId={selectedSectionId} />
+      <BoundPricedSections chatId={chatId} presetId={presetId} sections={sections} selectedSectionId={selectedSectionId} />
     </QueryBoundary>
   );
 }
@@ -133,7 +139,7 @@ function BoundPromptReadout({
 const PRICING_STATUS = "Pricing these rows against the bound chat…";
 const NOT_HOST_STATUS = "This chat cannot be priced — its host resolves the prompt, and you are not it.";
 
-function PricedPromptReadout({
+function BoundPricedSections({
   chatId,
   presetId,
   sections,
@@ -147,7 +153,7 @@ function PricedPromptReadout({
   const trpc = useTRPC();
   const { data: preview } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, presetOverride: presetId, timeZone: viewerTimeZone() }));
   const costs = new Map(preview.budget.sections.map((cost) => [cost.sectionId, cost]));
-  return <PromptReadoutBody costs={costs} sections={sections} selectedSectionId={selectedSectionId} status={null} />;
+  return <PricedSections costs={costs} sections={sections} selectedSectionId={selectedSectionId} status={null} />;
 }
 
 /** WHICH budget the bars are showing, said in one line under them. The three arms are the three honest
@@ -159,17 +165,9 @@ function budgetGloss(costs: MaterializedCosts | null): string {
   return "A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~— because their cost is the conversation's, not the preset's.";
 }
 
-function PromptReadoutBody({
-  sections,
-  selectedSectionId,
-  costs,
-  status,
-}: {
-  readonly sections: readonly PromptSection[];
-  readonly selectedSectionId: string | null;
-  readonly costs: MaterializedCosts | null;
-  readonly status: string | null;
-}): ReactElement {
+/** The read-independent half — the pivot health and the preview disclosure — in ONE instance across the pricing read, so the
+ *  pricing landing never closes an open preview or drops focus. `children` is the priced half. */
+function PromptReadoutBody({ sections, children }: { readonly sections: readonly PromptSection[]; readonly children: ReactNode }): ReactElement {
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const previewId = useId();
@@ -180,6 +178,63 @@ function PromptReadoutBody({
       previewRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [previewOpen]);
+  // The pivot is structure, not cost, so it reads the zones without the bound chat's pricing.
+  const zones = deriveZones(sections, (section) => barTokens(section, null) ?? 0);
+
+  return (
+    <Stack gap="section">
+      {children}
+
+      <Section kicker="Pivot">
+        {zones.missingPivot ? (
+          <DatumRow label="Chat history" suffix="add one on the rack" value="missing" />
+        ) : (
+          <DatumRow
+            label="Chat history"
+            suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate — only the first splits`}
+            value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
+          />
+        )}
+      </Section>
+
+      <Section kicker="Preview">
+        <Button
+          aria-controls={previewId}
+          aria-expanded={previewOpen}
+          className="self-start"
+          variant="outline"
+          onClick={(): void => setPreviewOpen(!previewOpen)}
+          size="sm"
+          type="button"
+        >
+          {previewOpen ? "Hide assembled preview" : "Show assembled preview"}
+        </Button>
+        {/* THE DISCLOSURE SCROLLS ITSELF INTO VIEW (side-eye F-13). At 1280×800 the trigger sits at y≈780,
+            so opening it rendered the entire preview below the fold and the ONLY feedback was the label
+            flipping to "Hide" — Nielsen #1, on the affordance whose whole job is to show you something.
+            `block: "nearest"` scrolls the minimum needed (an already-visible preview does not jump). */}
+        {previewOpen ? (
+          <div id={previewId} ref={previewRef}>
+            <AssemblyPreview onSelectBlock={selectPresetSection} preview={assemblePreview(sections)} />
+          </div>
+        ) : null}
+      </Section>
+    </Stack>
+  );
+}
+
+/** The priced half: the zone budget, the per-section bars and the selected section's attribution and materialized rows. */
+function PricedSections({
+  sections,
+  selectedSectionId,
+  costs,
+  status,
+}: {
+  readonly sections: readonly PromptSection[];
+  readonly selectedSectionId: string | null;
+  readonly costs: MaterializedCosts | null;
+  readonly status: string | null;
+}): ReactElement {
   // The zone strip is priced by the SAME lookup the bars are (F-29: one column, one producer).
   const zones = deriveZones(sections, (section) => barTokens(section, costs) ?? 0);
   // EVERY section gets a bar, disabled included (side-eye F-26): a disabled row vanished from the budget
@@ -190,7 +245,7 @@ function PromptReadoutBody({
   const selected = sections.find((section) => section.id === selectedSectionId);
 
   return (
-    <Stack gap="section">
+    <>
       <Section kicker="Budget">
         <Stack gap="tight">
           <Row align="center" gap="field">
@@ -228,42 +283,7 @@ function PromptReadoutBody({
 
       {selected === undefined ? null : <SelectedSectionAttribution section={selected} />}
       {selected === undefined ? null : <SelectedSectionMaterialization cost={costs?.get(selected.id)} section={selected} />}
-
-      <Section kicker="Pivot">
-        {zones.missingPivot ? (
-          <DatumRow label="Chat history" suffix="add one on the rack" value="missing" />
-        ) : (
-          <DatumRow
-            label="Chat history"
-            suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate — only the first splits`}
-            value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
-          />
-        )}
-      </Section>
-
-      <Section kicker="Preview">
-        <Button
-          aria-controls={previewId}
-          aria-expanded={previewOpen}
-          className="self-start"
-          variant="outline"
-          onClick={(): void => setPreviewOpen(!previewOpen)}
-          size="sm"
-          type="button"
-        >
-          {previewOpen ? "Hide assembled preview" : "Show assembled preview"}
-        </Button>
-        {/* THE DISCLOSURE SCROLLS ITSELF INTO VIEW (side-eye F-13). At 1280×800 the trigger sits at y≈780,
-            so opening it rendered the entire preview below the fold and the ONLY feedback was the label
-            flipping to "Hide" — Nielsen #1, on the affordance whose whole job is to show you something.
-            `block: "nearest"` scrolls the minimum needed (an already-visible preview does not jump). */}
-        {previewOpen ? (
-          <div id={previewId} ref={previewRef}>
-            <AssemblyPreview onSelectBlock={selectPresetSection} preview={assemblePreview(sections)} />
-          </div>
-        ) : null}
-      </Section>
-    </Stack>
+    </>
   );
 }
 

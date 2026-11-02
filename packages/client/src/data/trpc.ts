@@ -30,7 +30,7 @@ export type TrpcClient = TRPCClient<AppRouter>;
  * It exists because the biome `useExplicitReturnType` rule and the real client type collide: a hook that
  * returns a tRPC query result must annotate its signature, and `UseQueryResult<T>` DEFAULTS `TError` to
  * `Error` — which `TRPCClientErrorLike` does not satisfy (it is an INTERFACE with no `name`; measured: tsc
- * TS2322, the same measurement `features/preset/lib/resolve-failure.ts` records for its `ReadFailure` prop).
+ * TS2322).
  * So the alternative to this alias is every feature hook RE-SPELLING the router's error shape inline, which
  * §5.4 forbids. One home, derived off `AppRouter`.
  */

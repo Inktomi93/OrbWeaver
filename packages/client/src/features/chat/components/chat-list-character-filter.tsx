@@ -17,6 +17,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { CharacterPicker, FaceStrip, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
@@ -53,20 +54,25 @@ const FACES_LABEL = "Filter by character";
  *  the pane to from the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so
  *  she is prepended as a face — the strip must never be filtering by someone who is not in it. */
 export function ChatListFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement {
+  const trpc = useTRPC();
+  // The strip is ONE instance across the read, so a face focused or an overflow picker opened while it lands stays put; the
+  // boundary beside it reads the same key and owns only the failure.
+  const { data: page, isPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
   return (
-    <QueryBoundary
-      fallback={<FacesStripView characterFilter={characterFilter} chats={[]} pending={true} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}
-    >
-      <LoadedFacesStrip characterFilter={characterFilter} />
-    </QueryBoundary>
+    <>
+      <FacesStripView characterFilter={characterFilter} chats={page?.items ?? []} pending={isPending} />
+      <QueryBoundary fallback={null} renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}>
+        <FacesSourceRead />
+      </QueryBoundary>
+    </>
   );
 }
 
-function LoadedFacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement {
+/** Suspends on the strip's source so a failure reaches the shared error block; the strip above renders the answer. */
+function FacesSourceRead(): null {
   const trpc = useTRPC();
-  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
-  return <FacesStripView characterFilter={characterFilter} chats={page.items} pending={false} />;
+  useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
+  return null;
 }
 
 function FacesStripView({
