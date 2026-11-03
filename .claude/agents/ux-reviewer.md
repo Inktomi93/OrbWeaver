@@ -3,6 +3,7 @@ name: ux-reviewer
 description: "Live UX, visual and accessibility review of anything a user sees in orbweaver, before it is called done: new surfaces, redesigns, visual effects, dense flows, empty or error states, a11y."
 model: opus
 effort: high
+autoCompactWindow: 500000
 color: red
 skills: [lane, review, ux-design-review, snap-driving]
 tools: Bash, Read, Grep, Glob, Write, SendMessage, mcp__codegraph__*

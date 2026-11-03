@@ -1,8 +1,9 @@
 ---
 name: deep-reviewer
-description: Fresh-context deep review of a substantial orbweaver diff or branch before merge, and deep investigation or design questions. Trivial diffs go to code-reviewer; security-dominant diffs go to security-builder.
+description: Fresh-context deep review of a substantial orbweaver diff or branch before merge, and deep investigation or design questions, while the orchestrator runs unattended overnight. With the owner present, review goes to code-reviewer. Security-dominant diffs go to security-builder.
 model: fable
 effort: high
+autoCompactWindow: 500000
 color: purple
 tools: Read, Grep, Glob, Bash, Write, SendMessage, mcp__codegraph__*
 skills: [lane, review]

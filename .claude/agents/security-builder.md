@@ -3,6 +3,7 @@ name: security-builder
 description: Security-sensitive implementation, analysis and review in orbweaver, such as authn, authz, sessions, CSRF, secrets, crypto, trust-boundary validation, hardening and dependency vulnerabilities.
 model: opus
 effort: high
+autoCompactWindow: 500000
 mcpServers: ["authentik"]
 color: cyan
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

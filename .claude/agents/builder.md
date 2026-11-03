@@ -3,6 +3,7 @@ name: builder
 description: Specced implementation in orbweaver with a checkable done line, such as features, bug fixes and refactors that follow an existing design. Give goal, constraints, done-criteria, the reason and the check. Design forks go to opus-builder; security work goes to security-builder.
 model: sonnet
 effort: high
+autoCompactWindow: 500000
 permissionMode: acceptEdits
 color: blue
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

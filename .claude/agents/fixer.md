@@ -3,6 +3,7 @@ name: fixer
 description: Small, well-specified product fixes in orbweaver that need some judgment but no design decision, such as copy, labels, layout, small client or server bugs with named files. Use for batches of review findings with a clear done line. Specced larger work goes to builder; design forks, inference and migrations go to opus-builder; security goes to security-builder.
 model: sonnet
 effort: medium
+autoCompactWindow: 500000
 permissionMode: acceptEdits
 color: cyan
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

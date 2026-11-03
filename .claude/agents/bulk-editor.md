@@ -3,6 +3,7 @@ name: bulk-editor
 description: Fully specified mechanical work in orbweaver, such as pattern refactors, renames, convention-following tests, doc edits, bulk edits and suite runs. Needs no design decisions.
 model: sonnet
 effort: low
+autoCompactWindow: 500000
 permissionMode: acceptEdits
 color: green
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

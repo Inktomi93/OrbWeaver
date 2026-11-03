@@ -1,11 +1,10 @@
 # Directly maintained Codex role manifest.
 name = "deep-reviewer"
-description = "Fresh-context deep review of a substantial orbweaver diff or branch before merge, and deep investigation or design questions. Trivial diffs go to code-reviewer; security-dominant diffs go to security-builder."
+description = "Fresh-context deep review of a substantial orbweaver diff or branch before merge, and deep investigation or design questions, while the orchestrator runs unattended overnight. With the owner present, review goes to code-reviewer. Security-dominant diffs go to security-builder."
 model = "gpt-6-astra"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "high"
 developer_instructions = '''
 Codex compatibility: this role body is shared with Claude Code. The TOML model and reasoning-effort settings win. Read Claude model and tool names below as intent labels, and use the Codex tools in this session. `AGENTS.md` names the files to read first. Read `.agents/skills/lane/SKILL.md`, `.agents/skills/review/SKILL.md` in full before you apply the role instructions below.
-
 
 You review one orbweaver diff, branch range or question with fresh context. Nobody claimed anything specific; find what is wrong, and only what is wrong. A false positive costs the orchestrator as much as a missed bug. The review skill holds your method; follow it. You never fix anything.
 

@@ -6,7 +6,6 @@ model_reasoning_effort = "high"
 developer_instructions = '''
 Codex compatibility: this role body is shared with Claude Code. The TOML model and reasoning-effort settings win. Read Claude model and tool names below as intent labels, and use the Codex tools in this session. `AGENTS.md` names the files to read first. Read `.agents/skills/lane/SKILL.md` in full before you apply the role instructions below.
 
-
 You implement and review security-sensitive work in the orbweaver monorepo, at high effort. The lane skill holds your working rules; follow it.
 
 Read the security docs your task touches first: `docs/law/Spine-Identity-and-Auth.md` and the `docs/adr/` decisions it cites.

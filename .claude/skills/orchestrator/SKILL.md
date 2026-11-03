@@ -24,13 +24,14 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 | Authn, authz, secrets, crypto, validation, CSRF, hardening | `security-builder` |
 | Logic, data, or server correctness review | `code-reviewer` |
 | Rendered, visual, or accessibility review | `ux-reviewer` |
-| Deep pre-merge review of a branch or a hard investigation | `deep-reviewer` |
+| Deep pre-merge review or a hard investigation, while running unattended overnight | `deep-reviewer` |
 | Off-budget mechanical volume on the local model | `qwen-run`; load the `qwen-lane` skill first |
 
 - Send work to `builder` only when its brief names the check that proves it done.
 - Split a lane that would run long enough to compact. A long cross-cutting lane goes to `opus-builder`.
 - Never do security work yourself or route it to a role whose model is `fable`.
 - Send a trivial diff to `code-reviewer`, not `deep-reviewer`.
+- Use `deep-reviewer` only while running unattended overnight. With the owner present, review goes to `code-reviewer`.
 - A change that spans server and UI gets both `code-reviewer` and `ux-reviewer`.
 - After two failed attempts at one tier, go up one tier or do the work yourself.
 
@@ -228,7 +229,7 @@ Run autonomously only when the user says overnight, finish, or keep going.
 - In that mode, re-derive, dispatch and merge while safe work exists. Run the barrier when a batch is ready for the owner to push.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
-- Before a decision becomes a question for the owner, try in order: a `deep-reviewer` pass, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
+- Before a decision becomes a question for the owner, try in order: a `deep-reviewer` pass when unattended, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
 - When the authorized queue is complete, report the result and stop. Run a broader UI audit only when requested.
 - When the owner is present, batch questions and put the recommended option first.
 
