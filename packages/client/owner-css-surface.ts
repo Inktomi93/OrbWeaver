@@ -788,6 +788,7 @@ export const OWNER_CSS_SLOTS = [
   "tick",
   "toast-action",
   "toast-root",
+  "toast-stack",
   "toast-title",
   "toast-viewport",
   "toggle",
