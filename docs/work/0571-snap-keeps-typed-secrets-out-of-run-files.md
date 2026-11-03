@@ -1,26 +1,30 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-04
-priority: P3
-plan: surface-walk
+updated: 2026-11-03
+priority: P2
 area: tooling
+plan: restoration-register
 ---
 
 # Snap keeps typed secrets out of run files and session logs
 
 ## What
 
-snap persists every --fill value verbatim into run.json and the session log, so a key typed into a connection form lands on disk.
+Investigate fill-value, run-metadata and session-log secret handling on live main. Preserve useful ordinary provenance without writing private values.
+
+`AF3-TSSEC-Q0006`: Extend the comparison to explicit debug-token arguments and session boot arguments in exported metadata.
 
 ## Why
 
-Reviews that need a live connection cannot type a provider key through snap safely.
+Browser and network redaction do not cover raw process arguments copied into local run and session records.
 
 ## Done when
 
-A fill can take its value from an environment variable and is redacted in every artifact snap writes, with a test.
+A fill can obtain its private value from an environment variable. Synthetic secret values remain usable by the authorized operation but absent from exported artifacts.
+
+Check actual run, session and log outputs, including argument provenance. Preserve redaction and ordinary provenance controls.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Source assessment: `af3fba26a9805a1833b64010a99ceb84f6298dd3`, finding `AF3-TSSEC-Q0006`. Runtime exposure is not established. Revalidate the implementation before changing it.

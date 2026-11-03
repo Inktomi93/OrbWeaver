@@ -193,6 +193,43 @@ An unlisted area is unreviewed, not missing. Neither filenames nor test counts e
 
 Update the existing row with its replacement commit's changes; do not append another completion record for the same scope. Name uncovered cases when marking a scope partial. Keep links to maintained tests here when the owning work item closes. A completed row may reopen only with a specific missing behavior, failing regression or changed product contract.
 
+## Next work
+
+The [task list](tasks.md) owns the investigation queue. Keep the plan's wake condition; boarding findings does not qualify or execute them.
+
+### Source findings
+
+Revalidate each finding against live source before deciding whether it remains present. Preserve the finding identifier, governing contract and actual assertion references.
+
+Handle P1 findings before lower-priority restoration. Use security-executor for authentication, process custody and permission boundaries.
+
+Confirmed findings need a focused correction and affected native checks. Record counterevidence when a finding is corrected or retracted.
+
+The source assessment does not establish runtime failure or deployment exposure. Browser findings identify specific investigations; they do not reopen blanket CT or E2E restoration.
+
+### Bounded restoration order
+
+1. [Compare existing contract and import coverage](../../work/1902-reconcile-implemented-contracts-and-import-coverage-before-restoration.md). Record covered, partial or qualification-only obligations before adding tests.
+2. [Qualify subscription lifetime outcomes](../../work/1871-exercise-live-sse-inactivity-expiry-before-unsubscribe.md). Exercise actual inactivity expiry and compare adapter-owned protocol refusals.
+3. [Compare plugin permission outcomes](../../work/1903-compare-plugin-permission-outcomes-before-restoring-runtime-tests.md). Preserve real denial assertions and allowed-operation positives on the current runtime.
+4. Select persistence, RPG and automation remainders after the preceding comparisons close. Check existing migration and integration suites before claiming a gap.
+
+Use a bounded assignment with complete selected source reads and explicit acceptance criteria. Finish its decisions and affected verification before expanding the assignment.
+
+Update the existing register row when a comparison completes. Preserve exact assertion references when coverage spans several maintained tests or layers.
+
+Keep accepted comparison decisions out of repeated investigation while their supporting source remains unchanged. Reopen changed evidence without declaring missing coverage.
+
+### Excluded default work
+
+Keep broadly rebuilt CT and E2E scopes out of blanket restoration. Reopen a named obligation only for a specific gap, regression or owner-selected comparison.
+
+Preserve Accounted for decisions. Apply D333 to removed verification and checker-certification machinery; separate useful product obligations from that scaffolding.
+
+Do not recreate private inspection exports merely to copy reference tests. Decide the observable product obligation first.
+
+An implemented case awaiting execution needs qualification, not another implementation. A low match score, filename mismatch or missing clone is not missing coverage.
+
 ## Choosing what to test (not yet built)
 
 Status: parked until the type plan and cleanup finish. A read-only report, never a gate. A presence gate produced filler before, and the report must not recreate one.
