@@ -1,8 +1,8 @@
 # Directly maintained Codex role manifest.
-name = "executor"
-description = "Implementation that needs judgment in orbweaver, such as features, bug fixes and design-sensitive refactors. Give goal, constraints, done-criteria and the reason. Security work goes to security-executor."
-model = "gpt-6.1-sol"
-model_reasoning_effort = "medium"
+name = "builder"
+description = "Specced implementation in orbweaver with a checkable done line, such as features, bug fixes and refactors that follow an existing design. Give goal, constraints, done-criteria, the reason and the check. Design forks go to opus-builder; security work goes to security-builder."
+model = "gpt-6.1-terra"
+model_reasoning_effort = "high"
 developer_instructions = '''
 Codex compatibility: this role body is shared with Claude Code. The TOML model and reasoning-effort settings win. Read Claude model and tool names below as intent labels, and use the Codex tools in this session. `AGENTS.md` names the files to read first. Read `.agents/skills/lane/SKILL.md` in full before you apply the role instructions below.
 

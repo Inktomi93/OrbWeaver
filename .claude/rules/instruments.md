@@ -7,7 +7,7 @@ paths:
 # Snap and ui-audit instruments
 
 Rules for authoring the `snap` driver and the `ui-audit` walker/design-audit scanner. Driving the app
-with them is `snap-driving`; reviewing their findings is `side-eye-design-review`.
+with them is `snap-driving`; reviewing their findings is `ux-design-review`.
 
 ## Readiness and staging
 

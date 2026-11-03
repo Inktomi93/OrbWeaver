@@ -13,7 +13,7 @@ Orbweaver law. Every row states adopt, adapt, or reject, with the reason. The ad
 `tooling/src/ui-audit/`: `ops/walker.ts` and `ops/walker/census-*.ts` gather in-page facts,
 `lib/checks-*.ts` decide, `lib/collect.ts` dispatches families and carries the attribution header.
 Tests live at `tests/tooling/ui-audit/`. Run the rules with `pnpm snap <route> --design-audit`. The
-design-verb vocabulary is in `.claude/skills/side-eye-design-review/SKILL.md` §15; the design-truth
+design-verb vocabulary is in `.claude/skills/ux-design-review/SKILL.md` §15; the design-truth
 map is `reference/design-context.md` in that skill.
 
 ## License and attribution

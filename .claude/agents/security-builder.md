@@ -1,5 +1,5 @@
 ---
-name: security-executor
+name: security-builder
 description: Security-sensitive implementation, analysis and review in orbweaver, such as authn, authz, sessions, CSRF, secrets, crypto, trust-boundary validation, hardening and dependency vulnerabilities.
 model: opus
 effort: high

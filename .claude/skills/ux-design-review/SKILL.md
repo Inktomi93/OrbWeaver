@@ -1,9 +1,9 @@
 ---
-name: side-eye-design-review
+name: ux-design-review
 description: "Review Orbweaver UI/UX, visual design, usability, and accessibility against the repo's design laws and severity scale. Use for any UI critique, design audit, or accessibility review."
 ---
 
-# side-eye design-review laws (§0-§18)
+# UX design-review laws (§0-§18)
 
 Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), Nielsen/NN-g heuristics, and Orbweaver law. Apply this checklist; name the rule a finding breaks. `reference/design-context.md` maps the generated design truth and the product voice. `tooling/src/ui-audit/ops/walker/IMPECCABLE-ADOPTION.md` records the upstream triage and attribution; the live rule set is `DESIGN_AUDIT_RULES` in `tooling/src/ui-audit/contract/rules.ts` — cite that file, not a count. The side-eye role also preloads `snap-driving`, which owns mechanics, flags, exit codes, and stage/db facts — read it too, not restated here.
 

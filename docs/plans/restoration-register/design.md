@@ -201,7 +201,7 @@ The [task list](tasks.md) owns the investigation queue. Keep the plan's wake con
 
 Revalidate each finding against live source before deciding whether it remains present. Preserve the finding identifier, governing contract and actual assertion references.
 
-Handle P1 findings before lower-priority restoration. Use security-executor for authentication, process custody and permission boundaries.
+Handle P1 findings before lower-priority restoration. Use security-builder for authentication, process custody and permission boundaries.
 
 Confirmed findings need a focused correction and affected native checks. Record counterevidence when a finding is corrected or retracted.
 

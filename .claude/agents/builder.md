@@ -1,8 +1,8 @@
 ---
-name: executor
-description: Implementation that needs judgment in orbweaver, such as features, bug fixes and design-sensitive refactors. Give goal, constraints, done-criteria and the reason. Security work goes to security-executor.
-model: opus
-effort: medium
+name: builder
+description: Specced implementation in orbweaver with a checkable done line, such as features, bug fixes and refactors that follow an existing design. Give goal, constraints, done-criteria, the reason and the check. Design forks go to opus-builder; security work goes to security-builder.
+model: sonnet
+effort: high
 permissionMode: acceptEdits
 color: blue
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

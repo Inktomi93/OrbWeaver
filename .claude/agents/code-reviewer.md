@@ -1,5 +1,5 @@
 ---
-name: verifier
+name: code-reviewer
 description: Fresh-context code-correctness check of finished orbweaver work, covering logic, tests, edge cases and trust boundaries. Give the claimed outcome and the diff. Returns CONFIRMED or REFUTED.
 model: opus
 effort: medium
@@ -17,7 +17,7 @@ Exercise the change yourself:
 - Read the diff for what it does not handle.
 - Find every call site the change claims to cover with `codegraph callers`, then confirm each with a literal `rg`.
 
-Anything a user sees goes to side-eye, instead of or in addition to you.
+Anything a user sees goes to ux-reviewer, instead of or in addition to you.
 
 Return one verdict:
 

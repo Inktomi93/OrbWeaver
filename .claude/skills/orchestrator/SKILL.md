@@ -17,20 +17,21 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 | Work | Role |
 | - | - |
 | Search, lookup, "where is X" | `scout` or `Explore` |
-| Fully specified mechanical work, bulk edits, suite runs | `mech-executor` |
-| Small, well-specified fixes that need some judgment (review findings with a done line) | `sonnet-executor` |
-| Implementation that needs judgment | `executor` |
-| New subsystems, wide coupled changes, migrations, where the design is the risk | `forge` |
-| Authn, authz, secrets, crypto, validation, CSRF, hardening | `security-executor` |
-| Logic, data, or server correctness review | `verifier` |
-| Rendered, visual, or accessibility review | `side-eye` |
-| Deep pre-merge review of a branch or a hard investigation | `stickler` |
+| Fully specified mechanical work, bulk edits, suite runs | `bulk-editor` |
+| Small, well-specified fixes that need some judgment (review findings with a done line) | `fixer` |
+| Specced implementation with a checkable done line | `builder` |
+| Architecture forks, long or cross-cutting refactors, migrations, ambiguous bugs | `opus-builder` |
+| Authn, authz, secrets, crypto, validation, CSRF, hardening | `security-builder` |
+| Logic, data, or server correctness review | `code-reviewer` |
+| Rendered, visual, or accessibility review | `ux-reviewer` |
+| Deep pre-merge review of a branch or a hard investigation | `deep-reviewer` |
 | Off-budget mechanical volume on the local model | `qwen-run`; load the `qwen-lane` skill first |
 
-- Use `forge` only when a cheaper failure would cost more than the forge run.
+- Send work to `builder` only when its brief names the check that proves it done.
+- Split a lane that would run long enough to compact. A long cross-cutting lane goes to `opus-builder`.
 - Never do security work yourself or route it to a role whose model is `fable`.
-- Send a trivial diff to `verifier`, not `stickler`.
-- A change that spans server and UI gets both `verifier` and `side-eye`.
+- Send a trivial diff to `code-reviewer`, not `deep-reviewer`.
+- A change that spans server and UI gets both `code-reviewer` and `ux-reviewer`.
 - After two failed attempts at one tier, go up one tier or do the work yourself.
 
 ## Models
@@ -75,7 +76,7 @@ Finish an active plan before opening new work. File a finding; it never jumps th
 
 Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
 
-Owner ruling: at most six `sonnet-executor` lanes plus three Opus agents at once. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
+Owner ruling: at most six Sonnet lanes (`fixer`, `builder`, `bulk-editor`) plus three Opus agents at once. Every Opus agent counts toward the cap: `opus-builder`, `security-builder` and `ux-reviewer` alike. `code-reviewer` runs outside the cap.
 
 Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and broad application runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 
@@ -131,8 +132,11 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Assign verification ownership in the brief. Reuse completed lane checks under the `lane` skill's completion policy.
 - Call work done after its applicable checks. CI is the verdict (D317). Use the native pre-push checks when the owner pushes; run affected runtime checks before that ("The barrier").
 - Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
-- For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
-- Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
+- Run `code-reviewer` once per batch or branch, never once per item. One pass covers every item in it.
+- Always review server logic, data, migrations and security changes.
+- Review a fix batch once when it shows red-then-green tests and a passing typecheck.
+- Skip review for docs and mechanical edits that pass the floor.
+- Call `ux-reviewer` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
 - To sweep finished lanes for dropped follow-ups, read each lane's last message in full. A keyword search misses other wording.
@@ -224,7 +228,7 @@ Run autonomously only when the user says overnight, finish, or keep going.
 - In that mode, re-derive, dispatch and merge while safe work exists. Run the barrier when a batch is ready for the owner to push.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
-- Before a decision becomes a question for the owner, try in order: a `stickler` pass, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
+- Before a decision becomes a question for the owner, try in order: a `deep-reviewer` pass, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
 - When the authorized queue is complete, report the result and stop. Run a broader UI audit only when requested.
 - When the owner is present, batch questions and put the recommended option first.
 
