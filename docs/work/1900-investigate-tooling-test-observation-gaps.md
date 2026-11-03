@@ -44,3 +44,5 @@ Record a confirmed, corrected or retracted judgment for each finding. Confirmed 
 ## Evidence
 
 Source assessment: `af3fba26a9805a1833b64010a99ceb84f6298dd3`. The cited findings are accepted source observations, not runtime reproductions. Revalidate live source and record native results or counterevidence here.
+
+`MAIN-AF3-FLAGSET-001`: The assertion rule reports the negated subset in `tests/tooling/snap/ops/matrix-contract.test.ts`. The per-flag assertion correction remains open.

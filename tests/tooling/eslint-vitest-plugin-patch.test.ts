@@ -4,7 +4,9 @@
 // wrapper that forwards its own, never rebound, last (body) parameter into a test call as a test-block definition.
 import { expect, test } from "@orb/testkit/tooling";
 import vitest from "@vitest/eslint-plugin";
-import { Linter } from "eslint";
+import { ESLint, Linter } from "eslint";
+import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
 
 const VALID_EXPECT = "vitest/valid-expect";
 const EXPECT_EXPECT = "vitest/expect-expect";
@@ -98,3 +100,48 @@ test.for([
 test("a listed wrapper's call site with an empty body flags", () => {
   expect(findings("function cellTest(title, body) {\n  test(title, body);\n}\ncellTest('empty', () => {});", EXPECT_EXPECT)).toEqual([EXPECT_EXPECT]);
 });
+
+test.for(["@orb/testkit/node", "@orb/testkit/tooling", "@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts", "vitest"])(
+  "the repository config recognizes native Vitest imports from %s",
+  { timeout: 120_000 },
+  async (source, { repoRoot }) => {
+    const filename = `${repoRoot}/tests/server/domain/probe/probe.test.ts`;
+    const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), filename);
+    const rules = ["vitest/no-focused-tests", "vitest/no-conditional-expect"] as const;
+    const messages = new Linter().verify(
+      `import { test as scenario, expect as check } from "${source}";\nscenario.only("probe", () => { if (condition) check(value).toBe(1); });`,
+      {
+        files: ["**/*.ts"],
+        plugins: config.plugins,
+        settings: config.settings,
+        languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
+        rules: Object.fromEntries(rules.map((rule) => [rule, config.rules[rule] ?? "off"])),
+      },
+      { filename },
+    );
+    expect(messages.map((message) => message.ruleId)).toEqual(expect.arrayContaining([...rules]));
+    expect(messages.some((message) => message.fatal === true)).toBe(false);
+  },
+);
+
+test.for(["portraitTest", "beforeAll", "auditRuleTest", "cellTest", "forEachAuthMode"])(
+  "the repository config recognizes assertions in %s callbacks while rejecting standalone assertions",
+  { timeout: 120_000 },
+  async (block, { repoRoot }) => {
+    const filename = `${repoRoot}/tests/server/domain/probe/probe.test.ts`;
+    const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), filename);
+    const rule = "vitest/no-standalone-expect";
+    const messages = new Linter().verify(
+      `import { expect } from "@orb/testkit/node";\n${block}(() => { expect(value).toBe(1); });\nexpect(value).toBe(2);`,
+      {
+        files: ["**/*.ts"],
+        plugins: config.plugins,
+        settings: config.settings,
+        languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
+        rules: { [rule]: config.rules[rule] ?? "off" },
+      },
+      { filename },
+    );
+    expect(messages.map(({ ruleId, line }) => ({ ruleId, line }))).toEqual([{ ruleId: rule, line: 3 }]);
+  },
+);

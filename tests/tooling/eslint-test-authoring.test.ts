@@ -65,7 +65,7 @@ test.for([
   ["a comment that names the channel", `// the manifest owns data-appearance-density\nconst attribute = channelName("density");`, SPEC, 0],
   ["an unrelated data attribute", `const slot = "data-slot";`, SPEC, 0],
   ["a lint fixture of the appearance rule", `const attribute = "data-appearance-density";`, "tests/tooling/eslint-appearance-name.test.ts", 0],
-] as const)("test authoring wall, appearance channel: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
+] as const)("appearance channel: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
   expect(await findings(repoRoot, APPEARANCE, source, path)).toHaveLength(count);
 });
 
@@ -88,7 +88,7 @@ test.for([
   ],
   ["a helper that is not exported", "function Row() {\n  return <div />;\n}", UI_STORY, 0],
   ["a spec is not a story module", "export function A() {\n  return <div />;\n}", SPEC, 0],
-] as const)("test authoring wall, story root: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
+] as const)("story root: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
   expect(await findings(repoRoot, STORY_ROOT, source, path)).toHaveLength(count);
 });
 
@@ -101,7 +101,7 @@ test.for([
   ["a layout class that only contains the word", `export const A = () => <div className="max-inline-(--width-shell-content) my-shell-thing" />;`, UI_STORY, 0],
   ["a primitive slot", `export const A = () => <div data-slot="list-row-root" />;`, UI_STORY, 0],
   ["the app shell's own stories", `export const A = () => <div className="shell-panel" data-slot="context-bracket-band" />;`, SHELL_STORY, 0],
-] as const)("test authoring wall, shell DOM: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
+] as const)("shell DOM: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
   expect(await findings(repoRoot, SHELL_DOM, source, path)).toHaveLength(count);
 });
 
@@ -117,13 +117,38 @@ test.for([
   ["a name no module exports", `await page.getByRole("button", { name: "A sentence only this spec spells" }).click();`, SPEC, 0, ""],
   ["a pattern name", `await page.getByRole("button", { name: /View raw source/u }).click();`, SPEC, 0, ""],
   ["a text locator", `await page.getByText("View raw source", { exact: true }).click();`, SPEC, 1, "control-labels.ts"],
-] as const)("test authoring wall, hand-copied label: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
+] as const)("hand-copied label: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
   const found = await findings(repoRoot, LABEL, source, path);
   expect(found).toHaveLength(count);
   expect(found[0]?.message ?? "").toContain(owner);
 });
 
 const SERVER_TEST = "tests/server/domain/probe/probe.int.test.ts";
+
+test.for([
+  ["multi-item equality", "expect(actual).not.toEqual(expect.arrayContaining([a, b]));", 1],
+  ["strict equality", "expect(actual).not.toStrictEqual(expect.arrayContaining([a, b]));", 1],
+  ["soft assertion", "expect.soft(actual).not.toEqual(expect.arrayContaining([a, b]));", 1],
+  ["two fixed items with a spread", "expect(actual).not.toEqual(expect.arrayContaining([a, ...items, b]));", 1],
+  ["distinct primitive literals", "expect(actual).not.toEqual(expect.arrayContaining([1, 2]));", 1],
+  ["different primitive types", "expect(actual).not.toEqual(expect.arrayContaining([1, '1']));", 1],
+  ["duplicate numbers", "expect(actual).not.toEqual(expect.arrayContaining([1, 1]));", 0],
+  ["duplicate strings", "expect(actual).not.toStrictEqual(expect.arrayContaining(['a', 'a']));", 0],
+  ["duplicate literals with unknown spread", "expect(actual).not.toEqual(expect.arrayContaining([1, ...items, 1]));", 0],
+  ["single item", "expect(actual).not.toEqual(expect.arrayContaining([a]));", 0],
+  ["empty array", "expect(actual).not.toEqual(expect.arrayContaining([]));", 0],
+  ["unknown cardinality", "expect(actual).not.toEqual(expect.arrayContaining(items));", 0],
+  ["one fixed item and a spread", "expect(actual).not.toEqual(expect.arrayContaining([a, ...items]));", 0],
+  ["positive subset", "expect(actual).toEqual(expect.arrayContaining([a, b]));", 0],
+  ["other matcher", "expect(actual).not.toContain(expect.arrayContaining([a, b]));", 0],
+  ["lookalike", "expect(actual).not.toEqual(other.arrayContaining([a, b]));", 0],
+  ["explicit all absent", "expect(actual).not.toContain(a); expect(actual).not.toContain(b);", 0],
+  ["explicit not all", "expect([a, b].every((item) => actual.includes(item))).toBe(false);", 0],
+] as const)("negated subset: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+  const found = await findings(repoRoot, ABSENCE, source, SERVER_TEST);
+  expect(found).toHaveLength(count);
+  expect(found.map(({ message }) => message.includes("not every item is present"))).toEqual(Array.from({ length: count }, () => true));
+});
 
 test.for([
   ["a label function's string at a locator", `await page.getByRole("button", { name: "Show details" }).click();`, SPEC, 1, "contextToggleLabel"],
@@ -146,7 +171,7 @@ test.for([
   ["an env key as a computed key", `const env = { ["ORB_ENV_NO_FILE"]: "1" };`, SERVER_TEST, 1, "ENV_NO_FILE_KEY"],
   ["an env key read", `expect(environment["ORB_ENV_NO_FILE"]).toBe("1");`, SERVER_TEST, 1, "ENV_NO_FILE_KEY"],
   ["an env key imported", `const env = { [ENV_NO_FILE_KEY]: "1" };`, SERVER_TEST, 0, ""],
-] as const)("test authoring wall, hand-copied production value: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
+] as const)("hand-copied production value: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
   const found = await findingsAll(repoRoot, LABEL, source, path);
   expect(found).toHaveLength(count);
   expect(found[0]?.message ?? "").toContain(owner);
@@ -200,7 +225,7 @@ test.for([
   ["a value comparison with not", caseOf("expect(await height()).not.toBeCloseTo(100, 0);"), 0],
   ["a case with no assertion", caseOf(`await page.click("button");`), 0],
   ["a describe block is not a case", `test.describe("probe", () => {\n  test.beforeEach(async () => {\n    await expect(a).toHaveCount(0);\n  });\n});`, 0],
-] as const)("test authoring wall, absence only: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+] as const)("absence only: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, ABSENCE, source, SPEC)).toHaveLength(count);
 });
 
