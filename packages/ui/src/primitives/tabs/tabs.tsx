@@ -101,8 +101,9 @@ function revealHorizontalTab(tab: HTMLElement): void {
 
 /** The indicator's resting box, as Base UI writes it onto the node's own inline style. */
 interface IndicatorGeometry {
-  readonly left: number;
-  readonly width: number;
+  readonly vertical: boolean;
+  readonly start: number;
+  readonly size: number;
 }
 
 /** Read the geometry off the INLINE style rather than a layout measurement: `--active-tab-left/width` are
@@ -110,9 +111,10 @@ interface IndicatorGeometry {
  *  no measuring pass of its own. `null` ⇒ no tab is selected yet (Base UI omits the vars and keeps the
  *  node `hidden` until layout settles) — nothing to glide from or to. */
 function indicatorGeometry(node: HTMLElement): IndicatorGeometry | null {
-  const left = Number.parseFloat(node.style.getPropertyValue("--active-tab-left"));
-  const width = Number.parseFloat(node.style.getPropertyValue("--active-tab-width"));
-  return Number.isFinite(left) && Number.isFinite(width) && width > 0 ? { left, width } : null;
+  const vertical = node.dataset["orientation"] === "vertical";
+  const start = Number.parseFloat(node.style.getPropertyValue(vertical ? "--active-tab-top" : "--active-tab-left"));
+  const size = Number.parseFloat(node.style.getPropertyValue(vertical ? "--active-tab-height" : "--active-tab-width"));
+  return Number.isFinite(start) && Number.isFinite(size) && size > 0 ? { vertical, start, size } : null;
 }
 
 /**
@@ -145,7 +147,8 @@ function indicatorGeometry(node: HTMLElement): IndicatorGeometry | null {
  */
 function glideIndicator(node: HTMLElement, from: IndicatorGeometry, to: IndicatorGeometry): void {
   node.style.transitionProperty = "none";
-  node.style.transform = `translateX(${String(from.left - to.left)}px) scaleX(${String(from.width / to.width)})`;
+  const axis = to.vertical ? "Y" : "X";
+  node.style.transform = `translate${axis}(${String(from.start - to.start)}px) scale${axis}(${String(from.size / to.size)})`;
   // The flush that makes the inverted box the transition's FROM state. Without a forced style read the
   // browser coalesces both writes into one recalc, the computed transform never leaves identity, and
   // there is nothing to interpolate across (measured in the CT — all four flush spellings work, a
@@ -178,7 +181,7 @@ function observeIndicatorGlide(node: HTMLElement): () => void {
     previous = next;
     // A first settle (and a de-selected indicator) has no previous box to glide from — the bar appears
     // in place, exactly as it always has.
-    if (next === null || from === null || (from.left === next.left && from.width === next.width)) {
+    if (next === null || from === null || from.vertical !== next.vertical || (from.start === next.start && from.size === next.size)) {
       return;
     }
     glideIndicator(node, from, next);

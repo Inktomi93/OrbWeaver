@@ -1,16 +1,10 @@
 /* @orb/ui region: the Waystone meter's sky, weather and dial recipes. Imported by globals.css inside its layer. */
 @layer ui {
-  /* The dial band ramp's polarity knobs: the hue is derived per band in TS (`arcStroke`); these two scalars retune
-   * the whole ramp for the bezel it sits on, so a light theme never needs a per-band override. */
+  /* The band recipe selects its polarity with light-dark() at the SVG path's own scope. */
   [data-slot="waystone"] {
-    --orb-ws-band-l: 0;
+    --orb-ws-band-light-shift: 0.13;
     --orb-ws-band-c: 1;
   }
-  [data-theme="light"] [data-slot="waystone"] {
-    --orb-ws-band-l: -0.13;
-    --orb-ws-band-c: 1;
-  }
-
   @keyframes orb-ws-fall {
     to {
       translate: 0 var(--orb-ws-pitch);

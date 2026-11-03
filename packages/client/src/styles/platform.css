@@ -8,9 +8,11 @@
   @variant forced-colors {
     :focus-visible {
       outline: var(--border-width-accent) solid Highlight;
-      outline-offset: var(--border-width-accent);
+      outline-offset: calc(-1 * var(--border-width-accent));
     }
-    [data-slot="tabs-indicator"] {
+    [data-slot="tabs-indicator"],
+    [data-slot="scroll-area-thumb-vertical"],
+    [data-slot="scroll-area-thumb-horizontal"] {
       forced-color-adjust: none;
       background-color: Highlight;
     }

@@ -140,7 +140,7 @@
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
     /* Thin themed scrollbars: `scrollbar-color` inherits from here; `scrollbar-width` does not, so it is set on `*`. */
-    scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+    scrollbar-color: var(--color-muted-foreground) transparent;
   }
 
   /* The accent aura behind the empty-state brand glyph. `closest-side` from a centred origin, so the ramp reaches
@@ -268,10 +268,11 @@
     --scroll-fade-floor: 0.62;
   }
   .scroll-fade-x {
+    --orb-fade-direction: to right;
     --fade-start-stop: 0%;
     --fade-end-stop: 0%;
     mask-image: linear-gradient(
-      to right,
+      var(--orb-fade-direction),
       rgb(0 0 0 / var(--scroll-fade-floor)),
       black var(--fade-start-stop),
       black calc(100% - var(--fade-end-stop)),
@@ -280,6 +281,9 @@
   }
   .scroll-fade-x[data-fade-start] {
     --fade-start-stop: var(--fade-edge-stop);
+  }
+  .scroll-fade-x:dir(rtl) {
+    --orb-fade-direction: to left;
   }
   .scroll-fade-x[data-fade-end] {
     --fade-end-stop: var(--fade-edge-stop);
@@ -373,7 +377,7 @@
     .scroll-fade-x {
       --scroll-fade-depth: var(--spacing-section);
       mask-image: linear-gradient(
-        to right,
+        var(--orb-fade-direction),
         rgb(0 0 0 / var(--scroll-fade-floor)),
         black var(--scroll-fade-start),
         black calc(100% - var(--scroll-fade-end)),

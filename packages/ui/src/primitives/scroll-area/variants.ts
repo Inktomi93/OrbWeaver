@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { FOCUS_RING_INSET, tv } from "#lib";
 
 /**
  * Slot classes for the scroll-area (ui-package-design §5). Base UI hands us hover/scroll state on
@@ -10,7 +10,7 @@ import { FOCUS_RING, tv } from "#lib";
 export const scrollAreaVariants = tv({
   slots: {
     root: "relative overflow-hidden",
-    viewport: `overscroll-contain outline-none block-full inline-full ${FOCUS_RING}`,
+    viewport: `overscroll-contain outline-none block-full inline-full ${FOCUS_RING_INSET}`,
     // The sized content wrapper — min-w-max lets horizontal overflow measure past the viewport.
     content: "min-inline-max",
     scrollbar: `
@@ -18,7 +18,7 @@ export const scrollAreaVariants = tv({
       data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:block-row
       data-[orientation=vertical]:inline-row
     `,
-    thumb: "flex-1 rounded-full bg-muted-foreground/40 transition-colors duration-(--motion-fast) ease-out-expo hover:bg-muted-foreground/60",
+    thumb: "flex-1 rounded-full bg-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo hover:bg-foreground",
     // The square where the two scrollbars meet — Base UI shows it only on both-axis overflow.
     corner: "bg-transparent",
   },

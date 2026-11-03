@@ -5,6 +5,7 @@
   @variant shell-mobile {
     .shell-grid {
       --shell-topbar-block: var(--dimension-shell-topbar-block);
+      --shell-chrome-bottom: calc(env(safe-area-inset-top) + var(--shell-topbar-block));
 
       /* The tab bar's row carries the bottom inset, so the grid's own payment is refunded here; zero, not
        * `revert`, which rolls past the whole author origin. */
@@ -39,7 +40,7 @@
       display: none;
     }
     .shell-scrim {
-      inset-block: var(--shell-topbar-block) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+      inset-block: var(--shell-chrome-bottom) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
     }
     /* The room screen has no tab bar (owner ruling, UI-Architecture-and-Layout.md), so the frame pays the
      * bottom inset itself again. */
@@ -138,7 +139,7 @@
     .shell-panel[data-panel-mode="overlay"],
     .shell-panel[data-panel-mode="collapsed"] {
       position: fixed;
-      inset-block: var(--shell-topbar-block) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
+      inset-block: var(--shell-chrome-bottom) calc(var(--rail-w) + env(safe-area-max-inset-bottom, env(safe-area-inset-bottom)));
       inline-size: 100dvw;
       /* The shell's own overlay step, as on desktop: inside the grid's isolated scope a fixed pane still paints
        * inside it, so a portal-tier number would order nothing more. */

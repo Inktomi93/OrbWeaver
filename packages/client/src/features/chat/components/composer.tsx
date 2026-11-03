@@ -43,8 +43,8 @@ import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 
-// The draft grows to this many lines, then scrolls inside the box (about the old 16rem cap).
-const COMPOSER_MAX_ROWS = 10;
+// Keep the transcript readable while a long draft scrolls inside the field.
+const COMPOSER_MAX_ROWS = 4;
 
 // Teach the empty-Enter action in the placeholder, including the adjacent Response icon when it generates.
 function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {

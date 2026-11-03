@@ -22,6 +22,7 @@ test("a keyboard-focused tab keeps a visible outline", async ({ mount, page }) =
   await expect(tab).toBeFocused();
   await expect(tab).toHaveCSS("outline-style", "solid");
   await expect(tab).not.toHaveCSS("outline-width", "0px");
+  expect(await tab.evaluate((node) => Number.parseFloat(getComputedStyle(node).outlineOffset))).toBeLessThan(0);
 });
 
 test("the tab indicator is painted in a colour other than the canvas", async ({ mount, page }) => {

@@ -377,6 +377,6 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 
 - **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
-- **The keyboard:** no viewport unit shrinks for it and WebKit ignores `interactive-widget=resizes-content`, so the shell subtracts the `visualViewport` inset (`packages/ui/src/lib/keyboard-inset.ts`).
+- **The keyboard:** measure the visual viewport against the CSS frame (`packages/ui/src/lib/keyboard-inset.ts`). Subtract only its remaining coverage. Preserve keyboard state while native layout resizing removes that coverage.
 - **The short room:** under the `shell-main` cq-28 height step, room chrome rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
-- **`env(safe-area-inset-*)`** on shell and composer; **`overscroll-behavior: contain`** on every scroll region; `inputmode`/`type=` on inputs.
+- **`env(safe-area-inset-*)`** on shell and composer. Contain scroll chaining in scroll regions; suppress elastic overscroll on the room frame without disabling its overflow. Set `inputmode`/`type=` on inputs.

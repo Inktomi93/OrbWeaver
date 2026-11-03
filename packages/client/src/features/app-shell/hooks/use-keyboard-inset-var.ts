@@ -1,4 +1,4 @@
-import { readKeyboardInset, subscribeKeyboardInset } from "@orb/ui/lib";
+import { createKeyboardInsetReader, subscribeKeyboardInset } from "@orb/ui/lib";
 import { useEffect } from "react";
 
 // The custom property `shell.css` reads to shrink the frame above the soft keyboard. Private (`--orb-`),
@@ -11,45 +11,26 @@ import { useEffect } from "react";
 const KEYBOARD_INSET_VAR = "--orb-keyboard-inset";
 // The boolean twin CSS selects on (`globals.css`): a keyboard is up. Paired with the stylesheet by NAME too.
 const KEYBOARD_UP_ATTRIBUTE = "data-keyboard-up";
+const LAYOUT_HEIGHT_VAR = "--orb-layout-viewport-height";
 
-/**
- * Mirrors the live virtual-keyboard inset onto the document root as `--orb-keyboard-inset` (#1869).
- *
- * WHY THE SHELL OWNS THE WRITE AND `@orb/ui` OWNS THE MEASUREMENT: `keyboard-inset.ts` is a platform
- * capability reader with no idea who consumes it (the `coarse-pointer-now` species); knowing that the
- * consumer is `.shell-grid`'s height, and that the carrier is a root custom property, is shell-tier
- * knowledge. `use-appearance-root-effects.ts` is the same write pattern one axis over, and §4b axis 3/4 put
- * every capability and platform mechanism at the shell/token layer rather than in a feature.
- *
- * IT WRITES IMPERATIVELY AND HOLDS NO REACT STATE, deliberately. iOS fires `resize`+`scroll` on the visual
- * viewport continuously while the keyboard animates in; routing that through `useState` would re-render the
- * entire shell tree on every frame of a keyboard opening — the shell whose panel motion is compositor-only
- * precisely so it never re-lays-out under animation. A custom property write is a style recalculation on one
- * element and nothing above it. Base UI's own `DrawerVirtualKeyboardProvider` writes its inset the same way.
- *
- * THE PROPERTY IS REMOVED ON CLEANUP, WHICH IS WHY EVERY READER MUST SPELL `var(--orb-keyboard-inset, 0px)`
- * WITH THE FALLBACK. Base UI's drawer docs make exactly this point about `--drawer-keyboard-inset`: the
- * value only exists while a keyboard is being tracked, so a bare `var()` is invalid before the first write
- * and after teardown, and an invalid `var()` in a `calc()` takes the whole declaration with it.
- *
- * NO INSTRUMENT WE OWN CAN VERIFY THIS. Headless Chromium has no on-screen keyboard, so CT, snap and
- * design-audit all measure a permanent inset of 0 — a passing test here would prove only that the no-keyboard
- * path is inert, which is the half that was never in doubt. What CAN be pinned is the arithmetic
- * (`readKeyboardInset` against a faked `visualViewport`), and the rendered proof needs a real device.
- */
+/** Mirror keyboard coverage and visibility without rerendering the shell during native viewport transitions. */
 export function useKeyboardInsetVar(): void {
   useEffect(() => {
     const root = document.documentElement;
+    const read = createKeyboardInsetReader();
     let last = -1;
+    let lastOpen = false;
     const apply = (): void => {
-      const inset = readKeyboardInset();
+      // A registered length resolves 100dvh to pixels without measuring unrelated normal-flow content.
+      const { inset, open } = read(Number.parseFloat(getComputedStyle(root).getPropertyValue(LAYOUT_HEIGHT_VAR)));
       // Guard the write, not just the value: a no-op setProperty still dirties style on an element the
       // whole shell inherits from, and iOS fires these events at frame rate while the keyboard animates.
-      if (inset === last) {
+      if (inset === last && open === lastOpen) {
         return;
       }
       last = inset;
-      root.toggleAttribute(KEYBOARD_UP_ATTRIBUTE, inset > 0);
+      lastOpen = open;
+      root.toggleAttribute(KEYBOARD_UP_ATTRIBUTE, open);
       if (inset === 0) {
         root.style.removeProperty(KEYBOARD_INSET_VAR);
         return;

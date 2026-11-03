@@ -8,9 +8,8 @@ import type { Tone } from "#tokens";
 // onto every part) is the one CSS branch: root/list flip from a stack to a side-by-side row, and the
 // list stacks its tabs in a column. Tabs ride h-(--size-control-sm) (the ≥44px touch floor, §4b axis 3) in the
 // default `inline` layout; the `stacked` arm trades the fixed height for content height + a min-height
-// floor (see the variant's own note). The --active-tab-* vars the indicator reads are recomputed by
-// Base UI for the vertical axis; the underline reads `left`/`width` (recomputed there too), so it
-// needs no orientation branch. `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
+// floor (see the variant's own note). The indicator follows Base UI's geometry on the orientation's axis.
+// `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
 // `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
 export const tabsVariants = tv({
   slots: {
@@ -47,6 +46,16 @@ export const tabsVariants = tv({
       `
         absolute inset-s-(--active-tab-left) inset-be-0 z-(--z-raised) origin-left rounded-full bg-primary block-(--border-width-accent)
         inline-(--active-tab-width)
+      `,
+      // Select the matching physical measurement for the logical start edge.
+      "data-[orientation=horizontal]:rtl:inset-s-(--active-tab-right)",
+      `
+        data-[orientation=vertical]:inset-s-auto data-[orientation=vertical]:inset-e-0 data-[orientation=vertical]:inset-bs-(--active-tab-top)
+        data-[orientation=vertical]:inset-be-auto
+      `,
+      `
+        data-[orientation=vertical]:origin-top data-[orientation=vertical]:block-(--active-tab-height)
+        data-[orientation=vertical]:inline-(--border-width-accent)
       `,
       "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],

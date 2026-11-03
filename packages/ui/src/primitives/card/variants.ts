@@ -5,7 +5,7 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 // compose it (ui-package-design §6.1).
 //
 // The base padding + radius here are the TIER-LESS FALLBACK, nothing more: inside a `<Surface>` the
-// unlayered `styles/tiers.css` map resolves both from the surface's tier (UI-Density-Law.md §4.2), so a
+// ui-layer `styles/tiers.css` map resolves both from the surface's tier (UI-Density-Law.md §4.2), so a
 // feature never picks island padding or radius. `rounded-base` (grouped content), never `rounded-card` —
 // D6 demoted `--radius-card` to ELEVATED/floating islands only, which is what `elevated` opts into.
 
@@ -61,7 +61,7 @@ export const cardVariants = tv({
       `,
     },
     // The explicit floating-island opt-in (UI-Density-Law.md §2.1/§4.3): a modal/popover/composer-class
-    // card that genuinely floats above the page. Its radius is re-declared unlayered in tiers.css so it
+    // card that genuinely floats above the page. Its radius is re-declared in the ui layer in tiers.css so it
     // outranks the tier step inside a Surface; the shadow needs no such help (no tier rule touches it).
     elevated: {
       true: "rounded-card shadow-overlay",
@@ -71,7 +71,7 @@ export const cardVariants = tv({
     // bubble — must stay distinguishable, but the full Card treatment inside a box that already has
     // border+radius+fill is TWO complete boxes. This arm is the ruled single-axis separation: drop the border
     // entirely, step the radius one below the host's, and let the FILL alone carry the distinction (the caller
-    // supplies it). The radius is re-declared unlayered in tiers.css for the same reason `elevated` is: a
+    // supplies it). The radius is re-declared in the ui layer in tiers.css for the same reason `elevated` is: a
     // `rounded-*` utility on the card loses to the tier rule inside a Surface.
     nested: {
       true: "rounded-inset border-0",

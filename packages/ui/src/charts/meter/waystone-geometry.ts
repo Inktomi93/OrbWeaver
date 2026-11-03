@@ -112,14 +112,14 @@ const ARC_BAND_RAMP: Readonly<Record<WaystonePhase, WaystoneBandRamp>> = {
 const ARC_LIT_L_GAIN = 0.06;
 const ARC_LIT_C_GAIN = 0.02;
 
-/** One dial band's stroke: the band's own hue at the normalized ramp, shifted per POLARITY by the two vars
- *  the stylesheet sets (a light theme needs darker, slightly richer bands to read against a light bezel).
- *  Defaults inline so the stone still paints correctly if it ever renders outside the stylesheet's scope. */
+/** Keep each band's hue while resolving its lightness adjustment from the local color scheme. */
 export function arcStroke(phase: WaystonePhase, lit: boolean): string {
   const band = ARC_BAND_RAMP[phase];
   const l = lit ? band.l + ARC_LIT_L_GAIN : band.l;
   const c = lit ? band.c + ARC_LIT_C_GAIN : band.c;
-  return `oklch(from ${waystoneBandTint(phase)} calc(${l} + var(--orb-ws-band-l, 0)) calc(${c} * var(--orb-ws-band-c, 1)) h)`;
+  const tint = waystoneBandTint(phase);
+  const chroma = `calc(${c} * var(--orb-ws-band-c, 1))`;
+  return `light-dark(oklch(from ${tint} calc(${l} - var(--orb-ws-band-light-shift, 0.13)) ${chroma} h), oklch(from ${tint} ${l} ${chroma} h))`;
 }
 
 // ─── Tints (tokens + color-mix ONLY — the §12.1.9 one-home rule for the stone) ───────────────────

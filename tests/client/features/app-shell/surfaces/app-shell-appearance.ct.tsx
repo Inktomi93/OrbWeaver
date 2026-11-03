@@ -6,7 +6,7 @@ import { contextToggleLabel } from "@orb/client/lib";
 import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
-import { BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema, BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
 import type { ChatId, ThemeId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
@@ -117,6 +117,15 @@ function appearanceSettings(
 /** Serve the shell and its sections, with the corpus viewer's settings carrying `appearance` and, when named, a selected theme. */
 async function routeAppearance(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings>, selectedThemeId?: ThemeId): Promise<void> {
   await routeLiveAppearance(page, corpus, () => ({ appearance, selectedThemeId }));
+}
+
+async function routeStoredAppearance(page: Page, corpus: CorpusPlayback, appearance: Partial<AppearanceSettings>): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({ ...BASE_APPEARANCE, ...appearance }) });
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SERVED, "settings.getUserSettings"]),
+  });
 }
 
 /** {@link routeAppearance} with the settings read each time the shell asks, so a case can remount on a different answer. */
@@ -1232,4 +1241,85 @@ test.describe("handover to the pending mark", () => {
     await handOver(page, "on");
     await expect(page.locator("html")).toHaveCSS("font-size", `${UA_ROOT_PX * LARGE_FONT_SCALE}px`);
   });
+});
+
+for (const mode of [
+  { name: "desktop glass", width: 1280, blur: true, reduced: false, glass: true },
+  { name: "desktop glass disabled", width: 1280, blur: false, reduced: false, glass: false },
+  { name: "reduced transparency", width: 1280, blur: true, reduced: true, glass: false },
+  { name: "phone", width: 390, blur: true, reduced: false, glass: false },
+] as const) {
+  test(`the wallpaper landing follows the surface policy in ${mode.name}`, async ({ corpus, mount, page }, testInfo) => {
+    await page.setViewportSize({ width: mode.width, height: 844 });
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+    await routeStoredAppearance(page, corpus, {
+      ...wallpaper(corpus),
+      blurSurfaces: mode.blur ? ["panels"] : [],
+      reducedTransparency: mode.reduced ? "on" : "off",
+    });
+    await mount<typeof AppShellStory>(STORY, {});
+    if (mode.width === PHONE.width) {
+      await page
+        .locator(".shell-topbar")
+        .getByRole("button", { name: /overview$/u })
+        .click();
+    }
+    const plate = page.locator('.shell-content [data-slot="empty-state-root"]').first();
+    await expect(plate).toBeVisible();
+    const titleGeometry = await plate.locator('[data-slot="empty-state-title"]').evaluate((node) => {
+      const context = document.createElement("canvas").getContext("2d");
+      if (context === null) {
+        throw new Error("No text measurement context");
+      }
+      const style = getComputedStyle(node);
+      context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      return {
+        width: node.getBoundingClientRect().width,
+        word: Math.max(
+          ...node.textContent
+            .trim()
+            .split(/\s+/u)
+            .map((word) => context.measureText(word).width),
+        ),
+      };
+    });
+    expect(titleGeometry.word).toBeGreaterThan(0);
+    expect(titleGeometry.width).toBeGreaterThanOrEqual(titleGeometry.word - 1);
+    await expect.poll(() => computed(plate, "backdrop-filter")).toMatch(mode.glass ? /blur\(/u : /^none$/u);
+    const alpha = await fillAlpha(plate);
+    expect({ opaque: alpha === 1, visible: alpha > 0 }).toEqual({ opaque: !mode.glass, visible: true });
+    const screenshot = testInfo.outputPath("wallpaper.png");
+    await expect.poll(() => page.locator('.shell-panel[data-panel-side="list"]').evaluate((node) => node.getAnimations().length)).toBe(0);
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach(`wallpaper-${mode.name}`, { path: screenshot, contentType: "image/png" });
+  });
+}
+
+for (const scale of [1, 1.5]) {
+  test(`reading scale ${scale} preserves the column's character measure`, async ({ corpus, mount, page }) => {
+    await page.setViewportSize({ width: 2200, height: 1000 });
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+    await routeStoredAppearance(page, corpus, { readingBodyScale: scale, chatWidthPct: 100 });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    for (const selector of [".orb-composer-track", '[data-slot="message-content-column"]']) {
+      const box = page.locator(selector).first();
+      const measured = await box.evaluate((node, measure) => {
+        const probe = document.createElement("span");
+        probe.style.cssText = `position:absolute;display:block;width:var(${measure});height:0`;
+        node.append(probe);
+        const result = { maximum: Number.parseFloat(getComputedStyle(node).maxInlineSize), measure: probe.getBoundingClientRect().width };
+        probe.remove();
+        return result;
+      }, TOKENS["reading.measure"].cssVar);
+      expect(measured.maximum).toBeCloseTo(measured.measure, 0);
+    }
+  });
+}
+
+test("increased contrast restores native scrollbar width and colours", async ({ corpus, mount, page }) => {
+  await routeStoredAppearance(page, corpus, { increasedContrast: "on" });
+  await mount<typeof AppShellStory>(STORY, {});
+  await expect(page.locator("html")).toHaveCSS("scrollbar-color", "auto");
+  await expect(page.locator(LIST)).toHaveCSS("scrollbar-width", "auto");
 });

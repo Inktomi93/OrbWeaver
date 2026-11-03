@@ -1,8 +1,5 @@
 @layer ui {
-  /* The density tier map (UI-Density-Law.md §4.2): slot names to token steps, hand-authored because a slot name is
-   * not token data. In the `ui` layer so a tier rule beats a primitive's own utility default inside a `<Surface>`.
-   * The steps ride inherited `--orb-tier-*` properties, not per-tier selector pairs, so a nested surface takes its
-   * nearest tier instead of resolving by source order. */
+  /* The nearest surface supplies the tier choice; consumers resolve its tokens locally in the ui layer. */
 
   /* Density is an inherited value axis over the semantic spacing names; both arms are explicit so a comfortable
    * scope below a compact one restores the comfortable scale. */
@@ -23,35 +20,43 @@
   }
 
   [data-surface-tier="instrument"] {
-    /* Instrument: read-mostly and glanceable; chrome is subtracted until only data is left. */
-    --orb-tier-island-pad: var(--spacing-row);
-    --orb-tier-island-radius: var(--radius-base);
-    --orb-tier-row-gap: var(--spacing-field);
-    --orb-tier-row-atom-gap: var(--spacing-tight);
+    --orb-form-tier: 0;
     --orb-tier-row-title-size: var(--text-label);
     --orb-tier-row-title-leading: var(--leading-label);
     --orb-tier-row-title-weight: var(--font-weight-semibold);
     --orb-tier-row-gloss-size: var(--text-micro);
-    /* `text.field-dense` carries the coarse-pointer arm itself, so the dense field clears iOS Safari's focus-zoom
-     * floor on a finger without this file learning what a pointer is. */
     --orb-tier-field-size: var(--text-field-dense);
     --orb-tier-field-leading: var(--leading-field-dense);
   }
 
   [data-surface-tier="form"] {
-    /* Form: write-mostly, one decision per row. These are the primitives' own tier-less defaults restated, so
-     * declaring `tier="form"` never retunes a pane. */
-    --orb-tier-island-pad: var(--spacing-block);
-    --orb-tier-island-radius: var(--radius-card);
-    --orb-tier-row-gap: var(--spacing-row);
-    --orb-tier-row-atom-gap: var(--spacing-field);
+    --orb-form-tier: 1;
     --orb-tier-row-title-size: var(--text-body);
     --orb-tier-row-title-leading: var(--leading-body);
     --orb-tier-row-title-weight: var(--font-weight-medium);
     --orb-tier-row-gloss-size: var(--text-label);
-    /* The field token, not the body step: the same size on a fine pointer, the focus-zoom floor on a coarse one. */
     --orb-tier-field-size: var(--text-field);
     --orb-tier-field-leading: var(--leading-field);
+  }
+
+  /* Resolve tokens at the consumer so nested density and theme scopes do not inherit frozen outer values. */
+  [data-surface-tier]
+    :is(
+      [data-slot="card-root"],
+      [data-slot="list-row-root"],
+      [data-slot="list-row-body"],
+      [data-slot="list-row-markers"],
+      [data-slot="list-row-title"],
+      [data-slot="list-row-subtitle"],
+      [data-slot="list-row-subtitle-reveal"],
+      [data-slot="list-row-meta"],
+      [data-slot="input-root"],
+      [data-slot="select-trigger"]
+    ) {
+    --orb-tier-island-pad: calc(var(--spacing-row) + (var(--spacing-block) - var(--spacing-row)) * var(--orb-form-tier));
+    --orb-tier-island-radius: calc(var(--radius-base) + (var(--radius-card) - var(--radius-base)) * var(--orb-form-tier));
+    --orb-tier-row-gap: calc(var(--spacing-field) + (var(--spacing-row) - var(--spacing-field)) * var(--orb-form-tier));
+    --orb-tier-row-atom-gap: calc(var(--spacing-tight) + (var(--spacing-field) - var(--spacing-tight)) * var(--orb-form-tier));
   }
 
   [data-surface-tier] [data-slot="card-root"] {

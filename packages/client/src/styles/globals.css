@@ -9,6 +9,13 @@
 /* Streamdown's own markup carries Tailwind classes, and a package in node_modules is never scanned on its own. */
 @source "../../../ui/node_modules/streamdown/dist";
 
+/* Resolve the CSS viewport independently of innerHeight and normal-flow document content. */
+@property --orb-layout-viewport-height {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
+}
+
 /* The room's track (features/chat/lib/chat-track.tsx) centres on the device-pixel grid (integer-line-boxes.md Law 3):
  * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
  * start margin is floored and the end margin absorbs the odd pixel. */
@@ -21,13 +28,14 @@
  * voices and controls set their own sizes. Centred on the same pixel grid as the transcript's track. */
 @utility orb-composer-track {
   font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
-  --composer-track: min(var(--width-shell-content), calc(var(--reading-measure) * var(--appearance-reading-body-scale)));
+  --composer-track: min(var(--width-shell-content), var(--reading-measure));
   max-inline-size: var(--composer-track);
   margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), 1px) auto;
 }
 
 @layer client {
   :root {
+    --orb-layout-viewport-height: 100dvh;
     background-color: var(--color-background);
     --glass-blur-scale: 1;
   }
@@ -102,34 +110,24 @@
   }
   /* The chats landing's empty state sits straight on the wallpaper, so it takes a plate. */
   .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-    inline-size: max-content;
-    max-inline-size: 100%;
+    inline-size: 100%;
+    max-inline-size: var(--reading-measure-prose);
     margin-inline: auto;
     padding: var(--spacing-section);
     border-radius: var(--radius-card);
-    background-color: color-mix(in oklab, var(--color-background) 72%, transparent);
+    background-color: var(--color-background);
     text-shadow: none;
   }
-  @supports (backdrop-filter: blur(1px)) {
-    .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
-      --glass-blur-scale: 0.5;
-      backdrop-filter: var(--glass-filter);
-    }
-  }
-
   /* The reading measure caps the content column, never the transcript region, which the user's width dial owns.
    * It is homed here because the message row and the ghost row both stamp the slot and their measures must not
-   * drift. The column's own font size is the prose size so the token's `ch` means what it says, and the
-   * reading-scale multiply keeps the cap in prose characters. No `min-width`: a percentage floor resolves
+   * drift. The column's own font size makes the token's `ch` follow reading scale without another multiplier.
+   * No `min-width`: a percentage floor resolves
    * against the row body and would spill the column out of its pane; the shell grid's squeeze owns that floor. */
   [data-slot="message-content-column"] {
     font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
-    max-inline-size: var(--column-measure, calc(var(--reading-measure) * var(--appearance-reading-body-scale)));
+    max-inline-size: var(--column-measure, var(--reading-measure));
     /* The centred skins' column width (row-placement.ts): the measure, or the row less its two identity rails. */
-    --centred-column-width: min(
-      calc(var(--reading-measure) * var(--appearance-reading-body-scale)),
-      calc(100cqi - 2 * (var(--size-avatar-lg) + var(--spacing-row)))
-    );
+    --centred-column-width: min(var(--reading-measure), calc(100cqi - 2 * (var(--size-avatar-lg) + var(--spacing-row))));
   }
 
   /* The reading typography the appearance settings own. */
@@ -301,11 +299,6 @@
   [data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
     color: inherit;
   }
-  /* Keep the bottom fade shallow over wallpaper so reading ink stays above the contrast floor. */
-  [data-has-bg-image] [data-slot="message-list-scroll"][data-fade-bottom] {
-    --fade-bottom-stop: var(--spacing-section);
-  }
-
   /* Echo's track is the content track plus its art width; the skin's own caps live in message-row-variants. */
   .orb-echo-track {
     max-inline-size: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
@@ -338,7 +331,7 @@
       .shell-grid {
         --glass-under: transparent;
       }
-      .shell-grid[data-has-bg-image] :is(.shell-panel, .shell-main, [data-slot="composer"], [data-slot="message-bubble"]) {
+      .shell-grid[data-has-bg-image] :is(.shell-panel, .shell-main, [data-slot="composer"], [data-slot="message-bubble"], [data-slot="empty-state-root"]) {
         --glass-under: light-dark(var(--color-reading-plate), transparent);
       }
       /* The pane's glass paints on a `::before` carrier, not the pane: a backdrop-filter on the pane makes it one
@@ -347,6 +340,10 @@
        * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
        * is what contains the carrier. */
       @variant appearance-blur-surfaces-panels {
+        .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
+          backdrop-filter: var(--glass-filter);
+          background-color: color-mix(in oklab, var(--color-background) var(--blur-fill-chrome), var(--glass-under));
+        }
         .shell-panel {
           background: none;
         }
@@ -450,6 +447,7 @@
       mix-blend-mode: soft-light;
       /* A `public/` path, never an inline `data:` URL: the CSP blocks `data:` images (D44); do not widen `img-src`. */
       background-image: url("/grain.svg");
+      border-radius: inherit;
     }
     /* The card's positioning context for its grain carrier. */
     [data-slot="card-root"] {
@@ -480,6 +478,9 @@
    * mixed from the pair the surface owns, or a hairline token at 2px stays invisible against the 3:1 floor. The edge
    * half is not blur-gated: a contrast user who turned the glass off still gets it. */
   @variant appearance-increased-contrast {
+    * {
+      scrollbar-width: auto;
+    }
     /* A noise overlay works against a stated contrast preference. */
     @variant appearance-surface-texture-grain {
       .shell-grid::after,
@@ -511,6 +512,7 @@
   /* A root variant must be inside its selector: the outer block form scopes descendant rules and cannot select the root. */
   :root {
     @variant appearance-increased-contrast {
+      scrollbar-color: auto;
       @variant shell-desktop {
         --contrast-edge-mix: 65%;
       }
@@ -531,6 +533,7 @@
   @variant appearance-reduced-transparency {
     @variant appearance-blur-surfaces-panels {
       .shell-panel::before,
+      .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"],
       .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
         backdrop-filter: none;
       }

@@ -67,7 +67,7 @@ export function Card(props: CardProps): ReactElement {
     className,
   );
   const slot = ownSlot ?? "card-root";
-  // The attributes the unlayered elevated-/nested-radius rules key on, plus the D336 tone scope: inside a Surface the tier rule
+  // The attributes the ui-layer elevated-/nested-radius rules key on, plus the D336 tone scope: inside a Surface the tier rule
   // outranks any `rounded-*` utility the variant emits. `data-slot` is set after the caller's props on each arm, so a
   // stray `data-slot` cannot drop a card out of the tier map; only `ownSlot` does, on purpose.
   const marks = {

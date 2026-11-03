@@ -150,7 +150,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // the wallpaper IS the page and the reading plates carry the text).
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
-          className="overflow-y-auto px-block pbe-block block-full @max-cq-28:px-tight"
+          className="overflow-y-auto overscroll-y-none px-block pbe-block block-full @max-cq-28:px-tight"
           focusTarget={true}
           ground={roomTheme?.background === undefined ? undefined : "backgroundUnlessArt"}
           gap="field"

@@ -1,5 +1,5 @@
 import { resolvedLength } from "@orb/testkit/browser/spec";
-import { TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { WaystoneStory } from "./waystone-stories.tsx";
 
@@ -97,3 +97,14 @@ test("an unset clock keeps the smallest display step while populated clocks reta
     await expect.poll(async () => (await stone.boundingBox())?.height).toBe(populatedSize);
   }
 });
+
+for (const background of [TOKENS["color.background"].value, SEED_THEME_VALUE_SETS.light.vars[TOKENS["color.background"].cssVar]]) {
+  test(`the band follows a carried ${background} scope instead of the ancestor theme name`, async ({ mount }) => {
+    const props = { clock: { hour: 12, minute: 0 }, weather: "clear", background } as const;
+    const component = await mount<typeof WaystoneStory>(STORY, { ...props, outerTheme: "light" });
+    const arc = component.locator('[data-slot="waystone-arc"]').first();
+    const lightAncestor = await arc.evaluate((node) => getComputedStyle(node).stroke);
+    await component.update({ ...props, outerTheme: "mocha" });
+    await expect(arc).toHaveCSS("stroke", lightAncestor);
+  });
+}

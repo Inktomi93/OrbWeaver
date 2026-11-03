@@ -151,6 +151,36 @@ test("a soft keyboard marks the root keyboard-up while it is open, and clears it
   await expect(html).not.toHaveAttribute("data-keyboard-up");
 });
 
+test("keyboard state remains active when the browser resizes its own CSS frame", async ({ mount, page }) => {
+  const original = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mount<typeof AppShellStory>(STORY, {});
+  await page.evaluate(() => {
+    if (visualViewport === null) {
+      throw new Error("No visual viewport");
+    }
+    Object.defineProperty(visualViewport, "height", { configurable: true, get: () => 504 });
+    visualViewport.dispatchEvent(new Event("resize"));
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-keyboard-up", "");
+  await expect(page.locator("html")).toHaveCSS("--orb-keyboard-inset", "340px");
+  await page.setViewportSize({ width: 390, height: 504 });
+  await expect(page.locator("html")).toHaveAttribute("data-keyboard-up", "");
+  await expect(page.locator("html")).toHaveCSS("--orb-keyboard-inset", "");
+  await expect(page.locator(".shell-grid")).toHaveCSS("height", "504px");
+  await page.evaluate(() => {
+    if (visualViewport === null) {
+      throw new Error("No visual viewport");
+    }
+    Reflect.deleteProperty(visualViewport, "height");
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator("html")).not.toHaveAttribute("data-keyboard-up");
+  if (original !== null) {
+    await page.setViewportSize(original);
+  }
+});
+
 test.describe("with an open sheet and keyboard", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
 

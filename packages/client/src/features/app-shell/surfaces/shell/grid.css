@@ -22,9 +22,8 @@
     grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
     grid-template-rows: 100%;
     /* No `transition: grid-template-columns`: the track resizes in one frame and motion.css counters it with a FLIP. */
-    /* The frame subtracts the soft-keyboard inset itself, since no browser shrinks `dvh` for the keyboard;
-     * `use-keyboard-inset-var.ts` removes `--orb-keyboard-inset` when there is no keyboard, so the `0px` fallback
-     * keeps the declaration valid. */
+    /* Subtract only the keyboard coverage the browser has not already removed from this CSS viewport.
+     * The hook removes an empty inset, so the fallback keeps this declaration valid. */
     block-size: calc(100dvh - var(--orb-keyboard-inset, 0px));
     position: relative;
     /* One isolated stacking scope: every z-index in this sheet orders only the grid's own children, on the
