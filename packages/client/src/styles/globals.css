@@ -245,6 +245,44 @@
     [data-slot="composer-input"] textarea {
       max-block-size: var(--dimension-chrome-row);
     }
+    /* Keep the field and Send on one row without remounting the options door or utilities. */
+    :root[data-keyboard-up] [data-slot="composer-guided-cluster"] {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "utilities utilities"
+        "door door"
+        "field send";
+    }
+    :root[data-keyboard-up] [data-slot="composer-input"] {
+      display: contents;
+    }
+    :root[data-keyboard-up] [data-slot="composer-input"] textarea {
+      max-block-size: var(--size-control-md);
+      padding-block: calc((var(--size-control-md) - 1lh) / 2);
+    }
+    :root[data-keyboard-up] [data-slot="composer-utilities"] {
+      grid-area: utilities;
+      flex-wrap: wrap;
+    }
+    :root[data-keyboard-up] [data-slot="composer-utilities"] > * {
+      max-inline-size: 100%;
+      flex-wrap: wrap;
+    }
+    :root[data-keyboard-up] [data-slot="composer-door"] {
+      grid-area: door;
+    }
+    :root[data-keyboard-up] [data-slot="composer-field"] {
+      grid-area: field;
+      min-inline-size: 0;
+    }
+    :root[data-keyboard-up] [data-slot="composer-send"] {
+      grid-area: send;
+      justify-self: end;
+    }
+    :root[data-keyboard-up] [data-slot="chat-room-surface"] {
+      padding-block-end: var(--spacing-tight);
+    }
   }
   /* A room this short, or a column this narrow where the name wraps, has no height to spend on a pinned name. */
   @container shell-main (height <= 20rem) or (inline-size < 20rem) {

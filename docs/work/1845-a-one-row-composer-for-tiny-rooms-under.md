@@ -11,19 +11,20 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Keep the complete message field and Send control inside the short room while writing above a keyboard.
 
 ## Why
 
-The symptom or the ruling behind it.
+The topbar consumes space the input needs at enlarged text. Floating header controls can also cover the composer after the header yields.
 
 ## Done when
 
-The observable bar a verifier can check.
+Production-mounted cases show the complete field and Send at 844×390 and 568×320 with 200% text, and 320×568 with 200% and 300% text. Header controls return after blur and keyboard dismissal.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-What: under the 20rem step with the keyboard up, collapse the composer toolbar so the field and Send fit. Why: on a landscape phone (844x390, 568x320) at 200% text or more with the keyboard up, the room is 36-94px tall and the composer 210-446px, so Send is cut or hidden. Main measures the same; 320x568 at 200/300% has the field's top above the room. Done: a CT at 844x390 200% with keyboard shows Send and the field whole.
+`tests/client/features/chat/components/platform-composer-max-rows.suite.ct.tsx` mounts the production shell and room through testkit. Cases check the room's clipping bounds, input and Send hit tests, draft retention, and header restoration.
 
-- With the keyboard up in a short shell, the topbar also takes the composer's row. At 844x390: 200% gives a 94px room and a 210px composer; 300% gives 46 and 446. Direction: the topbar gives up its row while writing with the keyboard up in the short regime, and the composer collapses to one row. Done: the field and Send are visible with the keyboard up at 844x390 200%.
+The field keeps the shared Textarea floor and ceiling. A short-keyboard grid seats the existing field and Send beside each other. The room scrolls utilities above that row and reveals the focused action. Shell CSS owns the height condition; sibling edge controls follow the rendered header visibility.
+
+Physical iOS keyboard behavior and independent comparative acceptance remain unqualified.

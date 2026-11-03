@@ -4,7 +4,7 @@
 // the main.tsx door.
 
 import { Button } from "@orb/ui/button";
-import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
+import { LIVE_TOKEN_ROOT_ATTRIBUTE, mergeRefs, PortalContainerContext } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
@@ -47,6 +47,7 @@ import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
 import { useShellContentPrimacyObserver } from "../hooks/use-is-mobile-viewport.ts";
 import { useKeyboardInsetVar } from "../hooks/use-keyboard-inset-var.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
+import { useShellChromeVisibility } from "../hooks/use-shell-chrome-visibility.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellNoticeInset } from "../hooks/use-shell-notice-inset.ts";
@@ -253,6 +254,9 @@ export function AppShell(): ReactElement {
   // hook (#2456): the focus door moves them together, and their contributions compose into ONE keyframe
   // per moving element — two hooks would be two attributes racing one `animation` property.
   const gridRef = useRef<HTMLDivElement>(null);
+  const topbarRef = useRef<HTMLElement>(null);
+  const topbarNoticeRef = mergeRefs(topbarRef, noticeHeaderRef);
+  useShellChromeVisibility(gridRef, topbarRef);
   useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
   // Overlays own focus while the underlying content is inert; closing restores their own toggle without stealing portal focus.
@@ -384,7 +388,7 @@ export function AppShell(): ReactElement {
                 <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
                   {(compactTitle, listDoorLabel, contentLabel): ReactElement => (
                     <ShellTopbar
-                      ref={noticeHeaderRef}
+                      ref={topbarNoticeRef}
                       screenTitle={compactTitle}
                       listDoorLabel={listDoorLabel}
                       contentLabel={contentLabel}

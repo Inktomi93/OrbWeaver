@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
   PopoverViewport,
 } from "@orb/ui/popover";
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement } from "react";
 import { useId, useState } from "react";
 
 export function PopoverNativePartsStory(): ReactElement {
@@ -37,6 +37,23 @@ export function PopoverNativePartsStory(): ReactElement {
             </PopoverViewport>
           </PopoverPopup>
         )}
+      </Popover>
+    </CtIsolation>
+  );
+}
+
+export function PopoverStyleStory({ stable = false, callback = true }: { readonly stable?: boolean; readonly callback?: boolean }): ReactElement {
+  return (
+    <CtIsolation subject="Popover style" isolates="Native style callback state and the seal's stable-width composition">
+      <Popover>
+        <PopoverTrigger>Open styled popup</PopoverTrigger>
+        <PopoverPopup
+          {...(stable ? ({ width: "stable" } as const) : {})}
+          style={callback ? (state): CSSProperties => ({ opacity: state.open ? 0.6 : 0, width: 1 }) : { opacity: 0.6 }}
+        >
+          <PopoverTitle>Styled popup</PopoverTitle>
+          <PopoverClose>Close styled popup</PopoverClose>
+        </PopoverPopup>
       </Popover>
     </CtIsolation>
   );

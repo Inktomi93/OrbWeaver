@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { PopoverNativePartsStory } from "./_native-parts-stories.tsx";
+import type { PopoverNativePartsStory, PopoverStyleStory } from "./_native-parts-stories.tsx";
 
 test("the popover transition names opacity and scale", async ({ mount, page }) => {
   await mount<typeof PopoverNativePartsStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverNativePartsStory");
@@ -31,3 +31,17 @@ test("an anchored handle and detached trigger retain their description through v
   await expect(popup).toBeHidden();
   await expect(trigger).toBeFocused();
 });
+
+for (const stable of [false, true]) {
+  test(`native popup style callbacks survive stable width ${String(stable)}`, async ({ mount, page }) => {
+    const root = await mount<typeof PopoverStyleStory>("tests/ui/primitives/popover/_native-parts-stories/PopoverStyleStory", { stable });
+    await page.getByRole("button", { name: "Open styled popup", exact: true }).click();
+    const popup = page.getByRole("dialog", { name: "Styled popup", exact: true });
+    await expect(popup).toHaveCSS("opacity", "0.6");
+    expect(await popup.evaluate((node) => node.style.width === "1px")).toBe(!stable);
+    await root.update({ stable, callback: false });
+    await expect(popup).toHaveCSS("opacity", "0.6");
+    await page.keyboard.press("Escape");
+    await expect(popup).toBeHidden();
+  });
+}

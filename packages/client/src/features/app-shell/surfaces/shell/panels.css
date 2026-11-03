@@ -214,6 +214,9 @@
     align-items: center;
     block-size: var(--dimension-chrome-row);
   }
+  .shell-grid[data-topbar-hidden] .shell-panel-edge {
+    display: none;
+  }
   /* The control sits flush on the screen-edge side and keeps one row gap to the band beside it. */
   .shell-panel-edge[data-panel-edge="list"] {
     inset-inline-start: calc(env(safe-area-inset-left) + var(--rail-w));

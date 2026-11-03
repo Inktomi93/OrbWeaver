@@ -2169,6 +2169,9 @@ export default [
     plugins: { orb: localPlugin },
     rules: {
       "orb/no-tailwind-dark-variant": "error",
+      "orb/no-overwritten-ref": "error",
+      "orb/no-unresolved-style-spread": "error",
+      "orb/no-native-callback-narrowing": "error",
       "orb/no-floorless-control-in-wrap": "error",
       "orb/browser-no-node-globals": "error",
     },

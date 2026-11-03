@@ -10,7 +10,7 @@ import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn, GRADIENT_RING_PIGMENT } from "#lib";
+import { cn, GRADIENT_RING_PIGMENT, mergeRefs } from "#lib";
 import { TABS_ACCENT_TONE, tabsVariants } from "./variants.ts";
 
 type TabsAxes = VariantProps<typeof tabsVariants>;
@@ -192,7 +192,7 @@ function observeIndicatorGlide(node: HTMLElement): () => void {
   };
 }
 
-export function TabsIndicator(props: TabsIndicatorProps): ReactElement {
+export function TabsIndicator({ ref, ...props }: TabsIndicatorProps): ReactElement {
   const indicatorRef = useRef<HTMLSpanElement | null>(null);
   useLayoutEffect((): (() => void) | undefined => {
     const node = indicatorRef.current;
@@ -203,8 +203,8 @@ export function TabsIndicator(props: TabsIndicatorProps): ReactElement {
       className={tabsVariants().indicator()}
       data-slot="tabs-indicator"
       {...props}
-      // The seal owns this node's ref (the glide above is its only reader). Last, so a spread cannot lose it.
-      ref={indicatorRef}
+      // The internal ref also drives the glide.
+      ref={mergeRefs(indicatorRef, ref)}
     />
   );
 }
@@ -242,7 +242,7 @@ const TABBABLE_DESCENDANT =
  * control unmounts — a filter emptying a list, a form collapsing to a sentence — becomes the read-only case
  * the stop exists FOR, and a one-way correction would have quietly taken it away.
  */
-export function TabsPanel({ className, ground, ...rest }: TabsPanelProps): ReactElement {
+export function TabsPanel({ className, ground, ref, ...rest }: TabsPanelProps): ReactElement {
   const panelRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect((): void => {
     const node = panelRef.current;
@@ -256,9 +256,8 @@ export function TabsPanel({ className, ground, ...rest }: TabsPanelProps): React
       className={cn(tabsVariants({ panelGround: ground }).panel(), className)}
       data-slot="tabs-panel"
       {...rest}
-      // The seal OWNS the panel node's ref — the correction above is its only reader, and no call site
-      // passes one. Last, so it cannot be lost to a spread.
-      ref={panelRef}
+      // The internal ref also drives the tab-stop correction.
+      ref={mergeRefs(panelRef, ref)}
     />
   );
 }

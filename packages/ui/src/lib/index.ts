@@ -43,6 +43,7 @@ export {
   resolveCssLength,
   resolveCssVar,
 } from "./live-token-resolver.ts";
+export { mergeRefs } from "./merge-refs.ts";
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";

@@ -249,7 +249,7 @@ A sweep stage that converts call sites ends with a `side-eye` pass against the s
 - A gradient ring paints its border only, so no ink sits on a lightened fill. Each carrier applies the masked utility in its own top-level `@supports (mask-clip: padding-box)` block on its full `::after` selector; a `&` nested under a pseudo-element matches nothing in unoptimized CSS.
 - A state that changes a live node's emphasis keeps one component. Two components remount the node and drop keyboard focus.
 - Cap wide content by its measure. The composer and its adjacent bands never exceed the transcript's reading column.
-- Keep `shell-short`: the room scrolls while its controls stay reachable. A shell pane or room 20rem tall or less at the enlarged root scrolls as a whole, and its rows or transcript keep a floor that yields while the message field holds focus. A name row stops pinning in a room 20rem tall or less or a column under 20rem wide. A phone 16rem wide or less gives the topbar a second line for the screen's name unless the keyboard is up.
+- Keep `shell-short`: the room scrolls while its controls stay reachable. A shell pane or room 20rem tall or less at the enlarged root scrolls as a whole, and its rows or transcript keep a floor that yields while the message field holds focus. A name row stops pinning in a room 20rem tall or less or a column under 20rem wide. A phone 16rem wide or less gives the topbar a second line for the screen's name unless the keyboard is up. While writing with a keyboard under the 20rem height step, the topbar and its edge controls yield to the input.
 - Avoid persistent layer-promotion hacks. Follow the integer-line-box law and measure `contain`, `content-visibility` and backdrop-filter changes.
 
 ### 8.2 Fonts and text scale

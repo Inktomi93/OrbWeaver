@@ -225,6 +225,13 @@
     }
   }
 
+  /* The writing line takes the header's row when the keyboard leaves too little room for both. */
+  @container shell-main (height <= 20rem) {
+    :root[data-keyboard-up] .shell-main:has(.orb-composer-track:focus-within, .orb-composer-track [data-popup-open]) .shell-topbar {
+      display: none;
+    }
+  }
+
   /* Every topbar icon button clears the pointer-conditional touch floor, so the flex row cannot squeeze it. */
   @variant pointer-coarse {
     .shell-topbar-icon-btn {

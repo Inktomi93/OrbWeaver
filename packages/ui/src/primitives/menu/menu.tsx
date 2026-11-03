@@ -57,6 +57,8 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
   align?: BasePositionerProps["align"];
   /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
+  /** Native collision handling for anchors in constrained scroll regions. */
+  collisionAvoidance?: BasePositionerProps["collisionAvoidance"];
   /** Portal target — defaults to the themed portal root; pass a node/ref to override. */
   container?: PortalContainer;
   /** How far the viewport clamp reaches; `belowChrome` stops one topbar row short of the edge. @defaultValue "viewport" */
@@ -65,13 +67,14 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** The menu surface — bundles Portal → Positioner → Popup so the anatomy can't be mis-assembled. */
 export function MenuPopup(props: MenuPopupProps): ReactElement {
-  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, container, clamp, ...rest } = props;
+  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, collisionAvoidance, container, clamp, ...rest } = props;
   const portalContainer = usePortalContainer();
   return (
     <BaseMenu.Portal container={container ?? portalContainer}>
       <BaseMenu.Positioner
         align={align}
         className={slots.positioner()}
+        collisionAvoidance={collisionAvoidance}
         collisionPadding={resolveCssLength(EDGE_GAP_VAR, ANCHOR_GAP_TRIGGER)}
         data-slot="menu-positioner"
         side={side}

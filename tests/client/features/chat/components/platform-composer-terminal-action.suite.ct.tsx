@@ -59,14 +59,13 @@ async function expectActionHit(item: Locator): Promise<void> {
     .poll(() =>
       item.evaluate((node) => {
         const box = node.getBoundingClientRect();
-        const hit = node.ownerDocument.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-        const viewport = visualViewport;
-        const top = viewport?.offsetTop ?? 0;
-        const bottom = top + (viewport?.height ?? innerHeight);
-        return hit !== null && node.contains(hit) && box.top >= top && box.bottom <= bottom;
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        const top = visualViewport?.offsetTop ?? 0;
+        const bottom = top + (visualViewport?.height ?? innerHeight);
+        return { hit: hit !== null && node.contains(hit), topVisible: box.top >= top, bottomVisible: box.bottom <= bottom };
       }),
     )
-    .toBe(true);
+    .toEqual({ hit: true, topVisible: true, bottomVisible: true });
 }
 
 async function proveTouchScroll(page: Page): Promise<void> {
@@ -85,6 +84,7 @@ async function revealByTouch(page: Page, popup: Locator, item: Locator): Promise
   const menuBox = await settledBox(popup);
   const scroller = await popup.elementHandle();
   const action = await item.elementHandle();
+  let panLoss: number | undefined;
   for (;;) {
     const target = await action.evaluate((node) => {
       const port = node.closest('[role="menu"]');
@@ -109,95 +109,120 @@ async function revealByTouch(page: Page, popup: Locator, item: Locator): Promise
     const x = menuBox.x + menuBox.width / 2;
     const y = menuBox.y + menuBox.height * (target.offset < 0 ? 0.85 : 0.15);
     const travel = target.offset < 0 ? y - viewport.top : viewport.top + viewport.height - y;
-    // A sub-item correction must still be a pan, not a tap on the item under the finger.
-    const dy = Math.sign(target.offset) * Math.min(travel, Math.max(target.height / 2, Math.abs(target.offset)));
+    // Learn the native pan dead zone so fine corrections do not oscillate around a one-row viewport.
+    const distance = panLoss === undefined ? Math.max(target.height / 2, Math.abs(target.offset)) : Math.abs(target.offset) + panLoss;
+    const dy = Math.sign(target.offset) * Math.min(travel, distance);
     await expect.poll(() => scroller.evaluate((node, point) => node.contains(document.elementFromPoint(point.x, point.y)), { x, y })).toBe(true);
     await Promise.all([
       scroller.evaluate((node) => new Promise<void>((resolve) => node.addEventListener("scrollend", () => resolve(), { once: true }))),
       touchGesture(page, { x, y }, { drag: { dx: 0, dy }, holdMs: DRAG_RELEASE_PAUSE_MS }),
     ]);
-    expect(await scroller.evaluate((node) => node.scrollTop)).not.toBe(before);
+    const after = await scroller.evaluate((node) => node.scrollTop);
+    expect(after).not.toBe(before);
+    panLoss = Math.max(0, Math.abs(dy) - Math.abs(after - before));
   }
 }
 
-for (const input of ["keyboard", "touch"] as const) {
-  test(`the last contributed action is reachable by ${input} and returns focus in the short keyboard host`, async ({ corpus, mount, page, browserName }) => {
-    test.skip(input === "touch" && browserName !== "chromium", "Native CDP touch scrolling requires Chromium; keyboard reach still runs on WebKit.");
-    await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
-    const caller = await root.internalCallerFor(root.ownerId);
-    const chatId = await prepareGame(caller);
-    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({}) });
-    const commands = TARGETS.flatMap(({ target, prefix }) =>
-      Array.from({ length: COMMANDS_PER_MENU }, (_, index) => ({
-        name: `${prefix}_${String(index + 1).padStart(2, "0")}`,
-        label: `Command ${String(index + 1).padStart(2, "0")}`,
-        target,
-      })),
-    );
-    const manifest = pluginManifestSchema.parse({
-      id: "menu-reach-witness",
-      name: PLUGIN_NAME,
-      description: "A native guest with long attributed composer menus.",
-      version: "1.0.0",
-      hostVersion: PLUGIN_HOST_VERSIONS[0],
-      entry: PLUGIN_MAIN_ENTRY,
-      capabilities: ["ui.surface"],
-    });
-    const source = `const host=orb.host(1);for(const command of ${JSON.stringify(commands)}){host.ui.registerCommand({name:command.name,describe:command.label,placements:[{target:command.target,label:command.label}],onRun:async()=>{await host.ui.toast("success","Reached "+command.name);}});}`;
-    const plugin = await caller.plugin.install({
-      bundleBase64: Buffer.from(makePluginBundle(manifest, source, root.clock.now())).toString("base64"),
-      grant: manifest.capabilities,
-    });
-    await caller.plugin.setEnabled({ pluginId: plugin.id, enabled: true });
-    await page.setViewportSize(VIEWPORT);
-    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
-    const rpc = await routeTrpc(page, {
-      ...createShellAmbientReads(corpus, root.ownerId),
-      ...serveCorpusProcedures(caller, [
-        ...SECTION_PROCEDURES,
-        ...ROOM_PROCEDURES,
-        "plugin.listCommands",
-        "plugin.invokeUiCommand",
-        "rpg.getGame",
-        "rpg.listTurnToolCalls",
-      ]),
-    });
-    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    const draft = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
-    await draft.fill(DRAFT);
-    if (input === "touch") {
-      await proveTouchScroll(page);
-    }
-    expect(rpc.count("plugin.invokeUiCommand")).toBe(0);
-    await emulateSoftKeyboard(page, KEYBOARD_HEIGHT);
-    await expect.poll(() => page.evaluate(() => visualViewport?.height)).toBe(VIEWPORT.height - KEYBOARD_HEIGHT);
-    for (const [index, { opener, prefix }] of TARGETS.entries()) {
-      const trigger = page.getByRole("button", { name: opener, exact: true });
-      await trigger.tap();
-      const popup = page.getByRole("menu").first();
-      const terminal = popup.getByRole("menuitem", { name: `${PLUGIN_NAME} · Commands · Command ${TERMINAL_ORDINAL}`, exact: true });
-      await expect(terminal).toBeEnabled();
-      expect(await popup.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
-      const reveal = input === "keyboard" ? revealByKeyboard : revealByTouch;
-      await reveal(page, popup, terminal);
-      await expectActionHit(terminal);
-      root.clock.advance(PLUGIN_TOAST_COOLDOWN_SECONDS * MS_PER_SECOND);
-      if (input === "keyboard") {
-        await terminal.press("Enter");
-      } else {
-        await terminal.tap();
+for (const rootPx of [16, 32]) {
+  for (const input of ["keyboard", "touch"] as const) {
+    test(`the last contributed action is reachable by ${input} and returns focus in the short keyboard host at ${rootPx}px root`, async ({
+      corpus,
+      mount,
+      page,
+      browserName,
+    }) => {
+      test.skip(input === "touch" && browserName !== "chromium", "Native CDP touch scrolling requires Chromium; keyboard reach still runs on WebKit.");
+      await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+      const caller = await root.internalCallerFor(root.ownerId);
+      const chatId = await prepareGame(caller);
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({}) });
+      const commands = TARGETS.flatMap(({ target, prefix }) =>
+        Array.from({ length: COMMANDS_PER_MENU }, (_, index) => ({
+          name: `${prefix}_${String(index + 1).padStart(2, "0")}`,
+          label: `Command ${String(index + 1).padStart(2, "0")}`,
+          target,
+        })),
+      );
+      const manifest = pluginManifestSchema.parse({
+        id: "menu-reach-witness",
+        name: PLUGIN_NAME,
+        description: "A native guest with long attributed composer menus.",
+        version: "1.0.0",
+        hostVersion: PLUGIN_HOST_VERSIONS[0],
+        entry: PLUGIN_MAIN_ENTRY,
+        capabilities: ["ui.surface"],
+      });
+      const source = `const host=orb.host(1);for(const command of ${JSON.stringify(commands)}){host.ui.registerCommand({name:command.name,describe:command.label,placements:[{target:command.target,label:command.label}],onRun:async()=>{await host.ui.toast("success","Reached "+command.name);}});}`;
+      const plugin = await caller.plugin.install({
+        bundleBase64: Buffer.from(makePluginBundle(manifest, source, root.clock.now())).toString("base64"),
+        grant: manifest.capabilities,
+      });
+      await caller.plugin.setEnabled({ pluginId: plugin.id, enabled: true });
+      await page.setViewportSize(VIEWPORT);
+      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+      const rpc = await routeTrpc(page, {
+        ...createShellAmbientReads(corpus, root.ownerId),
+        ...serveCorpusProcedures(caller, [
+          ...SECTION_PROCEDURES,
+          ...ROOM_PROCEDURES,
+          "plugin.listCommands",
+          "plugin.invokeUiCommand",
+          "rpg.getGame",
+          "rpg.listTurnToolCalls",
+        ]),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+      await page.evaluate((px) => {
+        document.documentElement.style.fontSize = `${px}px`;
+      }, rootPx);
+      const draft = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+      await draft.fill(DRAFT);
+      expect(rpc.count("plugin.invokeUiCommand")).toBe(0);
+      await emulateSoftKeyboard(page, KEYBOARD_HEIGHT);
+      await expect.poll(() => page.evaluate(() => visualViewport?.height)).toBe(VIEWPORT.height - KEYBOARD_HEIGHT);
+      if (input === "touch") {
+        await proveTouchScroll(page);
       }
-      await expect(page.getByText(`${PLUGIN_NAME}: Reached ${prefix}_${TERMINAL_ORDINAL}`, { exact: true })).toBeVisible();
-      expect(rpc.count("plugin.invokeUiCommand")).toBe(index + 1);
-      expect(rpc.lastInput("plugin.invokeUiCommand")).toMatchObject({ pluginId: plugin.id, name: `${prefix}_${TERMINAL_ORDINAL}`, chatId });
-      await expect(popup).toHaveCount(0);
-      await expect(trigger).toBeFocused();
-      // Focus returned is not enough: closing must not re-floor the room and leave the trigger under the keyboard.
-      await expectActionHit(trigger);
-      await expect(draft).toHaveValue(DRAFT);
-    }
-    expect(rpc.count("chat.generate")).toBe(0);
-  });
+      for (const [index, { opener, prefix }] of TARGETS.entries()) {
+        const trigger = page.getByRole("button", { name: opener, exact: true });
+        await trigger.tap();
+        const popup = page.getByRole("menu").first();
+        const terminal = popup.getByRole("menuitem", { name: `${PLUGIN_NAME} · Commands · Command ${TERMINAL_ORDINAL}`, exact: true });
+        await expect(terminal).toBeEnabled();
+        expect(await popup.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true);
+        const reveal = input === "keyboard" ? revealByKeyboard : revealByTouch;
+        await reveal(page, popup, terminal);
+        await expectActionHit(terminal);
+        root.clock.advance(PLUGIN_TOAST_COOLDOWN_SECONDS * MS_PER_SECOND);
+        if (input === "keyboard") {
+          await terminal.press("Enter");
+        } else {
+          await terminal.tap();
+        }
+        await expect(page.getByText(`${PLUGIN_NAME}: Reached ${prefix}_${TERMINAL_ORDINAL}`, { exact: true })).toBeVisible();
+        expect(rpc.count("plugin.invokeUiCommand")).toBe(index + 1);
+        expect(rpc.lastInput("plugin.invokeUiCommand")).toMatchObject({ pluginId: plugin.id, name: `${prefix}_${TERMINAL_ORDINAL}`, chatId });
+        await expect(popup).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+        // The acknowledgement has overlay priority; prove focus and clipping before dismissing it through native controls.
+        await expect(trigger).toBeInViewport({ ratio: 1 });
+        const acknowledgement = page.getByRole("status", { name: `${PLUGIN_NAME}: Reached ${prefix}_${TERMINAL_ORDINAL}`, exact: true });
+        if (input === "keyboard") {
+          await page.keyboard.press("F6");
+          await acknowledgement.getByRole("button").press("Enter");
+        } else {
+          const box = await settledBox(acknowledgement);
+          const x = box.x + box.width / 2;
+          await touchGesture(page, { x, y: box.y + box.height / 2 }, { drag: { dx: (VIEWPORT.width - x) * 0.8, dy: 0 }, holdMs: 0 });
+        }
+        await expect(acknowledgement).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+        await expectActionHit(trigger);
+        await expect(draft).toHaveValue(DRAFT);
+      }
+      expect(rpc.count("chat.generate")).toBe(0);
+    });
+  }
 }
 
 test.use({ viewport: VIEWPORT, hasTouch: true, isMobile: true });

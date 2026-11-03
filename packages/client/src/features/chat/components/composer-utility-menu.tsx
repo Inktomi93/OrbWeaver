@@ -253,7 +253,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
       </Tooltip>
       {/* The menu opens upward from the composer, and Base UI's available height runs to the viewport's top edge, so a
           tall menu covered the room's topbar. `belowChrome` keeps it under the topbar; the menu scrolls inside. */}
-      <MenuPopup clamp="belowChrome" side="top">
+      <MenuPopup clamp="belowChrome" side="top" collisionAvoidance={{ side: "shift", align: "shift" }}>
         {/* THE ROOM'S OWN GROUPS LEAD. Each contribution closes its group with a separator. */}
         {roomContributions}
         {/* STORY — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one

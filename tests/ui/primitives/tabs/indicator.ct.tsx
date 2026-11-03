@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { TabsIndicatorStory } from "./_indicator-stories.tsx";
+import type { TabsIndicatorStory, TabsRefsStory } from "./_indicator-stories.tsx";
 
 const STORY = "tests/ui/primitives/tabs/_indicator-stories/TabsIndicatorStory";
 const INDICATOR = '[data-slot="tabs-indicator"]';
@@ -34,3 +34,20 @@ test("a tab switch launches a transform transition and lands on the new tab's bo
   expect(Math.abs((barBox?.x ?? Number.NaN) - (tabBox?.x ?? Number.NaN))).toBeLessThan(LANDING_TOLERANCE_PX);
   expect(Math.abs((barBox?.width ?? Number.NaN) - (tabBox?.width ?? Number.NaN))).toBeLessThan(LANDING_TOLERANCE_PX);
 });
+
+for (const cleanup of [false, true]) {
+  test(`caller refs reach and detach the live tab nodes with cleanup ${String(cleanup)}`, async ({ mount, page }) => {
+    await mount<typeof TabsRefsStory>("tests/ui/primitives/tabs/_indicator-stories/TabsRefsStory", { cleanup });
+    await expect(page.getByRole("status")).toHaveText("Indicator attached");
+    await page.getByRole("button", { name: "Focus tab panel", exact: true }).click();
+    await expect(page.getByRole("tabpanel")).toBeFocused();
+    const indicator = page.locator(INDICATOR);
+    const attachments = await indicator.getAttribute("data-ref-attachments");
+    await page.getByRole("button", { name: "Render tabs again", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Render tabs again", exact: true })).toHaveText("Render 1");
+    await expect(indicator).toHaveAttribute("data-ref-attachments", attachments ?? "missing");
+    await page.getByRole("button", { name: "Remove tabs", exact: true }).click();
+    await expect(page.getByRole("tabpanel")).toHaveCount(0);
+    await expect(page.getByRole("status")).toHaveText("Indicator detached");
+  });
+}

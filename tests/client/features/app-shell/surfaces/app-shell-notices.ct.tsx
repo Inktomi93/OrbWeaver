@@ -99,10 +99,11 @@ test("a burst stays inside the overlay's resolved cap, and the capped overlay ta
   const notices = page.locator('[data-slot="toast-root"]');
   const overlay = page.locator('[data-slot="toast-viewport"]');
   await expect(notices).toHaveCount(3);
+  const stack = page.locator('[data-slot="toast-stack"]');
   const cap = await overlay.evaluate((node) => Number.parseFloat(getComputedStyle(node).maxHeight));
   expect(cap).toBeGreaterThan(0);
   await expect.poll(() => overlay.evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(cap);
-  await expect.poll(() => overlay.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
+  await expect.poll(() => stack.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
 
   const main = page.locator("main.shell-content");
   const mainBefore = await settledBox(main);
@@ -111,18 +112,19 @@ test("a burst stays inside the overlay's resolved cap, and the capped overlay ta
   const box = await settledBox(overlay);
   await page.mouse.move(box.x + box.width / 2, (first.y + first.height + second.y) / 2);
   await page.mouse.wheel(0, 200);
-  await expect.poll(() => overlay.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => stack.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   expect(await settledBox(main)).toEqual(mainBefore);
 });
 
-test("the empty overlay intercepts nothing, and takes the pointer back once it holds a notice", async ({ mount, page }) => {
+test("the overlay padding passes through while a populated notice stack accepts input", async ({ mount, page }) => {
   await mount<typeof AppShellStory>(STORY, {});
   const overlay = page.locator('[data-slot="toast-viewport"]');
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
   await expect(overlay).toHaveCSS("pointer-events", "none");
   expect(await dropOn(page.locator("main.shell-content"), { file: "card.png", type: "image/png" })).toBe(true);
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(1);
-  await expect(overlay).toHaveCSS("pointer-events", "auto");
+  await expect(overlay).toHaveCSS("pointer-events", "none");
+  await expect(page.locator('[data-slot="toast-stack"]')).toHaveCSS("pointer-events", "auto");
 });
 
 test("a soft keyboard marks the root keyboard-up while it is open, and clears it when it closes", async ({ mount, page }) => {

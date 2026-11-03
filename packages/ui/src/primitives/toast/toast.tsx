@@ -139,7 +139,9 @@ export function Toaster(props: ToasterProps): ReactElement {
           unrelated "Notifications" landmarks and a rotor/landmark jump was a coin flip. The bell owns the
           word (it is a durable per-user inbox); this stack is transient app alerts, and says so. */}
       <BaseToast.Viewport aria-label="Alerts" className={viewport} data-slot="toast-viewport">
-        <ToastItems swipeDirection={swipeDirection} />
+        <div className={slots.stack()} data-slot="toast-stack">
+          <ToastItems swipeDirection={swipeDirection} />
+        </div>
       </BaseToast.Viewport>
     </BaseToast.Portal>
   );

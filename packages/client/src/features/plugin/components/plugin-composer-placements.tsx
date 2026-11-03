@@ -54,7 +54,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
             </GlyphButton>
           }
         />
-        <MenuPopup clamp="belowChrome" side="top" className="max-inline-(--available-width)">
+        <MenuPopup clamp="belowChrome" side="top" collisionAvoidance={{ side: "shift", align: "shift" }} className="max-inline-(--available-width)">
           {undo === null ? null : (
             <>
               <MenuItem onClick={undo}>{undoLabel}</MenuItem>

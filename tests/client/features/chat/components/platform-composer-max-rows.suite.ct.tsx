@@ -68,12 +68,15 @@ for (const rootFontPx of ROOT_FONT_PX) {
 
 // The ceiling is a custom property the stylesheet can lower, so the short-room rule still caps a wrapped field at large text.
 const PHONE = { width: 390, height: 844 } as const;
-const KEYBOARD_PX = 340;
 const SIX_LINES = Array.from({ length: 6 }, (_unused, index) => `line ${index}`).join("\n");
 const LARGE_TEXT = [
-  { label: "100%", rootPx: 16, sendFullyVisible: true },
-  { label: "200%", rootPx: 32, sendFullyVisible: true },
-  { label: "300%", rootPx: 48, sendFullyVisible: false },
+  { label: "portrait 100%", rootPx: 16, viewport: PHONE, keyboard: 340 },
+  { label: "portrait 200%", rootPx: 32, viewport: PHONE, keyboard: 340 },
+  { label: "portrait 300%", rootPx: 48, viewport: PHONE, keyboard: 340 },
+  { label: "narrow portrait 200%", rootPx: 32, viewport: { width: 320, height: 568 }, keyboard: 340 },
+  { label: "narrow portrait 300%", rootPx: 48, viewport: { width: 320, height: 568 }, keyboard: 340 },
+  { label: "landscape 200%", rootPx: 32, viewport: { width: 844, height: 390 }, keyboard: 190 },
+  { label: "small landscape 200%", rootPx: 32, viewport: { width: 568, height: 320 }, keyboard: 160 },
 ] as const;
 
 for (const text of LARGE_TEXT) {
@@ -87,7 +90,7 @@ for (const text of LARGE_TEXT) {
     if (room === undefined) {
       throw new Error("Composer case needs the corpus solo room");
     }
-    await page.setViewportSize(PHONE);
+    await page.setViewportSize(text.viewport);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
@@ -98,23 +101,49 @@ for (const text of LARGE_TEXT) {
     await page.evaluate((px) => {
       document.documentElement.style.fontSize = `${px}px`;
     }, text.rootPx);
-    await emulateSoftKeyboard(page, KEYBOARD_PX);
+    await emulateSoftKeyboard(page, text.keyboard);
     const composer = page.locator('[data-slot="composer-input"]');
     await composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(SIX_LINES);
     const send = composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
     await expect(send).toBeVisible();
     const view = await page.evaluate(() => window.visualViewport?.height ?? window.innerHeight);
     const sendBox = await send.boundingBox();
-    const composerBox = await composer.boundingBox();
-    if (sendBox === null || composerBox === null) {
+    if (sendBox === null) {
       throw new Error("Composer boxes did not resolve");
     }
-    expect(composerBox.y).toBeGreaterThanOrEqual(0);
-    // At 300% even the unwrapped control leaves part of Send under the keyboard, so there only its top edge must show.
-    const hiddenAllowed = text.sendFullyVisible ? 0 : sendBox.height - 1;
-    expect(sendBox.y + sendBox.height - hiddenAllowed).toBeLessThanOrEqual(view);
+    expect(sendBox.y + sendBox.height).toBeLessThanOrEqual(view);
+    const field = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+    const fieldBox = await field.boundingBox();
+    const roomBox = await page.locator('[data-slot="chat-room-surface"]').boundingBox();
+    expect(fieldBox?.y).toBeGreaterThanOrEqual(roomBox?.y ?? Number.NaN);
+    expect((fieldBox?.y ?? Number.NaN) + (fieldBox?.height ?? Number.NaN)).toBeLessThanOrEqual(view);
+    await expect(field).toBeFocused();
+    for (const control of [field, send]) {
+      await expect
+        .poll(() =>
+          control.evaluate((node) => {
+            const box = node.getBoundingClientRect();
+            return [box.top + 2, box.bottom - 2].every((y) => node.contains(document.elementFromPoint(box.x + box.width / 2, y)));
+          }),
+        )
+        .toBe(true);
+    }
     const screenshot = testInfo.outputPath("composer.png");
-    await page.screenshot({ path: screenshot, clip: { x: 0, y: 0, width: PHONE.width, height: view } });
+    await page.screenshot({ path: screenshot, scale: "css", clip: { x: 0, y: 0, width: text.viewport.width, height: view } });
     await testInfo.attach("keyboard-composer", { path: screenshot, contentType: "image/png" });
+    const topbar = page.locator(".shell-topbar");
+    await expect(topbar).toBeVisible({ visible: text.rootPx === 16 });
+    const edgeCount = await page.locator(".shell-panel-edge").count();
+    await expect(page.locator(".shell-panel-edge:visible")).toHaveCount(text.rootPx === 16 ? edgeCount : 0);
+    await field.blur();
+    await expect(topbar).toBeVisible();
+    await expect(page.locator(".shell-panel-edge:visible")).toHaveCount(edgeCount);
+    await field.focus();
+    await expect(topbar).toBeVisible({ visible: text.rootPx === 16 });
+    await emulateSoftKeyboard(page, 0);
+    await expect(topbar).toBeVisible();
+    await expect(field).toHaveValue(SIX_LINES);
   });
 }
+
+test.use({ hasTouch: true, isMobile: true });

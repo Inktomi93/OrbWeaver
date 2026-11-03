@@ -268,6 +268,8 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 
 D333 ends custom static UI checks. Keep the product rules in this document. Verify changed runtime behavior with native tests and rendered checks. `pnpm test:ct` runs component tests.
 
+Native ESLint in `eslint.config.ts` checks direct props-ref overwrites, direct `Omit` narrowing of Base UI callbacks, and unresolved callback styles in CSS object spreads. Browser tests check lifecycle and hit behavior.
+
 ## 9. Build order
 
 Standing bar for any new primitive is §13, not a wave history.

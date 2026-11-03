@@ -60,10 +60,8 @@ export function PopoverTrigger<Payload = unknown>(props: BaseTriggerProps<Payloa
   return <BasePopover.Trigger {...props} />;
 }
 
-export interface PopoverPopupProps extends Omit<BasePopupProps, "className" | "style"> {
+export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Base UI's `style` also accepts a per-state render function; this seal only ever needs a plain object. */
-  style?: CSSProperties;
   side?: BasePositionerProps["side"];
   align?: BasePositionerProps["align"];
   sideOffset?: BasePositionerProps["sideOffset"];
@@ -86,7 +84,8 @@ export interface PopoverPopupProps extends Omit<BasePopupProps, "className" | "s
 export function PopoverPopup(props: PopoverPopupProps): ReactElement {
   const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, alignOffset, container, backdrop = false, width, style, ...rest } = props;
   const portalContainer = usePortalContainer();
-  const popupStyle: CSSProperties | undefined = width === "stable" ? { ...style, ...STABLE_WIDTH_STYLE } : style;
+  const popupStyle: BasePopupProps["style"] =
+    width === "stable" ? (state): CSSProperties => ({ ...(typeof style === "function" ? style(state) : style), ...STABLE_WIDTH_STYLE }) : style;
   return (
     <BasePopover.Portal container={container ?? portalContainer}>
       {backdrop ? <BasePopover.Backdrop className={slots.backdrop()} data-slot="popover-backdrop" /> : null}
