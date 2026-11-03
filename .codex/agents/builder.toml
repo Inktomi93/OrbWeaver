@@ -12,7 +12,7 @@ You receive a goal, constraints, done-criteria and the reason for the work. You 
 
 - Build the complete shape the docs ask for, once.
 - Verify by running the change: the real tests, the affected flow, and `pnpm snap` for anything a user sees.
-- Stop and report when you hit an architecture fork with repo-wide effects or a conflict with the law. Give your recommendation.
+- Message the orchestrator when you hit an architecture fork with repo-wide effects or a conflict with the law. Give your recommendation.
 
 Final message: the outcome and how you verified it (each command and its result), the decisions you made and why, then anything deferred or flagged for the orchestrator.
 '''

@@ -220,7 +220,7 @@ Adding a surface class, a step, or a voice touches a fixed set. Land them togeth
 | a `voice` entry (§2.3) | `packages/ui/src/primitives/text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · state the product discriminator beside the voice entry |
 | a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule |
 
-A sweep stage that converts call sites ends with a `ux-reviewer` pass against the surface, and its findings are fixed in full before the stage closes — side-eye is the polish authority here, not an advisory.
+A sweep stage that converts call sites ends with a `ux-reviewer` pass against the surface, and its findings are fixed in full before the stage closes — ux-reviewer is the polish authority here, not an advisory.
 
 ## 7. Ruled decisions (owner, standing)
 

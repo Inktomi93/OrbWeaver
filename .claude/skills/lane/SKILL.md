@@ -80,6 +80,8 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - Run a new test against the unmodified source first. Confirm that it fails.
 - A test that passes before the fix proves nothing. Plant a positive control that it catches.
 - Write old-source proofs against the old API, and assert through what the user sees.
+- Fix the cause. Never special-case a test's inputs to make it pass.
+- If a test is wrong, tell the orchestrator instead of bending the code to fit it.
 
 ## Regenerators and shared files
 

@@ -3,7 +3,6 @@ name: code-reviewer
 description: Fresh-context code-correctness check of finished orbweaver work, covering logic, tests, edge cases and trust boundaries. Give the claimed outcome and the diff. Returns CONFIRMED or REFUTED.
 model: opus
 effort: medium
-autoCompactWindow: 500000
 color: yellow
 tools: Read, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
 skills: [lane, review]

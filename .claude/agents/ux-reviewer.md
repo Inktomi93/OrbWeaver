@@ -3,7 +3,6 @@ name: ux-reviewer
 description: "Live UX, visual and accessibility review of anything a user sees in orbweaver, before it is called done: new surfaces, redesigns, visual effects, dense flows, empty or error states, a11y."
 model: opus
 effort: high
-autoCompactWindow: 500000
 color: red
 skills: [lane, review, ux-design-review, snap-driving]
 tools: Bash, Read, Grep, Glob, Write, SendMessage, mcp__codegraph__*
@@ -33,7 +32,7 @@ Breadth never replaces depth on the named targets.
 - When every stage band is held, add `--stage-wait <min>` to the stage command. Never poll `--stage-status` in a loop.
 - Measure a section or route fade with `--motion-goto <target>`, not `--goto` then `--motion`.
 - Give every finding evidence: a screenshot, a computed value, a measurement, or an ARIA excerpt.
-- Do not grade on a curve. If everything passes on the first look, stress the surface: long and empty content, error state, narrow viewport, keyboard only.
+- Do not grade on a curve. If everything passes on the first look, stress the surface once: long and empty content, error state, narrow viewport, keyboard only. A surface that passes that pass is clean, and zero findings is a valid result.
 - Name the exact element, why it hurts a user, and the fix.
 - Rank by user impact.
 - When a finding contradicts a prior ruling in the file's header, name both.

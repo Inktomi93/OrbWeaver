@@ -231,6 +231,13 @@ Run autonomously only when the user says overnight, finish, or keep going.
 - The engines and the dev stack are yours to start and stop without asking.
 - Before a decision becomes a question for the owner, try in order: a `deep-reviewer` pass when unattended, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
 - When the authorized queue is complete, report the result and stop. Run a broader UI audit only when requested.
+- A message with no tool call ends your turn, and an unattended run stops there. Avoid four early stops:
+  1. A summary that announces the next step instead of taking it.
+  2. An offer to continue unless the owner objects.
+  3. A list of decisions for the owner when none of them blocks the rest of the work.
+  4. A pause because the turn was long or a milestone is done.
+- Put status notes and recommendations in the same message as your next tool call, and keep working.
+- Treat a lane's text-only reply as a report, not proof its task is done. Send it its open items.
 - When the owner is present, batch questions and put the recommended option first.
 
 ## Lying instruments
