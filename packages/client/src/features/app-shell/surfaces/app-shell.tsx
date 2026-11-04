@@ -8,7 +8,7 @@ import { LIVE_TOKEN_ROOT_ATTRIBUTE, mergeRefs, PortalContainerContext } from "@o
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
@@ -254,9 +254,9 @@ export function AppShell(): ReactElement {
   // hook (#2456): the focus door moves them together, and their contributions compose into ONE keyframe
   // per moving element — two hooks would be two attributes racing one `animation` property.
   const gridRef = useRef<HTMLDivElement>(null);
-  const topbarRef = useRef<HTMLElement>(null);
-  const topbarNoticeRef = mergeRefs(topbarRef, noticeHeaderRef);
-  useShellChromeVisibility(gridRef, topbarRef);
+  const [topbar, setTopbar] = useState<HTMLElement | null>(null);
+  const topbarNoticeRef = mergeRefs(setTopbar, noticeHeaderRef);
+  useShellChromeVisibility(gridRef, topbar);
   useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
   // Overlays own focus while the underlying content is inert; closing restores their own toggle without stealing portal focus.

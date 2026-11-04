@@ -2,10 +2,9 @@ import type { RefObject } from "react";
 import { useLayoutEffect } from "react";
 
 /** Keep floating header controls in the same rendered regime as the header. */
-export function useShellChromeVisibility(frameRef: RefObject<HTMLElement | null>, headerRef: RefObject<HTMLElement | null>): void {
+export function useShellChromeVisibility(frameRef: RefObject<HTMLElement | null>, header: HTMLElement | null): void {
   useLayoutEffect(() => {
     const frame = frameRef.current;
-    const header = headerRef.current;
     if (frame === null || header === null) {
       return;
     }
@@ -20,5 +19,5 @@ export function useShellChromeVisibility(frameRef: RefObject<HTMLElement | null>
       observer.disconnect();
       frame.removeAttribute("data-topbar-hidden");
     };
-  }, [frameRef, headerRef]);
+  }, [frameRef, header]);
 }

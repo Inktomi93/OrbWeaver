@@ -3,12 +3,12 @@ import type { Tone } from "#tokens";
 
 export const toastVariants = tv({
   slots: {
-    // The stack owns scrolling; outer viewport padding leaves the page operable.
+    // The stack receives input; the padded viewport owns scrolling and clears each card's outline.
     viewport: `
-      pointer-events-none fixed inset-e-0 inset-bs-(--dimension-chrome-row) z-(--z-toast) flex flex-col p-section inline-full
+      pointer-events-none fixed inset-e-0 inset-bs-(--dimension-chrome-row) z-(--z-toast) flex flex-col overflow-y-auto overscroll-contain p-section inline-full
       max-block-(--dimension-shell-notice-cap) max-inline-cq-24
     `,
-    stack: "pointer-events-none flex flex-col gap-row overflow-y-auto overscroll-contain min-block-0 has-data-[slot=toast-root]:pointer-events-auto",
+    stack: "pointer-events-none flex shrink-0 flex-col gap-row has-data-[slot=toast-root]:pointer-events-auto",
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.

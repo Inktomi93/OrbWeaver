@@ -4,6 +4,7 @@
 import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -99,11 +100,10 @@ test("a burst stays inside the overlay's resolved cap, and the capped overlay ta
   const notices = page.locator('[data-slot="toast-root"]');
   const overlay = page.locator('[data-slot="toast-viewport"]');
   await expect(notices).toHaveCount(3);
-  const stack = page.locator('[data-slot="toast-stack"]');
   const cap = await overlay.evaluate((node) => Number.parseFloat(getComputedStyle(node).maxHeight));
   expect(cap).toBeGreaterThan(0);
   await expect.poll(() => overlay.evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(cap);
-  await expect.poll(() => stack.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
+  await expect.poll(() => overlay.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
 
   const main = page.locator("main.shell-content");
   const mainBefore = await settledBox(main);
@@ -112,7 +112,7 @@ test("a burst stays inside the overlay's resolved cap, and the capped overlay ta
   const box = await settledBox(overlay);
   await page.mouse.move(box.x + box.width / 2, (first.y + first.height + second.y) / 2);
   await page.mouse.wheel(0, 200);
-  await expect.poll(() => stack.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => overlay.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   expect(await settledBox(main)).toEqual(mainBefore);
 });
 
@@ -269,4 +269,23 @@ test("a file dropped on a real dropzone is the zone's to import, and raises no s
   expect(await dropOn(zone, { file: "notes.txt", type: "text/plain" })).toBe(true);
   await upload;
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
+});
+
+test("section navigation keeps the replacement header's panel controls available", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await seedShellState(page, { activeSection: "chats" });
+  await mount<typeof AppShellStory>(STORY, {});
+  const frame = page.locator(".shell-grid");
+  const rail = page.getByRole("navigation", { name: "Primary", exact: true });
+  for (const section of ["characters", "chats"] as const) {
+    await rail.getByRole("button", { name: SECTION_LABELS[section], exact: true }).click();
+    await expect(frame).toHaveAttribute("data-section", section);
+    await expect(page.locator(".shell-topbar")).toBeVisible();
+    const controls = page.locator(".shell-panel-edge");
+    expect(await controls.count()).toBeGreaterThan(0);
+    for (const control of await controls.all()) {
+      await expect(control).toBeVisible();
+    }
+    await expect(frame).not.toHaveAttribute("data-topbar-hidden");
+  }
 });
