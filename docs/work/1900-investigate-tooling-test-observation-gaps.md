@@ -56,3 +56,11 @@ The browser-support case in `tests/tooling/stylelint-browser-support.test.ts` ch
 The kicker exemption in `tests/tooling/design-audit-walker.ct.tsx` requires both subjects in the text-style census before asserting no finding. The focused Chromium case passes; removing a sampled subject fails.
 
 The undimmed contrast and clean reading-measure cases require their subjects in the applicable raw census. Their focused Chromium cases pass. Defect-only and inapplicable populations retain their exclusions.
+
+`AF3-B038-267`: The issue-form case checks the parsed required flags. Changing only the version flag preserves the ID observation but fails the required-field observation.
+
+`AF3-B038-979`: The gallery case observes actual HTML through Vite's middleware server, preserves pre-order and checks non-gallery absence. The server closes in `finally`.
+
+An empty-handler control preserves the hook metadata but fails the script observation. These controls compare observations rather than execute complete mutated suites.
+
+Focused tooling tests, Node typecheck, dependency-cruiser, scoped Biome/ESLint and independent review pass. The configured ESLint test-tree scan is clean.
