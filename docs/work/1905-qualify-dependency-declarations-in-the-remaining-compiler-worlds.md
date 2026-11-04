@@ -33,6 +33,8 @@ Host declaration ownership is specified in `docs/law/Spine-TypeScript-and-Patter
 
 Portable testkit helpers compile in ISO; their executable self-tests live in `tests/support/node/iso/` and compile in Node. The native ISO compiler control rejects runner-specific globals.
 
+Native compiler controls verify Node fetch aliases and their absence in ISO. The Node declaration home supplies neither browser file-selection nor media-stream types. AI SDK exact-optional-property mismatches remain dependency declaration defects.
+
 The plugin loader uses typed WebAssembly memory while preserving its allocation limits and required resizable buffers. Production plugin tests cover heap growth, sandbox isolation and process replacement.
 
 Use `pnpm exec node node_modules/@typescript/native/bin/tsc --noEmit true --incremental false --skipLibCheck false --project <config>` to inspect each program.

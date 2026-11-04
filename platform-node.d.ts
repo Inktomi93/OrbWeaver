@@ -1,5 +1,8 @@
-// Node-owned WebAssembly handles and Memory construction for the QuickJS loader.
+// Node-owned fetch aliases and WebAssembly types missing from the runtime declarations.
 // Browser programs retain their native declarations.
+type HeadersInit = NonNullable<RequestInit["headers"]>;
+type RequestCredentials = NonNullable<RequestInit["credentials"]>;
+
 // API: https://webassembly.github.io/spec/js-api/
 // biome-ignore lint/style/noNamespace: declares the native namespace required by QuickJS types.
 declare namespace WebAssembly {

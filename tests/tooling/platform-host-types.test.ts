@@ -66,6 +66,10 @@ new EventTarget();
 AbortSignal.abort();
 // @ts-expect-error ISO code does not acquire runtime sockets from a test runner.
 new WebSocket("ws://example.test");
+// @ts-expect-error ISO code does not acquire Node fetch aliases.
+export type UnavailableHeaders = HeadersInit;
+// @ts-expect-error ISO code does not acquire Node fetch credentials.
+export type UnavailableCredentials = RequestCredentials;
 // @ts-expect-error The Node-only WebAssembly home is excluded from ISO.
 export type UnavailableMemory = WebAssembly.Memory;
 `;
@@ -73,6 +77,17 @@ export type UnavailableMemory = WebAssembly.Memory;
 const NODE = `
 export const pid = process.pid;
 export const nativeUrl = new URL("https://example.test");
+export const headerInputs: HeadersInit[] = [new Headers({ "x-test": "value" }), { "x-test": "value" }, [["x-test", "value"]]];
+export const credentials: RequestCredentials[] = ["omit", "same-origin", "include"];
+export const requests: RequestInit[] = headerInputs.map(headers => ({ headers, credentials: "omit" }));
+// @ts-expect-error Header values retain the native request type.
+export const invalidHeaders: HeadersInit = { "x-test": 123 };
+// @ts-expect-error Credentials retain the native closed vocabulary.
+export const invalidCredentials: RequestCredentials = "invalid";
+// @ts-expect-error Node fetch aliases do not introduce browser file selections.
+export type UnavailableFiles = FileList;
+// @ts-expect-error Node fetch aliases do not introduce browser media streams.
+export type UnavailableStream = MediaStream;
 export const memory32 = new WebAssembly.Memory({ initial: 1, maximum: 2 });
 export const memory64 = new WebAssembly.Memory({ address: "i64", initial: 1n, maximum: 2n });
 export const pages32: number = memory32.grow(1);
@@ -115,6 +130,8 @@ export type UnavailableElement = HTMLElement;
 const BROWSER = `
 export const element = document.createElement("div");
 export const url = new URL("https://example.test");
+export const headers: HeadersInit = new Headers({ "x-test": "value" });
+export const credentials: RequestCredentials = "same-origin";
 export const memory = new WebAssembly.Memory({ initial: 1 });
 export const module = new WebAssembly.Module(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]));
 // @ts-expect-error Browser programs do not inherit the Node handle declaration.
