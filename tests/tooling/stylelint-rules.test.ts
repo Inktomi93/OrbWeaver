@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import stylelint from "stylelint";
 import config from "../../stylelint.config.ts";
+import { assertStylelintEngineSucceeded } from "./stylelint-result.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const AUTHORED_FILE = join(REPO_ROOT, "packages/client/src/styles/globals.css");
@@ -13,6 +14,7 @@ const FLOOR_FILE = join(REPO_ROOT, "packages/ui/src/styles/motion-floor.css");
 
 async function rulesHit(code: string, codeFilename = AUTHORED_FILE): Promise<string[]> {
   const { results } = await stylelint.lint({ code, codeFilename, config, configBasedir: REPO_ROOT });
+  assertStylelintEngineSucceeded(results);
   return results.flatMap((result) => result.warnings.map((warning) => warning.rule)).toSorted();
 }
 
@@ -404,6 +406,7 @@ test("a shell region paints from tokens and names no component", async () => {
 
 test("the shipped stylesheets pass", async () => {
   const { results } = await stylelint.lint({ files: ["packages/**/*.css"], config, configBasedir: REPO_ROOT, cwd: REPO_ROOT });
+  assertStylelintEngineSucceeded(results);
   expect(results.length).toBeGreaterThan(0);
   expect(results.flatMap((result) => result.warnings.map((warning) => `${result.source}: ${warning.text}`))).toEqual([]);
 });

@@ -287,7 +287,11 @@ function trackingFindings(samples: RawSamples): Finding[] {
 
 test("wide-tracking exempts the ratified caps kicker — typed caps as well as transformed", async ({ mount, page }) => {
   await mount<typeof WalkerCapsTrackingStory>("tests/tooling/_ct-stories/WalkerCapsTrackingStory", {});
-  const findings = trackingFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const sampled = sampledSelectors(samples.textStyles);
+  expect(sampled).toContain("[data-testid=kicker-transformed]");
+  expect(sampled).toContain("[data-testid=kicker-literal]");
+  const findings = trackingFindings(samples);
 
   const flagged = findings.map((f) => f.selector);
   expect(flagged, `the caps kicker voice must not be a tracking finding — got ${JSON.stringify(flagged)}`).not.toContain("[data-testid=kicker-transformed]");

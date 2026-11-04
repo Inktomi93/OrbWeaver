@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import stylelint from "stylelint";
 import config from "../../stylelint.config.ts";
+import { assertStylelintEngineSucceeded } from "./stylelint-result.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const RULE = "orb/no-intent-color-recipe";
@@ -14,6 +15,7 @@ const GENERATED_CHANNEL = join(REPO_ROOT, "packages/client/src/styles/appearance
 async function hits(body: string, codeFilename = AUTHORED): Promise<number> {
   const code = `@layer ui { .probe { ${body} } }`;
   const { results } = await stylelint.lint({ code, codeFilename, config, configBasedir: REPO_ROOT });
+  assertStylelintEngineSucceeded(results);
   return (results[0]?.warnings ?? []).filter(({ rule }) => rule === RULE).length;
 }
 
