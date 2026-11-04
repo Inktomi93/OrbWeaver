@@ -56,6 +56,8 @@ const MESSAGE =
 
 const DISJUNCTION_MESSAGE =
   "An `||` inside a truth assertion hides which operand held, and passes when the one the case is about is false. Assert the value: `toContain` for a set of outcomes, a bound for a range, or one `expect` per operand.";
+const NEGATED_SUBSET_MESSAGE =
+  "A negated multi-item `arrayContaining` proves only that not every item is present; it does not prove every item is absent. Assert each absence or express the intended not-all condition explicitly.";
 const TRUE_MATCHERS = new Set(["toBe", "toEqual", "toStrictEqual"]);
 
 interface Assertion {
@@ -127,6 +129,47 @@ function holdsDisjunction(node: TSESTree.Node | undefined): boolean {
 function isTruthOfDisjunction({ matcher, negated, argument, subject }: Assertion): boolean {
   const assertsTrue = matcher === "toBeTruthy" || (TRUE_MATCHERS.has(matcher) && argument?.type === AST_NODE_TYPES.Literal && argument.value === true);
   return assertsTrue && !negated && holdsDisjunction(subject);
+}
+
+function hasMultipleFixedItems(items: TSESTree.ArrayExpression): boolean {
+  const fixed = items.elements.filter((item) => item !== null && item.type !== AST_NODE_TYPES.SpreadElement);
+  if (fixed.length < 2) {
+    return false;
+  }
+  const first = fixed[0];
+  return !(
+    first?.type === AST_NODE_TYPES.Literal &&
+    (first.value === null || typeof first.value !== "object") &&
+    fixed.every((item) => item.type === AST_NODE_TYPES.Literal && item.value === first.value)
+  );
+}
+
+function isNegatedMultiItemSubset({ matcher, negated, argument }: Assertion): boolean {
+  if (!(negated && EQUAL_MATCHERS.has(matcher)) || argument?.type !== AST_NODE_TYPES.CallExpression) {
+    return false;
+  }
+  const { callee } = argument;
+  const items = argument.arguments[0];
+  return (
+    callee.type === AST_NODE_TYPES.MemberExpression &&
+    !callee.computed &&
+    callee.object.type === AST_NODE_TYPES.Identifier &&
+    callee.object.name === "expect" &&
+    callee.property.type === AST_NODE_TYPES.Identifier &&
+    callee.property.name === "arrayContaining" &&
+    items?.type === AST_NODE_TYPES.ArrayExpression &&
+    hasMultipleFixedItems(items)
+  );
+}
+
+function assertionMessage(assertion: Assertion | undefined): string | undefined {
+  if (assertion === undefined) {
+    return undefined;
+  }
+  if (isTruthOfDisjunction(assertion)) {
+    return DISJUNCTION_MESSAGE;
+  }
+  return isNegatedMultiItemSubset(assertion) ? NEGATED_SUBSET_MESSAGE : undefined;
 }
 
 function testRoot(callee: TSESTree.Node): { readonly name: string; readonly member: string | undefined } | undefined {
@@ -206,8 +249,7 @@ function absenceOption(options: readonly unknown[]): boolean {
   return !(typeof option === "object" && option !== null && "absence" in option && option.absence === false);
 }
 
-/** Refuse a case that only proves an absence and a truth assertion over an `||`. `{ absence: false }` keeps the second alone,
- *  for suites outside the CT and e2e layers, where a refusal is proved by a typed throw. */
+/** Check ambiguous compound assertions and absence-only cases. `absence: false` disables the case-level absence check. */
 export const ctNegativeOnlyCaseRule: OrbRule = {
   meta: { type: "problem", schema: [{ type: "object", properties: { absence: { type: "boolean" } }, additionalProperties: false }] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -215,9 +257,9 @@ export const ctNegativeOnlyCaseRule: OrbRule = {
     const cases: { readonly body: TSESTree.BlockStatement; absences: number; observations: number }[] = [];
     return {
       "CallExpression[callee]"(call: TSESTree.CallExpression): void {
-        const assertion = assertionOf(call);
-        if (assertion !== undefined && isTruthOfDisjunction(assertion)) {
-          context.report({ node: call, message: DISJUNCTION_MESSAGE });
+        const message = assertionMessage(assertionOf(call));
+        if (message !== undefined) {
+          context.report({ node: call, message });
         }
         if (!judgesAbsence) {
           return;

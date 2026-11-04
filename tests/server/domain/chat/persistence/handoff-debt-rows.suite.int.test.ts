@@ -17,6 +17,7 @@ import { freshHeldDb, readRoomCanon, SECRET_BOX_TEST_KEY, seedPeerLease } from "
 import { eq } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { sdkEngineRoom } from "../engine/engine-physical.ts";
+import { ENGINE_SDK_MARKER } from "../engine/engine-sdk-physical.mjs";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { ARIA, LIST, nominee, providerRefusal, queued, stillOutgoing, transferred } from "../verbs/handoff-settlement.fixtures.ts";
 import type { SpeakerRoom } from "../verbs/speaker-funding-physical.ts";
@@ -403,7 +404,7 @@ test("a detached native SDK marker settles before the accepted copy and authorit
     expect(await fixture.marker()).toMatchObject({ compactSummary: null });
     fixture.release();
     await accepted;
-    expect((await fixture.marker()).compactSummary).toBeTruthy();
+    expect((await fixture.marker()).compactSummary).toBe(ENGINE_SDK_MARKER);
     expect((await fixture.marker()).compactedAtSeq).toBe(await fixture.seqOfRow(coveredRows));
     expect(await hostSeats(h, recipient)).toMatchObject([{ userId: recipient.userId }]);
     expect(fixture.held.size).toBe(0);

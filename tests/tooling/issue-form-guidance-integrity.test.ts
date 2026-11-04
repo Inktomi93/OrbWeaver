@@ -11,6 +11,7 @@ interface IssueForm {
   readonly filename: string;
   readonly name: string;
   readonly bodyIds: readonly string[];
+  readonly body: readonly unknown[];
 }
 
 function parseIssueTemplate(filename: string): Readonly<Record<string, unknown>> {
@@ -47,7 +48,7 @@ function issueForms(): readonly IssueForm[] {
       if (bodyIds.length === 0) {
         throw new Error(`${filename} has no form field ids`);
       }
-      return { filename, name, bodyIds };
+      return { filename, name, bodyIds, body };
     });
 }
 
@@ -64,5 +65,8 @@ issueTest("issue ingress offers only the public bug forms, each with required fi
   const bug = forms.find((form) => form.filename === "bug.yml");
   for (const id of ["version", "install", "what-happened"]) {
     expect(bug?.bodyIds).toContain(id);
+    const field = bug?.body.find((item) => isPlainObject(item) && item["id"] === id);
+    const validations = isPlainObject(field) ? field["validations"] : undefined;
+    expect(isPlainObject(validations) && validations["required"], id).toBe(true);
   }
 });

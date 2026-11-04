@@ -76,7 +76,7 @@ test.for([
   ["an assertion message", `expect(value, "var(--color-primary)").toBe("red");`, SPEC, 0, ""],
   ["a literal type", `type Name = "--color-primary";`, SPEC, 0, ""],
   ["prose that mentions a condition's words", `const note = "pointer: coarse hover";`, SPEC, 0, ""],
-] as const)("test derivation wall, css token: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
+] as const)("css token derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
   const found = await findings(repoRoot, CSS_TOKEN, source, path);
   expect(found).toHaveLength(count);
   expect(found[0]?.message ?? "").toContain(owner);
@@ -124,7 +124,7 @@ test.for([
   ["a negated rejection", "await expect(run()).rejects.not.toThrow();", 0],
   ["a helper that already asserts the class", "assertRefused(() => run()).toThrow();", 0],
   ["a helper method of the same name", "await harness.toThrow();", 0],
-] as const)("test derivation wall, bare refusal: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+] as const)("bare refusal derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, BARE_THROW, source, NODE_TEST)).toHaveLength(count);
 });
 
@@ -144,7 +144,7 @@ test.for([
   ["a type contract, which runs nothing", "expectTypeOf(mintTypeId(ID_PREFIX.chat)).toEqualTypeOf<ChatId>();", "tests/kit/ids/probe.test-d.ts", 0],
   ["a seeded generator", "const id = mintTypeId(ID_PREFIX.chat, ids.next);", NODE_TEST, 0],
   ["the fixture's typed id", "const id = ids.typeId(ID_PREFIX.chat);", NODE_TEST, 0],
-] as const)("test derivation wall, unseeded id: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
+] as const)("unseeded id derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
   expect(await findings(repoRoot, UNSEEDED_ID, source, path)).toHaveLength(count);
 });
 
@@ -167,7 +167,7 @@ test.for([
   ["a table with no filter", `test.for(NAMES.map(shape))("%s", () => {});`, 0],
   ["a filter inside a row", `test.for([NAMES.filter(keep)])("%s", () => {});`, 0],
   ["a filter on another helper's for", "harness.for(NAMES.filter(keep));", 0],
-] as const)("test derivation wall, filtered table: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+] as const)("filtered table derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, FILTERED_TABLE, source, NODE_TEST)).toHaveLength(count);
 });
 
@@ -183,7 +183,7 @@ test.for([
   ["an unrelated spread", "const row = { ...corpus.settings };", 0],
   ["a list of captures", `const rows = [...corpus.reads["chat.getChat"]];`, 0],
   ["a read of one field", `const output = corpus.reads["chat.getChat"][0].output;`, 0],
-] as const)("test derivation wall, spread capture: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+] as const)("spread capture derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, SPREAD_CAPTURE, source, NODE_TEST)).toHaveLength(count);
 });
 
@@ -206,7 +206,7 @@ test.for([
   ["an or in toBe(false)", caseOf("expect(a || b).toBe(false);"), 0],
   ["a negated truth", caseOf("expect(a || b).not.toBe(true);"), 0],
   ["a set of outcomes", caseOf(`expect(["gone", "zombie"]).toContain(kind);`), 0],
-] as const)("test derivation wall, vacuous or: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
+] as const)("vacuous or derivation: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, ABSENCE, source, SPEC)).toHaveLength(count);
 });
 

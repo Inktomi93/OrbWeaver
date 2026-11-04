@@ -220,7 +220,7 @@ Adding a surface class, a step, or a voice touches a fixed set. Land them togeth
 | a `voice` entry (§2.3) | `packages/ui/src/primitives/text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · state the product discriminator beside the voice entry |
 | a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule |
 
-A sweep stage that converts call sites ends with a `side-eye` pass against the surface, and side-eye findings are fixed in full before the stage closes — side-eye is the polish authority here, not an advisory.
+A sweep stage that converts call sites ends with a `ux-reviewer` pass against the surface, and its P0-P2 findings are fixed before the stage closes. P3 findings are filed, not fixed in the stage. ux-reviewer is the polish authority here, not an advisory.
 
 ## 7. Ruled decisions (owner, standing)
 
@@ -235,7 +235,7 @@ A sweep stage that converts call sites ends with a `side-eye` pass against the s
 | D7 | retire `Card.padding` (a breaking primitive API change) | RETIRE — a surviving prop is a surviving escape hatch |
 | D8 | two tiers, or a third `gallery` tier for library grids | TWO — library grids map cleanly onto `form` |
 | D9 | keep the user-pref `data-density="comfortable\|compact"` axis alongside tiers | KEEP, orthogonal |
-| D10 | the exact instrument paddings in §3.1 are taste-level | ship the table; tune from a side-eye pass, never in the abstract |
+| D10 | the exact instrument paddings in §3.1 are taste-level | ship the table; tune from a `ux-reviewer` pass, never in the abstract |
 | D11 | preset editor's compressed type ramp (10.5/13/15/16px, ratio 1.524:1) — accept and record, or widen a step | ACCEPT AND RECORD — a dense `form` may run a compressed size ramp (≥1.5:1 across its body sizes) when grouping is carried by the `kicker` voice + `Section` rules, not by size. Measured on the preset editor (`e51663b49`): `13px/500` ×28 (control labels), `15px/400` ×12 (body), `13px/400` ×5, `10.5px/600` ×5 (kickers), `16px/600` ×1 (the h2); the kicker's discriminating class string is the `kicker` entry in `packages/ui/src/primitives/text/variants.ts` (`font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground`). Keep the page font-size census as descriptive evidence. Judge hierarchy through semantic roles, governed voices and rendered review. |
 
 ## 8. Platform and system rulings

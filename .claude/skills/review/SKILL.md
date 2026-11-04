@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Shared review discipline for verifier, stickler and side-eye. Use before reporting any code, logic or rendered-surface review as done."
+description: "Shared review discipline for code-reviewer, deep-reviewer and ux-reviewer. Use before reporting any code, logic or rendered-surface review as done."
 ---
 
 # Review
@@ -32,7 +32,7 @@ to a whole-repo verb.
 
 For authn, authz, secrets, validation or egress changes, probe abuse cases and boundary bypasses,
 not only functional edges. Report the abuse case without an exploit chain. Recommend
-security-executor when the risk is unclear.
+security-builder when the risk is unclear.
 
 ## Reporting
 

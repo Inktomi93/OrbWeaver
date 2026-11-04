@@ -894,6 +894,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     settings: {
       vitest: {
         vitestImports: [
+          "@orb/testkit/node",
+          "@orb/testkit/tooling",
           "@orb/testkit/node/fixtures.ts",
           "@orb/testkit/node/tool-fixtures.ts",
           /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u,
@@ -906,7 +908,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest", "forEachAuthMode"] },
       ],
       "vitest/valid-expect": ["error", { maxArgs: 2 }],
-      "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest", "forEachAuthMode"] }],
+      "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "beforeAll", "cellTest", "forEachAuthMode", "portraitTest"] }],
       "vitest/valid-title": ["error", { allowArguments: true }],
       "vitest/valid-describe-callback": "error",
       "vitest/no-disabled-tests": "error",

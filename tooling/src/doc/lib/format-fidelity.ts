@@ -253,7 +253,7 @@ export function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: stri
  * backticks land in `text` nodes as literal characters, split across the cells the pipe created. The
  * serializer, correctly for a literal backtick, escapes them: a cell reading (backtick) --theme (angle)
  * name | id | none (angle) (backtick) is written back with every one of those four characters
- * backslash-escaped. That is the exact byte shape #2145 was filed to repair on .claude/agents/side-eye.md:170, and
+ * backslash-escaped. That is the exact byte shape #2145 was filed to repair on .claude/agents/ux-reviewer.md, and
  * `format --write` produced it at exit 0 with no refusal at all.
  *
  * WHY THE TWO STANDING GUARDS CANNOT SEE IT, and why the check could not be bolted onto either:

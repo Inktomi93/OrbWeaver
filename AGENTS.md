@@ -131,7 +131,7 @@ without a path are in that folder.
 | Task | Read |
 | - | - |
 | A server domain | `Core-0-Architecture-and-Structure.md` §3–§4, the Spine doc for each thread, the `Tier-*` doc for your tier, the domain's `contract/` and file headers |
-| Identity, auth, sessions | `Spine-Identity-and-Auth.md` and the ledger rows it cites; route the work to `security-executor` |
+| Identity, auth, sessions | `Spine-Identity-and-Auth.md` and the ledger rows it cites; route the work to `security-builder` |
 | Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/` |
 | Config, settings, serialization | `Spine-Config-and-Serialization.md` |
 | Embeddings, search, discovery, memory, stats | `Knowledge-Cluster.md` |
@@ -165,7 +165,7 @@ without a path are in that folder.
 
 - Codex edit feedback is owner-disabled; use explicit scoped checks from the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
 
-- In Codex, spawn `verifier`, `side-eye` or `stickler` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
+- In Codex, spawn `code-reviewer`, `ux-reviewer` or `deep-reviewer` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 

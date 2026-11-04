@@ -122,7 +122,7 @@ Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measu
   read as "the app never settled" (#836).
   MEASURED LIMIT: the DEV build (~250 unbundled ESM resources) still cannot reach data-app-ready under a
   3G/4G profile — throttle CPU alone against :5173. The network arm is for a PROD build; the recipe for
-  serving one off-band is in .claude/skills/side-eye-design-review/SKILL.md.
+  serving one off-band is in .claude/skills/ux-design-review/SKILL.md.
 
 ${panelPresetHelpBlock()}
 

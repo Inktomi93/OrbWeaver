@@ -90,20 +90,10 @@ test.for([
     expect(events.map((event) => event.type)).not.toContain("turnAborted");
     gate?.release();
     const [result] = await settled;
-    expect(result).toMatchObject(
-      row.failed
-        ? {
-            status: "rejected",
-            reason: expect.objectContaining({
-              kind: "unknown",
-              retryable: false,
-              apiErrorStatus: 200,
-              message: expect.stringContaining("Failed to process successful response"),
-              cause: expect.objectContaining({ message: "Failed to process successful response" }),
-            }),
-          }
-        : { status: "fulfilled", value: { aborted: false } },
-    );
+    const failureMessage = expect.stringContaining("Failed to process successful response");
+    const failureCause = expect.objectContaining({ message: "Failed to process successful response" });
+    const failureReason = expect.objectContaining({ kind: "unknown", retryable: false, apiErrorStatus: 200, message: failureMessage, cause: failureCause });
+    expect(result).toMatchObject(row.failed ? { status: "rejected", reason: failureReason } : { status: "fulfilled", value: { aborted: false } });
     expect(result.status === "rejected" && result.reason instanceof ProviderError).toBe(row.failed);
     const canon = await h.root.db
       .select({ content: messageVariants.content })

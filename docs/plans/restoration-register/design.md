@@ -64,6 +64,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `contracts/rpg/tracker.contract.test.ts`; `server/domain/rpg/substrate/delta.test.ts`; `server/domain/rpg/substrate/reminder.test.ts`; `server/domain/rpg/chat-ops/macro-view.test.ts` | Partial | `tests/server/domain/rpg/persistence/tracker-delta-snapshot.int.test.ts` | Remaining pure reader, carrier, formatter, guide and reminder cases need individual comparison. Helper-specific gloss identities are dropped under D113; actual hinted delta behavior remains qualified. |
 | `contracts/prose/index.contract.test.ts`; `contracts/preset/st-preset-import.contract.test.ts`; `contracts/theme/card-embeddable-partition.suite.test.ts` | Partial | `tests/contracts/prose/preset-storage.contract.test.ts`; `tests/contracts/preset/st-preset-import.contract.test.ts`; `tests/contracts/theme/card-embeddable-projection.contract.test.ts` | Unselected prose resolution, substitution, footer, historical byte fixtures and broader default/lift/theme cases need individual comparison. |
 | `contracts/automation/index.contract.test.ts`; `contracts/automation/presets.contract.test.ts`; `contracts/stream/index.contract.test.ts`; `contracts/stream/index.test-d.ts` | Partial | `tests/contracts/automation/preset-view.contract.test.ts`; `tests/contracts/stream/room-inputs.contract.test.ts`; `tests/contracts/stream/frame-contract.test-d.ts`; `tests/contracts/events/bus-registry.test-d.ts` | Broader trigger, authored-action, fact-projection, helper and actual subscription/lifecycle matrices remain separate restoration work. |
+| `server/domain/automation/substrate/serial-lanes.test.ts` | Partial | `tests/kit/serial-lanes/ordering.test.ts` covers same-key ordering, different-key parallelism and rejection isolation. | Decide how to qualify drained-key reclamation. The maintained public API exposes no active-key count. Source comparison does not qualify runtime behavior. |
 | `contracts/inference/kinds.contract.test.ts`; `contracts/inference/capability/capability.contract.test.ts`; `contracts/inference/capability/capability.test-d.ts` | Accounted for | `tests/contracts/inference/capability/capability.contract.test.ts`; `tests/contracts/inference/capability/capability.test-d.ts` | - |
 | `contracts/inference/connection-ref.contract.test.ts` | Partial | `tests/contracts/correlated-variants.contract.test.ts` | Bare-id prefix/missing/model-stripping, mounted selector, ownership and migrated-SQL purposes are not inferred from this parser case. |
 | `contracts/chat/roster.contract.test.ts` | Partial | `tests/contracts/roster-preset/character-members.contract.test.ts` | Remaining invite, view-shape and rendering-policy cases need individual comparison; parser tests do not prove authorization. |
@@ -78,7 +79,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | Selected client state draft, selection, preset and steer cases | Partial | `tests/client/state/state-lifecycle.ct.tsx`; `tests/client/state/composer-replacement.dom.test.ts` | Persistence, reload, caps, source isolation, surface measurement and actual-bus frame scheduling need separate comparison. |
 | `client/data/session-freshness.test.ts`; selected durable-local cases | Partial | `tests/client/data/session-freshness.ct.tsx`; `tests/client/state/durable-local-binding.ct.tsx` | Storage refusal, failed adoption, queued transitions, held hydration and broader multiple-store permutations remain unselected. |
 | Selected client transition, safe error, role and destination cases | Partial | `tests/client/lib/core-lifecycle.ct.tsx`; `tests/client/lib/connection-roles.dom.test.ts`; `tests/client/lib/corpus-destination.dom.test-d.ts` | Broader transition timing/motion/failure, error-cap/frame and role readout/repair matrices need separate comparison. |
-| Selected client empty-send, duration and template cases | Partial | `tests/client/features/chat/lib/empty-send-and-duration.test.ts`; `tests/client/features/preset/lib/template-addresses.test.ts` | Template delivery dispatch and unselected helper cases need separate comparison. Feature component forwards do not establish obsolete behavior. |
+| Selected client empty-send and template cases; `client/features/chat/lib/gen-duration.test.ts` | Partial | `tests/client/features/chat/lib/empty-send-and-duration.test.ts` preserves public duration formatting and incomplete-window suppression; `tests/client/features/preset/lib/template-addresses.test.ts` preserves the selected template cases. | Decide the direct numeric-helper assertions separately; the maintained helper is private. Template delivery dispatch and unselected helper cases still need comparison. Source comparison does not qualify runtime behavior. |
 | `client/a11y/accessible-name-quality.suite.ct.tsx` | Unreviewed | No maintained home; | - |
 | `client/data/create-entity-mutation.ct.tsx` | Unreviewed | No maintained home; | - |
 | `client/data/stale-session.test.ts` | Unreviewed | No maintained home; | - |
@@ -191,6 +192,43 @@ Legacy paths below are relative to the external reference source named in [Spine
 An unlisted area is unreviewed, not missing. Neither filenames nor test counts establish whether its behaviors need restoration.
 
 Update the existing row with its replacement commit's changes; do not append another completion record for the same scope. Name uncovered cases when marking a scope partial. Keep links to maintained tests here when the owning work item closes. A completed row may reopen only with a specific missing behavior, failing regression or changed product contract.
+
+## Next work
+
+The [task list](tasks.md) owns the investigation queue. Keep the plan's wake condition; boarding findings does not qualify or execute them.
+
+### Source findings
+
+Revalidate each finding against live source before deciding whether it remains present. Preserve the finding identifier, governing contract and actual assertion references.
+
+Handle P1 findings before lower-priority restoration. Use security-builder for authentication, process custody and permission boundaries.
+
+Confirmed findings need a focused correction and affected native checks. Record counterevidence when a finding is corrected or retracted.
+
+The source assessment does not establish runtime failure or deployment exposure. Browser findings identify specific investigations; they do not reopen blanket CT or E2E restoration.
+
+### Bounded restoration order
+
+1. [Compare existing contract and import coverage](../../work/1902-reconcile-implemented-contracts-and-import-coverage-before-restoration.md). Record covered, partial or qualification-only obligations before adding tests.
+2. [Qualify subscription lifetime outcomes](../../work/1871-exercise-live-sse-inactivity-expiry-before-unsubscribe.md). Exercise actual inactivity expiry and compare adapter-owned protocol refusals.
+3. [Compare plugin permission outcomes](../../work/1903-compare-plugin-permission-outcomes-before-restoring-runtime-tests.md). Preserve real denial assertions and allowed-operation positives on the current runtime.
+4. Select persistence, RPG and automation remainders after the preceding comparisons close. Check existing migration and integration suites before claiming a gap.
+
+Use a bounded assignment with complete selected source reads and explicit acceptance criteria. Finish its decisions and affected verification before expanding the assignment.
+
+Update the existing register row when a comparison completes. Preserve exact assertion references when coverage spans several maintained tests or layers.
+
+Keep accepted comparison decisions out of repeated investigation while their supporting source remains unchanged. Reopen changed evidence without declaring missing coverage.
+
+### Excluded default work
+
+Keep broadly rebuilt CT and E2E scopes out of blanket restoration. Reopen a named obligation only for a specific gap, regression or owner-selected comparison.
+
+Preserve Accounted for decisions. Apply D333 to removed verification and checker-certification machinery; separate useful product obligations from that scaffolding.
+
+Do not recreate private inspection exports merely to copy reference tests. Decide the observable product obligation first.
+
+An implemented case awaiting execution needs qualification, not another implementation. A low match score, filename mismatch or missing clone is not missing coverage.
 
 ## Choosing what to test (not yet built)
 

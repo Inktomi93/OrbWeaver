@@ -70,8 +70,8 @@ how the role files are written, not which role to dispatch.
 - Set `model` and `effort` explicitly on every role.
 - Grant `SendMessage` to every role. The `lane` skill names the cases that call for a mid-run message.
 - The `orchestrator` skill's routing table owns which model tier can take security-dominant work.
-- List `skills:` for any procedure the role needs preloaded (for example `side-eye` lists
-  `side-eye-design-review` and `snap-driving`).
+- List `skills:` for any procedure the role needs preloaded (for example `ux-reviewer` lists
+  `ux-design-review` and `snap-driving`).
 
 ## Writing the body
 

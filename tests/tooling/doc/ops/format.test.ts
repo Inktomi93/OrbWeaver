@@ -244,7 +244,7 @@ test("ESCAPE DELTA: a code span split by bare pipes in a cell is REFUSED, not ce
   // bare `|`. The pipe is a CELL BOUNDARY before it is content, so the parse never forms the span: the
   // backticks land in `text` nodes as literal characters, split across three cells. The serializer then
   // escapes them, and the author's code span is written back as literal escaped backticks — the exact
-  // byte shape #2145 was filed to repair on `.claude/agents/side-eye.md:170`.
+  // byte shape #2145 was filed to repair on `.claude/agents/ux-reviewer.md`.
   //
   // BOTH EXISTING GUARDS ARE BLIND BY CONSTRUCTION, which is why this arm exists:
   //   · the overflow census fires only when a body row out-widths its HEADER, and here the header is

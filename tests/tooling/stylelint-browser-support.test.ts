@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import stylelint from "stylelint";
 import config from "../../stylelint.config.ts";
+import { assertStylelintEngineSucceeded } from "./stylelint-result.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const FILE = join(REPO_ROOT, "packages/client/src/styles/globals.css");
@@ -11,10 +12,38 @@ const RULE = "orb/browser-support-css";
 
 async function hits(code: string): Promise<string[]> {
   const { results } = await stylelint.lint({ code, codeFilename: FILE, config, configBasedir: REPO_ROOT });
+  assertStylelintEngineSucceeded(results);
   return results.flatMap((result) => result.warnings.map((warning) => warning.rule)).filter((rule) => rule === RULE);
 }
 
 const layered = (rules: string): string => `@layer client { ${rules} }`;
+
+test("malformed CSS fails rather than appearing clean", async () => {
+  await expect(hits("@layer client { .probe { color: red;")).rejects.toThrow(/CssSyntaxError/u);
+  expect(await hits(layered(".probe { opacity: 1; }"))).toEqual([]);
+});
+
+test("the native browser support finding is an error naming the unsupported property", async () => {
+  const code = layered(".probe { anchor-name: --probe; }");
+  const normal = await stylelint.lint({ code, codeFilename: FILE, config, configBasedir: REPO_ROOT });
+  assertStylelintEngineSucceeded(normal.results);
+  expect(normal.results.flatMap((result) => result.warnings).filter(({ rule }) => rule === RULE)).toEqual([
+    expect.objectContaining({ rule: RULE, severity: "error", text: expect.stringContaining("anchor-name") }),
+  ]);
+  const warning = await stylelint.lint({ code, codeFilename: FILE, config: { ...config, defaultSeverity: "warning" }, configBasedir: REPO_ROOT });
+  assertStylelintEngineSucceeded(warning.results);
+  expect(warning.results.flatMap((result) => result.warnings).filter(({ rule }) => rule === RULE)).toEqual([
+    expect.objectContaining({ rule: RULE, severity: "warning", text: expect.stringContaining("anchor-name") }),
+  ]);
+});
+
+test("invalid rule options and unknown rules fail the engine guard", async () => {
+  const code = layered(".probe { opacity: 1; }");
+  for (const rules of [{ "color-named": "invalid" }, { "not-a-real-stylelint-rule": true }]) {
+    const { results } = await stylelint.lint({ code, codeFilename: FILE, config: { rules } });
+    expect(() => assertStylelintEngineSucceeded(results)).toThrow(/Stylelint engine failure/u);
+  }
+});
 
 // Firefox 138 lacks `anchor-name` and `@scope`; `field-sizing` is listed harmless, `cursor` and `overscroll-behavior` run on the floor.
 test.for([

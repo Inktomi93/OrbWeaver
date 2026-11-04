@@ -17,7 +17,7 @@ Custom analysis must serve unmatched semantic claims, not duplicate native tools
 3. Rejudge existing waivers and grants during each move. Fix real findings where possible. Put legitimate native exceptions beside their sites with reasons. Put genuine migration debt in ESLint native bulk suppressions; that debt only shrinks. This permits migration debt tracking, not suppression of new violations.
 4. Adopt stylelint for CSS claims without another standard owner: integer line boxes, motion tokens, raw colors, rest transforms and CSS variable definitions. Qualify CSS and TypeScript claims separately.
 5. Move law data from gates into its production owners. Type total registries against their canonical unions with satisfies Record. Put ruling prose in the ledger or law.
-6. Route security migrations to security-executor. Land production-root behavioral tests and native lint or import boundaries before deleting their gate. A planted violation must fail; leave no unprotected interval.
+6. Route security migrations to security-builder. Land production-root behavioral tests and native lint or import boundaries before deleting their gate. A planted violation must fail; leave no unprotected interval.
 7. Replace contract-verb-presence with CI V8 coverage. Every domain verb implementation must execute in the server suite.
 8. Enforce message_variants freeze provenance through a database CHECK or trigger, with a numbered migration and migration test. Delete the static pairing gate only after that replacement works.
 9. Split compose-wiring-only. Dependency-cruiser owns the query-capability boundary; custom analysis retains per-call decisions in handed-out functions.

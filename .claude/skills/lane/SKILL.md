@@ -16,6 +16,16 @@ A lane owns a related batch of work in its own worktree. These rules bind every 
 - Re-derive a data-binding claim from the ledger, not from memory.
 - A precise refusal is a success. A guessed implementation is not.
 
+## Survey
+
+Survey before you edit. code-reviewer checks it. For every item, separately, before your first Edit or Write on it:
+
+1. Run `codegraph_explore` on the symbols and files that item names, and read the callers and blast radius it returns. One call for a whole batch does not count.
+2. Run `ast-grep` for each pattern you will change, with both `-l ts` and `-l tsx`. State the scanned-file count behind any "nothing else uses it" or "only caller" claim; an `rg` count alone is not a survey.
+3. Read the whole file you edit, not an excerpt.
+
+Skipped surveys are the main source of rework: missed consumers, missed callers, false premises. Your report lists, per item, the codegraph query and the ast-grep scan counts you ran; a report without them is treated as unverified.
+
 ## Scope
 
 - Do what the brief asks. Do no drive-by cleanup, speculative abstraction or unrequested features.
@@ -70,6 +80,8 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - Run a new test against the unmodified source first. Confirm that it fails.
 - A test that passes before the fix proves nothing. Plant a positive control that it catches.
 - Write old-source proofs against the old API, and assert through what the user sees.
+- Fix the cause. Never special-case a test's inputs to make it pass.
+- If a test is wrong, tell the orchestrator instead of bending the code to fit it.
 
 ## Regenerators and shared files
 
@@ -148,7 +160,7 @@ These restrictions apply to Claude's guarded worktree shell. Codex uses its own 
 
 ## Rendered proof
 
-- Verify anything a user sees at the rendered level with `pnpm snap` or a CT, or flag it for side-eye.
+- Verify anything a user sees at the rendered level with `pnpm snap` or a CT, or flag it for ux-reviewer.
 - `:5173` serves main, never your worktree. Use `pnpm snap [route] --isolated --ref <sha>` or the CT browser.
 - Verify the fix where the defect was reported, and verify what the model actually receives.
 - Seeded rows are not evidence. An empty per-user read only shows which principal asked. Name the principal.
