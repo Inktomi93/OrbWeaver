@@ -3,7 +3,7 @@
 import { isPluginProviderId, pluginNameOfProviderId } from "@orb/contracts/inference";
 import { expect, test } from "vitest";
 import { ZodError } from "zod";
-import { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
+import { makePluginProviderRow, makeProviderRow, pluginProviderId } from "../../iso/provider-rows.ts";
 
 test("the row's id is the plugin namespace the production parser reads back, and an override replaces a field", () => {
   const row = makePluginProviderRow("acme", "text", { label: "Acme text" });

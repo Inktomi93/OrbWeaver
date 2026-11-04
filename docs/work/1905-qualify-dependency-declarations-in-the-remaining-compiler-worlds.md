@@ -23,13 +23,15 @@ Affected native programs pass with skipLibCheck false, including fresh router ou
 
 ## Evidence
 
-`packages/ui/tsconfig.json`, `packages/client/tsconfig.json`, `packages/kit/tsconfig.json` and `packages/contracts/tsconfig.json` enable declaration checking. The base config retains its existing setting for unqualified programs.
+`packages/ui/tsconfig.json`, `packages/client/tsconfig.json`, `packages/kit/tsconfig.json`, `packages/contracts/tsconfig.json` and `tsconfig.tests-iso.json` enable declaration checking. The base config retains its existing setting for unqualified programs.
 
 The native `pnpm typecheck` command passes, including fresh router output. Explicit declaration checks still fail in the remaining programs.
 
 Remaining dependency families include Drizzle adapter declarations, SDK generic and inheritance contracts, NodeNext declaration imports, and browser-specific inputs.
 
 Host declaration ownership is specified in `docs/law/Spine-TypeScript-and-Patterns.md` section 10. Native compiler controls in `tests/tooling/platform-host-types.test.ts` exercise the production configurations, missing-home failures and excluded globals. Runtime controls verify WebAssembly identities, address widths and buffer growth.
+
+Portable testkit helpers compile in ISO; their executable self-tests live in `tests/support/node/iso/` and compile in Node. The native ISO compiler control rejects runner-specific globals.
 
 The plugin loader uses typed WebAssembly memory while preserving its allocation limits and required resizable buffers. Production plugin tests cover heap growth, sandbox isolation and process replacement.
 

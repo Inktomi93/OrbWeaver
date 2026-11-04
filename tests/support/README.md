@@ -47,6 +47,8 @@ Put DOM/evaluate page drivers in `tests/support/browser/` and export them throug
 
 The native tsconfig files select compiler populations. Dependency-cruiser checks Node-rooted helper imports, including type-only dependencies. Changing a filename does not repair mixed responsibilities. Browser mounts still cannot reach Node or server implementations.
 
+Keep portable helper implementations in `tests/support/iso/` and their executable self-tests in `tests/support/node/iso/`. The self-tests use the Node runner; the helpers retain their independent ISO compilation.
+
 ## Sign in through the product
 
 Use `@orb/testkit/node/auth` for any case that needs an authenticated request.

@@ -1,6 +1,6 @@
 // @subject tests/support/iso/non-empty.ts
 import { expect, test } from "vitest";
-import { forEachNonEmpty } from "./non-empty.ts";
+import { forEachNonEmpty } from "../../iso/non-empty.ts";
 
 test("every row is registered in order, and an empty table throws before any case is registered", () => {
   const seen: number[] = [];

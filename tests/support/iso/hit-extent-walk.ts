@@ -13,7 +13,7 @@
 // THE PAGE-SIDE HALVES ARE DUMB ON PURPOSE. {@link readPseudoGeometry} only READS resolved strings and
 // {@link walkFrom} only WALKS; all of the arithmetic is {@link pseudoHitRect}/{@link pseudoHitEnvelope},
 // which are pure functions of plain data and are therefore pinned by an ordinary NODE test
-// (`tests/support/iso/hit-extent-walk.test.ts`) instead of only by a browser run. That split is also what
+// (`tests/support/node/iso/hit-extent-walk.test.ts`) instead of only by a browser run. That split is also what
 // keeps each function inside the cognitive-complexity budget without a suppression: a function handed to
 // `locator.evaluate` is serialised as SOURCE TEXT into a page that has none of this module's scope, so it
 // may not call a module-level helper, and one self-contained function carrying the whole algorithm scores

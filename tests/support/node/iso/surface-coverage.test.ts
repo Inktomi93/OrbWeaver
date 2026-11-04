@@ -1,7 +1,7 @@
 // The walk's coverage verdict: what fails a published inventory and what the report lists as skipped. Planted rows
 // reach the audit untyped, as a retained attachment does, because the walker's types refuse them at compile time.
 import { describe, expect, test } from "vitest";
-import { auditSurfaceInventory, SURFACE_SKIP_REASONS } from "./surface-coverage.ts";
+import { auditSurfaceInventory, SURFACE_SKIP_REASONS } from "../../iso/surface-coverage.ts";
 
 const LEAF = { id: "presets/menu-0/leaf-0", kind: "menu-leaf" } as const;
 

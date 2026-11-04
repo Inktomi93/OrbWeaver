@@ -58,6 +58,14 @@ Buffer.alloc(1);
 document.body;
 // @ts-expect-error ISO code has no window.
 window.location;
+// @ts-expect-error ISO code does not acquire runtime events from a test runner.
+new Event("test");
+// @ts-expect-error ISO code does not acquire a runtime event target.
+new EventTarget();
+// @ts-expect-error ISO code does not acquire runtime cancellation globals.
+AbortSignal.abort();
+// @ts-expect-error ISO code does not acquire runtime sockets from a test runner.
+new WebSocket("ws://example.test");
 // @ts-expect-error The Node-only WebAssembly home is excluded from ISO.
 export type UnavailableMemory = WebAssembly.Memory;
 `;
@@ -119,6 +127,7 @@ Buffer.alloc(1);
 
 for (const [name, project, source] of [
   ["ISO", "packages/kit/tsconfig.json", ISO],
+  ["ISO testkit", "tsconfig.tests-iso.json", ISO],
   ["Node", "tsconfig.world-node.json", NODE],
   ["browser", "tsconfig.world-browser.json", BROWSER],
 ] as const) {

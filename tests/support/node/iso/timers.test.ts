@@ -1,7 +1,7 @@
 // The controlled timer seam: due-time order, interval repeat, cancellation and disposal.
 import { expect, test } from "vitest";
-import { createFrozenClock } from "./clock.ts";
-import { createControlledTimers, createQuietTimers } from "./timers.ts";
+import { createFrozenClock } from "../../iso/clock.ts";
+import { createControlledTimers, createQuietTimers } from "../../iso/timers.ts";
 
 test("timeouts fire in due order, each at its own due instant, and only once the clock reaches them", () => {
   const clock = createFrozenClock(1000);

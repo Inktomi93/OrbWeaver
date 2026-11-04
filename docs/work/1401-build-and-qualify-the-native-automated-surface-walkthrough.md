@@ -356,7 +356,7 @@ Filled at landing: what ran and where its output is.
 
 ### Phase B: typed skips, Config on the shared walker
 
-- `pnpm test tests/support/iso/surface-coverage.test.ts tests/support/node/surface-index-reporter.test.ts`: 16 pass. A probe against the previous `tests/support/iso/surface-coverage.ts` accepted the planted unlisted skip.
+- `pnpm test tests/support/node/iso/surface-coverage.test.ts tests/support/node/surface-index-reporter.test.ts`: 16 pass. A probe against the previous `tests/support/iso/surface-coverage.ts` accepted the planted unlisted skip.
 - Synthetic `desktop-1440-all-panes-measurement` run: Characters editor, relations, look, history; Config appearance, plugins; Refinery rail. All pass, 113 skips, none unlisted. Config plugins takes about 37 seconds; it had exceeded the 600-second case budget.
 - Whole synthetic walk on `desktop-1440-all-panes-measurement`: 56 cases completed in 4900 seconds, inside the 90-minute native budget. The 1-minute load was 22.9 on 24 cores at start. 46 pass, 1 skipped, 9 fail: Home and Corpus on their open handover items, Presets on the census timeout, and six reading styles. No skip was unlisted.
 - The run before it passed Config personas, connections and Chat reading tide. It failed bubble and document in `reachMessage`, Config appearance on a disclosure filed under the census's `control` kind, Config plugins at the case budget, and the Refinery rail on `refinery/runs`.
@@ -385,10 +385,13 @@ Not done: the layout-stability matrix, the evidence pass, and any other project 
 ### Phase B: whole-walk follow-up
 
 - `Characters independent editor` and `greeting` failed on a stale driver name. fddfd1ad49 renamed the Opening labels to Greeting on purpose. The driver now reads `greetingOrdinalLabel` from `packages/client/src/features/character/lib/greeting-copy.ts`. Both pass.
-- `homeCreatedRoom` keeps its delete-while-open order. The Home case in `surface-KkZ0K0` logged no console error and no HTTP failure with that order. Three attempts to leave first all failed the case: `returnHome` does not clear the active room, so the delete's 404s and a stale `stream.attach` appeared, and a reload per door tripped the general rate limit.
-- Row Delete now runs `mutateAsync().then(...)`. The confirm stays open until its delete settles, so a second Delete cannot start during the first. `preset-row-delete.ct.tsx` holds the first remove: red on the per-`mutate` callback at the open-confirm assertion, green on the fix.
-- `orb/dialog-needs-dismiss` now accepts a shared-verb Cancel, Close or Done button.
-- `corpusSemanticQuery` reads `CORPUS_NO_RESULT_TEXT` for an empty target. Refinery Restore has a confirm from main, and the driver accepts it. On the merged tip, `Rail independent corpus`, `presets`, `databank`, `refinery` and `Refinery disposable stage execution and versions` pass, load 12.
 
+- `homeCreatedRoom` keeps its delete-while-open order. The Home case in `surface-KkZ0K0` logged no console error and no HTTP failure with that order. Three attempts to leave first all failed the case: `returnHome` does not clear the active room, so the delete's 404s and a stale `stream.attach` appeared, and a reload per door tripped the general rate limit.
+
+- Row Delete now runs `mutateAsync().then(...)`. The confirm stays open until its delete settles, so a second Delete cannot start during the first. `preset-row-delete.ct.tsx` holds the first remove: red on the per-`mutate` callback at the open-confirm assertion, green on the fix.
+
+- `orb/dialog-needs-dismiss` now accepts a shared-verb Cancel, Close or Done button.
+
+- `corpusSemanticQuery` reads `CORPUS_NO_RESULT_TEXT` for an empty target. Refinery Restore has a confirm from main, and the driver accepts it. On the merged tip, `Rail independent corpus`, `presets`, `databank`, `refinery` and `Refinery disposable stage execution and versions` pass, load 12.
 
 - Final chain on 268a06a5bc: whole walk 56 of 56, unpaced, in 18 minutes (`surface-k2Hed1`).

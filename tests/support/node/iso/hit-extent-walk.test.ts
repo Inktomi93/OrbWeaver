@@ -8,8 +8,8 @@
 // hand-written guess — a hand-written guess is how "the resolved value is `auto`" style assumptions get
 // baked into an instrument.
 import { describe, expect, test } from "vitest";
-import type { HitGeometry, PseudoStyleFacts } from "./hit-extent-walk.ts";
-import { pseudoHitEnvelope, pseudoHitRect } from "./hit-extent-walk.ts";
+import type { HitGeometry, PseudoStyleFacts } from "../../iso/hit-extent-walk.ts";
+import { pseudoHitEnvelope, pseudoHitRect } from "../../iso/hit-extent-walk.ts";
 
 /** No pseudo at all — what Chrome answers for an element with no `content`. */
 const ABSENT: PseudoStyleFacts = {
