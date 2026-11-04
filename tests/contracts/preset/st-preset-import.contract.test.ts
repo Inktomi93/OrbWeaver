@@ -31,9 +31,8 @@ test("depth bounds clamp one field, report its loss and count the returned secti
       },
     ]);
     expect(sectionCount).toBe(config.sections.length);
-    expect(dropped).toEqual(
-      depth === MAX_INJECTION_DEPTH ? [] : [{ field: "prompts.a.injection_depth", reason: expect.stringContaining(`SillyTavern sent ${depth};`) }],
-    );
+    const droppedDepth = { field: "prompts.a.injection_depth", reason: expect.stringContaining(`SillyTavern sent ${depth};`) };
+    expect(dropped).toEqual(depth === MAX_INJECTION_DEPTH ? [] : [droppedDepth]);
   }
 });
 

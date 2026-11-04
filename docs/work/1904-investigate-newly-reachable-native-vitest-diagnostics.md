@@ -41,6 +41,12 @@ Adjudicate each diagnostic with its actual case and producer. Preserve custom ru
 
 The configured-rule scan covers native Vitest rules and the retained compound-assertion rule over maintained test sources. It uses syntax parsing without typed project services.
 
-Each listed location has a newly reachable diagnostic. These findings need source adjudication; the scan does not establish application defects or runtime failures.
+The conditional reports involved asymmetric matcher construction and a fixture invariant, rather than skipped behavioral assertions. Their construction and narrowing are explicit.
 
-Focused rule tests, affected compiler programs and scoped ESLint checks pass for the enforcement change. The listed case corrections remain open.
+The promise assertion was already joined through the pending-work collection. Its result is explicitly awaited after releasing the held write.
+
+The SDK marker and performance evidence have exact expected values. Appearance explanations require nonempty text, and parameterized titles have distinct prefixes.
+
+The focused Node, tooling and Chromium runs pass. Affected Node/DOM compiler programs, scoped Biome/ESLint, dependency-cruiser and independent review pass.
+
+The configured-rule rescan reports no remaining newly reachable diagnostics. Existing findings outside this assignment remain separate.

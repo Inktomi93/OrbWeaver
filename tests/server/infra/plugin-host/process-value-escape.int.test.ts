@@ -2,6 +2,7 @@
 // stays plain data in every direction, while a real `undefined` or `Uint8Array` still keeps its type.
 // @subject packages/server/src/infra/plugin-host/process-protocol.ts
 
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { isPlainObject } from "@orb/kit/guards";
 import type { JsonValue } from "@orb/kit/json";
@@ -103,7 +104,8 @@ test("a real guest's marker-shaped card state returns to it unchanged through th
     { slug: "marker-keeper", capabilities: ["character.card_state"] },
     { state: "async (h, room, a) => { await h.character.setCardData(a.card, a.data); return await h.character.getCardData(a.card); }" },
   );
-  const card = h.characters[0]?.id ?? expect.fail("the room has no character");
+  const card = h.characters[0]?.id;
+  assert(card !== undefined, "the room has no character");
   const data = { gone: UNDEFINED_MARKER, bytes: BYTES_MARKER, escaped: jsonValueSchema.parse(encodeProcessValue(BYTES_MARKER)), plain: "kept" };
 
   expect(await guestRunner({ root: h.root, caller: h.owner, pluginId, chatId: null })("state", { card, data })).toEqual({ ok: true, value: data });

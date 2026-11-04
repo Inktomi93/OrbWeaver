@@ -45,10 +45,14 @@ Record a confirmed, corrected or retracted judgment for each finding. Confirmed 
 
 Source assessment: `af3fba26a9805a1833b64010a99ceb84f6298dd3`. The cited findings are accepted source observations, not runtime reproductions. Revalidate live source and record native results or counterevidence here.
 
-`MAIN-AF3-FLAGSET-001`: The assertion rule reports the negated subset in `tests/tooling/snap/ops/matrix-contract.test.ts`. The per-flag assertion correction remains open.
+`MAIN-AF3-FLAGSET-001`: `tests/tooling/snap/ops/matrix-contract.test.ts` checks each forbidden flag against composed defaults and checkpoint arguments. The shared page-suffix parser includes targeted spellings.
+
+Independent base-flag controls and a parser-valid `--fill@0` control fail the exclusion check. The focused matrix suite passes.
 
 Stylelint consumers use `tests/tooling/stylelint-result.ts` to reject engine diagnostics before filtering rule findings. Native malformed-CSS and invalid-configuration controls pass.
 
 The browser-support case in `tests/tooling/stylelint-browser-support.test.ts` checks error severity and the unsupported property name. A warning-severity control remains distinguishable.
 
 The kicker exemption in `tests/tooling/design-audit-walker.ct.tsx` requires both subjects in the text-style census before asserting no finding. The focused Chromium case passes; removing a sampled subject fails.
+
+The undimmed contrast and clean reading-measure cases require their subjects in the applicable raw census. Their focused Chromium cases pass. Defect-only and inapplicable populations retain their exclusions.

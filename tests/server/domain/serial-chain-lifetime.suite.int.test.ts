@@ -202,15 +202,14 @@ test("RPG root disposal joins an accepted hand write before its dependencies clo
   const gate = held.hold(/^insert into "rpg_snapshots"/u);
   const pending: Promise<void>[] = [];
   try {
-    const write = root.services.rpg.editSnapshot({ ...params, patch: { location: "Accepted before closing" } }).then((result) => {
-      expect(result).toEqual({ ok: true });
-    });
-    pending.push(write);
+    const write = root.services.rpg.editSnapshot({ ...params, patch: { location: "Accepted before closing" } });
+    pending.push(write.then(() => undefined));
     await gate.reached;
     const disposal = Promise.resolve(root[Symbol.asyncDispose]());
     pending.push(disposal);
     expect(await observedProgress(disposal)).toBe("waiting");
     gate.release();
+    await expect(write).resolves.toEqual({ ok: true });
     await Promise.all(pending);
   } finally {
     gate.release();

@@ -332,7 +332,9 @@ test("text dimmed by an ancestor's opacity fails contrast on the composited colo
 
 test("the SAME color at full opacity still passes — the composite is the defect, not the color", async ({ mount, page }) => {
   await mount<typeof WalkerDimmedContrastStory>("tests/tooling/_ct-stories/WalkerDimmedContrastStory", {});
-  const findings = collectFindings(await samplesOf(page));
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples);
+  expect(sampledSelectors(samples.texts)).toContain("[data-testid=undimmed-line]");
 
   expect(selectorsFor(findings, "contrast"), "rgb(180,180,185) on rgb(16,16,20) is ~9:1 undimmed — flagging it would be a false positive").not.toContain(
     "[data-testid=undimmed-line]",
@@ -780,7 +782,11 @@ test("the walker measures BOTH units, and a law-character is narrower than a CSS
 
 test("the prose measure is judged in characters and the transcript in ch — the same 75ch box, two verdicts", async ({ mount, page }) => {
   await mount<typeof WalkerReadingMeasureStory>("tests/tooling/_ct-stories/WalkerReadingMeasureStory", {});
-  const findings = collectFindings(await samplesOf(page)).filter((f) => f.rule === "line-length");
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples).filter((f) => f.rule === "line-length");
+  const sampled = sampledSelectors(samples.textStyles);
+  expect(sampled).toContain("[data-testid=measure-47ch-prose]");
+  expect(sampled).toContain("[data-testid=measure-75ch-transcript]");
   const named = findings.map((f) => `${f.selector} => ${f.value}`).join(" | ");
 
   expect(findings.map((f) => f.selector).join(" | "), `the ratified PROSE measure must never be a finding (#464's surviving half). got ${named}`).not.toContain(

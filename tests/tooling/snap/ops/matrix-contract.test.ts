@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import type { ThemeEntry } from "../../../../tooling/src/floor/appearance/theme.ts";
+import { splitPageSuffix } from "../../../../tooling/src/floor/instrument/argv.ts";
 import { APPEARANCE_HIGH_RISK_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
 import { parseScenarioSpec, parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import {
@@ -25,6 +26,11 @@ const MATRIX_TEST_TIMEOUT_MS = scaledBudget(60_000); // measured 22.3s at load ~
 // only the identity case that first needed it (#1008).
 vi.setConfig({ testTimeout: MATRIX_TEST_TIMEOUT_MS });
 const MINTED_CUSTOM_THEMES = [THEMES[2], THEMES[3]] as const;
+const FORBIDDEN_FLAGS = ["--fill", "--upload", "--drop-files", "--click", "--dom-click", "--force-click", "--hover"] as const;
+
+function forbiddenFlags(argv: readonly string[]): readonly string[] {
+  return FORBIDDEN_FLAGS.filter((flag) => argv.some((token) => splitPageSuffix(token).flag === flag));
+}
 
 test("ships stage-safe behavioral tapes for every historical Appearance row", () => {
   const specs = APPEARANCE_HIGH_RISK_PRESET_NAMES.map((name) => {
@@ -43,12 +49,25 @@ test("ships stage-safe behavioral tapes for every historical Appearance row", ()
       const args = parseSnapArgs([...spec.defaults, ...checkpoint.args], { scenarioCheckpoint: true });
       expect(args.errors).toEqual([]);
       expect(args.actions.some((action) => action.type === "nav" || action.type === "step")).toBe(true);
+      expect(forbiddenFlags([...spec.defaults, ...checkpoint.args]), `${checkpoint.name}: forbidden flags`).toEqual([]);
     }
   }
-  expect(checkpoints.flatMap((checkpoint) => checkpoint.args)).not.toEqual(
-    expect.arrayContaining(["--fill", "--upload", "--drop-files", "--click", "--dom-click", "--force-click", "--hover"]),
-  );
   expect(specs[0]?.checkpoints[0]?.name).toBe("opposite-os-app-prepaint");
+  const controlSpec = specs[0];
+  const controlCheckpoint = controlSpec?.checkpoints[0];
+  expect(controlSpec).toBeDefined();
+  expect(controlCheckpoint).toBeDefined();
+  if (controlSpec === undefined || controlCheckpoint === undefined) {
+    throw new Error("missing appearance checkpoint");
+  }
+  for (const flag of FORBIDDEN_FLAGS) {
+    expect(forbiddenFlags([...controlSpec.defaults, ...controlCheckpoint.args, flag]), flag).toEqual([flag]);
+  }
+  const planted = [...controlSpec.defaults, ...controlCheckpoint.args, "--fill@0", "input=planted"];
+  const parsed = parseSnapArgs(planted, { scenarioCheckpoint: true });
+  expect(parsed.errors).toEqual([]);
+  expect(parsed.actions).toContainEqual({ type: "step", action: { kind: "fill", selector: "input", value: "planted", page: 0 } });
+  expect(forbiddenFlags(planted)).toEqual(["--fill"]);
 });
 
 test("keeps the exact minted custom themes when an older capable stage row sorts first", () => {

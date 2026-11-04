@@ -113,7 +113,10 @@ describe("the dead-css reads", () => {
 describe("the perf evidence read", () => {
   test("a null navigation entry is legal; a malformed one is refused before it lands in the report", () => {
     expect(perfEvidence({ navigation: null, orb: null })).toMatchObject({ navigation: null });
-    expect(perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2, responseMs: 3 }, orb: null })).toBeTruthy();
+    expect(perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2, responseMs: 3 }, orb: null })).toEqual({
+      navigation: { domContentLoadedMs: 1, loadMs: 2, responseMs: 3 },
+      orb: null,
+    });
     expect(() => perfEvidence({ navigation: { domContentLoadedMs: 1, loadMs: 2 }, orb: null })).toThrow(/"responseMs" returned nothing/u);
     expect(() => perfEvidence("{}")).toThrow(/not an object/u);
   });

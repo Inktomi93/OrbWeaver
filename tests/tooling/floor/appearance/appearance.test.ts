@@ -178,7 +178,7 @@ test("every committed profile states a why and resolves a valid non-empty patch"
   expect(names.length).toBeGreaterThanOrEqual(4);
   for (const name of names) {
     const entry = file.presets[name];
-    expect(entry?.why, `${name} owes a why`).toBeTruthy();
+    expect((entry?.why?.length ?? 0) > 0, `${name} owes a why`).toBe(true);
     const outcome = loadAppearancePreset(name);
     expect(outcome).toHaveProperty("patch");
     if ("error" in outcome) {
