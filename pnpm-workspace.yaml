@@ -64,6 +64,7 @@ catalog:
   "@eslint/css-tree": 4.1.2
   # @types/node tracks the RUNTIME (Node 26).
   "@types/node": ^26.6.5
+  "@types/whatwg-url": 13.0.0
   # codemod: the JSSG runner for repeatable multi-file rewrites (`.claude/skills/codemod`). Pinned exact:
   # the transform API, byte-offset edit semantics and the jssg-types package move together.
   codemod: 1.18.6

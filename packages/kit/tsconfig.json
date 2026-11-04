@@ -1,5 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "../../reset.d.ts", "../../platform.d.ts"],
+  "compilerOptions": {
+    "skipLibCheck": false
+  },
+  "include": ["src", "../../reset.d.ts", "../../platform.d.ts", "../../platform-iso.d.ts"],
   "exclude": ["**/node_modules"]
 }

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "files": []
+  "files": ["./platform-node.d.ts"]
 }

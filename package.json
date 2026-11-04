@@ -93,6 +93,7 @@
     "@total-typescript/ts-reset": "catalog:",
     "@trpc/client": "catalog:",
     "@types/node": "catalog:",
+    "@types/whatwg-url": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@typescript/native": "catalog:",

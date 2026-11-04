@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-04
 priority: P2
 area: tooling
 plan: type-law
@@ -23,13 +23,15 @@ Affected native programs pass with skipLibCheck false, including fresh router ou
 
 ## Evidence
 
-`packages/ui/tsconfig.json` and `packages/client/tsconfig.json` enable declaration checking. The base config retains its existing setting for unqualified programs.
+`packages/ui/tsconfig.json`, `packages/client/tsconfig.json`, `packages/kit/tsconfig.json` and `packages/contracts/tsconfig.json` enable declaration checking. The base config retains its existing setting for unqualified programs.
 
 The native `pnpm typecheck` command passes, including fresh router output. Explicit declaration checks still fail in the remaining programs.
 
 Remaining dependency families include Drizzle adapter declarations, SDK generic and inheritance contracts, NodeNext declaration imports, and browser-specific inputs.
 
-Qualify portable host types such as `URL` and `WebAssembly` against their supported runtimes. Preserve the Node and ISO environments during each repair.
+Host declaration ownership is specified in `docs/law/Spine-TypeScript-and-Patterns.md` section 10. Native compiler controls in `tests/tooling/platform-host-types.test.ts` exercise the production configurations, missing-home failures and excluded globals. Runtime controls verify WebAssembly identities, address widths and buffer growth.
+
+The plugin loader uses typed WebAssembly memory while preserving its allocation limits and required resizable buffers. Production plugin tests cover heap growth, sandbox isolation and process replacement.
 
 Use `pnpm exec node node_modules/@typescript/native/bin/tsc --noEmit true --incremental false --skipLibCheck false --project <config>` to inspect each program.
 

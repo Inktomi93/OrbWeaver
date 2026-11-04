@@ -49,9 +49,7 @@ function pages(bytes: number): number {
   return bytes / WASM_PAGE_BYTES;
 }
 
-// `object`, because the Node world has no DOM lib: the name `WebAssembly.Memory` does not resolve here, so the
-// library's `wasmMemory` option is an unresolved type that checks nothing either way.
-function createWebAssemblyMemory(): object {
+function createWebAssemblyMemory(): WebAssembly.Memory {
   const namespace: unknown = Reflect.get(globalThis, "WebAssembly");
   if (typeof namespace !== "object" || namespace === null) {
     throw new Error("plugin host: WebAssembly is unavailable");
@@ -60,13 +58,11 @@ function createWebAssemblyMemory(): object {
   if (typeof memoryConstructor !== "function") {
     throw new Error("plugin host: WebAssembly.Memory is unavailable");
   }
-  const memory: unknown = Reflect.construct(memoryConstructor, [
-    {
-      initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
-      maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
-    },
-  ]);
-  if (typeof memory !== "object" || memory === null) {
+  const memory = new WebAssembly.Memory({
+    initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
+    maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
+  });
+  if (typeof memory !== "object") {
     throw new Error("plugin host: WebAssembly.Memory constructed no object");
   }
   // quickjs-emscripten-core holds typed-array views of this memory across FFI calls that can malloc: the
@@ -79,7 +75,7 @@ function createWebAssemblyMemory(): object {
     throw new Error("plugin host: WebAssembly.Memory.prototype.toResizableBuffer is unavailable");
   }
   // Keep cached FFI views attached when WASM memory grows.
-  Reflect.apply(toResizableBuffer, memory, []);
+  memory.toResizableBuffer();
   return memory;
 }
 

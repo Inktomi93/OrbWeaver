@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-02
+updated: 2026-11-04
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -161,6 +161,8 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 ## 10. Compiler worlds
 
 Typecheck each file under the environment its code uses. Node, ISO and DOM declarations are not interchangeable. Component type contracts require DOM declarations; browser behavior requires a browser test. Use the owning TypeScript project rather than compiling a source file in isolation.
+
+`platform-iso.d.ts` supplies the portable `URL` instance type from `@types/whatwg-url`, without a global constructor. ISO projects include it explicitly. `tsconfig.world-node.json` includes `platform-node.d.ts` for WebAssembly handles and the plugin loader's memory constructor. Browser projects retain their native declarations. Shared ECMAScript additions stay in `platform.d.ts`.
 
 ## String-union dispatch discipline (spine §7.5)
 
