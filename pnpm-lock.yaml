@@ -297,14 +297,14 @@ catalogs:
       specifier: ^0.6.1
       version: 0.6.1
     '@trpc/client':
-      specifier: ^11.19.0
-      version: 11.19.0
+      specifier: ^11.23.0
+      version: 11.23.0
     '@trpc/server':
-      specifier: ^11.19.0
-      version: 11.19.0
+      specifier: ^11.23.0
+      version: 11.23.0
     '@trpc/tanstack-react-query':
-      specifier: ^11.19.0
-      version: 11.19.0
+      specifier: ^11.23.0
+      version: 11.23.0
     '@types/cross-spawn':
       specifier: ^6.0.6
       version: 6.0.6
@@ -582,7 +582,7 @@ overrides:
   dompurify: '>=3.4.13'
   katex: ^0.19.0
 
-packageExtensionsChecksum: sha256-nUkiipNI40H6bpAmOhTbiVPoDfUiQQfy8kpKoN+vXcY=
+packageExtensionsChecksum: sha256-Pm6x6Ey51leQq1HnsX0T0oiLt134g48UktvcasTUkdg=
 
 patchedDependencies:
   '@anthropic-ai/claude-agent-sdk@0.3.306': d8e5d2e1eeaf93db398559693a24f1de0256b5e80d55597f23b65101bc31b5f4
@@ -590,6 +590,8 @@ patchedDependencies:
   chrome-devtools-mcp@1.11.0: f3f1f09662e22c856422d3be627d1ad300eff7badc4a4f90ad03f62849a8bc97
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
   colorjs.io@0.7.1: 12d81310907897d570f7f59553b3ce0243e2b40a802c22971beb75c2a3182220
+  echarts-for-react@3.0.6: 1828d356a1f2394686c9ee7375f376f5d594d089b757268b8954b669e13eebf0
+  echarts@6.1.0: f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d
   eslint-plugin-better-tailwindcss@4.10.0: aef47ec322be76a31a4914a3f75673c40cab9527f35bccfce3c350100978c034
   isomorphic-git@1.44.3: b6d3daca10aea27090550cbe67f10d2a422ad36ff50cb2f1e7fbc6c3f46e7b5f
   libsql@0.6.0-pre.43: 7b48aa0bd500a46194e7b41b77327ba74b34e5a0d6717f366ea745b4e7978031
@@ -670,7 +672,7 @@ importers:
         version: 0.6.1
       '@trpc/client':
         specifier: 'catalog:'
-        version: 11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
+        version: 11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
@@ -841,10 +843,10 @@ importers:
         version: 1.170.45(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@trpc/client':
         specifier: 'catalog:'
-        version: 11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
+        version: 11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
       '@trpc/tanstack-react-query':
         specifier: 'catalog:'
-        version: 11.19.0(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2))(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)(react@19.3.1)
+        version: 11.23.0(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2))(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)(react@19.3.1)
       fflate:
         specifier: 'catalog:'
         version: 0.8.3
@@ -1054,7 +1056,7 @@ importers:
         version: link:../showcase-plugins
       '@trpc/server':
         specifier: 'catalog:'
-        version: 11.19.0(@typescript/typescript6@6.0.2)
+        version: 11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2)
       '@types/html-to-text':
         specifier: 'catalog:'
         version: 9.0.4
@@ -1181,10 +1183,10 @@ importers:
         version: 9.0.0
       echarts:
         specifier: 'catalog:'
-        version: 6.1.0
+        version: 6.1.0(patch_hash=f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d)
       echarts-for-react:
         specifier: 'catalog:'
-        version: 3.0.6(echarts@6.1.0)(react@19.3.1)
+        version: 3.0.6(patch_hash=1828d356a1f2394686c9ee7375f376f5d594d089b757268b8954b669e13eebf0)(echarts@6.1.0(patch_hash=f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d))(react@19.3.1)
       katex:
         specifier: ^0.19.0
         version: 0.19.0
@@ -1391,7 +1393,7 @@ importers:
         version: link:../packages/ui
       '@trpc/client':
         specifier: 'catalog:'
-        version: 11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
+        version: 11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
       '@types/cross-spawn':
         specifier: 'catalog:'
         version: 6.0.6
@@ -3995,26 +3997,39 @@ packages:
   '@total-typescript/ts-reset@0.6.1':
     resolution: {integrity: sha512-cka47fVSo6lfQDIATYqb/vO1nvFfbPw7uWLayIXIhGETj0wcOOlrlkobOMDNQOFr9QOafegUPq13V2+6vtD7yg==}
 
-  '@trpc/client@11.19.0':
-    resolution: {integrity: sha512-0MKkPq6MejsKB5Opca1Rl22KVIaqo2+A1EiXyZ8EGUsl9TLrPdpGn+Usux20TZKFwnSC2+wI/WilqNJaP4ODfw==}
-    hasBin: true
+  '@trpc/client@11.23.0':
+    resolution: {integrity: sha512-61qMX0YY8FDrFuAScBFMzeAPbH9l3p7fEa2YGY6wKhGlOcgCiJOVxSw8P5JdHVJEV6sw81HPPXlSWI51byxkXA==}
     peerDependencies:
-      '@trpc/server': 11.19.0
+      '@trpc/server': 11.23.0
       typescript: '>=5.7.2'
 
-  '@trpc/server@11.19.0':
-    resolution: {integrity: sha512-7C1goiDurz82yFKtZUbEzjXd0Rg/jyisaIZQhdvus+1l7E6mwcEYZXjZ1US/HF8kOyz1LERL8UN3bcboJtjcyQ==}
-    hasBin: true
+  '@trpc/server@11.23.0':
+    resolution: {integrity: sha512-kHQY+MvRYm/NaerM6zM755NA4elBrA+PVve4RoJQf1P+hBzqQUuIBsmg+y7DWDsrWtg4wPASWbcYInP2xCBIFQ==}
     peerDependencies:
+      '@types/aws-lambda': '*'
+      '@types/express': '*'
+      '@types/ws': '*'
+      fastify: '*'
+      next: '*'
       typescript: '>=5.7.2'
+    peerDependenciesMeta:
+      '@types/aws-lambda':
+        optional: true
+      '@types/express':
+        optional: true
+      '@types/ws':
+        optional: true
+      fastify:
+        optional: true
+      next:
+        optional: true
 
-  '@trpc/tanstack-react-query@11.19.0':
-    resolution: {integrity: sha512-KYmZBRyqZqm9oY66a3tXxBlT9PLLG+YiH//4VRzrY7jCekeusYwzMkz9GAmyqnmAlc+n/9nbfzTmtIA0IordRw==}
-    hasBin: true
+  '@trpc/tanstack-react-query@11.23.0':
+    resolution: {integrity: sha512-MOhOVWiJhUd5/8XH9kYobFvF9EZK+T0r3Om8cNUeWd3W2LOTersf4mIp8wrfq/3dqu08+jwHXyqcJ5ZmyHIciQ==}
     peerDependencies:
       '@tanstack/react-query': ^5.80.3
-      '@trpc/client': 11.19.0
-      '@trpc/server': 11.19.0
+      '@trpc/client': 11.23.0
+      '@trpc/server': 11.23.0
       react: '>=18.2.0'
       typescript: '>=5.7.2'
 
@@ -7740,8 +7755,8 @@ packages:
   third-party-web@0.30.0:
     resolution: {integrity: sha512-p+PfyL5U0ediGzvwPzMSdD9MnC8rHW6nWJJVLIQvqN7RsSqfaZ+7n4c9GILqH36EYR0eXB9CzAeCRnKFr/9uJg==}
 
-  thread-stream@4.2.0:
-    resolution: {integrity: sha512-e2zZ96wSChazBsbENf/Pcm/4swHt2cEKQ92rhUjkL9GCKiTDJIaTBenjE/m9DXi0QBmTMDkFDdOomUy20A1tDQ==}
+  thread-stream@4.2.1:
+    resolution: {integrity: sha512-Stg6edJXC/6/xqGwSXwFokrUhChJ18amEjpKH89WrQQ0oVFDF+pUUcTpiwWhFUrE89Vf16FBOlwhaw+lescxMQ==}
     engines: {node: '>=20'}
 
   thunky@1.1.0:
@@ -8314,6 +8329,9 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
+
+  zod@3.25.42:
+    resolution: {integrity: sha512-PcALTLskaucbeHc41tU/xfjfhcz8z0GdhhDcSgrCTmSazUuqnYqiXO63M0QUBVwpBlsLsNVn5qHSC5Dw3KZvaQ==}
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
@@ -10484,20 +10502,22 @@ snapshots:
 
   '@total-typescript/ts-reset@0.6.1': {}
 
-  '@trpc/client@11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)':
+  '@trpc/client@11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)':
     dependencies:
-      '@trpc/server': 11.19.0(@typescript/typescript6@6.0.2)
+      '@trpc/server': 11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2)
       typescript: '@typescript/typescript6@6.0.2'
 
-  '@trpc/server@11.19.0(@typescript/typescript6@6.0.2)':
+  '@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2)':
     dependencies:
       typescript: '@typescript/typescript6@6.0.2'
+    optionalDependencies:
+      '@types/ws': 8.18.2
 
-  '@trpc/tanstack-react-query@11.19.0(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2))(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)(react@19.3.1)':
+  '@trpc/tanstack-react-query@11.23.0(@tanstack/react-query@5.104.5(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2))(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)(react@19.3.1)':
     dependencies:
       '@tanstack/react-query': 5.104.5(@types/react@19.3.0)(react@19.3.1)
-      '@trpc/client': 11.19.0(@trpc/server@11.19.0(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
-      '@trpc/server': 11.19.0(@typescript/typescript6@6.0.2)
+      '@trpc/client': 11.23.0(@trpc/server@11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2))(@typescript/typescript6@6.0.2)
+      '@trpc/server': 11.23.0(@types/ws@8.18.2)(@typescript/typescript6@6.0.2)
       react: 19.3.1
       typescript: '@typescript/typescript6@6.0.2'
 
@@ -11408,6 +11428,7 @@ snapshots:
       '@esbuild-kit/esm-loader': 2.6.5
       esbuild: 0.25.12
       tsx: 4.23.15
+      zod: 3.25.42
 
   drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.10.0):
     optionalDependencies:
@@ -11424,14 +11445,14 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
-  echarts-for-react@3.0.6(echarts@6.1.0)(react@19.3.1):
+  echarts-for-react@3.0.6(patch_hash=1828d356a1f2394686c9ee7375f376f5d594d089b757268b8954b669e13eebf0)(echarts@6.1.0(patch_hash=f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d))(react@19.3.1):
     dependencies:
-      echarts: 6.1.0
+      echarts: 6.1.0(patch_hash=f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d)
       fast-deep-equal: 3.1.3
       react: 19.3.1
       size-sensor: 1.0.3
 
-  echarts@6.1.0:
+  echarts@6.1.0(patch_hash=f776ead5c152279386b697f3efa86ab0f9f475318ed5d8406aded576926d7c3d):
     dependencies:
       tslib: 2.3.0
       zrender: 6.1.0
@@ -13801,7 +13822,7 @@ snapshots:
       real-require: 1.0.0
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
-      thread-stream: 4.2.0
+      thread-stream: 4.2.1
 
   pkce-challenge@5.0.1: {}
 
@@ -14685,7 +14706,7 @@ snapshots:
 
   third-party-web@0.30.0: {}
 
-  thread-stream@4.2.0:
+  thread-stream@4.2.1:
     dependencies:
       real-require: 1.0.0
 
@@ -15262,6 +15283,8 @@ snapshots:
   zod-validation-error@4.0.2(zod@4.6.7):
     dependencies:
       zod: 4.6.7
+
+  zod@3.25.42: {}
 
   zod@4.6.7: {}
 

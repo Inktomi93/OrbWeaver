@@ -1,0 +1,22 @@
+diff --git a/esm/core.d.ts b/esm/core.d.ts
+index c00e2c5c9d4d550a9ed842bc1abfca836a98a8aa..999fe8e16bf5fc5423477fcf5e09e418b93033de 100644
+--- a/esm/core.d.ts
++++ b/esm/core.d.ts
+@@ -1,5 +1,5 @@
+ import type { ECharts } from 'echarts';
+-import { PureComponent } from 'react';
++import { PureComponent, type JSX } from 'react';
+ import { EChartsReactProps } from './types';
+ /**
+  * core component for echarts binding
+diff --git a/lib/core.d.ts b/lib/core.d.ts
+index c00e2c5c9d4d550a9ed842bc1abfca836a98a8aa..999fe8e16bf5fc5423477fcf5e09e418b93033de 100644
+--- a/lib/core.d.ts
++++ b/lib/core.d.ts
+@@ -1,5 +1,5 @@
+ import type { ECharts } from 'echarts';
+-import { PureComponent } from 'react';
++import { PureComponent, type JSX } from 'react';
+ import { EChartsReactProps } from './types';
+ /**
+  * core component for echarts binding

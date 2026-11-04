@@ -136,7 +136,7 @@ catalog:
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
   # (docs/law/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
   jose: ^6.2.13
-  "@trpc/server": ^11.19.0
+  "@trpc/server": ^11.23.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
   # dispatcher swap requires the package; tracks Node 26's bundled undici major (node 26.5 bundles
@@ -333,8 +333,8 @@ catalog:
   "@tanstack/react-form": ^1.33.5
   zustand: ^5.0.15
   # The tRPC options proxy supplies typed TanStack Query options.
-  "@trpc/client": ^11.19.0
-  "@trpc/tanstack-react-query": ^11.19.0
+  "@trpc/client": ^11.23.0
+  "@trpc/tanstack-react-query": ^11.23.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
   # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
@@ -346,6 +346,10 @@ catalog:
   '@axe-core/playwright': 4.14.0
   web-vitals: 6.2.3
 packageExtensions:
+  # Kit bundles Zod 3, and its public API declarations require that same major.
+  "drizzle-kit@0.31.11":
+    dependencies:
+      zod: "3.25.42"
   # Sentry's child core peers need a provider inside its API 1.9 context, not the application's API 1.10.
   "@sentry/node@10.76.2":
     dependencies:
@@ -457,5 +461,9 @@ patchedDependencies:
   # call boundary, and lints a named function's own returns with a matching variable selector's
   # anonymousFunctionReturn matchers. A bump must port it.
   eslint-plugin-better-tailwindcss@4.10.0: patches/eslint-plugin-better-tailwindcss@4.10.0.patch
+  # Preserve exact optional owner types; remove when ECharts ships the corrected declarations.
+  echarts@6.1.0: patches/echarts@6.1.0.patch
+  # React 19 scopes JSX to React; remove when the wrapper imports that type.
+  echarts-for-react@3.0.6: patches/echarts-for-react@3.0.6.patch
 
 nodeOptions: "--max-old-space-size=16384"

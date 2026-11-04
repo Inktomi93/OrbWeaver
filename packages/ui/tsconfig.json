@@ -1,5 +1,8 @@
 {
   "extends": "../../tsconfig.world-browser.json",
+  "compilerOptions": {
+    "skipLibCheck": false
+  },
   "include": ["src", "../../reset.d.ts", "../../platform.d.ts", "src/markdown/css-modules.d.ts"],
   "exclude": ["**/node_modules"]
 }
