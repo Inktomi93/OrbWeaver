@@ -183,7 +183,7 @@ function AmbientFieldControl({
 }): ReactElement {
   if (onEditField === undefined) {
     return (
-      <Text as="span" numeric={true} className="truncate" voice="label">
+      <Text as="span" numeric={true} truncate={true} voice="label">
         {value}
       </Text>
     );

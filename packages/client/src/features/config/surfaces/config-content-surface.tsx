@@ -214,7 +214,8 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
       {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
       <Stack
         aria-label={regionLabel}
-        className="relative -mx-row flex-1 overflow-y-auto overscroll-contain px-row py-section block-full min-block-0"
+        scroll="y"
+        className="-mx-row flex-1 px-row py-section block-full"
         focusTarget={true}
         data-slot="config-content"
         ref={(node): void => {

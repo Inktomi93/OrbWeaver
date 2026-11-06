@@ -10,7 +10,7 @@ import { SkipToFirstRow } from "./skip-to-first-row.tsx";
 
 /** The one element a LIST pane scrolls in: the `ListPage` body, or the rows under a `bounded` body. */
 export function ListScrollBox({ gap, ...props }: Omit<ComponentProps<"div">, "className"> & { readonly gap?: StackProps["gap"] }): ReactElement {
-  return <Stack {...props} gap={gap} className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-slot="library-list-scroll" />;
+  return <Stack {...props} gap={gap} scroll="y" className="flex-1" data-slot="library-list-scroll" />;
 }
 
 /** `scroll`: the body is the scroll box. `bounded`: the body is a bounded column whose rows or VirtualList scroll
@@ -60,8 +60,9 @@ export function ListPage({
         {...data}
         data-list-page={body}
         {...(label === undefined ? {} : { "aria-label": label, role: "region" })}
-        className={body === "pane" ? "relative overflow-y-auto overscroll-contain block-full min-block-0" : "block-full min-block-0"}
+        className="block-full min-block-0"
         focusTarget={true}
+        scroll={body === "pane" ? "y" : undefined}
         gap="row"
         onKeyDown={onKeyDown}
         ref={ref}

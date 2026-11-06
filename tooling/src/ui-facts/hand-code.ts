@@ -199,6 +199,8 @@ const COINCIDENT_CONSTANTS: readonly (readonly [why: string, names: ReadonlySet<
   ["one reaps an idle temp chat, one waits for an idle warmup", new Set(["REAP_IDLE_TIMEOUT_MS", "IDLE_WARMUP_TIMEOUT_MS"])],
   ["one waits out a rerank, one waits out an edited draft", new Set(["RERANK_SETTLE_MS", "SCHEMA_PLAN_SETTLE_MS"])],
   ["one revokes a download URL, one is a blur-close guard", new Set(["REVOKE_DELAY_MS", "BLUR_CLOSE_DELAY_MS"])],
+  ["one is the scroll-edge slack, one is the band inside which a persisted height is not rewritten", new Set(["SCROLL_EDGE_EPSILON_PX", "WRITE_EPSILON_PX"])],
+  ["each list seeds its virtualizer with its own row height, and the rows re-measure after mount", new Set(["ESTIMATED_ROW_PX"])],
 ];
 
 const coincidenceOf = (repeats: readonly Constant[]): string | undefined =>

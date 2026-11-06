@@ -223,7 +223,7 @@ export function RpgTakeoverHeader({
         <Stack gap="field" className="flex-1 basis-(--width-title-floor) max-inline-full min-inline-0">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
-          <Text as="span" voice="gloss" className="truncate">
+          <Text as="span" voice="gloss" truncate={true}>
             No ambient set — the story fills it.
           </Text>
           {/* Cues and satellites share one wrapping row BESIDE the stone: with nothing to read above them

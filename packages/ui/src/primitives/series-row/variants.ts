@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { ROW_STRIP, tv } from "#lib";
 
 // The data-series line skin (mirrors the mock's `.prow`): swatch · label/detail · trailing value.
 // ONE vertical rhythm (`py-field` — instrument density): no `density` prop, because layout-context props are
@@ -7,7 +7,7 @@ export const seriesRowVariants = tv({
   slots: {
     // `text-start` is load-bearing: the row is DESIGNED to sit inside a `<button>` trigger, and a button's
     // UA default is `text-align: center` — without this the whole row centres itself.
-    root: "flex items-center gap-row py-field text-start text-label leading-label inline-full min-inline-0",
+    root: `${ROW_STRIP} py-field text-start text-label leading-label inline-full min-inline-0`,
     // A small square keyed to the bar's segment — decoration, sized off the `row` spacing intent.
     swatch: "shrink-0 rounded-control block-row inline-row",
     content: "flex flex-1 flex-col min-inline-0",

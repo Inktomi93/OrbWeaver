@@ -162,7 +162,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
             is a field below because it needs the target picker, Delete is the row's kebab, D212). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
         {back === undefined ? (
-          <Heading className="truncate min-inline-0" level={2}>
+          <Heading truncate={true} level={2}>
             {tag.name}
           </Heading>
         ) : (

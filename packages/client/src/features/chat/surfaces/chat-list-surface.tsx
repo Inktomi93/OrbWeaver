@@ -58,7 +58,7 @@ import { useRef } from "react";
 import { ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
-import { useDebouncedValue, useFocusListArrival } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
   clearChatListCharacterFilter,
@@ -81,7 +81,6 @@ import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import type { FilterExit } from "../lib/chat-list-scope.ts";
 import {
   activeFilterExits,
-  CHAT_LIST_SEARCH_DEBOUNCE_MS,
   chatListScopeKey,
   formatMonthLabel,
   monthEmptyDescription,
@@ -123,7 +122,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   const month = useChatListMonth();
   const beforeRecencyAt = monthExclusiveUpperBound(month);
   const monthLabel = formatMonthLabel(month);
-  const settledQuery = useDebouncedValue(query.trim(), CHAT_LIST_SEARCH_DEBOUNCE_MS);
+  const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const clearSearch = (): void => setChatListSearch("");
   const clearMonth = (): void => setChatListMonth("");
   const characterFilter = useChatListCharacterFilter();

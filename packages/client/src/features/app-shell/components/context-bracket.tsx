@@ -139,7 +139,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           CHILDREN are deferred until first visit, cutting the initial commit-phase cost from 169-214ms
           to only the active tab's tree. */}
       {view.tabs.length === 0 ? (
-        <Stack className="relative overflow-y-auto overscroll-contain min-block-0" padding="row">
+        <Stack scroll="y" padding="row">
           {empty}
         </Stack>
       ) : null}

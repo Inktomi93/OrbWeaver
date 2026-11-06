@@ -81,7 +81,7 @@ export function RefineryContentSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack className="relative overflow-y-auto overscroll-contain block-full min-block-0" focusTarget={true} ref={surfaceRef} tabIndex={-1}>
+    <Stack scroll="y" className="block-full" focusTarget={true} ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (
         <RefineryStartPane />
       ) : (

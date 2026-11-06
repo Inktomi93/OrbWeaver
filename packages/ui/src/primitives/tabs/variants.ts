@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
@@ -24,7 +24,7 @@ export const tabsVariants = tv({
         relative z-(--z-raised) inline-flex cursor-pointer items-center justify-center gap-field text-label leading-label font-medium whitespace-nowrap
         text-muted-foreground select-none
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
+      `${COLOR_MOTION} hover:text-foreground`,
       // The focus ring is per-LAYOUT (see the `layout` variant): a strip tab takes the offset ring every
       // control wears; a rail cell takes the INSET one, because its list can become a scroll box.
       "outline-none",

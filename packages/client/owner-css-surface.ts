@@ -1132,6 +1132,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--opacity-dragging",
   "--opacity-faint",
   "--opacity-grain",
+  "--opacity-held",
   "--opacity-hover",
   "--opacity-loading",
   "--opacity-quiet",

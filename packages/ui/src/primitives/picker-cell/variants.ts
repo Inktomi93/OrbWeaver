@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, SELECTION_RING_CHECKED, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_STATE, FIELD_STACK, FOCUS_RING, SELECTION_RING_CHECKED, tv } from "#lib";
 
 // picker-cell — the ONE cell anatomy every single-choice PICTURE picker in this app wears (#929 E6).
 //
@@ -46,10 +46,10 @@ export const pickerCellVariants = tv({
     // INHERITS the sub-pixel offset. The declared `round(nearest, …, 1px)` length is what CSS can round.
     frame: [
       `
-        @container relative flex flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-start outline-none block-full
-        min-inline-0 tone-host-card
+        @container relative ${FIELD_STACK}
+        overflow-hidden rounded-control border border-border bg-card p-field text-start outline-none block-full min-inline-0 tone-host-card
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       "hover:border-ring",
       FOCUS_RING,
       // THE RING IS THE SHARED FRAGMENT (#1840): `SELECTION_RING_CHECKED` is the app-wide selected-CELL
@@ -74,7 +74,7 @@ export const pickerCellVariants = tv({
     // differ by 13px of height.
     body: "flex flex-1 flex-col gap-tight min-inline-0",
     titleRow: "flex items-center justify-between gap-field min-inline-0",
-    label: "truncate min-inline-0",
+    label: "truncate",
     meta: "shrink-0",
     // 13px, muted — NOT `voice="gloss"` (10.5px). `undersized-ui-text` fired 8x of 16 judged on the
     // chat-style cards' glosses (#1099 F31): copy inside an interactive cell is read at the control's

@@ -379,7 +379,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
         <Text as="span" voice="gloss" aria-hidden={true}>
           /
         </Text>
-        <Text as="span" voice="gloss" className="truncate">
+        <Text as="span" voice="gloss" truncate={true}>
           {actor.name}
         </Text>
       </Row>

@@ -1,9 +1,9 @@
 // Shared membership-scoped census for the Chats band and phone title; no roster enrichment.
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useChatListCharacterFilter, useChatListMonth, useChatListSearch } from "#state";
-import { CHAT_LIST_SEARCH_DEBOUNCE_MS, monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
+import { monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
 
 /** Counts the same character, search and month lens as the list. */
 export function useChatCensus(): number | string | undefined {
@@ -11,7 +11,7 @@ export function useChatCensus(): number | string | undefined {
   const characterFilter = useChatListCharacterFilter();
   const rawSearch = useChatListSearch();
   const month = useChatListMonth();
-  const search = useDebouncedValue(rawSearch.trim(), CHAT_LIST_SEARCH_DEBOUNCE_MS);
+  const search = useDebouncedValue(rawSearch.trim(), SEARCH_DEBOUNCE_MS);
   const beforeRecencyAt = monthExclusiveUpperBound(month);
   const narrowed = characterFilter !== null || search !== "" || beforeRecencyAt !== null;
 

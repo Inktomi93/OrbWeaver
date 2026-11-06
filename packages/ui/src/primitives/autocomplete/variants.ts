@@ -1,7 +1,9 @@
 import {
   ACCENT_HOVER,
+  COLOR_MOTION,
   CONTROL_BLOCK,
   CONTROL_INLINE,
+  FIELD_STACK,
   FOCUS_RING_BARE,
   FOCUS_RING_WITHIN,
   ITEM_ROW,
@@ -19,7 +21,7 @@ export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
       "relative flex items-center rounded-control border border-input-border bg-field-fill inline-full min-inline-0",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
     ],
@@ -39,17 +41,17 @@ export const autocompleteVariants = tv({
     // shared overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
     popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
-    list: "flex flex-col gap-field",
+    list: FIELD_STACK,
     // THE INLINE ARM's list (side-eye 2026-08-03 P0): the same items, IN FLOW under the field instead of in
     // an anchored overlay. It carries the box itself because this anatomy has no Popup part (Base UI's
     // `Popup` throws outside a `Positioner`) — no overlay surface, since it sits INSIDE the caller's own
     // card: a bounded scroller (~4 rows at the coarse touch floor, so a large tag library cannot grow the card
     // past its own footer) and a hairline. `data-empty:hidden` so nothing to suggest leaves NO frame behind.
     inlineList: `
-      relative flex flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field max-block-(--height-scroll-sm)
+      relative ${FIELD_STACK} overflow-y-auto overscroll-contain rounded-control border border-border p-field max-block-(--height-scroll-sm)
       data-empty:hidden
     `,
-    group: "flex flex-col gap-field",
+    group: FIELD_STACK,
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,
     empty: "px-block py-field text-body leading-body text-muted-foreground",

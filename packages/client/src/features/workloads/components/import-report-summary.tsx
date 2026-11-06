@@ -48,7 +48,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                   tone={outcome.ok ? "success" : "destructive"}
                   label={outcome.ok ? "Imported" : "Not imported"}
                 />
-                <Text voice="code" className="flex-1 truncate min-inline-0">
+                <Text voice="code" truncate="fill">
                   {outcome.path}
                 </Text>
                 <Text voice="gloss" className="whitespace-nowrap">

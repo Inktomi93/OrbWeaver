@@ -52,13 +52,7 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Stack
-      className="relative overflow-y-auto overscroll-contain block-full min-block-0"
-      focusTarget={true}
-      data-slot="databank-content"
-      ref={surfaceRef}
-      tabIndex={-1}
-    >
+    <Stack scroll="y" className="block-full" focusTarget={true} data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
       {documentId === null ? (
         <DatabankWelcome />
       ) : (
@@ -321,7 +315,7 @@ function DetailRow({ label, value }: { readonly label: string; readonly value: s
   return (
     <>
       <Text voice="gloss">{label}</Text>
-      <Text className="truncate min-inline-0">{value}</Text>
+      <Text truncate={true}>{value}</Text>
     </>
   );
 }

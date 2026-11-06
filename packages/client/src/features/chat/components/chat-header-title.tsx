@@ -26,7 +26,7 @@ export interface ChatHeaderTitleProps {
 /** The participants, leading (the ellipsis is the layout's floor). */
 function ParticipantsText({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text voice="promoted" className="shell-topbar-title truncate min-inline-0">
+    <Text voice="promoted" truncate={true} className="shell-topbar-title">
       {label}
     </Text>
   );
@@ -48,7 +48,7 @@ function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "l
       {roomName === null ? null : (
         <>
           {/* Whitespace between flex items paints nothing but separates their words for text-content readers. */}{" "}
-          <Text as="span" voice="quiet" className="shell-topbar-subtitle truncate min-inline-0">
+          <Text as="span" voice="quiet" truncate={true} className="shell-topbar-subtitle">
             {roomName}
           </Text>
         </>

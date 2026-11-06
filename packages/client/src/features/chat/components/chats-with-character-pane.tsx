@@ -31,7 +31,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -45,9 +45,6 @@ type ChatListItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 const SKELETON_ROW_COUNT = 4;
 /** Row-height guess for the virtualizer; every row re-measures itself after mount. */
 const ESTIMATED_ROW_PX = 44;
-/** The chats pane's damper — one home would be a shared constant with one other reader, which §13.0's bar
- *  does not clear; the VALUE agreeing is what matters and both headers say why. */
-const SEARCH_DEBOUNCE_MS = 250;
 /** Above this many loaded rows the pane grows a search field. Below it, a search box would be chrome over a
  *  list you can already read (§3.5) — but once a search is RUNNING the field stays regardless of how far it
  *  narrows the list, or the control would vanish under the user mid-query. */

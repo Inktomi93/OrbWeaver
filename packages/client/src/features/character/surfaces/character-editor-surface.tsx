@@ -135,7 +135,8 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     // area (character-library-welcome.tsx carries the same note).
     <Stack
       ref={scrollRef}
-      className="relative overflow-y-auto overscroll-contain block-full"
+      scroll="y"
+      className="block-full"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.

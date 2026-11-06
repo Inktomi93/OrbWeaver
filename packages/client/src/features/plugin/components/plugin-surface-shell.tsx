@@ -90,7 +90,7 @@ export function PluginSurfaceShell({
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={regionName} className="relative grow overflow-y-auto overscroll-contain p-block min-block-0" gap="block" role="group">
+        <Stack aria-label={regionName} scroll="y" className="grow p-block" gap="block" role="group">
           {children}
         </Stack>
       </Stack>
@@ -117,11 +117,11 @@ export function PluginSurfaceShell({
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
               <Stack className="flex-1 text-start min-inline-0" gap="tight">
-                <Text className="truncate" voice="label">
+                <Text truncate={true} voice="label">
                   {pluginName}
                 </Text>
                 {showTitle ? (
-                  <Text className="truncate" voice="gloss">
+                  <Text truncate={true} voice="gloss">
                     {title}
                   </Text>
                 ) : null}

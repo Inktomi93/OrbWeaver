@@ -1,0 +1,10 @@
+// The tone-role skins a control or badge paints with the roles its `data-tone` stamp resolves (D336).
+
+/** A soft tone: the tint fill, the edge and the on-tint ink. */
+export const TONE_SOFT = "bg-tone-tint border border-tone-edge text-tone-text-on-tint";
+
+/** An outlined tone: no fill, the edge and the tone ink. */
+export const TONE_OUTLINE = "bg-transparent border border-tone-edge text-tone-text";
+
+/** The tint a fill-less tone control takes under the pointer. */
+export const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";

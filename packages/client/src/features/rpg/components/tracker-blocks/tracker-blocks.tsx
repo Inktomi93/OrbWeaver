@@ -188,7 +188,7 @@ export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProp
   return (
     <Row justify="between" align="baseline" gap="block" className="flex-1 min-inline-0" data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" ink={done ? "muted" : undefined} strike={done} className="truncate min-inline-0" voice="label">
+        <Text as="span" ink={done ? "muted" : undefined} strike={done} truncate={true} voice="label">
           {text}
         </Text>
       ) : (

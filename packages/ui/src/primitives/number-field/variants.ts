@@ -1,4 +1,14 @@
-import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import {
+  COLOR_MOTION,
+  CONTROL_BLOCK,
+  CONTROL_INLINE,
+  DISABLED_STATE,
+  DISABLED_STATE_NATIVE,
+  FIELD_STACK,
+  FOCUS_RING_INSET,
+  TOUCH_TARGET_PSEUDO,
+  tv,
+} from "#lib";
 
 // The group is the field's box at the step's height; the steppers are the step's width and fill its height, and rings go
 // inset because a stepper sits flush against the group's edge. Inside the group's 1px edge a child is 2px short of the
@@ -8,7 +18,7 @@ import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, DISABLED_STATE_NATIVE, F
 
 export const numberFieldVariants = tv({
   slots: {
-    root: `flex flex-col gap-field ${DISABLED_STATE}`,
+    root: `${FIELD_STACK} ${DISABLED_STATE}`,
     scrubArea: "flex cursor-ew-resize items-center gap-row text-label leading-label font-medium text-muted-foreground select-none inline-fit",
     scrubCursor: "flex text-foreground",
     group: ["flex items-stretch rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
@@ -16,7 +26,7 @@ export const numberFieldVariants = tv({
       `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
       `
-        transition-colors duration-(--motion-fast) ease-out-expo
+        ${COLOR_MOTION}
         hover:bg-tone-tint hover:text-tone-text-on-tint
         active:bg-tone-tint-active active:text-tone-text-on-tint
       `,
@@ -35,7 +45,7 @@ export const numberFieldVariants = tv({
       `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
       `
-        transition-colors duration-(--motion-fast) ease-out-expo
+        ${COLOR_MOTION}
         hover:bg-tone-tint hover:text-tone-text-on-tint
         active:bg-tone-tint-active active:text-tone-text-on-tint
       `,

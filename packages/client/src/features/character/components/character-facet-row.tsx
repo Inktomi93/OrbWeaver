@@ -93,7 +93,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
             not a caption, so `interactiveKicker` (caps + tracked) is the wrong register for it; `prose`
             is the ratified lever for exactly this ("this text is sentences, not a label" — `variants.ts`),
             lifting the step to `label` (13px) while `gloss` keeps the family/weight/tracking/color. */}
-      <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} className="truncate">
+      <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} truncate={true}>
         {showsPreview ? preview : facet.subtitle}
       </Text>
 

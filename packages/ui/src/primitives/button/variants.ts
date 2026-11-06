@@ -19,6 +19,8 @@ import {
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
   TONE_ARMS,
+  TONE_OUTLINE,
+  TONE_TINT_HOVER,
   TOUCH_FLOOR_AT_COARSE,
   tv,
 } from "#lib";
@@ -30,9 +32,6 @@ import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
 // (`GlyphButton`, `InlineAction`, `PictureButton`), so neither `size` nor `variant` has a default here: a named
 // component that passes neither draws no Button box and no Button style. `Button` resolves both defaults itself.
 // The size axis is the sole owner of Button's box: a call-site class cannot reliably beat a custom-token height.
-
-// The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
-const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
 
 export const buttonVariants = tv({
   base: [
@@ -58,7 +57,7 @@ export const buttonVariants = tv({
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
-      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER}`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER}`,
       ghost: `text-tone-text ${TONE_TINT_HOVER}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped

@@ -273,7 +273,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
           <Row className="flex-1 flex-wrap min-inline-0" gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
               <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
-                <Text as="span" className="truncate" ink="muted" voice="label">
+                <Text as="span" truncate={true} ink="muted" voice="label">
                   {member.name}
                 </Text>
               </Button>

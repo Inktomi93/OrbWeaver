@@ -197,10 +197,10 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
         <Stack className="flex-1 min-inline-0">
-          <Text className="truncate" voice="label">
+          <Text truncate={true} voice="label">
             {current?.name ?? "No persona set"}
           </Text>
-          <Text className="truncate" voice="gloss">
+          <Text truncate={true} voice="gloss">
             {headGloss(state)}
           </Text>
         </Stack>

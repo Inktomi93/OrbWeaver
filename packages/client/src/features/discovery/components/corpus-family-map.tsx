@@ -81,7 +81,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
                   size="sm"
                   onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}
                 >
-                  <Text as="span" className="truncate min-inline-0" voice="label" ink="inherit">
+                  <Text as="span" truncate={true} voice="label" ink="inherit">
                     {name}
                   </Text>
                 </Button>
@@ -89,7 +89,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
             />
             <TooltipPopup>{name}</TooltipPopup>
           </Tooltip>
-          <Text as="span" className="truncate" voice="gloss">
+          <Text as="span" truncate={true} voice="gloss">
             {plateGloss(family)}
           </Text>
           {analysis === null ? null : <Text voice="gloss">{analysis}</Text>}

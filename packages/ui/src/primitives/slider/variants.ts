@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FIELD_LABEL, FIELD_STACK, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
@@ -7,10 +7,10 @@ import type { Tone } from "#tokens";
 // the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
 export const sliderVariants = tv({
   slots: {
-    root: `flex flex-col gap-field inline-full ${DISABLED_STATE}`,
+    root: `${FIELD_STACK} inline-full ${DISABLED_STATE}`,
     header: "flex items-baseline justify-between gap-row inline-full",
-    label: "text-label leading-label font-medium text-foreground",
-    value: "text-label leading-label text-muted-foreground tabular-nums",
+    label: FIELD_LABEL,
+    value: `${CAPTION} tabular-nums`,
     // `relative` is LOAD-BEARING, not decoration: the thumbs are siblings of the track (slider.tsx —
     // inside the CLIPPING track they rendered as 6px slivers), and Base UI positions each thumb
     // `position:absolute` against its nearest positioned ancestor. The Control's content box is the

@@ -32,7 +32,7 @@ import type { ReactElement, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
@@ -44,9 +44,6 @@ const PICKER_PAGE_LIMIT = 100;
  *  so the fetch starts while the last rows are still being read rather than after the list dead-ends. */
 const TAIL_FETCH_SLACK_PX = 96;
 const DEFAULT_SKELETON_ROW_COUNT = 5;
-
-/** Keystroke→request damper (the chats pane / library value). */
-const SEARCH_DEBOUNCE_MS = 250;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
@@ -280,7 +277,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
-        <Text ink="inherit" as="span" className="flex-1 truncate min-inline-0">
+        <Text ink="inherit" as="span" truncate="fill">
           {character.name}
         </Text>
         {isSelected?.(id) === true ? <Icon icon={Check} size="sm" /> : null}

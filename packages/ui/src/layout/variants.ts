@@ -1,17 +1,22 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
   ARRIVAL,
+  CAPTION,
   CARD_CORNERS,
   DISABLED_STATE_NATIVE,
+  FIELD_ROW,
+  FILL_PARENT,
   FOCUS_RING,
   GROUND,
   HIDDEN_AT,
   HOVER_DIM,
   HOVER_REVEAL,
   INERT_UNTIL_HOVER,
+  INLINE_FIELD_ROW,
   RECEDED,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
+  SCROLLER_Y,
   SR_ONLY_AT,
   TONE_ARMS,
   TOUCH_FLOOR_AT_COARSE,
@@ -120,6 +125,10 @@ const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
 // mark which edges are hiding content, and the fade shows only there.
 const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
+// A box that scrolls on the block axis inside a bounded parent. It needs no `min-block-0`: a scroll container's automatic
+// minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
+const SCROLL = { y: SCROLLER_Y } as const;
+
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
@@ -189,6 +198,8 @@ export const stackVariants = tv({
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
+    fill: { true: FILL_PARENT, false: "" },
+    scroll: SCROLL,
     scrollFade: SCROLL_FADE,
     fade: FADE,
     fadeFrom: FADE_FROM,
@@ -254,12 +265,12 @@ export const sectionVariants = tv({
     heading: "text-title leading-title font-medium text-foreground",
     // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
     // (mirrors the Field label/hint row, field/variants.ts).
-    headingRow: "inline-flex items-center gap-field",
+    headingRow: INLINE_FIELD_ROW,
     // The KICKER band (UI-Density-Law.md §2.3/§4.3): a caps micro label + a hairline rule running to the
     // edge. This is the CD1 replacement for a box — a read-only grouping gets a name and a rule, never a
     // border+radius+bg. The type itself is the `kicker` VOICE on a real <Heading> (one spelling, in
     // text/variants.ts); only the band's layout lives here.
-    kickerRow: "flex items-center gap-field",
+    kickerRow: FIELD_ROW,
   },
   variants: {
     // The section is the container its descendants query (an element never queries itself).
@@ -579,7 +590,7 @@ export const toolbarGroupVariants = tv({
 // (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
 export const toolbarLinkVariants = tv({
   base: `
-    inline-flex items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline block-(--size-control-sm)
+    inline-flex items-center rounded-control px-field ${CAPTION} no-underline block-(--size-control-sm)
     hover:text-foreground
     focus-visible:outline-none
     ${FOCUS_RING}

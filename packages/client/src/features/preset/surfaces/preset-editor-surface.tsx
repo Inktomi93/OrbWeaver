@@ -107,14 +107,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
   return (
     // NAMED, for the reason the list surface's twin is (side-eye 2026-08-19 ARIA): `useFocusOnMount` lands
     // focus here on entry, and an unnamed role-less div announces nothing about where you just arrived.
-    <Stack
-      aria-label={PRESET_EDITOR_NAME}
-      ref={surfaceRef}
-      role="region"
-      tabIndex={-1}
-      className="relative overflow-x-hidden overflow-y-auto overscroll-contain block-full min-block-0"
-      focusTarget={true}
-    >
+    <Stack aria-label={PRESET_EDITOR_NAME} ref={surfaceRef} role="region" tabIndex={-1} scroll="y" className="overflow-x-hidden block-full" focusTarget={true}>
       {/* RESERVED (#1098). The editor IS the CONTENT pane, so the read landing used to collapse the pane to
           a one-line sentence and pop it back to a full form — taking the scrollbar and the reader's scroll
           position with it. The remembered box holds the pane across a preset switch; the authored count is

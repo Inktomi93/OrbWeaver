@@ -251,6 +251,7 @@
   --opacity-hover: 80%;
   --opacity-quiet: 90%;
   --opacity-resting: 80%;
+  --opacity-held: 90%;
   --opacity-grain: 4%;
   --stroke-width-icon-regular: 1.75px;
   --stroke-width-icon-bold: 2.5px;

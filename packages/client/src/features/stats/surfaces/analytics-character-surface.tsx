@@ -56,7 +56,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller. */}
-      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
+      <Stack scroll="y" className="py-section block-full" data-slot="analytics-content">
         <QueryBoundary
           resetKeys={[characterId]}
           fallback={<SkeletonRows count={3} shape="datum" />}

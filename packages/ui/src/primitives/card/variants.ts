@@ -1,4 +1,4 @@
-import { FOCUS_RING, TONE_ARMS, tv } from "#lib";
+import { COLOR_MOTION, FOCUS_RING, TONE_ARMS, TONE_TINT_HOVER, tv } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -83,8 +83,8 @@ export const cardVariants = tv({
     // An operable card follows the user's elevation and takes the tone's pressed tint on hover and press.
     interactive: {
       true: `
-        cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo
-        hover:bg-tone-tint-active hover:text-tone-text-on-tint
+        cursor-pointer ${COLOR_MOTION}
+        ${TONE_TINT_HOVER}
         focus-visible:outline-none
         active:bg-tone-tint-active active:text-tone-text-on-tint
         in-data-[elevation=glow]:shadow-overlay

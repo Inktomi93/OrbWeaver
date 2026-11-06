@@ -74,7 +74,7 @@ export interface PersonaRoomBlockProps {
 export function PersonaRoomBlock({ chat, personas, onCardPin }: PersonaRoomBlockProps): ReactElement {
   return (
     <Stack gap="field" data-slot="persona-chat-scope">
-      <Text className="truncate" voice="kicker">
+      <Text truncate={true} voice="kicker">
         In {roomLabel(chat)}
       </Text>
       <ChatAnchorRow chat={chat} onCardPin={onCardPin} personas={personas} />

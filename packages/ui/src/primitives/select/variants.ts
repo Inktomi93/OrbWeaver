@@ -1,8 +1,11 @@
 import {
+  CAPTION,
+  COLOR_MOTION,
   CONTROL_BLOCK,
   DISABLED_STATE,
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
+  FIELD_LABEL,
   FOCUS_RING,
   ITEM_ROW,
   OVERLAY_ARROW,
@@ -15,17 +18,17 @@ import {
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
-    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
+    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
     trigger: [
       "flex cursor-pointer items-center justify-between gap-row select-none",
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
+      `${COLOR_MOTION} hover:bg-accent`,
       "outline-none",
       FOCUS_RING,
       DISABLED_STATE,
     ],
     // The selected-value text stays ONE line (the app-wide single-line trigger convention) — `min-w-0` lets the
     // flex child shrink so `truncate` can ellipsize a long option label instead of wrapping to two lines.
-    value: "truncate text-start min-inline-0",
+    value: "truncate text-start",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
     // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
@@ -48,7 +51,7 @@ export const selectVariants = tv({
     // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the
     // popup's intrinsic width: the labels and the trigger size the popup, and the description fills what they
     // give it, so a one-line gloss cannot stretch the popup over the transcript.
-    itemDescription: "text-label leading-label text-muted-foreground contain-inline-size",
+    itemDescription: `${CAPTION} contain-inline-size`,
     itemIndicator: "flex shrink-0 text-primary",
     arrow: OVERLAY_ARROW,
     separator: "-mx-field my-field bg-border block-px",

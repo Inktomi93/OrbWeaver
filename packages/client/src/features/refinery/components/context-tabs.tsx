@@ -342,7 +342,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
             <Stack gap="tight" padding="row">
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
-                <Text className="flex-1 truncate min-inline-0" voice="gloss">
+                <Text truncate="fill" voice="gloss">
                   {snapshot.label ?? "unlabeled"}
                 </Text>
               </Row>
