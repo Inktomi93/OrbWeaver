@@ -1,11 +1,10 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-05
+status: open
+updated: 2026-11-06
 priority: P2
-plan: inference-flow
 area: chat
-blocked: owner
+plan: inference-flow
 ---
 
 # History fit counts real tokens on a hard window

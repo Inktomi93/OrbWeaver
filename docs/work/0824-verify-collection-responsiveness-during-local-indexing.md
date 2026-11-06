@@ -1,9 +1,8 @@
 ---
 kind: work
-status: blocked
+status: open
+updated: 2026-11-06
 plan: test-foundation
-updated: 2026-10-10
-blocked: owner
 ---
 
 # Verify collection responsiveness during local indexing

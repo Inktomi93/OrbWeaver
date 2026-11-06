@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-24
+status: open
+updated: 2026-11-06
 priority: P3
 area: onboarding
-blocked: owner
 ---
 
 # Lane D follow-ups
