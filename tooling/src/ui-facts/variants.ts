@@ -1,11 +1,156 @@
-// Variant report: for each primitive axis, the values the client writes and at how many sites.
+// Variant census: the axes and values each door declares, and for each the values the client writes and at how many sites.
 // A literal counts as written. So does a value reached through a same-file const map, a conditional or a `??`/`||` of literals.
 // What the syntax cannot reach (a prop, a call, an import) is counted per reason, and an axis with any such use cannot claim a value unused.
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import ts from "typescript";
 import type { FileFacts } from "./file-facts.ts";
-import type { Elem } from "./source.ts";
+import type { Elem, Source } from "./source.ts";
+import { constInitializer, unwrap, visit } from "./source.ts";
 
 const MAX_HOPS = 3;
+
+const DOOR_EXPORT = /^\.\/([^/]+)$/u;
+
+/** door name to its directory under packages/ui/src, from the package exports map. */
+function doorDirs(root: string): ReadonlyMap<string, string> {
+  const pkg = JSON.parse(readFileSync(join(root, "packages/ui/package.json"), "utf8")) as { readonly exports: Readonly<Record<string, unknown>> };
+  const map = new Map<string, string>();
+  for (const [key, target] of Object.entries(pkg.exports)) {
+    const door = DOOR_EXPORT.exec(key)?.[1];
+    if (door !== undefined && typeof target === "string") {
+      map.set(door, dirname(join("packages/ui", target)));
+    }
+  }
+  return map;
+}
+
+interface ValueList {
+  readonly values: readonly string[];
+  /** A spread or an expression the syntax could not open: the list may be short. */
+  readonly unread: boolean;
+}
+
+/** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
+type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
+
+function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expression])[] {
+  return sf.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) =>
+      statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+        ? statement.declarationList.declarations.flatMap((declaration) =>
+            ts.isIdentifier(declaration.name) && declaration.initializer !== undefined
+              ? [[declaration.name.text, unwrap(declaration.initializer)] as const]
+              : [],
+          )
+        : [],
+    );
+}
+
+function scaleIndex(sources: readonly Source[]): ScaleIndex {
+  const index = new Map<string, ts.ObjectLiteralExpression | null>();
+  for (const source of sources) {
+    for (const [name, init] of source.layer === "ui" && source.sf !== null ? exportedConsts(source.sf) : []) {
+      if (ts.isObjectLiteralExpression(init)) {
+        index.set(name, index.has(name) ? null : init);
+      }
+    }
+  }
+  return index;
+}
+
+/** The object literal an expression stands for: itself, a const of it (this file, else a unique ui export), or the first argument of a call. */
+function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): ts.ObjectLiteralExpression | null {
+  const node = unwrap(expression);
+  if (ts.isObjectLiteralExpression(node)) {
+    return node;
+  }
+  if (hops >= MAX_HOPS) {
+    return null;
+  }
+  if (ts.isIdentifier(node)) {
+    const local = constInitializer(node.getSourceFile(), node.text);
+    return local === null ? (index.get(node.text) ?? null) : objectOf(local, index, hops + 1);
+  }
+  const first = ts.isCallExpression(node) ? node.arguments[0] : undefined;
+  return first === undefined ? null : objectOf(first, index, hops + 1);
+}
+
+function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: number): ValueList {
+  const sf = object.getSourceFile();
+  const parts = object.properties.map((property): ValueList => {
+    if (ts.isSpreadAssignment(property)) {
+      const inner = hops < MAX_HOPS ? objectOf(property.expression, index, hops + 1) : null;
+      return inner === null ? { values: [], unread: true } : keysOf(inner, index, hops + 1);
+    }
+    return { values: [property.name.getText(sf).replace(/^["']|["']$/gu, "")], unread: ts.isMethodDeclaration(property) };
+  });
+  return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread) };
+}
+
+function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+  const axes = new Map<string, ValueList>();
+  visit(sf, (node) => {
+    if (!(ts.isPropertyAssignment(node) && node.name.getText(sf) === "variants" && ts.isObjectLiteralExpression(node.initializer))) {
+      return;
+    }
+    for (const axis of node.initializer.properties) {
+      if (!ts.isPropertyAssignment(axis)) {
+        continue;
+      }
+      const name = axis.name.getText(sf);
+      const object = objectOf(axis.initializer, index, 0);
+      const read: ValueList = object === null ? { values: [], unread: true } : keysOf(object, index, 0);
+      const before = axes.get(name);
+      axes.set(name, { values: [...(before?.values ?? []), ...read.values], unread: read.unread || before?.unread === true });
+    }
+  });
+  return axes;
+}
+
+export interface DeclaredVariants {
+  /** Door to axis to the values its `tv` calls declare. */
+  readonly axes: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+  /** `door.axis` of every declared axis whose values the syntax could not fully read: its census is a lower bound. */
+  readonly unread: readonly string[];
+}
+
+function doorAxes(
+  door: string,
+  files: readonly Source[],
+  index: ScaleIndex,
+): { readonly axes: ReadonlyMap<string, readonly string[]>; readonly unread: readonly string[] } {
+  const merged = new Map<string, string[]>();
+  const unread: string[] = [];
+  for (const source of files) {
+    for (const [axis, list] of source.sf === null ? [] : axesIn(source.sf, index)) {
+      merged.set(axis, [...new Set([...(merged.get(axis) ?? []), ...list.values])]);
+      if (list.unread) {
+        unread.push(`${door}.${axis}`);
+      }
+    }
+  }
+  return { axes: merged, unread };
+}
+
+/** Declared variant axes and values per door, read from the `tv` calls in the door directory's variants files. */
+export function declaredVariants(root: string, sources: readonly Source[]): DeclaredVariants {
+  const index = scaleIndex(sources);
+  const axes = new Map<string, ReadonlyMap<string, readonly string[]>>();
+  const unread = new Set<string>();
+  for (const [door, dir] of doorDirs(root)) {
+    const files = sources.filter((source) => source.layer === "ui" && dirname(source.path) === dir && /variants\.ts$/u.test(source.path));
+    const read = doorAxes(door, files, index);
+    if (read.axes.size > 0) {
+      axes.set(door, read.axes);
+    }
+    for (const entry of read.unread) {
+      unread.add(entry);
+    }
+  }
+  return { axes, unread: [...unread] };
+}
 
 interface Resolution {
   readonly values: readonly string[];
@@ -18,26 +163,6 @@ const merge = (...parts: readonly Resolution[]): Resolution => ({
   reasons: parts.flatMap((part) => part.reasons),
 });
 const unresolved = (reason: string): Resolution => ({ values: [], reasons: [reason] });
-
-function unwrap(node: ts.Expression): ts.Expression {
-  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
-    return unwrap(node.expression);
-  }
-  return node;
-}
-
-function constInitializer(sf: ts.SourceFile, name: string): ts.Expression | null {
-  let found: ts.Expression | null = null;
-  const look = (node: ts.Node): void => {
-    if (found === null && ts.isVariableDeclaration(node) && node.name.getText(sf) === name && node.initializer !== undefined) {
-      const list = node.parent;
-      found = ts.isVariableDeclarationList(list) && list.getFirstToken(sf)?.kind === ts.SyntaxKind.ConstKeyword ? unwrap(node.initializer) : null;
-    }
-    ts.forEachChild(node, look);
-  };
-  look(sf);
-  return found;
-}
 
 function literalOf(node: ts.Expression): string | null {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isNumericLiteral(node)) {
@@ -200,6 +325,8 @@ export interface VariantReport {
   /** Elements of a primitive that spread props: a spread can carry any axis. */
   readonly spreadSites: number;
   readonly sitesRead: number;
+  /** Declared axes whose values the syntax could not fully read. */
+  readonly unreadAxes: readonly string[];
 }
 
 interface Tally {
@@ -208,8 +335,6 @@ interface Tally {
   files: Set<string>;
   tags: Set<string>;
 }
-
-type Declared = ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
 
 interface AxisSite {
   readonly path: string;
@@ -264,10 +389,10 @@ function tallyAxis(all: readonly FileFacts[], door: string, axis: string, declar
   return { axisUse: { door, axis, values, unresolved: reasons }, sites: sites.length };
 }
 
-export function variantReport(all: readonly FileFacts[], declared: Declared): VariantReport {
+export function variantReport(all: readonly FileFacts[], declared: DeclaredVariants): VariantReport {
   const axes: AxisUse[] = [];
   let sitesRead = 0;
-  for (const [door, byAxis] of declared) {
+  for (const [door, byAxis] of declared.axes) {
     for (const [axis, values] of byAxis) {
       const { axisUse, sites } = tallyAxis(all, door, axis, values);
       axes.push(axisUse);
@@ -277,7 +402,7 @@ export function variantReport(all: readonly FileFacts[], declared: Declared): Va
   const spreadSites = all
     .filter((facts) => facts.source.layer === "client")
     .reduce((sum, facts) => sum + facts.elems.filter((elem) => elem.door !== null && elem.hasSpread).length, 0);
-  return { axes, spreadSites, sitesRead };
+  return { axes, spreadSites, sitesRead, unreadAxes: declared.unread };
 }
 
 export const totalUses = (value: ValueUse): number => value.direct + value.resolved;

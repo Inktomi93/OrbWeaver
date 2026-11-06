@@ -283,3 +283,70 @@ test("a section's list boundary is the shell, the boundary or none", ({ scratch 
     detailBoundary: "QueryBoundary",
   });
 });
+
+test("a chip's wire is literal, a lookup, a call, or a bare read that may be a raw wire value", ({ scratch }) => {
+  const root = plantDir(scratch, "chip-wire");
+  plant(root, {
+    "components/chips.tsx": [
+      'import { Badge } from "@orb/ui/badge";',
+      'const WORDS = { a: "Active", b: "Paused" };',
+      "export const A = ({ job, kind, flag }) => {",
+      "  const word = WORDS[kind];",
+      "  const raw = job.status;",
+      "  return (",
+      "    <>",
+      "      <Badge>Active</Badge>",
+      "      <Badge>{WORDS[kind]}</Badge>",
+      "      <Badge>{word}</Badge>",
+      "      <Badge>{raw}</Badge>",
+      "      <Badge>{job.status}</Badge>",
+      "      <Badge>{describe(kind)}</Badge>",
+      '      <Badge>{flag ? "On" : kind}</Badge>',
+      "    </>",
+      "  );",
+      "};",
+    ].join("\n"),
+  });
+  const chips = analyse(root, [], null).cohorts.find((entry) => entry.name === "copy:chip");
+  expect(chips?.members.map((member) => [member.label, member.cells["wire"]?.value])).toEqual([
+    ["Active", "literal"],
+    ["{WORDS[kind]}", "lookup"],
+    ["{word}", "lookup"],
+    ["{raw}", "bare"],
+    ["{job.status}", "bare"],
+    ["{describe(kind)}", "call"],
+    ['{flag ? "On" : kind}', "bare"],
+  ]);
+  expect(chips?.defects).toEqual({ wire: ["bare"] });
+});
+
+test("a declared axis built from a shared scale, a spread of one, or a call over one is declared; one the syntax cannot open is listed", ({ scratch }) => {
+  const root = plantDir(scratch, "declared-scales");
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./badge": "./src/primitives/badge/index.ts" } }));
+  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantFile(root, "packages/ui/src/lib/scales.ts", 'export const TONE = { primary: "", neutral: "" } as const;\nexport const GAP = { sm: "a", md: "b" };');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/badge/variants.ts",
+    [
+      'import { GAP, TONE } from "../../lib/scales.ts";',
+      "const LOCAL = { solid: 1 } as const;",
+      "const wrap = (map) => map;",
+      "export const badgeVariants = tv({",
+      "  variants: {",
+      "    tone: TONE,",
+      "    gap: wrap(GAP),",
+      "    look: { ...LOCAL, ghost: 2 },",
+      "    opaque: pick(),",
+      "  },",
+      "});",
+    ].join("\n"),
+  );
+  plantFile(root, `${FEATURE}/components/x.tsx`, 'import { Badge } from "@orb/ui/badge";\nexport const A = () => <Badge tone="primary" />;');
+  const report = analyse(root, [], null).composition.variants;
+  const values = (axis: string): readonly string[] => report.axes.find((entry) => entry.axis === axis)?.values.map((entry) => entry.value) ?? [];
+  expect(values("tone")).toEqual(["primary", "neutral"]);
+  expect(values("gap")).toEqual(["sm", "md"]);
+  expect(values("look")).toEqual(["solid", "ghost"]);
+  expect(report.unreadAxes).toEqual(["badge.opaque"]);
+});

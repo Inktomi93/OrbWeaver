@@ -176,16 +176,27 @@ function variantLines(facts: UiFacts): string[] {
     "",
     `Read ${report.sitesRead} primitive axis writes. Cells are literal writes, plus writes reached through a same-file const map, conditional or fallback after the plus. ${report.spreadSites} primitive elements spread props; the literal ones are read as writes, the rest stay unresolved on every axis of their door.`,
     "",
+    `Declared axes whose values the syntax could not fully read (${report.unreadAxes.length}): ${report.unreadAxes.join(", ") || "none"}. Their census is a lower bound.`,
+    "",
     ...table(["door", "axis", "values written (literal+resolved sites)", "still unresolved"], report.axes.map(variantRow)),
     `#### Zero uses on an axis with nothing unresolved (${valuesOf((axis, uses) => uses === 0 && !unclaimable(axis)).length})`,
     "",
-    ...table(["door", "axis", "value", "tags"], valuesOf((axis, uses) => uses === 0 && !unclaimable(axis)).slice(0, TOP * 2)),
+    ...table(
+      ["door", "axis", "value", "tags"],
+      valuesOf((axis, uses) => uses === 0 && !unclaimable(axis)),
+    ),
     `#### Zero uses on an axis with unresolved uses: not claimable (${valuesOf((axis, uses) => uses === 0 && unclaimable(axis)).length})`,
     "",
-    ...table(["door", "axis", "value", "tags"], valuesOf((axis, uses) => uses === 0 && unclaimable(axis)).slice(0, TOP * 2)),
+    ...table(
+      ["door", "axis", "value", "tags"],
+      valuesOf((axis, uses) => uses === 0 && unclaimable(axis)),
+    ),
     `#### One use (${valuesOf((_axis, uses) => uses === 1).length})`,
     "",
-    ...table(["door", "axis", "value", "tags"], valuesOf((_axis, uses) => uses === 1).slice(0, TOP * 2)),
+    ...table(
+      ["door", "axis", "value", "tags"],
+      valuesOf((_axis, uses) => uses === 1),
+    ),
   ];
 }
 

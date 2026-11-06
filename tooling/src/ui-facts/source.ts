@@ -143,6 +143,37 @@ export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
   return out;
 }
 
+/** The expression inside parentheses, `as`, `satisfies` and `!`. */
+export function unwrap(node: ts.Expression): ts.Expression {
+  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
+    return unwrap(node.expression);
+  }
+  return node;
+}
+
+const CONST_MAPS = new WeakMap<ts.SourceFile, ReadonlyMap<string, ts.Expression>>();
+
+/** Every `const` in the file by name, wherever it is declared: the first one wins and scope is not read. */
+export function constInitializers(sf: ts.SourceFile): ReadonlyMap<string, ts.Expression> {
+  const cached = CONST_MAPS.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const map = new Map<string, ts.Expression>();
+  visit(sf, (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined && !map.has(node.name.text)) {
+      const list = node.parent;
+      if (ts.isVariableDeclarationList(list) && list.getFirstToken(sf)?.kind === ts.SyntaxKind.ConstKeyword) {
+        map.set(node.name.text, unwrap(node.initializer));
+      }
+    }
+  });
+  CONST_MAPS.set(sf, map);
+  return map;
+}
+
+export const constInitializer = (sf: ts.SourceFile, name: string): ts.Expression | null => constInitializers(sf).get(name) ?? null;
+
 /** The literal string of an attribute (`a="x"`, `a={"x"}`, a no-substitution template), else undefined. */
 export function attrString(attribute: ts.JsxAttribute | undefined): string | undefined {
   const init = attribute?.initializer;
@@ -160,30 +191,6 @@ export function attrString(attribute: ts.JsxAttribute | undefined): string | und
     return init.expression.text;
   }
   return undefined;
-}
-
-/** `a`, `a={true}` read as "true"; `a={false}` as "false"; a literal as its text; anything computed as null. */
-export function attrValue(attribute: ts.JsxAttribute): string | null {
-  const text = attrString(attribute);
-  if (text !== undefined) {
-    return text;
-  }
-  const init = attribute.initializer;
-  if (init === undefined) {
-    return "true";
-  }
-  if (ts.isJsxExpression(init) && init.expression !== undefined) {
-    if (init.expression.kind === ts.SyntaxKind.TrueKeyword) {
-      return "true";
-    }
-    if (init.expression.kind === ts.SyntaxKind.FalseKeyword) {
-      return "false";
-    }
-    if (ts.isNumericLiteral(init.expression)) {
-      return init.expression.text;
-    }
-  }
-  return null;
 }
 
 /** The literal text a JSX element shows: JsxText and string-literal expressions, joined and collapsed. */

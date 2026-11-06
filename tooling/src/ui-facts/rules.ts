@@ -128,13 +128,16 @@ export const NOT_LINTABLE: readonly NotLintable[] = [
   { finding: "Token gaps (a literal repeated with no token)", needs: "a token value decided in tokens.json; then the literal joins the restricted list" },
   { finding: "Duplicate tone, label and size maps", needs: "one shared home chosen per map; jscpd cannot see keyed maps, a key-set census can" },
   { finding: "Case drift in copy", needs: "a case convention ruled per copy kind; the tool reports the majority, not the law" },
-  { finding: "Raw wire value in a chip", needs: "type information; the syntax cannot tell a raw enum from a mapped word" },
+  {
+    finding: "Raw wire value in a chip",
+    needs: "type information; the copy:chip wire column lists the bare reads, and the syntax cannot tell a raw enum from a word the caller mapped",
+  },
 ];
 
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
-  "Class strings assembled across statements, or held in constants not named *Class or *Classes, are not read.",
-  "A computed prop, or a spread that is not an object literal, is unread by the variant usage count; an axis with such a use cannot claim an unused value.",
+  "Class strings assembled across statements are not read. A constant is read when it is named *Class or *Classes, or when a className, *ClassName, cn or tv in its own file or a relative importer reads it; an import through an alias is not followed.",
+  "A computed prop, or a spread that is not an object literal, is unread by the variant census; an axis with such a use cannot claim an unused value.",
   "Layout variants are merged per door, so a value used on Row counts for Stack.",
   "Dialog dismiss evidence is read per file: a file with two dialogs shares one answer. Dismiss evidence is an element, not a runtime check.",
   "The destructive-verb check reads button text against a word list; a Delete behind an icon-only button is not matched.",
