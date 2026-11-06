@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { newAdr, newItem } from "../../../../tooling/src/doc/index.ts";
+import { written } from "../_written-item.ts";
 
 function commit(root: string): void {
   execFixtureGit(root, ["add", "-A"]);
@@ -23,14 +24,16 @@ test("actual work and ADR minting reserve deleted IDs from every ref, not just H
   execFixtureGit(scratch, ["rm", "docs/work/0042-reserved.md", "docs/adr/0042-reserved.md"]);
   commit(scratch);
   execFixtureGit(scratch, ["checkout", original]);
-  expect(newItem({ title: "Next", kind: "work", priority: null, area: null, plan: null, lane: null }, scratch).written[0]).toBe("docs/work/0043-next.md");
+  expect(newItem(written({ title: "Next", kind: "work", priority: null, area: null, plan: null, lane: null }), scratch).written[0]).toBe(
+    "docs/work/0043-next.md",
+  );
   expect(newAdr({ slug: "next", title: "Next" }, scratch).written[0]).toBe("docs/adr/0043-next.md");
 });
 
 test("actual mint refuses failed Git acquisition instead of allocating a reusable zero-history ID", async ({ scratch, fakeBin }) => {
   execFixtureGit(scratch, ["init", "--quiet"]);
   await fakeBin("git", "process.stderr.write('Git command unavailable');process.exitCode=77;");
-  expect(() => newItem({ title: "Next", kind: "work", priority: null, area: null, plan: null, lane: null }, scratch)).toThrow("Git filename history");
+  expect(() => newItem(written({ title: "Next", kind: "work", priority: null, area: null, plan: null, lane: null }), scratch)).toThrow("Git filename history");
   expect(() => newAdr({ slug: "next", title: "Next" }, scratch)).toThrow("Git filename history");
 });
 
@@ -40,7 +43,9 @@ test("non-Git drafts and genuinely empty Git history keep zero-history minting",
     if (git) {
       execFixtureGit(root, ["init", "--quiet"]);
     }
-    expect(newItem({ title: "First", kind: "work", priority: null, area: null, plan: null, lane: null }, root).written[0]).toBe("docs/work/0001-first.md");
+    expect(newItem(written({ title: "First", kind: "work", priority: null, area: null, plan: null, lane: null }), root).written[0]).toBe(
+      "docs/work/0001-first.md",
+    );
     expect(newAdr({ slug: "first", title: "First" }, root).written[0]).toBe("docs/adr/0001-first.md");
   }
 });

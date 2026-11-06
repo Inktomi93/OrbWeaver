@@ -8,6 +8,7 @@ import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from ".
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { planSlugOf } from "../lib/indexes.ts";
 import { basenameOf, padId } from "../lib/names.ts";
+import { templateItemFlags } from "../lib/templates.ts";
 import { loadItems } from "./items.ts";
 import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, workFileNamesAt, worktreeBranches } from "./tree.ts";
 
@@ -110,6 +111,10 @@ export function driftFacts(repoRoot = root): DriftFacts {
     worktreeBranches: worktreeBranches(repoRoot),
     unmergedBranches: unmergedBranches(repoRoot),
     closedOnMain: closedOnMain(items, repoRoot),
+    templateItems: items.flatMap((item) => {
+      const flags = templateItemFlags(splitDocument(readDoc(item.path, repoRoot).source).body);
+      return flags.length === 0 ? [] : [{ id: item.id, flags }];
+    }),
     wokenItems: woken,
   };
 }

@@ -1,5 +1,6 @@
 // `set --commit` and `item --commit`: the verb's written paths plus every other uncommitted change under
 // docs/work/ go into one commit, and nothing outside docs/work/ rides along.
+
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -21,6 +22,7 @@ import { TOOL_TRAILER } from "../../../../tooling/src/doc/ops/tree.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { WRITTEN_CONTENT, written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const TIMEOUT = { timeout: scaledBudget(60_000) };
@@ -50,7 +52,7 @@ async function repoWithItems(plantedTree: (files: Readonly<Record<string, string
   configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
   for (const title of ["A", "B", "C"]) {
-    newItem({ ...MINT, title }, root, TODAY);
+    newItem(written({ ...MINT, title }), root, TODAY);
   }
   commitAll(root, "chore(work): items");
   return root;
@@ -86,7 +88,7 @@ test("set --commit leaves a staged and an unstaged file outside docs/work/ out o
 
 test("item --commit commits the minted items, from flags and from a batch file", TIMEOUT, async ({ plantedTree, scratch }) => {
   const root = await repoWithItems(plantedTree);
-  const single = runWrite(true, root, () => newItem({ ...MINT, title: "D" }, root, TODAY));
+  const single = runWrite(true, root, () => newItem(written({ ...MINT, title: "D" }), root, TODAY));
   expect(single.refusals).toEqual([]);
   expect(git(root, "log", "-1", "--format=%s")).toBe("chore(work): update 4");
   expect(committedNames(root)).toEqual(expect.arrayContaining(["docs/work/0004-d.md"]));
@@ -94,8 +96,8 @@ test("item --commit commits the minted items, from flags and from a batch file",
   writeFileSync(
     batch,
     JSON.stringify([
-      { title: "E", kind: "work" },
-      { title: "F", kind: "bug" },
+      { title: "E", kind: "work", ...WRITTEN_CONTENT },
+      { title: "F", kind: "bug", ...WRITTEN_CONTENT },
     ]),
   );
   const many = runWrite(true, root, () => newItemsFrom(batch, root, TODAY));

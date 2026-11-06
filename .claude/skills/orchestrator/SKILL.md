@@ -99,6 +99,7 @@ Re-derive the item first:
 2. Read the cited `file:line`.
 3. Run `git log --all --grep="<key noun>"`.
 
+- Write What, Why and Done when for an item that holds template text before you route it. `pnpm doc drift` lists these items.
 - A claim that work is unbuilt needs the same evidence as a claim that it is done.
 - Before you dispatch an audit finding, check that it applies to the owner's deployment.
 - A removal needs more than "no reader": check reader history, hand authorship, used siblings and promises in copy, settings or law prose.
@@ -154,8 +155,8 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 | Read items | `pnpm doc show <id…>` |
 | See the board | `pnpm doc overview [--status open\|doing\|blocked[,…]] [--area <a>]` |
 | See what needs action | `pnpm doc drift` |
-| Mint one item | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x \| --blocked <reason>] [--what <t>] [--why <t>] [--done <t>] [--evidence <t>] [--commit]` |
-| Mint a batch | `pnpm doc item --from <file.json> [--commit]`; a JSON array with keys `title`, `kind`, `priority`, `area`, `plan`, `lane`, `blocked`, `what`, `why`, `done` |
+| Mint one item | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling --what <t> --why <t> --done <t> [--priority P0..P3] [--area a] [--plan slug] [--lane x \| --blocked <reason>] [--commit]` |
+| Mint a batch | `pnpm doc item --from <file.json> [--commit]`; a JSON array with required keys `title`, `kind`, `what`, `why`, `done` and optional keys `priority`, `area`, `plan`, `lane`, `blocked` |
 | Change state or fields | `pnpm doc set <id…> [open\|doing\|blocked] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha] [--commit]` |
 | Clear a field | `--<field> -` or `--<field> none` |
 | Change an item's text | `pnpm doc edit <id> [--what <t>] [--why <t>] [--done <t>] [--commit]` |
@@ -174,6 +175,7 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 
 - `--blocked` takes `owner`, `on <id>`, `wake path <repo path>` or `wake gone <repo path>`.
 - `--lane` takes the exact branch name.
+- A mint, a batch entry and an edit refuse a blank What, Why or Done when and the template prompt. `set doing` and `--lane` refuse an item that holds template text.
 - Item text refuses dates, counts, issue numbers and banned words. `.claude/rules/writing.md` owns the list.
 - A landing refuses while a doc cites the item. Fix the citer first.
 - `--commit` also commits every other uncommitted change under `docs/work/`, plus generated indexes.
