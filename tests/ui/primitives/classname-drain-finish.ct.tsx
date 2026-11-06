@@ -237,8 +237,8 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await style(kase(root, "swatch-offline"), "border-block-start-width")).toBe("1px");
   expect(await style(kase(root, "swatch-offline"), "border-block-start-color")).toBe(await probe(root, "muted-ink", "border-block-start-color"));
   expect(await style(kase(root, "swatch-outline"), "box-shadow")).not.toBe("none");
-  expect(await style(kase(root, "swatch-step2"), "background-color")).toBe(await probe(root, "foreground", "color"));
-  expect(await style(kase(root, "swatch-step2"), "opacity")).toBe(await probe(root, "ladder-2", "opacity"));
+  expect(await style(kase(root, "swatch-step2"), "background-color")).toBe(await probe(root, "ladder-2", "background-color"));
+  expect(await style(kase(root, "swatch-step2"), "opacity")).toBe("1");
   await expect(menuItem(page, "always")).toBeVisible();
   await expect(menuItem(page, "coarse only")).toBeHidden();
 });

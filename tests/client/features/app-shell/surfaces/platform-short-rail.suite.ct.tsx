@@ -110,6 +110,8 @@ const PEEK_SHARE = 0.25;
 const SCROLL_SECTIONS = ".shell-rail-sections";
 // Enough to move the cut by most of a button, small enough that every phone still overflows.
 const RAIL_RESIZE_PX = 40;
+// Tall enough for the rail to hold every section on every phone above.
+const GROWN_WINDOW_PX = 1200;
 
 interface RailEdge {
   readonly overflow: number;
@@ -212,6 +214,21 @@ for (const viewport of LANDSCAPE_PHONES) {
         const { straddling } = await sections.evaluate(railEdge);
         expect(straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)).toBe(true);
       }
+    });
+
+    test("drops the bottom fade when the window grows past the sections, and brings it back when it shrinks", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      await expect(sections).toHaveAttribute("data-fade-bottom", "");
+      // The fit writes the cap from its own observer, so the fade hook does not watch the box: only the fit's direct sync clears it.
+      await page.setViewportSize({ width: viewport.width, height: GROWN_WINDOW_PX });
+      await expect.poll(async () => (await sections.evaluate(railFit)).overflow, { message: "the rail holds every section" }).toBe(0);
+      await expect(sections).not.toHaveAttribute("data-fade-bottom", /.*/u);
+      await page.setViewportSize(viewport);
+      await expect.poll(async () => (await sections.evaluate(railFit)).overflow).toBeGreaterThan(0);
+      await expect(sections).toHaveAttribute("data-fade-bottom", "");
     });
 
     test("opens with the active section in view, and brings it back after every section change", async ({ corpus, mount, page }, info) => {

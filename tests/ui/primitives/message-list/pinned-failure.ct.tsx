@@ -49,6 +49,27 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       }
     });
 
+    test("a keyboard walk down lands each row's head below the plate, a row that fits the port but not the room under the plate included", async ({
+      mount,
+      page,
+    }) => {
+      await mount<typeof MessageListPinnedFailureStory>(STORY);
+      const log = page.getByRole("log", { name: "Pinned failure", exact: true });
+      await expect(log.locator(ROW).first()).toBeVisible();
+      await page.getByRole("button", { name: "Reveal row 12", exact: true }).focus();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Home");
+      for (let step = 0; step < 14; step += 1) {
+        await page.keyboard.press("ArrowDown");
+        const focused = log.locator(`${ROW}:focus`);
+        await expect(focused).toBeFocused();
+        const index = Number(await focused.getAttribute("data-index"));
+        await expect
+          .poll(async () => await headBelowPlate(page, index), { message: `row ${String(index)} clears the plate` })
+          .toBeGreaterThanOrEqual(-EPSILON_PX);
+      }
+    });
+
     test("revealIndex lands the row's head below the plate", async ({ mount, page }) => {
       await mount<typeof MessageListPinnedFailureStory>(STORY);
       const log = page.getByRole("log", { name: "Pinned failure", exact: true });

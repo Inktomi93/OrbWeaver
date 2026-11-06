@@ -290,6 +290,9 @@ function lengthsIn(nodes: readonly QueryNode[], start: QueryKind | null): readon
     if (node.type === "function") {
       // `@media(width > 50rem)` has no space after the keyword, so the parser reads it as a function named `@media`.
       if (keyword !== undefined) {
+        // The keyword also governs the groups that follow it: `(@media(a) and (b))` reads `b` as a media length too.
+        // The keyword also governs the groups that follow it: `(@media(a) and (b))` reads `b` as a media length too.
+        kind = keyword;
         found.push(...lengthsIn(node.nodes, keyword));
       } else if (node.value.toLowerCase() !== "style") {
         found.push(...lengthsIn(node.nodes, kind));

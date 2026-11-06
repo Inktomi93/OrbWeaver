@@ -250,9 +250,7 @@
   --opacity-loading: 70%;
   --opacity-hover: 80%;
   --opacity-quiet: 90%;
-  --opacity-ladder-1: 8%;
-  --opacity-ladder-2: 32%;
-  --opacity-ladder-3: 60%;
+  --opacity-resting: 80%;
   --opacity-grain: 4%;
   --stroke-width-icon-regular: 1.75px;
   --stroke-width-icon-bold: 2.5px;
@@ -854,6 +852,7 @@
   [data-pigment="accent-aura"] {
     --pigment-accent-aura-empty-state: oklch(from var(--color-primary) l c h / 0.14);
     --pigment-accent-aura-media-spotlight: oklch(from var(--color-primary) l c h / 0.18);
+    --pigment-accent-aura-media-hover-ring: color-mix(in oklab, var(--color-ring) 50%, transparent);
   }
 
   [data-pigment="avatar"] {
@@ -862,6 +861,12 @@
     --pigment-avatar-3: oklch(from color-mix(in oklab, var(--color-primary) 93%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 7%) l calc(c * 0.95) h);
     --pigment-avatar-4: oklch(from color-mix(in oklab, var(--color-primary) 96.5%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 3.5%) l calc(c * 0.62) h);
     --pigment-avatar-5: oklch(from color-mix(in oklab, var(--color-primary) 100%, oklch(from var(--color-primary-foreground) clamp(0, calc((0.5 - l) * 1000), 1) 0 0) 0%) l calc(c * 1) h);
+  }
+
+  [data-pigment="swatch-ladder"] {
+    --pigment-swatch-ladder-step-1: color-mix(in oklab, var(--color-foreground) 8%, transparent);
+    --pigment-swatch-ladder-step-2: color-mix(in oklab, var(--color-foreground) 32%, transparent);
+    --pigment-swatch-ladder-step-3: color-mix(in oklab, var(--color-foreground) 60%, transparent);
   }
 
   [data-pigment="waystone"] {

@@ -266,6 +266,11 @@ test("a threshold is read from the parsed query, not from its text", async () =>
   expect(await rulesHit("@custom-variant probe (@MEDIA(width > 50rem));")).toEqual([THRESHOLD]);
   expect(await rulesHit(layered("@media(width > 50rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([THRESHOLD]);
   expect(await rulesHit(layered("@container(min-width: 30rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+  // The keyword governs the groups after its own: a compound or listed tight query reads every group, not only the first.
+  expect(await rulesHit("@custom-variant probe (@media(width > 48rem) and (width < 50rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@media(width > 48rem), (width < 50rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@container(min-width: 28rem) and (max-width: 30rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@media(width > 48rem) and (width < 64rem));")).toEqual([]);
   // A function that is no at-keyword keeps the kind of the query it sits in.
   expect(await rulesHit("@custom-variant probe (@media (width > calc(50rem)));")).toEqual([THRESHOLD]);
   // Lengths that are not thresholds on the ladder's units stay clean.

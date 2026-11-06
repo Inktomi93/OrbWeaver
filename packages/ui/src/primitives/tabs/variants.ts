@@ -111,8 +111,9 @@ export const tabsVariants = tv({
         ],
       },
     },
-    // A cell in a rail that does not hold the current view steps its ink quieter; the active rail keeps the base.
-    quiet: { true: { tab: "opacity-quiet" }, false: {} },
+    // A cell in a rail that does not hold the current view steps its resting ink quieter; the active rail keeps the base.
+    // The step is element opacity, so it stands down wherever the cell paints more than ink: a hovered, focused or active cell.
+    quiet: { true: { tab: "not-hover:not-focus-visible:not-data-active:opacity-quiet" }, false: {} },
     // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
     listRule: { none: { list: "border-be-0" } },
     // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption

@@ -20,15 +20,25 @@ import { Swatch } from "@orb/ui/swatch";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { Tone, ToneRole } from "@orb/ui/tokens";
-import { TOKENS } from "@orb/ui/tokens";
+import type { PigmentScope, Tone, ToneRole } from "@orb/ui/tokens";
+import { PIGMENTS, TOKENS } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { CSSProperties, ReactElement } from "react";
 
 // A probe is a bare span painted straight from the token a case should resolve to, so the CT compares like with like. A
 // probe that reads a D336 tone role stamps the tone the case stamps.
-function Probe({ name, style, tone }: { readonly name: string; readonly style: CSSProperties; readonly tone?: Tone }): ReactElement {
-  return <span data-probe={name} data-tone={tone} style={{ display: "block", ...style }} />;
+function Probe({
+  name,
+  style,
+  tone,
+  pigment,
+}: {
+  readonly name: string;
+  readonly style: CSSProperties;
+  readonly tone?: Tone;
+  readonly pigment?: PigmentScope;
+}): ReactElement {
+  return <span data-pigment={pigment} data-probe={name} data-tone={tone} style={{ display: "block", ...style }} />;
 }
 
 function role(name: ToneRole): string {
@@ -352,7 +362,7 @@ export function PartsFinishStory(): ReactElement {
       <Probe name="sidebar" style={{ backgroundColor: `var(${TOKENS["color.sidebar"].cssVar})` }} />
       <Probe name="success" style={{ backgroundColor: `var(${TOKENS["color.success"].cssVar})` }} />
       <Probe name="muted-ink" style={{ borderColor: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
-      <Probe name="ladder-2" style={{ opacity: `var(${TOKENS["opacity.ladder-2"].cssVar})` }} />
+      <Probe name="ladder-2" pigment="swatch-ladder" style={{ backgroundColor: `var(${PIGMENTS["swatch-ladder"]["step-2"]})` }} />
       <Probe name="quiet" style={{ opacity: `var(${TOKENS["opacity.quiet"].cssVar})` }} />
     </CtIsolation>
   );

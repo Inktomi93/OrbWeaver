@@ -239,9 +239,7 @@ export const TOKENS = {
   "opacity.loading": { cssVar: "--opacity-loading", value: "70%" },
   "opacity.hover": { cssVar: "--opacity-hover", value: "80%" },
   "opacity.quiet": { cssVar: "--opacity-quiet", value: "90%" },
-  "opacity.ladder-1": { cssVar: "--opacity-ladder-1", value: "8%" },
-  "opacity.ladder-2": { cssVar: "--opacity-ladder-2", value: "32%" },
-  "opacity.ladder-3": { cssVar: "--opacity-ladder-3", value: "60%" },
+  "opacity.resting": { cssVar: "--opacity-resting", value: "80%" },
   "opacity.grain": { cssVar: "--opacity-grain", value: "4%" },
   "stroke-width.icon-regular": { cssVar: "--stroke-width-icon-regular", value: "1.75px" },
   "stroke-width.icon-bold": { cssVar: "--stroke-width-icon-bold", value: "2.5px" },
@@ -650,8 +648,9 @@ export const TONE_ROLE_RECIPES = {
 export const PIGMENTS = {
   "web-weave": { "silk-bright": "--pigment-web-weave-silk-bright", "dew": "--pigment-web-weave-dew", "spider-body": "--pigment-web-weave-spider-body", "glow": "--pigment-web-weave-glow" },
   "gradient-ring": { "head": "--pigment-gradient-ring-head" },
-  "accent-aura": { "empty-state": "--pigment-accent-aura-empty-state", "media-spotlight": "--pigment-accent-aura-media-spotlight" },
+  "accent-aura": { "empty-state": "--pigment-accent-aura-empty-state", "media-spotlight": "--pigment-accent-aura-media-spotlight", "media-hover-ring": "--pigment-accent-aura-media-hover-ring" },
   "avatar": { "1": "--pigment-avatar-1", "2": "--pigment-avatar-2", "3": "--pigment-avatar-3", "4": "--pigment-avatar-4", "5": "--pigment-avatar-5" },
+  "swatch-ladder": { "step-1": "--pigment-swatch-ladder-step-1", "step-2": "--pigment-swatch-ladder-step-2", "step-3": "--pigment-swatch-ladder-step-3" },
   "waystone": { "flash": "--pigment-waystone-flash" },
 } as const;
 export type PigmentScope = keyof typeof PIGMENTS;

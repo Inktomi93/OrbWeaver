@@ -13,7 +13,7 @@ export const themePreviewPaneVariants = tv({
       sidebar: "border-sidebar-border bg-sidebar text-sidebar-foreground",
       // The card fill with the rail's edge: a pane in a preview of the shell.
       sidebarEdge: "border-sidebar-border",
-      // A card fill that lets a wallpaper or art read through it.
+      // The reading plate: the fill and ink a line takes over a wallpaper or art.
       translucent: "bg-reading-plate text-reading-plate-foreground",
     },
     // `island` is grouped content, whose inset and radius `tiers.css` resolves from the surface's tier. `row` is one

@@ -11,6 +11,16 @@ const TALL_ROW_PX = 900;
 const PLATE_PX = 88;
 const ROWS = 40;
 const TALL_ROW = 5;
+/** A row that fits the port but not the port below the plate, so an `auto` placement would tuck its head under it. */
+const MID_ROW = 8;
+const MID_ROW_PX = 350;
+
+function heightOf(item: number): number {
+  if (item === TALL_ROW) {
+    return TALL_ROW_PX;
+  }
+  return item === MID_ROW ? MID_ROW_PX : ROW_PX;
+}
 
 /** A transcript whose leading action stands pinned over the rows, as a history failure line does. */
 export function MessageListPinnedFailureStory(): ReactElement {
@@ -31,8 +41,8 @@ export function MessageListPinnedFailureStory(): ReactElement {
           }
           items={Array.from({ length: ROWS }, (_, index) => index)}
           getItemKey={(item): number => item}
-          estimateSize={(item): number => (item === TALL_ROW ? TALL_ROW_PX : ROW_PX)}
-          renderItem={(item): ReactElement => <div style={{ height: item === TALL_ROW ? TALL_ROW_PX : ROW_PX }}>Row {item}</div>}
+          estimateSize={heightOf}
+          renderItem={(item): ReactElement => <div style={{ height: heightOf(item) }}>Row {item}</div>}
         />
       </div>
     </CtIsolation>

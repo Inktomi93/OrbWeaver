@@ -593,14 +593,15 @@ export function MessageList<T>({
       row: (index, rowPx): void => {
         stopHold();
         // A row too tall to show whole opens at its start, and `auto` would show its end. On the last row that is away
-        // from the tail, so the list must not follow, or a re-pin takes the reader to the end anyway.
-        const tall = rowPx > (scrollRef.current?.clientHeight ?? Number.POSITIVE_INFINITY);
+        // from the tail, so the list must not follow, or a re-pin takes the reader to the end anyway. The pinned action
+        // covers the top of the port, so "whole" means whole in the room below it.
+        const tall = rowPx > (scrollRef.current?.clientHeight ?? Number.POSITIVE_INFINITY) - pinPx;
         setFollowing(index === items.length - 1 && !tall);
         virtualizer.scrollToIndex(index, { align: tall ? "start" : "auto", behavior: "auto" });
       },
       tail: (): void => jumpToEnd("auto"),
     };
-  }, [items.length, jumpToEnd, setFollowing, stopHold, virtualizer]);
+  }, [items.length, jumpToEnd, pinPx, setFollowing, stopHold, virtualizer]);
 
   return (
     <div

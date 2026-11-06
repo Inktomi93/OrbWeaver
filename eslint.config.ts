@@ -92,16 +92,19 @@ const CLASS_SELECTORS: Selector[] = [
   },
   { kind: SelectorKind.Callee, name: "^tv$", match: CLASS_STRING_MATCHERS },
 ];
+// A colour as a class names it: `foreground`, or the variable it reads, `(--color-foreground)` / `(color:--color-foreground)`.
+// Both compile to the same `color-mix()` under an opacity modifier, so a row that names only the first leaves a hole.
+const colorRef = (names: string): string => String.raw`(?:${names}|\((?:color:)?--color-${names}\))`;
 const RESTRICTED_CLASSES = [
   {
     // D336: a translucent intent or tone colour has no fixed contrast, because its pair depends on the host under it.
-    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:${INTENT_COLORS.join("|")}|tone-[a-z-]+?)(?:-foreground)?\/[^\s]+$`,
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-${colorRef(`(?:${INTENT_COLORS.join("|")}|tone-[a-z-]+?)(?:-foreground)?`)}\/[^\s]+$`,
     message: "An opacity modifier on an intent or tone colour (D336); paint an opaque *-tone-* role (tint, edge, text-on-tint) under the element's tone.",
   },
   {
     // A neutral colour mixes alpha by hand the same way: the page inks and grounds, borders and fills. A step is named
     // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`).
-    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:${NEUTRAL_COLORS.join("|")})\/[^\s]+$`,
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/[^\s]+$`,
     message:
       "An opacity modifier on a neutral colour; paint an opaque role or colour token, or an element opacity step such as opacity-receded (opacity-<step> in tokens.json).",
   },

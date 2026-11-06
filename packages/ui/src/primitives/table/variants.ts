@@ -16,7 +16,7 @@ export const tableVariants = tv({
     thead: "border-be border-border bg-muted",
     th: "px-row py-block text-label leading-label font-medium text-muted-foreground",
     sortButton: ["inline-flex cursor-pointer items-center gap-field bg-transparent font-medium text-muted-foreground inline-full", "outline-none", FOCUS_RING],
-    sortIcon: "shrink-0 text-muted-foreground opacity-receded",
+    sortIcon: "shrink-0",
     tbody: "divide-y divide-border",
     // The start rail box stays reserved (transparent) so a row's cells sit where they always have.
     tr: "border-s-rule border-s-transparent",
@@ -33,7 +33,8 @@ export const tableVariants = tv({
     },
     sortActive: {
       true: { sortIcon: "text-foreground" },
-      false: {},
+      // Element opacity is not evicted by a colour arm, so the receded step rides only the idle arm.
+      false: { sortIcon: "text-muted-foreground opacity-receded" },
     },
   },
   defaultVariants: { align: "start", sortActive: false },
