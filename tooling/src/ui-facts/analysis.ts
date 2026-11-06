@@ -16,6 +16,8 @@ import { findDuplicateMaps } from "./duplicates.ts";
 import type { ExceptionEntry } from "./exceptions.ts";
 import { isExcepted } from "./exceptions.ts";
 import { factsOf } from "./file-facts.ts";
+import type { Hit } from "./hand-model.ts";
+import { buildHandRolling } from "./hand-rolling.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
 import type { ShapeGroup } from "./shapes.ts";
@@ -23,7 +25,7 @@ import { findShapes } from "./shapes.ts";
 import type { Classified, Site } from "./sites.ts";
 import type { Source } from "./source.ts";
 import { loadSources } from "./source.ts";
-import { loadLengthTokens } from "./tokens.ts";
+import { lengthTokensOf, loadValueTokens } from "./tokens.ts";
 import { declaredVariants } from "./variants.ts";
 
 interface ScanCounts {
@@ -48,6 +50,8 @@ export interface UiFacts {
   readonly shapes: readonly ShapeGroup[];
   readonly adoption: readonly SectionAdoption[];
   readonly composition: Composition;
+  /** Every hand-written design value, class, style, pattern and constant, with the owner that would retire it. */
+  readonly handRolling: readonly Hit[];
   readonly sections: readonly string[];
 }
 
@@ -84,12 +88,13 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   if (unknown.length > 0) {
     throw new Error(`--only names no section: ${unknown.join(", ")}`);
   }
+  const tokens = loadValueTokens(root);
   const files = sources.flatMap((source) => factsOf(source) ?? []);
   const referenced = referencedClassConstants(sources);
   const raw = sources.flatMap((source) => (source.kind === "css" ? scanCss(source) : scanMarkup(source, referenced)));
   const excepted = raw.filter((site) => isExcepted(site, exceptions));
   const live = raw.filter((site) => !isExcepted(site, exceptions));
-  const context = buildContext(live, clusterFilesOf(live), loadLengthTokens(root));
+  const context = buildContext(live, clusterFilesOf(live), lengthTokensOf(tokens));
   const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
   const declared = declaredVariants(root, sources);
   const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
@@ -105,6 +110,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     shapes: findShapes(files),
     adoption: adoptionBySection(files),
     composition,
+    handRolling: buildHandRolling({ sources, sites: live, tokens, declared, referenced }),
     sections,
   };
 }

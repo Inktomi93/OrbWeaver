@@ -134,6 +134,21 @@ export const NOT_LINTABLE: readonly NotLintable[] = [
   },
 ];
 
+export const HAND_ROLLING_CANNOT_SEE: readonly string[] = [
+  "Stylesheets are read with the css-tree AST and code with the TypeScript parser. A value assembled across statements, a template with substitutions and a number passed to a prop other than `style` are not read.",
+  'A string is read only when the whole string is one CSS value (`"20rem"`) or one media condition. A value inside a longer string, or a number in a data table, is not a hit.',
+  "A constant is found by a unit word at the end of its name (`_MS`, `Px`, `_REM`, `_SEC`) or by a numeric delay to `setTimeout`, `setInterval`, `debounce` or `throttle`. A number named any other way, or a delay given to another hook, is not seen.",
+  "A timing constant matches a motion token only when its name carries an animation word; an equal number alone is a coincidence. A px or rem constant stays a keep unless several repeat it.",
+  "Repeated constants group by value and by the word before the unit, not by meaning. Two constants with one word can name different concepts.",
+  "A class utility is a recipe candidate when the element's `@orb/ui` door declares an axis of the matching name. Axis values are not compared, and layout variants are merged per door, so read the primitive before moving the class.",
+  "A `className` on a composite or a local component is not read for an owner, and a `*ClassName` prop styles a part, not the element. Nothing is read through a spread.",
+  "Tailwind numeric steps are priced at 4px a step; the theme resets that scale, so a raw `p-5` may not generate a rule at all.",
+  "A style value is a design value only when it is a literal or a branch of a conditional, `??` or `||` over literals. Any other expression reads as a runtime value, including a user colour that should have been a token.",
+  "A repeated cluster is the same sorted set of three or more class tokens written three or more times. A near-duplicate set is not matched.",
+  "A colour equals a token only by identical normalised text. A hex or `rgb()` is never equal to an `oklch()` token, so it reads as a new token.",
+  "CSS selector context and the cascade are not read, and a value that only the cascade produces is not seen. Generated files are skipped by their header.",
+];
+
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
   "Class strings assembled across statements are not read. A constant is read when it is named *Class or *Classes, or when a className, *ClassName, cn or tv in its own file or a relative importer reads it; an import through an alias is not followed.",

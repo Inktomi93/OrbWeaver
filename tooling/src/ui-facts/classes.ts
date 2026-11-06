@@ -21,7 +21,7 @@ const PALETTE =
 const VIEWPORT_VARIANT = /^(?:max-)?(?:sm|md|lg|xl|2xl):/u;
 
 /** The part of a token after its last top-level variant colon, with the important marks and a negative sign removed. */
-function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
+export function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
   let depth = 0;
   let cut = -1;
   for (let index = 0; index < token.length; index += 1) {

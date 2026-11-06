@@ -4,6 +4,9 @@ import { isClassified } from "./analysis.ts";
 import { CLASSIFICATION_RULE, CLUSTER_MIN_FILES, LITERAL_MIN_FILES, LITERAL_MIN_SITES } from "./classify.ts";
 import type { Comparison } from "./compare.ts";
 import { compositionLines } from "./composition-report.ts";
+import { HAND_ROLLING_PART } from "./hand-model.ts";
+import { handRollingLines } from "./hand-report.ts";
+import { groupBy, table } from "./markdown.ts";
 import { CANNOT_SEE, NOT_LINTABLE, ruleCandidates } from "./rules.ts";
 import type { Classified, Site, SiteClass } from "./sites.ts";
 import { KINDS, SITE_CLASSES } from "./sites.ts";
@@ -14,23 +17,8 @@ const PERCENT = 100;
 const VARIANT_SITES = 3;
 const VARIANT_SECTIONS = 3;
 
-const table = (head: readonly string[], rows: readonly (readonly (string | number)[])[]): string[] => [
-  `| ${head.join(" | ")} |`,
-  `| ${head.map(() => "-").join(" | ")} |`,
-  ...rows.map((row) => `| ${row.map((value) => String(value).replaceAll("|", "\\|")).join(" | ")} |`),
-  "",
-];
-
 const at = (site: Site): string => `${site.path}:${site.line}`;
 const pct = (part: number, whole: number): string => (whole === 0 ? "0%" : `${Math.round((part / whole) * PERCENT)}%`);
-
-function groupBy<T>(items: readonly T[], key: (item: T) => string): ReadonlyMap<string, readonly T[]> {
-  const map = new Map<string, T[]>();
-  for (const item of items) {
-    map.set(key(item), [...(map.get(key(item)) ?? []), item]);
-  }
-  return map;
-}
 
 const distinct = (sites: readonly Site[], pick: (site: Site) => string): number => new Set(sites.map(pick)).size;
 
@@ -335,7 +323,8 @@ function ruleLines(facts: UiFacts): string[] {
   ];
 }
 
-export function renderReport(facts: UiFacts, command: string): string {
+/** `parts` names the report parts to print alone; empty prints the whole report. */
+export function renderReport(facts: UiFacts, command: string, parts: readonly string[] = []): string {
   const scope = scopeOf(facts);
   const scanned = facts.scanned;
   const head = [
@@ -347,6 +336,9 @@ export function renderReport(facts: UiFacts, command: string): string {
     `Exceptions applied: ${facts.excepted.length}.`,
     "",
   ];
+  if (parts.includes(HAND_ROLLING_PART)) {
+    return [...head, ...handRollingLines(facts, scope.inScope, true)].join("\n");
+  }
   return [
     ...head,
     ...splitLines(scope),
@@ -359,6 +351,7 @@ export function renderReport(facts: UiFacts, command: string): string {
     ...comparisonLines(scope),
     ...compositionLines(facts, scope.inScope),
     ...duplicateLines(scope),
+    ...handRollingLines(facts, scope.inScope, false),
     ...ruleLines(facts),
     "## What this cannot see",
     "",
