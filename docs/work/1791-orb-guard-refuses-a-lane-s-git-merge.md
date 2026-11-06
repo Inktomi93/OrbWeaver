@@ -15,11 +15,11 @@ Make orb-guard refuse a lane's git merge, commit or reset when it runs in main's
 
 ## Why
 
-Only the orchestrator merges to main, and a lane's write in main's checkout bypasses that rule.
+Only the orchestrator merges to main, and a lane write in the main checkout bypasses that rule. The guard source lives outside this repository (the orb-guard skill rules module). It has a lane-only rule for push and refuses stash, restore, checkout of a path and hook bypass, but no rule on merge, commit or reset by location.
 
 ## Done when
 
-A git merge, commit and reset run from a lane context in main's checkout are each refused with the right form named. The same commands in the lane's own worktree, and the orchestrator in main, still run.
+A merge, commit and reset run from a lane context in the main checkout are each refused with the right form named. The same commands in the lane own worktree, and the orchestrator in main, still run. The Evidence names where the guard source and its tests are kept.
 
 ## Evidence
 

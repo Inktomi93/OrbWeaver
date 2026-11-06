@@ -11,15 +11,15 @@ plan: test-enforcement
 
 ## What
 
-Make orb/no-unsafe-cast recognize Drizzle unnamed select result types, and stop it from exiting with code 2 when it lints packages/plugin-sdk.
+Make orb/no-unsafe-cast (`tooling/src/eslint/unsafe-cast.ts`) recognize a cast of an unnamed Drizzle select result type. The rule today finds a row type only by a name ending in `Row` (`ROW_NAME`), so an inferred select type with no name passes.
 
 ## Why
 
-The rule misses a cast of an unnamed Drizzle select type, so an unsafe cast passes. An exit code of 2 reads as a tool failure, not as a finding or a clean run.
+A cast of an unnamed select result passes the rule, so an unsafe cast goes unreported. The second half of the original text, `pnpm lint:eslint packages/plugin-sdk` exiting with 2, did not reproduce: the run exits 0 on current main (the plugin-sdk files are configured at eslint.config.ts:754 since 6f5865edbb).
 
 ## Done when
 
-A fixture that casts an unnamed select result is reported. pnpm lint:eslint on packages/plugin-sdk exits with 0 or with findings, never with 2.
+A fixture in tests/tooling/eslint-no-unsafe-cast.test.ts that casts an unnamed select result is reported, and the matching safe cast is not. pnpm lint:eslint packages/plugin-sdk keeps exiting 0.
 
 ## Evidence
 

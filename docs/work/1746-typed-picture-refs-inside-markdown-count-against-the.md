@@ -15,7 +15,7 @@ Count typed picture references inside markdown text toward the per-send picture 
 
 ## Why
 
-packages/contracts/src/chat/content-blocks.ts makes the attachment list the cap for a send's pictures. A picture typed as a reference in the text is a second way to carry one, and it should share that cap.
+The send cap is `SEND_BLOCK_LIMITS.blocks` in `packages/contracts/src/chat/content-blocks.ts`, and it bounds the block list and the attachment list only. A markdown block may carry any number of typed picture references (`![alt](asset:id)`) inside its 100000-character text, so that way of carrying pictures sits outside the cap.
 
 ## Done when
 

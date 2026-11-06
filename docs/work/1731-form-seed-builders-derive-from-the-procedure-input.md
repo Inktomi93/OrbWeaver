@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-Derive each form seed builder's type from the procedure input, as the view type minus the keys the input names, so a widened view cannot ride an upcast into a strict input.
+Find the form seed builders (the functions that build a form initial value from a server view) and type each from the procedure input: the view type minus the keys the input names. Candidates to check first: `scheduleFormValuesFromRow` in `packages/client/src/features/workloads/lib/workloads-schedule-model.ts`, `draftFromValues` in `packages/client/src/features/config/components/appearance-looks-section.tsx` and `makeRegexScriptDefaults` in `packages/client/src/features/regex/hooks/use-regex-script-form.ts`. A builder that never feeds a strict input stays as it is.
 
 ## Why
 
-A seed builder typed by the view lets a field added to the view reach a strict procedure input through an upcast, with no compile error.
+A seed builder typed by the view lets a field added to the view reach a strict procedure input through an upcast, with no compile error. No function in packages/client is named a seed builder, so the first step is the list of builders that really feed a strict input.
 
 ## Done when
 
-Each form seed builder in packages/client takes its type from the procedure input. Adding a view field that the input rejects makes the typecheck fail, and a planted case shows it.
+The list of builders that feed a strict input is written in the Evidence. Each takes its type from the procedure input, and adding a view field that the input rejects makes the typecheck fail, with a planted case.
 
 ## Evidence
 

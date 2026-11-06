@@ -15,11 +15,11 @@ Remove repeated work from the corpus-image-variants tests, the imageBeforeTool c
 
 ## Why
 
-These tests run close to their time budget under load. The owner rule is to remove repeated work and never raise a timeout.
+These tests run close to their time budget under load. The owner rule is to remove repeated work and never raise a timeout. One run at moderate load measured the corpus image variants test at about three seconds against the five second `testTimeout` budget in `vitest.config.ts`, and the two `imageBeforeTool` completion cases at one to two seconds each. The theme accent sweep test was not located by name; find it first.
 
 ## Done when
 
-Each of the three finishes well inside its budget in a whole-suite run, and none repeats setup that another case in the same file already does.
+The corpus image variants test and the theme accent sweep each finish well inside their budget in a whole-suite run, and none repeats setup that another case in the same file already does. The `imageBeforeTool` cases stay unless a whole-suite run shows them near budget.
 
 ## Evidence
 
