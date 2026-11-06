@@ -23,7 +23,7 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 | Key | Meaning |
 | - | - |
-| `pattern: "import $NAME from $SRC"` | code with `$META` single captures and `$$$MULTI` spread captures |
+| `pattern: "import $NAME from $SRC"` | code with `$META` single captures and `$$$MULTI` spread captures; `$NAME:kind` restricts a capture to one node kind |
 | `kind: "import_statement"` | tree-sitter node kind; list them with `pnpm codemod ai node-types <language>` |
 | `regex: "^foo$"` | matches the node text; use on leaves |
 | `has: { field: "source", ... }` | a child, optionally in a named field; add `stopBy: "end"` for any descendant |
@@ -50,6 +50,14 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 `range()` returns `{ start, end }` with `line`, `column` and `index`. `index` is a UTF-8 byte offset.
 
+Semantic analysis gives bindings, not types. To prove which component a JSX name is:
+
+1. Set `semantic_analysis: workspace` on the workflow step. Target the package root so the other package is indexed.
+2. Call `importBindingOf(name)` for the imported name and its module.
+3. To reach the source, call `definition()` on the name, then on the `import_specifier` it returns. The second call gives `kind: "external"` and the barrel in the other package. Each barrel costs one more hop.
+
+Run `tsc` after the rewrite for anything that needs a type.
+
 ## Edit
 
 ```ts
@@ -62,13 +70,38 @@ Positions are UTF-8 byte offsets. An empty `insertedText` deletes. Build edits f
 
 | Module | Use |
 | - | - |
-| `codemod:ast-grep` `parseAsync(language, text)` | parse an embedded language, for example CSS in a template literal |
+| `codemod:ast-grep` `parse(language, text)`, `parseAsync(language, text)` | parse an embedded language, for example CSS in a template literal |
 | `codemod:ast-grep` `jssgTransform(fn, path, language)` | edit a second file from the current one; applied with the primary file |
 | `codemod:workflow` `getState`, `setState`, `acquireLock` | shared state across files in one step; lock a read-modify-write |
-| `codemod:metrics` | counters for a detection-only run |
-| `codemod:runtime` | progress, warnings, explicit failure |
+| `codemod:metrics` | `useMetricAtom(name).increment(labels)`; counts print at the end of a run, so use it to count edits and skip reasons |
+| `codemod:runtime` | `progress`, `warn`, `failFile`, `failStep`, `isCanceled`; prefer these to a thrown error, which logs less context |
 
-`@jssg/utils/javascript/imports` offers `getImport`, `addImport`, `removeImport`, `updateImport` and `renameReferences`. It is not installed; add it to the catalog when a codemod needs it.
+`@jssg/utils` runs inside the sandbox. It is not in the catalog yet; add it with the first codemod that imports it, because knip refuses an unused dependency.
+
+| Subpath | Use |
+| - | - |
+| `@jssg/utils/javascript/imports` | `getImport`, `getAllImports`, `addImport`, `removeImport`, `updateImport` |
+| `@jssg/utils/javascript/bindings` | `importBindingOf(node)` gives `{ importedName, localName, source }`, or `null` for a local name; `resolveDefinition(node)` follows one import |
+
+Use `importBindingOf` to prove what a name is. It handles an alias, and it returns `null` for a local name that shadows an import. Read `pnpm codemod ai docs jssg-utils-instructions` for the rest.
+
+## Workflow steps
+
+A workflow can run a whole migration: plan, rewrite, format and check. Order the nodes with `depends_on`.
+
+| Field or step | Use |
+| - | - |
+| `run:` | a host shell step; it runs in the directory that called the CLI, and `$CODEMOD_PATH` is the codemod directory |
+| `js-ast-grep:` | a JSSG step; add `semantic_analysis: workspace` for cross-file bindings |
+| `ast-grep:` | a YAML rule step, for a rule that needs no code |
+| `if:` | gate a step on `params.x`, `state.x` or `matrix.x` |
+| `depends_on:` | run this node after the named nodes |
+| `strategy:`, `shard:` | fan a node out; shards and commit checkpoints target Campaign runs, so a local run here does not need them |
+| `ai:` | hand a step to a coding agent; do not use it, because a rewrite here stays deterministic |
+
+`--dry-run` skips every `run:` step. Run the plan step by hand before a dry run that reads its output.
+
+`jssg run --max-threads <n>` limits parallel files on a shared box. `--report` opens a web report of a run.
 
 ## Commands
 
