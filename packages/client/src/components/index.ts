@@ -27,6 +27,7 @@ export { LibraryListRows, LibrarySurfaceShell } from "./library-surface.tsx";
 export { ListPage } from "./list-page.tsx";
 export {} from "./list-pane-header.tsx";
 export { ListPaneHeaderHost } from "./list-pane-header-host.tsx";
+export { MacroBrowser } from "./macro-browser.tsx";
 export type { MemberDrillBack } from "./member-drill-header.tsx";
 export { MemberDrillHeader } from "./member-drill-header.tsx";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";

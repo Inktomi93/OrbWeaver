@@ -1,40 +1,51 @@
-// The Macro browser (WAVE MU — the deferred 02 §5 browser consumer, landed): every macro the preset's
-// evaluation would see — the builtins + THIS preset's user macros — rendered from the ONE metadata table
-// (`queryMacros` over a composed registry; `MACRO_FLAG_DEFS` documents the flag vocabulary). User macros
-// carry source attribution (§12A.5) and a REFUSED definition (builtin collision / bad name) is surfaced
-// exactly as registration reports it — the browser shows the truth of the registry, never a parallel list.
+// The Macro browser: every macro a surface's evaluation would see, listed from a `MacroCatalog` (builtins plus
+// the surface's preset, game and plugin planes) — the browser shows the truth of the registry, never a parallel
+// list. Each user macro names its source and links to the editor that owns it; a source the reader cannot reach
+// from here shows its name with no link. A REFUSED definition (builtin collision / bad name) is surfaced exactly
+// as registration reports it. Homed in `components/` because the preset editor and the game console both mount it.
 
-import type { UserMacroSpec } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
-import type { MacroMetadata, MacroSourceKind, UserMacroRegistration } from "@orb/kit/macro";
-import { createDefaultRegistry, MACRO_FLAG_DEFS, queryMacros, registerUserMacros } from "@orb/kit/macro";
+import type { MacroSourceRef } from "@orb/kit/macro";
+import { MACRO_FLAG_DEFS } from "@orb/kit/macro";
 import { Badge } from "@orb/ui/badge";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import type { CatalogMacro, MacroCatalog, MacroPlane } from "#lib";
+import { macroSourceLabel } from "#lib";
+import { openInstalledPlugin, selectPreset, setActiveSection } from "#state";
 
 export interface MacroBrowserProps {
-  /** The preset's user-macro definitions — composed onto a fresh default registry for display. */
-  readonly userMacros: readonly UserMacroSpec[];
-  /** The owning preset id (source attribution — `preset:<id>`). */
-  readonly presetId: PresetId;
+  readonly catalog: MacroCatalog;
 }
 
-interface BrowserModel {
-  readonly macros: readonly MacroMetadata[];
-  readonly rejected: UserMacroRegistration["rejected"];
-}
-
-// Compose the display registry exactly the way evaluation composes it (defaults + registerUserMacros) —
-// the browser reads the SAME metadata surface the engine enforces, so the two can never disagree.
-function buildModel(userMacros: readonly UserMacroSpec[], presetId: PresetId): BrowserModel {
-  const registry = createDefaultRegistry();
-  const { rejected } = registerUserMacros(registry, userMacros, { source: { kind: "preset", id: presetId } });
-  return { macros: queryMacros(registry), rejected };
+/** The existing navigation that opens the editor owning a source, or `null` when the reader cannot get there from
+ *  here: a game's editor is the console the browser already sits in, and a preset with no id is the built-in default
+ *  or a names-only view. A total switch, so a new source kind fails `tsc`. */
+function sourceOpener(source: MacroSourceRef): (() => void) | null {
+  switch (source.kind) {
+    case "preset": {
+      const { id } = source;
+      return id === null
+        ? null
+        : (): void => {
+            selectPreset(id);
+            setActiveSection("presets");
+          };
+    }
+    case "plugin": {
+      const { id } = source;
+      return (): void => openInstalledPlugin(id);
+    }
+    case "game":
+      return null;
+    default:
+      throw new Error("Unreachable macro source", { cause: source satisfies never });
+  }
 }
 
 /** One macro's arg signature for display — `name` / `name?` / `name?=default`, comma-joined. */
-function argSignature(meta: MacroMetadata): string {
+function argSignature(meta: CatalogMacro["meta"]): string {
   const parts = meta.args.map((a) => {
     const opt = a.optional ? "?" : "";
     const def = a.default !== undefined && a.default !== "" ? `=${a.default}` : "";
@@ -44,8 +55,8 @@ function argSignature(meta: MacroMetadata): string {
 }
 
 /** The browser — a flat, name-sorted metadata list + the flag-vocabulary reference. */
-export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): ReactElement {
-  const { macros, rejected } = buildModel(userMacros, presetId);
+export function MacroBrowser({ catalog }: MacroBrowserProps): ReactElement {
+  const { macros, rejected } = catalog;
   return (
     <Stack gap="block">
       {rejected.map((r) => (
@@ -57,8 +68,8 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
           editor views — see `entry-list-editor.tsx` for the full ruling. */}
       <Section kicker="Macros">
         <Stack gap="field">
-          {macros.map((meta) => (
-            <MacroRow key={meta.name} meta={meta} />
+          {macros.map((macro) => (
+            <MacroRow key={macro.meta.name} macro={macro} />
           ))}
         </Stack>
       </Section>
@@ -85,17 +96,27 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
   );
 }
 
-/** One macro row: name + category/volatile/strict/source badges + description + the arg signature. */
-/** The source badge's copy, keyed by `MacroSourceKind` — a total Record, so a new authoring home fails `tsc`
- *  here instead of inheriting a neighbour's label. (The prior ternary silently read every non-preset source as
- *  "game", which is exactly what a plugin macro must not be called.) */
-const MACRO_SOURCE_LABELS: Record<MacroSourceKind, string> = {
-  preset: "this preset",
-  game: "game",
-  plugin: "plugin",
-};
+/** Where a macro lives: a link to the owning editor when the reader can get there, else the name alone. */
+function MacroSource({ plane }: { readonly plane: MacroPlane }): ReactElement {
+  const label = macroSourceLabel(plane);
+  const open = plane.current === true ? null : sourceOpener(plane.source);
+  if (open === null) {
+    return (
+      <Badge tone="info" variant="solid" size="sm">
+        {label}
+      </Badge>
+    );
+  }
+  return (
+    <InlineAction variant="link" onClick={open} step="body" type="button">
+      {label}
+    </InlineAction>
+  );
+}
 
-function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
+/** One macro row: name + category/volatile/strict/source + description + the arg signature. */
+function MacroRow({ macro }: { readonly macro: CatalogMacro }): ReactElement {
+  const { meta, plane } = macro;
   const signature = argSignature(meta);
   return (
     <Stack gap="field">
@@ -112,11 +133,7 @@ function MacroRow({ meta }: { readonly meta: MacroMetadata }): ReactElement {
             Strict
           </Badge>
         ) : null}
-        {meta.source !== undefined ? (
-          <Badge tone="info" variant="solid" size="sm">
-            {MACRO_SOURCE_LABELS[meta.source.kind]}
-          </Badge>
-        ) : null}
+        {plane === undefined ? null : <MacroSource plane={plane} />}
       </Row>
       {/* CAPPED ON THE PARAGRAPH (#859 T-3). These glosses used to be paid for only by a reader who opened
           the browser; it is open by default now (`user-macros-tab.tsx`), so their measure became a

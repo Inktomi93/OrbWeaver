@@ -50,6 +50,7 @@ export function viewContent(id: PresetEditorView["id"], props: ViewContentProps)
       return (
         <ActionsView
           form={form}
+          presetId={presetId}
           // THE REAL DOOR (crunch-list O-13): the cross-link used to select a rack row and leave you
           // standing in Actions, where no rack exists — a click with no visible effect. `openSectionInPrompt`
           // does both halves (view + selection); the reveal stays for the narrow regime, where the readout

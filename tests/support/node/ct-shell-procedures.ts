@@ -31,6 +31,7 @@ export const SECTION_PROCEDURES = [
   "connection.resolveChatCapability",
   "plugin.list",
   "plugin.listSurfaces",
+  "plugin.listMacros",
   "databank.listGlobal",
   "databank.list",
   "worldInfo.listBooks",

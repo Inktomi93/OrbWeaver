@@ -1,17 +1,14 @@
-// The macro catalog every PROMPT-TEXT authoring field completes against (the `{{ }}` trigger). Homed in
-// lib/ (not a feature) because it has two authoring homes now: the preset's sections/guided templates AND the
-// GAME's own user macros (owner ruling #20's two definition homes) — a feature-local copy would be a sideways
-// import from rpg into preset, and a second list would drift. Its own module so the assembly view-model stays
-// DOM-free (the `@orb/ui/macro-textarea` type surface drags browser TSX into the dom-less typecheck:graph —
-// the persona/character precedent).
+// The macro catalog every macro surface reads: the `{{ }}` completion popover of each PROMPT-TEXT field, and the
+// macro browser. Homed in lib/ (not a feature) because it has several authoring homes: the preset's
+// sections/guided templates, the GAME's own user macros, and the plugin macros the caller's plugins register —
+// a feature-local copy would be a sideways import between features, and a second list would drift. Its own
+// module so the assembly view-model stays DOM-free (the `@orb/ui/macro-textarea` type surface drags browser TSX
+// into the dom-less typecheck:graph — the persona/character precedent).
 //
-// DERIVED, NEVER AUTHORED (the three-home collapse, 2026-08-02). The ONE macro catalog is the kit
-// registry+metadata PAIR (`createDefaultRegistry` × `BUILTIN_MACRO_METADATA`, drift-proofed by D51's composed `volatile`). Every consumer is
-// a DERIVATION with a stated lens: the macro BROWSER is `queryMacros(registry)` verbatim (it documents
-// the whole registry, user macros included), and this AUTOCOMPLETE is that same query put through the
-// CURATION below. A hand-maintained third list is what this module used to be — seven names, drifting, with
-// no `{{getvar}}` in a product that has ten variable macros. The contracts-side `PROMPT_MACROS` catalog (a
-// fourth spelling, orphaned) was deleted in the same change.
+// DERIVED, NEVER AUTHORED. The ONE macro catalog is the kit registry+metadata PAIR (`createDefaultRegistry` ×
+// `BUILTIN_MACRO_METADATA`, drift-proofed by D51's composed `volatile`). Every consumer is a DERIVATION with a
+// stated lens: the macro BROWSER lists `MacroCatalog.macros` verbatim (the whole registry, user macros
+// included), and the AUTOCOMPLETE is those same macros put through the CURATION below.
 //
 // THE CURATION IS THE PRODUCT CHOICE — it lives in the named consts below (`ALIAS_SPELLINGS`,
 // `BLOCK_OR_LITERAL_FORMS`, `BLOCK_INSERTIONS`) plus one ordering const (`LEAD_MACROS`), so a taste pass
@@ -19,11 +16,13 @@
 // tomorrow shows up in the popover automatically (fail-open), which is the property the old hand list could
 // never have.
 //
-// ONE EXPORT, ONE DERIVATION: `withUserMacros(...)` — that curation run over a registry that ALSO carries
-// the calling surface's user-macro plane, composed exactly as the macro browser and the turn compose it
-// (`createDefaultRegistry` + `registerUserMacros`). A function, not a second list: the plane is form state.
-// The builtin-only catalog stays module-private — it is what a plane-less call gets back (one shared array,
-// one shared fuzzy index), and every authoring surface in the app has a plane in scope.
+// ONE CATALOG, ONE DERIVATION: `macroCatalog(...)` — that curation run over a registry that ALSO carries
+// the calling surface's macro planes (the surface's own authored plane, then the planes it can only read:
+// another preset's names, plugin macros), composed exactly as the turn composes them (`createDefaultRegistry`
+// + `registerUserMacros`). Every plane carries its `MacroSourceRef`, so the completion row and the macro browser
+// name where each macro lives. A function, not a second list: the planes are form state and query data. The
+// builtin-only catalog stays module-private — it is what a plane-less call gets back (one shared array, one
+// shared fuzzy index).
 //
 // DELIBERATELY UNANNOTATED (no `: readonly MacroSuggestion[]`): this module rides the `#lib` barrel, which
 // node-side `.ts` tests import — and `@orb/ui/macro-textarea` re-exports its type FROM the browser `.tsx`, so
@@ -32,7 +31,8 @@
 // consumed: every call site hands this to a `suggestions` prop typed `readonly MacroSuggestion[]`, in a
 // program that HAS dom. `@orb/kit/macro` carries no such hazard — kit is isomorphic by law.
 
-import type { MacroMetadata, MacroRegistry, MacroSourceRef, UserMacroDef } from "@orb/kit/macro";
+import type { PluginMacroView } from "@orb/contracts/plugin";
+import type { MacroMetadata, MacroSourceKind, MacroSourceRef, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, queryMacros, registerUserMacros } from "@orb/kit/macro";
 
 // ── the curation ─────────────────────────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ function argLabels(meta: MacroMetadata): string[] {
 /** The suggestion shape, spelled STRUCTURALLY rather than imported as `@orb/ui/macro-textarea`'s
  *  `MacroSuggestion` — see the dom-less note in the header (the `user-macro-editor-dialog` precedent). A
  *  subset of `MacroSuggestion`, so the hand-off to every `suggestions` prop still typechecks. Local, not
- *  exported: `PROMPT_MACRO_SUGGESTIONS` stays deliberately unannotated at the export boundary. */
+ *  exported: callers read it through `MacroCatalog.suggestions`. */
 interface DerivedSuggestion {
   readonly name: string;
   readonly category: string;
@@ -121,9 +121,83 @@ interface DerivedSuggestion {
   /** Present ONLY on a block form — the full `{{name}}…{{/name}}` text picking the row inserts, `$0`
    *  marking the caret. Absent ⇒ the textarea's default `{{name}}` / `{{name::}}` insertion. */
   readonly insertTemplate?: string;
+  /** Where the macro lives (`macroSourceLabel`); absent on a builtin. */
+  readonly source?: string;
 }
 
-function toSuggestion(meta: MacroMetadata): DerivedSuggestion {
+/** One authoring home's macros, with the source ref every macro of it carries. The surface's own editable plane
+ *  is `current`; the rest are planes the surface can only read. */
+export interface MacroPlane {
+  readonly source: MacroSourceRef;
+  /** What the person calls this home (a preset's or a plugin's name). Absent when the surface does not know it. */
+  readonly name?: string | undefined;
+  /** The plane this surface edits: the row says "This preset" and the browser offers no link to where the
+   *  reader already is. */
+  readonly current?: true;
+  readonly defs: readonly UserMacroDef[];
+}
+
+/** A catalog macro with the plane it came from; `plane` is absent for a builtin. */
+export interface CatalogMacro {
+  readonly meta: MacroMetadata;
+  readonly plane?: MacroPlane;
+}
+
+/** The kind word each source row and badge uses; a total Record, so a new source kind fails `tsc` here. */
+const SOURCE_KIND_WORDS: Record<MacroSourceKind, string> = {
+  preset: "preset",
+  game: "game",
+  plugin: "plugin",
+};
+
+/** What the completion row and the browser badge say about a plane: "This preset", "Plugin: Oracle Deck", or the
+ *  bare kind when the surface knows no name. */
+export function macroSourceLabel(plane: MacroPlane): string {
+  const word = SOURCE_KIND_WORDS[plane.source.kind];
+  if (plane.current === true) {
+    return `This ${word}`;
+  }
+  const capitalized = `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`;
+  return plane.name === undefined ? capitalized : `${capitalized}: ${plane.name}`;
+}
+
+/** What a preset macro reachable from a GAME's editor can honestly say about itself. The game console reads
+ *  the preset plane as NAMES ONLY (`RpgConfigView.presetMacroNames` — "never the preset's bodies", the
+ *  picks-view least-privilege posture), so the row states the one true thing: the name resolves, and it
+ *  comes from the preset. No description is invented, no arg hint is guessed, and the preset's id is not
+ *  knowable here, so its source ref carries a null id and the browser shows the name with no link. */
+const FOREIGN_PLANE_GLOSS = "From your active preset.";
+
+/** The preset plane a game editor sees: names only. */
+export function presetNamesPlane(names: readonly string[]): MacroPlane {
+  return {
+    source: { kind: "preset", id: null },
+    defs: names.map((name): UserMacroDef => ({ name, description: FOREIGN_PLANE_GLOSS, args: [], body: "", inputs: [], strict: false })),
+  };
+}
+
+const pluginPlanesCache = new WeakMap<readonly PluginMacroView[], readonly MacroPlane[]>();
+
+/** One plane per plugin out of `plugin.listMacros`. Plugin macros take no arguments and resolve once per turn,
+ *  so the name and description are the whole record; the body is the server's. Keyed by the query data's
+ *  identity (TanStack keeps it across refetches that change nothing). */
+export function pluginMacroPlanes(views: readonly PluginMacroView[]): readonly MacroPlane[] {
+  const cached = pluginPlanesCache.get(views);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const byPlugin = new Map<string, { readonly plane: Omit<MacroPlane, "defs">; readonly defs: UserMacroDef[] }>();
+  for (const view of views) {
+    const entry = byPlugin.get(view.pluginId) ?? { plane: { source: { kind: "plugin", id: view.pluginId }, name: view.pluginName }, defs: [] };
+    entry.defs.push({ name: view.name, description: view.description, args: [], body: "", inputs: [], strict: false });
+    byPlugin.set(view.pluginId, entry);
+  }
+  const planes = [...byPlugin.values()].map(({ plane, defs }): MacroPlane => ({ ...plane, defs }));
+  pluginPlanesCache.set(views, planes);
+  return planes;
+}
+
+function toSuggestion({ meta, plane }: CatalogMacro): DerivedSuggestion {
   const args = argLabels(meta);
   const block = BLOCK_INSERTIONS[meta.name];
   return {
@@ -132,85 +206,91 @@ function toSuggestion(meta: MacroMetadata): DerivedSuggestion {
     description: block === undefined ? meta.description : `${meta.description}${BLOCK_INSERT_NOTE}`,
     ...(args.length > 0 ? { args } : {}),
     ...(block === undefined ? {} : { insertTemplate: block }),
+    ...(plane === undefined ? {} : { source: macroSourceLabel(plane) }),
   };
 }
 
-/** The curation, applied to whatever registry it is handed (builtins alone, or builtins + a user plane).
+/** The curation, applied to a catalog's macros (builtins alone, or builtins + the surface's planes).
  *
- *  THE USER PLANE LEADS. A user macro is the author's OWN vocabulary and the most specific thing in the
- *  registry, and the bare-`{{` popover only shows eight rows — behind the builtin lead it would be
+ *  THE AUTHORED PLANES LEAD. A preset's or game's macro is the author's OWN vocabulary and the most specific
+ *  thing in the registry, and the bare-`{{` popover only shows eight rows — behind the builtin lead it would be
  *  invisible on the very surfaces that exist to author it. The builtins it displaces stay one keystroke of
- *  fuzzy search away, which is the same argument the lead const already makes for every non-lead builtin. */
-function curate(registry: MacroRegistry): readonly DerivedSuggestion[] {
-  const offered = queryMacros(registry).filter((meta) => !EXCLUDED.has(meta.name.toLowerCase()));
-  const user = offered.filter((meta) => meta.category === "user");
-  const builtin = offered.filter((meta) => meta.category !== "user");
-  const lead = LEAD_MACROS.flatMap((name) => builtin.filter((meta) => meta.name === name));
-  const rest = builtin.filter((meta) => !LEAD_MACROS.includes(meta.name));
-  return [...user, ...lead, ...rest].map(toSuggestion);
+ *  fuzzy search away, which is the same argument the lead const already makes for every non-lead builtin.
+ *
+ *  PLUGIN MACROS FOLLOW THE LEAD. They are installed vocabulary, not authored here, and sixteen of them per
+ *  plugin would push `{{char}}` and `{{user}}` out of the eight rows a new author meets. */
+function curate(macros: readonly CatalogMacro[]): readonly DerivedSuggestion[] {
+  const offered = macros.filter(({ meta }) => !EXCLUDED.has(meta.name.toLowerCase()));
+  const isPlugin = ({ plane }: CatalogMacro): boolean => plane?.source.kind === "plugin";
+  const authored = offered.filter((entry) => entry.meta.category === "user" && !isPlugin(entry));
+  const plugin = offered.filter(isPlugin);
+  const builtin = offered.filter((entry) => entry.meta.category !== "user");
+  const lead = LEAD_MACROS.flatMap((name) => builtin.filter(({ meta }) => meta.name === name));
+  const rest = builtin.filter(({ meta }) => !LEAD_MACROS.includes(meta.name));
+  return [...authored, ...lead, ...plugin, ...rest].map(toSuggestion);
 }
 
-/** The macro catalog a prompt-text field (preset section, guided template, user-macro body) completes
- *  against — the curated projection of the ONE builtin registry. A module-level constant on purpose:
- *  `<MacroTextarea>` memoizes its fuzzy index by the array's IDENTITY, so one stable reference means one
- *  index shared by every authoring field in the app. */
-const PROMPT_MACRO_SUGGESTIONS = curate(createDefaultRegistry());
+/** Everything one surface offers an author about macros: the `{{` completion rows, the whole browsable
+ *  list, and the definitions registration refused. */
+export interface MacroCatalog {
+  readonly suggestions: readonly DerivedSuggestion[];
+  readonly macros: readonly CatalogMacro[];
+  readonly rejected: readonly RejectedUserMacro[];
+}
 
-// ── the user-macro union ─────────────────────────────────────────────────────────────────────────────
+/** Compose a catalog the way a turn composes its registry: the default registry, then each plane in order. Kit
+ *  refuses a name already taken, so plane order IS precedence. */
+function composeCatalog(planes: readonly MacroPlane[]): MacroCatalog {
+  const registry = createDefaultRegistry();
+  // A name an EARLIER plane already holds is the ruled specific-over-general shadow, not an authoring error: the
+  // server drops the later def without a word, so the catalog does not report it as refused either.
+  const rejected = planes.flatMap((plane, index) => {
+    const earlier = new Set(planes.slice(0, index).flatMap((p) => p.defs.map((def) => def.name.toLowerCase())));
+    return registerUserMacros(registry, plane.defs, { source: plane.source }).rejected.filter((r) => !earlier.has(r.name.toLowerCase()));
+  });
+  const planeOf = (name: string): MacroPlane | undefined => planes.find((plane) => plane.defs.some((def) => def.name.toLowerCase() === name.toLowerCase()));
+  const macros = queryMacros(registry).map((meta): CatalogMacro => {
+    const plane = meta.source === undefined ? undefined : planeOf(meta.name);
+    return plane === undefined ? { meta } : { meta, plane };
+  });
+  return { suggestions: curate(macros), macros, rejected };
+}
 
-/** What a preset macro reachable from a GAME's editor can honestly say about itself. The game console reads
- *  the preset plane as NAMES ONLY (`RpgConfigView.presetMacroNames` — "never the preset's bodies", the
- *  picks-view least-privilege posture), so the row states the one true thing: the name resolves, and it
- *  comes from the preset. No description is invented and no arg hint is guessed. */
-const FOREIGN_PLANE_GLOSS = "From your active preset.";
+/** The builtin-only catalog. A module-level constant on purpose: `<MacroTextarea>` memoizes its fuzzy index by
+ *  the suggestions array's IDENTITY, so one stable reference means one index shared by every authoring field in
+ *  the app. */
+const BUILTIN_CATALOG = composeCatalog([]);
 
-/** `registerUserMacros` demands a source ref; a SUGGESTION has no such field — {@link toSuggestion} projects
- *  name/category/description/args and nothing else, so this never leaves the composition. That is why
- *  {@link withUserMacros} does not ask its callers for one: an id threaded through four components to be
- *  dropped here is ceremony, and on the game console the preset's id is not even knowable (the names-only
- *  view). Attribution has ONE display home and it is the macro browser, which composes its own registry. */
-const COMPOSITION_ONLY_SOURCE: MacroSourceRef = { kind: "preset", id: "" };
+/** Keyed by the AUTHORED defs array's identity (a form's `userMacros`, a query's preset config), then by the rest
+ *  of the composition — the memo `<MacroTextarea>`'s identity-keyed fuzzy index needs to pay off: a fresh array
+ *  every render would rebuild the whole MiniSearch index on every keystroke. */
+const catalogCache = new WeakMap<readonly UserMacroDef[], Map<string, MacroCatalog>>();
 
-/** Keyed by the DEFS array's identity (a form's `userMacros`), then by the rest of the composition — the
- *  memo `<MacroTextarea>`'s identity-keyed fuzzy index needs to pay off: a fresh array every render would
- *  rebuild the whole MiniSearch index on every keystroke. */
-const unionCache = new WeakMap<readonly UserMacroDef[], Map<string, readonly DerivedSuggestion[]>>();
+/** The planes' content, as the cache key. The context planes arrive off query views and fresh per render, so
+ *  their bytes — not their array identity — are the honest key. */
+function compositionKey(authored: MacroPlane, context: readonly MacroPlane[]): string {
+  const plane = (p: MacroPlane): unknown => [p.source.kind, p.source.id, p.name, p.current === true, p.defs.map((def) => [def.name, def.description])];
+  return JSON.stringify([authored.source.kind, authored.source.id, authored.name, authored.current === true, context.map(plane)]);
+}
 
-/** The completion catalog for a surface that has a USER-MACRO PLANE in scope: the same curation, run over a
- *  registry composed the way evaluation composes it (`createDefaultRegistry` + `registerUserMacros`, the
- *  macro-browser precedent) — so a macro the author just defined completes like any builtin, and one that
- *  collides with a builtin is absent here for exactly the reason it will not resolve there.
- *
- *  PRECEDENCE MIRRORS THE RESOLVER. `userMacros` registers FIRST and kit refuses a name already taken, so
- *  when a game's def and a preset's share a name the GAME's wins — the same outcome the server reaches by
- *  dropping the preset def (`shadowPresetUserMacros`, the ruled specific-over-general collision policy).
- *  Registering in that order is how the popover is kept from advertising a definition the turn will not use.
- *
- *  @param userMacros - the plane this surface AUTHORS (full defs, full metadata).
- *  @param foreignPlaneNames - the OTHER plane's names when the surface can only see names (a game editor's
- *         view of the preset's macros). They still resolve in this surface's prompts, so omitting them would
- *         be a lie of a different kind; see {@link FOREIGN_PLANE_GLOSS}. */
-export function withUserMacros(userMacros: readonly UserMacroDef[], foreignPlaneNames: readonly string[] = []): readonly DerivedSuggestion[] {
-  // No plane in scope ⇒ hand back the shared constant, so the app-wide fuzzy index is reused verbatim.
-  if (userMacros.length === 0 && foreignPlaneNames.length === 0) {
-    return PROMPT_MACRO_SUGGESTIONS;
+/** The catalog for a surface: its `authored` plane first, then the `context` planes it can read. Precedence
+ *  mirrors the resolver: when a game's def and a preset's share a name the GAME's wins, the outcome the server
+ *  reaches by dropping the preset def (`shadowPresetUserMacros`), so the popover never advertises a definition
+ *  the turn will not use. A name that collides with a builtin is absent for exactly the reason it will not
+ *  resolve. */
+export function macroCatalog(authored: MacroPlane, context: readonly MacroPlane[] = []): MacroCatalog {
+  // No macro in scope ⇒ hand back the shared constant, so the app-wide fuzzy index is reused verbatim.
+  if (authored.defs.length === 0 && context.every((plane) => plane.defs.length === 0)) {
+    return BUILTIN_CATALOG;
   }
-  const byKey = unionCache.get(userMacros) ?? new Map<string, readonly DerivedSuggestion[]>();
-  unionCache.set(userMacros, byKey);
-  // The foreign plane keys by CONTENT, not identity: it arrives off a query view (whose array identity is
-  // not this surface's to rely on), and a short name list's bytes are the honest key.
-  const key = foreignPlaneNames.join(" ");
+  const byKey = catalogCache.get(authored.defs) ?? new Map<string, MacroCatalog>();
+  catalogCache.set(authored.defs, byKey);
+  const key = compositionKey(authored, context);
   const cached = byKey.get(key);
   if (cached !== undefined) {
     return cached;
   }
-  const registry = createDefaultRegistry();
-  registerUserMacros(registry, userMacros, { source: COMPOSITION_ONLY_SOURCE });
-  if (foreignPlaneNames.length > 0) {
-    const foreign = foreignPlaneNames.map((name): UserMacroDef => ({ name, description: FOREIGN_PLANE_GLOSS, args: [], body: "", inputs: [], strict: false }));
-    registerUserMacros(registry, foreign, { source: COMPOSITION_ONLY_SOURCE });
-  }
-  const built = curate(registry);
+  const built = composeCatalog([authored, ...context]);
   byKey.set(key, built);
   return built;
 }

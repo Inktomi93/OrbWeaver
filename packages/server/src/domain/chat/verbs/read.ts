@@ -572,10 +572,10 @@ const PREVIEW_RANDOM = (): number => 0;
  *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
 function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   const built = buildTurnUserMacros({
-    preset: { id: inputs.foreign.presetId ?? "default", defs: inputs.foreign.promptConfig.userMacros },
+    preset: { source: { kind: "preset", id: inputs.foreign.presetId ?? null }, defs: inputs.foreign.promptConfig.userMacros },
     // The GAME's defs (shadowing the preset's on a name clash) — a preview of a game chat must render the
     // macro the TURN would render, not the one the game overrode.
-    ...(inputs.gameUserMacros.length > 0 ? { game: { id: inputs.chatId, defs: inputs.gameUserMacros } } : {}),
+    ...(inputs.gameUserMacros.length > 0 ? { game: { source: { kind: "game", id: inputs.chatId }, defs: inputs.gameUserMacros } } : {}),
     values: {},
     prng: PREVIEW_RANDOM,
   });

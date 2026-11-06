@@ -32,6 +32,7 @@ export type {
   MacroMetadata,
   MacroRegistry,
   MacroSourceKind,
+  MacroSourceOf,
   MacroSourceRef,
   VarOp,
 } from "./types.ts";
@@ -51,7 +52,6 @@ export {
   type UserMacroInputDef,
   type UserMacroInputKind,
   type UserMacroInputValue,
-  type UserMacroRegistration,
   userMacroToggleDefaultsOn,
 } from "./user-macros.ts";
 // D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.

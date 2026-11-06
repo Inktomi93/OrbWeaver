@@ -175,7 +175,8 @@ export type {
 } from "./plugin-ui-guest-protocol.ts";
 export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
 export {} from "./probe-mode.ts";
-export { withUserMacros } from "./prompt-macros.ts";
+export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts";
+export { macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
 export {
   REGEX_PLACEMENT_GLYPHS,
   REGEX_PLACEMENT_ITEMS,

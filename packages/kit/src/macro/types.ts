@@ -1,5 +1,5 @@
 import type { CelBindings } from "#cel";
-import type { ChatId } from "#ids";
+import type { ChatId, PluginId, PresetId } from "#ids";
 import type { RandomSource } from "./prng.ts";
 
 export type MacroAST = MacroNode[];
@@ -80,15 +80,25 @@ export const MACRO_ARG_TYPES = ["string", "number", "boolean"] as const;
 export type MacroArgType = (typeof MACRO_ARG_TYPES)[number];
 
 /** Where a non-builtin macro came from — the macro browser names it. Absent on a metadata record ⇒ a builtin.
- *  `id` is the owning preset id / game chat id / plugin slug as a string (kit stays below the branded-id homes).
- *  `plugin` joined at U6: a plugin macro is authored by neither a preset nor a game, and
- *  labelling it as either would tell a person to edit a surface that does not contain it. */
+ *  A plugin macro is authored by neither a preset nor a game, and labelling it as either would tell a person
+ *  to edit a surface that does not contain it. */
 export const MACRO_SOURCE_KINDS = ["preset", "game", "plugin"] as const;
 export type MacroSourceKind = (typeof MACRO_SOURCE_KINDS)[number];
-export interface MacroSourceRef {
-  readonly kind: MacroSourceKind;
-  readonly id: string;
+
+/** The id each source kind carries. A kind with no entry here fails `tsc` at {@link MacroSourceRef}. A preset id is
+ *  `null` when the preset cannot be addressed: the built-in default preset has no id, and a game console reads
+ *  the active preset by name only. */
+interface MacroSourceIdByKind {
+  readonly preset: PresetId | null;
+  readonly game: ChatId;
+  readonly plugin: PluginId;
 }
+
+/** A source ref is a union on `kind`, so an id of the wrong brand cannot compile. */
+export type MacroSourceRef = { readonly [K in MacroSourceKind]: { readonly kind: K; readonly id: MacroSourceIdByKind[K] } }[MacroSourceKind];
+
+/** The source ref for one kind. */
+export type MacroSourceOf<K extends MacroSourceKind> = Extract<MacroSourceRef, { readonly kind: K }>;
 
 /** One positional argument of a macro. `optional` + `default` drive the arity check and the browser copy.
  *  These declarations are the RUNTIME contract too — the evaluator pads a missing optional
@@ -153,8 +163,8 @@ export interface MacroMetadata {
   /** Renders a different value across calls/turns (time/random/conversation/var-mutation) — the assembly
    *  cache-buster trace reads this. DERIVED from the volatile registration path, never authored here. */
   readonly volatile: boolean;
-  /** Source attribution: where a user macro came from (`preset:<id>` / `game:<chatId>`),
-   *  rendered by the macro browser. Absent ⇒ a builtin. Composed by `registerUserMacros`. */
+  /** Source attribution: where a user macro came from, named by the macro browser and the completion row.
+   *  Absent ⇒ a builtin. Composed by `registerUserMacros`. */
   readonly source?: MacroSourceRef;
 }
 

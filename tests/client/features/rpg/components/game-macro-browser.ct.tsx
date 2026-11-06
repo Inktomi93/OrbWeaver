@@ -1,0 +1,74 @@
+// The game console's macro browser lists the macros the game's turn would resolve, each naming its source: this
+// game's own, the active preset's as a name with no link (the console knows only names), and a plugin's as a link to
+// that plugin's editor. The same catalog feeds the editor's completion rows, which print the source too. Reads come
+// from a real corpus root with a live plugin guest.
+import { spawn } from "node:child_process";
+import { userMacroSchema } from "@orb/contracts/preset";
+import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { makePromptConfig } from "@orb/testkit/iso";
+import { createCorpusHarness, installMacroGuest, seedRpgGame } from "@orb/testkit/node/composed";
+import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
+
+const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
+const PLUGIN_NAME = "Omen Deck";
+const PLUGIN_MACRO = "omen";
+const GAME_MACRO = "scene_tone";
+const PRESET_MACRO = "house_rule";
+
+test("the browser names each macro's source and links only the plugin's, and a completion row prints the same source", async ({ mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const principal = await root.principalFor(root.ownerId);
+  const preset = await caller.preset.create({
+    name: "Host mood preset",
+    kind: "custom",
+    config: makePromptConfig({ userMacros: [userMacroSchema.parse({ name: PRESET_MACRO, body: "Be kind." })] }),
+  });
+  await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: preset.id } });
+  await installMacroGuest(root, principal, { slug: "omen-deck", name: PLUGIN_NAME }, [{ name: PLUGIN_MACRO, description: "Draws an omen." }]);
+  const listed = (await caller.plugin.listMacros()).find((row) => row.pluginName === PLUGIN_NAME);
+  const pluginMacroName = listed?.name ?? "";
+  expect(pluginMacroName).not.toBe("");
+  const chatId = (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id;
+  await seedRpgGame(root, { principal, chatId, mode: "lite", ruleset: "freeform" });
+  await caller.rpg.updateConfig({ chatId, patch: { userMacros: [userMacroSchema.parse({ name: GAME_MACRO, description: "The scene tone.", body: "wry" })] } });
+  expect((await caller.rpg.getConfigView({ chatId })).presetMacroNames).toContain(PRESET_MACRO);
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [
+      "sessions.me",
+      "settings.getUserSettings",
+      "chat.getChat",
+      "chat.listMessages",
+      "rpg.getGame",
+      "rpg.getTrackerView",
+      "rpg.getConfigView",
+      "rpg.updateConfig",
+      "preset.list",
+      "plugin.listMacros",
+    ]),
+  );
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.game" });
+
+  // eslint-disable-next-line orb/no-hand-copied-label -- RPG owns this literal trigger; the exported chat group label names a different feature's disclosure.
+  await page.getByRole("button", { name: "Advanced", exact: true }).click();
+  await page.getByRole("button", { name: "Macro browser", exact: true }).click();
+  const rows = page.locator('[data-slot="rpg-game-macros"]');
+  const rowOf = (name: string): ReturnType<typeof rows.locator> => rows.locator("div", { has: page.locator("code", { hasText: `{{${name}}}` }) }).last();
+
+  // The plugin's macro links to the plugin's editor by its display name.
+  await expect(rowOf(pluginMacroName).getByRole("button", { name: `Plugin: ${PLUGIN_NAME}`, exact: true })).toBeVisible();
+  // This game's own macro names itself and has no link: the console it sits in is its editor.
+  await expect(rowOf(GAME_MACRO).getByText("This game", { exact: true })).toBeVisible();
+  await expect(rowOf(GAME_MACRO).getByRole("button", { name: "This game", exact: true })).toHaveCount(0);
+  // The preset's macro is known by name only, so its source is a label with no link.
+  await expect(rowOf(PRESET_MACRO).getByText("Preset", { exact: true })).toBeVisible();
+  await expect(rowOf(PRESET_MACRO).getByRole("button", { name: "Preset", exact: true })).toHaveCount(0);
+
+  // Completion rows carry the same source label, on the editor that opens from this game's own macro.
+  await page.getByRole("button", { name: `{{${GAME_MACRO}}}`, exact: true }).click();
+  await page.getByRole("textbox", { name: "Template" }).fill(`{{${pluginMacroName.slice(0, -2)}`);
+  const option = page.locator('[data-slot="macro-textarea-option"]', { hasText: `{{${pluginMacroName}}}` });
+  await expect(option.locator('[data-slot="macro-textarea-option-source"]')).toHaveText(`Plugin: ${PLUGIN_NAME}`);
+});

@@ -82,7 +82,7 @@ export {
   seedPluginGrant,
 } from "./factories/plugin.ts";
 export type { GuestOps, GuestRun } from "./factories/plugin-guest.ts";
-export { guestRunner, installGuest } from "./factories/plugin-guest.ts";
+export { guestRunner, installGuest, installMacroGuest } from "./factories/plugin-guest.ts";
 export { seedPreset } from "./factories/preset.ts";
 export { seedAdminProvider } from "./factories/provider.ts";
 export { seedGlobalRegexScript, seedRegexScript } from "./factories/regex.ts";

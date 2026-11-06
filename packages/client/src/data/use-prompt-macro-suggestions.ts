@@ -5,7 +5,7 @@
 // WHY THESE SURFACES QUALIFY (the mechanism, not the vibe). A card facet and a persona description are
 // rendered during turn assembly by `renderMemberField`/`renderMacros`, and the registry those calls receive
 // is the PER-TURN one that `buildTurnUserMacros` composes — `createDefaultRegistry()` plus the active
-// preset's `userMacros` plus the game's. So `{{house_rule}}` typed into a character's description really
+// preset's `userMacros` plus the game's plus the author's plugin macros. So `{{house_rule}}` typed into a character's description really
 // does resolve at turn time, and a popover that only knew the builtins was advertising half the vocabulary.
 // (The imagery mode-templates USED to be the counter-example here — `extractQuiet` ran `processMacros` with no
 // registry — and IMGMAC closed that: the shaper now builds a per-call registry from both authoring homes, so
@@ -15,7 +15,7 @@
 // WHY THE ACTIVE PRESET IS THE HONEST PLANE. These editors have no chat and no preset in scope — a card is
 // authored once and played in many rooms, and a room can override the preset — so the exact set that will
 // resolve is unknowable here. The user's ACTIVE preset (`seeds.defaultPresetId`, `null` ⇒ the built-in) is
-// the closest true answer, and `withUserMacros` already labels a name-only plane with its provenance. This
+// the closest true answer, and `macroCatalog` already labels each plane with its source. This
 // is a completion catalog, not a resolution promise: an offered name resolves wherever its plane is in
 // scope, exactly as a builtin does.
 //
@@ -23,26 +23,37 @@
 // editors, and a feature never imports another feature (the `useDisplayScripts` precedent).
 
 import { useQuery } from "@tanstack/react-query";
-import { withUserMacros } from "#lib";
+import { macroCatalog } from "#lib";
 import { seedPresetId } from "./seed-preset-id.ts";
 import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
+import { usePluginMacroPlanes } from "./use-plugin-macro-planes.ts";
 
-/** The plane-less arm, hoisted so the identity handed to `withUserMacros` is stable across renders (it is
+/** The plane-less arm, hoisted so the identity handed to `macroCatalog` is stable across renders (it is
  *  the key its memo — and behind it `<MacroTextarea>`'s fuzzy index — is built on). */
 const NO_USER_MACROS: readonly never[] = [];
 
+/** The plugin plane's absence, for a surface whose prompt is rendered by a path that builds no plugin plane. */
+const NO_PLANES: readonly never[] = [];
+
+/** What the caller wants from the catalog. `plugins: false` is for the imagery mode-templates, which
+ *  `extractQuiet` renders against preset and game defs only: a plugin macro typed there would not resolve. */
+interface PromptMacroSuggestionOptions {
+  readonly plugins: boolean;
+}
+
 /**
- * The builtin catalog UNION the active preset's user macros. While the two reads are in flight this is the
- * plane-less catalog — the shared module constant, so the field is completable from the first keystroke and
- * simply gains the user rows when they land (never a disabled or empty popover waiting on a fetch).
+ * The builtin catalog UNION the active preset's user macros UNION the caller's plugin macros. While the reads
+ * are in flight this is the plane-less catalog — the shared module constant, so the field is completable from
+ * the first keystroke and simply gains the rows when they land (never a disabled or empty popover waiting on a
+ * fetch).
  *
  * Deliberately NOT annotated with `MacroSuggestion`: that type re-exports from the `@orb/ui/macro-textarea`
  * browser TSX, which naming here would drag into the DOM-less type programs (the `prompt-macros.ts` header
  * has the full account). The shape stays pinned where it is consumed — every call site hands the result to a
  * `suggestions` prop that IS typed `readonly MacroSuggestion[]`, in a program that has lib.dom.
  */
-export function usePromptMacroSuggestions(): ReturnType<typeof withUserMacros> {
+export function usePromptMacroSuggestions(options: PromptMacroSuggestionOptions = { plugins: true }): ReturnType<typeof macroCatalog>["suggestions"] {
   const trpc = useTRPC();
   // Both reads are cache-first and already warm on any real session (the settings blob is read by half the
   // shell; the preset by the preset surfaces) — this adds a cache hit, not a round trip, on the common path.
@@ -51,7 +62,9 @@ export function usePromptMacroSuggestions(): ReturnType<typeof withUserMacros> {
   // `null` means the BUILT-IN default is active, which declares no user macros. No PresetId is manufactured:
   // the gated options builder is never called and the builtin catalog is already the complete answer.
   const preset = useGatedQuery(activePresetId, (id) => trpc.preset.get.queryOptions({ id }));
+  const pluginPlanes = usePluginMacroPlanes(options.plugins);
   // The array's IDENTITY is the memo key, and TanStack's structural sharing keeps it stable across refetches
-  // that don't change the list — which is what makes the union (and the fuzzy index behind it) pay off.
-  return withUserMacros(preset.data?.config.userMacros ?? NO_USER_MACROS);
+  // that don't change the list — which is what makes the catalog (and the fuzzy index behind it) pay off.
+  const authored = { source: { kind: "preset", id: activePresetId }, name: preset.data?.name, defs: preset.data?.config.userMacros ?? NO_USER_MACROS } as const;
+  return macroCatalog(authored, options.plugins ? pluginPlanes : NO_PLANES).suggestions;
 }

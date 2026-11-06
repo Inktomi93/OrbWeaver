@@ -24,6 +24,7 @@ import type {
   PluginInstanceCreateData,
   PluginInvokeArgs,
   PluginLogView,
+  PluginMacroView,
   PluginSurfaceState,
   PluginSurfaceView,
   PluginToastLevel,
@@ -68,6 +69,7 @@ import type {
   ListCommandsParams,
   ListDisplayTransformsParams,
   ListDistributedPluginsParams,
+  ListMacrosParams,
   ListPluginsParams,
   ListSurfacesParams,
   PreviewFromGitParams,
@@ -497,6 +499,9 @@ export interface PluginService {
   /** The caller's OWN enabled plugins' registered COMMANDS (U5) — owner-scoped, no foreign id, the
    *  `listSurfaces` posture exactly. Both the `/plugin` dispatcher and the command palette read it. */
   readonly listCommands: (params: ListCommandsParams) => Promise<readonly PluginCommandView[]>;
+  /** The caller's OWN enabled plugins' registered MACROS — owner-scoped, no foreign id, the `listCommands`
+   *  posture. The client composes them into the macro catalog beside the builtin, preset and game macros. */
+  readonly listMacros: (params: ListMacrosParams) => Promise<readonly PluginMacroView[]>;
   /** Run one registered command under the crash policy (owner-scoped, leak-free) and return the drained UI
    *  outcome. `/plugin <slug> <name> <rest>`, the palette and the placed commands reach it. */
   readonly invokeUiCommand: (params: InvokeUiCommandParams) => Promise<PluginUiOutcome>;

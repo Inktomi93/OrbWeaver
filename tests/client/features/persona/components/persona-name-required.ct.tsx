@@ -24,6 +24,7 @@ test("clearing the name shows the required error and the saved name stands", asy
       "worldInfo.listForPersona",
       "persona.listConnectedCharacters",
       "preset.get",
+      "plugin.listMacros",
       "persona.update",
     ]),
   );

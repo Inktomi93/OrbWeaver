@@ -69,6 +69,7 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
+  PluginId,
   UserId,
 } from "@orb/kit/ids";
 import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
@@ -296,7 +297,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
 /** The PLUGIN-MACRO resolve op — the per-turn read of the TURN AUTHOR's own
  *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
- *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
+ *  assembly deadline) into kit `UserMacroDef`s, grouped by the plugin that registered them, which the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
  *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`tools` seams use.
  *
  *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
@@ -304,7 +305,10 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  which guest, and what budget it ran under are all the other side's business. */
 // Not exported (the `ResolvePromptVariablesOp` precedent): its only consumers are `ChatContext` here
 // and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
-type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
+type ResolvePluginMacrosOp = (
+  authorUserId: UserId,
+  chatId: ChatId,
+) => Promise<readonly { readonly pluginId: PluginId; readonly defs: readonly UserMacroDef[] }[]>;
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}

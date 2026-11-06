@@ -70,6 +70,8 @@ export type PluginRegistrationHandle = Pick<PluginToolHandle, "unregister">;
  *  the re-parsed manifest at activation, NEVER guest-supplied) the registrar namespaces `plugin_<slug'>_<name>`
  *  with; `installer` is the resolved installing principal the invocation ceiling runs as (PL-C). */
 export interface PluginActivationScope {
+  /** The activated plugin's row id; the plugin-macro plane attributes each macro to it. */
+  readonly pluginId: PluginId;
   readonly slug: string;
   readonly installer: Principal;
   /** The manifest's cascade opt-in (DERIVED from the re-validated manifest, fail-closed `false` when
@@ -425,6 +427,12 @@ export interface PluginHostOps {
   };
 }
 
+/** One plugin's resolved macros for a turn: the plugin that registered them and their kit defs. */
+export interface PluginMacroDefs {
+  readonly pluginId: PluginId;
+  readonly defs: readonly UserMacroDef[];
+}
+
 /** The process-wide plugin-macro registry. One instance minted at compose (the `pluginSubscribers` /
  *  `surfaceState` precedent) — the plugin domain WRITES it at activation and chat READS it per turn through
  *  an injected op, so neither domain imports the other. */
@@ -434,6 +442,7 @@ export interface PluginMacroRegistry {
    *  turn). Re-registering the same plugin REPLACES its prior set (an upgrade re-activates). */
   readonly register: (req: {
     readonly installer: UserId;
+    readonly pluginId: PluginId;
     /** The manifest slug — UNIQUE PER INSTALLING OWNER (`manifest.ts`'s own contract), which is exactly the
      *  key an installer-scoped registry needs. It is also what the namespace is built from, so keying on it
      *  keeps "which entry owns `plugin_oracle_*`" answerable without a second identifier. */
@@ -441,9 +450,10 @@ export interface PluginMacroRegistry {
     readonly macros: readonly PluginMacroRegistration[];
     readonly invoke: PluginInvokeHandler;
   }) => PluginRegistrationHandle;
-  /** Resolve every macro `authorUserId`'s enabled plugins registered, as kit `UserMacroDef`s ready to hand to
-   *  `buildTurnUserMacros`. `[]` when that author has none — the byte-identical arm chat's turn path leans on. */
-  readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
+  /** Resolve every macro `authorUserId`'s enabled plugins registered, as kit `UserMacroDef`s grouped by the
+   *  plugin that registered them, ready to hand to `buildTurnUserMacros`. `[]` when that author has none — the
+   *  byte-identical arm chat's turn path leans on. */
+  readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly PluginMacroDefs[]>;
 }
 
 /** The process-wide PRIVATE plugin-event bus — ONE instance minted at compose (the

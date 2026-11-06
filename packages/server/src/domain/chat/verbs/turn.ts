@@ -51,7 +51,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MacroFreeze, MacroRegistry, RandomSource, UserMacroDef } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -60,7 +60,7 @@ import type { Logger } from "#foundation/observability";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
-import type { TurnUserMacros } from "../contract/assembly-macros.ts";
+import type { TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatRpgGatherResult } from "../contract/context.ts";
 import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -548,20 +548,21 @@ async function loadTurnUserMacroInputs(
   chatId: ChatId,
   authorUserId: UserId,
   presetDefs: readonly UserMacroSpec[],
-): Promise<{ readonly gameDefs: readonly UserMacroSpec[]; readonly pluginDefs: readonly UserMacroDef[]; readonly values: UserMacroValues }> {
+): Promise<{ readonly gameDefs: readonly UserMacroSpec[]; readonly pluginGroups: readonly UserMacroDefGroup<"plugin">[]; readonly values: UserMacroValues }> {
   // The THIRD definition home (U6): the turn AUTHOR's own plugin macros, already resolved to values by the
   // plugin plane under its assembly deadline. Unwired ⇒ `[]` (byte-identical), and the two reads are
   // independent so they run together rather than in series on the turn's critical path.
-  const [gameDefs, pluginDefs] = await Promise.all([
+  const [gameDefs, pluginMacros] = await Promise.all([
     ctx.rpg === null ? Promise.resolve<readonly UserMacroSpec[]>([]) : ctx.rpg.resolveUserMacros(chatId),
-    ctx.pluginMacros === null ? Promise.resolve<readonly UserMacroDef[]>([]) : ctx.pluginMacros(authorUserId, chatId),
+    ctx.pluginMacros === null ? Promise.resolve([]) : ctx.pluginMacros(authorUserId, chatId),
   ]);
+  const pluginGroups = pluginMacros.map(({ pluginId, defs }): UserMacroDefGroup<"plugin"> => ({ source: { kind: "plugin", id: pluginId }, defs }));
   // The picks read is for the INPUT-declaring homes only: a plugin macro declares no inputs (it is a resolved
   // value), so it never makes a turn pay for the picks row.
   if (presetDefs.length === 0 && gameDefs.length === 0) {
-    return { gameDefs, pluginDefs, values: {} };
+    return { gameDefs, pluginGroups, values: {} };
   }
-  return { gameDefs, pluginDefs, values: await loadStoredUserMacroValues(ctx.db, chatId) };
+  return { gameDefs, pluginGroups, values: await loadStoredUserMacroValues(ctx.db, chatId) };
 }
 
 function buildTurnUserMacrosForTurn(args: {
@@ -571,16 +572,14 @@ function buildTurnUserMacrosForTurn(args: {
   readonly prng: RandomSource;
   readonly values: UserMacroValues;
   readonly gameDefs: readonly UserMacroSpec[];
-  readonly pluginDefs: readonly UserMacroDef[];
+  readonly pluginGroups: readonly UserMacroDefGroup<"plugin">[];
   readonly frozenUserMacroDraws: UserMacroDraws | undefined;
 }): TurnUserMacros | null {
   const userMacros = buildTurnUserMacros({
-    preset: { id: args.foreign.presetId ?? "default", defs: args.foreign.promptConfig.userMacros },
-    // The game group's `MacroSourceRef.id` is the game's CHAT id (kit stays below the branded-id homes).
-    ...(args.gameDefs.length > 0 ? { game: { id: args.chatId, defs: args.gameDefs } } : {}),
-    // The plugin group's `MacroSourceRef.id` is the chat id for the same reason: this tier holds no plugin id,
-    // and the macro's own `plugin_<slug'>_` prefix already names its author to anyone reading the browser.
-    ...(args.pluginDefs.length > 0 ? { plugin: { id: args.chatId, defs: args.pluginDefs } } : {}),
+    preset: { source: { kind: "preset", id: args.foreign.presetId ?? null }, defs: args.foreign.promptConfig.userMacros },
+    // The game group's source id is the game's CHAT id.
+    ...(args.gameDefs.length > 0 ? { game: { source: { kind: "game", id: args.chatId }, defs: args.gameDefs } } : {}),
+    ...(args.pluginGroups.length > 0 ? { plugin: args.pluginGroups } : {}),
     values: args.values,
     ...(args.frozenUserMacroDraws !== undefined ? { frozenDraws: args.frozenUserMacroDraws } : {}),
     prng: args.prng,
@@ -785,7 +784,7 @@ async function buildTurnContext(
     prng: deps.prng,
     values: userMacroInputs.values,
     gameDefs: userMacroInputs.gameDefs,
-    pluginDefs: userMacroInputs.pluginDefs,
+    pluginGroups: userMacroInputs.pluginGroups,
     frozenUserMacroDraws: args.frozenUserMacroDraws,
   });
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private

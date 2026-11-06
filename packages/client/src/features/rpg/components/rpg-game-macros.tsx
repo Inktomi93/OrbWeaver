@@ -24,15 +24,17 @@
 import { userMacroSchema } from "@orb/contracts/preset";
 import type { RpgConfigView } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
-import { EntryListEditor, UserMacroEditorDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { EntryListEditor, MacroBrowser, UserMacroEditorDialog } from "#components";
+import { useInvalidation, usePluginMacroPlanes, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
-import { notify, withUserMacros } from "#lib";
+import { macroCatalog, notify, presetNamesPlane } from "#lib";
 import { admitUserMacroValues, canonicalUserMacroValues, newMacroRowIds } from "../../../components/user-macro-editor-model.ts";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
@@ -57,22 +59,25 @@ export function RpgGameMacros({ chatId, config }: RpgGameMacrosProps): ReactElem
   const save = (values: UserMacrosFormValues): Promise<unknown> => updateConfig.mutateAsync({ chatId, patch: { userMacros: values.userMacros } });
   return (
     <GameMacrosFormBoundary entityId={`rpg-game-macros:${chatId}`} serverValues={{ userMacros: [...config.userMacros], macroRowIds: [] }} save={save}>
-      {(session): ReactElement => <GameMacrosBody session={session} presetMacroNames={config.presetMacroNames} />}
+      {(session): ReactElement => <GameMacrosBody chatId={chatId} session={session} presetMacroNames={config.presetMacroNames} />}
     </GameMacrosFormBoundary>
   );
 }
 
 /** The form-bound body — the session's form is the array's owner; the boundary persists every structural op. */
 function GameMacrosBody({
+  chatId,
   session,
   presetMacroNames,
 }: {
+  readonly chatId: ChatId;
   readonly session: AutosaveSession<UserMacrosFormValues>;
   readonly presetMacroNames: readonly string[];
 }): ReactElement {
   const { form } = session;
   const [editId, setEditId] = useState<string | null>(null);
   const shadowed = new Set(presetMacroNames);
+  const pluginPlanes = usePluginMacroPlanes();
 
   const onAdd = (): void => {
     // Minted THROUGH the schema (the preset tab's Add does the same) — every other field is a schema default.
@@ -86,50 +91,66 @@ function GameMacrosBody({
   return (
     <Stack gap="field" data-slot="rpg-game-macros">
       <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
-        {(values): ReactElement => (
-          <EntryListEditor
-            addLabel="Add macro"
-            editIndex={
-              editId === null || !values.macroRowIds.some((row) => row.id === editId) ? null : values.macroRowIds.findIndex((row) => row.id === editId)
-            }
-            // An empty list must say what empty MEANS here ([[empty-states-are-load-bearing]]): the feature
-            // exists, this game just hasn't defined one — not "macros are unavailable".
-            emptyText="No game macros yet — the ones you add here live with this game and leave with it."
-            // The SHADOW gloss rides the row it is about (a separate block would make the host match names by
-            // eye): the collision is stated as the consequence it is — the game def is what the turn
-            // resolves — never as a warning, because shadowing is a legitimate move.
-            getSubtitle={(macro): string =>
-              shadowed.has(macro.name)
-                ? `Overrides preset — while this game runs, this definition is the one that resolves.${macro.description === "" ? "" : ` ${macro.description}`}`
-                : macro.description
-            }
-            getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
-            heading="Game macros"
-            helperText="Template macros scoped to THIS game — usable anywhere macros resolve while it runs, and offered in Macro picks. Your preset's macros keep working alongside them."
-            items={values.userMacros}
-            getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
-            onAdd={onAdd}
-            onEdit={(index): void => setEditId(values.macroRowIds[index]?.id ?? null)}
-            onRemove={(index): void => {
-              Promise.all([form.removeFieldValue("userMacros", index), form.removeFieldValue("macroRowIds", index)]).catch(() =>
-                notify.error("Couldn't remove the macro."),
-              );
-            }}
-            renderEditor={(index): ReactElement => (
-              <UserMacroEditorDialog
-                key={values.macroRowIds[index]?.id}
-                form={form}
-                index={index}
-                onClose={(): void => setEditId(null)}
-                // BOTH planes, in the resolver's precedence (game defs first — `withUserMacros` registers
-                // them first, so a shadowed preset name never reaches the popover as a second row). The
-                // preset half is NAMES only by the least-privilege view: those rows say where they come
-                // from and nothing they cannot know.
-                suggestions={withUserMacros(values.userMacros, presetMacroNames)}
+        {(values): ReactElement => {
+          // THIS game's macros first, then the preset's names (a game def shadows a preset one, so the order is
+          // the resolver's precedence) and the plugin macros that resolve beside them. One catalog feeds the
+          // editor's completion and the browser below. The preset half is NAMES only by the least-privilege
+          // view: its rows say where they come from and nothing they cannot know.
+          const catalog = macroCatalog({ source: { kind: "game", id: chatId }, current: true, defs: values.userMacros }, [
+            presetNamesPlane(presetMacroNames),
+            ...pluginPlanes,
+          ]);
+          return (
+            <Stack gap="block">
+              <EntryListEditor
+                addLabel="Add macro"
+                editIndex={
+                  editId === null || !values.macroRowIds.some((row) => row.id === editId) ? null : values.macroRowIds.findIndex((row) => row.id === editId)
+                }
+                // An empty list must say what empty MEANS here ([[empty-states-are-load-bearing]]): the feature
+                // exists, this game just hasn't defined one — not "macros are unavailable".
+                emptyText="No game macros yet — the ones you add here live with this game and leave with it."
+                // The SHADOW gloss rides the row it is about (a separate block would make the host match names by
+                // eye): the collision is stated as the consequence it is — the game def is what the turn
+                // resolves — never as a warning, because shadowing is a legitimate move.
+                getSubtitle={(macro): string =>
+                  shadowed.has(macro.name)
+                    ? `Overrides preset — while this game runs, this definition is the one that resolves.${macro.description === "" ? "" : ` ${macro.description}`}`
+                    : macro.description
+                }
+                getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
+                heading="Game macros"
+                helperText="Template macros scoped to THIS game — usable anywhere macros resolve while it runs, and offered in Macro picks. Your preset's macros keep working alongside them."
+                items={values.userMacros}
+                getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
+                onAdd={onAdd}
+                onEdit={(index): void => setEditId(values.macroRowIds[index]?.id ?? null)}
+                onRemove={(index): void => {
+                  Promise.all([form.removeFieldValue("userMacros", index), form.removeFieldValue("macroRowIds", index)]).catch(() =>
+                    notify.error("Couldn't remove the macro."),
+                  );
+                }}
+                renderEditor={(index): ReactElement => (
+                  <UserMacroEditorDialog
+                    key={values.macroRowIds[index]?.id}
+                    form={form}
+                    index={index}
+                    onClose={(): void => setEditId(null)}
+                    suggestions={catalog.suggestions}
+                  />
+                )}
               />
-            )}
-          />
-        )}
+              <Collapsible>
+                <CollapsibleTrigger>
+                  <Text voice="label">Macro browser</Text>
+                </CollapsibleTrigger>
+                <CollapsiblePanel>
+                  <MacroBrowser catalog={catalog} />
+                </CollapsiblePanel>
+              </Collapsible>
+            </Stack>
+          );
+        }}
       </form.Subscribe>
     </Stack>
   );

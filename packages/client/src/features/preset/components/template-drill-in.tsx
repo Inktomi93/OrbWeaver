@@ -17,6 +17,7 @@ import type { TemplateCapability } from "@orb/contracts/preset";
 import { MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
 import { isPresetProseSlotId, PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
+import type { PresetId } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
@@ -50,11 +51,13 @@ const DEPTH_PLACEHOLDER = "0 · tail";
 
 export interface TemplateDrillInProps {
   readonly form: PresetForm;
+  /** The preset being edited, for the macro completion's source ref. */
+  readonly presetId: PresetId;
   readonly row: TemplateRow;
   readonly onBack: () => void;
 }
 
-export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): ReactElement {
+export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillInProps): ReactElement {
   const { def } = row;
   // Focus lands on the way OUT, not on <body> (side-eye F-04) — the chevron that opened this editor is
   // gone with the list. The RESTORE half is the list's (`actions-view.tsx`).
@@ -91,7 +94,7 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
 
       {/* NO "Template" kicker over a field ALSO labelled "Template" (side-eye F-32): the drill-in header
           names the template, the field label names the slot — two levels, not three. */}
-      <TemplateBody form={form} row={row} />
+      <TemplateBody form={form} presetId={presetId} row={row} />
 
       <CapabilityFields form={form} row={row} />
     </Stack>
@@ -104,7 +107,7 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
  *  NO FIELD LABEL (side-eye F-32): the drill-in header already names the template and the cluster kicker
  *  already says "Template", so a third label on the textarea was the same word at three levels. The
  *  accessible name moves to `aria-label` — the datum reaches AT, the eye stops reading it twice. */
-function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: TemplateRow }): ReactElement {
+function TemplateBody({ form, presetId, row }: { readonly form: PresetForm; readonly presetId: PresetId; readonly row: TemplateRow }): ReactElement {
   const { def, factoryDefault } = row;
   const defId = def.id;
   const placeholder = factoryDefault;
@@ -113,7 +116,7 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
     return <ProseTemplateBody form={form} label={label} placeholder={placeholder} slotId={defId} />;
   }
   return (
-    <PresetMacroSuggestions form={form}>
+    <PresetMacroSuggestions form={form} presetId={presetId}>
       {(suggestions): ReactElement =>
         !isGuidedActionKind(defId) ? (
           <form.AppField name={`formatStrings.${defId}`}>

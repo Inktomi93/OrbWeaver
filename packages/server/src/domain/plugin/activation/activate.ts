@@ -246,7 +246,7 @@ export function createActivate(
           throw err;
         }
       });
-    const scope: PluginActivationScope = { slug, installer: input.caller, matchAutomationEvents };
+    const scope: PluginActivationScope = { pluginId: input.pluginId, slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {
       handles = register(ctx, instance, invoke, scope);

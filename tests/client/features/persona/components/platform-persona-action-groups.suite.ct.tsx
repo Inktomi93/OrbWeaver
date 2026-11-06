@@ -21,6 +21,7 @@ const READS = [
   "persona.listConnectedCharacters",
   "character.list",
   "preset.get",
+  "plugin.listMacros",
   "persona.export",
   "persona.duplicate",
   "persona.create",

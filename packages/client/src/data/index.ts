@@ -85,6 +85,7 @@ export { useOpenRefinery } from "./use-open-refinery.ts";
 export type { PluginDisplayRow } from "./use-plugin-display-text.ts";
 export { usePluginDisplayText } from "./use-plugin-display-text.ts";
 export { usePluginFrameSrc } from "./use-plugin-frame.ts";
+export { usePluginMacroPlanes } from "./use-plugin-macro-planes.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
 export { useReattributePersona } from "./use-reattribute-persona.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";

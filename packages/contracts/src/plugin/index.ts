@@ -68,6 +68,8 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
+export type { PluginMacroView } from "./macro-view.ts";
+export { pluginMacroViewSchema } from "./macro-view.ts";
 export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,

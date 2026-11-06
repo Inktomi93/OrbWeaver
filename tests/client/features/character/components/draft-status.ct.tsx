@@ -15,6 +15,7 @@ const EDITOR_READS = [
   "settings.getUserSettings",
   "character.get",
   "preset.get",
+  "plugin.listMacros",
   "chat.listChats",
   "regex.listForCharacter",
   "tag.listPendingSuggestions",

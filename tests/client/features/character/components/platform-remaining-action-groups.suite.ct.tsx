@@ -140,6 +140,7 @@ for (const regime of REGIMES) {
           "character.get",
           "character.update",
           "preset.get",
+          "plugin.listMacros",
           "chat.listChats",
           "regex.listForCharacter",
           "tag.listPendingSuggestions",

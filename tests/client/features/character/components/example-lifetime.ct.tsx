@@ -32,6 +32,7 @@ test("example preview retains native link consent for identical reads and drops 
       "settings.getUserSettings",
       "character.get",
       "preset.get",
+      "plugin.listMacros",
       "chat.listChats",
       "regex.listForCharacter",
       "tag.listPendingSuggestions",

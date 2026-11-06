@@ -32,13 +32,12 @@ import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
  *  authoring error (a bad name, or a builtin clash); the volatile-only freeze registry carries fewer
  *  builtins, so ITS refusal set would under-report. The ruled preset↔game shadow was already applied by
  *  {@link shadowPresetUserMacros} and never surfaces here as a rejection. */
-function registerGroup(
+function registerGroup<K extends MacroSourceKind>(
   registries: { readonly render: MacroRegistry; readonly freeze: MacroRegistry },
-  group: UserMacroDefGroup,
-  kind: MacroSourceKind,
+  group: UserMacroDefGroup<K>,
   inputBindings: Readonly<Record<string, Record<string, string>>>,
 ): readonly RejectedUserMacro[] {
-  const opts = { source: { kind, id: group.id } as const, inputBindings };
+  const opts = { source: group.source, inputBindings };
   const { rejected } = registerUserMacros(registries.render, group.defs, opts);
   registerUserMacros(registries.freeze, group.defs, opts);
   return rejected;
@@ -54,7 +53,8 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   // The PLUGIN group (U6) is deliberately NOT in the shadow computation: its names are host-assigned
   // (`plugin_<slug'>_<name>`), so it cannot clash with a builtin, and the game↔preset shadow rule is about two
   // AUTHORING homes competing for one name — a namespace is not a competitor.
-  const pluginDefs = args.plugin?.defs ?? [];
+  const pluginGroups = (args.plugin ?? []).filter((group) => group.defs.length > 0);
+  const pluginDefs = pluginGroups.flatMap((group) => group.defs);
   if (gameDefs.length === 0 && presetDefs.length === 0 && pluginDefs.length === 0) {
     return null;
   }
@@ -84,12 +84,12 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   // GAME FIRST — kit refuses a name already registered, so registration order IS the precedence (the
   // shadow filter above already removed the preset defs this would otherwise refuse).
   const rejected = [
-    ...(args.game !== undefined ? registerGroup(registries, args.game, "game", inputBindings) : []),
-    ...registerGroup(registries, { id: args.preset.id, defs: presetDefs }, "preset", inputBindings),
+    ...(args.game !== undefined ? registerGroup(registries, args.game, inputBindings) : []),
+    ...registerGroup(registries, { source: args.preset.source, defs: presetDefs }, inputBindings),
     // Plugin macros register LAST: kit refuses a name already taken, so an author who deliberately spells a
     // `plugin_*` name keeps their own definition. Their source attribution is the THIRD `MacroSourceKind`
     // member — the macro browser must not tell a person to edit a preset that does not contain the macro.
-    ...(args.plugin !== undefined && pluginDefs.length > 0 ? registerGroup(registries, args.plugin, "plugin", inputBindings) : []),
+    ...pluginGroups.flatMap((group) => registerGroup(registries, group, inputBindings)),
   ];
 
   return { registry, freezeRegistry, draws, rejected };
