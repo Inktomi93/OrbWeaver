@@ -379,5 +379,6 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 
 - **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
 - **The keyboard:** measure the visual viewport against the CSS frame (`packages/ui/src/lib/keyboard-inset.ts`). Subtract only its remaining coverage. Preserve keyboard state while native layout resizing removes that coverage.
-- **The short room:** under the `shell-main` cq-28 height step, room chrome rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
+- **The short room:** under the `shell-main` cq-28 height step, the member strip rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
+- **The history pager:** Earlier messages rides in the transcript's scroll content in every regime, above the oldest loaded row. A keyboard reader reaches it from any row; it pins over the rows while it holds focus, and the rows stay put.
 - **`env(safe-area-inset-*)`** on shell and composer. Contain scroll chaining in scroll regions; suppress elastic overscroll on the room frame without disabling its overflow. Set `inputmode`/`type=` on inputs.
