@@ -50,6 +50,14 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 `range()` returns `{ start, end }` with `line`, `column` and `index`. `index` is a UTF-8 byte offset.
 
+Semantic analysis gives bindings, not types. To prove which component a JSX name is:
+
+1. Set `semantic_analysis: workspace` on the workflow step, and target the package root so the other package is indexed.
+2. Call `definition()` on the name. It returns the `import_specifier` in this file; read the module from its `import_statement`.
+3. Call `definition()` on that specifier. It returns `kind: "external"` and the barrel file in the other package. Each barrel costs one more hop.
+
+Run `tsc` after the rewrite for anything that needs a type.
+
 ## Edit
 
 ```ts
