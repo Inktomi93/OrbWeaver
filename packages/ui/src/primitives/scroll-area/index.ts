@@ -1,2 +1,2 @@
 export { ScrollArea } from "./scroll-area.tsx";
-export { useScrollFadeX, useScrollFadeY } from "./scroll-fade.ts";
+export { syncScrollFade, useScrollFadeX, useScrollFadeY } from "./scroll-fade.ts";

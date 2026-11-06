@@ -49,11 +49,11 @@ import { randomBytes } from "node:crypto";
 import process from "node:process";
 import { budget } from "../host/load-budget.ts";
 import type { ProcessEntry } from "../host/platform.ts";
-import { listProcesses } from "../host/platform.ts";
+import { listProcesses, processCompletion } from "../host/platform.ts";
 import type { TranscriptTeardown } from "./proc-contract.ts";
 import { exportProcessEnv, processEnvValue } from "./process-env.ts";
-import type { RunMarkerDeps, RunMarkerJoinDeps, RunMarkerSweep } from "./run-marker-join.ts";
-import { sweepAndJoin } from "./run-marker-join.ts";
+import type { RunMarkerDeps, RunMarkerSweep } from "./run-marker-join.ts";
+import { incarnationGuard, sweepAndJoin } from "./run-marker-join.ts";
 
 export type { RunMarkerDeps, RunMarkerSweep } from "./run-marker-join.ts";
 
@@ -232,28 +232,39 @@ function defaultSleep(ms: number): Promise<void> {
 
 /** THE SWEEP. Signal every process carrying `marker`: SIGTERM, a grace, then SIGKILL to whatever is left.
  *  Called AFTER the process-group kill, never instead of it — the group kill is what reaps the ordinary
- *  tree, and this reaps what left the group. */
+ *  tree, and this reaps what left the group. EVERY signal passes the incarnation guard, so a pid that was
+ *  replaced during the grace is a different process and never receives the KILL. */
 export async function sweepRunMarker(marker: string, deps: RunMarkerDeps = {}): Promise<RunMarkerSweep> {
-  const signal = deps.signal ?? signalPid;
+  const guard =
+    deps.guard ??
+    incarnationGuard(marker, {
+      read: deps.completionOf ?? processCompletion,
+      select: () => markedPids(marker, deps),
+      signal: deps.signal ?? signalPid,
+    });
   const alive = deps.alive ?? aliveBySignal;
   const sleep = deps.sleep ?? defaultSleep;
-  const terminated = markedPids(marker, deps);
-  for (const pid of terminated) {
-    signal(pid, "SIGTERM");
+  const terminated: number[] = [];
+  for (const pid of markedPids(marker, deps)) {
+    if (guard.signal(pid, "SIGTERM")) {
+      terminated.push(pid);
+    }
   }
   if (terminated.length === 0) {
     return { marker, terminated, killed: [] };
   }
   await sleep(budget(SWEEP_GRACE_BASE_MS));
-  const killed = terminated.filter((pid) => alive(pid));
-  for (const pid of killed) {
-    signal(pid, "SIGKILL");
+  const killed: number[] = [];
+  for (const pid of terminated.filter((candidate) => alive(candidate))) {
+    if (guard.signal(pid, "SIGKILL")) {
+      killed.push(pid);
+    }
   }
   return { marker, terminated, killed };
 }
 
 /** Join exact signalled identities before deleting data an escaped consumer could still use. */
-export async function joinRunMarkerSweep(marker: string, deps: RunMarkerJoinDeps = {}): Promise<RunMarkerSweep> {
+export async function joinRunMarkerSweep(marker: string, deps: RunMarkerDeps = {}): Promise<RunMarkerSweep> {
   return await sweepAndJoin(marker, deps, { ownerPid: runMarkerOwnerPid, sweep: sweepRunMarker, select: markedPids, signal: signalPid, sleep: defaultSleep });
 }
 

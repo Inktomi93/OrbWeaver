@@ -34,7 +34,6 @@ export type CelBindings = Record<string, unknown>;
 export interface CelParseError {
   readonly kind: "cel-parse-error";
   readonly message: string;
-  readonly code: string;
 }
 
 /** A compiled, reusable CEL program. Opaque by design — `evaluate` is the captured runner and exposes
@@ -42,7 +41,6 @@ export interface CelParseError {
  *  {@link evalCel}, never directly. */
 export interface CelProgram {
   readonly kind: "cel-program";
-  readonly source: string;
   /** @internal — the captured evaluator; go through evalCel (it normalizes + wraps eval errors). */
   readonly evaluate: (bindings: CelBindings) => unknown;
   /** Every ROOT IDENTIFIER this program reads, in first-seen order — "which named bindings does this
@@ -105,10 +103,10 @@ export function isCelParseError(value: CelProgram | CelParseError): value is Cel
  *  {@link CelProgram} or a {@link CelParseError} — NEVER throws (parse-time errors are values here). */
 export function parseCel(source: string): CelProgram | CelParseError {
   if (!source.isWellFormed()) {
-    return { kind: "cel-parse-error", code: "invalid-utf16", message: "CEL source contains an unpaired UTF-16 surrogate" };
+    return { kind: "cel-parse-error", message: "CEL source contains an unpaired UTF-16 surrogate" };
   }
   if (utf8ByteLength(source) > CEL_MAX_SOURCE_BYTES) {
-    return { kind: "cel-parse-error", code: "source-too-long", message: `CEL source exceeds the ${CEL_MAX_SOURCE_BYTES}-byte cap` };
+    return { kind: "cel-parse-error", message: `CEL source exceeds the ${CEL_MAX_SOURCE_BYTES}-byte cap` };
   }
   // the parse error is returned as a CelParseError value, and each caller branches on
   // isCelParseError: validate.ts throws RuleValidationError("bad_cel"), dry-run.ts evaluatePredicate returns { error }, macro/registry.ts reports it
@@ -120,7 +118,6 @@ export function parseCel(source: string): CelProgram | CelParseError {
     const ast: ASTNode = program.ast;
     return {
       kind: "cel-program",
-      source,
       evaluate: (bindings): unknown => program(bindings),
       rootIdentifiers: (): readonly string[] => {
         const out: string[] = [];
@@ -130,11 +127,11 @@ export function parseCel(source: string): CelProgram | CelParseError {
     };
   } catch (err) {
     if (err instanceof ParseError) {
-      return { kind: "cel-parse-error", code: err.code, message: err.summary };
+      return { kind: "cel-parse-error", message: err.summary };
     }
     // A non-ParseError from parse() is unexpected; surface it as a parse error rather than throwing —
     // the caller's contract is "parseCel never throws".
-    return { kind: "cel-parse-error", code: "parse-failed", message: err instanceof Error ? err.message : String(err) };
+    return { kind: "cel-parse-error", message: err instanceof Error ? err.message : String(err) };
   }
 }
 

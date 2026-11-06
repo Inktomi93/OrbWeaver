@@ -61,6 +61,9 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },
   { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
+  // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
+  { kind: "token", name: "--default-border-width", to: "--border-width-default" },
+  { kind: "token", name: "--default-ring-width", to: "--border-width-default" },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];

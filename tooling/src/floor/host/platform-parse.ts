@@ -53,6 +53,7 @@ export interface ProcessCompletionOwner {
   readonly identity: string;
 }
 
+const PS_STATE_START_RE = /^(?<state>[A-Za-z]\S*)[ \t]+(?<start>[A-Z][a-z]{2}[ \t]+[A-Z][a-z]{2}[ \t]+\d{1,2}[ \t]+\d{2}:\d{2}:\d{2}[ \t]+\d{4})$/u;
 const WHITESPACE_RE = /\s+/u;
 const DECIMAL_RE = /^\d+$/u;
 const SS_PID_RE = /pid=(\d+)/u;
@@ -428,6 +429,40 @@ export function parseCimProcesses(json: string): readonly ProcessEntry[] {
   }
   const parsed: unknown = JSON.parse(text);
   return (Array.isArray(parsed) ? parsed : [parsed]).map(cimRow).filter((row): row is ProcessEntry => row !== null);
+}
+
+/** `ps -o stat=,lstart= -p <pid>`: the state flags, then the start time at one-second resolution, such as
+ *  `Ss   Thu Nov  6 14:03:22 2026`. The identity is the start time with its padding collapsed; a leading `Z`
+ *  is a zombie. Null for anything else, including more than one row. */
+export function parsePsCompletion(output: string): ProcessCompletion | null {
+  const match = PS_STATE_START_RE.exec(output.trim());
+  const state = match?.groups?.["state"];
+  const start = match?.groups?.["start"];
+  if (state === undefined || start === undefined) {
+    return null;
+  }
+  const identity = start.replaceAll(/[ \t]+/gu, " ");
+  return state.startsWith("Z") ? { kind: "zombie", identity } : { kind: "live", identity };
+}
+
+/** The targeted Win32_Process identity read of one pid: `[{"pid":1234,"identity":"<UTC ticks>"}]`, or `[]` when
+ *  no such process exists. Null for a row that does not name this pid with a tick identity. */
+export function parseCimCompletion(json: string, pid: number): ProcessCompletion | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length > 1) {
+    return null;
+  }
+  if (parsed.length === 0) {
+    return { kind: "gone" };
+  }
+  const row = parsed[0] as Record<string, unknown> | null;
+  const identity = row?.["identity"];
+  return row?.["pid"] === pid && typeof identity === "string" && DECIMAL_RE.test(identity) ? { kind: "live", identity } : null;
 }
 
 /** The ordinary Linux `/proc` NUL-separated argv or environ blob as one space-joined string. */

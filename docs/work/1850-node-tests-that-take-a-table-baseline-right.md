@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: testing
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Settle node tests that take a table baseline right after creating a harness through the harness, so they cannot race the background character seed.
 
 ## Why
 
-The symptom or the ruling behind it.
+A baseline taken while the seed still writes rows can include or miss seeded rows, so the test fails on some runs.
 
 ## Done when
 
-The observable bar a verifier can check.
+Every node test that reads a table baseline after creating a harness waits on the harness settle step first, and repeated whole-suite runs show no such flake.
 
 ## Evidence
 

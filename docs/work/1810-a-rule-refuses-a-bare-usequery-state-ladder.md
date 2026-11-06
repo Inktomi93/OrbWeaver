@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: client
 blocked: on 1815
@@ -12,15 +12,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Add a lint rule that refuses a hand-written useQuery state ladder in features outside the cited homes, once the table in item 1762 is final.
 
 ## Why
 
-The symptom or the ruling behind it.
+A feature that branches by hand on a query's loading, error and data states drifts from the shared handling that the other features use.
 
 ## Done when
 
-The observable bar a verifier can check.
+The rule is on at error with no baseline, and the law line in docs/law/client-architecture-lockdown.md names it. A fixture with a bare ladder fails the rule, and a fixture in a cited home passes.
 
 ## Evidence
 

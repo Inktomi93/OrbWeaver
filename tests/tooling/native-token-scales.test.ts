@@ -41,9 +41,45 @@ const RESTRICTED = [
   "border-s-warning/40",
   "text-destructive-foreground/80",
   "data-selected:ring-tone-edge/60",
+  // The same colour read through the variable it compiles from, which an opacity modifier mixes the same way.
+  "bg-(--color-primary)/50",
+  "text-(--color-tone-text)/60",
+  "border-(color:--color-destructive-foreground)/40",
+  // D336: a translucent neutral colour, under any utility, variant or spelling.
+  "bg-muted/40",
+  "bg-card/80",
+  "text-muted-foreground/60",
+  "hover:bg-foreground/45",
+  "data-drag-over:bg-accent/hover",
+  "bg-(--color-foreground)/45",
+  "text-(--color-muted-foreground)/60",
+  "bg-current/50",
+  "hover:text-current/60",
+  // A numeric focus ring offset or outline width; the focus tokens spell both.
+  "ring-offset-2",
+  "focus-visible:ring-offset-4",
+  "outline-2",
+  "focus-visible:outline-offset-2",
+  "-outline-offset-2",
 ];
-/** The opaque D336 roles and a translucent neutral-ramp colour, which carries no meaning of its own. */
-const OPAQUE_TONE_ROLES = "bg-tone-tint border-tone-edge text-tone-text-on-tint hover:bg-tone-solid-hover bg-muted/40 bg-card/80";
+/** The message each D336 colour row and the focus row answer with, so a row cannot be satisfied by another row's refusal. */
+const ROW_MESSAGES = [
+  ["bg-primary/10", "An opacity modifier on an intent or tone colour"],
+  ["bg-(--color-primary)/50", "An opacity modifier on an intent or tone colour"],
+  ["bg-muted/40", "An opacity modifier on a neutral colour"],
+  ["bg-(--color-foreground)/45", "An opacity modifier on a neutral colour"],
+  ["bg-current/50", "An opacity modifier on a neutral colour"],
+  ["ring-offset-2", "A numeric ring offset or outline width"],
+  ["outline-2", "A numeric ring offset or outline width"],
+] as const;
+/** The opaque D336 roles, the neutral colours and element opacity steps that replace a translucent neutral, and the zero and token focus spellings. */
+const OPAQUE_TONE_ROLES = [
+  "bg-tone-tint border-tone-edge text-tone-text-on-tint hover:bg-tone-solid-hover",
+  "bg-muted bg-card text-muted-foreground bg-foreground bg-current",
+  "bg-(--color-foreground) group/card peer/input group-hover/card:flex @container/sidebar",
+  "ring-offset-0 outline-ring ring-offset-background",
+  "ring-offset-(length:--focus-ring-offset) outline-(length:--border-width-rule) outline-offset-(--focus-ring-offset) -outline-offset-(length:--border-width-rule)",
+].join(" ");
 const STRUCTURAL_ARBITRARY = "h-(--height-scroll-md) grid-cols-[auto_minmax(0,1fr)] grid-cols-[repeat(auto-fill,var(--width-cell-fixed))] flex-2 max-h-1/2";
 const UI_AUTHORED_CLASS = "orb-weave-glow";
 const CLIENT_AUTHORED_CLASS = "shell-panel";
@@ -253,6 +289,9 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(RESTRICTED.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RESTRICTED.map(() => 1));
     expect(lintWith(RESTRICTED_RULE, `cn("${STRUCTURAL_ARBITRARY}");`)).toEqual([]);
     expect(lintWith(RESTRICTED_RULE, `cn("${OPAQUE_TONE_ROLES}");`)).toEqual([]);
+    expect(ROW_MESSAGES.map(([candidate, message]) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`)[0]?.startsWith(message))).toEqual(
+      ROW_MESSAGES.map(() => true),
+    );
     expect(IMPORTANT.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(IMPORTANT.map(() => 1));
     expect(RETIRED_GATE_CONTROLS.map((candidate) => lintWith(RESTRICTED_RULE, `cn("${candidate}");`).length)).toEqual(RETIRED_GATE_CONTROLS.map(() => 1));
     // The retired gates read every string literal; the patterns reach exported constants and their object values too.
@@ -291,4 +330,4 @@ test("effective UI/client native rules reject stock classes in real class carrie
     expect(lint(nonClassAttribute)).toEqual([]);
     expect(lint('tv({ base: "rounded-card", defaultVariants: { size: "shadow" } });')).toEqual([]);
   }
-});
+}, 120_000);

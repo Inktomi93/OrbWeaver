@@ -1,10 +1,11 @@
-// Shared focus-ring class fragments, extracted so a drift (e.g. ring-offset-2 without
+// Shared focus-ring class fragments, extracted so a drift (e.g. a ring offset without
 // ring-offset-background, painting a white halo on dark themes) is structurally impossible.
+// The ring's weight and its offset are tokens (`--border-width-rule`, `--focus-ring-offset`); no fragment spells a number.
 // _WITHIN is for input-group wrappers whose focusable child is nested; _HAS is for a decorative root
 // wrapping an invisible input; _INSET drops the offset for a ring that must stay inside its own box;
 // _DESTRUCTIVE composes ALONGSIDE (never instead of) FOCUS_RING.
 export const FOCUS_RING =
-  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-(length:--focus-ring-offset) focus-visible:ring-offset-background";
 
 // The offset moat must match the SURFACE UNDER the control, not the page background — on a
 // sidebar-toned surface (rail, docked panels) or a popover-toned surface (menu/select/combobox
@@ -12,13 +13,13 @@ export const FOCUS_RING =
 // Same shape as FOCUS_RING; only the offset color differs. GLASS surfaces prefer FOCUS_RING_INSET
 // (a solid offset can't match a translucent fill).
 export const FOCUS_RING_ON_SIDEBAR =
-  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar";
+  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-(length:--focus-ring-offset) focus-visible:ring-offset-sidebar";
 
 export const FOCUS_RING_ON_POPOVER =
-  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover";
+  "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-offset-(length:--focus-ring-offset) focus-visible:ring-offset-popover";
 
 export const FOCUS_RING_WITHIN =
-  "focus-within:ring-(length:--border-width-rule) focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background";
+  "focus-within:ring-(length:--border-width-rule) focus-within:ring-ring focus-within:ring-offset-(length:--focus-ring-offset) focus-within:ring-offset-background";
 
 // _WITHIN_INSET is _WITHIN's moat-less form, for a wrapper that is ITSELF a surface (the command panel:
 // its own border + `bg-popover`) and whose host tone VARIES by consumer — the six pickers drop the same
@@ -28,7 +29,7 @@ export const FOCUS_RING_WITHIN =
 export const FOCUS_RING_WITHIN_INSET = "focus-within:ring-(length:--border-width-rule) focus-within:ring-ring focus-within:ring-inset";
 
 export const FOCUS_RING_HAS =
-  "has-[:focus-visible]:ring-(length:--border-width-rule) has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background";
+  "has-[:focus-visible]:ring-(length:--border-width-rule) has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-(length:--focus-ring-offset) has-[:focus-visible]:ring-offset-background";
 
 export const FOCUS_RING_INSET = "focus-visible:ring-(length:--border-width-rule) focus-visible:ring-ring focus-visible:ring-inset";
 
@@ -56,9 +57,16 @@ export const FOCUS_RING_ON_STATE_RING = "focus-visible:ring-foreground";
 // `outline` is a separate paint property, so it composes with any shadow instead of competing for it.
 // The element must NOT also carry `outline-none`: Tailwind v4's `outline-none` sets
 // `--tw-outline-style: none`, and the width utility resolves its style FROM that variable, so a
-// `focus-visible:outline-2` layered on top still computes `outline-style: none` (the exact trap the
+// width utility layered on top still computes `outline-style: none` (the exact trap the
 // toast fell into). Rest is already outline-less by UA default — there is nothing to reset.
-export const FOCUS_RING_OUTLINE = "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2";
+export const FOCUS_RING_OUTLINE =
+  "focus-visible:outline-(length:--border-width-rule) focus-visible:outline-ring focus-visible:outline-offset-(--focus-ring-offset)";
+
+// _OUTLINE_INSET is _OUTLINE stepped in by its own weight, so the whole band paints inside the box. A box that fills its
+// scrollport (a transcript row) has its outer band clipped on every side the port edge meets, and an outline outside the
+// box of a row taller than the port is clipped away entirely.
+export const FOCUS_RING_OUTLINE_INSET =
+  "focus-visible:outline-(length:--border-width-rule) focus-visible:outline-ring focus-visible:-outline-offset-(length:--border-width-rule)";
 
 /** No ring of its own: a field inside a host box that draws the focus state for it (the composer card). */
 export const FOCUS_RING_NONE = "focus-visible:ring-0 focus-visible:ring-offset-0";

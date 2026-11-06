@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P2
 area: ui
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Stop the persona avatar from covering the Databank rail button at 844x390, so a tap on the button's centre reaches the button.
 
 ## Why
 
-The symptom or the ruling behind it.
+At 844x390 the avatar covers a third of the button and a tap on its centre lands on the avatar. The design audit flags it on main and on the short-regime branch.
 
 ## Done when
 
-The observable bar a verifier can check.
+At 844x390 the element at the centre of the Databank rail button is the button, shown by a component test or a snap check, and the design audit no longer flags it.
 
 ## Evidence
 

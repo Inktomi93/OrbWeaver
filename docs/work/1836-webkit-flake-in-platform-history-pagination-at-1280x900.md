@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: testing
 ---
@@ -10,15 +10,15 @@ area: testing
 
 ## What
 
-The change, in a sentence.
+Find why platform-history-pagination times out in WebKit at 1280x900 flat, and remove the cause without raising the timeout.
 
 ## Why
 
-The symptom or the ruling behind it.
+The flake is also seen in Chromium: line 114 of the suite timed out once at 390x844 under load, then passed on repeats. The Evidence holds the sighting.
 
 ## Done when
 
-The observable bar a verifier can check.
+The suite passes repeated consecutive WebKit and Chromium runs under whole-suite load at both sizes.
 
 ## Evidence
 

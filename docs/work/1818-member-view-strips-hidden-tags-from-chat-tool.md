@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: chat
 ---
@@ -10,15 +10,15 @@ area: chat
 
 ## What
 
-The change, in a sentence.
+Make projectViewForMember strip hidden tags from the arguments and the result of chat tool-call records.
 
 ## Why
 
-The symptom or the ruling behind it.
+projectViewForMember keeps toolCalls arguments and result verbatim. listDrivableToolNames in packages/server/src/domain/tool-use/teaching-contribution.ts attaches host plugin tools with no game gate, so a model that writes a hidden tag into a tool argument reaches a member. This is the same member promise on another field.
 
 ## Done when
 
-The observable bar a verifier can check.
+A red test with a real member principal reads a tool call whose arguments and result hold a hidden tag, then turns green after the fix. It uses the decode-first shape of RpgRecordedToolCall.
 
 ## Evidence
 

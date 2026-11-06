@@ -278,7 +278,7 @@ export function Markdown({
         className={
           cn(
             "space-y-0 wrap-break-word whitespace-normal [&_em]:text-narration [&>*:first-child]:mbs-0 [&>*:last-child]:mbe-0",
-            "[&_blockquote]:border-s-heavy [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:ps-block",
+            "[&_blockquote]:border-s-heavy [&_blockquote]:border-muted-foreground [&_blockquote]:py-row [&_blockquote]:ps-block",
             // The thematic break's SEPARATION (H19). The element itself is ours now (`rule-component.tsx`
             // owns its ink), but the gap is spelled HERE, as a descendant variant, for the same reason the
             // blockquote's is: the root's own `space-y-0` trim governs a direct child's block margins, and

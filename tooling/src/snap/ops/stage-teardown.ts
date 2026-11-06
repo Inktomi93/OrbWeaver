@@ -28,9 +28,11 @@ import process from "node:process";
 import { activeRunSlot } from "../../floor/artifacts/artifact-out.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { listeningPids } from "../../floor/host/platform.ts";
+import { listeningPids, processCompletion } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
-import { killPidGroup, runNicedSync } from "../../floor/process/proc.ts";
+import type { GroupSignal } from "../../floor/process/incarnation.ts";
+import { pinnedGroupStop } from "../../floor/process/incarnation.ts";
+import { observeProcessGroup, runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { escalateStopSync } from "../../floor/process/stop-escalation.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
@@ -48,8 +50,11 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 const REAL_STOP_DEPS: StageStopDeps = {
   readPorts: () => listeningPids(),
   isStageRooted: pidIsStageRooted,
-  groupOf: processGroupTarget,
-  signalGroup: killPidGroup,
+  incarnationOf: processCompletion,
+  captureGroup: (pid) => {
+    const target = processGroupTarget(pid);
+    return target === null ? null : observeProcessGroup(target);
+  },
   wait: waitSync,
   runLauncher: (spawn, opts) => {
     runNicedSync(spawn.command, spawn.args, { cwd: opts.cwd, env: inheritedProcessEnv(opts.env), stdio: "inherit" });
@@ -70,13 +75,21 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
   if (owner.kind === "unknown") {
     return `:${port} is still held by an owner the OS will not name`;
   }
-  const target = deps.isStageRooted(owner.pid) ? deps.groupOf(owner.pid) : null;
-  if (target === null) {
+  // Read before the stage-root judgment: a pid reused between the two then fails the identity check at the signal.
+  const pinned = deps.incarnationOf(owner.pid);
+  const group = deps.isStageRooted(owner.pid) ? deps.captureGroup(owner.pid) : null;
+  if (group === null) {
     return `:${port} is still held by pid ${owner.pid}, not a stage group this could kill`;
+  }
+  if (pinned.kind === "unknown") {
+    return `:${port} is still held by pid ${owner.pid}, whose identity could not be read before a stop`;
   }
   // A table that stops answering ends the wait; its reason outranks the wait's own result.
   const lost: string[] = [];
+  const stop = pinnedGroupStop(group, { pid: owner.pid, pinned, read: deps.incarnationOf, subject: `stage pid ${String(owner.pid)}` });
   const free = (): boolean => {
+    // The group is polled with the port: once it reads empty its id is no longer ours to signal.
+    stop.occupied();
     const read = deps.readPorts();
     if (read.kind === "refused") {
       lost.push(read.reason);
@@ -84,9 +97,21 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
     }
     return !read.value.has(port);
   };
-  const freed = escalateStopSync({ signal: (signal) => deps.signalGroup(target, signal), gone: free }, deps.wait);
+  // The group is pinned above: a holder that exits on TERM does not spare members still holding the port, and a
+  // group seen empty or a holder pid reused by another process is never signalled again.
+  const results: GroupSignal[] = [];
+  const signal = (kind: NodeJS.Signals): void => {
+    results.push(stop.signal(kind));
+  };
+  const freed = escalateStopSync({ signal, gone: free }, deps.wait);
   if (lost.length > 0) {
     return `cannot confirm :${port} was released after stopping pid ${owner.pid} — ${lost.join("; ")}`;
+  }
+  if (results.includes("replaced") && !freed) {
+    return `:${port} is still held by pid ${owner.pid}, which is no longer the process this stop began on; its group was not signalled again`;
+  }
+  if (!(stop.occupied() || freed)) {
+    return `:${port} is still held after the process group of pid ${owner.pid} emptied; the holder is outside that group, which was not signalled again`;
   }
   if (!freed) {
     return `:${port} is still held by pid ${owner.pid} after TERM and KILL to its group`;

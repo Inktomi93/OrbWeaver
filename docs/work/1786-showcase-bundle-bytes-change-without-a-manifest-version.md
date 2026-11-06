@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
-plan: unwired-code
 area: plugins
+plan: unwired-code
 ---
 
 # Showcase bundle bytes change without a manifest version bump, so seeded installs keep the old bytes
 
 ## What
 
-The change, in a sentence.
+Add a check that fails when a showcase bundle's bytes change and its manifest version does not.
 
 ## Why
 
-The symptom or the ruling behind it.
+A seeded install keeps the bytes it already has when the version is unchanged, so a changed bundle never reaches existing installs.
 
 ## Done when
 
-The observable bar a verifier can check.
+A planted showcase bundle with changed bytes and the same version fails the check. The same bundle with a bumped version, and an unchanged bundle, pass.
 
 ## Evidence
 

@@ -22,7 +22,10 @@ export const colorFieldVariants = tv({
       // focus-visible/active ride pseudo-classes or Base UI's own data-invalid elsewhere; these two
       // need explicit skin since nothing native drives them.
       "data-loading:pointer-events-none data-loading:cursor-wait",
-      "data-success:ring-(length:--border-width-rule) data-success:ring-success data-success:ring-offset-2 data-success:ring-offset-background",
+      `
+        data-success:ring-(length:--border-width-rule) data-success:ring-success data-success:ring-offset-(length:--focus-ring-offset)
+        data-success:ring-offset-background
+      `,
     ],
     popupBody: "flex flex-col gap-field",
     // The native swatch is the FIRST tab stop inside the popup and it had no house focus state at all

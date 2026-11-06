@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/node";
 const ids = createSeededIds();
 const chatId = mintTypeId(ID_PREFIX.chat, ids.next);
 const scopedCharacterId = mintTypeId(ID_PREFIX.character, ids.next);
-const KNOBS = { queryWindow: 2, mode: "mixB", keywordMatch: true, minScore: 0.4, retrieveK: 5, rerankTo: 2 } as const;
+const KNOBS = { mode: "mixB", keywordMatch: true, minScore: 0.4, retrieveK: 5, rerankTo: 2 } as const;
 
 test("the chat scope, the egocentric bucket and each resolved knob ride the query", () => {
   const query = buildRecallQuery(KNOBS, { chatId, scopedCharacterId }, "Aria: b\nAria: c");

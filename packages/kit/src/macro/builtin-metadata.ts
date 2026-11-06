@@ -13,7 +13,7 @@ const KEY_ARG = { name: "key", type: "string", optional: false } as const;
 const VALUE_ARG = { name: "value", type: "string", optional: false } as const;
 const VALUE_ARG_OPT = { name: "value", type: "string", optional: true, default: "" } as const;
 
-// Builder that fills the boilerplate (returnType, empty args/aliases, non-variadic) so each entry below
+// Builder that fills the boilerplate (empty args/aliases, non-variadic) so each entry below
 // stays a single readable line — the fields that vary ride `extra`.
 function meta(
   name: string,
@@ -26,7 +26,6 @@ function meta(
     description,
     category,
     args: extra.args ?? [],
-    returnType: "string",
     aliases: extra.aliases ?? [],
     variadic: extra.variadic ?? false,
     ...(extra.list !== undefined ? { list: extra.list } : {}),

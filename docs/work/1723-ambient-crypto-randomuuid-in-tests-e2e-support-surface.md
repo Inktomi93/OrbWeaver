@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P3
 area: tests
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Seed the ambient crypto.randomUUID calls in tests/e2e/support/surface-sections.ts and surface-chat.ts from the run's id source, or record the reason an e2e support file may use them.
 
 ## Why
 
-The symptom or the ruling behind it.
+Those files mint names with crypto.randomUUID, outside the run's id source. Other tests draw their ids from that source, so a run's names cannot be replayed from its seed.
 
 ## Done when
 
-The observable bar a verifier can check.
+No call to crypto.randomUUID remains in those two files, or a comment beside each call cites the ruling that permits it.
 
 ## Evidence
 

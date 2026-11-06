@@ -105,7 +105,6 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     // it is the CONTENT library's own primary now — one home, in the pane the library occupies. The C-2
     // ruling is untouched; only the create's address changed, which is the same sentence the members'
     // address change is.
-    listSearch: "required",
     useListHeader: configListHeader,
     selection: makeSelectionSeam(),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),

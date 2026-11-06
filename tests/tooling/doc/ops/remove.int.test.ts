@@ -1,19 +1,21 @@
 // `pnpm doc remove` on planted trees: any governed doc nothing cites goes and the indexes follow — an
 // item by id, an ADR, a law doc, a finished plan with its folder. Every citer refuses, all-or-nothing: a
 // link or path, a D citation, an item filed under the plan, an item or parked plan waiting on the item.
+
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { newAdr, newItem, newLaw, newPlan, removeDocs, setStatus } from "../../../../tooling/src/doc/index.ts";
+import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const OPEN = { priority: null, area: null, plan: null, lane: null } as const;
 
 test("remove deletes items, an ADR, a law doc and a finished plan's folder nothing cites, and regenerates the indexes", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  newItem({ title: "Mistake", kind: "work", ...OPEN }, root, TODAY);
-  newItem({ title: "Also a mistake", kind: "work", ...OPEN, blocked: "on 1" }, root, TODAY);
-  newItem({ title: "Keeper", kind: "work", ...OPEN }, root, TODAY);
+  newItem(written({ title: "Mistake", kind: "work", ...OPEN }), root, TODAY);
+  newItem(written({ title: "Also a mistake", kind: "work", ...OPEN, blocked: "on 1" }), root, TODAY);
+  newItem(written({ title: "Keeper", kind: "work", ...OPEN }), root, TODAY);
   newAdr({ slug: "dead", title: "Dead" }, root, TODAY);
   newLaw({ slug: "old-rule", title: null }, root, TODAY);
   newPlan({ slug: "p", title: "P" }, root, TODAY);
@@ -41,12 +43,12 @@ test("remove refuses while anything cites the doc, and a target that is not a go
   const { execFixtureGit } = await import("../../../../tooling/src/floor/git/git-fixture.ts");
   execFixtureGit(root, ["init", "-q", "-b", "main"]);
   execFixtureGit(root, ["add", "-A"]);
-  newItem({ title: "Needed", kind: "work", ...OPEN }, root, TODAY);
-  newItem({ title: "Waiting", kind: "work", ...OPEN, blocked: "on 1" }, root, TODAY);
+  newItem(written({ title: "Needed", kind: "work", ...OPEN }), root, TODAY);
+  newItem(written({ title: "Waiting", kind: "work", ...OPEN, blocked: "on 1" }), root, TODAY);
   newLaw({ slug: "rule", title: null }, root, TODAY);
   expect(newAdr({ slug: "cited", title: "Cited", content: { context: "See `docs/law/rule.md`." } }, root, TODAY).refusals).toEqual([]);
   newPlan({ slug: "p", title: "P" }, root, TODAY);
-  newItem({ title: "Planned", kind: "work", ...OPEN, plan: "p" }, root, TODAY);
+  newItem(written({ title: "Planned", kind: "work", ...OPEN, plan: "p" }), root, TODAY);
   expect(setStatus({ status: "parked", paths: ["docs/plans/p/design.md"], by: null, blocked: "on 1" }, root, TODAY).refusals).toEqual([]);
   expect(removeDocs(["1"], root).refusals).toEqual([
     "docs/work/0002-waiting.md: blocked on 1 — change its blocker first: pnpm doc set 2 open",

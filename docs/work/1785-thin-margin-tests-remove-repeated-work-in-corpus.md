@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: tests
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Remove repeated work from the corpus-image-variants tests, the imageBeforeTool completion case and the theme accent sweep.
 
 ## Why
 
-The symptom or the ruling behind it.
+These tests run close to their time budget under load. The owner rule is to remove repeated work and never raise a timeout.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each of the three finishes well inside its budget in a whole-suite run, and none repeats setup that another case in the same file already does.
 
 ## Evidence
 

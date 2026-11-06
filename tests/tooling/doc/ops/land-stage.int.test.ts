@@ -1,12 +1,14 @@
 // `land --stage`: the landing without the commit. It stages exactly the paths the landing wrote in the
 // checkout's real index and leaves every other path alone, so the caller's own `git commit` carries the
 // item deletion with its final files and the later `land --merged` finds the id already landed.
+
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { landMerged, landStaged, newItem } from "../../../../tooling/src/doc/index.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const SHORT_SHA = 12;
@@ -36,8 +38,8 @@ async function repoWithItems(plantedTree: (files: Readonly<Record<string, string
   git(root, "init", "-q", "-b", "main");
   configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: "lane", content: { what: "Split the ledger." } }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, blocked: "on 1" }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: "lane", content: { what: "Split the ledger." } }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, blocked: "on 1" }), root, TODAY);
   commitAll(root, "chore(work): items");
   return root;
 }
@@ -100,7 +102,7 @@ test("a plain commit after land --stage is likewise landed already for land --me
 
 test("a refused land --stage stages, deletes and writes nothing", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
-  newItem({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }, root, TODAY);
+  newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }), root, TODAY);
   const head = commitAll(root, "chore(work): c");
   const cited = landStaged([1], root, TODAY);
   expect(cited.written).toEqual([]);
@@ -130,7 +132,7 @@ test("a repeated land --stage before the commit says the landing is already stag
 
 test("land --stage lands an item git never tracked, and several ids make one Closes line and one record each", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
-  newItem({ title: "Fresh", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "Never committed." } }, root, TODAY);
+  newItem(written({ title: "Fresh", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "Never committed." } }), root, TODAY);
   const outcome = landStaged([3, 1], root, TODAY);
   expect(outcome.refusals).toEqual([]);
   expect(outcome.staged?.closes).toBe("Closes: 3, 1");

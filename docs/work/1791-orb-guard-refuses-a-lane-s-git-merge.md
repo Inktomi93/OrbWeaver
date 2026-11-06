@@ -1,25 +1,25 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
-plan: test-enforcement
 area: tooling
+plan: test-enforcement
 ---
 
 # orb-guard refuses a lane's git merge, commit or reset in main's checkout
 
 ## What
 
-The change, in a sentence.
+Make orb-guard refuse a lane's git merge, commit or reset when it runs in main's checkout, and name the form to use instead.
 
 ## Why
 
-The symptom or the ruling behind it.
+Only the orchestrator merges to main, and a lane's write in main's checkout bypasses that rule.
 
 ## Done when
 
-The observable bar a verifier can check.
+A git merge, commit and reset run from a lane context in main's checkout are each refused with the right form named. The same commands in the lane's own worktree, and the orchestrator in main, still run.
 
 ## Evidence
 

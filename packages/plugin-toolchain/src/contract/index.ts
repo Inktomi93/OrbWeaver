@@ -13,7 +13,6 @@ export interface PluginAuthorDiagnostic {
 
 export interface PluginAuthorArtifact {
   readonly runtime: PluginAuthorRuntime;
-  readonly sourcePath: string;
   readonly outputPath: string;
   readonly bytes: Uint8Array;
 }

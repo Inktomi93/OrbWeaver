@@ -158,7 +158,7 @@ FLIP may compute its delta in JS instead lives in `motion-and-animation-guide.md
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and
 per-site alpha composition — everything else wants a token. A media condition is spelled through a generated `@variant` (`stylelint` `orb/no-raw-media-condition`); the
-query strings live in `tokens.json`. A query cannot read a variable, so `orb/query-threshold-from-token` binds each `@container` and `@custom-variant` rem threshold to a `--container-cq-*` or `--breakpoint-*` value, in the generated sheet too. Stylelint (`stylelint.config.ts`: `stylelint-config-standard` with Tailwind's
+query strings live in `tokens.json`. A query cannot read a variable, so `orb/query-threshold-from-token` binds each `@container`, bare `@media` and `@custom-variant` rem threshold to a `--container-cq-*` or `--breakpoint-*` value, in the generated sheet too and however the keyword is spaced. Stylelint (`stylelint.config.ts`: `stylelint-config-standard` with Tailwind's
 directives declared, the house allow-lists and the `orb/` rules) owns every CSS check; Biome formats the sheets and
 lints nothing in them, so no site carries two suppressions. `shell.css`'s colour declarations are all
 token-sourced; that paint is legal because it belongs to the shell's own region fills, seams, scrim, and
@@ -243,11 +243,11 @@ Applications: sections (§6) · settings panes (§8) · contributors (§6c) · m
 ### 6a. SectionDefinition (absorbs six structures)
 
 A `SectionDefinition` carries its rail identity, panel defaults, placeholder, content, content-inset declaration, selection title, and context.
-A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
+A list-bearing section declares its selection seam and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
 The shell applies `--spacing-section` as the CONTENT inline inset. Where the shell main is under 20rem wide, an inset region takes `--spacing-block` instead, so a control row of its own width fits. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
-Every LIST pane is a `#components` `ListPage`, which marks its search with `ListSearch`. `orb/page-template-shapes` refuses `ListSearch` in a feature.
-A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
+Every LIST pane is a `#components` `ListPage`, the one home for list search. A section declares no search policy. `ListPage` requires its `search` prop, `orb/page-template-shapes` refuses `ListSearch` in a feature, and `tests/client/features/app-shell/surfaces/section-roster-census.ct.tsx` asserts every rendered roster has a search box.
+The `SectionWithList` type requires `selection` and `useListHeader` with `list`, so `tsc` rejects a list with no band. `tests/client/state/section-registry.dom.test-d.ts` rejects an omitted inset declaration.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 
 - One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; Ownership follows the definition location, not the section name.

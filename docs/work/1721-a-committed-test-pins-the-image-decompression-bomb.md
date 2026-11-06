@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P3
 area: tests
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Add a committed test that pins the image decompression-bomb caps through both doors that accept an image.
 
 ## Why
 
-The symptom or the ruling behind it.
+The caps protect the server only when every door applies them, and one test over both doors keeps a later change in either door from dropping a cap.
 
 ## Done when
 
-The observable bar a verifier can check.
+The test sends an over-cap image through each door and sees a refusal from both. It fails when either door skips its cap.
 
 ## Evidence
 

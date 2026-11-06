@@ -152,7 +152,6 @@ export function isAnimated(bytes: Uint8Array): boolean {
 
 export interface SniffedImage {
   readonly mime: "image/png" | "image/jpeg" | "image/webp" | "image/gif" | "image/avif";
-  readonly ext: "png" | "jpg" | "webp" | "gif" | "avif";
   /** Header-parsed pixel dimensions; `null` when the header is present but truncated/unparseable. */
   readonly width: number | null;
   readonly height: number | null;
@@ -475,7 +474,7 @@ function withDimensionFloor(dimensions: Dimensions): Dimensions {
   return dimensions;
 }
 
-/** The full byte-facts of an image buffer — `{mime, ext, width, height, animated}` — or `null` when no
+/** The full byte-facts of an image buffer — `{mime, width, height, animated}` — or `null` when no
  *  known signature matches (PNG/JPEG/GIF/WebP/AVIF). Pure: never throws, never decodes, never reads past the
  *  bounded header window. The remote `Content-Type` is NEVER consulted — these bytes are the truth.
  *
@@ -485,16 +484,16 @@ export function sniffImageBytes(bytes: Uint8Array): SniffedImage | null {
   const animated = isAnimated(bytes);
   switch (sniffMime(bytes)) {
     case PNG_MIME:
-      return { mime: PNG_MIME, ext: "png", ...withDimensionFloor(pngDimensions(bytes)), animated };
+      return { mime: PNG_MIME, ...withDimensionFloor(pngDimensions(bytes)), animated };
     case JPEG_MIME:
-      return { mime: JPEG_MIME, ext: "jpg", ...withDimensionFloor(jpegDimensions(bytes)), animated };
+      return { mime: JPEG_MIME, ...withDimensionFloor(jpegDimensions(bytes)), animated };
     case GIF_MIME:
-      return { mime: GIF_MIME, ext: "gif", ...withDimensionFloor(gifDimensions(bytes)), animated };
+      return { mime: GIF_MIME, ...withDimensionFloor(gifDimensions(bytes)), animated };
     case WEBP_MIME:
-      return { mime: WEBP_MIME, ext: "webp", ...withDimensionFloor(webpDimensions(bytes)), animated };
+      return { mime: WEBP_MIME, ...withDimensionFloor(webpDimensions(bytes)), animated };
     case OCTET_STREAM:
       if (isAvif(bytes)) {
-        return { mime: AVIF_MIME, ext: "avif", ...withDimensionFloor(avifDimensions(bytes)), animated };
+        return { mime: AVIF_MIME, ...withDimensionFloor(avifDimensions(bytes)), animated };
       }
       return null;
   }

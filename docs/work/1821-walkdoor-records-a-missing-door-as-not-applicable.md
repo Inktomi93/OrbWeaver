@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: testing
 plan: surface-walk
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+Make walkDoor report a missing door as a failure that names the door, not as not applicable.
 
 ## Why
 
-The symptom or the ruling behind it.
+A door listed in the walk table whose trigger no longer exists is recorded as not applicable, so a stale door entry passes in silence.
 
 ## Done when
 
-The observable bar a verifier can check.
+A walk table entry whose trigger is absent fails the walk and names the door. A door that exists and one marked not applicable by its table row both still pass.
 
 ## Evidence
 

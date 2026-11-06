@@ -3,7 +3,22 @@ import { useEffect } from "react";
 
 const EDGE_EPSILON_PX = 1;
 
-function useScrollFade(ref: RefObject<HTMLElement | null>, horizontal: boolean): void {
+export interface ScrollFadeOptions {
+  /**
+   * The caller writes this box's size from its own observer and calls {@link syncScrollFade} after. The hook then leaves the box
+   * unobserved, because observing a box another observer resizes raises a ResizeObserver loop error.
+   */
+  readonly sizedByCaller?: boolean;
+}
+
+const SYNCS = new WeakMap<HTMLElement, () => void>();
+
+/** Recompute an element's edge fades now; for a caller that has just resized an element that took `sizedByCaller`. */
+export function syncScrollFade(el: HTMLElement): void {
+  SYNCS.get(el)?.();
+}
+
+function useScrollFade(ref: RefObject<HTMLElement | null>, horizontal: boolean, { sizedByCaller = false }: ScrollFadeOptions): void {
   useEffect(() => {
     const el = ref.current;
     if (el === null) {
@@ -18,7 +33,9 @@ function useScrollFade(ref: RefObject<HTMLElement | null>, horizontal: boolean):
     const resize = new ResizeObserver(sync);
     const observeContent = (): void => {
       resize.disconnect();
-      resize.observe(el);
+      if (!sizedByCaller) {
+        resize.observe(el);
+      }
       for (const child of el.children) {
         resize.observe(child);
       }
@@ -29,20 +46,22 @@ function useScrollFade(ref: RefObject<HTMLElement | null>, horizontal: boolean):
     content.observe(el, { childList: true, subtree: true, characterData: true });
     observeContent();
     el.addEventListener("scroll", sync, { passive: true });
+    SYNCS.set(el, sync);
     return (): void => {
+      SYNCS.delete(el);
       el.removeEventListener("scroll", sync);
       resize.disconnect();
       content.disconnect();
     };
-  }, [ref, horizontal]);
+  }, [ref, horizontal, sizedByCaller]);
 }
 
 /** Track logical horizontal overflow, including asynchronous content growth and RTL scrolling. */
-export function useScrollFadeX(ref: RefObject<HTMLElement | null>): void {
-  useScrollFade(ref, true);
+export function useScrollFadeX(ref: RefObject<HTMLElement | null>, options: ScrollFadeOptions = {}): void {
+  useScrollFade(ref, true, options);
 }
 
 /** Track vertical overflow when the viewport or its content changes. */
-export function useScrollFadeY(ref: RefObject<HTMLElement | null>): void {
-  useScrollFade(ref, false);
+export function useScrollFadeY(ref: RefObject<HTMLElement | null>, options: ScrollFadeOptions = {}): void {
+  useScrollFade(ref, false, options);
 }

@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
@@ -21,6 +21,8 @@ const OVERSCAN = 2;
  *  the same slot, so a stylesheet that picks a copy by this slot reads one shape. */
 export const MESSAGE_LIST_LEADING_SLOT = "message-list-leading";
 const MESSAGE_LIST_LEADING_ACTION_SLOT = "message-list-leading-action";
+
+const KEEP_IN_VIEW_ATTRIBUTE = "data-keep-in-view";
 
 // The leading action pins while it holds keyboard focus, or while its content asks to stay in view. The fill covers the
 // rows under it on a plain background; over a wallpaper the action's own plate does.
@@ -161,6 +163,9 @@ export function MessageList<T>({
   // virtual-core takes it as `scrollMargin`, so every offset it computes (ends, reveals, pins, a prepend's anchor) counts it.
   const [leadingPx, setLeadingPx] = useState(0);
   const leadingPxRef = useRef(0);
+  // How far the pinned leading action covers the top of the port, read off the box itself (0 while it rides in flow).
+  // virtual-core takes it as `scrollPaddingStart`, so a start-aligned placement (a walk, a reveal, a hold's reveal) lands below it.
+  const [pinPx, setPinPx] = useState(0);
   // The row at the reader's top edge and how far into it they are, kept from the last scroll; null while following.
   const readingRowRef = useRef<ReadingRow | null>(null);
   // The scroller's position as of its last scroll event. Focus reads this rather than the live value because a browser may
@@ -186,15 +191,30 @@ export function MessageList<T>({
         leadingPxRef.current = next;
       }
       setLeadingPx(next);
+      setPinPx(
+        leadingActionNode !== null && getComputedStyle(leadingActionNode).position === "sticky"
+          ? Math.round(leadingActionNode.getBoundingClientRect().height)
+          : 0,
+      );
     };
     measureLeadingRef.current = measure;
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(leadingNode);
+    // The action pins while it holds focus or contains a keep-in-view element; either can change with no resize.
+    const pin = new MutationObserver(measure);
     if (leadingActionNode !== null) {
       observer.observe(leadingActionNode);
+      pin.observe(leadingActionNode, { attributes: true, attributeFilter: [KEEP_IN_VIEW_ATTRIBUTE], childList: true, subtree: true });
+      leadingActionNode.addEventListener("focusin", measure);
+      leadingActionNode.addEventListener("focusout", measure);
     }
-    return (): void => observer.disconnect();
+    return (): void => {
+      observer.disconnect();
+      pin.disconnect();
+      leadingActionNode?.removeEventListener("focusin", measure);
+      leadingActionNode?.removeEventListener("focusout", measure);
+    };
   }, [leadingNode, leadingActionNode]);
   const reducedMotion = usePrefersReducedMotion();
   // Follow-the-tail intent, moved by an external scroll or a row walk, never by virtual-core's own drift.
@@ -270,6 +290,7 @@ export function MessageList<T>({
     gap: Math.round(gapPxFor(gapToken)),
     paddingStart: Math.round(gapPxFor(blockPaddingToken)),
     scrollMargin: leadingPx > 0 ? leadingPx + leadingInsetPx : 0,
+    scrollPaddingStart: pinPx,
     // pin-prompt's bottom spacer: extra scrollable height below the last row so a short reply's pinned
     // prompt can still climb to the top. 0 (= virtual-core default) in `follow` mode → byte-identical.
     paddingEnd: Math.round(gapPxFor(blockPaddingToken) + pinSpacerPx),
@@ -572,14 +593,15 @@ export function MessageList<T>({
       row: (index, rowPx): void => {
         stopHold();
         // A row too tall to show whole opens at its start, and `auto` would show its end. On the last row that is away
-        // from the tail, so the list must not follow, or a re-pin takes the reader to the end anyway.
-        const tall = rowPx > (scrollRef.current?.clientHeight ?? Number.POSITIVE_INFINITY);
+        // from the tail, so the list must not follow, or a re-pin takes the reader to the end anyway. The pinned action
+        // covers the top of the port, so "whole" means whole in the room below it.
+        const tall = rowPx > (scrollRef.current?.clientHeight ?? Number.POSITIVE_INFINITY) - pinPx;
         setFollowing(index === items.length - 1 && !tall);
         virtualizer.scrollToIndex(index, { align: tall ? "start" : "auto", behavior: "auto" });
       },
       tail: (): void => jumpToEnd("auto"),
     };
-  }, [items.length, jumpToEnd, setFollowing, stopHold, virtualizer]);
+  }, [items.length, jumpToEnd, pinPx, setFollowing, stopHold, virtualizer]);
 
   return (
     <div
@@ -624,7 +646,7 @@ export function MessageList<T>({
             ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : virtualizer.measureElement}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
-            className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}
+            className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE_INSET)}
             aria-setsize={items.length}
             aria-posinset={virtualItem.index + 1}
             aria-live={rowLiveness(virtualItem.index, items.length)}

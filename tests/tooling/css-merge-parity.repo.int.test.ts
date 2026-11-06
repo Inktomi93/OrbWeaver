@@ -39,6 +39,7 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "fade", candidate: "fade-edge-stop" },
   { family: "border-width", candidate: "border-hairline" },
   { family: "stroke-width", candidate: "stroke-icon-regular" },
+  { family: "focus-ring", candidate: "ring-offset-focus-ring-offset" },
   { family: "font", candidate: "font-sans" },
   { family: "font-weight", candidate: "font-medium" },
   { family: "height", candidate: "h-scroll-md" },

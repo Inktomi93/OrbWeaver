@@ -118,7 +118,7 @@ export function renderWorkIndex(items: readonly WorkItem[]): string {
     const lines = byId.filter((item) => item.state === state).map((item) => `- ${itemLine(item, DOC_TOOL_TREES.work)}`);
     return `## ${title}\n\n${lines.length === 0 ? "None.\n" : `${lines.join("\n")}\n`}`;
   };
-  return `${head("Work items", "mint one with `pnpm doc item <title> --kind <kind>`; move one with `pnpm doc set` or `pnpm doc land`.")}${[
+  return `${head("Work items", "mint one with `pnpm doc item <title> --kind <kind> --what <text> --why <text> --done <text>`; move one with `pnpm doc set` or `pnpm doc land`.")}${[
     section("open", "Open"),
     section("doing", "Doing"),
     section("blocked", "Blocked"),
