@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-pnpm unwired fields counts only a member access as a read, so a field that leaves the process reports never-read. Treat these as reads: a provider wire body, a Drizzle insert, stored JSON, tRPC output followed to its client reader, debug inspect shapes, a type serialized to a file, persisted-state library reads, extending types in another compiler world, and Object.freeze writes.
+Rescope pnpm unwired fields by boundary. Everything in packages/contracts crosses a boundary, so no in-process read proves nothing there: check a wire field against whether the other side uses it. Keep member-read judgment for internal shapes, and count these as reads: a Drizzle insert, stored JSON, a type serialized to a file, persisted-state reads, extending types in another world, and Object.freeze writes.
 
 ## Why
 
