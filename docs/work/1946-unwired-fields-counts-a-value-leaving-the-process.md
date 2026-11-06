@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-pnpm unwired fields counts only a member access as a read, so a field that leaves the process reports never-read: a provider wire body, a Drizzle insert, stored JSON, tRPC output and debug inspect shapes. Treat a value that reaches a serialization or persistence boundary as read, and for a wire field follow it to the client that reads it.
+pnpm unwired fields counts only a member access as a read, so a field that leaves the process reports never-read. Treat these as reads: a provider wire body, a Drizzle insert, stored JSON, tRPC output followed to its client reader, debug inspect shapes, a type serialized to a file, persisted-state library reads, extending types in another compiler world, and Object.freeze writes.
 
 ## Why
 
