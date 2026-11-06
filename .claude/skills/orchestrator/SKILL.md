@@ -101,6 +101,7 @@ Re-derive the item first:
 
 - Write What, Why and Done when for an item that holds template text before you route it. `pnpm doc drift` lists these items.
 - A claim that work is unbuilt needs the same evidence as a claim that it is done.
+- A claim that something does not exist, to the owner or in a brief, needs two search methods and a check of wrappers and re-exports. Otherwise say "I did not find it" and name what you searched.
 - Before you dispatch an audit finding, check that it applies to the owner's deployment.
 - A removal needs more than "no reader": check reader history, hand authorship, used siblings and promises in copy, settings or law prose.
 - Re-derive a data-binding claim from the ledger, not from memory.
@@ -305,6 +306,8 @@ the claude-b registry, and the worktree state. Do not load this skill again. Fol
 - Resume live lanes by SendMessage to their agent ids. Never respawn them.
 - A context sentinel carried over from before compaction is stale. Act only on a new one.
 - When a new context sentinel fires, follow its ritual. Write a `SELF` dispatch-map note in the bridge only then, or on an owner-ordered handoff.
+- The owner compacts with `/compact` and no handover step. The compaction summary carries the plan position, work order and open questions.
+- After a compaction or resume, your first message is the five-line card the onboard hook names.
 - A weekly usage sentinel means stop opening lanes and land what is in flight.
 
 ## claude-b and the bridge

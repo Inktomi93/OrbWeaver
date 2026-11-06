@@ -11,5 +11,8 @@ Orbweaver compaction instructions:
 - For a lane, keep the brief's items, their done lines and each item's status.
 - For an orchestrator, keep each live lane's name, agent id, every worktree it uses and status.
 - List every `.claude/rules/*.md` file that applied, and tell the next turn to re-read them before acting.
-- End with a section named "Next step": the exact next action, never optional.
+- For an orchestrator, include a section named "Plan position": the active plan, its step, and what comes next in plan order.
+- For an orchestrator, include a section named "Work order": the ordered list of what remains to the next owner milestone, each with its item ids.
+- Include a section named "Open owner questions": each question the owner has not answered, or "none".
+- End with a section named "Next step": the exact next action, never optional. An orchestrator's next step names its place in the work order, so the latest message does not choose it.
 TEXT
