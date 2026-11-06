@@ -14,14 +14,24 @@ params:
       default: "reports/migration/plan.json"
     apply:
       name: "Apply"
-      description: "`yes` rewrites, formats, proves the owner against a census rerun and typechecks; any other value previews the rewrite only. `pnpm migrate-owner --apply` sets it and restores the planned files if a step fails"
+      description: "`yes` rewrites, formats, proves the owner against a census rerun and typechecks; any other value previews the rewrite only. Refused without `transaction`"
       type: string
       default: "no"
+    transaction:
+      name: "Transaction"
+      description: "Set by `pnpm migrate-owner --apply`, which restores the planned files if a step fails. This workflow has no step that runs after a failure, so an apply outside it is refused"
+      type: string
+      default: ""
 nodes:
   - id: class-token-to-prop
     name: Move one census owner onto its recipe prop
     type: automatic
     steps:
+      - name: Refuse an apply outside migrate-owner
+        if: params.apply == "yes" && params.transaction != "migrate-owner"
+        run: |
+          echo "apply=yes runs only through pnpm migrate-owner <owner> --apply, which restores a failed apply" >&2
+          exit 1
       - name: Plan the owner's sites
         run: pnpm ui-facts --only=hand-rolling --out=reports/ui-facts-census --plan=${{ params.owner }} --map=${{ params.map }}
       - name: Preview the rewrite

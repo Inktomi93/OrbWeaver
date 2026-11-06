@@ -1,56 +1,10 @@
 {
   "owner": "fixture",
   "sites": [
-    {
-      "path": "a.tsx",
-      "line": 3,
-      "source": "@orb/ui/tracker",
-      "name": "TrackerValue",
-      "attribute": "className",
-      "token": "!w-auto",
-      "prop": "width",
-      "value": "auto"
-    },
-    {
-      "path": "a.tsx",
-      "line": 3,
-      "source": "@orb/ui/tracker",
-      "name": "TrackerValue",
-      "attribute": "className",
-      "token": "!w-(--size-avatar-md)",
-      "prop": "width",
-      "value": "avatar-md"
-    },
-    {
-      "path": "a.tsx",
-      "line": 4,
-      "source": "@orb/ui/card",
-      "name": "Card",
-      "attribute": "className",
-      "token": "!p-0",
-      "prop": "padding",
-      "value": "none"
-    },
-    {
-      "path": "a.tsx",
-      "line": 5,
-      "source": "@orb/ui/card",
-      "name": "Card",
-      "attribute": "className",
-      "token": "!p-0",
-      "prop": "padding",
-      "value": "none"
-    },
-    {
-      "path": "a.tsx",
-      "line": 6,
-      "source": "@orb/ui/card",
-      "name": "Card",
-      "attribute": "className",
-      "token": "!p-0",
-      "prop": "padding",
-      "value": "none"
-    }
-  ],
-  "review": []
+    { "path": "a.tsx", "line": 3, "column": 70, "source": "@orb/ui/tracker", "name": "TrackerValue", "attribute": "className", "token": "!w-auto", "prop": "width", "value": "auto" },
+    { "path": "a.tsx", "line": 3, "column": 82, "source": "@orb/ui/tracker", "name": "TrackerValue", "attribute": "className", "token": "!w-(--size-avatar-md)", "prop": "width", "value": "avatar-md" },
+    { "path": "a.tsx", "line": 4, "column": 50, "source": "@orb/ui/card", "name": "Card", "attribute": "className", "token": "!p-0", "prop": "padding", "value": "none" },
+    { "path": "a.tsx", "line": 5, "column": 40, "source": "@orb/ui/card", "name": "Card", "attribute": "className", "token": "!p-0", "prop": "padding", "value": "none" },
+    { "path": "a.tsx", "line": 6, "column": 56, "source": "@orb/ui/card", "name": "Card", "attribute": "className", "token": "!p-0", "prop": "padding", "value": "none" }
+  ]
 }

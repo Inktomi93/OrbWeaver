@@ -254,7 +254,8 @@ interface ClassUse {
   readonly guarded: boolean;
   readonly plain: boolean;
   readonly rootTokens: readonly string[];
-  readonly opaqueBefore: boolean;
+  readonly opaque: string | null;
+  readonly column: number;
 }
 
 function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
@@ -268,7 +269,7 @@ function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
       );
 }
 
-function tokenHits({ source, line, tokens, elem, guarded, plain, rootTokens, opaqueBefore }: ClassUse, context: ClassContext): readonly Hit[] {
+function tokenHits({ source, line, column, tokens, elem, guarded, plain, rootTokens, opaque }: ClassUse, context: ClassContext): readonly Hit[] {
   const out: Hit[] = [];
   for (const token of tokens) {
     const fact = classifyToken(token);
@@ -276,7 +277,7 @@ function tokenHits({ source, line, tokens, elem, guarded, plain, rootTokens, opa
     const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
       const peers = rootTokens.filter((written) => written !== token);
-      const element = elementRefOf(elem, { plain, peers, opaqueBefore });
+      const element = elementRefOf(elem, { plain, peers, opaque, column });
       out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, element));
     }
   }

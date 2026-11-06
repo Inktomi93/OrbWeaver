@@ -17,8 +17,9 @@ const DEFAULT_MAP_FILE = "codemod-class-prop-map.json";
 interface Site {
   /** The file, relative to the target directory. */
   readonly path: string;
-  /** The line, from 1, of the string literal that holds the token. */
+  /** The line, from 1, and the column, from 0, of the string literal that holds the token: a second element on the line is another site. */
   readonly line: number;
+  readonly column: number;
   /** The module specifier and exported name the element must be imported as. */
   readonly source: string;
   readonly name: string;
@@ -69,8 +70,8 @@ function readSites(targetDir: string, mapFile: string): readonly Site[] {
         throw new Error(`${mapFile}: site.${key} must be a string`);
       }
     }
-    if (typeof site["line"] !== "number") {
-      throw new Error(`${mapFile}: site.line must be a number`);
+    if (typeof site["line"] !== "number" || typeof site["column"] !== "number") {
+      throw new Error(`${mapFile}: site.line and site.column must be numbers`);
     }
     return site as unknown as Site;
   });
@@ -88,9 +89,9 @@ const tokensOf = (literal: SgNode<TSX>): readonly string[] =>
     .split(/\s+/u)
     .filter((token) => token !== "");
 
-/** The sites whose token this literal holds, on the line the literal starts. */
+/** The sites whose token this literal holds, at the exact place the literal starts. */
 const sitesAt = (literal: SgNode<TSX>, sites: readonly Site[]): readonly Site[] =>
-  sites.filter((site) => site.line === startLine(literal) && tokensOf(literal).includes(site.token));
+  sites.filter((site) => site.line === startLine(literal) && site.column === literal.range().start.column && tokensOf(literal).includes(site.token));
 
 interface LiteralRewrite {
   /** The replacement edit, or none when the bare attribute value emptied and the attribute goes instead. */
@@ -109,10 +110,24 @@ function rewriteLiteral(literal: SgNode<TSX>, sites: readonly Site[], isBareValu
   const text = tokensOf(literal)
     .filter((token) => !hit.some((site) => site.token === token))
     .join(" ");
-  if (text === "" && isBareValue) {
+  if (text !== "") {
+    return { edit: literal.replace(`${quote}${text}${quote}`), removesAttribute: false, hit };
+  }
+  const parent = literal.parent();
+  const siblings = parent?.kind() === "arguments" ? parent.children().filter((child) => child.isNamed()) : [];
+  if (isBareValue || parent?.kind() === "jsx_expression" || siblings.length === 1) {
     return { edit: undefined, removesAttribute: true, hit };
   }
-  return { edit: literal.replace(text === "" ? "undefined" : `${quote}${text}${quote}`), removesAttribute: false, hit };
+  return { edit: siblings.length === 0 ? literal.replace("undefined") : dropArgument(literal, siblings), removesAttribute: false, hit };
+}
+
+/** Cut an emptied argument out of its call with one of its commas, so no `undefined` is left for a later reader to step over. */
+function dropArgument(literal: SgNode<TSX>, siblings: readonly SgNode<TSX>[]): Edit {
+  const index = siblings.findIndex((sibling) => sibling.id() === literal.id());
+  const range = literal.range();
+  const next = siblings[index + 1]?.range().start.index;
+  const previous = siblings[index - 1]?.range().end.index;
+  return { startPos: next === undefined ? (previous ?? range.start.index) : range.start.index, endPos: next ?? range.end.index, insertedText: "" };
 }
 
 /** The prop each hit site adds; `undefined` when two hits want different values for one prop, a judgment site. */
@@ -309,7 +324,7 @@ const codemod: Codemod<TSX> = (root, options) => {
   }
   const lost = sites.filter((site) => !found.has(site));
   if (lost.length > 0) {
-    failStep(`the plan and the tree disagree in ${file}: no ${lost.map((site) => `${site.token} at line ${site.line}`).join(", ")}`, { file });
+    failStep(`the plan and the tree disagree in ${file}: no ${lost.map((site) => `${site.token} at ${site.line}:${site.column}`).join(", ")}`, { file });
   }
   const edits = outcomes.flatMap((outcome) => outcome.edits);
   for (const site of outcomes.flatMap((outcome) => outcome.moved)) {

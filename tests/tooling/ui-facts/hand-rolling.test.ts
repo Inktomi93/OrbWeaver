@@ -624,10 +624,50 @@ test("a move is refused when something that renders after the axis's slot confli
   // paddingInline writes after padding, so a prop on it would survive a padding the class used to let evict it.
   expect(reasons.get(6)).toBe("px-row from the paddingInline axis renders after the padding slot and conflicts with p-block");
   expect(reasons.get(7)).toBe("px-row from the paddingInline axis renders after the padding slot and conflicts with p-block");
-  expect(reasons.get(8)).toBe("an expression before p-block can carry a class that would land after the prop");
-  expect(reasons.get(9)).toBeNull();
+  expect(reasons.get(8)).toBe("the class expression reads extra, which the reader cannot open");
+  expect(reasons.get(9)).toBe("the class expression reads extra, which the reader cannot open");
   // A template piece is refused at plan time, so it can never reach the rewrite and stop the run.
   expect(reasons.get(10)).toBe("the class sits in a template literal, which the rewrite does not edit");
+});
+
+test("an expression the class reader cannot open refuses the move, and a same-file const is read", ({ scratch }) => {
+  const root = plantDir(scratch, "opaque");
+  const reasons = planned(root, "stack.padding", [
+    'import { Stack } from "@orb/ui/layout";',
+    'const HELD = "flex-wrap";',
+    'const EVICTS = "px-row";',
+    REASONS,
+    '    <Stack className={cn(edgeClass(), "p-block")} />',
+    '    <Stack className={cn(extra ?? "flex-wrap", "p-block")} />',
+    '    <Stack className={cn(extra || "flex-wrap", "p-block")} />',
+    '    <Stack className={cn("p-block", HELD)} />',
+    '    <Stack className={cn("p-block", EVICTS)} />',
+    '    <Stack className={cn(gap && "flex-wrap", "p-block")} />',
+    "  </>",
+    ");",
+  ]);
+  expect(reasons.get(6)).toBe("the class expression reads edgeClass(), which the reader cannot open");
+  expect(reasons.get(7)).toBe('the class expression reads extra ?? "flex-wrap", which the reader cannot open');
+  expect(reasons.get(8)).toBe('the class expression reads extra || "flex-wrap", which the reader cannot open');
+  expect(reasons.get(9)).toBeNull();
+  expect(reasons.get(10)).toBe("px-row from the class string renders after the padding slot and conflicts with p-block");
+  expect(reasons.get(11)).toBeNull();
+});
+
+test("two elements on one line are two sites, each judged by itself", ({ scratch }) => {
+  const root = plantDir(scratch, "one-line");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      'export const A = () => <><Row className="justify-end" /><Row className="justify-center justify-end" /></>;',
+    ].join("\n"),
+  });
+  migrate(root, "plan");
+  const plan = planOf(root);
+  expect(plan.sites.map(({ column, token }) => [column, token])).toEqual([[40, "justify-end"]]);
+  expect(plan.review.map(({ token, reason }) => [token, reason])).toEqual([
+    ["justify-end", "justify-center from the class string renders after the justify slot and conflicts with justify-end"],
+  ]);
 });
 
 test("a move is allowed past an axis that writes before it, where the arm wins as the class did", ({ scratch }) => {
@@ -769,6 +809,129 @@ test("an arm that does more than write the class is refused: slots, defaults, co
   expect(reason("dial.tone")).toBe("the door reads tone beyond the recipe, so the prop does more than write text-warning");
   // A literal in the applying call is the door's own choice: the caller has no such prop to set.
   expect(census(root).hits.find((hit) => hit.detail === "font-light")?.owner).not.toBe("pin.weight");
+});
+
+/** A planted door per shape the reader must refuse: `foo` is one table, the component named for what it does. */
+const SHUT_DOORS: readonly (readonly [string, string, string])[] = [
+  [
+    "Dropped",
+    "function Dropped({ justify }) { return <div className={fooVariants({ justify })} />; }",
+    "the door does not hand className to the call that applies its recipe",
+  ],
+  [
+    "Wrapped",
+    'function Wrapped({ justify, className }) { return <section className={className}><div className={cn(fooVariants({ justify }), "grid")} /></section>; }',
+    "the door does not hand className to the call that applies its recipe",
+  ],
+  [
+    "Before",
+    "function Before({ justify, className }) { return <div className={cn(className, fooVariants({ justify }))} />; }",
+    "the door does not hand className to the call that applies its recipe",
+  ],
+  [
+    "Split",
+    "function Split({ justify, className }) { return <div className={barVariants({ className })}><span className={fooVariants({ justify })} /></div>; }",
+    "the door does not hand className to the call that applies its recipe",
+  ],
+  [
+    "Reset",
+    "function Reset({ justify, className }) { return <div className={cn(fooVariants({ justify }), RESET_CLASS, className)} />; }",
+    "the door writes RESET_CLASS, which the reader cannot open",
+  ],
+  [
+    "Called",
+    "function Called({ justify, className }) { return <div className={cn(fooVariants({ justify }), resetClass(), className)} />; }",
+    "the door writes resetClass(), which the reader cannot open",
+  ],
+  [
+    "Spread",
+    'function Spread({ className, ...props }) { return <div className={fooVariants({ ...props, justify: "start", className })} />; }',
+    "a spread in the call that applies the table can carry any axis",
+  ],
+  [
+    "Whole",
+    "function Whole(props) { const { justify, className } = props; return <div data-j={props.justify} className={fooVariants({ justify, className })} />; }",
+    "the door takes its props whole, so its reads of them are not visible",
+  ],
+  [
+    "Peeks",
+    'function Peeks({ justify, className }) { return <div className={fooVariants({ justify, align: justify === "end" ? "top" : undefined, className })} />; }',
+    "the door reads justify beyond the recipe, so the prop does more than write justify-end",
+  ],
+  [
+    "Twice",
+    "function Twice({ justify, className }) { return <div className={cn(fooVariants({ justify }), bazVariants({ justify, className }))} />; }",
+    "two tables the door applies both declare justify",
+  ],
+  [
+    "Extended",
+    "function Extended({ justify, className }) { return <div className={grownVariants({ justify, className })} />; }",
+    "its tv() extends another table",
+  ],
+];
+
+test("a door the reader cannot read whole refuses every move onto it", ({ scratch }) => {
+  const root = plantDir(scratch, "shut-doors");
+  plant(root, {});
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./gate": "./src/gate/index.ts" } }));
+  const axes = "justify: { end: 'justify-end', start: 'justify-start' }, align: { top: 'items-start' }";
+  plantFile(
+    root,
+    "packages/ui/src/gate/variants.ts",
+    [
+      `export const fooVariants = tv({ variants: { ${axes} } });`,
+      "export const barVariants = tv({ base: 'flex', variants: { tall: { yes: 'block-full' } } });",
+      "export const bazVariants = tv({ variants: { justify: { end: 'justify-end', start: 'justify-start' } } });",
+      "export const grownVariants = tv({ extend: fooVariants, variants: { justify: { end: 'justify-end', start: 'justify-start' } } });",
+    ].join("\n"),
+  );
+  plantFile(root, "packages/ui/src/gate/parts.tsx", SHUT_DOORS.map(([, door]) => `export ${door}`).join("\n"));
+  for (const [name, , reason] of SHUT_DOORS) {
+    plantFile(root, `${FEATURE}/components/uses.tsx`, `import { ${name} } from "@orb/ui/gate";\nexport const A = () => <${name} className="justify-end" />;`);
+    const { printed } = migrate(root, "plan", `${name.toLowerCase()}.justify`);
+    expect([name, printed]).toEqual([name, expect.stringContaining(reason === "" ? "no component forwards" : reason)]);
+    expect(planOf(root).sites).toEqual([]);
+  }
+});
+
+test("a later axis the door fixes or leaves on its false arm counts, not the table's silence", ({ scratch }) => {
+  const root = plantDir(scratch, "door-arms");
+  plant(root, {});
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./gate": "./src/gate/index.ts" } }));
+  const later = "first: { row: 'px-row' }, later: { wide: 'px-block', narrow: '' }";
+  plantFile(
+    root,
+    "packages/ui/src/gate/variants.ts",
+    [
+      `export const fooVariants = tv({ variants: { ${later} } });`,
+      "export const flagVariants = tv({ variants: { first: { row: 'px-row' }, on: { true: 'px-section', false: 'px-block' } } });",
+      "export const ownVariants = tv({ variants: { clip: { true: 'truncate', false: 'text-clip whitespace-nowrap' } } });",
+      "export const openVariants = tv({ variants: { focus: { true: ['outline-none', FOCUS_RING], false: '' } } });",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/gate/parts.tsx",
+    [
+      'export function Fixed({ first, className }) { return <div className={fooVariants({ first, later: "wide", className })} />; }',
+      'export function Param({ first, later = "wide", className }) { return <div className={fooVariants({ first, later, className })} />; }',
+      "export function Flag({ first, on, className }) { return <div className={flagVariants({ first, on, className })} />; }",
+      "export function Own({ clip, className }) { return <div className={ownVariants({ clip, className })} />; }",
+      "export function Open({ focus, className }) { return <div className={openVariants({ focus, className })} />; }",
+    ].join("\n"),
+  );
+  const reason = (name: string, owner: string, token: string): string => {
+    plantFile(root, `${FEATURE}/components/uses.tsx`, `import { ${name} } from "@orb/ui/gate";\nexport const A = () => <${name} className="${token}" />;`);
+    migrate(root, "plan", owner);
+    return planOf(root)
+      .review.map((row) => row.reason)
+      .join("\n");
+  };
+  expect(reason("Fixed", "fixed.first", "px-row")).toBe("px-block from the later axis renders after the first slot and conflicts with px-row");
+  expect(reason("Param", "param.first", "px-row")).toBe("px-block from the later axis renders after the first slot and conflicts with px-row");
+  expect(reason("Flag", "flag.first", "px-row")).toBe("px-block from the on axis renders after the first slot and conflicts with px-row");
+  expect(reason("Own", "own.clip", "truncate")).toBe('default arm "false" writes whitespace-nowrap, which the class leaves in place and the prop would drop');
+  expect(reason("Open", "open.focus", "outline-none")).toBe('arm "true" holds a name the reader cannot resolve, so it can write more than outline-none');
 });
 
 test("a proof passes when every remaining row has a reason, and fails on a row nothing explains", ({ scratch }) => {

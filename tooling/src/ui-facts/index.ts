@@ -16,6 +16,7 @@ import type { ComponentTables } from "./variant-tables.ts";
 import { componentTables } from "./variant-tables.ts";
 
 export { sidecarsOf } from "./migration.ts";
+export { checkRewrite } from "./recipe-check.ts";
 
 const OUT_DIR = "reports/ui-facts";
 const FLAGS = ["--only", "--out", "--root", "--plan", "--prove", "--map"] as const;

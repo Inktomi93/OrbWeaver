@@ -5,6 +5,7 @@ import type { ComponentRecipe } from "./variant-tables.ts";
 import type { Arm, ArmClasses } from "./variants.ts";
 
 const ROOT_SLOT = "root";
+const FALSE_ARM = "false";
 
 interface Move {
   readonly token: string;
@@ -12,30 +13,39 @@ interface Move {
   readonly arm: string;
 }
 
-const tokensOf = (arms: ArmClasses): readonly string[] => [...arms.values()].flatMap((arm) => arm.tokens);
+/** The arm an axis takes with no prop: its default, and `tailwind-variants` falls back to a `false` arm for an undefined prop. */
+const restingArm = (axis: string, arms: ArmClasses, recipe: ComponentRecipe): string | undefined =>
+  recipe.defaults.get(axis) ?? (arms.has(FALSE_ARM) ? FALSE_ARM : undefined);
 
-/** The classes one later axis can write on this element: the arm a literal prop names, every arm for any other value, else its default. */
-function writtenBy(axis: string, arms: ArmClasses, element: ElementRef, recipe: ComponentRecipe): readonly string[] {
-  const written = element.props[axis];
-  if (written === undefined) {
-    return arms.get(recipe.defaults.get(axis) ?? "")?.tokens ?? [];
+/** The arms one later axis can take on this element: the door's own choice, a literal prop's arm, every arm for any other value, else its resting arm. */
+function armsTaken(axis: string, arms: ArmClasses, element: ElementRef, recipe: ComponentRecipe): readonly Arm[] {
+  const every = [...arms.values()];
+  const choice = recipe.chosen.get(axis);
+  const named = choice === undefined ? element.props[axis] : choice;
+  if (named === undefined) {
+    return [arms.get(restingArm(axis, arms, recipe) ?? "")].flatMap((resting) => resting ?? []);
   }
-  return written === null ? tokensOf(arms) : (arms.get(written)?.tokens ?? tokensOf(arms));
+  const arm = named === null ? undefined : arms.get(named);
+  return arm === undefined ? every : [arm];
 }
+
+const laterAxes = (axis: string, recipe: ComponentRecipe): readonly (readonly [string, ArmClasses])[] =>
+  [...recipe.declared].slice([...recipe.declared.keys()].indexOf(axis) + 1);
 
 /** Every class that renders after the axis's slot, by the words that name it in a refusal. */
 function laterClasses(axis: string, element: ElementRef, recipe: ComponentRecipe): readonly (readonly [string, readonly string[]])[] {
-  const order = [...recipe.declared.keys()];
-  const later = [...recipe.declared].slice(order.indexOf(axis) + 1);
   return [
     ["the class string", element.place.peers],
     ["the door", recipe.doorClasses.get(axis) ?? []],
     ["a compound variant", recipe.compounds.flatMap((compound) => compound.tokens)],
-    ...later.map(([name, arms]) => [`the ${name} axis`, writtenBy(name, arms, element, recipe)] as const),
+    ...laterAxes(axis, recipe).map(([name, arms]) => [`the ${name} axis`, armsTaken(name, arms, element, recipe).flatMap((arm) => arm.tokens)] as const),
   ];
 }
 
 function armRefusal({ token, axis, arm }: Move, written: Arm, recipe: ComponentRecipe): string | null {
+  if (written.unread) {
+    return `arm "${arm}" holds a name the reader cannot resolve, so it can write more than ${token}`;
+  }
   if (written.slots.some((slot) => slot !== ROOT_SLOT)) {
     return `arm "${arm}" writes slots ${written.slots.join(", ")}; a class writes the element alone`;
   }
@@ -45,20 +55,22 @@ function armRefusal({ token, axis, arm }: Move, written: Arm, recipe: ComponentR
   if (recipe.compoundsUnread || recipe.compounds.some((compound) => compound.reads.includes(axis))) {
     return `a compound variant reacts to ${axis} or could not be read`;
   }
-  const defaultArm = recipe.defaults.get(axis);
-  const lost = defaultArm === arm ? [] : (recipe.declared.get(axis)?.get(defaultArm ?? "")?.tokens ?? []).filter((held) => survives(held, token));
+  const arms = recipe.declared.get(axis);
+  const defaultArm = arms === undefined ? undefined : restingArm(axis, arms, recipe);
+  const lost = defaultArm === arm ? [] : (arms?.get(defaultArm ?? "")?.tokens ?? []).filter((held) => survives(held, token));
   return lost.length === 0 ? null : `default arm "${defaultArm}" writes ${lost.join(" ")}, which the class leaves in place and the prop would drop`;
 }
 
 function orderRefusal({ token, axis }: Move, element: ElementRef, recipe: ComponentRecipe): string | null {
-  if (element.place.opaqueBefore) {
-    return `an expression before ${token} can carry a class that would land after the prop`;
+  if (element.place.opaque !== null) {
+    return `the class expression reads ${element.place.opaque}, which the reader cannot open`;
   }
-  const unread = [...recipe.declared.keys()]
-    .slice([...recipe.declared.keys()].indexOf(axis) + 1)
-    .find((name) => recipe.unread.has(name) && name in element.props);
+  const later = laterAxes(axis, recipe);
+  const unread = later.find(
+    ([name, arms]) => (recipe.unread.has(name) && name in element.props) || armsTaken(name, arms, element, recipe).some((arm) => arm.unread),
+  );
   if (unread !== undefined) {
-    return `the element writes ${unread}, an axis whose arms could not be fully read`;
+    return `the element writes ${unread[0]}, an axis whose arms could not be fully read`;
   }
   for (const [where, classes] of laterClasses(axis, element, recipe)) {
     const rival = classes.find((written) => written !== token && conflicts(written, token));
@@ -84,8 +96,9 @@ export function moveRefusal(move: Move, element: ElementRef, recipe: ComponentRe
   if (written === undefined) {
     return `no arm ${move.arm} of ${move.axis} is read`;
   }
-  if (!recipe.classNameApplied) {
-    return "the door does not hand className to the call that applies its recipe";
+  const door = recipe.doorRefusals.get(move.axis) ?? (recipe.chosen.get(move.axis) === null ? `the door computes a default for ${move.axis}` : undefined);
+  if (door !== undefined) {
+    return door;
   }
   return armRefusal(move, written, recipe) ?? orderRefusal(move, element, recipe);
 }

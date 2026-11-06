@@ -12,6 +12,8 @@ import type { ComponentTables } from "./variant-tables.ts";
 interface PlannedSite {
   readonly path: string;
   readonly line: number;
+  /** The column of the string that holds the class; two elements can share a line. */
+  readonly column: number;
   /** The import the element must resolve to: the module specifier and the exported name. */
   readonly source: string;
   readonly name: string;
@@ -122,7 +124,7 @@ export function planOwner(hits: readonly Hit[], tables: ComponentTables, owner: 
   const review: ReviewSite[] = [];
   const seen = new Set<string>();
   for (const hit of hits.filter((candidate) => candidate.category === "class-utility" && candidate.verdict === "recipe" && candidate.owner === owner)) {
-    const key = `${hit.path}:${hit.line}:${hit.detail}`;
+    const key = `${hit.path}:${hit.line}:${hit.element?.place.column}:${hit.detail}`;
     if (seen.has(key)) {
       continue;
     }
@@ -135,6 +137,7 @@ export function planOwner(hits: readonly Hit[], tables: ComponentTables, owner: 
     sites.push({
       path: hit.path,
       line: hit.line,
+      column: hit.element.place.column,
       source: hit.element.source,
       name: hit.element.name,
       attribute: "className",

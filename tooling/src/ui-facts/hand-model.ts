@@ -45,8 +45,10 @@ export interface ClassPlace {
   readonly plain: boolean;
   /** Every other class the attribute writes, whatever guards it. */
   readonly peers: readonly string[];
-  /** An expression before this class can carry a class that would land after the prop once it moves. */
-  readonly opaqueBefore: boolean;
+  /** The expression beside this class the reader could not open: it can carry any class, so nothing about the move is proved. */
+  readonly opaque: string | null;
+  /** The column of the string that holds the class: with the line, the site's identity. */
+  readonly column: number;
 }
 
 /** The primitive a class hit is written on, as its import names it: what a rewrite must prove before it moves the class. */

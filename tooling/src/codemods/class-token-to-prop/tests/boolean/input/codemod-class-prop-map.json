@@ -1,26 +1,7 @@
 {
   "owner": "fixture",
   "sites": [
-    {
-      "path": "a.tsx",
-      "line": 2,
-      "source": "@orb/ui/layout",
-      "name": "Stack",
-      "attribute": "className",
-      "token": "outline-none",
-      "prop": "focusTarget",
-      "value": "{true}"
-    },
-    {
-      "path": "a.tsx",
-      "line": 3,
-      "source": "@orb/ui/layout",
-      "name": "Stack",
-      "attribute": "className",
-      "token": "outline-none",
-      "prop": "focusTarget",
-      "value": "{true}"
-    }
-  ],
-  "review": []
+    { "path": "a.tsx", "line": 2, "column": 33, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" },
+    { "path": "a.tsx", "line": 3, "column": 30, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" }
+  ]
 }

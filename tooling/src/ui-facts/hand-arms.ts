@@ -29,7 +29,7 @@ const recipeOf = (elem: Elem | null, components: ComponentTables): ComponentReci
   elem?.kind === "ui" && elem.door !== null ? components.get(elem.door)?.get(componentOf(elem)) : undefined;
 
 /** The value of one attribute as the rewrite sees it: its text, `true` for a bare or literal flag, or null when the syntax cannot read it. */
-function attributeValue(attribute: ts.JsxAttribute): string | null {
+export function attributeValue(attribute: ts.JsxAttribute): string | null {
   if (attribute.initializer === undefined) {
     return "true";
   }

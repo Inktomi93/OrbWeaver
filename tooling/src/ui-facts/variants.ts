@@ -30,6 +30,8 @@ export interface Arm {
   readonly tokens: readonly string[];
   /** The slots a slot-keyed value writes; empty for a plain class string, which lands on the element itself. */
   readonly slots: readonly string[];
+  /** The value holds an expression the reader could not open, so `tokens` may be short. */
+  readonly unread: boolean;
 }
 
 /** Arm name to what its `tv` value writes. */
@@ -43,7 +45,7 @@ export interface ValueList {
 }
 
 const NO_ARMS: ArmClasses = new Map();
-const NO_WRITE: Arm = { tokens: [], slots: [] };
+const NO_WRITE: Arm = { tokens: [], slots: [], unread: false };
 
 /** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
 export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
@@ -93,28 +95,43 @@ function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): t
 
 const isKeyOf = (node: ts.Node): boolean => (ts.isPropertyAssignment(node.parent) || ts.isPropertyAccessExpression(node.parent)) && node.parent.name === node;
 
-/** The class tokens an arm's expression writes: every string in it, and the strings of a const it names (this file, else a unique ui export). */
-export function classTokensOf(expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] {
+interface ClassRead {
+  readonly tokens: readonly string[];
+  /** A name the read could not resolve: it writes classes nobody here can see. */
+  readonly unread: boolean;
+}
+
+function readName(node: ts.Identifier, index: ScaleIndex, hops: number): ClassRead {
+  const target = hops < MAX_HOPS ? (constInitializer(node.getSourceFile(), node.text) ?? index.get(node.text)) : null;
+  return target === undefined || target === null ? { tokens: [], unread: true } : readClasses(target, index, hops + 1);
+}
+
+/** The class tokens an expression writes: every string in it, and the strings of a const it names (this file, else a unique ui export). */
+export function readClasses(expression: ts.Node, index: ScaleIndex, hops: number): ClassRead {
   const tokens: string[] = [];
+  let unread = false;
   visit(expression, (node) => {
     if (isKeyOf(node)) {
       return;
     }
     if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
       tokens.push(...node.text.split(/\s+/u));
-    } else if (ts.isIdentifier(node) && hops < MAX_HOPS) {
-      const target = constInitializer(node.getSourceFile(), node.text) ?? index.get(node.text);
-      tokens.push(...(target === undefined || target === null ? [] : classTokensOf(target, index, hops + 1)));
+    } else if (ts.isIdentifier(node) && node.text !== "undefined") {
+      const read = readName(node, index, hops);
+      tokens.push(...read.tokens);
+      unread ||= read.unread;
     }
   });
-  return tokens.filter((token) => token !== "");
+  return { tokens: tokens.filter((token) => token !== ""), unread };
 }
+
+export const classTokensOf = (expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] => readClasses(expression, index, hops).tokens;
 
 /** What one arm writes: its class tokens, and the slots when its value is a slot-keyed object, directly or through a const. */
 function armOf(expression: ts.Expression, index: ScaleIndex): Arm {
   const object = objectOf(expression, index, 0);
   const slots = object?.properties.flatMap((property) => (ts.isSpreadAssignment(property) ? [] : [property.name.getText()])) ?? [];
-  return { tokens: classTokensOf(expression, index, 0), slots };
+  return { ...readClasses(expression, index, 0), slots };
 }
 
 function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: number): ValueList {
@@ -125,7 +142,7 @@ function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: num
       return inner === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(inner, index, hops + 1);
     }
     const arm = property.name.getText(sf).replace(/^["']|["']$/gu, "");
-    const written = ts.isPropertyAssignment(property) ? armOf(property.initializer, index) : NO_WRITE;
+    const written = ts.isPropertyAssignment(property) ? armOf(property.initializer, index) : { ...NO_WRITE, unread: true };
     return { values: [arm], unread: ts.isMethodDeclaration(property), arms: new Map([[arm, written]]) };
   });
   return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread), arms: new Map(parts.flatMap((part) => [...part.arms])) };
@@ -136,7 +153,11 @@ function mergeArms(left: ArmClasses, right: ArmClasses): ArmClasses {
   const merged = new Map<string, Arm>();
   for (const [name, arm] of [...left, ...right]) {
     const before = merged.get(name) ?? NO_WRITE;
-    merged.set(name, { tokens: [...new Set([...before.tokens, ...arm.tokens])], slots: [...new Set([...before.slots, ...arm.slots])] });
+    merged.set(name, {
+      tokens: [...new Set([...before.tokens, ...arm.tokens])],
+      slots: [...new Set([...before.slots, ...arm.slots])],
+      unread: before.unread || arm.unread,
+    });
   }
   return merged;
 }

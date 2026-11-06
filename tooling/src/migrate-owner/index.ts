@@ -1,17 +1,23 @@
 // migrate-owner: plan one census owner, then run the class-token-to-prop workflow over it. A dry run by default; `--apply` also rewrites,
 // formats, proves the owner against a census rerun and typechecks. The steps are the workflow's; this orders them and owns the transaction:
-// the dry run fails before any write, and a failed apply puts back every planned file. The workflow has no step that runs after a failure.
+// the dry run fails before any write, the real recipes judge what was written, and a failed or interrupted apply puts back every planned file.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { constants } from "node:os";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
-import { runNicedSync } from "../floor/process/proc.ts";
-import { sidecarsOf } from "../ui-facts/index.ts";
+import { runNicedSync, spawnFullPriorityChild } from "../floor/process/proc.ts";
+import type { FullPriorityChild } from "../floor/process/proc-contract.ts";
+import { checkRewrite, sidecarsOf } from "../ui-facts/index.ts";
 
 const WORKFLOW_DIR = "tooling/src/codemods/class-token-to-prop";
 const MAP_DIR = "reports/migration";
 const CENSUS_DIR = "reports/ui-facts-census";
 const USAGE = "usage: pnpm migrate-owner <component.axis> [--apply]";
+const SIGNAL_EXIT_BASE = 128;
+const RESTORE_SIGNALS = ["SIGINT", "SIGTERM"] as const;
+// `workflow.yaml` refuses `apply=yes` without this value: only this transaction restores a failed apply.
+const TRANSACTION = "migrate-owner";
 
 interface Args {
   readonly owner: string;
@@ -34,18 +40,47 @@ function run(command: string, args: readonly string[]): number {
   return result.status ?? EXIT.toolError;
 }
 
+let running: FullPriorityChild | undefined;
+
 /**
- * Run a step that may rewrite the files, and put their bytes back unless it exits clean.
+ * Run a command in its own process group, so a signal reaches every writer under it and this process outlives them to restore.
  *
- * @returns The step's exit code.
+ * @returns The command's exit code.
  */
-export function withRestore(files: readonly string[], step: () => number): number {
+export async function runGroup(command: string, args: readonly string[]): Promise<number> {
+  process.stdout.write(`migrate-owner: ${command} ${args.join(" ")}\n`);
+  running = spawnFullPriorityChild(command, args, { stdio: "inherit", detached: true });
+  const { code } = await running.wait();
+  running = undefined;
+  return code ?? EXIT.toolError;
+}
+
+/**
+ * Run a step that may rewrite the files, and put their bytes back unless it exits clean. SIGINT and SIGTERM go to the running group,
+ * and the restore waits for it to exit: a restore cannot beat a live writer.
+ *
+ * @returns The step's exit code, or the shell's code for the signal that stopped it.
+ */
+export async function withRestore(files: readonly string[], step: () => Promise<number>): Promise<number> {
   const before = new Map(files.map((file) => [file, readFileSync(file)]));
+  const signals: NodeJS.Signals[] = [];
+  const forward = (signal: NodeJS.Signals): void => {
+    signals.push(signal);
+    running?.killGroup(signal);
+  };
   let code: number = EXIT.toolError;
+  for (const signal of RESTORE_SIGNALS) {
+    process.on(signal, forward);
+  }
   try {
-    code = step();
+    code = await step();
+    const [signal] = signals;
+    code = signal === undefined ? code : SIGNAL_EXIT_BASE + constants.signals[signal];
     return code;
   } finally {
+    for (const signal of RESTORE_SIGNALS) {
+      process.off(signal, forward);
+    }
     if (code !== EXIT.clean) {
       for (const [file, bytes] of before) {
         writeFileSync(file, bytes);
@@ -64,7 +99,7 @@ function plannedFiles(map: string): readonly string[] {
     : [];
 }
 
-export function runMigrateOwner(argv: readonly string[]): number {
+export function runMigrateOwner(argv: readonly string[]): Promise<number> | number {
   const { owner, apply } = parseArgs(argv);
   const map = `${MAP_DIR}/${owner}.json`;
   // `codemod --dry-run` skips every `run:` step, so the plan is written here, before the workflow reads it.
@@ -72,23 +107,34 @@ export function runMigrateOwner(argv: readonly string[]): number {
   if (planned !== EXIT.clean) {
     return planned;
   }
-  const workflow = (mode: readonly string[]): number =>
-    run("pnpm", [
-      "codemod",
-      "workflow",
-      "run",
-      "-w",
-      WORKFLOW_DIR,
-      "-t",
-      ".",
-      "--no-interactive",
-      "--allow-dirty",
-      "--param",
-      `owner=${owner}`,
-      "--param",
-      `map=${map}`,
-      ...mode,
-    ]);
-  const previewed = workflow(["--dry-run"]);
-  return apply && previewed === EXIT.clean ? withRestore(plannedFiles(map), () => workflow(["--param", "apply=yes"])) : previewed;
+  const workflow = (mode: readonly string[]): readonly string[] => [
+    "codemod",
+    "workflow",
+    "run",
+    "-w",
+    WORKFLOW_DIR,
+    "-t",
+    ".",
+    "--no-interactive",
+    "--allow-dirty",
+    "--param",
+    `owner=${owner}`,
+    "--param",
+    `map=${map}`,
+    ...mode,
+  ];
+  const previewed = run("pnpm", workflow(["--dry-run"]));
+  if (!apply || previewed !== EXIT.clean) {
+    return previewed;
+  }
+  const files = plannedFiles(map);
+  const snapshot = new Map(files.map((file) => [file, readFileSync(file, "utf8")]));
+  return withRestore(files, async () => {
+    const applied = await runGroup("pnpm", workflow(["--param", "apply=yes", "--param", `transaction=${TRANSACTION}`]));
+    const failures = applied === EXIT.clean ? await checkRewrite(".", map, snapshot) : [];
+    for (const failure of failures) {
+      process.stdout.write(`migrate-owner: ${failure}\n`);
+    }
+    return failures.length === 0 ? applied : EXIT.violations;
+  });
 }

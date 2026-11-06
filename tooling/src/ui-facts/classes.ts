@@ -1,6 +1,8 @@
 // Tailwind class tokens: which hand-rolled kind a token is, and every class string a source file writes.
 import { posix } from "node:path";
 import ts from "typescript";
+import type { ClassExpression } from "./class-expression.ts";
+import { classesIn, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Elem, Source } from "./source.ts";
 import { constInitializers, elementsOf, lineOf, visit } from "./source.ts";
 import type { TokenNamespace } from "./tokens.ts";
@@ -125,8 +127,10 @@ export interface ClassString {
   readonly plain: boolean;
   /** Every class the same root writes, this string's included. */
   readonly rootTokens: readonly string[];
-  /** The root reads an expression before this string. */
-  readonly opaqueBefore: boolean;
+  /** The first expression of the root the class reader could not open, or null when every class is known. */
+  readonly opaque: string | null;
+  /** The column, from 0, the string starts at: two elements on one line are two sites. */
+  readonly column: number;
 }
 
 const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
@@ -206,34 +210,9 @@ function isConditional(node: ts.Node, root: ts.Node): boolean {
   return false;
 }
 
-/** The node decides whether a class applies, rather than being one: the left of `&&`, `||` or `??`, or a ternary's condition. */
-function isGuard(node: ts.Node, root: ts.Node): boolean {
-  for (let child = node; child !== root; child = child.parent) {
-    const parent = child.parent;
-    if (
-      (ts.isConditionalExpression(parent) && parent.condition === child) ||
-      (ts.isBinaryExpression(parent) && GUARDING.has(parent.operatorToken.kind) && parent.left === child)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** An expression before the piece can hold a class the syntax cannot read. A guard's own read and a call's name do not write one. */
-function readsBefore(piece: ts.Node, root: ts.Node): boolean {
-  let found = false;
-  visit(root, (node) => {
-    const callee = ts.isCallExpression(node.parent) && node.parent.expression === node;
-    found ||= ts.isIdentifier(node) && !callee && node.getEnd() <= piece.getStart() && !isGuard(node, root);
-  });
-  return found;
-}
-
 interface ClassPiece {
   readonly node: ts.Node;
   readonly conditional: boolean;
-  readonly opaqueBefore: boolean;
 }
 
 function piecesIn(root: ts.Node): readonly ClassPiece[] {
@@ -246,7 +225,7 @@ function piecesIn(root: ts.Node): readonly ClassPiece[] {
       ts.isTemplateMiddle(inner) ||
       ts.isTemplateTail(inner);
     if (text && !isLabel(inner, root)) {
-      found.push({ node: inner, conditional: isConditional(inner, root), opaqueBefore: readsBefore(inner, root) });
+      found.push({ node: inner, conditional: isConditional(inner, root) });
     }
   });
   return found;
@@ -356,15 +335,24 @@ export function referencedClassConstants(sources: readonly Source[]): ReadonlySe
   return found;
 }
 
+/** What a `className` value writes. */
+export function attributeClasses(value: ts.Node): ClassExpression {
+  const expression = ts.isJsxExpression(value) ? value.expression : value;
+  return expression !== undefined && (ts.isExpression(expression) || ts.isStringLiteral(expression))
+    ? readClassExpression(expression)
+    : { kind: "opaque", text: value.getText() };
+}
+
 /** Every class string a file writes: class attributes, `cn`/`tv` calls, `*Class` constants and the constants a class context reads. */
 export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = ({ node, conditional, opaqueBefore }: ClassPiece, elem: Elem | null, rootTokens: readonly string[]): void => {
+  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], opaque: string | null): void => {
     const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
-      out.push({ path, line: lineOf(sf, node), tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaqueBefore });
+      const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
+      out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaque });
     }
   };
   const byOpening = new Map<ts.Node, Elem>();
@@ -379,9 +367,10 @@ export function classStringsOf(path: string, sf: ts.SourceFile, referenced: Read
     // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
     const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
     const pieces = piecesIn(root);
-    const rootTokens = pieces.flatMap((piece) => tokensOf(piece.node));
+    const read = elem === null ? null : attributeClasses(root);
+    const rootTokens = [...new Set([...pieces.flatMap((piece) => tokensOf(piece.node)), ...(read === null ? [] : classesIn(read))])];
     for (const piece of pieces) {
-      emit(piece, elem, rootTokens);
+      emit(piece, elem, rootTokens, read === null ? null : opaqueIn(read));
     }
   });
   return out;
