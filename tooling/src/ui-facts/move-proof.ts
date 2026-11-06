@@ -61,7 +61,7 @@ function armRefusal({ token, axis, arm }: Move, written: Arm, recipe: ComponentR
   return lost.length === 0 ? null : `default arm "${defaultArm}" writes ${lost.join(" ")}, which the class leaves in place and the prop would drop`;
 }
 
-function orderRefusal({ token, axis }: Move, element: ElementRef, recipe: ComponentRecipe): string | null {
+export function orderRefusal({ token, axis }: Move, element: ElementRef, recipe: ComponentRecipe): string | null {
   if (element.place.opaque !== null) {
     return `the class expression reads ${element.place.opaque}, which the reader cannot open`;
   }

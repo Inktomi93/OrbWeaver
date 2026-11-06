@@ -1,4 +1,5 @@
 // A feature's `className` on a primitive is layout only, and a class string is never built (item 1316). Layout is decided by the CSS a token compiles to, never by a list of class names.
+// On an `@orb/ui` component a class the component's own `tv()` table writes through a prop is refused too: the owner comes from the table, so a new prop closes itself.
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
@@ -11,6 +12,29 @@ import { posixPath } from "./syntax.ts";
 const CLASS_KINDS = ["layout", "paint", "unknown"] as const;
 type ClassKind = (typeof CLASS_KINDS)[number];
 export type ClassClassifier = (token: string) => ClassKind;
+/** The prop that writes a class, and the value that writes exactly it. */
+export interface PropOwner {
+  /** `component.prop` in kebab case: `row.justify`. */
+  readonly axis: string;
+  readonly prop: string;
+  readonly arm: string;
+}
+
+/** The element a class is written on: its other props as written (null for a value the syntax cannot read) and the other classes its `className` writes. */
+interface ClassElement {
+  readonly props: Readonly<Record<string, string | null>>;
+  readonly peers: readonly string[];
+}
+
+/**
+ * The prop of `component` (exported by the `@orb/ui/<door>` door) that writes `token` onto the component's own element, or null.
+ *
+ * @remarks
+ * A prop owns the class only when passing it renders the same: a class that beats a later axis's class on this element (`px-section` over an
+ * art reservation's `ps-*`) keeps its precedence only as a class, so it has no owner here. `classOwners` in ui-facts reads the tables.
+ */
+export type PropOwners = (door: string, component: string, token: string, element: ClassElement) => PropOwner | null;
+
 /** Tailwind's `DesignSystem.candidatesToCss`: one CSS string per candidate, `null` when it does not compile. */
 export type CandidatesToCss = (classes: string[]) => (string | null)[];
 
@@ -155,6 +179,8 @@ const CLIENT_DIRECTORY = "/packages/client/src/";
 const MESSAGES = {
   paint: (tokens: readonly string[]): string =>
     `A feature className paints (${tokens.map((token) => `\`${token}\``).join(", ")}); colour, type, border, radius and shadow come from a primitive prop or variant.`,
+  owned: (component: string, owned: readonly (readonly [string, PropOwner])[]): string =>
+    `A feature className writes what ${component}'s own prop owns (${owned.map(([token, { prop, arm }]) => `\`${token}\` is \`${prop}=${arm === "true" || arm === "false" ? `{${arm}}` : `"${arm}"`}\``).join(", ")}); pass the prop and drop the class.`,
   template: "A template className builds a class string; spell the static tokens and put the state in a primitive prop.",
   concatenation: "A concatenated className builds a class string; spell the static tokens and put the state in a primitive prop.",
   imported: "An imported class string hides its paint from the variant system; add the variant to the primitive and pass a prop.",
@@ -170,6 +196,7 @@ function isComponentElement(element: TSESTree.JSXOpeningElement): boolean {
 const isClassProperty = (name: string | undefined): boolean => name === "className" || name?.endsWith("ClassName") === true;
 
 interface ClassCarrier {
+  readonly name: string;
   readonly node: TSESTree.Node;
   readonly value: MaybeNode;
 }
@@ -184,7 +211,7 @@ function tokensOf(text: string): readonly string[] {
 
 type ScopeVariable = ReturnType<OrbRuleContext["sourceCode"]["getScope"]>["references"][number]["resolved"];
 
-function resolvedVariable(context: OrbRuleContext, identifier: TSESTree.Identifier): ScopeVariable | undefined {
+function resolvedVariable(context: OrbRuleContext, identifier: TSESTree.Identifier | TSESTree.JSXIdentifier): ScopeVariable | undefined {
   return context.sourceCode.getScope(identifier).references.find((reference) => reference.identifier === identifier)?.resolved;
 }
 
@@ -266,8 +293,75 @@ function collectTokens(context: OrbRuleContext, root: MaybeNode): readonly strin
   return tokens;
 }
 
-/** Build the layout-only rule over a classifier, so the lint carries one design system for the whole run. */
-export function featureClassNameLayoutOnlyRule(classify: ClassClassifier): OrbRule {
+const UI_DOOR = /^@orb\/ui\/([^/]+)/u;
+
+interface Primitive {
+  readonly door: string;
+  readonly component: string;
+  /** The element's other props as the recipe reader sees them, which decide whether a class can move onto a prop. */
+  readonly props: Readonly<Record<string, string | null>>;
+}
+
+/** The element a `<Track of={Stack}>` renders, which wears the attributes written on the carrier; otherwise the element's own name. */
+function renderedName(element: TSESTree.JSXOpeningElement): TSESTree.Identifier | TSESTree.JSXIdentifier | null {
+  const carried = element.attributes.find(
+    (attribute) => attribute.type === AST_NODE_TYPES.JSXAttribute && attribute.name.type === AST_NODE_TYPES.JSXIdentifier && attribute.name.name === "of",
+  );
+  if (carried === undefined) {
+    return element.name.type === AST_NODE_TYPES.JSXIdentifier ? element.name : null;
+  }
+  const value = carried.type === AST_NODE_TYPES.JSXAttribute ? carried.value : null;
+  return value?.type === AST_NODE_TYPES.JSXExpressionContainer && value.expression.type === AST_NODE_TYPES.Identifier ? value.expression : null;
+}
+
+/** The `@orb/ui` component a name is, proven by its named import: a local that shadows the name resolves to another binding and is no primitive. */
+function primitiveOf(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): Primitive | null {
+  const tag = renderedName(element);
+  const definition = tag === null ? undefined : resolvedVariable(context, tag)?.defs[0];
+  if (definition?.type !== TSESLint.Scope.DefinitionType.ImportBinding || definition.node.type !== AST_NODE_TYPES.ImportSpecifier) {
+    return null;
+  }
+  const { parent } = definition;
+  const door = parent.type === AST_NODE_TYPES.ImportDeclaration ? UI_DOOR.exec(parent.source.value)?.[1] : undefined;
+  const { imported } = definition.node;
+  if (door === undefined) {
+    return null;
+  }
+  const props = jsxProperties(context, element)
+    .filter(({ name }) => !isClassProperty(name))
+    .map(({ name, value }) => [name, literalText(value)] as const);
+  return { door, component: imported.type === AST_NODE_TYPES.Identifier ? imported.name : imported.value, props: Object.fromEntries(props) };
+}
+
+/** A prop value as the recipe reader sees it: the text of a literal, `true` for a bare flag, null for anything else. */
+function literalText(value: MaybeNode): string | null {
+  if (value === null || value === undefined) {
+    return "true";
+  }
+  if (value.type === AST_NODE_TYPES.Literal) {
+    return String(value.value);
+  }
+  return value.type === AST_NODE_TYPES.TemplateLiteral && value.expressions.length === 0
+    ? value.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join("")
+    : null;
+}
+
+/** The classes of one `className` that a prop of the primitive writes, each with that prop. */
+function ownedTokens(primitive: Primitive, tokens: readonly string[], ownerOf: PropOwners): readonly (readonly [string, PropOwner])[] {
+  return tokens.flatMap((token) => {
+    const owner = ownerOf(primitive.door, primitive.component, token, { props: primitive.props, peers: tokens.filter((peer) => peer !== token) });
+    return owner === null ? [] : [[token, owner] as const];
+  });
+}
+
+function reportOwned(context: OrbRuleContext, carrier: ClassCarrier, primitive: Primitive, owned: readonly (readonly [string, PropOwner])[]): void {
+  if (owned.length > 0) {
+    context.report({ node: carrier.node, message: MESSAGES.owned(primitive.component, owned) });
+  }
+}
+
+/** Build the layout-only rule over a classifier and the prop owners, so the lint carries one design system and one set of tables for the whole run. */
+export function featureClassNameLayoutOnlyRule(classify: ClassClassifier, ownerOf: PropOwners): OrbRule {
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
@@ -279,10 +373,15 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier): OrbRu
           if (!isComponentElement(element)) {
             return;
           }
+          const primitive = primitiveOf(context, element);
           for (const carrier of classCarriers(context, element)) {
-            const paint = [...new Set(collectTokens(context, carrier.value))].filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
+            const tokens = [...new Set(collectTokens(context, carrier.value))];
+            const paint = tokens.filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
             if (paint.length > 0) {
               context.report({ node: carrier.node, message: MESSAGES.paint(paint) });
+            }
+            if (primitive !== null && carrier.name === "className") {
+              reportOwned(context, carrier, primitive, ownedTokens(primitive, tokens, ownerOf));
             }
           }
         },

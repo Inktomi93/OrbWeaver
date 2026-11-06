@@ -1,5 +1,5 @@
 // `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive carries
-// layout tokens only, judged by the CSS each token compiles to, and a class string is never built.
+// layout tokens only, judged by the CSS each token compiles to, and never a class the primitive's own prop writes; a class string is never built.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -95,6 +95,55 @@ test.for([
   ["layout in a spread", element('{...{ className: "flex gap-row" }}')],
   ["the selected safe member only", `const rows = { paint: { className: "text-primary" }, layout: { className: "flex" } };\n${element("{...rows.layout}")}`],
   ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text>{record.className}</Text>;'],
+] as const)("the layout rule passes %s", async ([, source]) => {
+  expect(await findings(LAYOUT_RULE, source)).toEqual([]);
+});
+
+const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text } from "@orb/ui/text";\n';
+
+test.for([
+  ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
+  ["a class a boolean prop writes", `${PRIMITIVES}export const T = (<Text className="truncate" />);\n`, "`truncate` is `truncate={true}`"],
+  [
+    "a padding class on a Stack with no later axis in play",
+    `${PRIMITIVES}export const T = (<Stack className="px-section" />);\n`,
+    '`px-section` is `paddingInline="section"`',
+  ],
+  [
+    "an owned class under a guard inside cn",
+    `${PRIMITIVES}export const T = (<Row className={cn("flex-wrap", open && "justify-between")} />);\n`,
+    "`justify-between`",
+  ],
+  ["an owned class in a local constant", `${PRIMITIVES}const ROW = "flex-wrap justify-end";\nexport const T = (<Row className={ROW} />);\n`, "`justify-end`"],
+  [
+    "a stack-below class a Row prop writes",
+    `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col @max-cq-32:items-stretch" />);\n`,
+    '`@max-cq-32:flex-col` is `stackBelow="cq-32"`',
+  ],
+  [
+    "an owned class on an aliased import",
+    'import { Row as Line } from "@orb/ui/layout";\nexport const T = (<Line className="justify-end" />);\n',
+    "`justify-end`",
+  ],
+  ["an owned class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="justify-end" />);\n`, "`justify-end`"],
+] as const)("the layout rule reports %s", async ([, source, tokens]) => {
+  const messages = await findings(LAYOUT_RULE, source);
+  expect(messages).toHaveLength(1);
+  expect(messages[0]).toContain(tokens);
+});
+
+test.for([
+  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 flex-wrap" />);\n`],
+  ["an owned class under a viewport variant", `${PRIMITIVES}export const T = (<Row className="md:justify-end" />);\n`],
+  ["an owned class in an alternate class prop", `${PRIMITIVES}export const T = (<Row restClassName="justify-end" />);\n`],
+  ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],
+  ["an owned class on a component from another module", 'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n'],
+  ["an owned class on a member element", 'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n'],
+  [
+    "a class that beats a later axis's class, which a prop would put before it",
+    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-section" />);\n`,
+  ],
+  ["a class that conflicts with another in the same className", `${PRIMITIVES}export const T = (<Stack className="px-section px-block" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });
