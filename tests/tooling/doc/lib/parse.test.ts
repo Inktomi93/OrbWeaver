@@ -15,10 +15,11 @@ test("the minting verbs", () => {
     title: "A title",
     content: { decision: "Do it.", alternatives: "None." },
   });
-  expect(parseDocCommand(["new", "plan", "p", "--test-plan", "One test."])).toEqual({
+  expect(parseDocCommand(["new", "plan", "p", "--rank", "3", "--test-plan", "One test."])).toEqual({
     kind: "new-plan",
     slug: "p",
     title: null,
+    rank: 3,
     content: { "test-plan": "One test." },
   });
   expect(parseDocCommand(["item", "Fix", "the", "thing", "--kind", "bug", "--priority", "P1", "--lane", "cb-x", ...TEXT_FLAGS])).toEqual({
@@ -203,7 +204,12 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["item", "--from", "items.json", "--kind", "work"],
     ["item", "Title", "--from", "items.json"],
     ["new", "adr", "a", "--goal", "a plan flag"],
-    ["new", "plan", "p", "--decision", "an ADR flag"],
+    ["new", "plan", "p", "--rank", "1", "--decision", "an ADR flag"],
+    ["new", "plan", "p"],
+    ["new", "plan", "p", "--rank", "0"],
+    ["new", "plan", "p", "--rank", "two"],
+    ["new", "plan", "p", "--rank", "1.5"],
+    ["new", "adr", "a", "--rank", "1"],
     ["set", "1", "done", "--bogus", "y"],
     ["set", "one", "done"],
     ["set", "1", "sideways"],

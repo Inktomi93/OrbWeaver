@@ -18,7 +18,7 @@ test("remove deletes items, an ADR, a law doc and a finished plan's folder nothi
   newItem(written({ title: "Keeper", kind: "work", ...OPEN }), root, TODAY);
   newAdr({ slug: "dead", title: "Dead" }, root, TODAY);
   newLaw({ slug: "old-rule", title: null }, root, TODAY);
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   const outcome = removeDocs(["1", "docs/work/0002-also-a-mistake.md", "docs/adr/0001-dead.md", "docs/law/old-rule.md", "docs/plans/p/design.md"], root);
   expect(outcome.refusals).toEqual([]);
   expect(outcome.written.slice(0, 5)).toEqual([
@@ -47,7 +47,7 @@ test("remove refuses while anything cites the doc, and a target that is not a go
   newItem(written({ title: "Waiting", kind: "work", ...OPEN, blocked: "on 1" }), root, TODAY);
   newLaw({ slug: "rule", title: null }, root, TODAY);
   expect(newAdr({ slug: "cited", title: "Cited", content: { context: "See `docs/law/rule.md`." } }, root, TODAY).refusals).toEqual([]);
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   newItem(written({ title: "Planned", kind: "work", ...OPEN, plan: "p" }), root, TODAY);
   expect(setStatus({ status: "parked", paths: ["docs/plans/p/design.md"], by: null, blocked: "on 1" }, root, TODAY).refusals).toEqual([]);
   expect(removeDocs(["1"], root).refusals).toEqual([

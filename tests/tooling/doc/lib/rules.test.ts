@@ -33,7 +33,7 @@ function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree
 
 const CLEAN = {
   [ADR]: adrTemplate("Docs, plans and ADRs", TODAY),
-  [PLAN]: planTemplate("Widgets", TODAY),
+  [PLAN]: planTemplate("Widgets", TODAY, 1),
   [ITEM]: itemSource({ priority: "P1", area: "docs", plan: "widgets" }),
   [MISSION]: "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# Mission\n\nWhy.\n",
 };
@@ -83,11 +83,14 @@ test("a required section is demanded by kind and a cap is enforced by kind", () 
 });
 
 test("a plan needs its own folder with a design; there is no archive folder, and an item never lives in a plan folder", () => {
-  const loose = tree({ ...CLEAN, "docs/plans/loose.md": planTemplate("Loose", TODAY) });
+  const loose = tree({ ...CLEAN, "docs/plans/loose.md": planTemplate("Loose", TODAY, 2) });
   expect(docProblems(loose)).toContain("docs/plans/loose.md: a plan lives in its own folder: docs/plans/<slug>/design.md");
-  const extra = tree({ ...CLEAN, "docs/plans/widgets/notes.md": planTemplate("Notes", TODAY) });
+  const extra = tree({ ...CLEAN, "docs/plans/widgets/notes.md": planTemplate("Notes", TODAY, 2) });
   expect(docProblems(extra)).toContain("docs/plans/widgets/notes.md: a plan folder holds design.md and tasks.md only");
-  const archived = tree({ ...CLEAN, "docs/plans/archive/2026-09-01-old/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived") });
+  const archived = tree({
+    ...CLEAN,
+    "docs/plans/archive/2026-09-01-old/design.md": planTemplate("Old", TODAY, 2).replace("status: active", "status: archived"),
+  });
   expect(docProblems(archived)).toEqual(
     expect.arrayContaining([
       "docs/plans/archive/2026-09-01-old/design.md: a plan folder holds design.md and tasks.md only",
@@ -99,7 +102,7 @@ test("a plan needs its own folder with a design; there is no archive folder, and
 });
 
 test("a parked plan carries a wake condition in the blocker grammar, and only a parked plan carries one", () => {
-  const parked = (blocked: string): string => planTemplate("Widgets", TODAY).replace("status: active", `status: parked\nblocked: ${blocked}`);
+  const parked = (blocked: string): string => planTemplate("Widgets", TODAY, 1).replace("status: active", `status: parked\nblocked: ${blocked}`);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("owner") }))).toEqual([]);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("wake path docs/adr/0200-x.md") }))).toEqual([]);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("on 1") }))).toEqual([]);
@@ -107,14 +110,29 @@ test("a parked plan carries a wake condition in the blocker grammar, and only a 
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("someday") }))).toEqual([
     `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
   ]);
-  const bare = planTemplate("Widgets", TODAY).replace("status: active", "status: parked");
+  const bare = planTemplate("Widgets", TODAY, 1).replace("status: active", "status: parked");
   expect(docProblems(tree({ ...CLEAN, [PLAN]: bare }))).toEqual([
     `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
   ]);
-  const activeWithReason = planTemplate("Widgets", TODAY).replace("status: active", "status: active\nblocked: owner");
+  const activeWithReason = planTemplate("Widgets", TODAY, 1).replace("status: active", "status: active\nblocked: owner");
   expect(docProblems(tree({ ...CLEAN, [PLAN]: activeWithReason }))).toEqual([
     `${PLAN}: only a parked plan carries blocked — pnpm doc status active ${PLAN} clears it`,
   ]);
+});
+
+test("a plan carries a rank, a positive whole number no other plan holds", () => {
+  const gadgets = "docs/plans/gadgets/design.md";
+  const unranked = planTemplate("Widgets", TODAY, 1).replace("rank: 1\n", "");
+  expect(docProblems(tree({ ...CLEAN, [PLAN]: unranked }))).toEqual([
+    `${PLAN}: a plan carries rank: <n>, its place in the work order — pnpm doc new plan takes --rank`,
+  ]);
+  for (const bad of ["0", "-1", "1.5", "first"]) {
+    const source = planTemplate("Widgets", TODAY, 1).replace("rank: 1", `rank: ${bad}`);
+    expect(docProblems(tree({ ...CLEAN, [PLAN]: source })), bad).toEqual([`${PLAN}: rank ${bad} is not a positive whole number`]);
+  }
+  const twin = tree({ ...CLEAN, [gadgets]: planTemplate("Gadgets", TODAY, 1) });
+  expect(docProblems(twin)).toEqual([`${gadgets}: rank 1 is already ${PLAN}`]);
+  expect(docProblems(tree({ ...CLEAN, [gadgets]: planTemplate("Gadgets", TODAY, 2) }))).toEqual([]);
 });
 
 test("an ADR may be rejected", () => {

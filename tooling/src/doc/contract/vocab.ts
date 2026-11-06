@@ -3,6 +3,8 @@
 
 export const ADR_KIND = "adr";
 export const PLAN_KIND = "plan";
+/** A plan waiting on something: it carries a `blocked` wake condition in the item blocker grammar. */
+export const PARKED = "parked";
 export const ITEM_KINDS = ["bug", "work", "decision", "tooling"] as const;
 /** The four work-item states. Any transition is legal; the `doc` tool validates only the final shape. */
 export const ITEM_STATES = ["open", "doing", "blocked", "done"] as const;

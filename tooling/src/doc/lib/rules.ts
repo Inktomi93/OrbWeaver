@@ -4,11 +4,21 @@
 // `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
 // docs come from `floor/prose/prose-rules.ts` and are composed there, not here.
 import type { DocTree, GovernedDoc, WorkItem } from "../contract/types.ts";
-import { ADR_KIND, DATE_RE, DOC_TOOL_TREES, FIRST_RESERVED_RULING, ITEM_KINDS, ITEM_STATES, LAST_RESERVED_RULING, PLAN_KIND } from "../contract/vocab.ts";
+import {
+  ADR_KIND,
+  DATE_RE,
+  DOC_TOOL_TREES,
+  FIRST_RESERVED_RULING,
+  ITEM_KINDS,
+  ITEM_STATES,
+  LAST_RESERVED_RULING,
+  PARKED,
+  PLAN_KIND,
+} from "../contract/vocab.ts";
 import { parseFrontmatter } from "./frontmatter.ts";
 import { sectionsOf, splitDocument } from "./frontmatter-write.ts";
 import { expectedGeneratedFiles } from "./generated.ts";
-import { DESIGN_FILE, isGeneratedPath, TASKS_FILE } from "./indexes.ts";
+import { DESIGN_FILE, isGeneratedPath, parseRank, TASKS_FILE } from "./indexes.ts";
 import { blockerProblem, isItemPath, itemShapeProblems, parseItem } from "./items.ts";
 import { basenameOf, parseNumberedName } from "./names.ts";
 import { ADR_SECTIONS, ITEM_SECTIONS, PLAN_SECTIONS, sectionNames } from "./templates.ts";
@@ -22,8 +32,6 @@ const ITEM_CAP = 49_152;
 const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
 const INDEX_KIND = "index";
-/** A plan waiting on something: it carries a `blocked` wake condition in the item blocker grammar. */
-export const PARKED = "parked";
 const REQUIRED_KEYS = ["kind", "status", "updated"] as const;
 /** The reserved D window. `pnpm doc new adr` never mints into it; a main-era ruling is re-minted there with
  *  its ORIGINAL number (D86 is one), so an ADR file inside the window is legal. */
@@ -45,7 +53,7 @@ export const KIND_RULES: ReadonlyMap<string, KindRule> = new Map([
   // A `rejected` ADR records a decision considered and turned down, so it is not proposed again.
   [ADR_KIND, { sections: sectionNames(ADR_SECTIONS), cap: ADR_CAP, statuses: ["active", "superseded", "rejected"], keys: SUPERSESSION_KEYS }],
   // A finished plan is deleted, not kept: its lasting knowledge moves to an ADR or law first.
-  [PLAN_KIND, { sections: sectionNames(PLAN_SECTIONS), cap: PLAN_CAP, statuses: ["active", PARKED], keys: ["blocked"] }],
+  [PLAN_KIND, { sections: sectionNames(PLAN_SECTIONS), cap: PLAN_CAP, statuses: ["active", PARKED], keys: ["blocked", "rank"] }],
   ["law", { sections: [], cap: LAW_CAP, statuses: ["active", "superseded"], keys: SUPERSESSION_KEYS }],
   ["reference", { sections: [], cap: LAW_CAP, statuses: ["active"], keys: [] }],
   ["index", { sections: [], cap: LAW_CAP, statuses: ["active"], keys: [] }],
@@ -222,6 +230,28 @@ function planStateProblems(tree: DocTree, items: readonly WorkItem[]): readonly 
   });
 }
 
+/** Every plan design carries a rank, a positive whole number no other plan holds: the README sorts on it. */
+function planRankProblems(tree: DocTree): readonly string[] {
+  const holders = new Map<number, string>();
+  return tree.docs.flatMap((doc) => {
+    const fields = splitDocument(doc.source).fields;
+    if (fields?.["kind"] !== PLAN_KIND || !doc.path.startsWith(DOC_TOOL_TREES.plans) || basenameOf(doc.path) !== DESIGN_FILE) {
+      return [];
+    }
+    const raw = fields["rank"];
+    if (raw === undefined) {
+      return [`${doc.path}: a plan carries rank: <n>, its place in the work order — pnpm doc new plan takes --rank`];
+    }
+    const rank = parseRank(raw);
+    if (rank === null) {
+      return [`${doc.path}: rank ${raw} is not a positive whole number`];
+    }
+    const twin = holders.get(rank);
+    holders.set(rank, twin ?? doc.path);
+    return twin === undefined ? [] : [`${doc.path}: rank ${String(rank)} is already ${twin}`];
+  });
+}
+
 function adrIds(tree: DocTree): readonly { readonly path: string; readonly id: number | null }[] {
   return tree.docs
     .filter((doc) => doc.path.startsWith(DOC_TOOL_TREES.adr) && !isGeneratedPath(doc.path))
@@ -300,6 +330,7 @@ export function docProblems(tree: DocTree): readonly string[] {
     ...missingGenerated,
     ...planFolderProblems(tree),
     ...planStateProblems(tree, items),
+    ...planRankProblems(tree),
     ...adrIdProblems(tree),
     ...itemProblems(items, tree),
   ];

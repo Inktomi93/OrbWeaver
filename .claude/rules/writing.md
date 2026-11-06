@@ -78,3 +78,4 @@ by a tool, or denser than prose.
 15. Memory holds only facts the code cannot show. Rule-shaped lessons become path-scoped rules.
     Roles get no memory.
 16. Reports and commit messages lead with the outcome and stay short.
+17. Skills hold procedure, never plan state or dated history. Plan order and dependencies live in `docs/plans/`.

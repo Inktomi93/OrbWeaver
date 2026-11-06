@@ -12,7 +12,7 @@ const MISSION = "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# M
 test("a freshly minted tree is clean, and the count is the governed docs read", async ({ plantedTree }) => {
   const root = await plantedTree({ "docs/Mission.md": MISSION });
   newAdr({ slug: "one", title: "One" }, root, TODAY);
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   newItem(written({ title: "T", kind: "work", priority: "P1", area: "docs", plan: "p", lane: null }), root, TODAY);
   expect(docLayerProblems(root)).toEqual([]);
   // The ADR, the plan, the item, the mission doc, the four indexes and the plan's tasks file.
