@@ -1,6 +1,6 @@
 // The game console's macro browser lists the macros the game's turn would resolve, each naming its source: this
-// game's own, the active preset's as a name with no link (the console knows only names), and a plugin's as a link to
-// that plugin's editor. The same catalog feeds the editor's completion rows, which print the source too. Reads come
+// game's own with no link, the active preset's as a name that links to that preset (the console knows only names), and a
+// plugin's as a link to that plugin's editor. The same catalog feeds the editor's completion rows, which print the source too. Reads come
 // from a real corpus root with a live plugin guest.
 import { spawn } from "node:child_process";
 import { userMacroSchema } from "@orb/contracts/preset";
@@ -62,9 +62,8 @@ test("the browser names each macro's source and links only the plugin's, and a c
   // This game's own macro names itself and has no link: the console it sits in is its editor.
   await expect(rowOf(GAME_MACRO).getByText("This game", { exact: true })).toBeVisible();
   await expect(rowOf(GAME_MACRO).getByRole("button", { name: "This game", exact: true })).toHaveCount(0);
-  // The preset's macro is known by name only, so its source is a label with no link.
-  await expect(rowOf(PRESET_MACRO).getByText("Preset", { exact: true })).toBeVisible();
-  await expect(rowOf(PRESET_MACRO).getByRole("button", { name: "Preset", exact: true })).toHaveCount(0);
+  // The preset's macro is known by name only, but the host's default preset is known by id, so its source links there.
+  await expect(rowOf(PRESET_MACRO).getByRole("button", { name: "Preset", exact: true })).toBeVisible();
 
   // Completion rows carry the same source label, on the editor that opens from this game's own macro.
   await page.getByRole("button", { name: `{{${GAME_MACRO}}}`, exact: true }).click();

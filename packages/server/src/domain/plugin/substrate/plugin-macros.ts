@@ -26,14 +26,14 @@
 //       law 7 requires the house primitive at exactly that write boundary.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
-import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginMacroDefs, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
-import type { PluginInvokeHandler, PluginMacroDefs, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { PluginInvokeHandler, PluginMacroRegistry, PluginRegistrationHandle } from "../contract/ops.ts";
 import { logPluginFailure } from "./failure-log.ts";
 
 /** The wall-clock bound on ONE turn's whole plugin-macro resolution (every registered macro, in parallel). It

@@ -48,8 +48,7 @@ async function resolveUserMacroRegistry(deps: ExtractQuietDeps, chatId: ChatId):
     return; // the null fast path — no values read, no registry allocated
   }
   const built = buildTurnUserMacros({
-    // No preset id: this path reads the defs only, and never surfaces a source ref.
-    preset: { source: { kind: "preset", id: null }, defs: defs.preset },
+    preset: { source: { kind: "preset", id: defs.presetId }, defs: defs.preset },
     ...(defs.game.length > 0 ? { game: { source: { kind: "game", id: chatId }, defs: defs.game } } : {}),
     values: await loadStoredUserMacroValues(deps.db, chatId),
     prng: () => 0,

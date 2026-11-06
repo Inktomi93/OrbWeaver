@@ -26,7 +26,7 @@ type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface UserMacrosTabProps {
   readonly form: AppForm;
-  /** The owning preset id — the browser's source attribution (`preset:<id>`). */
+  /** The owning preset id — the source the catalog stamps on this preset's macros. */
   readonly presetId: PresetId;
 }
 

@@ -1,8 +1,5 @@
-// verb: listMacros — the caller's OWN enabled plugins' registered MACROS, the `listCommands` twin: `listOwned`
-// filters `WHERE owner_id = caller.userId`, so a macro reaches the result only if the caller owns the plugin, and
-// a disabled or errored plugin has no resident instance and contributes nothing.
-// The name is the host-namespaced spelling an author types (`pluginMacroName`, the one mint), never a client
-// re-derivation.
+// verb: listMacros — the caller's OWN enabled plugins' registered macros, the `listCommands` twin: `listOwned`
+// scopes to the caller, and a disabled plugin has no resident instance. Names come from `pluginMacroName`.
 
 import type { PluginMacroView } from "@orb/contracts/plugin";
 import type { ListMacrosParams } from "../contract/params.ts";

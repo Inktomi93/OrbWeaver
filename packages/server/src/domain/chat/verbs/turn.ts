@@ -20,6 +20,7 @@ import type {
   GuidedSteer,
   ImpersonateStreamDelta,
   MacroFreezeRecord,
+  MacroSlice,
   MessageView,
   PlainChatWarningCode,
   RequestTurnOp,
@@ -593,8 +594,12 @@ function buildTurnUserMacrosForTurn(args: {
 /** The gather-args registry spread (WAVE MU) — the render + freeze registries when user macros were built,
  *  else `{}` (the pure build's singleton fallback). A top-level helper so its branch stays OUT of
  *  `buildTurnContext`'s cognitive-complexity budget. */
-function gatherMacroRegistries(userMacros: TurnUserMacros | null): { macroRegistry?: MacroRegistry; freezeMacroRegistry?: MacroRegistry } {
-  return userMacros !== null ? { macroRegistry: userMacros.registry, freezeMacroRegistry: userMacros.freezeRegistry } : {};
+function gatherMacroRegistries(userMacros: TurnUserMacros | null): {
+  macroRegistry?: MacroRegistry;
+  freezeMacroRegistry?: MacroRegistry;
+  macroTrace?: MacroSlice;
+} {
+  return userMacros !== null ? { macroRegistry: userMacros.registry, freezeMacroRegistry: userMacros.freezeRegistry, macroTrace: userMacros.trace } : {};
 }
 
 /** The `BuiltTurnContext`/`TurnBase` user-macro fields (WAVE MU): the render + freeze registries + the draw

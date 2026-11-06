@@ -32,6 +32,7 @@
 // program that HAS dom. `@orb/kit/macro` carries no such hazard — kit is isomorphic by law.
 
 import type { PluginMacroView } from "@orb/contracts/plugin";
+import type { PresetId } from "@orb/kit/ids";
 import type { MacroMetadata, MacroSourceKind, MacroSourceRef, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, queryMacros, registerUserMacros } from "@orb/kit/macro";
 
@@ -164,14 +165,14 @@ export function macroSourceLabel(plane: MacroPlane): string {
 /** What a preset macro reachable from a GAME's editor can honestly say about itself. The game console reads
  *  the preset plane as NAMES ONLY (`RpgConfigView.presetMacroNames` — "never the preset's bodies", the
  *  picks-view least-privilege posture), so the row states the one true thing: the name resolves, and it
- *  comes from the preset. No description is invented, no arg hint is guessed, and the preset's id is not
- *  knowable here, so its source ref carries a null id and the browser shows the name with no link. */
+ *  comes from the preset. No description is invented and no arg hint is guessed. */
 const FOREIGN_PLANE_GLOSS = "From your active preset.";
 
-/** The preset plane a game editor sees: names only. */
-export function presetNamesPlane(names: readonly string[]): MacroPlane {
+/** The preset plane a game editor sees: names only. `presetId` is the preset those names were read from, so the
+ *  browser can link to its editor; `null` when the host runs the built-in default, which has none. */
+export function presetNamesPlane(names: readonly string[], presetId: PresetId | null): MacroPlane {
   return {
-    source: { kind: "preset", id: null },
+    source: { kind: "preset", id: presetId },
     defs: names.map((name): UserMacroDef => ({ name, description: FOREIGN_PLANE_GLOSS, args: [], body: "", inputs: [], strict: false })),
   };
 }
@@ -260,6 +261,9 @@ function composeCatalog(planes: readonly MacroPlane[]): MacroCatalog {
  *  the suggestions array's IDENTITY, so one stable reference means one index shared by every authoring field in
  *  the app. */
 const BUILTIN_CATALOG = composeCatalog([]);
+
+/** The builtin macros alone, for a field that renders where no preset, game or plugin macro is registered. */
+export const BUILTIN_MACRO_SUGGESTIONS = BUILTIN_CATALOG.suggestions;
 
 /** Keyed by the AUTHORED defs array's identity (a form's `userMacros`, a query's preset config), then by the rest
  *  of the composition — the memo `<MacroTextarea>`'s identity-keyed fuzzy index needs to pay off: a fresh array

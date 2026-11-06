@@ -80,13 +80,13 @@ test("plugin macros follow the lead builtins, so sixteen of them never push {{ch
   expect(suggestions.filter((row) => row.source?.startsWith("Plugin"))).toHaveLength(many.length);
 });
 
-test("a game editor reads the preset by name only, and its own def wins a shared name without a refusal", () => {
+test("a game editor reads the preset by name only but knows which preset, and its own def wins a shared name without a refusal", () => {
   const game: MacroPlane = { source: { kind: "game", id: chatId }, current: true, defs: [def("mood", "the game's mood")] };
-  const catalog = macroCatalog(game, [presetNamesPlane(["mood", "house_rule"])]);
+  const catalog = macroCatalog(game, [presetNamesPlane(["mood", "house_rule"], presetId)]);
   const byName = new Map(catalog.suggestions.map((row) => [row.name, row]));
   expect(byName.get("mood")).toMatchObject({ source: "This game", description: "the game's mood" });
   expect(byName.get("house_rule")).toMatchObject({ source: "Preset", description: "From your active preset." });
-  expect(catalog.macros.find((entry) => entry.meta.name === "house_rule")?.plane?.source).toEqual({ kind: "preset", id: null });
+  expect(catalog.macros.find((entry) => entry.meta.name === "house_rule")?.plane?.source).toEqual({ kind: "preset", id: presetId });
   // The ruled shadow is not an authoring error: the server drops the preset def without a word.
   expect(catalog.rejected).toEqual([]);
 });

@@ -3,10 +3,10 @@
 // interface outside `contract/`, so these live here rather than file-local in `assembly/macros.ts` /
 // `assembly/user-macros.ts` (the `contract/macro-ids.ts` precedent — the same §7.4 move).
 
-import type { AssembleContext, UserMacroDraws } from "@orb/contracts/chat";
+import type { AssembleContext, MacroSlice, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroFreeze, MacroRegistry, MacroSourceKind, MacroSourceOf, RandomSource, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry, MacroSourceKind, MacroSourceOf, RandomSource, UserMacroDef } from "@orb/kit/macro";
 
 export const CHOICE_PICK_MODES = ["random", "stable"] as const;
 /** How a ChoiceBlock `randomPick` variable resolves: `random` draws one of the stored values from the gather's PRNG
@@ -62,7 +62,7 @@ export interface FreezeVolatileMacrosArgs {
   readonly frozenMacros?: readonly MacroFreeze[] | undefined;
 }
 
-/** ONE authoring home's macro defs + the source ref its attribution carries: the resolved preset (null for the
+/** ONE authoring home's macro defs + the source ref its attribution carries: the resolved preset (null only for the
  *  built-in default), the game's chat id for the game group, one plugin's id for a plugin group. */
 export interface UserMacroDefGroup<K extends MacroSourceKind> {
   readonly source: MacroSourceOf<K>;
@@ -106,7 +106,10 @@ export interface TurnUserMacros {
   readonly freezeRegistry: MacroRegistry;
   /** The EFFECTIVE draw record (frozen ∪ fresh) the engine persists onto every committed variant. */
   readonly draws: UserMacroDraws;
-  /** Refused defs (name collision / bad name) — the caller logs these loud at turn time (D53); the
-   *  authoring surface (preset editor macro-browser) is the primary error UI. */
-  readonly rejected: readonly RejectedUserMacro[];
+  /** Refused defs (name collision / bad name), each with the home that offered it — the caller logs these loud
+   *  at turn time (D53). The ruled game-over-preset shadow is not a refusal and is not here. */
+  readonly rejected: readonly MacroSliceRejection[];
+  /** What the assembly trace reports: every registered macro, and every macro that lost its name, the
+   *  shadowed preset defs included. */
+  readonly trace: MacroSlice;
 }

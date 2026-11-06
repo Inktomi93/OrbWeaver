@@ -27,11 +27,12 @@ import type { ChatId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, MacroBrowser, UserMacroEditorDialog } from "#components";
-import { useInvalidation, usePluginMacroPlanes, useTRPC } from "#data";
+import { seedPresetId, useInvalidation, usePluginMacroPlanes, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { macroCatalog, notify, presetNamesPlane } from "#lib";
@@ -78,6 +79,9 @@ function GameMacrosBody({
   const [editId, setEditId] = useState<string | null>(null);
   const shadowed = new Set(presetMacroNames);
   const pluginPlanes = usePluginMacroPlanes();
+  // The names come from the HOST's default preset (`presetMacroNames`' own resolver), and this console is host-only.
+  const settings = useQuery(useTRPC().settings.getUserSettings.queryOptions());
+  const defaultPresetId = seedPresetId(settings.data?.config.seeds.defaultPresetId);
 
   const onAdd = (): void => {
     // Minted THROUGH the schema (the preset tab's Add does the same) — every other field is a schema default.
@@ -97,7 +101,7 @@ function GameMacrosBody({
           // editor's completion and the browser below. The preset half is NAMES only by the least-privilege
           // view: its rows say where they come from and nothing they cannot know.
           const catalog = macroCatalog({ source: { kind: "game", id: chatId }, current: true, defs: values.userMacros }, [
-            presetNamesPlane(presetMacroNames),
+            presetNamesPlane(presetMacroNames, defaultPresetId),
             ...pluginPlanes,
           ]);
           return (

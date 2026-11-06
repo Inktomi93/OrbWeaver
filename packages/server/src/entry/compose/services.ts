@@ -1178,6 +1178,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const resolveChatUserMacroDefs = createResolveChatUserMacroDefs(
     (chatId) => chatCompose.rpgChatOps.resolvePromptUserMacros(chatId),
     (chatId) => rpgOpsDelegate.resolveUserMacros(chatId),
+    (chatId) => chatCompose.rpgChatOps.resolvePromptPresetId(chatId),
   );
 
   // ── world-info + the import ports + the bulk importers + the OWNER-principal resolver (the world-info seam).

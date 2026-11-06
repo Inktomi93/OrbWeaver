@@ -731,6 +731,8 @@ function freshTrace(ctx: AssembleContext): AssembleTrace {
     // Copied VERBATIM from the ctx the gather staged it on (the `wiTrace` posture) — the build walk never
     // re-derives a recall fact. Absent ⇒ recall never ran for this ctx, which is `null`, not an empty recall.
     memoryRecall: ctx.memoryTrace ?? null,
+    // Same posture: the registry build's own slice, absent when no home offered a user macro.
+    ...(ctx.macroTrace === undefined ? {} : { macros: ctx.macroTrace }),
     databankIncluded: false,
     guidedInstructionIncluded: false,
     staticCacheBusters: [],

@@ -1,8 +1,5 @@
-// The Macro browser: every macro a surface's evaluation would see, listed from a `MacroCatalog` (builtins plus
-// the surface's preset, game and plugin planes) — the browser shows the truth of the registry, never a parallel
-// list. Each user macro names its source and links to the editor that owns it; a source the reader cannot reach
-// from here shows its name with no link. A REFUSED definition (builtin collision / bad name) is surfaced exactly
-// as registration reports it. Homed in `components/` because the preset editor and the game console both mount it.
+// The Macro browser: every macro a `MacroCatalog` holds, each naming its source and linking to the editor that
+// owns it; a source the reader cannot reach shows its name alone. Shared by the preset editor and the game console.
 
 import type { MacroSourceRef } from "@orb/kit/macro";
 import { MACRO_FLAG_DEFS } from "@orb/kit/macro";
@@ -20,7 +17,7 @@ export interface MacroBrowserProps {
 }
 
 /** The existing navigation that opens the editor owning a source, or `null` when the reader cannot get there from
- *  here: a game's editor is the console the browser already sits in, and a preset with no id is the built-in default
+ *  here: a game's editor is the console the browser already sits in, and a preset with no id is the built-in default.
  *  or a names-only view. A total switch, so a new source kind fails `tsc`. */
 function sourceOpener(source: MacroSourceRef): (() => void) | null {
   switch (source.kind) {

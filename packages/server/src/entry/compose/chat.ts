@@ -260,6 +260,8 @@ export interface ChatComposeResult extends AsyncDisposable {
      *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
      *  a chat; rpg re-deriving it would be a second home for the rule). */
     readonly resolvePromptUserMacros: RpgAssemblyContext["resolvePresetUserMacros"];
+    /** The id of the preset `resolvePromptUserMacros` read, for imagery's macro source attribution. */
+    readonly resolvePromptPresetId: ChatRoomInputs["resolvePromptPresetId"];
     /** The chat's GM-PRESET prose overrides (PROSE-1 S4) — what the two rpg HOST DOORS (`resyncFromStory`,
      *  `populateFromCharacter`) resolve their extraction prose through. Chat owns preset resolution AND the
      *  GM-voice redirect; rpg reads no preset table, and re-deriving either here would be a second home for
@@ -354,8 +356,15 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveTurnPersonas: createTurnPersonaResolver(input.resolvePersonasForParticipants),
     rpg: input.rpg ?? null,
   });
-  const { resolvePromptVariables, resolvePromptUserMacros, resolveChatProse, resolveChatPresetProse, resolveChatPresetParams, resolveMemoryConfig } =
-    roomInputs;
+  const {
+    resolvePromptVariables,
+    resolvePromptUserMacros,
+    resolvePromptPresetId,
+    resolveChatProse,
+    resolveChatPresetProse,
+    resolveChatPresetParams,
+    resolveMemoryConfig,
+  } = roomInputs;
   // The D50 PromptTransform registrar — one per deploy. Zero registrants today
   // (automation A7 + the plugin host register onto it later); its `apply` is the `ChatContext.promptTransforms`
   // op, so a chat with no transforms assembles + streams byte-identically.
@@ -600,6 +609,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
+      resolvePromptPresetId,
       resolveChatPresetProse,
       resolveChatPresetParams,
     },

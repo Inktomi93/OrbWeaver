@@ -15,6 +15,7 @@ import type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInvokeArgs,
+  PluginMacroDefs,
   PluginMacroRegistration,
   PluginNotificationDelivery,
   PluginNotificationPost,
@@ -30,7 +31,6 @@ import type {
 import type { PluginToolHandle } from "@orb/contracts/tool-use";
 import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, DocumentId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
-import type { UserMacroDef } from "@orb/kit/macro";
 
 /** Per-plugin serialization for durable rows, guest state, registrations, and provider contributions. */
 
@@ -425,12 +425,6 @@ export interface PluginHostOps {
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
   };
-}
-
-/** One plugin's resolved macros for a turn: the plugin that registered them and their kit defs. */
-export interface PluginMacroDefs {
-  readonly pluginId: PluginId;
-  readonly defs: readonly UserMacroDef[];
 }
 
 /** The process-wide plugin-macro registry. One instance minted at compose (the `pluginSubscribers` /

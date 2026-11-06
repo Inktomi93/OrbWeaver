@@ -286,6 +286,8 @@ export interface RejectedUserMacro {
 }
 
 export interface UserMacroRegistration {
+  /** The definitions that registered, in registration order. */
+  readonly accepted: readonly UserMacroDef[];
   /** Refused definitions — the boot/config-error posture: a name may NEVER shadow a builtin
    *  (or an earlier registration); the surface that owns the defs renders these as authoring errors. */
   readonly rejected: readonly RejectedUserMacro[];
@@ -501,5 +503,5 @@ export function registerUserMacros(registry: MacroRegistry, defs: readonly UserM
       metadata: userMacroMetadata(def, opts.source),
     });
   }
-  return { rejected };
+  return { accepted, rejected };
 }

@@ -43,6 +43,7 @@ import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/image
 import type { BindingActor, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
+import type { PluginMacroDefs } from "@orb/contracts/plugin";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
@@ -69,10 +70,9 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
-  PluginId,
   UserId,
 } from "@orb/kit/ids";
-import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
+import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { TestKeyRegex } from "@orb/kit/world-info";
 import type { AuditWiring } from "#foundation/observability";
@@ -305,10 +305,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  which guest, and what budget it ran under are all the other side's business. */
 // Not exported (the `ResolvePromptVariablesOp` precedent): its only consumers are `ChatContext` here
 // and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
-type ResolvePluginMacrosOp = (
-  authorUserId: UserId,
-  chatId: ChatId,
-) => Promise<readonly { readonly pluginId: PluginId; readonly defs: readonly UserMacroDef[] }[]>;
+type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly PluginMacroDefs[]>;
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}

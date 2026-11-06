@@ -21,26 +21,39 @@
 // the commit drain. The draw record keys by macro NAME (as the picks bag does), so a shadow inherits the
 // prior turn's frozen draw for the same name — one question per name, whoever owns it this turn.
 
-import type { UserMacroDraws } from "@orb/contracts/chat";
-import type { MacroRegistry, MacroSourceKind, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroSliceEntry, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
+import type { MacroRegistry, MacroSourceKind, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, createVolatileOnlyRegistry, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
 import type { BuildTurnUserMacrosArgs, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 
+/** Why a preset macro that lost its name to the game's reads as a rejection in the trace. */
+const SHADOWED_BY_GAME_REASON = "a game macro with the same name takes precedence while this game runs";
+
+interface GroupRegistration {
+  readonly registered: readonly MacroSliceEntry[];
+  readonly refused: readonly MacroSliceRejection[];
+}
+
+const EMPTY_REGISTRATION: GroupRegistration = { registered: [], refused: [] };
+
 /** One source group's registration onto BOTH registries (the same defs + the same bindings, so the section
- *  walk and the freeze bake resolve identically). Reports the RENDER registry's refusals — a genuine
- *  authoring error (a bad name, or a builtin clash); the volatile-only freeze registry carries fewer
+ *  walk and the freeze bake resolve identically). Reports the RENDER registry's outcome — a genuine
+ *  authoring error (a bad name, or a name already taken); the volatile-only freeze registry carries fewer
  *  builtins, so ITS refusal set would under-report. The ruled preset↔game shadow was already applied by
- *  {@link shadowPresetUserMacros} and never surfaces here as a rejection. */
+ *  {@link shadowPresetUserMacros} and never surfaces here as a refusal. */
 function registerGroup<K extends MacroSourceKind>(
   registries: { readonly render: MacroRegistry; readonly freeze: MacroRegistry },
   group: UserMacroDefGroup<K>,
   inputBindings: Readonly<Record<string, Record<string, string>>>,
-): readonly RejectedUserMacro[] {
+): GroupRegistration {
   const opts = { source: group.source, inputBindings };
-  const { rejected } = registerUserMacros(registries.render, group.defs, opts);
+  const { accepted, rejected } = registerUserMacros(registries.render, group.defs, opts);
   registerUserMacros(registries.freeze, group.defs, opts);
-  return rejected;
+  return {
+    registered: accepted.map((def) => ({ name: def.name, source: group.source })),
+    refused: rejected.map((refusal) => ({ ...refusal, source: group.source })),
+  };
 }
 
 /** Build the per-turn user-macro registry pair + the effective draw record over the turn's EFFECTIVE def set
@@ -83,16 +96,27 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   const registries = { render: registry, freeze: freezeRegistry };
   // GAME FIRST — kit refuses a name already registered, so registration order IS the precedence (the
   // shadow filter above already removed the preset defs this would otherwise refuse).
-  const rejected = [
-    ...(args.game !== undefined ? registerGroup(registries, args.game, inputBindings) : []),
-    ...registerGroup(registries, { source: args.preset.source, defs: presetDefs }, inputBindings),
-    // Plugin macros register LAST: kit refuses a name already taken, so an author who deliberately spells a
-    // `plugin_*` name keeps their own definition. Their source attribution is the THIRD `MacroSourceKind`
-    // member — the macro browser must not tell a person to edit a preset that does not contain the macro.
-    ...pluginGroups.flatMap((group) => registerGroup(registries, group, inputBindings)),
-  ];
+  const game = args.game === undefined ? EMPTY_REGISTRATION : registerGroup(registries, args.game, inputBindings);
+  const preset = registerGroup(registries, { source: args.preset.source, defs: presetDefs }, inputBindings);
+  // Plugin macros register LAST: kit refuses a name already taken, so an author who deliberately spells a
+  // `plugin_*` name keeps their own definition. Their source attribution is the THIRD `MacroSourceKind`
+  // member — the macro browser must not tell a person to edit a preset that does not contain the macro.
+  const plugins = pluginGroups.map((group) => registerGroup(registries, group, inputBindings));
+  const shadowed = args.preset.defs
+    .filter((def) => !presetDefs.includes(def))
+    .map((def): MacroSliceRejection => ({ name: def.name, reason: SHADOWED_BY_GAME_REASON, source: args.preset.source }));
+  const all = [game, preset, ...plugins];
 
-  return { registry, freezeRegistry, draws, rejected };
+  return {
+    registry,
+    freezeRegistry,
+    draws,
+    rejected: all.flatMap((group) => group.refused),
+    trace: {
+      registered: all.flatMap((group) => group.registered),
+      rejected: [...game.refused, ...shadowed, ...preset.refused, ...plugins.flatMap((group) => group.refused)],
+    },
+  };
 }
 
 /** One def's input resolution + its draw-record contribution (hoisted so the builder stays flat). */

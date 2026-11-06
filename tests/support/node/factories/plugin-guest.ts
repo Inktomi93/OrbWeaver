@@ -66,12 +66,20 @@ export async function installGuest(root: ServerTestHarness, caller: Principal, p
   return installed.id;
 }
 
-/** Install and enable a real guest whose activation registers the given macros; each resolves to a fixed answer. */
+/** One macro a guest registers: it resolves to `answer`, or never settles when `stalls` (a guest past the deadline). */
+export interface GuestMacro {
+  readonly name: string;
+  readonly description: string;
+  readonly answer?: string;
+  readonly stalls?: true;
+}
+
+/** Install and enable a real guest whose activation registers the given macros; each resolves to its `answer`. */
 export async function installMacroGuest(
   root: ServerTestHarness,
   caller: Principal,
   plugin: Pick<GuestPlugin, "slug" | "name">,
-  macros: readonly { readonly name: string; readonly description: string }[],
+  macros: readonly GuestMacro[],
 ): Promise<PluginId> {
   const capabilities: PluginCapability[] = ["chat.transform"];
   const manifest = pluginManifestSchema.parse({
@@ -84,8 +92,8 @@ export async function installMacroGuest(
     capabilities,
   });
   const source = `const h = orb.host(1);
-for (const macro of ${JSON.stringify(macros)}) {
-  h.macros.register({ ...macro, resolve: async () => "answer" });
+for (const { answer, stalls, ...macro } of ${JSON.stringify(macros)}) {
+  h.macros.register({ ...macro, resolve: stalls ? () => new Promise(() => {}) : async () => answer ?? "answer" });
 }`;
   const installed = await root.services.plugin.install({ caller, bundle: makePluginBundle(manifest, source, root.clock.now()), grant: [] });
   await root.services.plugin.setGrant({ caller, pluginId: installed.id, grant: capabilities, acknowledgedNetHosts: [], enable: true });
