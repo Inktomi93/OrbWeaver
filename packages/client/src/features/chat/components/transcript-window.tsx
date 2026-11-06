@@ -5,12 +5,14 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_RETRY_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_HISTORY_RETRY_NAME } from "../lib/chat-surface-names.ts";
+import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
+import { noHistoryFailures, observeHistoryFetch, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
@@ -46,19 +48,14 @@ function OrdinaryThread(props: TranscriptWindowProps): ReactElement {
   return <OrdinaryHistory {...props} tail={tail} />;
 }
 
-const HISTORY_FAILURE_COPY = {
-  press: "Couldn't load earlier messages. Try again.",
-  refresh: "Couldn't refresh the messages loaded here.",
-  bridge: "Couldn't load the messages between here and the latest.",
-} as const;
-type HistoryFailure = keyof typeof HISTORY_FAILURE_COPY;
-
 interface HistoryPagerState {
   readonly available: boolean;
   readonly hasEarlier: boolean;
   readonly busy: boolean;
   readonly failure: HistoryFailure | null;
   readonly pinned: boolean;
+  /** Rises when a failure must be heard again, even in the same words. */
+  readonly announcement: number;
   /** The rows paged in so far, or null before the first older page. */
   readonly loaded: number | null;
   readonly onLoad: () => void;
@@ -66,9 +63,48 @@ interface HistoryPagerState {
   readonly onDismiss: () => void;
 }
 
-function HistoryPager({ available, hasEarlier, busy, failure, pinned, loaded, onLoad, onRetry, onDismiss }: HistoryPagerState): ReactNode {
+function HistoryFailureRow({
+  failure,
+  busy,
+  pinned,
+  announcement,
+  onRetry,
+  onDismiss,
+  handFocusBack,
+}: Pick<HistoryPagerState, "busy" | "pinned" | "announcement" | "onRetry" | "onDismiss"> & {
+  readonly failure: HistoryFailure;
+  readonly handFocusBack: RefCallback<HTMLButtonElement>;
+}): ReactElement {
+  const retriable = failure === "bridge" || failure === "refresh";
+  return (
+    // Dismissed but still in the box the focused control keeps pinned: globals.css hides the row there, and only there.
+    <Row align="center" data-dismissed={retriable || pinned ? undefined : ""}>
+      <Text key={announcement} className="px-block py-row" tone="destructive" role="alert" voice="label">
+        {CHAT_HISTORY_FAILURE_COPY[failure]}
+      </Text>
+      {retriable ? (
+        <Button ref={handFocusBack} focusRing="inset" loading={busy} size="sm" variant="ghost" onClick={onRetry}>
+          {CHAT_HISTORY_RETRY_NAME}
+        </Button>
+      ) : null}
+      {pinned ? (
+        <Button ref={handFocusBack} focusRing="inset" size="sm" variant="ghost" onClick={onDismiss}>
+          {CHAT_HISTORY_DISMISS_NAME}
+        </Button>
+      ) : null}
+    </Row>
+  );
+}
+
+function HistoryPager({ available, hasEarlier, busy, failure, pinned, announcement, loaded, onLoad, onRetry, onDismiss }: HistoryPagerState): ReactNode {
   const description = useId();
   const earlier = useRef<HTMLButtonElement>(null);
+  // These controls leave with their failure, and focus must not fall to the page with them. The cleanup runs before the node goes.
+  const handFocusBack: RefCallback<HTMLButtonElement> = (node) => (): void => {
+    if (node !== null && node === document.activeElement) {
+      earlier.current?.focus({ preventScroll: true });
+    }
+  };
   if (!(available || failure !== null)) {
     return null;
   }
@@ -76,30 +112,15 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, loaded, on
     // Only a reader who pressed is pinned: anyone else finds a failure here, at the pager's home, and hears it announced.
     <Stack className="print:hidden" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"}>
       {failure === null ? null : (
-        <Row align="center">
-          <Text className="px-block py-row" tone="destructive" role="alert" voice="label">
-            {HISTORY_FAILURE_COPY[failure]}
-          </Text>
-          {failure === "press" ? null : (
-            <Button focusRing="inset" loading={busy} size="sm" variant="ghost" onClick={onRetry}>
-              {CHAT_HISTORY_RETRY_NAME}
-            </Button>
-          )}
-          {pinned ? (
-            <Button
-              focusRing="inset"
-              size="sm"
-              variant="ghost"
-              onClick={(): void => {
-                // This button goes with the pin, and focus must not fall to the page with it.
-                earlier.current?.focus({ preventScroll: true });
-                onDismiss();
-              }}
-            >
-              {CHAT_HISTORY_DISMISS_NAME}
-            </Button>
-          ) : null}
-        </Row>
+        <HistoryFailureRow
+          announcement={announcement}
+          busy={busy}
+          failure={failure}
+          handFocusBack={handFocusBack}
+          pinned={pinned}
+          onDismiss={onDismiss}
+          onRetry={onRetry}
+        />
       )}
       <Row gap="field" align="center">
         {/* Focusable at every state, so paging on with the keyboard never drops focus onto the page. */}
@@ -110,6 +131,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, loaded, on
           focusRing="inset"
           focusableWhenDisabled={true}
           loading={busy}
+          quietDisabled={true}
           size="sm"
           variant="ghost"
           onClick={onLoad}
@@ -126,18 +148,18 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, loaded, on
   );
 }
 
-function historyFailureOf(pages: {
-  readonly isFetchPreviousPageError: boolean;
-  readonly isFetchNextPageError: boolean;
-  readonly isRefetchError: boolean;
-}): HistoryFailure | null {
-  if (pages.isFetchPreviousPageError) {
+function readInFlight(pages: {
+  readonly isFetching: boolean;
+  readonly isFetchingPreviousPage: boolean;
+  readonly isFetchingNextPage: boolean;
+}): HistoryFetchView["read"] {
+  if (pages.isFetchingPreviousPage) {
     return "press";
   }
-  if (pages.isFetchNextPageError) {
+  if (pages.isFetchingNextPage) {
     return "bridge";
   }
-  return pages.isRefetchError ? "refresh" : null;
+  return pages.isFetching ? "refresh" : null;
 }
 
 function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly tail: HistoryPage }): ReactElement {
@@ -157,40 +179,50 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
   const loadedTailSeq = pages.data.pages.flatMap((page) => page.messages).at(-1)?.seq ?? 0;
   const liveTailSeq = tail.messages.reduce((seq, message) => Math.max(seq, message.seq), 0);
   const bridging = loadedTailSeq < liveTailSeq;
-  const { fetchNextPage, hasNextPage, isFetching, isFetchNextPageError } = pages;
-  // A failed bridge waits to be asked: each attempt flips `isFetching`, so retrying here would hammer a server that is down.
+  const { fetchNextPage, hasNextPage, isFetching, refetch } = pages;
+  const [failures, setFailures] = useState(() => noHistoryFailures(props.chatId));
+  const observed = observeHistoryFetch(failures, {
+    chatId: props.chatId,
+    read: readInFlight(pages),
+    paused: pages.isPaused,
+    errors: pages.errorUpdateCount,
+    landedAt: pages.dataUpdatedAt,
+    canBridge: bridging && hasNextPage,
+  });
+  if (observed !== failures) {
+    setFailures(observed);
+  }
+  const failure: HistoryFailure | null = shownHistoryFailure(failures);
+  // A failed bridge waits for a sign the server is back: each attempt flips `isFetching`, so retrying here would hammer it.
+  const mayBridge = !failures.refreshDue && (!failures.bridge || failures.bridgeDue);
   useEffect(() => {
-    if (bridging && hasNextPage && !isFetching && !isFetchNextPageError) {
+    if (bridging && hasNextPage && !isFetching && mayBridge) {
       void fetchNextPage().catch(globalThis.reportError);
     }
-  }, [bridging, hasNextPage, isFetching, isFetchNextPageError, fetchNextPage]);
-  // Read only once settled: a fetch restates its direction as it starts, which would call a press through a failed refresh
-  // its own failure before it has one, and a retry's alert must not blink out while it runs.
-  const [failure, setFailure] = useState<HistoryFailure | null>(null);
-  const settledFailure = historyFailureOf(pages);
-  if (!isFetching && failure !== settledFailure) {
-    setFailure(settledFailure);
-  }
-  const [dismissed, setDismissed] = useState<string | null>(null);
-  const failureId = `${props.chatId}:${String(pages.errorUpdateCount)}`;
+  }, [bridging, hasNextPage, isFetching, mayBridge, fetchNextPage]);
+  useEffect(() => {
+    if (failures.refreshDue && !isFetching) {
+      void refetch().catch(globalThis.reportError);
+    }
+  }, [failures.refreshDue, isFetching, refetch]);
   const merged = mergePages([...pages.data.pages, tail]);
   const pager: HistoryPagerState = {
-    available: pages.hasPreviousPage || pages.data.pages.length > 1,
+    available: pages.hasPreviousPage || pages.data.pages.length > 1 || failures.reported,
     hasEarlier: pages.hasPreviousPage,
-    busy: pages.isFetching,
+    busy: isFetching,
     failure,
-    pinned: failure === "press" && dismissed !== failureId,
+    pinned: failures.pinned,
+    announcement: failures.announcement,
     loaded: pages.data.pages.length > 1 ? merged.messages.length : null,
-    // A press always asks for older rows. A failure may have cost a refresh, which a landed page clears without repeating.
     onLoad: (): void => {
-      const recovering = pages.isError;
-      void pages
-        .fetchPreviousPage()
-        .then((result) => (recovering && result.isSuccess ? pages.refetch() : result))
-        .catch(globalThis.reportError);
+      setFailures((state) => ({ ...state, asked: true }));
+      void pages.fetchPreviousPage().catch(globalThis.reportError);
     },
-    onRetry: (): void => void pages.refetch().catch(globalThis.reportError),
-    onDismiss: (): void => setDismissed(failureId),
+    onRetry: (): void => {
+      setFailures((state) => ({ ...state, asked: true }));
+      void refetch().catch(globalThis.reportError);
+    },
+    onDismiss: (): void => setFailures((state) => ({ ...state, pinned: false })),
   };
   return (
     <Stack className="block-full min-block-0" gap="field" aria-busy={(bridging && failure === null) || isFetching}>

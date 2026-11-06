@@ -46,6 +46,12 @@ export const CHAT_SEARCH_NAME = "Search chats";
 export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
 export const CHAT_HISTORY_DISMISS_NAME = "Dismiss";
 export const CHAT_HISTORY_RETRY_NAME = "Try again";
+export const CHAT_HISTORY_FAILURE_COPY = {
+  press: "Couldn't load earlier messages.",
+  refresh: "Couldn't refresh the messages loaded here.",
+  bridge: "Couldn't load the messages between here and the latest.",
+  offline: "You're offline. History will load when you're back.",
+} as const;
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";

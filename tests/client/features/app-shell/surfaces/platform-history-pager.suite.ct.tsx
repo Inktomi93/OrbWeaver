@@ -13,12 +13,18 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { PHONE, SHELL_STORIES, wallpaper } from "./app-shell-ct.ts";
 
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const WITNESS_ROWS = 115;
+const WALK_STEPS = 6;
+const SHRINK_PX = 120;
+const WALK_TIMEOUT_MS = 60_000;
+// Repeats per row, cycled so the page opens on a row taller than the screen and a short row follows it: real replies vary this much, and a uniform room never lets a measurement move the list mid-walk.
+const VARIED_ROW_REPEATS = [3, 40, 180, 260, 8, 90, 20] as const;
+const VARIED_ROWS = 60;
 const DESKTOP = { width: 1280, height: 900 } as const;
 const LANDSCAPE_PHONE = { width: 844, height: 390 } as const;
 
@@ -65,6 +71,44 @@ async function preparePagedRoom(
   }
   return { chatId: room.id, oldestShown: oldest.id };
 }
+
+async function seedVariedRows(caller: Caller, chatId: ChatId): Promise<void> {
+  for (let row = 0; row < VARIED_ROWS; row += 1) {
+    await caller.chat.commitMessage({
+      chatId,
+      content: `Varied witness ${String(row)}. ${"The observatory lantern burns through the rain. ".repeat(VARIED_ROW_REPEATS[row % VARIED_ROW_REPEATS.length] ?? 1)}`,
+      timeZone: UTC_TIME_ZONE,
+    });
+  }
+}
+
+interface PressedRow {
+  readonly list: Locator;
+  readonly reading: Locator;
+  readonly rows: Awaited<ReturnType<typeof loadedRows>>;
+  readonly y: number;
+}
+
+const PRESS_OUTCOMES = [
+  {
+    name: "lands",
+    fails: false,
+    settles: async ({ list, reading, rows, y }: PressedRow): Promise<void> => {
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+    },
+  },
+  {
+    name: "fails",
+    fails: true,
+    settles: async ({ list, reading }: PressedRow): Promise<void> => {
+      await expect(list.getByRole("alert")).toBeInViewport({ ratio: 1 });
+      // Home can land at the very top, where the alert takes its height from the rows by rule: the reader must see both.
+      await settledBox(reading);
+      await expect(reading).toBeInViewport();
+    },
+  },
+] as const;
 
 function pagedRoot(): Promise<Root> {
   const provider = createCorpusProviderExecution({
@@ -198,6 +242,106 @@ for (const cell of [
       });
     }
 
+    for (const outcome of PRESS_OUTCOMES) {
+      test(`that ${outcome.name} after Home keeps the reader on the row they walked to`, async ({ corpus, mount, page }) => {
+        test.setTimeout(WALK_TIMEOUT_MS);
+        await using root = await pagedRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { chatId } = await preparePagedRoom(caller, "document");
+        await seedVariedRows(caller, chatId);
+        await serveRoom(page, corpus, caller, ({ cursor }) => (outcome.fails && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        await expect(earlierIn(list)).toBeAttached();
+        const focused = list.locator('[data-slot="message-list-row"]:focus');
+        await list.locator('[data-slot="message-list-row"][tabindex="0"]').focus();
+        await page.keyboard.press("Home");
+        await expect(focused).toHaveAttribute("data-index", "0");
+        const id = await focused.locator('[data-slot="message-row"]').getAttribute("data-message-id");
+        const reading = list.locator(`[data-slot="message-row"][data-message-id="${id ?? ""}"]`);
+        const { y } = await settledBox(reading);
+        const rows = await loadedRows(list);
+        await page.keyboard.press("Shift+Tab");
+        await expect(earlierIn(list)).toBeFocused();
+        await page.keyboard.press("Enter");
+        await outcome.settles({ list, reading, rows, y });
+      });
+    }
+
+    test("follows the tail again once a walk reaches the last row", async ({ corpus, mount, page, viewport }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await seedVariedRows(caller, chatId);
+      // Short, so the walk back reaches the tail: a last row taller than the screen opens at its start, away from the tail.
+      await caller.chat.commitMessage({ chatId, content: "The last witness.", timeZone: UTC_TIME_ZONE });
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.locator('[data-slot="message-list-row"][tabindex="0"]').focus();
+      await page.keyboard.press("ArrowUp");
+      await settledBox(list.locator('[data-slot="message-list-row"]:focus'));
+      await page.keyboard.press("ArrowDown");
+      await settledBox(list.locator('[data-slot="message-list-row"]:focus'));
+      // A shrinking scrollport re-pins only a list that is following.
+      await page.setViewportSize({ width: viewport?.width ?? PHONE.width, height: (viewport?.height ?? PHONE.height) - SHRINK_PX });
+      await expect.poll(() => list.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeLessThan(SHRINK_PX);
+    });
+
+    for (const walk of [
+      { key: "ArrowUp", start: "End" },
+      { key: "ArrowDown", start: "Home" },
+    ] as const) {
+      test(`stays out of the way of a ${walk.key} walk from ${walk.start}, every step on screen`, async ({ corpus, mount, page }) => {
+        test.setTimeout(WALK_TIMEOUT_MS);
+        await using root = await pagedRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { chatId } = await preparePagedRoom(caller, "document");
+        await seedVariedRows(caller, chatId);
+        await serveRoom(page, corpus, caller);
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        await expect(earlierIn(list)).toBeAttached();
+        const focused = list.locator('[data-slot="message-list-row"]:focus');
+        await list.locator('[data-slot="message-list-row"][tabindex="0"]').focus();
+        await page.keyboard.press(walk.start);
+        await expect(focused).toBeInViewport();
+        for (let step = 0; step < WALK_STEPS; step += 1) {
+          const from = Number(await focused.getAttribute("data-index"));
+          await page.keyboard.press(walk.key);
+          await expect(focused).toHaveAttribute("data-index", String(walk.key === "ArrowUp" ? from - 1 : from + 1));
+          await expect(focused).toBeInViewport();
+          await settledBox(focused);
+          await expect(focused).toBeInViewport();
+        }
+      });
+    }
+
+    test("pressed offline says so and pins, then loads when the connection returns", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      const rows = await loadedRows(list);
+      await page.context().setOffline(true);
+      await earlierIn(list).dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.offline);
+      await expect(alert).toBeInViewport({ ratio: 1 });
+      await page.context().setOffline(false);
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      await expect(alert).toHaveCount(0);
+    });
+
     test("that fails pins until dismissed, keeps the failure at the pager's home, and pins again on the next failure", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
@@ -236,6 +380,13 @@ for (const cell of [
       await page.keyboard.press("Enter");
       await expect(dismiss).toHaveCount(0);
       await expect(earlierIn(list)).toBeFocused();
+      // The control keeps its pin for the focus it holds; the failure has been read and leaves the reader's view.
+      await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
+      const alert = list.getByRole("alert", { includeHidden: true });
+      await expect(alert).not.toBeInViewport();
+      await earlierIn(list).blur();
+      await expect(alert).toBeAttached();
+      await expect(alert).not.toBeInViewport();
     });
 
     test("sits on the room's track, and the failure and the control share one inset", async ({ corpus, mount, page }) => {
@@ -291,6 +442,8 @@ for (const cell of [
       }
       await earlier.focus();
       await expect(earlier).toBeFocused();
+      // The ring on a disabled control has to read at full strength.
+      expect(await earlier.evaluate((button) => getComputedStyle(button).opacity)).toBe("1");
       await list.evaluate((node) => {
         node.scrollTop = 0;
       });
