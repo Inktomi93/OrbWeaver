@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: ui
 plan: type-law
@@ -11,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Make DestructiveAction take its confirm copy as a required prop, and shrink orb/destructive-needs-confirm and its exempt list to what a type cannot express.
 
 ## Why
 
-The symptom or the ruling behind it.
+The lint rule judges a destructive control by its label and a list of exempt files. A required prop makes a control without confirm copy fail the typecheck.
 
 ## Done when
 
-The observable bar a verifier can check.
+A DestructiveAction without confirm copy fails the typecheck. The DESTRUCTIVE_EXEMPT entries in tooling/src/eslint/ui-feature-policy.ts that the component covers are removed.
 
 ## Evidence
 

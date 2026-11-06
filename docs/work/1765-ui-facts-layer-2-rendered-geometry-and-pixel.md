@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: tooling
 plan: surface-walk
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+Extend ui-facts with a second layer: for each cohort, report the rendered geometry and a pixel fingerprint of its members, measured on the surface walk.
 
 ## Why
 
-The symptom or the ruling behind it.
+The first layer reads source files, so it cannot see two members of one cohort that render differently. The walk already renders every surface and can supply the measurements.
 
 ## Done when
 
-The observable bar a verifier can check.
+The surface walk report lists, per cohort, each member's geometry and fingerprint. A planted cohort with one member that renders differently is flagged, and an identical cohort is not.
 
 ## Evidence
 

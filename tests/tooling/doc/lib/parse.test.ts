@@ -4,6 +4,9 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { parseDocCommand, USAGE } from "../../../../tooling/src/doc/index.ts";
 import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
+import { WRITTEN_CONTENT } from "../_written-item.ts";
+
+const TEXT_FLAGS = ["--what", WRITTEN_CONTENT.what, "--why", WRITTEN_CONTENT.why, "--done", WRITTEN_CONTENT.done];
 
 test("the minting verbs", () => {
   expect(parseDocCommand(["new", "adr", "a-slug", "--title", "A title", "--decision", "Do it.", "--alternatives", "None."])).toEqual({
@@ -18,14 +21,12 @@ test("the minting verbs", () => {
     title: null,
     content: { "test-plan": "One test." },
   });
-  expect(parseDocCommand(["item", "Fix", "the", "thing", "--kind", "bug", "--priority", "P1", "--lane", "cb-x"])).toEqual({
+  expect(parseDocCommand(["item", "Fix", "the", "thing", "--kind", "bug", "--priority", "P1", "--lane", "cb-x", ...TEXT_FLAGS])).toEqual({
     kind: "item",
-    input: { title: "Fix the thing", kind: "bug", priority: "P1", area: null, plan: null, lane: "cb-x", blocked: null, content: {} },
+    input: { title: "Fix the thing", kind: "bug", priority: "P1", area: null, plan: null, lane: "cb-x", blocked: null, content: WRITTEN_CONTENT },
     commit: false,
   });
-  expect(
-    parseDocCommand(["item", "Wait", "--kind", "work", "--blocked", "on 3", "--what", "The change.", "--why", "The symptom.", "--done", "The bar."]),
-  ).toEqual({
+  expect(parseDocCommand(["item", "Wait", "--kind", "work", "--blocked", "on 3", ...TEXT_FLAGS])).toEqual({
     kind: "item",
     input: {
       title: "Wait",
@@ -35,7 +36,7 @@ test("the minting verbs", () => {
       plan: null,
       lane: null,
       blocked: "on 3",
-      content: { what: "The change.", why: "The symptom.", done: "The bar." },
+      content: WRITTEN_CONTENT,
     },
     commit: false,
   });
@@ -120,7 +121,7 @@ test("--commit rides on set, item and item --from in any position and changes no
     patch: { state: "doing", lane: "b" },
     commit: true,
   });
-  expect(parseDocCommand(["item", "--commit", "Fix", "it", "--kind", "bug"])).toMatchObject({
+  expect(parseDocCommand(["item", "--commit", "Fix", "it", "--kind", "bug", ...TEXT_FLAGS])).toMatchObject({
     kind: "item",
     input: { title: "Fix it", kind: "bug" },
     commit: true,

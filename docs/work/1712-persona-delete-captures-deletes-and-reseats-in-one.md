@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P3
-plan: cross-surface-consistency
 area: server
+plan: cross-surface-consistency
 ---
 
 # Persona delete captures, deletes and reseats in one transaction, so a seat switched onto the deleted persona after capture is not left empty
 
 ## What
 
-The change, in a sentence.
+Make persona delete capture the persona, delete it and reseat the affected seats in one transaction.
 
 ## Why
 
-The symptom or the ruling behind it.
+Delete captures the seats first and deletes later. A seat switched onto the persona between the two steps is not in the capture, so it is left with no persona.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test switches a seat onto the persona after the capture step and before the delete commits. After the delete the seat holds a valid persona.
 
 ## Evidence
 

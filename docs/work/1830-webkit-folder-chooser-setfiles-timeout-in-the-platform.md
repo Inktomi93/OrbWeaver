@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: testing
 ---
@@ -10,15 +10,15 @@ area: testing
 
 ## What
 
-The change, in a sentence.
+Find why setFiles times out in WebKit in the platform action groups collision case, and remove the cause.
 
 ## Why
 
-The symptom or the ruling behind it.
+The case failed once on a folder chooser setFiles call and then passed on rerun, so it is a flake and will fail some later run.
 
 ## Done when
 
-The observable bar a verifier can check.
+The case passes 20 consecutive WebKit runs.
 
 ## Evidence
 

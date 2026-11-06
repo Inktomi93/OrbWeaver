@@ -1,12 +1,14 @@
 // The git-facing item verbs on a planted repository with a real `main`: land proves its evidence is on
 // main, deletes the item and commits the record; land --merged reads the merged commits' trailers; and
 // drift reads the tree's facts.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { drift, driftFacts, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
+import { drift, driftFacts, editItem, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
 import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { bareItemSource, templatePrompt, written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 
@@ -31,13 +33,21 @@ async function repo(plantedTree: (files: Readonly<Record<string, string>>) => Pr
 test("land refuses evidence that is not on main, then deletes the item, releases what waited on it, and commits the record", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
   newItem(
-    { title: "A", kind: "work", priority: null, area: null, plan: null, lane: "cb-x", content: { what: "Split the ledger.\n\nCloses: 9 is prose here." } },
+    written({
+      title: "A",
+      kind: "work",
+      priority: null,
+      area: null,
+      plan: null,
+      lane: "cb-x",
+      content: { what: "Split the ledger.\n\nCloses: 9 is prose here." },
+    }),
     root,
     TODAY,
   );
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, blocked: "on 1" }, root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, blocked: "on 1" }), root, TODAY);
   newPlan({ slug: "p", title: "P" }, root, TODAY);
-  newItem({ title: "C", kind: "work", priority: null, area: null, plan: "p", lane: null }, root, TODAY);
+  newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: "p", lane: null }), root, TODAY);
   expect(setStatus({ status: "parked", paths: ["docs/plans/p/design.md"], by: null, blocked: "on 1" }, root, TODAY).refusals).toEqual([]);
   const head = commitAll(root, "feat(x): a");
   const bogus = landItems([1], "0123456789abcdef0123456789abcdef01234567", root, TODAY);
@@ -65,8 +75,8 @@ test("land refuses evidence that is not on main, then deletes the item, releases
 
 test("land refuses an item a doc still refers to, and an id that neither exists nor ever landed, writing nothing", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }), root, TODAY);
   const head = commitAll(root, "chore(work): items");
   expect(landItems([1], head, root, TODAY).refusals).toEqual(["docs/work/0002-b.md: refers to docs/work/0001-a.md — remove the reference first"]);
   expect(landItems([2, 7], head, root, TODAY).refusals).toEqual(["7: no such item under docs/work/, and git shows no landing for it — check the id"]);
@@ -79,8 +89,8 @@ test("land --merged lands the Closes ids of the merged commits with the merge co
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane work\n");
@@ -118,7 +128,7 @@ test("land --merged lands the Closes ids of the merged commits with the merge co
 
 test("land --merged lands a Closes trailer through a merge commit `git merge` commits itself (--no-ff)", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane work\n");
@@ -136,7 +146,7 @@ test("land --merged --head-merge lands a Closes trailer through a merge finished
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane work\n");
@@ -152,7 +162,7 @@ test("land --merged --head-merge lands a Closes trailer through a merge finished
 
 test("land --merged --head-merge lands a Closes trailer through a conflicted merge resolved by hand (the post-commit door)", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "README.md"), "# lane\n");
@@ -177,7 +187,7 @@ test("land --merged --head-merge reads a merge commit's own second parent, not a
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane work\n");
@@ -195,8 +205,8 @@ test("land --merged --head-merge reads a merge commit's own second parent, not a
 
 test("land --merged (no --head-merge) lands every id on a fast-forward onto a branch whose TIP is itself a merge commit", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "feat");
   writeFileSync(join(root, "b1.txt"), "b1\n");
@@ -218,7 +228,7 @@ test("land --merged (no --head-merge) lands every id on a fast-forward onto a br
 
 test("land --merged is all-or-nothing: an unknown id in a Closes trailer refuses the whole batch and writes nothing (F5)", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane work\n");
@@ -237,9 +247,9 @@ test("land --merged is all-or-nothing: an unknown id in a Closes trailer refuses
 
 test("drift reads the repository: a stale doing item and an unlanded Closes trailer fire; a live lane branch keeps quiet", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: "wt/cb-live-docs" }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: "cb-live" }, root, TODAY);
-  newItem({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: "wt/cb-live-docs" }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: "cb-live" }), root, TODAY);
+  newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "branch", "wt/cb-live-docs");
   git(root, "checkout", "-q", "wt/cb-live-docs");
@@ -262,7 +272,7 @@ function unlanded(sha: string): string {
 
 test("drift skips a Closes trailer whose id named a different item at the closing commit (a renumbering)", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "Gallery", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "Gallery", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   // At the closer, 1 is a different item (another slug) than the one on the tree today.
   writeFileSync(join(root, "gallery.txt"), "gallery\n");
@@ -281,7 +291,7 @@ test("drift keeps a close whose own tree holds the current item file", async ({ 
 
   // Filed and closed in one commit.
   const same = await repo(plantedTree);
-  newItem(item, same, TODAY);
+  newItem(written(item), same, TODAY);
   const sameCloser = commitAll(same, closes);
   expect(drift(same)).toEqual([unlanded(sameCloser)]);
 
@@ -289,14 +299,14 @@ test("drift keeps a close whose own tree holds the current item file", async ({ 
   const rootCommit = await plantedTree({ "README.md": "# planted\n" });
   git(rootCommit, "init", "-q", "-b", "main");
   configureFixtureGitIdentity(rootCommit);
-  newItem(item, rootCommit, TODAY);
+  newItem(written(item), rootCommit, TODAY);
   const rootCloser = commitAll(rootCommit, closes);
   expect(drift(rootCommit)).toEqual([unlanded(rootCloser)]);
 
   // A merge whose item came from the second parent.
   const merged = await repo(plantedTree);
   git(merged, "checkout", "-qb", "lane");
-  newItem(item, merged, TODAY);
+  newItem(written(item), merged, TODAY);
   commitAll(merged, "chore(work): file on lane");
   git(merged, "checkout", "-q", "main");
   writeFileSync(join(merged, "main.txt"), "main\n");
@@ -314,7 +324,7 @@ function staleTrailerRepo(root: string): string {
   writeFileSync(join(root, "lane.txt"), "lane\n");
   const closer = commitAll(root, "fix(x): closes something else\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
   git(root, "checkout", "-q", "main");
-  newItem(STALE_ITEM, root, TODAY);
+  newItem(written(STALE_ITEM), root, TODAY);
   commitAll(root, "chore(work): file a later item that reuses the id");
   git(root, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", "Merge lane");
   return closer;
@@ -342,7 +352,7 @@ test("land --merged refuses a trailer whose commit holds no file for the id, wri
 
 test("land --merged refuses a trailer whose commit held the id under a different slug than today's file", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ ...STALE_ITEM, title: "Gallery" }, root, TODAY);
+  newItem(written({ ...STALE_ITEM, title: "Gallery" }), root, TODAY);
   commitAll(root, "chore(work): items");
   git(root, "checkout", "-qb", "lane");
   writeFileSync(join(root, "lane.txt"), "lane\n");
@@ -364,7 +374,7 @@ test("drift reports a Closes trailer buried deeper than a fixed recent-commit wi
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   writeFileSync(join(root, "main.txt"), "main work\n");
   const closer = commitAll(root, "fix(x): closes a\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
@@ -382,7 +392,7 @@ test("drift stays silent on a Closes trailer whose item already landed (deleted)
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   writeFileSync(join(root, "main.txt"), "main work\n");
   const closer = commitAll(root, "fix(x): closes a\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
@@ -396,10 +406,10 @@ test("drift stays silent on a Closes trailer whose item already landed (deleted)
 
 test("drift resolves wake conditions against the tree, never a shell: a present path and a gone path each wake", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
-  newItem({ title: "D", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "D", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   const { setItems } = await import("../../../../tooling/src/doc/index.ts");
   setItems([1], { state: "blocked", blocked: "wake path README.md" }, root, TODAY);
   setItems([2], { state: "blocked", blocked: "wake path never-there" }, root, TODAY);
@@ -414,10 +424,10 @@ test("drift resolves wake conditions against the tree, never a shell: a present 
 
 test("overview narrows to the named states and area; with no filter it is the full board", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
-  newItem({ title: "A", kind: "work", priority: "P1", area: "ui", plan: null, lane: null }, root, TODAY);
-  newItem({ title: "B", kind: "work", priority: null, area: "server", plan: null, lane: "cb-b" }, root, TODAY);
-  newItem({ title: "C", kind: "bug", priority: null, area: "ui", plan: null, lane: null, blocked: "on 1" }, root, TODAY);
-  newItem({ title: "D", kind: "bug", priority: null, area: "ui", plan: null, lane: "cb-d" }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: "P1", area: "ui", plan: null, lane: null }), root, TODAY);
+  newItem(written({ title: "B", kind: "work", priority: null, area: "server", plan: null, lane: "cb-b" }), root, TODAY);
+  newItem(written({ title: "C", kind: "bug", priority: null, area: "ui", plan: null, lane: null, blocked: "on 1" }), root, TODAY);
+  newItem(written({ title: "D", kind: "bug", priority: null, area: "ui", plan: null, lane: "cb-d" }), root, TODAY);
   const headers = (lines: readonly string[]): readonly string[] => lines.filter((line) => !line.startsWith("  "));
   const ids = (lines: readonly string[]): readonly (string | undefined)[] =>
     lines.filter((line) => line.startsWith("  ")).map((line) => line.trim().split(" ")[0]);
@@ -433,4 +443,31 @@ test("overview narrows to the named states and area; with no filter it is the fu
   const server = overview(root, { states: [], area: "server" });
   expect(headers(server)).toHaveLength(4);
   expect(ids(server)).toEqual(["0002"]);
+});
+
+test("drift lists each item still holding template text, and skips one that only quotes a prompt in longer prose", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  mkdirSync(join(root, "docs/work"), { recursive: true });
+  writeFileSync(join(root, "docs/work/0001-bare.md"), bareItemSource("Bare"));
+  writeFileSync(join(root, "docs/work/0002-partial.md"), bareItemSource("Partial"));
+  newItem(
+    written({
+      title: "Quoting",
+      kind: "work",
+      priority: null,
+      area: null,
+      plan: null,
+      lane: null,
+      content: { what: `Swap "${templatePrompt("What")}" for text.` },
+    }),
+    root,
+    TODAY,
+  );
+  newItem(written({ title: "Written", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
+  expect(editItem(2, { what: "Real.", why: "Real." }, root, TODAY).refusals).toEqual([]);
+  commitAll(root, "chore(work): items");
+  expect(drift(root)).toEqual([
+    "1 holds template text in --what, --why, --done — pnpm doc edit 1 --what <text> --why <text> --done <text>",
+    "2 holds template text in --done — pnpm doc edit 2 --done <text>",
+  ]);
 });

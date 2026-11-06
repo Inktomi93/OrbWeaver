@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: client
 plan: unwired-code
@@ -11,15 +11,15 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+Upload the SillyTavern folder once, and let the preview and the import share the staged upload.
 
 ## Why
 
-The symptom or the ruling behind it.
+The preview sends the folder to the server, and the import sends it again, so a large profile crosses the network twice.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test that previews and then imports one folder counts one upload request for it, and the import runs from the staged copy.
 
 ## Evidence
 

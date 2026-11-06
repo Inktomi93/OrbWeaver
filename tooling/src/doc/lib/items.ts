@@ -4,7 +4,6 @@
 // `item --from` batch file's schema and the messages a landing and a `--commit` board write commit with.
 import { z } from "zod";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
-import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
 import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "../contract/vocab.ts";
 import { splitDocument, titleOf, withFields, withTitle } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
@@ -167,10 +166,11 @@ export function nextItemId(items: readonly WorkItem[], floor = 0): number {
 }
 
 const optionalField = z.string().nullable().optional();
-const optionalText = z.string().optional();
+const requiredText = z.string();
 
 /** One entry of an `item --from` file: the `item` flags, spelled without their dashes. Strict, so a
- *  misspelled key is a refusal instead of a silently dropped section. */
+ *  misspelled key is a refusal instead of a silently dropped section. The authored sections are required
+ *  keys; `newItems` refuses a blank or prompt value. */
 const BATCH_ENTRY = z.strictObject({
   title: z.string().trim().min(1),
   kind: z.enum(ITEM_KINDS),
@@ -179,10 +179,10 @@ const BATCH_ENTRY = z.strictObject({
   plan: optionalField,
   lane: optionalField,
   blocked: optionalField,
-  what: optionalText,
-  why: optionalText,
-  done: optionalText,
-} satisfies Record<ItemSectionFlag, typeof optionalText> & Record<string, z.ZodType>);
+  what: requiredText,
+  why: requiredText,
+  done: requiredText,
+} satisfies Record<ItemSectionFlag, typeof requiredText> & Record<string, z.ZodType>);
 const BATCH = z.array(BATCH_ENTRY).min(1);
 
 /** The items an `item --from` file names, or the one line saying why the file is not a batch. */
@@ -192,26 +192,22 @@ export function parseItemBatch(json: unknown): { readonly items: readonly NewIte
     return { error: z.prettifyError(parsed.error) };
   }
   return {
-    items: parsed.data.map((entry) => {
-      const content: { [K in ItemSectionFlag]?: string } = {};
-      for (const flag of ITEM_SECTION_FLAGS) {
-        const text = entry[flag];
-        if (text !== undefined) {
-          content[flag] = text;
-        }
-      }
-      return {
-        title: entry.title,
-        kind: entry.kind,
-        priority: entry.priority ?? null,
-        area: entry.area ?? null,
-        plan: entry.plan ?? null,
-        lane: entry.lane ?? null,
-        blocked: entry.blocked ?? null,
-        content,
-      };
-    }),
+    items: parsed.data.map((entry) => ({
+      title: entry.title,
+      kind: entry.kind,
+      priority: entry.priority ?? null,
+      area: entry.area ?? null,
+      plan: entry.plan ?? null,
+      lane: entry.lane ?? null,
+      blocked: entry.blocked ?? null,
+      content: { what: entry.what, why: entry.why, done: entry.done },
+    })),
   };
+}
+
+/** The `pnpm doc edit` command that writes the named sections of one item. */
+export function itemEditCommand(id: number, flags: readonly ItemSectionFlag[]): string {
+  return `pnpm doc edit ${String(id)} ${flags.map((flag) => `--${flag} <text>`).join(" ")}`;
 }
 
 /** One landed item as its landing commit records it: the file is deleted, so this is the record. A staged

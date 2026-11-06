@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
-plan: unwired-code
 area: server
+plan: unwired-code
 ---
 
 # Typed picture refs inside markdown count against the send picture limit
 
 ## What
 
-The change, in a sentence.
+Count typed picture references inside markdown text toward the per-send picture limit that block attachments already share.
 
 ## Why
 
-The symptom or the ruling behind it.
+packages/contracts/src/chat/content-blocks.ts makes the attachment list the cap for a send's pictures. A picture typed as a reference in the text is a second way to carry one, and it should share that cap.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test sends text with more typed picture references than the cap and sees a refusal. A send at the cap, mixing blocks and typed references, still succeeds.
 
 ## Evidence
 

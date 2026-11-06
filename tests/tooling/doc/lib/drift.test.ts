@@ -25,7 +25,17 @@ function item(overrides: Partial<WorkItem>): WorkItem {
 }
 
 function facts(overrides: Partial<DriftFacts>): DriftFacts {
-  return { items: [], plans: [], worktreeBranches: [], unmergedBranches: [], closedOnMain: [], wokenItems: new Set(), wokenPlans: new Set(), ...overrides };
+  return {
+    items: [],
+    plans: [],
+    worktreeBranches: [],
+    unmergedBranches: [],
+    closedOnMain: [],
+    templateItems: [],
+    wokenItems: new Set(),
+    wokenPlans: new Set(),
+    ...overrides,
+  };
 }
 
 function plan(overrides: Partial<PlanState>): PlanState {
@@ -86,6 +96,20 @@ test("a blocked-on item whose blocker is done, and a met wake condition, each na
   const woken = facts({ items: [item({ id: 3, state: "blocked", blocked: "wake path x" })], wokenItems: new Set([3]) });
   expect(driftLines(woken)).toEqual(["3 has a met wake condition (wake path x) — pnpm doc set 3 open"]);
   expect(driftLines({ ...woken, wokenItems: new Set() })).toEqual([]);
+});
+
+test("an item holding template text is named once with the sections it still owes and the edit command", () => {
+  const template = facts({
+    items: [item({ id: 4 })],
+    templateItems: [
+      { id: 4, flags: ["what", "done"] },
+      { id: 9, flags: ["what", "why", "done"] },
+    ],
+  });
+  expect(driftLines(template)).toEqual([
+    "4 holds template text in --what, --done — pnpm doc edit 4 --what <text> --done <text>",
+    "9 holds template text in --what, --why, --done — pnpm doc edit 9 --what <text> --why <text> --done <text>",
+  ]);
 });
 
 test("wake conditions are collected from blocked items only, and the Closes trailer parses ids", () => {

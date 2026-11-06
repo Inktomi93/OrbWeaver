@@ -1,25 +1,25 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P3
-plan: unwired-code
 area: tooling
+plan: unwired-code
 ---
 
 # A deletion branch fails when a removed contract key still has literal hits in the client, plugins or e2e
 
 ## What
 
-The change, in a sentence.
+Add a check on a deletion branch that fails when a removed contract key still has a literal hit in the client, the plugins or the e2e tests.
 
 ## Why
 
-The symptom or the ruling behind it.
+A deleted tRPC input key strips silently under z.object, so a sender that still passes it keeps working until the value is needed. The Evidence below holds the manual sweep this check automates.
 
 ## Done when
 
-The observable bar a verifier can check.
+The check runs on a branch that removes a contract key. It fails on a planted literal hit in each of the client, the showcase plugins and the e2e tests, and passes on a branch with none.
 
 ## Evidence
 

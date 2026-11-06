@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: plugin
 ---
@@ -10,15 +10,15 @@ area: plugin
 
 ## What
 
-The change, in a sentence.
+Make the installer byline part of a plugin suggestion card's accessible description.
 
 ## Why
 
-The symptom or the ruling behind it.
+The dismiss button's accessible name is Dismiss plus the plugin's free-text title, and the byline is in no accessible name. A title that mimics an attribution reads to a screen-reader user as one, and the installer is never heard.
 
 ## Done when
 
-The observable bar a verifier can check.
+The byline is in the card's accessible description, for example through aria-describedby, and a component test asserts it.
 
 ## Evidence
 
