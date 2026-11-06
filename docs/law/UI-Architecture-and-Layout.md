@@ -183,24 +183,12 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, `--dimension-rail`).
+  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). A rail shorter than its sections scrolls them:
+            the scroller ends mid-button so the next section shows half clipped at rest, and the current section stays
+            in view (`packages/client/src/features/app-shell/hooks/use-rail-sections-fit.ts`).
             `SECTION_IDS` (`packages/client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
             truth for which sections exist, and its ORDER is the rail's:
-            Home (the Weave glyph IS its affordance — the brand cell is a real named button; below
-            48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
-            --spacing-section dividers: Chats · Characters ·
-            Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`;
-            its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door)
-            | Plugin pages · Databank · Presets · Refinery (authoring group, after the Configuration
-            section, which sits at the rail foot — Configuration
-            is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the
-            whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
-            rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable;
-            Databank
-            is the other library you author INTO — files/pages/pasted text, indexed for retrieval) → spacer →
-            Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
-            rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
-            preferences and one-shots go to modals/settings.
+            Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`; its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door) | Plugin pages · Databank · Presets · Refinery (authoring group, after the Configuration section, which sits at the rail foot — Configuration is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable; Databank is the other library you author INTO — files/pages/pasted text, indexed for retrieval) → spacer → Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
             The rail renders ONE assembled chrome registry
             (`assembleChrome` in `packages/client/src/compose/authed-composition.tsx` → `CHROME_ZONES`, zones-as-data off `RAIL_ZONES` in
             `section-registry.ts`): `rail.brand` = the Home brand cell, `rail.nav` = section entries derived from each `SectionDefinition.rail`,
@@ -252,7 +240,7 @@ Explore CONTENT owns the understanding pass. Empty finder and analysis tabs link
 
 Labels uses one visible word for manual labels. Its Usage rail retains the shared Context bracket even when it contains one view. A destructive decision belongs to the finder, which survives row removal. The confirm names the unused labels and owns mutation failure feedback. New-label creation reserves names across delayed library refreshes.
 
-- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its workbench parts (session masthead, the score, rewrite and analyze lanes, the run bar, per-block compare → `@orb/ui/diff`) are app components over the primitives.
+- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28).
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
 - **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. A desktop panel opens and closes from one `PanelEdgeControl` (`packages/client/src/components/panel-edge-control.tsx`) at its header row's screen-edge corner. One node serves docked and collapsed, so it never moves under the pointer. The topbar carries no panel toggle on a desktop. On a desktop the control stays in place while its panel floats as a sheet and is that sheet's one dismiss. A phone sheet carries its own dismiss; a phone keeps its doors in the topbar. The control sits in the document beside its panel, so the keyboard reaches it where it is drawn. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
@@ -380,5 +368,5 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 - **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
 - **The keyboard:** measure the visual viewport against the CSS frame (`packages/ui/src/lib/keyboard-inset.ts`). Subtract only its remaining coverage. Preserve keyboard state while native layout resizing removes that coverage.
 - **The short room:** under the `shell-main` cq-28 height step, the member strip rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
-- **The history pager:** Earlier messages rides in the transcript's scroll content in every regime. It pins while focused or after a failed press, until dismissed.
+- **The history pager:** Earlier messages rides in the transcript's scroll content in every regime. It pins while focused or after a failed press, until dismissed; Dismiss removes the failure line.
 - **`env(safe-area-inset-*)`** on shell and composer. Contain scroll chaining in scroll regions; suppress elastic overscroll on the room frame without disabling its overflow. Set `inputmode`/`type=` on inputs.
