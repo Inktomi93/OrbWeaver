@@ -37,14 +37,17 @@ Copy the closest existing codemod to start a new one. Do not run `codemod init`;
 3. Print the AST of a representative input: `echo '<code>' | pnpm codemod ai dump-ast --language typescript`.
 4. Write the fixtures first: the positive case, a no-op case with similar code that must stay unchanged, and every shape the tree uses. Grep the tree for the shapes before you guess.
 5. Write the rule with `kind` and `has`, `inside` or `pattern`. Use `regex` only on a leaf node's text.
-6. Export `getSelector` returning the same rule so unmatched files are skipped.
+6. Export `getSelector` returning the same rule so unmatched files are skipped. A workflow run uses it; `jssg run` does not load the workflow's filters.
 7. Build every edit from `node.range()` and commit once with `root.root().commitEdits(edits)`. Return `null` when nothing matched.
-8. When the rewrite claims type equivalence, add an assert mode that proves each site first. See "Assert mode".
-9. When the rewrite adds a call to a helper, skip the helper's own file. Cover it with a fixture.
-10. When the rewrite adds a value import, never merge it into an `import type` line. Cover it with a fixture; `tooling/src/codemods/trpc-error-code/scripts/codemod.ts` shows the check.
-11. Skip callbacks that run in another realm and cover them with a no-op fixture. See "Gotchas".
-12. Ship a one-off ast-grep rewrite over more than a handful of files as a codemod with fixtures. The codemod engine is ast-grep, so a script loses only the fixtures, the dry-run diff and the kept transform.
-13. Write a codemod instead of running `eslint --fix` over the tree. A bulk fixer can write unparseable code, weaken assertions and change truthiness. Read a rule's fixer before you run it.
+8. Match only the pre-change shape, so a rerun changes nothing.
+9. When a rule keys on a component or function name, prove the name with `importBindingOf`, never by its text. See `reference/api.md`.
+10. Count each edit and each skip reason with `codemod:metrics`, so a run reconciles against its plan.
+11. When the rewrite claims type equivalence, add an assert mode that proves each site first. See "Assert mode".
+12. When the rewrite adds a call to a helper, skip the helper's own file. Cover it with a fixture.
+13. When the rewrite adds a value import, never merge it into an `import type` line. Cover it with a fixture; `tooling/src/codemods/trpc-error-code/scripts/codemod.ts` shows the check.
+14. Skip callbacks that run in another realm and cover them with a no-op fixture. See "Gotchas".
+15. Ship a one-off ast-grep rewrite over more than a handful of files as a codemod with fixtures. The codemod engine is ast-grep, so a script loses only the fixtures, the dry-run diff and the kept transform.
+16. Write a codemod instead of running `eslint --fix` over the tree. A bulk fixer can write unparseable code, weaken assertions and change truthiness. Read a rule's fixer before you run it.
 
 ## Assert mode
 
@@ -64,7 +67,8 @@ Run from the repository root.
 3. `pnpm codemod workflow validate -w tooling/src/codemods/<name>`
 4. Dry-run against the real target and keep the event stream: `pnpm codemod workflow run -w tooling/src/codemods/<name> -t <dir> --dry-run --no-interactive --allow-dirty --format jsonl > <scratch>/dry.jsonl`. The workflow's `include` globs scope each language step. The text format prints no per-file result for a workflow dry run.
 5. List the files: `grep -o 'Would modify file (dry run): [^"]*' <scratch>/dry.jsonl`. Compare that set against an independent `rg` of the same shape. Explain each difference in either direction, so you prove what the transform skipped. Accept only when no difference stays unexplained.
-6. Read the diff for the hunk shapes: `pnpm codemod jssg run tooling/src/codemods/<name>/scripts/codemod.ts --language typescript -t <dir> --dry-run --no-interactive --allow-dirty --no-color`. Zero unexpected `+` lines.
+6. Check edit and skip counts against the plan. Time a no-op on the same target when a run feels slow: the codemod should sit near it.
+7. Read the diff for the hunk shapes: `pnpm codemod jssg run tooling/src/codemods/<name>/scripts/codemod.ts --language typescript -t <dir> --dry-run --no-interactive --allow-dirty --no-color`. Zero unexpected `+` lines.
 
 `jssg run` takes one language and no `include` globs. Use it for the diff, and for applying only on a single-extension target.
 
@@ -82,6 +86,8 @@ Run from the repository root.
 | Fact | Consequence |
 | - | - |
 | `range().index` and `Edit` positions are UTF-8 byte offsets | Never index `root.text()` by them. Use `new TextEncoder().encode(text)` for byte lookups. |
+| Each file runs in a fresh QuickJS runtime | A module-level cache dies between files. Share through `codemod:workflow` state under `acquireLock`, in small per-file pieces. |
+| Semantic analysis gives bindings, not types | Run `tsc` after a rewrite that depends on a type. Under `jssg run`, pass `--semantic-workspace <root>`. |
 | `Codemod<T>` must return a `Promise` | Return `Promise.resolve(...)`; Biome refuses an `async` function with no `await`. |
 | `--language typescript` skips `.tsx`; `--language tsx` also visits `.ts` and parses it with the TSX grammar | Give a mixed target one workflow step per language with `include` globs. |
 | tree-sitter parses `await using x = ...` as `await (using = ...)` | No `ERROR` node appears. Do not target explicit resource management declarations. |

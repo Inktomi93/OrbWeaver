@@ -52,9 +52,9 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 Semantic analysis gives bindings, not types. To prove which component a JSX name is:
 
-1. Set `semantic_analysis: workspace` on the workflow step, and target the package root so the other package is indexed.
-2. Call `definition()` on the name. It returns the `import_specifier` in this file; read the module from its `import_statement`.
-3. Call `definition()` on that specifier. It returns `kind: "external"` and the barrel file in the other package. Each barrel costs one more hop.
+1. Set `semantic_analysis: workspace` on the workflow step. Target the package root so the other package is indexed.
+2. Call `importBindingOf(name)` for the imported name and its module.
+3. To reach the source, call `definition()` on the name, then on the `import_specifier` it returns. The second call gives `kind: "external"` and the barrel in the other package. Each barrel costs one more hop.
 
 Run `tsc` after the rewrite for anything that needs a type.
 
@@ -73,10 +73,17 @@ Positions are UTF-8 byte offsets. An empty `insertedText` deletes. Build edits f
 | `codemod:ast-grep` `parseAsync(language, text)` | parse an embedded language, for example CSS in a template literal |
 | `codemod:ast-grep` `jssgTransform(fn, path, language)` | edit a second file from the current one; applied with the primary file |
 | `codemod:workflow` `getState`, `setState`, `acquireLock` | shared state across files in one step; lock a read-modify-write |
-| `codemod:metrics` | counters for a detection-only run |
+| `codemod:metrics` | `useMetricAtom(name).increment(labels)`; counts print at the end of a run, so use it to count edits and skip reasons |
 | `codemod:runtime` | progress, warnings, explicit failure |
 
-`@jssg/utils/javascript/imports` offers `getImport`, `addImport`, `removeImport`, `updateImport` and `renameReferences`. It is not installed; add it to the catalog when a codemod needs it.
+`@jssg/utils` runs inside the sandbox. It is not in the catalog yet; add it with the first codemod that imports it, because knip refuses an unused dependency.
+
+| Subpath | Use |
+| - | - |
+| `@jssg/utils/javascript/imports` | `getImport`, `getAllImports`, `addImport`, `removeImport`, `updateImport` |
+| `@jssg/utils/javascript/bindings` | `importBindingOf(node)` gives `{ importedName, localName, source }`, or `null` for a local name; `resolveDefinition(node)` follows one import |
+
+Use `importBindingOf` to prove what a name is. It handles an alias, and it returns `null` for a local name that shadows an import. Read `pnpm codemod ai docs jssg-utils-instructions` for the rest.
 
 ## Commands
 
