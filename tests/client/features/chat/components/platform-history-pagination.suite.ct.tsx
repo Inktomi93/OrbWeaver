@@ -5,7 +5,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState, settledBox } from "@orb/testkit/browser/spec";
+import { seedShellState, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
 import {
   createShellAmbientReads,
   holdServed,
@@ -19,7 +19,8 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import type { Locator, Page } from "@playwright/test";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_RETRY_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -107,6 +108,98 @@ async function throughDeletion(events: ChatEvents, chatId: ChatId): Promise<Stre
   return frames;
 }
 
+type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+type ListMessagesIntercept = Parameters<typeof serveCorpusProcedures<"chat.listMessages">>[2];
+type CorpusPlayback = Parameters<typeof createShellAmbientReads>[0];
+
+interface LiveRoomOptions {
+  readonly root: Root;
+  readonly caller: Caller;
+  readonly corpus: CorpusPlayback;
+  readonly page: Page;
+  readonly rooms: readonly ListedRoom[];
+  readonly chatId: ChatId;
+  readonly chatStyle: "flat" | "document";
+  readonly intercept: ListMessagesIntercept;
+}
+
+interface LiveRoom extends AsyncDisposable {
+  /** How many `chat.listMessages` reads the room has served. */
+  readonly reads: () => number;
+  readonly settle: () => Promise<void>;
+}
+
+/** A served room on its live socket. `settle` commits and removes a row so the bus invalidates the room's reads. */
+async function serveLiveRoom({ root, caller, corpus, page, rooms, chatId, chatStyle, intercept }: LiveRoomOptions): Promise<LiveRoom> {
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({ chatStyle, backgroundImageKind: "none" }) });
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+  const auth = await root.http.request("/api/auth/config");
+  await routeAuthConfig(page, await auth.text());
+  const calls = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "rpg.getGame", "rpg.listTurnToolCalls", "notifications.presence"]),
+    ...serveCorpusProcedures(caller, ["chat.listMessages"], intercept),
+    "stream.attach": ({ ref }) => (ref.channel === "chat" && rooms.some((row) => row.id === ref.chatId) ? null : trpcError({ code: "NOT_FOUND" })),
+    "stream.detach": ({ ref }) => (ref.channel === "chat" && rooms.some((row) => row.id === ref.chatId) ? null : trpcError({ code: "NOT_FOUND" })),
+  });
+  const listening = Promise.withResolvers<void>();
+  const joined = Promise.withResolvers<void>();
+  const stop = new AbortController();
+  let started = false;
+  await routeOrbSocket(page, {
+    awaitAttaches: 1,
+    frames: async (signal) => {
+      started = true;
+      const events = root.app.liveBuses.chat.subscribeChatEvents(chatId, AbortSignal.any([signal, stop.signal]));
+      listening.resolve();
+      try {
+        return await throughDeletion(events, chatId);
+      } catch (error) {
+        if (!stop.signal.aborted) {
+          throw error;
+        }
+        return [];
+      } finally {
+        joined.resolve();
+      }
+    },
+  });
+  return {
+    reads: (): number => calls.count("chat.listMessages"),
+    settle: async (): Promise<void> => {
+      await listening.promise;
+      const [message] = (await caller.chat.commitMessage({ chatId, content: "A row that lands while the older reads are down.", timeZone: UTC_TIME_ZONE }))
+        .messages;
+      if (message === undefined) {
+        throw new Error("The commit returned no row");
+      }
+      await caller.chat.deleteMessages({ chatId, messageIds: [message.id] });
+      await joined.promise;
+    },
+    [Symbol.asyncDispose]: async (): Promise<void> => {
+      stop.abort();
+      if (started) {
+        await joined.promise;
+      }
+    },
+  };
+}
+
+function historyRoot(): Promise<Root> {
+  const provider = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: new Map(),
+    images: [],
+  });
+  return createCorpusHarness(undefined, { providerFetch: provider.execute });
+}
+
+function loadedRows(list: Locator): Promise<string | null> {
+  return list.locator('[data-slot="message-list-row"]').first().getAttribute("aria-setsize");
+}
+
 for (const regime of [
   { viewport: { width: 1280, height: 900 }, chatStyle: "flat", coarse: false },
   { viewport: { width: 390, height: 844 }, chatStyle: "document", coarse: true },
@@ -114,14 +207,7 @@ for (const regime of [
   test.describe(`${regime.viewport.width}x${regime.viewport.height} ${regime.chatStyle}`, () => {
     test.use({ viewport: regime.viewport, hasTouch: regime.coarse, isMobile: regime.coarse });
     test("ordinary history reaches its original canon, preserves the prepend anchor and scopes pages to the room", async ({ corpus, mount, page }) => {
-      const provider = createCorpusProviderExecution({
-        modelIds: [CORPUS_EMBED_MODEL],
-        embedding: CORPUS_EMBEDDING_VECTOR,
-        chatText: "",
-        structuredReplies: new Map(),
-        images: [],
-      });
-      await using root = await createCorpusHarness(undefined, { providerFetch: provider.execute });
+      await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed } = await prepareHistory(caller);
       expect(tail.messages.some((message) => message.id === original.id)).toBe(false);
@@ -276,6 +362,146 @@ for (const regime of [
       await mounted.update({ chatId: room.id, socket: true });
       await expect(earlier).toBeDisabled();
       await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+    });
+    test("a failed refresh reports without moving or pinning, a press still pages, and recovery wastes no press", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room } = await prepareHistory(caller);
+      let failing = false;
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
+      const { y } = await settledBox(reading);
+      failing = true;
+      await live.settle();
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeAttached();
+      await expect(alert).not.toBeInViewport();
+      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      // The press asks for older rows even through a failed refresh, so what it reports is its own failure.
+      const rows = await loadedRows(list);
+      await earlier.dispatchEvent("click");
+      await expect(alert).toBeInViewport({ ratio: 1 });
+      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+      failing = false;
+      const reads = live.reads();
+      await earlier.dispatchEvent("click");
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      await expect(alert).toHaveCount(0);
+      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+      // The landed page and then the refresh the outage cost: the loaded pages are read again.
+      await expect.poll(() => live.reads()).toBeGreaterThan(reads + 1);
+      await page.screenshot({ path: test.info().outputPath("recovered-refresh.png") });
+    });
+    test("a failed refresh leaves a reader at the tail on the tail", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, tail } = await prepareHistory(caller);
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const last = tail.messages.at(-1);
+      if (last === undefined) {
+        throw new Error("The tail is empty");
+      }
+      const newest = list.locator(`[data-slot="message-row"][data-message-id="${last.id}"]`);
+      const before = await settledBox(newest);
+      await live.settle();
+      await expect(list.getByRole("alert")).toBeAttached();
+      await expect
+        .poll(async () => {
+          const after = await settledBox(newest);
+          return Math.abs(after.y - before.y);
+        })
+        .toBeLessThanOrEqual(1);
+    });
+    test("a failed refresh in a room with nothing older keeps its own way to retry", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, other } = await prepareHistory(caller);
+      let failing = true;
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: other.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: other.id, socket: true });
+      await expect(page.locator('[data-slot="message-list-row"]').first()).toBeVisible();
+      await live.settle();
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeAttached();
+      await expect(list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeDisabled();
+      failing = false;
+      await list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true }).dispatchEvent("click");
+      await expect(alert).toHaveCount(0);
+    });
+    test("a failed bridge reports once, reads nothing more until asked, and its retry reaches the tail", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room } = await prepareHistory(caller);
+      let failing = false;
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ cursor }) => (failing && cursor?.kind === "after" ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeAttached();
+      const rows = await loadedRows(list);
+      await earlier.dispatchEvent("click");
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      failing = true;
+      await commitArrivals(caller, room.id);
+      await live.settle();
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeAttached();
+      await expect(alert).not.toBeInViewport();
+      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
+      const reads = live.reads();
+      await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 500)));
+      expect(live.reads()).toBe(reads);
+      failing = false;
+      await list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true }).dispatchEvent("click");
+      await expect(alert).toHaveCount(0);
+      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
     });
     test("a newly created room renders its complete warm opening while confirmation is held", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();

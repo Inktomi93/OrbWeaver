@@ -27,6 +27,7 @@ export {
   resolvedLength,
   seedShellState,
   settledBox,
+  settledReadingRow,
   shellTracks,
 } from "./shell-drive.ts";
 export type { SurfaceActionWindow } from "./surface-action.ts";

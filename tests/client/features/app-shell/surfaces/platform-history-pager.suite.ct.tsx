@@ -7,13 +7,13 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState, settledBox } from "@orb/testkit/browser/spec";
+import { seedShellState, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CHAT_EARLIER_MESSAGES_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { PHONE, SHELL_STORIES, wallpaper } from "./app-shell-ct.ts";
 
@@ -170,6 +170,144 @@ for (const cell of [
   test.describe(`a history page at ${String(cell.viewport.width)}x${String(cell.viewport.height)}`, () => {
     test.use({ viewport: cell.viewport, hasTouch: cell.coarse, isMobile: cell.coarse });
 
+    for (const landing of [50, 56, 120, 300]) {
+      test(`that fails after one jump to ${String(landing)}px holds the reader's row, and so does the retry that lands`, async ({ corpus, mount, page }) => {
+        await using root = await pagedRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { chatId } = await preparePagedRoom(caller, "document");
+        let failing = true;
+        await serveRoom(page, corpus, caller, ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        await expect(earlierIn(list)).toBeAttached();
+        await list.evaluate((node, top) => {
+          node.scrollTop = top;
+        }, landing);
+        // The row itself, not the topmost: a landed page can put a new row in the gap above it.
+        const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
+        const { y } = await settledBox(reading);
+        await earlierIn(list).dispatchEvent("click");
+        await expect(list.getByRole("alert")).toBeInViewport({ ratio: 1 });
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        failing = false;
+        const rows = await loadedRows(list);
+        await earlierIn(list).dispatchEvent("click");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(list.getByRole("alert")).toHaveCount(0);
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+      });
+    }
+
+    test("that fails pins until dismissed, keeps the failure at the pager's home, and pins again on the next failure", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      await earlierIn(list).dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeInViewport({ ratio: 1 });
+      const before = await settledReadingRow(list);
+      await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
+      await expect(alert).not.toBeInViewport();
+      await expect(alert).toBeAttached();
+      await expect.poll(() => settledReadingRow(list)).toEqual(before);
+      await earlierIn(list).dispatchEvent("click");
+      await expect(alert).toBeInViewport({ ratio: 1 });
+    });
+
+    test("that is dismissed from the keyboard hands focus to Earlier messages", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await focusFromMidway(list);
+      await page.keyboard.press("Enter");
+      const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+      await dismiss.focus();
+      await page.keyboard.press("Enter");
+      await expect(dismiss).toHaveCount(0);
+      await expect(earlierIn(list)).toBeFocused();
+    });
+
+    test("sits on the room's track, and the failure and the control share one inset", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await expect(earlier).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      // Dispatched, not clicked: a pointer press would leave the later focus without its ring.
+      await earlier.dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeInViewport({ ratio: 1 });
+      const trackStart = await list
+        .locator(".orb-chat-track")
+        .first()
+        .evaluate((track) => track.getBoundingClientRect().left);
+      const start = (node: Element): number => node.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(node).paddingInlineStart);
+      const [control, failure] = await Promise.all([earlier.evaluate(start), alert.evaluate(start)]);
+      expect(failure).toBe(control);
+      expect(await earlier.evaluate((button) => button.getBoundingClientRect().left)).toBe(trackStart);
+      expect(await earlier.evaluate((button) => getComputedStyle(button).boxShadow)).toBe("none");
+      await earlier.focus();
+      expect(await earlier.evaluate((button) => getComputedStyle(button).boxShadow)).toContain("inset");
+      await page.screenshot({ path: test.info().outputPath("on-the-track.png") });
+    });
+
+    test("states the end of history in the control's voice, inset from the pager's end", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await expect(earlier).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      for (;;) {
+        const rows = await loadedRows(list);
+        await earlier.dispatchEvent("click");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(earlier).not.toHaveAttribute("aria-busy", "true");
+        if (await earlier.isDisabled()) {
+          break;
+        }
+      }
+      await earlier.focus();
+      await expect(earlier).toBeFocused();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      const end = page.locator(`[id="${(await earlier.getAttribute("aria-describedby")) ?? ""}"]`);
+      await expect(end).toBeVisible();
+      const size = (node: Element): string => getComputedStyle(node).fontSize;
+      expect(await end.evaluate(size)).toBe(await earlier.evaluate(size));
+      const gap = await end.evaluate((node) => {
+        const box = node.parentElement?.getBoundingClientRect();
+        const text = document.createRange();
+        text.selectNodeContents(node);
+        return (box?.right ?? Number.NaN) - text.getBoundingClientRect().right;
+      });
+      expect(gap).toBeGreaterThan(0);
+      await page.screenshot({ path: test.info().outputPath("end-of-history.png") });
+    });
+
     test("that fails at the oldest row leaves the failure and Earlier messages on screen, and a second press recovers", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
@@ -255,6 +393,25 @@ for (const cell of [
       await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
       expect(await earlier.evaluate(restsOnReadingPlate, TOKENS["color.reading-plate"].cssVar)).toBe(true);
       await page.screenshot({ path: test.info().outputPath("over-wallpaper-light.png") });
+    });
+
+    test("over a wallpaper puts a failure on the opaque card", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document", wallpaper(corpus));
+      await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await expect(earlier).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      await earlier.click();
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeInViewport({ ratio: 1 });
+      expect(await alert.evaluate(restsOnReadingPlate, TOKENS["color.card"].cssVar)).toBe(true);
+      await page.screenshot({ path: test.info().outputPath("failed-over-wallpaper.png") });
     });
   });
 }

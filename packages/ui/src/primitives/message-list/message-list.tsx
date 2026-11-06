@@ -8,7 +8,7 @@ import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
-import type { ReadingRow } from "./reading-row.ts";
+import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
@@ -177,8 +177,8 @@ export function MessageList<T>({
       // The chrome changes height when the caller's regime flips (a text-size change, a rotation), and rows re-measure in
       // the same pass; together they lose the reader's row, so the row read before the change is held through it.
       if (next !== leadingPxRef.current) {
-        leadingPxRef.current = next;
         holdReadingRowRef.current();
+        leadingPxRef.current = next;
       }
       setLeadingPx(next);
     };
@@ -351,11 +351,16 @@ export function MessageList<T>({
   // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
   const keyAt = (index: number): unknown => getItemKey(itemAt(index), index);
   const cancelHoldRef = useRef<() => void>(() => undefined);
-  useEffect((): void => {
+  const liveRowsRef = useRef<LiveRows>({ count: 0, keyAt: () => undefined });
+  // A layout effect: the chrome's observer fires before paint, ahead of a passive effect, and a prepend that also changes
+  // the chrome would otherwise start its hold on the old rows, where the reader's index names a different message.
+  useLayoutEffect((): void => {
+    liveRowsRef.current = { count: items.length, keyAt };
     holdReadingRowRef.current = (): void => {
       const el = scrollRef.current;
       const row = readingRowRef.current;
-      // A reader at the chrome is reading it: chrome that grows there pushes the rows down and stays on screen.
+      // A reader at the chrome, as it stood before this change, is reading it: chrome that grows there pushes the rows down
+      // and stays on screen.
       if (el === null || row === null || stickToBottomRef.current || el.scrollTop < leadingPxRef.current) {
         return;
       }
@@ -364,8 +369,7 @@ export function MessageList<T>({
       cancelHoldRef.current = holdReadingRow({
         scroller: el,
         row,
-        count: items.length,
-        keyAt,
+        rows: liveRowsRef,
         reveal: (index): void => virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" }),
         // The reader's hand, or a jump that made the list follow its tail again, ends the hold.
         yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current,
@@ -374,12 +378,19 @@ export function MessageList<T>({
         },
         onDone: (): void => {
           holdingRef.current = false;
-          readingRowRef.current = readingRowOf(el, items.length, keyAt);
+          readingRowRef.current = readingRowOf(el, liveRowsRef.current.count, liveRowsRef.current.keyAt);
         },
       });
     };
   });
   useEffect((): (() => void) => (): void => cancelHoldRef.current(), []);
+  // The rows a jump mounts arrive after its scroll event, and no later event reads them.
+  useLayoutEffect((): void => {
+    const el = scrollRef.current;
+    if (el !== null && readingRowRef.current === null && !holdingRef.current) {
+      readingRowRef.current = readingRowOf(el, items.length, keyAt);
+    }
+  });
   // Every explicit placement (a jump, a reveal, a pin) outranks a hold still in flight.
   const stopHold = useCallback((): void => {
     cancelHoldRef.current();
@@ -421,7 +432,8 @@ export function MessageList<T>({
     virtualizer.scrollToEnd({ behavior: "auto" });
   }, [virtualizer]);
 
-  useTailRepin({ contentHeightPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
+  // The chrome counts: it sits above the rows, so its growth pushes the tail away from a reader who is following it.
+  useTailRepin({ contentHeightPx: contentHeightPx + leadingPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
@@ -556,7 +568,7 @@ export function MessageList<T>({
       )}
       {leadingAction === undefined ? null : (
         // A sibling of the chrome, never inside it: a sticky box cannot leave its parent, and the chrome ends with the oldest row.
-        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}>
+        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)} data-slot="message-list-leading-action">
           {leadingAction}
         </div>
       )}
