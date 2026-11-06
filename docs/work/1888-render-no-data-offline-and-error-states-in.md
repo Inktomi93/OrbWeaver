@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P2
 area: client
-plan: test-foundation
+plan: cross-surface-consistency
 ---
 
 # Render no-data offline and error states in unselected content panes

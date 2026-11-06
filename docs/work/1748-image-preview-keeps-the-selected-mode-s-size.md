@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P3
 area: client
-plan: unwired-code
+plan: cross-surface-consistency
 ---
 
 # Image preview keeps the selected mode's size, and a backend that ignores the count tells the user why one image came back
