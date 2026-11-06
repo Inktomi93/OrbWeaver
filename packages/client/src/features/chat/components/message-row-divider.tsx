@@ -19,7 +19,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
           summary — the Memory plane is a different subsystem (vocab repair, 2026-08-02). */}
       {/* On the reading plate (D144(b)): the line crosses the room's background art, and the numbers on it must read
           at AA whatever part of the photo sits behind them. The hairlines meet the plate, not the text. */}
-      <Row gap="field" align="center" plate="island" className="px-tight">
+      <Row gap="field" align="center" plate="island" paddingInline="tight">
         <Text voice="kicker" ink="inherit">
           {compacted ? "Older messages compacted into a summary" : "In context from here"}
           {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}

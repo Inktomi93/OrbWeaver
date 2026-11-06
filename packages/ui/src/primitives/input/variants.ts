@@ -48,7 +48,7 @@ export const inputVariants = tv({
     // className, which is why the shipped sites wrote `!w-*`.
     width: {
       full: "",
-      auto: "inline-auto",
+      auto: "field-sizing-content inline-auto max-inline-full min-inline-0",
       "avatar-md": "inline-(--size-avatar-md)",
       "avatar-lg": "inline-(--size-avatar-lg)",
     },

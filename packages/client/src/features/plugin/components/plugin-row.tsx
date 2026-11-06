@@ -142,7 +142,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
         <Stack className="pbe-block" divider="bottom" gap="tight">
           <Row align="start" gap="block" justify="between" stackBelow="cq-28" stretchBelow="cq-28">
-            <Stack className="flex-1 min-inline-0" gap="tight">
+            <Stack className="min-inline-0" grow={true} gap="tight">
               <Row align="center" className="flex-wrap" gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 <Badge tone={status.tone} size="sm">

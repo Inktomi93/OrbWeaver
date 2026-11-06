@@ -150,7 +150,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
       search={
         // One reset contract for both filters: the clear glyph sits inside the field's inline end, over a
         // constant reserve, so the value never reflows when it appears.
-        <Row align="center" className="relative flex-1 min-inline-0">
+        <Row align="center" className="relative min-inline-0" grow={true}>
           <Input
             aria-label={SEARCH_LABEL}
             className="flex-1 pe-(--size-control-sm) min-inline-0"
@@ -282,7 +282,7 @@ function ChatListBody({
     <Stack className="block-full min-block-0" gap="block">
       {/* The strip renders ABOVE this body (in the surface), so it stays put across every body state —
           including an empty scope, where it is the way OUT. */}
-      <Stack className="flex-1 min-block-0">
+      <Stack className="min-block-0" grow={true}>
         <ChatRows
           activeChatId={activeChatId}
           characterName={characterFilter?.name ?? null}

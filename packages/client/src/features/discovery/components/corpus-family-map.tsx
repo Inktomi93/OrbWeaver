@@ -71,7 +71,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
           shape="rounded"
           size="md"
         />
-        <Stack className="flex-1 min-inline-0" gap="tight">
+        <Stack className="min-inline-0" grow={true} gap="tight">
           <Tooltip describesTrigger={false}>
             <TooltipTrigger
               render={

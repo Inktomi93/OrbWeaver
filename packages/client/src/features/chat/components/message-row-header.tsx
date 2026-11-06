@@ -54,14 +54,14 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
   // The speaker's name IS the name of this row's one datum — the `label` voice (UI-Density-Law.md §2.3).
   if (attribution.tokens === null) {
     return (
-      <Text as="span" voice="label" className="wrap-break-word min-inline-0">
+      <Text as="span" voice="label" className="min-inline-0" wrap="word">
         {attribution.name}
       </Text>
     );
   }
   return (
     <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" voice="label" ink="speaker" className="wrap-break-word min-inline-0">
+      <Text as="span" voice="label" ink="speaker" className="min-inline-0" wrap="word">
         {attribution.name}
       </Text>
     </ThemeScope>

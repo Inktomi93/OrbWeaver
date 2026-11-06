@@ -69,7 +69,7 @@ test("the real Row owns each class it writes below a container step, on the step
   expect(ownerOf("layout", "Row", "@max-cq-32:flex-col")).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: "cq-32" });
   expect(ownerOf("layout", "Row", "@max-cq-28:items-stretch")).toEqual({ axis: "row.stretchBelow", prop: "stretchBelow", arm: "cq-28" });
   expect(ownerOf("layout", "Row", "@max-cq-64:justify-end")).toEqual({ axis: "row.endBelow", prop: "endBelow", arm: "cq-64" });
-  expect(ownerOf("layout", "Row", "@max-cq-40:flex-col")).toBeNull();
+  expect(ownerOf("layout", "Row", "@max-cq-20:flex-col")).toBeNull();
 });
 
 test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", () => {

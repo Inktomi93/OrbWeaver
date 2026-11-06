@@ -32,7 +32,8 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
       <Row
         align="center"
         cap={step === "masthead" ? undefined : "fit"}
-        className={step === "masthead" ? "flex-1 flex-wrap" : "flex-wrap min-inline-0"}
+        className={step === "masthead" ? "flex-wrap" : "flex-wrap min-inline-0"}
+        grow={step === "masthead"}
         gap="field"
         justify="end"
       >
@@ -41,7 +42,7 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
     );
   return (
     <Row align="center" className="flex-wrap min-inline-0" gap="field" justify="between">
-      <Stack className="flex-1 basis-(--width-title-floor) min-inline-0" gap="tight">
+      <Stack className="min-inline-0" floor="title" grow={true} gap="tight">
         {kicker === undefined ? null : <Text voice="kicker">{kicker}</Text>}
         <Row align="baseline" className="flex-wrap min-inline-0" gap="row">
           {/* The visible name is hidden from assistive technology so the heading names the subject once. */}
@@ -51,7 +52,8 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
           <Text
             aria-hidden="true"
             as="span" // A title-step name truncates so its verbs keep its line; a masthead never truncates, so its verbs close its line.
-            className={step === "title" ? "min-inline-0" : "wrap-break-word min-inline-0"}
+            className="min-inline-0"
+            wrap={step === "title" ? undefined : "word"}
             truncate={step === "title"}
             data-shell-identity={deferToShell ? "defer" : undefined}
             voice={NAME_VOICE[step]}

@@ -114,7 +114,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
-                <Stack className="flex-1 min-inline-0" gap="tight">
+                <Stack className="min-inline-0" grow={true} gap="tight">
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a
                       nowrap line inside a `-webkit-box` clamp overflows its cell with NO ellipsis at all
                       (measured on the quick-picks shelf — a long character name ran over its neighbour). */}

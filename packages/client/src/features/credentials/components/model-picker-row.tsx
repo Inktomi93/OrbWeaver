@@ -12,8 +12,8 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
   return (
     <Container className="flex-1 min-inline-0">
       <Row align="start" gap="row" stackBelow="cq-32">
-        <Stack className="flex-1 min-inline-0 @max-cq-32:inline-full" gap="field">
-          <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit">
+        <Stack className="min-inline-0 @max-cq-32:inline-full" grow={true} gap="field">
+          <Text as="span" className="line-clamp-2 min-inline-0" wrap="word" ink="inherit">
             {entry.label}
           </Text>
           {entry.label === entry.id ? null : (

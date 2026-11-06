@@ -64,8 +64,8 @@ export function MessageRowBody({ skin, ...props }: ComponentProps<"div"> & { rea
 // is too narrow for it. It is placed in the centred rail explicitly at every width, because a row with no chip (system,
 // avatars off, document) would otherwise auto-place into the content-sized gutter track. From the `cq-56` step up its
 // width is `--centred-column-width`, spelled in client globals.css beside the code-row rule it must outrank.
-const CENTRED_COLUMN = "col-start-2 min-inline-0 flex-1";
-const ANCHORED_COLUMN = "min-inline-0 flex-1";
+const CENTRED_COLUMN = "col-start-2 min-inline-0";
+const ANCHORED_COLUMN = "min-inline-0";
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
 // the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
 const TRAIN_COLUMN = "min-inline-0";
@@ -89,11 +89,14 @@ export function MessageContentColumn({
         columnMeasure={skin.columnMeasure}
         align={align}
         className={CENTRED_COLUMN}
+        grow={true}
       />
     );
   }
   if (skin.bubbleLayout !== "trains") {
-    return <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={ANCHORED_COLUMN} />;
+    return (
+      <Stack {...props} gap="row" data-slot="message-content-column" columnMeasure={skin.columnMeasure} align={align} className={ANCHORED_COLUMN} grow={true} />
+    );
   }
   return (
     <Stack

@@ -191,6 +191,11 @@ export const textVariants = tv({
       fill: "flex-1 truncate",
       false: "",
     },
+    // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
+    // the box is sized to its content (a path or an address in a narrow cell).
+    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },
+    // `preWrap` keeps line breaks and runs of spaces in the string, for a value shown exactly as written; `nowrap` never breaks the run.
+    whitespace: { nowrap: "whitespace-nowrap", preWrap: "whitespace-pre-wrap" },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.
     tone: TONE_TEXT,
     // A struck-through line: a cancelled quest, a disabled prompt section. Not colour, so it pairs with any tone.

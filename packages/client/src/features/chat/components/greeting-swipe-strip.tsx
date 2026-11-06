@@ -84,7 +84,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
         </GlyphButton>
       }
       count={
-        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" className="whitespace-nowrap" ink="muted">
+        <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" whitespace="nowrap" ink="muted">
           {atCustom ? "—" : currentIdx + 1} / {total}
         </Text>
       }

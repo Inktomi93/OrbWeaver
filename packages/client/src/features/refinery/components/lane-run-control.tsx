@@ -73,7 +73,7 @@ function FitLine({ stagePre, contextTokens }: { stagePre: StagePreflightView; co
     // it fits, wrapped onto its own line where it does not. Same guarantee, paid for only where it is owed.
     // `voice="gloss"`, not `datum`: a budget advisory is the quiet line under the lane's NAME, in the muted ink,
     // never a foreground value that outranks the kicker naming the lane it belongs to.
-    <Text className="whitespace-nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
+    <Text whitespace="nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
       in ≈ {stagePre.inputEstimate}
       {contextTokens === null ? "" : ` / ${contextTokens}`} · out ≈ {stagePre.outputEstimate}
       {stagePre.maxOutputTokens === null ? "" : ` / ${stagePre.maxOutputTokens}`} tok ⚠
@@ -162,7 +162,7 @@ export function LaneRunControl({
         {/* Token arithmetic is shown only when it is the reason to act (this stage would not fit): on a run
             that fits, "in ≈ 517 / 1048576" is jargon with nothing to do about it. */}
         {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}
-        <Row className="flex-1" justify="end" gap="field">
+        <Row grow={true} justify="end" gap="field">
           {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
               A neutral outline takes its host's ink, so a non-focal lane's Run button would paint at the SAME ink
               as the one filled lane beside it on the canvas — the header's own "every other lane's stays

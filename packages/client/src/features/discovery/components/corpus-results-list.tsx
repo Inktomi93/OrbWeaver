@@ -25,7 +25,7 @@ export function CorpusResultsList({
       ref={ref}
       aria-label={`Search results — ${label}`}
       scroll="y"
-      className="flex-1"
+      grow={true}
       data-testid={testId("corpusSearchResults")}
       gap="row"
       role="list"

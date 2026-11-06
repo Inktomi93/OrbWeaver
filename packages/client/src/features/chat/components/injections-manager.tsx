@@ -175,7 +175,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
                   <CollapsibleTrigger className="p-block inline-full" size="control">
-                    <Row gap="field" align="center" justify="between" className="flex-1 min-inline-0">
+                    <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
                           no prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is

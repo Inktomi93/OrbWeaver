@@ -290,7 +290,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shelf === null ? null : <CharacterShelf door="open" faces={shelf.faces} label={shelf.label} legend={null} onOpen={selectCharacter} />}
-        <Card className="p-row max-inline-(--reading-measure-prose)" variant="outline" dashed={true} padding="none">
+        <Card className="max-inline-(--reading-measure-prose)" variant="outline" dashed={true} padding="row">
           <Text voice="quiet">{FRESH_HINT}</Text>
         </Card>
       </Stack>
@@ -371,7 +371,7 @@ function LandingFrame({
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" gap="section" justify="between" stackBelow="cq-28">
-        <Stack className="flex-1 min-inline-0" gap="tight">
+        <Stack className="min-inline-0" grow={true} gap="tight">
           <Heading level={1} voice="promoted">
             {title}
           </Heading>

@@ -62,7 +62,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
       <Avatar size="lg" alt={detail.name} hueSeed={detail.id} className="shrink-0" {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}>
         {initialsFor(detail.name)}
       </Avatar>
-      <Stack gap="field" className="flex-1 min-inline-0">
+      <Stack gap="field" className="min-inline-0" grow={true}>
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
         <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">

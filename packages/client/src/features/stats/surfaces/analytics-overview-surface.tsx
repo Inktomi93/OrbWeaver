@@ -171,7 +171,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle={topCharacterSubtitle}
               actions={
-                <Text voice="datumMono" className="whitespace-nowrap">
+                <Text voice="datumMono" whitespace="nowrap">
                   {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }
@@ -288,14 +288,14 @@ function MomentumColumn({
 }): ReactElement {
   if (rows.length === 0) {
     return (
-      <Stack gap="field" className="flex-1 min-inline-(--width-popup-narrow)">
+      <Stack gap="field" className="min-inline-(--width-popup-narrow)" grow={true}>
         <Text voice="kicker">{label}</Text>
         <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }
   return (
-    <Stack className="flex-1 min-inline-(--width-popup-narrow)">
+    <Stack className="min-inline-(--width-popup-narrow)" grow={true}>
       <BarList
         intent={sign > 0 ? "positive" : "negative"}
         items={rows}

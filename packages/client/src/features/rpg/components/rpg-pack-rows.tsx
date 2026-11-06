@@ -101,13 +101,13 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
         </Text>
       ) : null}
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" ink="muted" className="shrink-0" />
-      <Stack gap="field" className="flex-1 min-inline-0">
+      <Stack gap="field" className="min-inline-0" grow={true}>
         <Row gap="field" align="baseline" className="min-inline-0">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
               recedes to `gloss` like its ×N and location has no head to read first. */}
-          <Text as="span" voice="label" className="flex-1 wrap-break-word min-inline-0">
+          <Text as="span" voice="label" className="flex-1 min-inline-0" wrap="word">
             {item.name}
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
@@ -130,7 +130,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             Model-authored free text with no length contract: it wraps; empty ⇒ nothing (the editor is where
             an unset location gets filled in, and it says so with a placeholder). */}
         {item.location === "" ? null : (
-          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
+          <Text as="span" voice="gloss" className="min-inline-0" wrap="word">
             {item.location}
           </Text>
         )}
@@ -138,7 +138,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
             the tile keeps its one-line density for the items the story hasn't described. */}
         {item.description === "" ? null : (
-          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
+          <Text as="span" voice="gloss" className="min-inline-0" wrap="word">
             {item.description}
           </Text>
         )}
@@ -222,7 +222,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
     <Card>
       <Row gap="field" align="center" data-slot="rpg-pack-row">
         <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
-        <Stack gap="field" className="flex-1 min-inline-0">
+        <Stack gap="field" className="min-inline-0" grow={true}>
           <Row gap="field" align="baseline" className="min-inline-0">
             <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
             <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />

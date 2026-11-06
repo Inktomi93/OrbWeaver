@@ -122,7 +122,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
     // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
     // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
-    <Stack className="flex-1 min-block-0" data-collection={group.id} data-slot="config-collection-landing" gap="section">
+    <Stack className="min-block-0" grow={true} data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigPaneGlance blurb={true} group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />
@@ -165,7 +165,7 @@ function CollectionControlRow({
     <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
-        <Row align="center" className="flex-1 basis-(--width-field-floor) min-inline-0" cap="fit">
+        <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
           <Input
             ref={filterRef}
             aria-label={`Filter ${label.toLowerCase()}`}

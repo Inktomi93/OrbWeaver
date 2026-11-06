@@ -292,7 +292,7 @@ export function CharacterLibrarySurface(): ReactElement {
       searchAside={<CharacterSortSelect />}
       skipTo="Skip to characters"
     >
-      <Stack className="flex-1 min-block-(--height-scroll-md)">
+      <Stack className="min-block-(--height-scroll-md)" grow={true}>
         <CharacterLibraryBody
           ariaLabel={CHARACTER_LIBRARY_NAME}
           categorized={viewMode === "categorized"}

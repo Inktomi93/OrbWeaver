@@ -51,7 +51,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                 <Text voice="code" truncate="fill">
                   {outcome.path}
                 </Text>
-                <Text voice="gloss" className="whitespace-nowrap">
+                <Text voice="gloss" whitespace="nowrap">
                   {outcome.detail}
                 </Text>
               </Row>

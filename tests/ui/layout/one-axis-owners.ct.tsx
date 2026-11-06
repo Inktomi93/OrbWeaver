@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import type { OneAxisOwnersStory } from "./_one-axis-owners-stories.tsx";
 
 const STORY = "tests/ui/layout/_one-axis-owners-stories/OneAxisOwnersStory";
+const BOX_PX = 120;
 
 interface Padding {
   readonly inline: readonly [string, string];
@@ -53,6 +54,39 @@ test.describe("cap", () => {
     const reference = await component.locator('[data-probe="ref-column"]').evaluate((element) => getComputedStyle(element).maxWidth);
     await expect(component.locator('[data-probe="stack-cap-column"]')).toHaveCSS("max-width", reference);
     await expect(component.locator('[data-probe="row-cap-fit"]')).toHaveCSS("max-width", "100%");
+  });
+});
+
+test.describe("recipe axes the client used to hand-write", () => {
+  test("a card's padding step holds inside a surface tier, which outranks a padding utility", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const card = await paddingOf(component.locator('[data-probe="card-padding-row"]'));
+    expect(card).toEqual(await paddingOf(component.locator('[data-probe="ref-row"]')));
+  });
+
+  test("a swatch size is its token", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const swatch = component.locator('[data-probe="swatch-dot"]');
+    const reference = await component.locator('[data-probe="ref-dot"]').boundingBox();
+    const box = await swatch.boundingBox();
+    expect(box?.width).toBe(reference?.width);
+    expect(box?.height).toBe(reference?.height);
+  });
+
+  test("a grown row takes the room its sibling leaves", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const row = await component.locator('[data-probe="row-grow"]').boundingBox();
+    expect(row?.width).toBeCloseTo(BOX_PX, 0);
+  });
+
+  test("wrap anywhere keeps an unbroken run inside its box, and preWrap sets the white-space mode", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const run = component.locator('[data-probe="text-anywhere"]');
+    await expect(run).toHaveCSS("overflow-wrap", "anywhere");
+    await expect(run).toHaveCSS("white-space", "normal");
+    const wraps = await run.evaluate((element) => element.getBoundingClientRect().height > 2 * Number.parseFloat(getComputedStyle(element).lineHeight));
+    expect(wraps).toBe(true);
+    await expect(component.locator('[data-probe="text-prewrap"]')).toHaveCSS("white-space", "pre-wrap");
   });
 });
 

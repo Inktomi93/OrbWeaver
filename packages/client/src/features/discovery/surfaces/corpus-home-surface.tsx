@@ -215,8 +215,8 @@ function CorpusHomeBody(): ReactElement {
             (`corpus-understanding-invitation.tsx`'s own spelling): one column until the content
             region's `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
-      <Row align="start" className="flex-col @cq-40:flex-row @cq-40:items-end" gap="section" justify="between">
-        <Stack className="flex-1 min-inline-0" gap="tight">
+      <Row align="end" gap="section" justify="between" stackBelow="cq-40" stretchBelow="cq-40">
+        <Stack className="min-inline-0" grow={true} gap="tight">
           <Text as="span" voice="kicker">
             Library understanding
           </Text>

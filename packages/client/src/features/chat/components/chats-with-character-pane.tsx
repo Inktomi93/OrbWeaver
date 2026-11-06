@@ -127,7 +127,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         ) : (
           // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at
           // mount otherwise) — `h-full` inside this `min-h-0 flex-1` column is where that bound comes from.
-          <Stack aria-label={`Chats with ${characterName}`} className="flex-1 min-block-0" role="list">
+          <Stack aria-label={`Chats with ${characterName}`} className="min-block-0" grow={true} role="list">
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList

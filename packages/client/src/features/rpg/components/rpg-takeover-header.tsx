@@ -128,12 +128,12 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
   return (
     <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-context">
+        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 max-inline-full" wrap="word" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 wrap-break-word max-inline-full" data-slot="rpg-band-when-state">
+        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 max-inline-full" wrap="word" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}
@@ -220,7 +220,7 @@ export function RpgTakeoverHeader({
     return (
       <Row gap="block" align="center" className="flex-wrap" data-slot="rpg-takeover-header">
         {stone}
-        <Stack gap="field" className="flex-1 basis-(--width-title-floor) min-inline-0" cap="fit">
+        <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" truncate={true}>
@@ -241,7 +241,7 @@ export function RpgTakeoverHeader({
     <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center" className="flex-wrap">
         {stone}
-        <Stack gap="field" className="flex-1 basis-(--width-title-floor) min-inline-0" cap="fit">
+        <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the

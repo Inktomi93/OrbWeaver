@@ -69,7 +69,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
         <>
           <Text voice="reading">{`${counted(skipped.total, ["item", "items"])} would be skipped:`}</Text>
           {groups.map(({ reason, sources }) => (
-            <Text key={reason} voice="gloss" className="wrap-anywhere">
+            <Text key={reason} voice="gloss" wrap="anywhere">
               {sources.length === 1 ? reason : `${reason} (${String(sources.length)})`}
             </Text>
           ))}
@@ -84,7 +84,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
         <CollapsiblePanel>
           <Stack gap="tight">
             {kinds.map((kind) => (
-              <Text key={kind} voice="gloss" className="wrap-anywhere">
+              <Text key={kind} voice="gloss" wrap="anywhere">
                 {`${KIND_NOUNS[kind][1]}: ${namesLine(
                   preview.kinds[kind].items.map((item) => item.name),
                   preview.kinds[kind].total,
@@ -92,12 +92,12 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
               </Text>
             ))}
             {groups.map(({ reason, sources }) => (
-              <Text key={reason} voice="gloss" className="wrap-anywhere">
+              <Text key={reason} voice="gloss" wrap="anywhere">
                 {`Skipped, ${reason}: ${sources.join(", ")}`}
               </Text>
             ))}
             {unlisted > 0 ? (
-              <Text voice="gloss" className="wrap-anywhere">
+              <Text voice="gloss" wrap="anywhere">
                 {`And ${String(unlisted)} more skipped.`}
               </Text>
             ) : null}

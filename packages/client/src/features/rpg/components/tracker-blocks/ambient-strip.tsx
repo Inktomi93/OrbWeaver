@@ -209,9 +209,7 @@ function AmbientFieldControl({
       placeholder={UNSET_DATUM}
       onEdit={(next): void => onEditField(fieldKey, next)}
       // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
-      // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`
-      // keep a long location from overflowing the wrapping card (owner density ruling).
-      className="field-sizing-content max-inline-full min-inline-0"
+      // compact input and pairs pack 2+ per row, and a long location stays inside the wrapping card.
       width="auto"
     />
   );

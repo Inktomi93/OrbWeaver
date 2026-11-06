@@ -196,7 +196,7 @@ function SearchOmnibox({
   const items = suggestionsToShow(pool, trimmed);
 
   return (
-    <Stack className="flex-1 min-inline-0" data-testid={testId("corpusSearchSuggest")}>
+    <Stack className="min-inline-0" grow={true} data-testid={testId("corpusSearchSuggest")}>
       <Autocomplete
         aria-label={CORPUS_SEARCH_NAME}
         inline={true}

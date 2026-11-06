@@ -38,16 +38,18 @@ const GAP = {
   glyph: "gap-glyph-gap",
 } as const;
 const PADDING = {
+  tight: "p-tight",
   field: "p-field",
   row: "p-row",
   block: "p-block",
   section: "p-section",
   gutter: "p-gutter",
 } as const;
-// One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` has no twin
-// here for the reason it has none above, except in the narrow arms below, which step a roomy inset down for a pane
+// One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` is the atom inset
+// of a small island (a diagram's margin, a divider's side room); the narrow arms below step a roomy inset down for a pane
 // too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
 const PADDING_INLINE = {
+  tight: "px-tight",
   field: "px-field",
   row: "px-row",
   block: "px-block",
@@ -55,6 +57,7 @@ const PADDING_INLINE = {
   gutter: "px-gutter",
 } as const;
 const PADDING_BLOCK = {
+  tight: "py-tight",
   field: "py-field",
   row: "py-row",
   block: "py-block",
@@ -62,7 +65,10 @@ const PADDING_BLOCK = {
   gutter: "py-gutter",
 } as const;
 const PADDING_BLOCK_START = {
+  tight: "pbs-tight",
   field: "pbs-field",
+  // Clears the floating control bar that sits over the box's top edge.
+  control: "pbs-(--size-control-sm)",
   row: "pbs-row",
   block: "pbs-block",
   section: "pbs-section",
@@ -113,11 +119,13 @@ const JUSTIFY = {
 // Each key names a step of the container scale and each arm writes one class as a whole literal, so Tailwind's scanner sees it.
 const STACK_BELOW = {
   "cq-28": "@max-cq-28:flex-col",
+  "cq-40": "@max-cq-40:flex-col",
   "cq-32": "@max-cq-32:flex-col",
   "cq-64": "@max-cq-64:flex-col",
 } as const;
 const STRETCH_BELOW = {
   "cq-28": "@max-cq-28:items-stretch",
+  "cq-40": "@max-cq-40:items-stretch",
   "cq-32": "@max-cq-32:items-stretch",
   "cq-64": "@max-cq-64:items-stretch",
 } as const;
@@ -180,6 +188,15 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // A box that scrolls on the block axis inside a bounded parent. It needs no `min-block-0`: a scroll container's automatic
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
 const SCROLL = { y: SCROLLER_Y } as const;
+
+// A flex child takes the room that is left (`grow`) from a starting width (`floor`), so a wrapping header gives the title
+// or the filter its own line before it squeezes. The `min-inline-0` that lets it shrink below its content stays the
+// caller's class, because only some children want that.
+const GROW = { true: "flex-1", false: "" } as const;
+const FLOOR = {
+  title: "basis-(--width-title-floor)",
+  field: "basis-(--width-field-floor)",
+} as const;
 
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
@@ -254,6 +271,8 @@ export const stackVariants = tv({
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
     cap: CAP,
+    grow: GROW,
+    floor: FLOOR,
     fill: { true: FILL_PARENT, false: "" },
     scroll: SCROLL,
     scrollFade: SCROLL_FADE,
@@ -282,6 +301,8 @@ export const rowVariants = tv({
     stretchBelow: STRETCH_BELOW,
     endBelow: END_BELOW,
     cap: CAP,
+    grow: GROW,
+    floor: FLOOR,
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,

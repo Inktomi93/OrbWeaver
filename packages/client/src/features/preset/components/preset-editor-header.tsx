@@ -184,7 +184,7 @@ export function PresetEditorHeader({
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}
-            <Row className="overflow-x-auto py-tight min-inline-0" ref={stripRef} scrollFade="x">
+            <Row className="overflow-x-auto min-inline-0" paddingBlock="tight" ref={stripRef} scrollFade="x">
               {/* THE STRIP NAMES ITSELF. Without this the tablist's accessible name computes from its own
                   contents — `ParamsPromptActionsDataTransforms` — and no semantic selector can address it. */}
               <TabsList aria-label={PRESET_SECTIONS_NAME}>

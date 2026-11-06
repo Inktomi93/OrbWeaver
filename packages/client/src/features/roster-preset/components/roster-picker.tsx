@@ -78,7 +78,7 @@ function RosterRow(props: {
   return (
     <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
       <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
-        <Stack gap="tight" className="flex-1 min-inline-0">
+        <Stack gap="tight" className="min-inline-0" grow={true}>
           <Row align="center" gap="field">
             <Text voice="label" truncate="fill">
               {roster.name}

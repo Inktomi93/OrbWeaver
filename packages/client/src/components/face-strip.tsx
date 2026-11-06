@@ -456,7 +456,7 @@ export function FaceStrip<Id extends string = string>({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Swatch shape="pill" edge="dashed" className="flex items-center justify-center block-(--size-avatar-md) inline-(--size-avatar-md)">
+                    <Swatch shape="pill" edge="dashed" size="avatarMd" className="flex items-center justify-center">
                       <Text as="span" ink="muted" voice="label">{`+${hiddenCount}`}</Text>
                     </Swatch>
                     {moreCaption}

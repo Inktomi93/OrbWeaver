@@ -262,8 +262,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
                 behind the disclosure. */}
-            <Stack className="flex-1 min-inline-0" gap="tight">
-              <Text className="wrap-anywhere" voice="promoted">
+            <Stack className="min-inline-0" grow={true} gap="tight">
+              <Text wrap="anywhere" voice="promoted">
                 {rule.name}
               </Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.

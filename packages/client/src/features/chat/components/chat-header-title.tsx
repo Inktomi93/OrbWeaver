@@ -35,7 +35,7 @@ function ParticipantsText({ label }: { readonly label: string }): ReactElement {
 /** The creation date: quiet metadata, the first thing to drop when the row is tight (shell.css). */
 function DateText({ createdAt }: { readonly createdAt: number }): ReactElement {
   return (
-    <Text as="span" voice="quiet" className="shell-topbar-date shrink-0 whitespace-nowrap">
+    <Text as="span" voice="quiet" className="shell-topbar-date shrink-0" whitespace="nowrap">
       {`\u00b7 ${timeLib.formatDate(createdAt)}`}
     </Text>
   );

@@ -48,6 +48,8 @@ export const buttonVariants = tv({
   ],
   variants: {
     corner: CORNER,
+    // A button that is a row's door: it takes the room left beside its siblings and sets its label at the start.
+    stretch: { row: "flex-1 justify-start min-inline-0" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).

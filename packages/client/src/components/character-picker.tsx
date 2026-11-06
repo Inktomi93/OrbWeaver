@@ -207,7 +207,7 @@ function CharacterPickerBody({
           <Text as="span" voice="gloss">
             {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
-          <Row className="flex-1 min-inline-0" gap="field" justify="end">
+          <Row className="min-inline-0" grow={true} gap="field" justify="end">
             {query.isFetchNextPageError ? (
               <>
                 <Text role="alert" voice="gloss">
@@ -273,7 +273,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
-      <Row align="center" className="flex-1 min-inline-0" gap="row">
+      <Row align="center" className="min-inline-0" grow={true} gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>

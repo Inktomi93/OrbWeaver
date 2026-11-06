@@ -215,7 +215,8 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
       <Stack
         aria-label={regionLabel}
         scroll="y"
-        className="-mx-row flex-1 block-full"
+        className="-mx-row block-full"
+        grow={true}
         paddingBlock="section"
         paddingInline="row"
         focusTarget={true}

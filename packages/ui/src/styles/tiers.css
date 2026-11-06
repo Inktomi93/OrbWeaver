@@ -144,4 +144,12 @@
   [data-surface-tier] [data-slot="card-root"][data-padding="none"] {
     padding: 0;
   }
+
+  [data-surface-tier] [data-slot="card-root"][data-padding="field"] {
+    padding: var(--spacing-field);
+  }
+
+  [data-surface-tier] [data-slot="card-root"][data-padding="row"] {
+    padding: var(--spacing-row);
+  }
 }

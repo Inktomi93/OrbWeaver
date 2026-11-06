@@ -261,7 +261,7 @@ function OverviewRow({
         </Text>
       </Row>
       {gloss === undefined ? null : (
-        <Text voice="gloss" className="wrap-break-word min-inline-0">
+        <Text voice="gloss" className="min-inline-0" wrap="word">
           {gloss}
         </Text>
       )}

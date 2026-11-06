@@ -214,7 +214,7 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch min-inline-0" paddingInline="block">
+      <Row data-slot="context-tab-strip" align="center" className="self-stretch min-inline-0" grow={true} paddingInline="block">
         <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
@@ -226,7 +226,8 @@ export function ContextHeaderTabs({
       data-slot="context-tab-strip"
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="relative flex-1 self-stretch min-inline-0"
+      className="relative self-stretch min-inline-0"
+      grow={true}
     >
       <TabsList
         ref={trackRef}

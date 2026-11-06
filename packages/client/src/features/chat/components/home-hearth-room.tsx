@@ -168,7 +168,7 @@ export function HomeHearthRoom({
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed
               to nothing. Two lines is the honest budget: enough to identify any room the corpus produces,
               not enough to become a paragraph at the focal step. */}
-          <Text as="span" className="line-clamp-2 wrap-anywhere min-inline-0" id={titleId} voice="focal">
+          <Text as="span" className="line-clamp-2 min-inline-0" wrap="anywhere" id={titleId} voice="focal">
             {title}
           </Text>
           {chat.isGame ? <Badge size="sm">Game</Badge> : null}

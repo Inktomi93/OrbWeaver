@@ -48,7 +48,7 @@ function actState(act: number, current: number): ActState {
 function ActStop({ act, current }: { readonly act: number; readonly current: number }): ReactElement {
   const style = ACT_STATE_STYLE[actState(act, current)];
   return (
-    <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
+    <Row gap="field" align="center" grow={act !== 1}>
       {act === 1 ? null : <Separator className="flex-1" />}
       {/* gloss: the dot row is quiet decoration (aria-hidden) — the state tone re-colours it. */}
       <Text as="span" voice="gloss" ink={style.ink}>
@@ -103,7 +103,6 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 display={currentTitle}
                 placeholder="act title…"
                 onEdit={(next): void => edit.onEditActTitle(next.trim())}
-                className="field-sizing-content max-inline-full min-inline-0"
                 width="auto"
                 restClassName="min-inline-0"
                 ink="accolade"

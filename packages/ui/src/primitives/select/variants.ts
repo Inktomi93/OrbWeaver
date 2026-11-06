@@ -78,6 +78,8 @@ export const selectVariants = tv({
     // as Button `size`/TabsTab `layout`.
     layout: {
       field: { trigger: FIELD_CONTROL },
+      // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
+      hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
       inline: { trigger: [FIELD_CONTROL_BOX, "border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0"] },
     },
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.

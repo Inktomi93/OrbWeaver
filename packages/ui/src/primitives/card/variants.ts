@@ -74,11 +74,13 @@ export const cardVariants = tv({
       false: "",
     },
     // The one padding arm: the island delegates its inset to its own content (a collapse row's trigger, so the
-    // whole closed row is one tap target). `tier` is the resolved tier step; a feature never picks a value.
-    // The `p-0` utility loses to the tier rule inside a Surface, so `data-padding` re-declares it in tiers.css.
+    // whole closed row is one tap target); `field` and `row` pick a ramp step over the tier's own. `tier` is the resolved tier step.
+    // A padding utility loses to the tier rule inside a Surface, so `data-padding` re-declares each step in tiers.css.
     padding: {
       tier: "",
       none: "p-0",
+      field: "p-field",
+      row: "p-row",
     },
     // An operable card follows the user's elevation and takes the tone's pressed tint on hover and press.
     interactive: {

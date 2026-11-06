@@ -103,6 +103,7 @@ export interface BandProps
     | "focusRing"
     | "loading"
     | "corner"
+    | "stretch"
   > {
   /** The band's ink, spelled on its Button so the variant census reads it. */
   readonly ink?: ButtonBaseProps["ink"];

@@ -22,7 +22,7 @@ export function CorpusWorkspaceList({ modes }: { readonly modes: CorpusModes }):
   return (
     <Stack className="block-full min-block-0" data-corpus-mode={mode} data-slot="corpus-workspace-list" gap="block">
       <CorpusModeSwitch />
-      <Stack className="flex-1 min-block-0">
+      <Stack className="min-block-0" grow={true}>
         {mode === "explore" ? (
           <CorpusListAnchor>
             <CorpusListSurface />
@@ -47,7 +47,9 @@ export function CorpusWorkspaceContent({ modes }: { readonly modes: CorpusModes 
           <CorpusModeSwitch />
         </Stack>
       ) : null}
-      <Stack className="flex-1 min-block-0">{mode === "explore" ? <CorpusContent /> : modes[mode].content()}</Stack>
+      <Stack className="min-block-0" grow={true}>
+        {mode === "explore" ? <CorpusContent /> : modes[mode].content()}
+      </Stack>
     </Stack>
   );
 }

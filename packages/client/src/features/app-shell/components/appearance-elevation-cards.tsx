@@ -46,8 +46,8 @@ type Elevation = AppearanceSettings["elevation"];
 function FlatDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="sidebar" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
-      <Row className="flex-1" />
-      <Row className="flex-1" divider="start" dividerTone="sidebar" dividerWeight="rule" />
+      <Row grow={true} />
+      <Row grow={true} divider="start" dividerTone="sidebar" dividerWeight="rule" />
       <Row className="flex-2" divider="start" dividerTone="sidebar" dividerWeight="rule" />
     </ThemePreviewPane>
   );
@@ -107,7 +107,7 @@ export function ElevationCards({ value, onPick }: ElevationCardsProps): ReactEle
           <RadioGroupPickerItem
             key={item.value}
             art={
-              <Stack className="p-tight block-full inline-full" justify="center">
+              <Stack className="block-full inline-full" padding="tight" justify="center">
                 <Diagram />
               </Stack>
             }

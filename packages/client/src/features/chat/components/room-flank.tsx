@@ -65,13 +65,13 @@ export function FlankColumn({
   return (
     <Stack
       gap="block"
-      paddingBlockStart={flank.panelMode ? undefined : "block"}
+      paddingBlockStart={flank.panelMode ? "control" : "block"}
       cap={flank.panelMode ? undefined : "sidebar"}
       className={cn(
         "empty:hidden",
         flank.panelMode
           ? cn(
-              "relative overflow-y-auto pbs-(--size-control-sm) inline-(--width-sidebar-sm) min-block-0",
+              "relative overflow-y-auto inline-(--width-sidebar-sm) min-block-0",
               !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
               overlaid ? "z-(--z-raised)" : undefined,
             )

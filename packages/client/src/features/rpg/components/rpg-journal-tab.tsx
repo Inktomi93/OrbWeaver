@@ -266,7 +266,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
             <Card key={mark.id}>
               <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
                 <Icon icon={Pin} size="xs" ink="muted" />
-                <Stack gap="field" className="flex-1 min-inline-0">
+                <Stack gap="field" className="min-inline-0" grow={true}>
                   <Text as="span" voice="label" truncate={true}>
                     {mark.label}
                   </Text>

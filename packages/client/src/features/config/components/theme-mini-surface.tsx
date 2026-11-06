@@ -62,19 +62,19 @@ const PREVIEW_DENSITY = "comfortable";
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
-    <Stack className="p-tight block-full inline-full" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
+    <Stack className="block-full inline-full" padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
       <Card className="min-inline-0" padding="none" shape="row">
-        <Row align="center" className="p-tight min-inline-0" gap="tight">
-          <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="foreground" shape="pill" />
+        <Row align="center" className="min-inline-0" padding="tight" gap="tight">
+          <Swatch className="flex-1 min-inline-0" size="line" fill="foreground" shape="pill" />
         </Row>
       </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
       <Row align="center" className="min-inline-0" gap="tight">
-        <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="muted" shape="pill" />
-        <Swatch className="shrink-0 block-(--size-dot-lg) inline-(--size-dot-lg)" fill="primary" shape="pill" />
+        <Swatch className="flex-1 min-inline-0" size="line" fill="muted" shape="pill" />
+        <Swatch className="shrink-0" fill="primary" shape="pill" size="dotLg" />
       </Row>
     </Stack>
   );

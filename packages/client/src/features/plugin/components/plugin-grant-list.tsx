@@ -263,7 +263,9 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       ) : (
         <Stack aria-hidden={true} className="shrink-0 inline-(--size-checkbox)" />
       )}
-      <Stack className="flex-1 min-inline-0">{labelBlock}</Stack>
+      <Stack className="min-inline-0" grow={true}>
+        {labelBlock}
+      </Stack>
     </Row>
   );
 }
