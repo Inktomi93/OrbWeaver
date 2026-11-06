@@ -9,6 +9,7 @@ import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
+import { IMPORT_PREVIEW_RETRY_NAME } from "../lib/workloads-failure-copy.ts";
 
 const KIND_NOUNS: Readonly<Record<ImportPreviewKind, readonly [one: string, many: string]>> = {
   characters: ["character", "characters"],
@@ -126,7 +127,7 @@ export function ImportPreviewSummary({ state, onRetry }: { readonly state: Impor
           </Text>
           <Row justify="start">
             <Button variant="outline" onClick={onRetry}>
-              Try again
+              {IMPORT_PREVIEW_RETRY_NAME}
             </Button>
           </Row>
         </Stack>

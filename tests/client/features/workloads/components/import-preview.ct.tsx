@@ -15,6 +15,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/workloads-failure-copy.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 // The preview over the real composed server: a picked SillyTavern folder really uploads as a dry run, the workload
@@ -258,7 +259,7 @@ test("a failed dry run says so in plain words and tone, and Try again reads the 
   await expect(failure).toHaveAttribute("data-tone", "destructive");
   await expect(preflight.getByRole("button", { name: "Import", exact: true })).toBeEnabled();
 
-  await preflight.getByRole("button", { name: "Try again", exact: true }).click();
+  await preflight.getByRole("button", { name: IMPORT_PREVIEW_RETRY_NAME, exact: true }).click();
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 });
 

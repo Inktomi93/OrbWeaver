@@ -86,3 +86,5 @@ export function friendlyWorkloadError(raw: string): string | null {
   }
   return null;
 }
+
+export const IMPORT_PREVIEW_RETRY_NAME = "Try again";
