@@ -107,7 +107,7 @@ export function ElevationCards({ value, onPick }: ElevationCardsProps): ReactEle
           <RadioGroupPickerItem
             key={item.value}
             art={
-              <Stack className="justify-center p-tight block-full inline-full">
+              <Stack className="p-tight block-full inline-full" justify="center">
                 <Diagram />
               </Stack>
             }

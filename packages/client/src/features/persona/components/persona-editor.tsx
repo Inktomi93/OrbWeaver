@@ -211,7 +211,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
 
       <ProvenanceChip metadata={baseMetadata} />
 
-      <Row gap="row" align="center" className="flex-wrap justify-end" data-slot="persona-editor-footer">
+      <Row gap="row" align="center" className="flex-wrap" justify="end" data-slot="persona-editor-footer">
         <Button disabled={duplicate.isPending} variant="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
           Duplicate

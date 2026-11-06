@@ -189,7 +189,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
           (character-options-tab), where the label + the three actions overflow one line and the last one
           clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
           editor. */}
-      <Row gap="field" align="center" className="flex-wrap justify-between">
+      <Row gap="field" align="center" className="flex-wrap" justify="between">
         <Row gap="field" align="center" className="flex-wrap">
           <Text voice="label">Theme</Text>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />

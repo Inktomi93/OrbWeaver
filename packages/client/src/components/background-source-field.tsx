@@ -107,7 +107,7 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       </QueryBoundary>
       {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
       {inExternalMode ? null : (
-        <Row align="center" gap="field" className="justify-between">
+        <Row align="center" gap="field" justify="between">
           <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
             {BACKGROUND_FROM_URL_NAME}
           </Button>

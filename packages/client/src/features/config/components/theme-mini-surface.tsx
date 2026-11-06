@@ -62,7 +62,7 @@ const PREVIEW_DENSITY = "comfortable";
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
-    <Stack className="justify-between p-tight block-full inline-full" data-slot="theme-mini-room" gap="tight" ground="background">
+    <Stack className="p-tight block-full inline-full" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
