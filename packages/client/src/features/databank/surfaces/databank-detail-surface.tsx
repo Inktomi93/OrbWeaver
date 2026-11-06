@@ -202,7 +202,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
-        <Grid className="items-baseline" cols="readout" gap="row">
+        <Grid align="baseline" cols="readout" gap="row">
           <DetailRow label="Origin" value={originLabel(doc.origin)} />
           <DetailRow label="Type" value={documentTypeLabel(doc.mime)} />
           <DetailRow label="Size" value={formatBytes(doc.byteSize)} />

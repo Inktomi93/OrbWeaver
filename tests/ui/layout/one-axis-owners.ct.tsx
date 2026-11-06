@@ -47,6 +47,15 @@ test.describe("paddingInline and paddingBlock", () => {
   });
 });
 
+test.describe("cap", () => {
+  test("a named cap resolves to its token, and fit to the parent's own width", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const reference = await component.locator('[data-probe="ref-column"]').evaluate((element) => getComputedStyle(element).maxWidth);
+    await expect(component.locator('[data-probe="stack-cap-column"]')).toHaveCSS("max-width", reference);
+    await expect(component.locator('[data-probe="row-cap-fit"]')).toHaveCSS("max-width", "100%");
+  });
+});
+
 test.describe("truncate", () => {
   for (const probe of ["text-truncate", "heading-truncate"]) {
     test(`${probe} clips one line with an ellipsis`, async ({ mount }) => {

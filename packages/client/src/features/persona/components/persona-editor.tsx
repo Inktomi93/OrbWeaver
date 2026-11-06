@@ -138,7 +138,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
   };
 
   return (
-    <Stack className="max-inline-(--reading-measure)" gap="row">
+    <Stack cap="reading" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="flex-1 min-inline-0">

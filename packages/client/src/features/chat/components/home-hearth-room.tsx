@@ -162,7 +162,7 @@ export function HomeHearthRoom({
           token (`@orb/ui` styles/globals.css `[data-slot="art-bleed"]`), and its header states the contract
           from the other side. The prose is also better for it: 65ch is the low end of the design law's own
           reading band, not a concession. */}
-      <Stack className="relative max-inline-(--reading-measure-min) min-inline-0" gap="row">
+      <Stack className="relative min-inline-0" cap="readingMin" gap="row">
         <Row gap="row">
           {/* CLAMPED, NEVER TRUNCATED (side-eye F7). At the 430px coarse mount `truncate` rendered
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed

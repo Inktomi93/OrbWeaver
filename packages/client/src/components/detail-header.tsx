@@ -29,7 +29,13 @@ export interface DetailHeaderProps {
 export function DetailHeader({ title, step = "title", kicker, meta, actions, deferToShell = true, children }: DetailHeaderProps): ReactElement {
   const verbs =
     actions === undefined ? null : (
-      <Row align="center" className={step === "masthead" ? "flex-1 flex-wrap" : "flex-wrap max-inline-full min-inline-0"} gap="field" justify="end">
+      <Row
+        align="center"
+        cap={step === "masthead" ? undefined : "fit"}
+        className={step === "masthead" ? "flex-1 flex-wrap" : "flex-wrap min-inline-0"}
+        gap="field"
+        justify="end"
+      >
         {actions}
       </Row>
     );

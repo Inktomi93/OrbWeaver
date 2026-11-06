@@ -43,7 +43,7 @@ const QUEST_TYPE_RE = /quest/i;
  *  one fewer column and a taller popover at coarse. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" touchFloor="gap" className="flex-wrap max-inline-(--width-control-col)">
+    <Row gap="field" touchFloor="gap" className="flex-wrap" cap="control">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
           {/* eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes. */}

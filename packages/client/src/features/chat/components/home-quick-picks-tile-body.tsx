@@ -112,7 +112,8 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
     // The swipe row bleeds through Home's page inset (`px-section`) to the screen edge, so a face runs off the screen
     // rather than being cut mid-page, and its scroll padding keeps a revealed face clear of that edge.
     <Grid
-      className={swipe ? "-mx-section scroll-px-section px-section" : undefined}
+      className={swipe ? "-mx-section scroll-px-section" : undefined}
+      paddingInline={swipe ? "section" : undefined}
       cols={swipe ? "cellSwipe" : "cellFixed"}
       gap="row"
       onFocus={swipe ? revealFocused : undefined}

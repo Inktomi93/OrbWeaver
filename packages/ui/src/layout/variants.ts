@@ -77,6 +77,22 @@ const PADDING_INLINE_NARROW = {
 const PADDING_INLINE_END_NARROW = {
   block: "@max-cq-28:pe-block",
 } as const;
+// The widest an inline box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`
+// and `column` are the page measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width.
+const CAP = {
+  fit: "max-inline-full",
+  fitNarrow: "@max-cq-20:max-inline-full",
+  reading: "max-inline-(--reading-measure)",
+  readingMin: "max-inline-(--reading-measure-min)",
+  column: "max-inline-(--width-content-col)",
+  columnWide: "max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)",
+  control: "max-inline-(--width-control-col)",
+  surface: "max-inline-(--width-surface-cap)",
+  shell: "max-inline-(--width-shell-content)",
+  pane: "max-inline-(--container-cq-48)",
+  whisper: "max-inline-(--immersive-whisper-banner-inline-cap)",
+  sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
+} as const;
 const ALIGN = {
   start: "items-start",
   center: "items-center",
@@ -237,6 +253,7 @@ export const stackVariants = tv({
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
+    cap: CAP,
     fill: { true: FILL_PARENT, false: "" },
     scroll: SCROLL,
     scrollFade: SCROLL_FADE,
@@ -264,6 +281,7 @@ export const rowVariants = tv({
     stackBelow: STACK_BELOW,
     stretchBelow: STRETCH_BELOW,
     endBelow: END_BELOW,
+    cap: CAP,
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
@@ -322,6 +340,8 @@ export const sectionVariants = tv({
     container: {
       true: { root: "@container" },
     },
+    // The cap a section holds its rows to; only the reading measure has a caller, so it is the only arm.
+    cap: { reading: { root: "max-inline-(--reading-measure)" } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
       true: { heading: "border-be border-border pbe-field" },
@@ -353,6 +373,9 @@ export const gridVariants = tv({
   base: "grid",
   variants: {
     gap: GAP,
+    align: ALIGN,
+    cap: CAP,
+    paddingInline: PADDING_INLINE,
     cols: {
       auto: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-auto),100%),1fr))]",
       wide: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-wide),100%),1fr))]",
@@ -600,6 +623,8 @@ export const containerVariants = tv({
   base: "@container",
   variants: {
     size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
+    cap: CAP,
+    paddingInline: PADDING_INLINE,
     ground: GROUND,
   },
 });

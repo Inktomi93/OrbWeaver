@@ -103,7 +103,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
-      <Command className="flex flex-col block-full" elevated={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
+      <Command elevated={true} fill={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" ref={searchRef} />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>

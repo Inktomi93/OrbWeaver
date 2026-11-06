@@ -126,7 +126,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
               onSelect(value);
             }
           }}
-          className="gap-0 inline-full min-inline-0"
+          className="gap-0 min-inline-0"
         >
           <TabsList
             ref={trackRef}
@@ -134,7 +134,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={cn("grid grid-flow-col gap-tight inline-full min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            className={cn("grid grid-flow-col gap-tight min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
           >
@@ -231,7 +232,8 @@ export function ContextHeaderTabs({
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row block-full inline-full min-inline-0"
+        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row min-inline-0"
+        fill={true}
         rule="none"
       >
         {tabs.map((tab) => (

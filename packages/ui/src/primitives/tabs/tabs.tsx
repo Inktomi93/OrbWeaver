@@ -19,6 +19,8 @@ export interface TabsProps extends BaseTabsRootProps {
   className?: string;
   /** The accent rule across the top of the tab column. */
   topRule?: TabsAxes["topRule"];
+  /** The column fills its parent's block extent. */
+  fill?: TabsAxes["fill"];
 }
 
 export interface TabsListProps extends BaseTabsListProps {
@@ -27,6 +29,8 @@ export interface TabsListProps extends BaseTabsListProps {
   rule?: TabsAxes["listRule"];
   /** A six-cell rail folds into rows of three under the `@cq-20` step at a fine pointer. */
   fold?: boolean;
+  /** The list fills its container on both axes. */
+  fill?: TabsAxes["fill"];
 }
 
 export interface TabsTabProps extends Omit<BaseTabsTabProps, "value">, Pick<TabsAxes, "layout" | "quiet"> {
@@ -42,10 +46,10 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
   ground?: TabsAxes["panelGround"];
 }
 
-export function Tabs({ className, topRule, ...rest }: TabsProps): ReactElement {
+export function Tabs({ className, topRule, fill, ...rest }: TabsProps): ReactElement {
   return (
     <BaseTabs.Root
-      className={cn(tabsVariants({ topRule }).root(), className)}
+      className={cn(tabsVariants({ topRule, fill }).root(), className)}
       data-slot="tabs-root"
       data-tone={topRule === "primary" ? TABS_ACCENT_TONE : undefined}
       {...rest}
@@ -54,8 +58,10 @@ export function Tabs({ className, topRule, ...rest }: TabsProps): ReactElement {
 }
 
 // Seal default: arrow keys ACTIVATE as they move (Base UI defaults activateOnFocus to false).
-export function TabsList({ className, rule, fold, ...rest }: TabsListProps): ReactElement {
-  return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants({ listRule: rule, fold }).list(), className)} data-slot="tabs-list" {...rest} />;
+export function TabsList({ className, rule, fold, fill, ...rest }: TabsListProps): ReactElement {
+  return (
+    <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants({ listRule: rule, fold, fill }).list(), className)} data-slot="tabs-list" {...rest} />
+  );
 }
 
 // `layout="cell"` is the glyph-over-caption rail cell: the ONE home for a tab whose

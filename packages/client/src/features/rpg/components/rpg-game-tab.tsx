@@ -123,7 +123,7 @@ function TrackerRow({
           />
         </Row>
         {def.shape === "meter" ? (
-          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap max-inline-full">
+          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap" cap="fit">
             <Text as="span" voice="gloss">
               default max
             </Text>

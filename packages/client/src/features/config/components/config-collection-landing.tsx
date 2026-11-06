@@ -165,7 +165,7 @@ function CollectionControlRow({
     <Container className="inline-full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
-        <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
+        <Row align="center" className="flex-1 basis-(--width-field-floor) min-inline-0" cap="fit">
           <Input
             ref={filterRef}
             aria-label={`Filter ${label.toLowerCase()}`}
@@ -226,7 +226,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full max-inline-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "max-inline-full min-inline-0"}>
+    <Stack cap="fit" className={inBand ? "order-last basis-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "min-inline-0"}>
       <form
         aria-label={label}
         noValidate={true}
@@ -253,7 +253,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             ref={nameRef}
             value={name}
           />
-          <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
+          <Row className="shrink-0 flex-wrap" cap="fit" gap="field">
             <Button disabled={trimmed === "" || pending} type="submit" {...(inBand ? { size: "sm" as const } : {})}>
               {DIALOG_VERBS.create}
             </Button>
@@ -345,7 +345,7 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
     <Stack data-slot="config-library-insights" gap="field">
       {insights.map((insight) => (
         <Row align="center" className="flex-wrap min-inline-0" gap="field" key={insight.id}>
-          <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+          <Row align="center" className="flex-wrap min-inline-0" cap="fit" gap="field">
             <Text as="span" voice="kicker">
               {insight.label}
             </Text>

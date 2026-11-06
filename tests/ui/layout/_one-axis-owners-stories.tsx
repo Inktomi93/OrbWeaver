@@ -16,6 +16,9 @@ export function OneAxisOwnersStory(): ReactElement {
       <Row paddingInline="field" data-probe="row-inline" />
       <Row paddingBlock="row" data-probe="row-block" />
       <Stack padding="gutter" paddingInline="field" data-probe="stack-override" />
+      <Stack cap="column" data-probe="stack-cap-column" />
+      <Row cap="fit" data-probe="row-cap-fit" />
+      <div data-probe="ref-column" style={{ maxWidth: `var(${TOKENS["width.content-col"].cssVar})` }} />
       <div data-probe="ref-block" style={{ padding: `var(${TOKENS["spacing.block"].cssVar})` }} />
       <div data-probe="ref-section" style={{ padding: `var(${TOKENS["spacing.section"].cssVar})` }} />
       <div data-probe="ref-field" style={{ padding: `var(${TOKENS["spacing.field"].cssVar})` }} />

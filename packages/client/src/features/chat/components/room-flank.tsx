@@ -66,6 +66,7 @@ export function FlankColumn({
     <Stack
       gap="block"
       paddingBlockStart={flank.panelMode ? undefined : "block"}
+      cap={flank.panelMode ? undefined : "sidebar"}
       className={cn(
         "empty:hidden",
         flank.panelMode
@@ -74,7 +75,7 @@ export function FlankColumn({
               !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
               overlaid ? "z-(--z-raised)" : undefined,
             )
-          : "relative max-inline-(--width-sidebar-sm) @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2 @max-cq-32:max-inline-none",
+          : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2",
       )}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
       // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.

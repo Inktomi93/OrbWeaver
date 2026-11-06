@@ -47,7 +47,7 @@ export function SettingRowGroup({ children, kind = "settings" }: { readonly chil
             `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
             Section's own `gap-block` used to give
             these rows when they were its direct children. */}
-        <Grid className="gap-x-block max-inline-(--reading-measure)" cols={layout.cols} gap={layout.gap} data-slot="setting-row-group">
+        <Grid cap="reading" className="gap-x-block" cols={layout.cols} gap={layout.gap} data-slot="setting-row-group">
           {children}
         </Grid>
       </FieldLayout>

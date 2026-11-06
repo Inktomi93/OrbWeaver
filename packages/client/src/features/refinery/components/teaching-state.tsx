@@ -92,7 +92,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
     <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" paddingBlock="section" ref={containerRef}>
-      <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
+      <Stack align="center" cap="reading" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
@@ -143,7 +143,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      <Section className="inline-full max-inline-(--reading-measure)" kicker="How it works">
+      <Section cap="reading" className="inline-full" kicker="How it works">
         {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
         <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
           {STEPS.map((step, index) => (
