@@ -7,7 +7,7 @@ import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema, BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
-import type { ChatId, ThemeId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ThemeId } from "@orb/kit/ids";
 import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
@@ -25,6 +25,8 @@ const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const COMPOSER = '[data-slot="composer"]';
+// A light room background carried by the room's only character.
+const LIGHT_CARRIED_ROOM = { background: "oklch(0.96 0.01 90)" } as const;
 // The roles a corpus room speaks in; no corpus room holds a system message.
 const ROOM_ROLES = ["user", "assistant"] as const;
 // Few enough of a room's last messages that all of them are on screen at the case viewport.
@@ -313,6 +315,19 @@ function themeIdFor(theme: "dark" | "light"): ThemeId | undefined {
 
 function computed(locator: Locator, property: string, pseudo: string | null = null): Promise<string> {
   return locator.evaluate((element, [name, at]) => getComputedStyle(element, at).getPropertyValue(name), [property, pseudo] as const);
+}
+
+/** The alpha of the first colour in a computed `text-shadow`; the browser serialises a transparent colour with a zero alpha and an opaque one without. */
+function haloAlpha(locator: Locator): Promise<number> {
+  return locator.evaluate((element) => {
+    const color = /^(?:rgba?|color|oklch|oklab)\([^)]*\)/u.exec(getComputedStyle(element).textShadow)?.[0] ?? "";
+    const alpha = /\/\s*([\d.]+%?)\s*\)$|,\s*([\d.]+)\)$/u.exec(color);
+    const raw = alpha?.[1] ?? alpha?.[2];
+    if (raw === undefined) {
+      return 1;
+    }
+    return Number.parseFloat(raw) / (raw.endsWith("%") ? 100 : 1);
+  });
 }
 
 function rootValue(page: Page, property: string): Promise<string> {
@@ -978,6 +993,41 @@ test.describe("over a wallpaper", () => {
     await expect(layer).toHaveCount(0);
     await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
     await expect(layer).toBeVisible();
+  });
+
+  test("a light carried room under a dark viewer over a wallpaper paints the light halo, not the viewer's dark smoke", async ({ corpus, mount, page }) => {
+    await using carried = await createCorpusHarness();
+    const caller = await carried.internalCallerFor(carried.ownerId);
+    let soloId: ChatId | undefined;
+    let soloCharacterId: CharacterId | null = null;
+    for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+      const detail = await caller.chat.getChat({ chatId: row.id });
+      const humans = detail.participants.filter((participant) => participant.kind === "human").length;
+      const characters = detail.participants.filter((participant) => participant.kind === "character");
+      if (soloId === undefined && humans === 1 && characters.length === 1) {
+        soloId = row.id;
+        soloCharacterId = characters[0]?.characterId ?? null;
+      }
+    }
+    if (soloId === undefined || soloCharacterId === null) {
+      throw new Error("The corpus has no solo room");
+    }
+    await caller.character.update({ characterId: soloCharacterId, input: { themeOverride: LIGHT_CARRIED_ROOM } });
+    await seedShellState(page, { activeSection: "chats" });
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, SERVED),
+      "settings.getUserSettings": () => appearanceSettings(corpus, wallpaper(corpus)),
+    });
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: soloId });
+    const scope = page.locator('.shell-main [data-slot="theme-scope"]').first();
+    const room = scope.locator("> *").first();
+    await expect(room).toBeVisible();
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
+    await expect.poll(() => computed(scope, "color-scheme")).toBe("light");
+    // The viewer is dark, so `.shell-main` resolves its halo dark; the room is light and its text must not inherit that smoke.
+    expect(await computed(page.locator(".shell-main"), "color-scheme")).toBe("dark");
+    await expect.poll(() => haloAlpha(room)).toBe(0);
   });
 });
 

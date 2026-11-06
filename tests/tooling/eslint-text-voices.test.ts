@@ -29,14 +29,14 @@ async function findings(source: string, path = CLIENT): Promise<readonly string[
 test.for([
   'import { Text } from "@orb/ui/text"; export const T = <Text size="body" />;',
   'import { Heading as Title } from "@orb/ui/text"; export const T = <Title level={2} weight="bold" />;',
-  'import * as Copy from "@orb/ui/text"; export const T = <Copy.Text transform="caps" />;',
+  'import * as Copy from "@orb/ui/text"; export const T = <Copy.Text weight="bold" />;',
   'import { Text } from "@orb/ui/text"; const Copy = Text; export const T = <Copy size="body" />;',
   'import * as Copy from "@orb/ui/text"; const Label = Copy.Text; export const T = <Label size="body" />;',
   'import * as Typography from "@orb/ui/text"; const { Text: Copy } = Typography; export const T = <Copy size="body" />;',
   'import * as Typography from "@orb/ui/text"; const { Heading: Title } = Typography; export const T = <Title level={2} weight="bold" />;',
   'import { Text } from "@orb/ui/text"; export const T = <Text {...{ size: "body" }} />;',
   'import { Text } from "@orb/ui/text"; const axes = { weight: "bold" }; export const T = <Text {...axes} />;',
-  'import { Text } from "@orb/ui/text"; const key = "transform"; export const T = <Text {...{ [key]: "caps" }} />;',
+  'import { Text } from "@orb/ui/text"; const key = "weight"; export const T = <Text {...{ [key]: "bold" }} />;',
   'import { Text } from "@orb/ui/text"; const rows = { current: { text: { weight: "semibold" } }, past: { text: { tone: "muted" } } }; const T = ({ state }) => { const row = rows[state]; return <Text voice="gloss" {...row.text} />; };',
   'import { Heading } from "@orb/ui/text"; const rows = { title: { size: "display" } }; export const T = <Heading level={2} {...rows.title} />;',
   'import { Text } from "@orb/ui/text"; const rows = { text: { weight: "semibold" } }; const { text: props } = rows; export const T = <Text {...props} />;',
@@ -61,5 +61,5 @@ test.for([
 });
 
 test("internal text axes remain available inside UI", async () => {
-  expect(await findings('import { Text } from "@orb/ui/text"; export const T = <Text size="body" weight="bold" transform="caps" />;', UI)).toEqual([]);
+  expect(await findings('import { Text } from "@orb/ui/text"; export const T = <Text size="body" weight="bold" />;', UI)).toEqual([]);
 });

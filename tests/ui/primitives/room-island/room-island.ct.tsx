@@ -29,6 +29,8 @@ for (const { name, ...props } of SEED_CASES) {
     const component = await mount<typeof RoomIslandStory>(STORY, props);
     const probe = (which: string, property: string): Promise<string> => style(component.locator(`[data-probe="${which}"]`), property);
     const host = component.locator('[data-case="holds-field"]');
+    // A card that holds a field is the field's edge, so it wears the form-control edge token whose 3:1 floor D159 pins.
+    expect(await style(host, "border-block-start-color")).toBe(await probe("input-edge", "border-block-start-color"));
     await component.getByLabel("field", { exact: true }).focus();
     await expect.poll(() => style(host, "background-color")).toBe(await probe("muted", "background-color"));
     expect(await style(component.locator('[data-case="drop-armed"]'), "border-block-start-color")).toBe(await probe("primary", "border-block-start-color"));

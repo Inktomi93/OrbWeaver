@@ -1,8 +1,7 @@
 import { tv } from "#lib";
 
 // The selection-bar skin — bulk-action chrome (ui-package-design §12 Wave 3-C; work-order #21).
-// `placement` swaps sticky-to-scroll-container (pinned to a list's bottom edge, e.g. a message or
-// character list) vs a floating centered pill (elevated above the surface) — the caller picks one.
+// The bar is sticky to the bottom edge of its scroll container (a message or character list).
 export const selectionBarVariants = tv({
   // THE COUNT IS ONE PHRASE, AND THE ACTIONS ARE WHAT GIVES (side-eye 2026-08-30 rail-characters P3, #843).
   // In the characters LIST pane at its docked 290px the bar over-constrained and the count broke mid-phrase
@@ -28,16 +27,8 @@ export const selectionBarVariants = tv({
   // beside it, rather than overflowing the cluster over the count or splitting the group. Callers whose items wrap
   // among themselves keep their one-line bar: their cluster's minimum is one item.
   slots: {
-    root: "flex flex-wrap items-center gap-row px-row py-field",
+    root: "sticky inset-x-0 inset-be-0 z-(--z-raised) flex flex-wrap items-center gap-row border-bs border-border bg-background px-row py-field",
     count: "flex-none text-body leading-body whitespace-nowrap text-muted-foreground",
     actions: "flex flex-1 flex-wrap items-center justify-end gap-field",
   },
-  variants: {
-    placement: {
-      sticky: {
-        root: "sticky inset-x-0 inset-be-0 z-(--z-raised) border-bs border-border bg-background",
-      },
-    },
-  },
-  defaultVariants: { placement: "sticky" },
 });

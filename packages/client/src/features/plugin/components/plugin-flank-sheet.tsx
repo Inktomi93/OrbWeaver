@@ -43,11 +43,11 @@ function FlankSheet({ children }: { readonly children: ReactNode }): ReactElemen
   // Leaving the room, or losing the last panel, must not leave the next room's sheet open.
   useEffect(() => (): void => setFlankSheetOpen(false), []);
   return (
-    <Drawer onOpenChange={setFlankSheetOpen} open={open} side="bottom">
+    <Drawer onOpenChange={setFlankSheetOpen} open={open}>
       {/* A panel may hold a text field, and on iOS the keyboard covers a sheet's fields unless the provider
           scrolls the focused one clear (the modal host's phone sheet takes the same wrap). */}
       <DrawerVirtualKeyboardProvider>
-        <DrawerPopup side="bottom">
+        <DrawerPopup>
           <Stack gap="block">
             <Row align="center" justify="between">
               <DrawerTitle>{PLUGIN_PANELS_SHEET_LABEL}</DrawerTitle>

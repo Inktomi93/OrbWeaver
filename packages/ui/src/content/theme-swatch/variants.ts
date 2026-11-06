@@ -5,14 +5,7 @@ import { tv } from "#lib";
 // hand-painted approximation of a theme. The CARD slots retired with #920 (see theme-swatch.tsx).
 export const themeSwatchVariants = tv({
   slots: {
-    strip: "flex overflow-hidden rounded-inset border border-border",
-    cell: "flex-1",
+    strip: "flex shrink-0 overflow-hidden rounded-inset border border-border block-(--size-glyph-sm)",
+    cell: "flex-none block-(--size-glyph-sm) inline-(--size-glyph-sm)",
   },
-  variants: {
-    /** The strip's own footprint: `row` is the menu-row leading chip. */
-    size: {
-      row: { strip: "shrink-0 block-(--size-glyph-sm)", cell: "flex-none block-(--size-glyph-sm) inline-(--size-glyph-sm)" },
-    },
-  },
-  defaultVariants: { size: "row" },
 });

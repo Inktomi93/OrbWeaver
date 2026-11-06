@@ -11,13 +11,11 @@ export interface SelectionBarProps {
   onClear: () => void;
   /** The bulk-action controls — caller-owned; this primitive is dumb chrome around them. */
   children?: ReactNode;
-  /** `sticky` (default) pins to the bottom edge of a scroll container. */
-  placement?: "sticky";
 }
 
 /** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */
-export function SelectionBar({ count, onClear, children, placement }: SelectionBarProps): ReactElement {
-  const slots = selectionBarVariants({ placement });
+export function SelectionBar({ count, onClear, children }: SelectionBarProps): ReactElement {
+  const slots = selectionBarVariants();
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Escape bubbles from whatever's focused inside the bar up to the root's native listener.

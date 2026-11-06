@@ -12,7 +12,7 @@
 // the only mount left (§13.9's inclusion litmus: ≥1 committed consumer).
 
 import type { ReactElement } from "react";
-import { cn, variantAttrs } from "#lib";
+import { cn } from "#lib";
 import type { ThemeScopeTokens } from "../theme-scope/clamp.ts";
 import { ThemeScope } from "../theme-scope/theme-scope.tsx";
 import { themeSwatchVariants } from "./variants.ts";
@@ -20,20 +20,16 @@ import { themeSwatchVariants } from "./variants.ts";
 export interface ThemeSwatchStripProps {
   /** The theme's REAL stored override values — clamped and derived by `<ThemeScope>`, never re-spelled. */
   readonly tokens: ThemeScopeTokens;
-  readonly size?: "row";
 }
 
 /** The three-cell stripe: base surface · card surface · accent, painted by the theme's own derivation.
  *  Decorative (`aria-hidden`) — the NAME beside it carries the identity. */
-export function ThemeSwatchStrip({ tokens, size = "row" }: ThemeSwatchStripProps): ReactElement {
-  const slots = themeSwatchVariants({ size });
+export function ThemeSwatchStrip({ tokens }: ThemeSwatchStripProps): ReactElement {
+  const slots = themeSwatchVariants();
   return (
     // `aria-hidden` rides a wrapper — ThemeScope's own root takes no ARIA props by design (its API is the
     // clamp boundary, nothing else).
-    // STAMP SITE (#1097): the strip WRAPPER. `size` sizes the strip (and its cells), and this span is the
-    // slot the audit identifies the swatch by — `ThemeScope`, which wears the sized classes, takes only
-    // `tokens`/`className` by design (its API is the clamp boundary), so it is not a stampable element.
-    <span aria-hidden={true} data-slot="theme-swatch-strip" {...variantAttrs(themeSwatchVariants, { size })}>
+    <span aria-hidden={true} data-slot="theme-swatch-strip">
       <ThemeScope className={slots.strip()} tokens={tokens}>
         <span className={cn(slots.cell(), "bg-background") ?? ""} />
         <span className={cn(slots.cell(), "bg-card") ?? ""} />

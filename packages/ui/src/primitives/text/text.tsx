@@ -44,7 +44,7 @@ export type TextProps = TextOwnProps & ToneInkSelection;
  * prose twin), `focal` (the one item promoted above its siblings, headline step) and `promoted` (the name
  * of ONE item in a shelf of them, title step — `ListRow`'s `titleStep="promoted"` as a voice)): the voice grammar
  * is what makes a surface's hierarchy
- * legible instead of uniformly loud. `size`/`weight`/`transform` are the ui-package-internal axes a voice is
+ * legible instead of uniformly loud. `size`/`weight` are the ui-package-internal axes a voice is
  * BUILT from. `tone` is colour by meaning, `ink` a named ink (exclusive with a non-neutral tone) and `strike` a line-through, feature axes beside the voice;
  * `hiddenAt`/`srOnlyAt` swap the text out per pointer class.
  */
@@ -54,7 +54,6 @@ export function Text({
   size,
   weight,
   tone,
-  transform,
   voice,
   prose,
   ink,
@@ -89,7 +88,6 @@ export function Text({
           size,
           weight,
           tone,
-          transform,
           voice,
           prose,
           ink,
@@ -130,7 +128,6 @@ export function Heading({
   size,
   weight = "semibold",
   tone,
-  transform,
   voice,
   prose,
   ink,
@@ -161,7 +158,6 @@ export function Heading({
           size: size ?? HEADING_SIZE_BY_LEVEL[level],
           weight,
           tone,
-          transform,
           voice,
           prose,
           ink,
