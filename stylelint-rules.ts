@@ -259,9 +259,9 @@ conditionRule.ruleName = CONDITION;
 conditionRule.messages = CONDITION_MESSAGES;
 
 // A query cannot read a variable, so each threshold repeats a token's value by hand; lint binds the copy to its source.
-const QUERY_LENGTH = /(?<!\d)(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
-// A custom variant's params carry the query it wraps, so its kind is the at-keyword inside.
-const WRAPPED_QUERY = /@(?<kind>container|media)\b(?<condition>[^@]*)/gu;
+const QUERY_UNIT = /^(?:px|rem|em)$/iu;
+const RANGE_OPERATORS = /[<>=]+/u;
+const QUERY_AT_KEYWORD = /^@(?<kind>container|media)$/iu;
 
 interface ThresholdSteps {
   /** The rem values of the `--container-cq-*` steps. */
@@ -271,16 +271,47 @@ interface ThresholdSteps {
 }
 
 type QueryKind = keyof ThresholdSteps;
+type QueryNode = ReturnType<typeof valueParser>["nodes"][number];
 
-function queriesOf(atRule: AtRule): readonly { readonly kind: QueryKind; readonly condition: string }[] {
-  if (atRule.name === "container") {
-    return [{ kind: "container", condition: atRule.params }];
-  }
-  return [...atRule.params.matchAll(WRAPPED_QUERY)].map((match) => ({
-    kind: match.groups?.["kind"] === "media" ? "media" : "container",
-    condition: match.groups?.["condition"] ?? "",
-  }));
+interface QueryLength {
+  readonly kind: QueryKind;
+  readonly word: string;
+  readonly number: number;
+  readonly unit: string;
 }
+
+// A length is a whole word that is a number and a unit; a container name that ends in one is not. A custom variant's params
+// carry the query it wraps, so its kind is the last at-keyword seen. A style query compares values and holds no threshold.
+function lengthsIn(nodes: readonly QueryNode[], start: QueryKind | null): readonly QueryLength[] {
+  const found: QueryLength[] = [];
+  let kind = start;
+  for (const node of nodes) {
+    if (node.type === "function" && node.value.toLowerCase() !== "style") {
+      found.push(...lengthsIn(node.nodes, kind));
+    } else if (node.type === "word") {
+      const keyword = QUERY_AT_KEYWORD.exec(node.value)?.groups?.["kind"]?.toLowerCase();
+      if (keyword === undefined) {
+        found.push(...lengthsOfWord(node.value, kind));
+      } else {
+        kind = keyword === "media" ? "media" : "container";
+      }
+    }
+  }
+  return found;
+}
+
+// A range written without spaces (`width>=30rem`) is one word.
+function lengthsOfWord(text: string, kind: QueryKind | null): readonly QueryLength[] {
+  if (kind === null) {
+    return [];
+  }
+  return text.split(RANGE_OPERATORS).flatMap((word) => {
+    const length = valueParser.unit(word);
+    return length !== false && QUERY_UNIT.test(length.unit) ? [{ kind, word, number: Number(length.number), unit: length.unit.toLowerCase() }] : [];
+  });
+}
+
+const QUERY_AT_RULES: Readonly<Record<string, QueryKind | null>> = { container: "container", media: "media", "custom-variant": null };
 
 const thresholdRule: Rule<true, ThresholdSteps> = (primary, secondary) => (root, result) => {
   const numbers = [(value: unknown): boolean => typeof value === "number"];
@@ -289,12 +320,11 @@ const thresholdRule: Rule<true, ThresholdSteps> = (primary, secondary) => (root,
     return;
   }
   const steps: Readonly<Record<QueryKind, ReadonlySet<number>>> = { container: new Set(secondary.container), media: new Set(secondary.media) };
-  root.walkAtRules(/^(?:container|custom-variant)$/u, (atRule) => {
-    for (const { kind, condition } of queriesOf(atRule)) {
-      for (const length of condition.matchAll(QUERY_LENGTH)) {
-        if (length[2] !== "rem" || !steps[kind].has(Number(length[1]))) {
-          stylelint.utils.report({ result, ruleName: THRESHOLD, node: atRule, message: THRESHOLD_MESSAGES[kind], word: length[0] });
-        }
+  root.walkAtRules(/^(?:container|media|custom-variant)$/iu, (atRule) => {
+    const start = QUERY_AT_RULES[atRule.name.toLowerCase()] ?? null;
+    for (const { kind, word, number, unit } of lengthsIn(valueParser(atRule.params).nodes, start)) {
+      if (unit !== "rem" || !steps[kind].has(number)) {
+        stylelint.utils.report({ result, ruleName: THRESHOLD, node: atRule, message: THRESHOLD_MESSAGES[kind], word });
       }
     }
   });

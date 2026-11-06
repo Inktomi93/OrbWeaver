@@ -108,6 +108,8 @@ const LANDSCAPE_PHONES = [
 // The clipped item shows at least this share of its height and hides at least this share, so the scroll reads at rest.
 const PEEK_SHARE = 0.25;
 const SCROLL_SECTIONS = ".shell-rail-sections";
+// Enough to move the cut by most of a button, small enough that every phone still overflows.
+const RAIL_RESIZE_PX = 40;
 
 interface RailEdge {
   readonly overflow: number;
@@ -143,6 +145,24 @@ for (const viewport of LANDSCAPE_PHONES) {
         .toBe(true);
       await info.attach("rail-edge", { body: JSON.stringify(await sections.evaluate(railEdge)), contentType: "application/json" });
       await page.screenshot({ path: info.outputPath("rail-at-rest.png") });
+    });
+
+    test("fits again to a shorter and a taller window, with the next section still part clipped at rest", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const peeks = async (): Promise<boolean> => {
+        const { overflow, straddling } = await sections.evaluate(railEdge);
+        return (
+          overflow > 0 && straddling.length === 1 && straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)
+        );
+      };
+      await expect.poll(peeks).toBe(true);
+      for (const height of [viewport.height - RAIL_RESIZE_PX, viewport.height + RAIL_RESIZE_PX, viewport.height]) {
+        await page.setViewportSize({ width: viewport.width, height });
+        await expect.poll(peeks, { message: `the cut rests on a button's midline at height ${String(height)}` }).toBe(true);
+      }
     });
 
     test("opens with the active section in view, and brings it back after every section change", async ({ corpus, mount, page }, info) => {

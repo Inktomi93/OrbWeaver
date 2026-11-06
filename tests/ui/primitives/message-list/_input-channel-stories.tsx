@@ -1,4 +1,5 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { Button } from "@orb/ui/button";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -10,6 +11,7 @@ export function MessageListInputChannelsStory({ ariaLabel }: { readonly ariaLabe
         <MessageList
           ariaLabel={ariaLabel}
           className="flex-1"
+          leadingAction={<Button>Earlier</Button>}
           items={[1, 2, 3]}
           getItemKey={(item): number => item}
           estimateSize={(): number => 32}

@@ -120,10 +120,71 @@ for (const scrollMode of SCROLL_MODES) {
       node.scrollTop = node.scrollHeight / 2;
     });
     await expect(log.getByText("Row 20", { exact: true })).toBeInViewport();
-    await page.getByRole("button", { name: "Pin last row", exact: true }).focus();
+    await page.getByRole("button", { name: "Restore target row", exact: true }).focus();
     await page.keyboard.press("Tab");
     const focused = log.locator('[data-slot="message-list-row"]:focus');
     await expect(focused).toBeInViewport();
     await expect(focused).not.toHaveAttribute("data-index", "39");
   });
 }
+
+const ROW = '[data-slot="message-list-row"]';
+const SCROLLPORT_STORY = "tests/ui/primitives/message-list/_scrollport-stories/MessageListScrollportStory";
+// 60px rows in a 240px scrollport: this offset puts row 20 exactly at the reader's top edge.
+const PARKED_TOP = 1200;
+const PARKED_ROW = 20;
+
+for (const [name, change, focusFirst] of [
+  ["deleted", "Delete target row", false],
+  ["given a new key", "Swap target row key", false],
+  ["deleted while it holds focus", "Delete target row", true],
+] as const) {
+  test(`a Tab lands on a row on screen without moving a parked reader whose resting row is ${name}`, async ({ mount, page }) => {
+    await mount<typeof MessageListScrollportStory>(SCROLLPORT_STORY, { initialCount: 40, roving: true, target: PARKED_ROW });
+    const log = page.getByRole("log", { name: "Scrollport lifecycle", exact: true });
+    await expect(log.getByText("Row 39", { exact: true })).toBeVisible();
+    await log.evaluate((node, top) => {
+      node.scrollTop = top;
+    }, PARKED_TOP);
+    await expect(log.locator(`${ROW}[data-index="${String(PARKED_ROW)}"]`)).toHaveAttribute("tabindex", "0");
+    if (focusFirst) {
+      await log.getByText(`Row ${String(PARKED_ROW)}`, { exact: true }).click();
+    }
+    await page.getByRole("button", { name: change, exact: true }).click();
+    await expect(log.getByText(`Row ${String(PARKED_ROW)}`, { exact: true })).toHaveCount(0);
+    const parkedAt = await log.evaluate((node) => node.scrollTop);
+    await page.getByRole("button", { name: "Restore target row", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(log.locator(`${ROW}:focus`)).toBeInViewport();
+    expect(await log.evaluate((node) => node.scrollTop)).toBe(parkedAt);
+  });
+}
+
+test("a step whose row is removed in its own commit cannot take focus when that row returns", async ({ mount, page }) => {
+  await mount<typeof MessageListScrollportStory>(SCROLLPORT_STORY, { initialCount: 40, roving: true, target: PARKED_ROW + 1 });
+  const log = page.getByRole("log", { name: "Scrollport lifecycle", exact: true });
+  await expect(log.getByText("Row 39", { exact: true })).toBeVisible();
+  await log.evaluate((node, top) => {
+    node.scrollTop = top;
+  }, PARKED_TOP);
+  await expect(log.locator(`${ROW}[data-index="${String(PARKED_ROW)}"]`)).toHaveAttribute("tabindex", "0");
+  const walker = log.locator(`${ROW}[data-index="${String(PARKED_ROW + 2)}"]`);
+  await walker.click();
+  await expect(walker).toBeFocused();
+  const removal = await page.getByRole("button", { name: "Delete target row", exact: true }).elementHandle();
+  // One tick: ArrowUp names the row the same commit removes, the one way a step's row can leave before it lands.
+  await walker.evaluate((from, remove) => {
+    from.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    if (remove instanceof HTMLElement) {
+      remove.click();
+    }
+  }, removal);
+  await expect(log.getByText(`Row ${String(PARKED_ROW + 1)}`, { exact: true })).toHaveCount(0);
+  await expect(log.locator(`${ROW}:focus`)).toContainText(`Row ${String(PARKED_ROW + 2)}`);
+  const restore = page.getByRole("button", { name: "Restore target row", exact: true });
+  await restore.focus();
+  await restore.press("Enter");
+  await expect(log.getByText(`Row ${String(PARKED_ROW + 1)}`, { exact: true })).toBeVisible();
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+  await expect(restore).toBeFocused();
+});

@@ -641,10 +641,15 @@ for (const regime of [
       allDown = true;
       await earlier.dispatchEvent("click");
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.press);
+      await quietSpell(page);
+      const reads = live.reads();
       await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
       await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toHaveCount(0);
+      // The bridge is still failed, not due again: dismissing shows it and reads nothing.
+      await quietSpell(page);
+      expect(live.reads()).toBe(reads);
     });
     test("a refresh that fails in a bridging room keeps reporting after the forward read could land, until it is repeated", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();

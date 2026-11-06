@@ -68,25 +68,26 @@ interface HoldOptions {
   readonly onDone: () => void;
 }
 
+/** Where `row` sits in the list now, found by key because a prepend shifts every index; -1 once the row has left. */
+export function rowIndexNow(row: ReadingRow, { count, keyAt }: LiveRows): number {
+  if (row.index < count && keyAt(row.index) === row.key) {
+    return row.index;
+  }
+  for (let index = 0; index < count; index += 1) {
+    if (keyAt(index) === row.key) {
+      return index;
+    }
+  }
+  return -1;
+}
+
 /** Holds `row` at the scroller's top edge until the rows settle; returns a cancel. */
 export function holdReadingRow({ scroller, row, rows, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
   let frame = 0;
   let still = 0;
   let handle = 0;
-  const indexNow = (): number => {
-    const { count, keyAt } = rows.current;
-    if (row.index < count && keyAt(row.index) === row.key) {
-      return row.index;
-    }
-    for (let index = 0; index < count; index += 1) {
-      if (keyAt(index) === row.key) {
-        return index;
-      }
-    }
-    return -1;
-  };
   const step = (): void => {
-    const index = indexNow();
+    const index = rowIndexNow(row, rows.current);
     if (index < 0 || yieldTo()) {
       onDone();
       return;

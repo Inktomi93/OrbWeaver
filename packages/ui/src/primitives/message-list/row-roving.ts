@@ -204,7 +204,14 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, resti
   useEffect((): void => {
     const landing = landingRef.current;
     const viewport = viewportRef.current;
-    if (landing === null || viewport === null || keyAt(items, getItemKey, activeIndex) !== landing.key) {
+    if (landing === null || viewport === null) {
+      return;
+    }
+    if (keyAt(items, getItemKey, activeIndex) !== landing.key) {
+      // A row that left before its step landed would take focus from a reader who has moved on when it returned.
+      if (indexOfKey(landing.key) < 0) {
+        landingRef.current = null;
+      }
       return;
     }
     const row = viewport.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-index="${activeIndex}"]`);

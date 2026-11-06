@@ -9,7 +9,7 @@ import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
 import type { LiveRows, ReadingRow } from "./reading-row.ts";
-import { holdReadingRow, readingRowOf } from "./reading-row.ts";
+import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowKey, RowPlacement, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
 
@@ -408,10 +408,12 @@ export function MessageList<T>({
   // A frame's scroll events run ahead of its observers, so a commit that changes the chrome is measured here: a scroll event
   // would otherwise read rows the change has moved, and the hold would keep that wrong place. The observer covers a reflow.
   useLayoutEffect((): void => measureLeadingRef.current());
-  // The rows a jump mounts arrive after its scroll event, and no later event reads them.
+  // The rows a jump mounts arrive after its scroll event, and no later event reads them. Nor does one read a reader's row that
+  // left the list (a delete, a filter, a new key): no scroll comes of it, and Tab would otherwise fall through to the tail.
   useLayoutEffect((): void => {
     const el = scrollRef.current;
-    if (el !== null && readingRowRef.current === null && !holdingRef.current) {
+    const row = readingRowRef.current;
+    if (el !== null && !holdingRef.current && (row === null || rowIndexNow(row, liveRowsRef.current) < 0)) {
       readReadingRow(el);
     }
   });
