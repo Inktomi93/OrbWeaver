@@ -1,6 +1,7 @@
 // @subject tooling/src/floor/host/platform.ts
 // Process incarnation on darwin and win32, driven on Linux with the output shapes those tools document.
-// These shapes were never captured from a macOS or Windows host in this repository.
+// The shapes are documented, not captured; the native proof is tests/tooling/floor/process/incarnation.int.test.ts,
+// which the Contributor workflow runs on macOS and Windows.
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";

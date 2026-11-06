@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
+import { vi } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { ListeningPortsRead } from "../../../../tooling/src/floor/host/platform.ts";
@@ -96,7 +97,8 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
     checkout,
     Object.fromEntries([
       ["PORT", String(port)],
-      ["VITE_PORT", String(port)],
+      // A second, unbound port: one holder is swept once, so the reads below count one stop.
+      ["VITE_PORT", String(port === PLANTED_PORTS.vite ? PLANTED_PORTS.server : PLANTED_PORTS.vite)],
       ["STACK_RUN_DIR", join(scratch, "private-record")],
     ]),
     null,
@@ -104,29 +106,51 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
   return { child, pid: child.pid, context, termSeen: () => seen };
 }
 
-const STOP_TIMEOUT = scaledBudget(120_000);
+// The grace is injected so the escalation the tests prove (TERM, a look at the holder, then KILL) takes
+// milliseconds: the holder ignores TERM, so every case reaches the KILL step.
+const FAST_STOP = { pollMs: 5, termGraceMs: 10, killGraceMs: 10 } as const;
 
-test("a holder replaced during the TERM grace is refused the KILL and left standing", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+/** Run `stop` with the verb's own output captured, so a test can read what the operator would. */
+async function capturingOutput<T>(stop: () => Promise<T>): Promise<{ readonly value: T; readonly output: string }> {
+  const chunks: string[] = [];
+  const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    chunks.push(String(chunk));
+    return true;
+  });
+  try {
+    return { value: await stop(), output: chunks.join("") };
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+test("a holder replaced during the TERM grace is refused the KILL, left standing, and reported as replaced", async ({ scratch }) => {
   const { child, context, termSeen } = await plantStubbornListener(scratch);
   try {
-    const outcome = await doDevDown(
-      context,
-      {},
-      { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: termSeen() ? "replacement" : "original" }) },
-    );
-    expect(outcome).toBe(EXIT.violations);
-    expect(termSeen(), "the original incarnation still got its TERM").toBe(true);
+    // Read 1 pins the holder, read 2 guards its TERM, and every later read is the process that reused the pid.
+    let reads = 0;
+    const incarnationOf = (): { readonly kind: "live"; readonly identity: string } => ({ kind: "live", identity: ++reads <= 2 ? "original" : "replacement" });
+    const { value, output } = await capturingOutput(() => doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf, timing: FAST_STOP }));
+    expect(value).toBe(EXIT.violations);
+    expect(reads, "one pin, one guard per signal").toBe(3);
+    await expect.poll(termSeen, { timeout: scaledBudget(5000) }).toBe(true);
     expect(child.exitCode === null && child.signalCode === null, "the replacement was not KILLed").toBe(true);
+    expect(output).toContain("is no longer that process");
+    expect(output, "a replaced owned pid is not called foreign").not.toContain("not this checkout's");
   } finally {
     killPidGroup(child.pid, "SIGKILL");
   }
 });
 
-test("a holder of the same incarnation that survives TERM is KILLed", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+test("a holder of the same incarnation that survives TERM is KILLed", async ({ scratch }) => {
   const { child, context } = await plantStubbornListener(scratch);
   const exited = once(child, "exit");
   try {
-    const outcome = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: "original" }) });
+    const outcome = await doDevDown(
+      context,
+      {},
+      { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: "original" }), timing: FAST_STOP },
+    );
     expect(outcome).toBe(EXIT.clean);
     await exited;
     expect(child.signalCode).toBe("SIGKILL");
@@ -135,17 +159,21 @@ test("a holder of the same incarnation that survives TERM is KILLed", { timeout:
   }
 });
 
-test("a holder whose identity cannot be read is never signalled", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+test("a holder whose identity cannot be read is never signalled", async ({ scratch }) => {
   const { child, context, termSeen } = await plantStubbornListener(scratch);
   try {
-    const unreadableAtPin = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "unknown" }) });
+    const unreadableAtPin = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "unknown" }), timing: FAST_STOP });
     expect(unreadableAtPin).toBe(EXIT.toolError);
     let reads = 0;
     await expect(
       doDevDown(
         context,
         {},
-        { readPorts: () => listeningPids(), incarnationOf: () => (++reads === 1 ? { kind: "live", identity: "original" } : { kind: "unknown" }) },
+        {
+          readPorts: () => listeningPids(),
+          incarnationOf: () => (++reads === 1 ? { kind: "live", identity: "original" } : { kind: "unknown" }),
+          timing: FAST_STOP,
+        },
       ),
     ).rejects.toThrow("identity unavailable");
     expect(termSeen()).toBe(false);

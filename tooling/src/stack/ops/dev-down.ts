@@ -11,6 +11,7 @@ import { listeningPids, processCompletion, processGroupId, processInfo } from ".
 import { sameIncarnation } from "../../floor/process/incarnation.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
+import type { StopTiming } from "../../floor/process/stop-escalation.ts";
 import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
@@ -35,6 +36,8 @@ export interface DevPortDeps {
   readonly process?: ProcessGroupDeps;
   /** A holder's incarnation, read before a stop and again before every signal; the real read when absent. */
   readonly incarnationOf?: (pid: number) => ProcessCompletion;
+  /** The poll interval and the TERM and KILL graces of a holder stop; the real ones when absent. */
+  readonly timing?: StopTiming;
 }
 
 export const REAL_PORT_DEPS: DevPortDeps = { readPorts: () => listeningPids() };
@@ -151,6 +154,8 @@ interface PortHolder {
   readonly port: number;
   readonly pid: number;
   readonly cmdline: string | null;
+  /** The pid held this checkout's port when the stop began, but a later signal found a different process there. */
+  readonly replaced?: true;
 }
 
 type PortSweep =
@@ -163,7 +168,7 @@ type PortSweep =
   | { readonly kind: "unreadable"; readonly reason: string };
 
 /** How a wait for one port ended; `unreadable` wins over the wait, because a silent table is not a free port. */
-type PortWait = { readonly kind: "free" } | { readonly kind: "held" } | { readonly kind: "unreadable"; readonly reason: string };
+type PortWait = { readonly kind: "free" } | { readonly kind: "held"; readonly replaced?: true } | { readonly kind: "unreadable"; readonly reason: string };
 
 /** One port's end state after the sweep looked at it. */
 type PortOutcome =
@@ -216,17 +221,21 @@ async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnT
     );
   }
   const incarnationOf = deps.incarnationOf ?? processCompletion;
+  let refusals = 0;
   const signal = (kind: NodeJS.Signals): void => {
     if (sameIncarnation(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
       signalHolder(pid, kind);
+    } else {
+      refusals += 1;
     }
   };
-  return waitOutcome(watch, await escalateStop({ signal, gone: watch.free }));
+  const wait = waitOutcome(watch, await escalateStop({ signal, gone: watch.free, ...(deps.timing === undefined ? {} : { timing: deps.timing }) }));
+  return wait.kind === "held" && refusals > 0 ? { kind: "held", replaced: true } : wait;
 }
 
 function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
   if (wait.kind === "held") {
-    return { kind: "held", holder };
+    return { kind: "held", holder: wait.replaced === true ? { ...holder, replaced: true } : holder };
   }
   return wait.kind === "free" ? { kind: "freed" } : wait;
 }
@@ -352,7 +361,9 @@ export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: bool
   if (sweep.refused.length > 0) {
     for (const holder of sweep.refused) {
       log(
-        `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`,
+        holder.replaced === true
+          ? `REFUSED :${String(holder.port)} — pid ${String(holder.pid)} held it for this checkout when the stop began, but is no longer that process; its group was not signalled again; check what holds the port`
+          : `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`,
       );
     }
     result(`status=port-conflict ${sweep.refused.map((holder) => `port=${String(holder.port)} pid=${String(holder.pid)}`).join(" ")}`);
