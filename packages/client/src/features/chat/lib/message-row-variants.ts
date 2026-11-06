@@ -105,7 +105,24 @@ const ROW_ALIGNS = ["role", "start", "center"] as const;
 /** How the row seats its body in the track: `role` puts a user row at the trailing edge, `center` centres the unit. */
 type RowAlign = (typeof ROW_ALIGNS)[number];
 
-export interface RowSkin {
+/** A skin's header placement with the reach its pinned bar can take: an `inside` header backs its card or its column, and an
+ *  `outside` one is a train's sibling and reaches the train, so the two never mix. */
+export type HeaderEdges =
+  | {
+      /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives. */
+      readonly headerPlacement: Extract<HeaderPlacement, "inside">;
+      /** The header bar's paint while pinned: the row's own surface, reaching its edges (row-edges.ts). */
+      readonly pinnedHeader: PinnedHeader<"card" | "column" | "none">;
+    }
+  | {
+      readonly headerPlacement: Extract<HeaderPlacement, "outside">;
+      readonly pinnedHeader: PinnedHeader<"train" | "none">;
+    };
+
+/** The exhaustive chatStyle → skin table's row: the skin's fields and the header's placement with its reach. */
+export type RowSkin = RowSkinFields & HeaderEdges;
+
+interface RowSkinFields {
   /** The track the row rides (`Track`, chat-track.tsx): the room's own, or echo's, which adds its art pane. */
   readonly track: Extract<TrackName, "chat" | "echo">;
   readonly rowAlign: RowAlign;
@@ -129,13 +146,9 @@ export interface RowSkin {
   readonly lastRowFloor: boolean;
   readonly bubbleDecoration?: (args: BubbleDecorationArgs) => BubbleDecoration | null;
   readonly bubbleLayout: BubbleLayout;
-  /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives (#288). */
-  readonly headerPlacement: HeaderPlacement;
   /** Whether a USER row mirrors to the trailing edge, chip and all (Moonlit Echoes: bubble, echo, tide). */
   readonly mirrorUser: boolean;
   readonly swipeFoot: SwipeFoot;
-  /** The header bar's paint while pinned: the row's own surface, reaching its edges (row-edges.ts). */
-  readonly pinnedHeader: PinnedHeader;
   /** What the header bar carries: the speaker and the actions, or the actions alone. */
   readonly actionsRow: ActionsRow;
   /** Illustrated columns reserve the prose measure plus their art pane. */

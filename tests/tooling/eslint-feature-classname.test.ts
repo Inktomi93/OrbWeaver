@@ -104,10 +104,21 @@ const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text 
 test.for([
   ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
   ["a class a boolean prop writes", `${PRIMITIVES}export const T = (<Text className="truncate" />);\n`, "`truncate` is `truncate={true}`"],
+  ["a padding class on a Stack", `${PRIMITIVES}export const T = (<Stack className="px-section" />);\n`, '`px-section` is `paddingInline="section"`'],
   [
-    "a padding class on a Stack with no later axis in play",
-    `${PRIMITIVES}export const T = (<Stack className="px-section" />);\n`,
+    "a class that beats a later axis's class, which the prop's place in the recipe settles",
+    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-section" />);\n`,
     '`px-section` is `paddingInline="section"`',
+  ],
+  [
+    "a class that conflicts with another in the same className",
+    `${PRIMITIVES}export const T = (<Stack className="px-section px-block" />);\n`,
+    '`px-block` is `paddingInline="block"`',
+  ],
+  [
+    "a responsive inset the narrow padding props write",
+    `${PRIMITIVES}export const T = (<Stack className="@max-cq-28:px-tight @max-cq-28:pe-block pbs-row" />);\n`,
+    '`@max-cq-28:px-tight` is `paddingInlineNarrow="tight"`',
   ],
   [
     "an owned class under a guard inside cn",
@@ -139,11 +150,6 @@ test.for([
   ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],
   ["an owned class on a component from another module", 'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n'],
   ["an owned class on a member element", 'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n'],
-  [
-    "a class that beats a later axis's class, which a prop would put before it",
-    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-section" />);\n`,
-  ],
-  ["a class that conflicts with another in the same className", `${PRIMITIVES}export const T = (<Stack className="px-section px-block" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });

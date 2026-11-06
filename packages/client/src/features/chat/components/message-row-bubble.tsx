@@ -5,13 +5,10 @@
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
+import type { MessageBoxFacts } from "../lib/message-box-facts.ts";
 import type { ArtFailedReport, ArtView } from "./art-slot.tsx";
 import { EchoArtTile, WhisperBand } from "./art-slot.tsx";
-import type { MessageBoxProps } from "./message-box.tsx";
 import { MessageBox } from "./message-box.tsx";
-
-/** The skin and row facts every message box of one row shares. */
-export type MessageBoxFacts = Pick<MessageBoxProps, "box" | "role" | "phoneCap" | "corners" | "lastRowFloor" | "editing" | "receded">;
 
 export function renderSingleBubble(args: {
   /** #288 — the speaker/timestamp/actions header, when this skin renders it INSIDE its container. It
@@ -33,10 +30,9 @@ export function renderSingleBubble(args: {
   readonly onArtFailed?: ArtFailedReport;
 }): ReactElement {
   const headerBand = args.decoration?.headerBand;
-  const artDecoration = args.decoration?.treatment;
   if (headerBand !== undefined) {
     return (
-      <MessageBox {...args.facts} shape="bare" positioned={false} artDecoration={artDecoration}>
+      <MessageBox {...args.facts} shape="bare" positioned={false}>
         <WhisperBand band={headerBand} view={args.artView} onFailedChange={args.onArtFailed} />
         <Stack gap="row" paddingBlock="row" paddingInline="block">
           {args.header}
@@ -49,7 +45,7 @@ export function renderSingleBubble(args: {
   if (args.weldedAvatar === null) {
     const art = args.decoration?.art;
     return (
-      <MessageBox {...args.facts} shape="stack" positioned={art !== undefined} artDecoration={artDecoration}>
+      <MessageBox {...args.facts} shape="stack" positioned={art !== undefined}>
         {art === undefined ? null : <EchoArtTile art={art} view={args.artView} onFailedChange={args.onArtFailed} />}
         {args.header}
         {args.facts.box === "page" ? (
@@ -64,7 +60,7 @@ export function renderSingleBubble(args: {
     );
   }
   return (
-    <MessageBox {...args.facts} shape="weld" positioned={false} artDecoration={artDecoration}>
+    <MessageBox {...args.facts} shape="weld" positioned={false}>
       {args.mirrored ? null : args.weldedAvatar}
       {/* The column stretches the card's height and the foot takes its end, so the swipe group sits in the card's
           bottom corner beside a tall portrait instead of floating under a short reply. */}

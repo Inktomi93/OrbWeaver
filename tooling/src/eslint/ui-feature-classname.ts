@@ -20,20 +20,14 @@ export interface PropOwner {
   readonly arm: string;
 }
 
-/** The element a class is written on: its other props as written (null for a value the syntax cannot read) and the other classes its `className` writes. */
-interface ClassElement {
-  readonly props: Readonly<Record<string, string | null>>;
-  readonly peers: readonly string[];
-}
-
 /**
  * The prop of `component` (exported by the `@orb/ui/<door>` door) that writes `token` onto the component's own element, or null.
  *
  * @remarks
- * A prop owns the class only when passing it renders the same: a class that beats a later axis's class on this element (`px-section` over an
- * art reservation's `ps-*`) keeps its precedence only as a class, so it has no owner here. `classOwners` in ui-facts reads the tables.
+ * `classOwners` in ui-facts reads the tables. A prop owns every class it writes, wherever the element sits in the axis order: a recipe that
+ * orders two props so a class would beat the prop is a recipe to reorder, never a class to keep.
  */
-export type PropOwners = (door: string, component: string, token: string, element: ClassElement) => PropOwner | null;
+export type PropOwners = (door: string, component: string, token: string) => PropOwner | null;
 
 /** Tailwind's `DesignSystem.candidatesToCss`: one CSS string per candidate, `null` when it does not compile. */
 export type CandidatesToCss = (classes: string[]) => (string | null)[];
@@ -298,8 +292,6 @@ const UI_DOOR = /^@orb\/ui\/([^/]+)/u;
 interface Primitive {
   readonly door: string;
   readonly component: string;
-  /** The element's other props as the recipe reader sees them, which decide whether a class can move onto a prop. */
-  readonly props: Readonly<Record<string, string | null>>;
 }
 
 /** The element a `<Track of={Stack}>` renders, which wears the attributes written on the carrier; otherwise the element's own name. */
@@ -327,29 +319,13 @@ function primitiveOf(context: OrbRuleContext, element: TSESTree.JSXOpeningElemen
   if (door === undefined) {
     return null;
   }
-  const props = jsxProperties(context, element)
-    .filter(({ name }) => !isClassProperty(name))
-    .map(({ name, value }) => [name, literalText(value)] as const);
-  return { door, component: imported.type === AST_NODE_TYPES.Identifier ? imported.name : imported.value, props: Object.fromEntries(props) };
-}
-
-/** A prop value as the recipe reader sees it: the text of a literal, `true` for a bare flag, null for anything else. */
-function literalText(value: MaybeNode): string | null {
-  if (value === null || value === undefined) {
-    return "true";
-  }
-  if (value.type === AST_NODE_TYPES.Literal) {
-    return String(value.value);
-  }
-  return value.type === AST_NODE_TYPES.TemplateLiteral && value.expressions.length === 0
-    ? value.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join("")
-    : null;
+  return { door, component: imported.type === AST_NODE_TYPES.Identifier ? imported.name : imported.value };
 }
 
 /** The classes of one `className` that a prop of the primitive writes, each with that prop. */
 function ownedTokens(primitive: Primitive, tokens: readonly string[], ownerOf: PropOwners): readonly (readonly [string, PropOwner])[] {
   return tokens.flatMap((token) => {
-    const owner = ownerOf(primitive.door, primitive.component, token, { props: primitive.props, peers: tokens.filter((peer) => peer !== token) });
+    const owner = ownerOf(primitive.door, primitive.component, token);
     return owner === null ? [] : [[token, owner] as const];
   });
 }

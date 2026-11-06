@@ -336,7 +336,7 @@ function ResumeArm({
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
-          <Stack className="pbs-row" divider="top">
+          <Stack paddingBlockStart="row" divider="top">
             <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>

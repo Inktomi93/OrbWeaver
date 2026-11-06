@@ -117,7 +117,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
       ground={ownership === "owning" ? "raised" : undefined}
     >
-      <Row align="center" gap="row" className="relative pbs-field pbe-row min-inline-0" paddingInline="row">
+      <Row align="center" gap="row" className="relative pbe-row min-inline-0" paddingBlockStart="field" paddingInline="row">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}

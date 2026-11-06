@@ -40,7 +40,8 @@ const PADDING = {
   gutter: "p-gutter",
 } as const;
 // One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` has no twin
-// here for the reason it has none above. Each class is a whole literal so Tailwind's scanner sees it.
+// here for the reason it has none above, except in the narrow arms below, which step a roomy inset down for a pane
+// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
 const PADDING_INLINE = {
   field: "px-field",
   row: "px-row",
@@ -54,6 +55,22 @@ const PADDING_BLOCK = {
   block: "py-block",
   section: "py-section",
   gutter: "py-gutter",
+} as const;
+const PADDING_BLOCK_START = {
+  field: "pbs-field",
+  row: "pbs-row",
+  block: "pbs-block",
+  section: "pbs-section",
+  gutter: "pbs-gutter",
+} as const;
+// The inline inset a box gives up below the `cq-28` container step (a phone-width pane): both sides, or the end side
+// alone. It only ever steps down, so `tight` is a member here and a full ramp is not.
+const PADDING_INLINE_NARROW = {
+  tight: "@max-cq-28:px-tight",
+  row: "@max-cq-28:px-row",
+} as const;
+const PADDING_INLINE_END_NARROW = {
+  block: "@max-cq-28:pe-block",
 } as const;
 const ALIGN = {
   start: "items-start",
@@ -154,6 +171,9 @@ export const stackVariants = tv({
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
+    paddingBlockStart: PADDING_BLOCK_START,
+    paddingInlineNarrow: PADDING_INLINE_NARROW,
+    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -236,6 +256,9 @@ export const rowVariants = tv({
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
+    paddingBlockStart: PADDING_BLOCK_START,
+    paddingInlineNarrow: PADDING_INLINE_NARROW,
+    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,

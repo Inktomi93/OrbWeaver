@@ -340,6 +340,37 @@ for (const chatStyle of THEME_CHAT_STYLES) {
   }
 }
 
+/** The inline edges of `locator`'s box. */
+async function inlineEdges(locator: Locator): Promise<{ readonly start: number; readonly end: number }> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("The element has no box");
+  }
+  return { start: box.x, end: box.x + box.width };
+}
+
+test("echo's text clears its art pane on the start side and the end side", async ({ corpus, mount, page }) => {
+  await openRoom(page, corpus, "echo", false);
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  const skin = MESSAGE_ROW_SKINS.echo;
+  const rows: { readonly side: string; readonly gap: number }[] = [];
+  for (const role of ROLES) {
+    const row = page.locator(`${ROW}[data-role="${role}"]`).first();
+    const box = row.locator(BUBBLE).first();
+    await expect(box).toBeVisible();
+    const side = decorationFor(skin, await row.getAttribute("data-kind"), role)?.art?.side;
+    if (side === undefined) {
+      throw new Error(`The echo ${role} row has no art pane`);
+    }
+    const art = await inlineEdges(box.locator('[data-slot="message-echo-art"]'));
+    const text = await inlineEdges(box.locator("p").first());
+    // The room between the pane and the text, on the side the pane sits.
+    rows.push({ side, gap: side === "left" ? text.start - art.end : art.start - text.end });
+  }
+  expect(rows.map(({ side }) => side).toSorted()).toEqual(["left", "right"]);
+  expect(rows.every(({ gap }) => gap >= 0)).toBe(true);
+});
+
 // Owner CSS that restyles how an art hook's image fills its box: none of these is the art slot's own value.
 const OWNER_FIT = { "background-size": "10px 10px", "background-position": "0% 0%", "background-repeat": "repeat" } as const;
 const OWNER_FIT_HOOKS = [
