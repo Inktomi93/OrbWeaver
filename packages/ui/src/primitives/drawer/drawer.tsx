@@ -20,10 +20,8 @@ import { drawerVariants } from "./variants.ts";
 
 type DrawerSide = NonNullable<VariantProps<typeof drawerVariants>["side"]>;
 
-const SWIPE_BY_SIDE: Record<DrawerSide, "down" | "left" | "right"> = {
+const SWIPE_BY_SIDE: Record<DrawerSide, "down"> = {
   bottom: "down",
-  left: "left",
-  right: "right",
 };
 
 export interface DrawerProps<Payload = unknown> extends Omit<BaseRootProps<Payload>, "swipeDirection">, VariantProps<typeof drawerVariants> {}

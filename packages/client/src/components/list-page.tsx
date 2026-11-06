@@ -4,13 +4,13 @@
 
 import type { StackProps } from "@orb/ui/layout";
 import { Row, Stack, Surface } from "@orb/ui/layout";
-import type { KeyboardEventHandler, ReactElement, ReactNode, RefObject } from "react";
+import type { ComponentProps, KeyboardEventHandler, ReactElement, ReactNode, RefObject } from "react";
 import { ListSearch } from "./list-search.tsx";
 import { SkipToFirstRow } from "./skip-to-first-row.tsx";
 
 /** The one element a LIST pane scrolls in: the `ListPage` body, or the rows under a `bounded` body. */
-export function ListScrollBox(props: Omit<StackProps, "className">): ReactElement {
-  return <Stack {...props} className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-slot="library-list-scroll" />;
+export function ListScrollBox({ gap, ...props }: Omit<ComponentProps<"div">, "className"> & { readonly gap?: StackProps["gap"] }): ReactElement {
+  return <Stack {...props} gap={gap} className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-slot="library-list-scroll" />;
 }
 
 /** `scroll`: the body is the scroll box. `bounded`: the body is a bounded column whose rows or VirtualList scroll

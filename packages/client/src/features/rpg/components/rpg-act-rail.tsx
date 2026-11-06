@@ -31,10 +31,10 @@ function actNumeral(act: number): string {
 const ACT_STATES = ["past", "current", "future"] as const;
 type ActState = (typeof ACT_STATES)[number];
 // `past` takes the Card's ink (`card-foreground` resolves to the same value as `foreground`) over the gloss voice's muted ink.
-const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly text: Pick<ComponentProps<typeof Text>, "ink"> }>> = {
-  past: { glyph: "●", text: { ink: "inherit" } },
-  current: { glyph: "◉", text: { ink: "accolade" } },
-  future: { glyph: "○", text: { ink: "muted" } },
+const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly ink: ComponentProps<typeof Text>["ink"] }>> = {
+  past: { glyph: "●", ink: "inherit" },
+  current: { glyph: "◉", ink: "accolade" },
+  future: { glyph: "○", ink: "muted" },
 };
 
 function actState(act: number, current: number): ActState {
@@ -51,7 +51,7 @@ function ActStop({ act, current }: { readonly act: number; readonly current: num
     <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
       {act === 1 ? null : <Separator className="flex-1" />}
       {/* gloss: the dot row is quiet decoration (aria-hidden) — the state tone re-colours it. */}
-      <Text as="span" voice="gloss" {...style.text}>
+      <Text as="span" voice="gloss" ink={style.ink}>
         {style.glyph} {actNumeral(act)}
       </Text>
     </Row>

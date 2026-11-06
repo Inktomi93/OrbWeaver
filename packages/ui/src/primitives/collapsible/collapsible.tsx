@@ -61,7 +61,7 @@ export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className">
   instant?: boolean;
   /** What the panel holds. `prose` (the default) is running text in the muted ink; `controls` keeps the
    *  foreground ink, so `text-current` buttons inside do not all recede to muted. */
-  holds?: "prose" | "controls";
+  holds?: "controls";
 }
 
 // Removed from the DOM while closed by default. `keepMounted` keeps it mounted but hidden;

@@ -92,10 +92,6 @@ export const pickerCellVariants = tv({
       landscape: { art: "block-(--height-picker-art-landscape)" },
       /** A 4:3 picture with room for detailed anatomy. */
       standard: { art: "block-(--height-picker-art-standard)" },
-      /** A square picture: a wallpaper thumbnail, an avatar shape. */
-      square: { art: "block-(--height-picker-art-square)" },
-      /** No picture at all — a label-only cell that must still sit in the same grid as its picture siblings. */
-      none: { art: "hidden" },
     },
   },
   defaultVariants: { shape: "landscape", detail: false },

@@ -9,7 +9,8 @@ import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { useId } from "react";
 
-export interface DescribedMenuItemProps extends Omit<ComponentProps<typeof MenuItem>, "aria-describedby" | "aria-labelledby" | "children" | "label"> {
+export interface DescribedMenuItemProps
+  extends Omit<ComponentProps<typeof MenuItem>, "aria-describedby" | "aria-labelledby" | "children" | "label" | "hiddenAt"> {
   readonly icon?: LucideIcon;
   /** The item's name, also its typeahead text. */
   readonly label: string;

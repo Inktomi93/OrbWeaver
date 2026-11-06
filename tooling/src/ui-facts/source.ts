@@ -120,6 +120,12 @@ function kindOf(tag: string, imports: ReadonlyMap<string, string>): { readonly k
   return from === "#components" || /\/components\//u.test(from) ? { kind: "composite", door: null } : { kind: "local", door: null };
 }
 
+/** A `<Track of={Stack}>` renders the element named by its `of` attribute with the remaining attributes, so that element is the one written to. */
+function carrierOf(attrs: ReadonlyMap<string, ts.JsxAttribute>): string | undefined {
+  const init = attrs.get("of")?.initializer;
+  return init !== undefined && ts.isJsxExpression(init) && init.expression !== undefined && ts.isIdentifier(init.expression) ? init.expression.text : undefined;
+}
+
 export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
   const imports = importsOf(sf);
   const out: Elem[] = [];
@@ -137,11 +143,42 @@ export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
         spreads.push(attribute.expression);
       }
     }
-    const tag = opening.tagName.getText(sf);
+    const tag = carrierOf(attrs) ?? opening.tagName.getText(sf);
     out.push({ tag, ...kindOf(tag, imports), line: lineOf(sf, opening), opening, element: node, attrs, hasSpread: spreads.length > 0, spreads });
   });
   return out;
 }
+
+/** The expression inside parentheses, `as`, `satisfies` and `!`. */
+export function unwrap(node: ts.Expression): ts.Expression {
+  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
+    return unwrap(node.expression);
+  }
+  return node;
+}
+
+const CONST_MAPS = new WeakMap<ts.SourceFile, ReadonlyMap<string, ts.Expression>>();
+
+/** Every `const` in the file by name, wherever it is declared: the first one wins and scope is not read. */
+export function constInitializers(sf: ts.SourceFile): ReadonlyMap<string, ts.Expression> {
+  const cached = CONST_MAPS.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const map = new Map<string, ts.Expression>();
+  visit(sf, (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined && !map.has(node.name.text)) {
+      const list = node.parent;
+      if (ts.isVariableDeclarationList(list) && list.getFirstToken(sf)?.kind === ts.SyntaxKind.ConstKeyword) {
+        map.set(node.name.text, unwrap(node.initializer));
+      }
+    }
+  });
+  CONST_MAPS.set(sf, map);
+  return map;
+}
+
+export const constInitializer = (sf: ts.SourceFile, name: string): ts.Expression | null => constInitializers(sf).get(name) ?? null;
 
 /** The literal string of an attribute (`a="x"`, `a={"x"}`, a no-substitution template), else undefined. */
 export function attrString(attribute: ts.JsxAttribute | undefined): string | undefined {
@@ -160,30 +197,6 @@ export function attrString(attribute: ts.JsxAttribute | undefined): string | und
     return init.expression.text;
   }
   return undefined;
-}
-
-/** `a`, `a={true}` read as "true"; `a={false}` as "false"; a literal as its text; anything computed as null. */
-export function attrValue(attribute: ts.JsxAttribute): string | null {
-  const text = attrString(attribute);
-  if (text !== undefined) {
-    return text;
-  }
-  const init = attribute.initializer;
-  if (init === undefined) {
-    return "true";
-  }
-  if (ts.isJsxExpression(init) && init.expression !== undefined) {
-    if (init.expression.kind === ts.SyntaxKind.TrueKeyword) {
-      return "true";
-    }
-    if (init.expression.kind === ts.SyntaxKind.FalseKeyword) {
-      return "false";
-    }
-    if (ts.isNumericLiteral(init.expression)) {
-      return init.expression.text;
-    }
-  }
-  return null;
 }
 
 /** The literal text a JSX element shows: JsxText and string-literal expressions, joined and collapsed. */

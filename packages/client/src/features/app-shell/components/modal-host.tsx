@@ -197,15 +197,14 @@ function DialogModal({
 
   // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
   const isShellModal = def.size === "full" || def.size === "xl";
-  // exactOptionalPropertyTypes: spread size only when set, never pass an explicit undefined.
-  const sizeProp = def.size === undefined ? {} : { size: def.size };
   const bodyClass = isShellModal ? "flex-1 outline-none" : "outline-none";
   return (
     <FlowDialog
       title={def.title}
       open={true}
       onOpenChange={onOpenChange}
-      popupProps={{ ...sizeProp, container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
+      size={def.size}
+      popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
       bodyProps={{ className: bodyClass, ref: bodyRef, tabIndex: -1 }}
       headerActions={
         <DialogClose

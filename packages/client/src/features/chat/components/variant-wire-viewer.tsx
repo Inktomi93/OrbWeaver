@@ -213,7 +213,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
 
 export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: VariantWireViewerProps): ReactElement {
   return (
-    <ViewerDialog title="What this reply sent" popupProps={{ size: "lg", "data-testid": testId("variantWireViewer") }} open={open} onOpenChange={onOpenChange}>
+    <ViewerDialog title="What this reply sent" size="lg" popupProps={{ "data-testid": testId("variantWireViewer") }} open={open} onOpenChange={onOpenChange}>
       {/* The read exists only while the dialog is open, so it is never eager per row. A NOT_FOUND is an answer (the typed gone
           arm), not a failure. */}
       {open ? (

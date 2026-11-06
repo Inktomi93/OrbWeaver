@@ -1,7 +1,8 @@
 // The whole read: sources in, one facts object out. Read-only; nothing here writes.
 
-import type { SectionAdoption, VariantUse } from "./adoption.ts";
-import { adoptionBySection, declaredVariants, variantUsage } from "./adoption.ts";
+import type { SectionAdoption } from "./adoption.ts";
+import { adoptionBySection } from "./adoption.ts";
+import { referencedClassConstants } from "./classes.ts";
 import { buildContext, classifiable, classifySite, clusterKey } from "./classify.ts";
 import { buildCohorts } from "./cohorts.ts";
 import type { Cohort, Comparison } from "./compare.ts";
@@ -23,6 +24,7 @@ import type { Classified, Site } from "./sites.ts";
 import type { Source } from "./source.ts";
 import { loadSources } from "./source.ts";
 import { loadLengthTokens } from "./tokens.ts";
+import { declaredVariants } from "./variants.ts";
 
 interface ScanCounts {
   readonly ts: number;
@@ -45,7 +47,6 @@ export interface UiFacts {
   readonly duplicates: readonly DuplicateGroup[];
   readonly shapes: readonly ShapeGroup[];
   readonly adoption: readonly SectionAdoption[];
-  readonly variants: readonly VariantUse[];
   readonly composition: Composition;
   readonly sections: readonly string[];
 }
@@ -84,12 +85,13 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     throw new Error(`--only names no section: ${unknown.join(", ")}`);
   }
   const files = sources.flatMap((source) => factsOf(source) ?? []);
-  const raw = sources.flatMap((source) => (source.kind === "css" ? scanCss(source) : scanMarkup(source)));
+  const referenced = referencedClassConstants(sources);
+  const raw = sources.flatMap((source) => (source.kind === "css" ? scanCss(source) : scanMarkup(source, referenced)));
   const excepted = raw.filter((site) => isExcepted(site, exceptions));
   const live = raw.filter((site) => !isExcepted(site, exceptions));
   const context = buildContext(live, clusterFilesOf(live), loadLengthTokens(root));
   const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
-  const declared = declaredVariants(root);
+  const declared = declaredVariants(root, sources);
   const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
   const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
   return {
@@ -102,7 +104,6 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     duplicates: findDuplicateMaps(sources),
     shapes: findShapes(files),
     adoption: adoptionBySection(files),
-    variants: variantUsage(files, declared),
     composition,
     sections,
   };

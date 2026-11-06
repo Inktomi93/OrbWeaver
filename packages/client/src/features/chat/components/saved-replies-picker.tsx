@@ -111,7 +111,7 @@ function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProp
 
 export function SavedRepliesPicker({ message, onOpenChange, finalFocus }: SavedRepliesPickerProps): ReactElement {
   return (
-    <PickerDialog title={CHAT_SAVED_REPLIES_NAME} open={true} onOpenChange={onOpenChange} popupProps={{ size: "sm", finalFocus }}>
+    <PickerDialog title={CHAT_SAVED_REPLIES_NAME} open={true} onOpenChange={onOpenChange} size="sm" popupProps={{ finalFocus }}>
       <SavedRepliesBody message={message} onOpenChange={onOpenChange} />
     </PickerDialog>
   );

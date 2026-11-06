@@ -11,7 +11,7 @@ import type { SkeletonCohort } from "./skeleton.ts";
 import { buildSkeletons } from "./skeleton.ts";
 import type { Source } from "./source.ts";
 import { buildStructureCohort } from "./structure.ts";
-import type { VariantReport } from "./variants.ts";
+import type { DeclaredVariants, VariantReport } from "./variants.ts";
 import { variantReport } from "./variants.ts";
 
 export interface Composition {
@@ -23,7 +23,7 @@ export interface Composition {
 export function analyseComposition(
   sources: readonly Source[],
   files: readonly FileFacts[],
-  declared: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>,
+  declared: DeclaredVariants,
 ): { readonly cohorts: readonly Cohort[]; readonly composition: Composition } {
   const reads = buildReadCohort(sources);
   const feedback = buildFeedbackCohort(sources);

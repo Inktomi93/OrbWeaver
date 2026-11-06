@@ -196,9 +196,11 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         title={galleryLabel}
         open={open}
         onOpenChange={onOpenChange}
-        popupProps={{ anchor: "top", initialFocus: popupRef, ref: popupRef, size: "lg" }}
+        anchor="top"
+        size="lg"
+        popupProps={{ initialFocus: popupRef, ref: popupRef }}
         titleProps={{ className: "min-inline-0 truncate", ref: headingRef, tabIndex: -1 }}
-        bodyProps={{ container: true }}
+        bodyContainer={true}
         headerActions={
           <Row align="center" className="shrink-0 flex-wrap max-inline-full" gap="row">
             {galleryEmpty && scope === "everywhere" ? null : (

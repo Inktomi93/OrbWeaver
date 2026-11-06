@@ -1,21 +1,29 @@
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogFooter, DialogHeader, DialogPopup, DialogTitle } from "@orb/ui/dialog";
-import type { Stack } from "@orb/ui/layout";
+import type { StackProps } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { DIALOG_VERBS } from "#lib";
 
+type DialogPopupProps = ComponentProps<typeof DialogPopup>;
+// The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.
+const POPUP_LOOK = ["size", "anchor", "keepMounted", "forceRender", "focusTarget", "spaced", "clearsClose", "stickyHeader"] as const;
+type PopupLook = (typeof POPUP_LOOK)[number];
+
 export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, "children"> {
   readonly title: ReactNode;
   readonly children: ReactNode;
-  readonly popupProps?: ComponentProps<typeof DialogPopup> & {
+  readonly size?: DialogPopupProps["size"];
+  readonly anchor?: DialogPopupProps["anchor"];
+  readonly popupProps?: Omit<DialogPopupProps, PopupLook> & {
     readonly "data-testid"?: string;
     readonly "data-slot"?: string;
     readonly "data-chat-id"?: string;
     readonly "data-variant-id"?: string;
   };
-  readonly titleProps?: ComponentProps<typeof DialogTitle>;
-  readonly bodyProps?: ComponentProps<typeof Stack>;
+  readonly titleProps?: Omit<ComponentProps<typeof DialogTitle>, "focusTarget" | "clearsClose">;
+  readonly bodyProps?: ComponentProps<"div">;
+  readonly bodyContainer?: StackProps["container"];
   readonly headerLeading?: ReactNode;
   readonly headerActions?: ReactNode;
   readonly footer?: ReactNode;
@@ -25,9 +33,12 @@ export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, 
 export function ContentDialog({
   title,
   children,
+  size,
+  anchor,
   popupProps,
   titleProps,
   bodyProps,
+  bodyContainer,
   headerLeading,
   headerActions,
   footer,
@@ -35,7 +46,7 @@ export function ContentDialog({
 }: ContentDialogProps): ReactElement {
   return (
     <Dialog {...root}>
-      <DialogPopup {...popupProps} spaced={true}>
+      <DialogPopup {...popupProps} size={size} anchor={anchor} spaced={true}>
         <DialogHeader className="flex-wrap">
           <Row align="center" gap="row" className="flex-1 basis-(--width-title-floor) min-inline-0">
             {headerLeading}
@@ -43,7 +54,7 @@ export function ContentDialog({
           </Row>
           {headerActions}
         </DialogHeader>
-        <DialogBody {...bodyProps} grow={true} gap="block">
+        <DialogBody {...bodyProps} container={bodyContainer} grow={true} gap="block">
           {children}
           {footer === undefined ? null : <DialogFooter>{footer}</DialogFooter>}
         </DialogBody>

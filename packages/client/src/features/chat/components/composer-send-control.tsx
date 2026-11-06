@@ -26,13 +26,6 @@ import { testId } from "#lib";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { CHAT_SEND_NAME, CHAT_STOP_NAME, CHAT_STOPPING_NAME, chatStopTooltip } from "../lib/chat-surface-names.ts";
 
-// A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
-// messenger convention, without the focal lift: the room's one focal action is not this glyph. With nothing to send
-// the glyph rests muted on no fill.
-function sendLook(ready: boolean): { readonly focal: false } | { readonly variant: "ghost"; readonly ink: "muted" } {
-  return ready ? { focal: false } : { variant: "ghost", ink: "muted" };
-}
-
 export interface ComposerSendControlProps {
   readonly showStop: boolean;
   readonly stopping: boolean;
@@ -72,6 +65,10 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       </Tooltip>
     );
   }
+  // A draft waiting to send: a compact solid disc at the glyph box (32px; the 44px hit area stays invisible), the
+  // messenger convention, without the focal lift: the room's one focal action is not this glyph. With nothing to send
+  // the glyph rests muted on no fill.
+  const ready = props.hasDraft && !props.sendDisabled;
   const ownReason = props.unavailableStatedBy === undefined ? props.availability.reason : undefined;
   const describedBy = props.unavailableStatedBy ?? (ownReason === undefined ? undefined : ownReasonId);
   // `describesTrigger={false}`: this control already owns the reason's ONE description home (the `sr-only`
@@ -85,7 +82,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         render={
           <GlyphButton
             type="button"
-            {...sendLook(props.hasDraft && !props.sendDisabled)}
+            {...(ready ? ({ focal: false } as const) : ({ variant: "ghost", ink: "muted" } as const))}
             glyph="lg"
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}

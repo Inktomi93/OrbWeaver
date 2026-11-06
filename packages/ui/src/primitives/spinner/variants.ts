@@ -18,7 +18,6 @@ export const spinnerVariants = tv({
       md: { root: "block-(--size-icon-md) inline-(--size-icon-md)" },
       lg: { root: "block-(--size-icon-lg) inline-(--size-icon-lg)" },
       xl: { root: "block-(--size-icon-xl) inline-(--size-icon-xl)" },
-      hero: { root: "block-(--size-icon-hero) inline-(--size-icon-hero)" },
     },
     // The loader inherits `currentColor` unless it takes a tone (a brand wait is `primary`) or a named ink.
     tone: onRoot(TONE_TEXT),

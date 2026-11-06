@@ -134,11 +134,6 @@ export interface ListRowProps {
    * this slot's backdrop both key on it).
    */
   actionsFloat?: boolean;
-  /**
-   * Hides the `actions` cluster at rest and reveals it on the row's hover or focus-within, opacity only, so the
-   * cluster keeps its box and nothing reflows. A coarse pointer has no hover, so the cluster stays visible there.
-   */
-  revealActions?: boolean;
   /** Dims the whole row to the receded step, for a row that stands behind its live siblings (an archived chat). */
   receded?: boolean;
   /**
@@ -279,7 +274,6 @@ export function ListRow({
   markers,
   actions,
   actionsFloat = false,
-  revealActions = false,
   receded = false,
   stackActions = false,
   stackActionsAt = "cq-32",
@@ -298,7 +292,6 @@ export function ListRow({
   const slots = listRowVariants({
     clickable,
     float: actionsFloat,
-    revealActions,
     receded,
     stackActions,
     stackActionsAt,

@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-11-06
 priority: P2
 area: ui
-lane: wt/agent-a43d9e2363be1b831
 plan: type-law
 ---
 
@@ -12,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+orb/no-opaque-variant-spread refuses a JSX spread in the client whose type can write a variant-like prop of the @orb/ui element it lands on, unless the variant census reads the spread: an object literal, a conditional or logical of literals, or a same-file const of one. The census counts any other spread as writing nothing.
 
 ## Why
 
-The symptom or the ruling behind it.
+A spread of a prop bag could write any variant axis, so the census had to mark every axis of the door unclaimable and could not call any value unused. The type checker knows which spreads can carry an axis, so the rule keeps only those out and leaves harmless spreads (src, aria, data-\*) alone.
 
 ## Done when
 
-The observable bar a verifier can check.
+The rule is registered in tooling/src/eslint/index.ts and enabled for packages/client/src in eslint.config.ts. pnpm lint:eslint packages/client/src is clean. tests/tooling/eslint-opaque-variant-spread.test.ts proves the flagged and passing shapes, and the checker-contract test lists the rule. The ui-facts census no longer reports a spread as an unresolved use.
 
 ## Evidence
 

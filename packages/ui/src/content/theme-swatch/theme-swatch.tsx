@@ -20,7 +20,7 @@ import { themeSwatchVariants } from "./variants.ts";
 export interface ThemeSwatchStripProps {
   /** The theme's REAL stored override values — clamped and derived by `<ThemeScope>`, never re-spelled. */
   readonly tokens: ThemeScopeTokens;
-  readonly size?: "row" | "card";
+  readonly size?: "row";
 }
 
 /** The three-cell stripe: base surface · card surface · accent, painted by the theme's own derivation.

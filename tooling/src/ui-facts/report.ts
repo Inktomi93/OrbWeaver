@@ -181,17 +181,6 @@ function compositeLines(scope: Scope, facts: UiFacts): string[] {
 
 function adoptionLines(scope: Scope): string[] {
   const rows = scope.facts.adoption.filter((row) => scope.inScope(row.section));
-  const unused: string[][] = [];
-  const once: string[][] = [];
-  for (const use of scope.facts.variants) {
-    for (const [value, count] of Object.entries(use.values)) {
-      if (count === 0 && use.dynamic === 0) {
-        unused.push([use.door, use.axis, value]);
-      } else if (count === 1) {
-        once.push([use.door, use.axis, value]);
-      }
-    }
-  }
   return [
     "## Primitive adoption per section",
     "",
@@ -201,12 +190,6 @@ function adoptionLines(scope: Scope): string[] {
       ["section", "raw", "primitive", "composite", "local", "share"],
       rows.map((row) => [row.section, row.raw, row.ui, row.composite, row.local, pct(row.share, 1)]),
     ),
-    `### Variant values nobody writes (${unused.length}; whole client, string-literal uses only)`,
-    "",
-    ...table(["door", "axis", "value"], unused.slice(0, TOP * 2)),
-    `### Variant values used once (${once.length})`,
-    "",
-    ...table(["door", "axis", "value"], once.slice(0, TOP * 2)),
   ];
 }
 

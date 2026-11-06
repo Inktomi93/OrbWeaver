@@ -11,7 +11,6 @@ export const iconVariants = tv({
       fit: "block-full inline-full",
     },
     weight: {
-      hairline: "stroke-icon-hairline",
       regular: "stroke-icon-regular",
       bold: "stroke-icon-bold",
     },

@@ -82,3 +82,36 @@ test("a one-row Textarea is an Input's job unless a maxRows ceiling says it grow
   });
   expect(sitesOf(root).filter((site) => site.kind === "textarea-single-row")).toHaveLength(1);
 });
+
+test("a class constant is read by what reads it, not by its name, and a class string written once is one site", ({ scratch }) => {
+  const root = plantDir(scratch, "class-constants");
+  plantClient(root, {
+    "components/consts.ts": [
+      'export const PILL = "rounded-lg flex";',
+      'export const UNREAD = "rounded-xl flex items-center";',
+      'export const NOTE = "rounded-3xl";',
+    ].join("\n"),
+    "components/uses.tsx": [
+      'import { NOTE, PILL } from "./consts.ts";',
+      'import { Stack } from "@orb/ui/layout";',
+      'const INNER = "rounded-sm p-1";',
+      'const OUTER = NOTE + " rounded-md";',
+      "export const A = () => (",
+      "  <div className={PILL}>",
+      "    <span className={cn(INNER)} />",
+      '    <Stack className={cn("rounded-xs")} />',
+      '    <Part labelClassName="rounded-2xl" className={OUTER} />',
+      "  </div>",
+      ");",
+    ].join("\n"),
+  });
+  const radius = sitesOf(root).filter((site) => site.kind === "tw-radius");
+  const at = (site: (typeof radius)[number]): string => `${site.path.split("/").pop()} ${site.detail}`;
+  expect(radius.map(at).sort()).toEqual(
+    ["consts.ts rounded-3xl", "consts.ts rounded-lg", "uses.tsx rounded-2xl", "uses.tsx rounded-xs", "uses.tsx rounded-md", "uses.tsx rounded-sm"].sort(),
+  );
+  // The cn() inside the className is one string, so it is one site, and it still lands on the element wearing it.
+  expect(radius.filter((site) => site.detail === "rounded-xs").map((site) => site.tag)).toEqual(["Stack"]);
+  // A prop that styles a part inside a composite is not an override of the composite itself.
+  expect(radius.filter((site) => site.detail === "rounded-2xl").map((site) => site.tag)).toEqual([null]);
+});

@@ -3,6 +3,7 @@
 // or a live turn reflows as it settles.
 
 import type { MessageRole } from "@orb/kit/message-role";
+import type { StackProps } from "@orb/ui/layout";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement } from "react";
 import { Track } from "../lib/chat-track.tsx";
@@ -14,13 +15,20 @@ export function MessageRowRoot({
   skin,
   messageRole,
   hoverGroup,
+  arrival,
   ...props
-}: ComponentProps<typeof Stack> & { readonly skin: RowSkin; readonly messageRole: MessageRole; readonly hoverGroup: boolean }): ReactElement {
+}: ComponentProps<"div"> & {
+  readonly skin: RowSkin;
+  readonly messageRole: MessageRole;
+  readonly hoverGroup: boolean;
+  readonly arrival?: StackProps["arrival"];
+}): ReactElement {
   return (
     <Track
       of={Stack}
       track={skin.track}
       {...props}
+      arrival={arrival}
       container={true}
       gap="row"
       align={rowAlignFor(skin, messageRole)}
@@ -38,7 +46,7 @@ const ROW_BODY = "inline-full min-inline-0 max-inline-full @max-cq-28:gap-field"
 /** The row body (#1728 arm B): a flex line for an `anchored` skin, the three `gutterCentred` rails for a centred one.
  *  Tracks on the same element rather than a swapped one, because swapping the element at a width step would remount
  *  the row and drop mid-edit state. */
-export function MessageRowBody({ skin, ...props }: ComponentProps<typeof Row> & { readonly skin: RowSkin }): ReactElement {
+export function MessageRowBody({ skin, ...props }: ComponentProps<"div"> & { readonly skin: RowSkin }): ReactElement {
   return (
     <Row
       {...props}
@@ -68,7 +76,7 @@ export function MessageContentColumn({
   skin,
   mirrored,
   ...props
-}: ComponentProps<typeof Stack> & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
+}: ComponentProps<"div"> & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
   const align = mirrored ? "end" : undefined;
   if (skin.columnPlacement === "gutterCentred") {
     return (

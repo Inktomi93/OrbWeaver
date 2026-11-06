@@ -73,7 +73,8 @@ function TrackerValueRest({
   onOpen,
   placeholder,
   voice,
-  paint,
+  tone,
+  ink,
   wrap,
   numeric,
   italic,
@@ -86,7 +87,8 @@ function TrackerValueRest({
   readonly onOpen: () => void;
   readonly placeholder: string | undefined;
   readonly voice: TrackerVoice;
-  readonly paint: ToneInkSelection;
+  readonly tone: ToneInkSelection["tone"];
+  readonly ink: ToneInkSelection["ink"];
   readonly wrap: boolean;
   readonly numeric: boolean;
   readonly italic: boolean;
@@ -94,6 +96,7 @@ function TrackerValueRest({
 }): ReactElement {
   const empty = display === "";
   const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
+  const restPaint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   return (
     <Tip text={editTitle}>
       <InlineAction
@@ -113,7 +116,7 @@ function TrackerValueRest({
         <Text
           as="span"
           voice={voice}
-          {...(empty ? ({ ink: "muted" } as const) : paint)}
+          {...(empty ? ({ ink: "muted" } as const) : restPaint)}
           numeric={numeric}
           italic={italic}
           className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
@@ -176,7 +179,8 @@ export function TrackerValue({
         }}
         placeholder={placeholder}
         voice={voice}
-        paint={paint}
+        tone={tone}
+        ink={ink}
         wrap={wrap}
         numeric={numeric}
         italic={italic}

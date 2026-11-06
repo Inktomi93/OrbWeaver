@@ -47,6 +47,7 @@ test.for([
   "no-native-callback-narrowing",
   "no-overwritten-ref",
   "no-unresolved-style-spread",
+  "no-opaque-variant-spread",
   "ct-responder-reads-input",
   "surface-consumes-container",
   "anchor-provides-container",
