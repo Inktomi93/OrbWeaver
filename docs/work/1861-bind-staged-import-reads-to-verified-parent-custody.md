@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: server
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Bind staged import reads to verified parent custody

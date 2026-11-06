@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: tooling
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Publish artifact siblings under a coherent run identity

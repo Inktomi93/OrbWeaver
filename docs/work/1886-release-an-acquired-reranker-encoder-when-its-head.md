@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: inference
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Release an acquired reranker encoder when its head fails to load
