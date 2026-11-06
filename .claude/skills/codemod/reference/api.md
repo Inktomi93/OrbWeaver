@@ -76,7 +76,7 @@ Positions are UTF-8 byte offsets. An empty `insertedText` deletes. Build edits f
 | `codemod:metrics` | `useMetricAtom(name).increment(labels)`; counts print at the end of a run, so use it to count edits and skip reasons |
 | `codemod:runtime` | `progress`, `warn`, `failFile`, `failStep`, `isCanceled`; prefer these to a thrown error, which logs less context |
 
-`@jssg/utils` runs inside the sandbox. It is not in the catalog yet; add it with the first codemod that imports it, because knip refuses an unused dependency.
+`@jssg/utils` runs inside the sandbox. The catalog pins it and `tooling/package.json` declares it, because Biome and knip read the nearest package.
 
 | Subpath | Use |
 | - | - |

@@ -13,7 +13,7 @@ const MAX_HOPS = 3;
 const DOOR_EXPORT = /^\.\/([^/]+)$/u;
 
 /** door name to its directory under packages/ui/src, from the package exports map. */
-function doorDirs(root: string): ReadonlyMap<string, string> {
+export function doorDirs(root: string): ReadonlyMap<string, string> {
   const pkg = JSON.parse(readFileSync(join(root, "packages/ui/package.json"), "utf8")) as { readonly exports: Readonly<Record<string, unknown>> };
   const map = new Map<string, string>();
   for (const [key, target] of Object.entries(pkg.exports)) {
@@ -25,14 +25,20 @@ function doorDirs(root: string): ReadonlyMap<string, string> {
   return map;
 }
 
-interface ValueList {
+/** Arm name to the class tokens its `tv` value writes. */
+export type ArmClasses = ReadonlyMap<string, readonly string[]>;
+
+export interface ValueList {
   readonly values: readonly string[];
   /** A spread or an expression the syntax could not open: the list may be short. */
   readonly unread: boolean;
+  readonly arms: ArmClasses;
 }
 
+const NO_ARMS: ArmClasses = new Map();
+
 /** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
-type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
+export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
 
 function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expression])[] {
   return sf.statements
@@ -48,7 +54,7 @@ function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expre
     );
 }
 
-function scaleIndex(sources: readonly Source[]): ScaleIndex {
+export function scaleIndex(sources: readonly Source[]): ScaleIndex {
   const index = new Map<string, ts.ObjectLiteralExpression | null>();
   for (const source of sources) {
     for (const [name, init] of source.layer === "ui" && source.sf !== null ? exportedConsts(source.sf) : []) {
@@ -77,21 +83,53 @@ function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): t
   return first === undefined ? null : objectOf(first, index, hops + 1);
 }
 
+const isKeyOf = (node: ts.Node): boolean => (ts.isPropertyAssignment(node.parent) || ts.isPropertyAccessExpression(node.parent)) && node.parent.name === node;
+
+/** The class tokens an arm's expression writes: every string in it, and the strings of a const it names (this file, else a unique ui export). */
+function classTokensOf(expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] {
+  const tokens: string[] = [];
+  visit(expression, (node) => {
+    if (isKeyOf(node)) {
+      return;
+    }
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      tokens.push(...node.text.split(/\s+/u));
+    } else if (ts.isIdentifier(node) && hops < MAX_HOPS) {
+      const target = constInitializer(node.getSourceFile(), node.text) ?? index.get(node.text);
+      tokens.push(...(target === undefined || target === null ? [] : classTokensOf(target, index, hops + 1)));
+    }
+  });
+  return tokens.filter((token) => token !== "");
+}
+
 function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: number): ValueList {
   const sf = object.getSourceFile();
   const parts = object.properties.map((property): ValueList => {
     if (ts.isSpreadAssignment(property)) {
       const inner = hops < MAX_HOPS ? objectOf(property.expression, index, hops + 1) : null;
-      return inner === null ? { values: [], unread: true } : keysOf(inner, index, hops + 1);
+      return inner === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(inner, index, hops + 1);
     }
-    return { values: [property.name.getText(sf).replace(/^["']|["']$/gu, "")], unread: ts.isMethodDeclaration(property) };
+    const arm = property.name.getText(sf).replace(/^["']|["']$/gu, "");
+    const written = ts.isPropertyAssignment(property) ? classTokensOf(property.initializer, index, 0) : [];
+    return { values: [arm], unread: ts.isMethodDeclaration(property), arms: new Map([[arm, written]]) };
   });
-  return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread) };
+  return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread), arms: new Map(parts.flatMap((part) => [...part.arms])) };
 }
 
-function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+/** The arms of two reads of one axis, each arm's tokens joined. */
+function mergeArms(left: ArmClasses, right: ArmClasses): ArmClasses {
+  const merged = new Map<string, string[]>();
+  for (const [arm, tokens] of [...left, ...right]) {
+    merged.set(arm, [...new Set([...(merged.get(arm) ?? []), ...tokens])]);
+  }
+  return merged;
+}
+
+/** The axes the `variants` objects under `root` declare, with their arms. */
+export function axesIn(root: ts.Node, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+  const sf = root.getSourceFile();
   const axes = new Map<string, ValueList>();
-  visit(sf, (node) => {
+  visit(root, (node) => {
     if (!(ts.isPropertyAssignment(node) && node.name.getText(sf) === "variants" && ts.isObjectLiteralExpression(node.initializer))) {
       return;
     }
@@ -101,9 +139,13 @@ function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, Value
       }
       const name = axis.name.getText(sf);
       const object = objectOf(axis.initializer, index, 0);
-      const read: ValueList = object === null ? { values: [], unread: true } : keysOf(object, index, 0);
+      const read: ValueList = object === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(object, index, 0);
       const before = axes.get(name);
-      axes.set(name, { values: [...(before?.values ?? []), ...read.values], unread: read.unread || before?.unread === true });
+      axes.set(name, {
+        values: [...(before?.values ?? []), ...read.values],
+        unread: read.unread || before?.unread === true,
+        arms: mergeArms(before?.arms ?? NO_ARMS, read.arms),
+      });
     }
   });
   return axes;

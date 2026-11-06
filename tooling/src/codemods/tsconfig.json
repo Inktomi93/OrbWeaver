@@ -1,6 +1,9 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
+    // The sandbox resolves modules like a bundler, and `@jssg/utils` ships TypeScript sources with no `type: module`, which nodenext reads as CommonJS.
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "types": ["@codemod.com/jssg-types"]
   },
   "include": ["*/scripts/**/*.ts"],

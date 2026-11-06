@@ -1,6 +1,7 @@
 // The composition section of the report: skeleton families, section structure, read, feedback and form shape, and variant use.
 import type { UiFacts } from "./analysis.ts";
 import type { Cohort, Member } from "./compare.ts";
+import { table } from "./markdown.ts";
 import type { SkeletonCohort } from "./skeleton.ts";
 import type { AxisUse } from "./variants.ts";
 import { totalUses } from "./variants.ts";
@@ -22,13 +23,6 @@ const COMPOSITION_CANNOT_SEE: readonly string[] = [
   "Variant uses resolve through same-file consts, conditionals and `??`, `||`, `&&` of literals, three hops deep. A prop, a call, an import or a template with substitutions stays unresolved. A spread of an object literal (or a same-file const of one) writes its axes. Any other spread writes nothing here, because `orb/no-opaque-variant-spread` refuses one whose type can carry an axis; a computed key or a getter in a literal stays unresolved.",
 ];
 const COHORT_NAMES = ["section-structure", "read-shape", "feedback", "form"] as const;
-
-const table = (head: readonly string[], rows: readonly (readonly (string | number)[])[]): string[] => [
-  `| ${head.join(" | ")} |`,
-  `| ${head.map(() => "-").join(" | ")} |`,
-  ...rows.map((row) => `| ${row.map((value) => String(value).replaceAll("|", "\\|")).join(" | ")} |`),
-  "",
-];
 
 const clip = (text: string): string => (text.length <= FINGERPRINT_CLIP ? text : `${text.slice(0, FINGERPRINT_CLIP)}…`);
 const cohortOf = (facts: UiFacts, name: string): Cohort | undefined => facts.cohorts.find((entry) => entry.name === name);

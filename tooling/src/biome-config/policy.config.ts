@@ -580,6 +580,10 @@ export const BIOME_POLICY = {
       includes: ["tooling/src/codemods/*/scripts/*.ts"],
       linter: {
         rules: {
+          // `useMetricAtom` is the JSSG metrics API, a counter looked up by name; it is not a React hook.
+          correctness: {
+            useHookAtTopLevel: "off",
+          },
           style: {
             noDefaultExport: "off",
             useNodejsImportProtocol: "off",

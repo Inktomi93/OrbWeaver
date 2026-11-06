@@ -21,7 +21,7 @@ const PALETTE =
 const VIEWPORT_VARIANT = /^(?:max-)?(?:sm|md|lg|xl|2xl):/u;
 
 /** The part of a token after its last top-level variant colon, with the important marks and a negative sign removed. */
-function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
+export function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
   let depth = 0;
   let cut = -1;
   for (let index = 0; index < token.length; index += 1) {
@@ -117,28 +117,102 @@ export interface ClassString {
   readonly line: number;
   readonly tokens: readonly string[];
   readonly elem: Elem | null;
+  /** The string is applied only when something else holds: a branch of a ternary, the right side of `&&`, `||` or `??`, or a class-object key. */
+  readonly conditional: boolean;
 }
 
-function stringsIn(node: ts.Node): readonly ts.Node[] {
-  const found: ts.Node[] = [];
-  visit(node, (inner) => {
-    if (
+const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
+const RECIPE_CALLEES = new Set(["tv", "cva"]);
+
+function classCallee(node: ts.Node): boolean {
+  return ts.isCallExpression(node) && ts.isIdentifier(node.expression) && CLASS_CALLEES.has(node.expression.text);
+}
+
+const EQUALITY: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsEqualsToken,
+  ts.SyntaxKind.EqualsEqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsEqualsToken,
+]);
+const GUARDING: ReadonlySet<ts.SyntaxKind> = new Set([ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken]);
+// Inside a `tv()` config these hold conditions and defaults, never classes; only a `class` or `className` property of a compound entry does.
+const RECIPE_STATE = new Set(["defaultVariants", "compoundVariants", "compoundSlots"]);
+const RECIPE_CLASS = new Set(["class", "className"]);
+
+const propertyName = (node: ts.Node): string | null =>
+  ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) ? node.name.text : null;
+
+/** The properties between a string and the root that encloses it, nearest first. */
+function enclosingProperties(node: ts.Node, root: ts.Node): readonly string[] {
+  const names: string[] = [];
+  for (let parent = node.parent; !ts.isSourceFile(parent) && parent !== root.parent; parent = parent.parent) {
+    const name = propertyName(parent);
+    if (name !== null) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
+const isRecipeRoot = (root: ts.Node): boolean => ts.isCallExpression(root) && ts.isIdentifier(root.expression) && RECIPE_CALLEES.has(root.expression.text);
+
+/** A string that names a variant arm, sets a default arm or is compared with a value is not class text. */
+function isLabel(node: ts.Node, root: ts.Node): boolean {
+  const parent = node.parent;
+  if (ts.isBinaryExpression(parent) && EQUALITY.has(parent.operatorToken.kind)) {
+    return true;
+  }
+  if (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) {
+    return true;
+  }
+  if (!isRecipeRoot(root)) {
+    return false;
+  }
+  if (ts.isPropertyAssignment(parent) && parent.name === node) {
+    return true;
+  }
+  const names = enclosingProperties(node, root);
+  const [nearest] = names;
+  return names.includes("defaultVariants") || (names.some((name) => RECIPE_STATE.has(name)) && !RECIPE_CLASS.has(nearest ?? ""));
+}
+
+/** The string is applied only when something else holds. */
+function isConditional(node: ts.Node, root: ts.Node): boolean {
+  for (let child = node; child !== root; child = child.parent) {
+    const parent = child.parent;
+    if (ts.isConditionalExpression(parent) && parent.condition !== child) {
+      return true;
+    }
+    if (ts.isBinaryExpression(parent) && GUARDING.has(parent.operatorToken.kind) && parent.right === child) {
+      return true;
+    }
+    // A `cn({ "p-row": isRow })` key is a class applied when its value holds.
+    if (ts.isPropertyAssignment(parent) && parent.name === child && !isRecipeRoot(root)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+interface ClassPiece {
+  readonly node: ts.Node;
+  readonly conditional: boolean;
+}
+
+function piecesIn(root: ts.Node): readonly ClassPiece[] {
+  const found: ClassPiece[] = [];
+  visit(root, (inner) => {
+    const text =
       ts.isStringLiteral(inner) ||
       ts.isNoSubstitutionTemplateLiteral(inner) ||
       ts.isTemplateHead(inner) ||
       ts.isTemplateMiddle(inner) ||
-      ts.isTemplateTail(inner)
-    ) {
-      found.push(inner);
+      ts.isTemplateTail(inner);
+    if (text && !isLabel(inner, root)) {
+      found.push({ node: inner, conditional: isConditional(inner, root) });
     }
   });
   return found;
-}
-
-const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
-
-function classCallee(node: ts.Node): boolean {
-  return ts.isCallExpression(node) && ts.isIdentifier(node.expression) && CLASS_CALLEES.has(node.expression.text);
 }
 
 const CLASS_CONSTANT = /(?:CLASS|CLASSES|Class|Classes)$/u;
@@ -244,13 +318,13 @@ export function referencedClassConstants(sources: readonly Source[]): ReadonlySe
 export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = (node: ts.Node, elem: Elem | null): void => {
+  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null): void => {
     const tokens = literalText(node)
       .split(/\s+/u)
       .filter((token) => token !== "");
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
-      out.push({ path, line: lineOf(sf, node), tokens, elem });
+      out.push({ path, line: lineOf(sf, node), tokens, elem, conditional });
     }
   };
   const byOpening = new Map<ts.Node, Elem>();
@@ -264,7 +338,7 @@ export function classStringsOf(path: string, sf: ts.SourceFile, referenced: Read
     }
     // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
     const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
-    for (const piece of stringsIn(root)) {
+    for (const piece of piecesIn(root)) {
       emit(piece, elem);
     }
   });
