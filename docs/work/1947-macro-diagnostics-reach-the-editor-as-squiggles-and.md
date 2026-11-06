@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Wire the macro diagnostics the parser already builds. MacroSpan and MacroDiagnostic carry code, message and position, and their headers promise an editor squiggle and a line in AssembleTrace. Feed them to the code editor's existing diagnostics prop for prompts and macros, and thread them into the trace. Owner ruling: wire it.
+Wire the macro diagnostics the parser already builds. MacroSpan and MacroDiagnostic carry code, message and position, and their headers promise an editor squiggle and a line in AssembleTrace. Prompt and macro bodies edit in MacroTextarea, a plain textarea, and only the regex and theme fields mount CodeEditor, so the diagnostics prop does not reach them. No prompt render path supplies a diagnostics sink, and AssembleTrace has no diagnostics field. Choose the editor route first: a mark layer inside MacroTextarea, CodeEditor on those fields, or a message list under the field. Then add the sink and the trace field. Owner ruling: wire it.
 
 ## Why
 
