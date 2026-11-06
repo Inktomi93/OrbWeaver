@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: server
 plan: unwired-code
@@ -11,15 +11,15 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+Keep import preview identity separate per SillyTavern profile and per same-named Orbweaver book.
 
 ## Why
 
-The symptom or the ruling behind it.
+A preview entry must keep the identity of the profile and the Orbweaver book it came from, or counts for different sources merge into one.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test previews two profiles that hold a same-named book, and the preview shows separate entries with separate counts.
 
 ## Evidence
 

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Survey the client for raw dialogs, empty states, Card sites and CONTEXT panels that are not built on the shared composites. Decide for each class whether to convert the sites or keep them with a reason.
 
 ## Why
 
-The symptom or the ruling behind it.
+These four classes are where surfaces drift apart in form. A decision per class stops each review pass from re-deriving it.
 
 ## Done when
 
-The observable bar a verifier can check.
+A decision for each class is written in docs/plans/cross-surface-consistency/design.md. It lists every site as convert or keep with a reason, and each convert has a board item.
 
 ## Evidence
 

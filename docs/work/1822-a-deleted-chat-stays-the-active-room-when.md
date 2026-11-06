@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: chat
 ---
@@ -10,15 +10,15 @@ area: chat
 
 ## What
 
-The change, in a sentence.
+Return Chats to its landing when the active chat is deleted while the room is not mounted.
 
 ## Why
 
-The symptom or the ruling behind it.
+chatDeleted reaches chatDeletedFromList in packages/client/src/state/active-chat-store.ts only through a mounted room or a Chats list row. A delete from another tab, a host delete of a shared room or the expiry sweep leaves a stale stored handle, so Chats reopens on a dead id and should stall on the load error with stream.attach retries. This comes from reading the code and has not been run.
 
 ## Done when
 
-The observable bar a verifier can check.
+A component test deletes the active chat remotely while the shell is on Home and finds Chats back at its landing. The fix lives in active-chat-store.ts or in a user-channel consumer of chatDeleted.
 
 ## Evidence
 

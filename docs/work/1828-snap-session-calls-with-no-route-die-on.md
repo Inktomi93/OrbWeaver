@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: testing
 ---
@@ -10,15 +10,15 @@ area: testing
 
 ## What
 
-The change, in a sentence.
+Give snap session calls that carry no route the same time budget as calls that carry one.
 
 ## Why
 
-The symptom or the ruling behind it.
+Session calls without a route died on ORB-LOAD-KILL several times when the load was under 24. Their budget is 5 seconds plus the tape, while calls with a route carry 180 seconds.
 
 ## Done when
 
-The observable bar a verifier can check.
+A session call with no route is not killed by the load guard at the load that killed it before, and a test shows the budget of both call kinds is equal.
 
 ## Evidence
 

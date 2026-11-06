@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Fix five feedback and wording findings from the closeout 4 side-eye review. A failed schedule shows three messages. A failed add document shows two alerts with two different words. Reset to default and its Undo drop focus to the page body. Filtered lists use four wordings for their counts. Member names print twice, as in Nate 2 (Nate 2).
 
 ## Why
 
-The symptom or the ruling behind it.
+The review found these on screen. The composition ruling allows a toast plus one inline message, and these go past it.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each finding is fixed with a component test, or answered with a cited reason. One failed action shows at most one toast and one inline line, and the filtered lists share one wording.
 
 ## Evidence
 

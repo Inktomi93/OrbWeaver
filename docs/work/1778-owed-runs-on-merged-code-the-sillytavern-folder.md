@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: tests
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Run the e2e and WebKit component suites that merged code owes: the SillyTavern folder import, the CSRF gates and the RPG lite loop e2e specs, the e2e specs the lint and consistency branches edited, and the WebKit component suites for the touched platform suites.
 
 ## Why
 
-The symptom or the ruling behind it.
+A lane cannot run a whole-tree e2e command, so these suites were not run against the merged code. The Evidence lists what ran and what is still unproven.
 
 ## Done when
 
-The observable bar a verifier can check.
+Every spec named in the Evidence has a recorded passing run on current code. The corpus specs, the guided-generations spec and the RPG lite loop have a run or a recorded reason they cannot run.
 
 ## Evidence
 

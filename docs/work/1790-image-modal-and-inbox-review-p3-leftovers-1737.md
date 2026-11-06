@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: client
 plan: unwired-code
@@ -11,15 +11,15 @@ plan: unwired-code
 
 ## What
 
-The change, in a sentence.
+Fix the image modal and inbox review leftovers. Inbox: move Show dismissed to the top of the popup; fix the Nothing dismissed copy after the standing plugin ask is dismissed; stop rows scrolling through the strip above the sticky header on the You sheet. Image modal: show a count near the negative prompt cap; reserve the charge line so Image size does not shift; share one label map for rule image size; use one phrase for the mode default; move focus to Choose image size after Use the image mode's default size; add a spend note to Image count.
 
 ## Why
 
-The symptom or the ruling behind it.
+The side-eye reviews of the inbox and the image modal rendered each of these. The negative prompt is cut silently at the cap, and the charge line moves the next control under the finger.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each finding is fixed with a component test or answered with a cited reason, and a rendered pass of the inbox and the image modal shows none of them.
 
 ## Evidence
 

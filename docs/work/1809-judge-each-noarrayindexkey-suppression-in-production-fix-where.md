@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Judge each noArrayIndexKey suppression in production client code. Fix it with a stable key where the list can reorder, and keep it with a reason where the order is fixed.
 
 ## Why
 
-The symptom or the ruling behind it.
+An index key on a list that reorders makes React reuse the wrong row state. A suppression with no reason hides which lists are safe.
 
 ## Done when
 
-The observable bar a verifier can check.
+Every remaining noArrayIndexKey suppression in packages/client/src carries a reason on its line that names why the order is fixed. Every list that can reorder uses a stable key.
 
 ## Evidence
 

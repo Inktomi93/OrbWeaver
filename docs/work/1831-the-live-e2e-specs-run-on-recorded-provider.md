@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P2
 area: testing
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Run the @live e2e specs on recorded provider streams in routine e2e. Record a few real turns from a local engine at the raw provider boundary, with streamed text and state tool calls. Store them as testkit data and replay them through the existing scripted peer by journey step, not by request hash. Convert tests/e2e/guided-generations.spec.ts and tests/e2e/rpg-lite-loop.spec.ts, and keep one small optional live smoke.
 
 ## Why
 
-The symptom or the ruling behind it.
+These specs skip without an engine, and their headers assert app fidelity, not model behaviour. A prompt change would invalidate a request-hash tape, so the tapes follow the journey step. This covers the parts of item 1778 that stay unproven.
 
 ## Done when
 
-The observable bar a verifier can check.
+Both specs run with E2E_LIVE=0 in pnpm e2e. A re-record command exists. A tape that no longer parses fails with its name. Tapes hold no secrets and no owner data, and production parsing runs on the tape.
 
 ## Evidence
 

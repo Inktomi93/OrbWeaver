@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: ui
 plan: type-law
@@ -11,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Give Section a trailing slot after its rule, and build LaneBand from Section.
 
 ## Why
 
-The symptom or the ruling behind it.
+packages/client/src/features/refinery/components/lane-band.tsx composes its band from a heading and a separator because Section has no trailing slot for the accept tally. Two drawings of one band can drift apart.
 
 ## Done when
 
-The observable bar a verifier can check.
+Section accepts trailing content after its rule. lane-band.tsx renders through Section and no longer composes the heading and separator itself. The refinery component tests pass.
 
 ## Evidence
 

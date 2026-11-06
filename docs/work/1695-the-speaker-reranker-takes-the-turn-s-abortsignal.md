@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P2
-plan: unwired-code
 area: server
+plan: unwired-code
 ---
 
 # The speaker reranker takes the turn's AbortSignal, so Stop during a rerank does not wait for the held answer
 
 ## What
 
-The change, in a sentence.
+Give SpeakerReranker.rerank the turn's AbortSignal and pass it from the speaker pick, so Stop during a rerank ends the call.
 
 ## Why
 
-The symptom or the ruling behind it.
+SpeakerReranker.rerank in packages/server/src/domain/chat/contract/arbitration.ts takes only a query, documents and an instruction. Stop cannot reach the provider call, so the turn waits for the held answer.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test starts a Smart speaker pick against a rerank that never answers, aborts the turn, and sees the pick end without waiting for the rerank.
 
 ## Evidence
 
