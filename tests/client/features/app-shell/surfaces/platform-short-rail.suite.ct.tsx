@@ -98,6 +98,117 @@ test.describe("coarse landscape rail fade", () => {
   });
 });
 
+const LANDSCAPE_PHONES = [
+  { width: 844, height: 390 },
+  { width: 852, height: 393 },
+  { width: 800, height: 360 },
+  { width: 915, height: 412 },
+  { width: 932, height: 430 },
+] as const;
+// The clipped item shows at least this share of its height and hides at least this share, so the scroll reads at rest.
+const PEEK_SHARE = 0.25;
+const SCROLL_SECTIONS = ".shell-rail-sections";
+// Enough to move the cut by most of a button, small enough that every phone still overflows.
+const RAIL_RESIZE_PX = 40;
+
+interface RailEdge {
+  readonly overflow: number;
+  readonly straddling: readonly { readonly label: string | null; readonly visible: number; readonly hidden: number; readonly height: number }[];
+}
+
+/** The rail buttons the section scroller's bottom edge cuts through, with how much of each shows. */
+function railEdge(scroller: Element): RailEdge {
+  const edge = scroller.getBoundingClientRect().bottom;
+  const straddling = [...scroller.querySelectorAll(".shell-rail-button")].flatMap((button) => {
+    const { top, bottom, height } = button.getBoundingClientRect();
+    return top < edge && bottom > edge ? [{ label: button.getAttribute("aria-label"), visible: edge - top, hidden: bottom - edge, height }] : [];
+  });
+  return { overflow: scroller.scrollHeight - scroller.clientHeight, straddling };
+}
+
+for (const viewport of LANDSCAPE_PHONES) {
+  test.describe(`phone landscape ${String(viewport.width)}x${String(viewport.height)} rail`, () => {
+    test.use({ viewport, hasTouch: true, isMobile: true });
+
+    test("shows a partly clipped next section at rest, so the scroll is obvious", async ({ corpus, mount, page }, info) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      await expect.poll(async () => (await sections.evaluate(railEdge)).overflow).toBeGreaterThan(0);
+      expect(await sections.evaluate((node) => node.scrollTop)).toBe(0);
+      await expect
+        .poll(async () => {
+          const { straddling } = await sections.evaluate(railEdge);
+          return straddling.length === 1 && straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE);
+        })
+        .toBe(true);
+      await info.attach("rail-edge", { body: JSON.stringify(await sections.evaluate(railEdge)), contentType: "application/json" });
+      await page.screenshot({ path: info.outputPath("rail-at-rest.png") });
+    });
+
+    test("fits again to a shorter and a taller window, with the next section still part clipped at rest", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const peeks = async (): Promise<boolean> => {
+        const { overflow, straddling } = await sections.evaluate(railEdge);
+        return (
+          overflow > 0 && straddling.length === 1 && straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)
+        );
+      };
+      await expect.poll(peeks).toBe(true);
+      for (const height of [viewport.height - RAIL_RESIZE_PX, viewport.height + RAIL_RESIZE_PX, viewport.height]) {
+        await page.setViewportSize({ width: viewport.width, height });
+        await expect.poll(peeks, { message: `the cut rests on a button's midline at height ${String(height)}` }).toBe(true);
+      }
+    });
+
+    test("opens with the active section in view, and brings it back after every section change", async ({ corpus, mount, page }, info) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "databank");
+      await mount<typeof SectionShellStory>(STORY, { section: "databank" });
+      const rail = page.getByRole("navigation", { name: "Primary", exact: true });
+      const sections = rail.locator(SCROLL_SECTIONS);
+      const current = sections.locator('[aria-current="page"]');
+      const inView = async (): Promise<boolean> => {
+        const [scroller, active] = [await settledBox(sections), await settledBox(current)];
+        return active.y >= scroller.y - GEOMETRY_EPSILON && active.y + active.height <= scroller.y + scroller.height + GEOMETRY_EPSILON;
+      };
+      await expect(current).toHaveAccessibleName(SECTION_LABELS.databank);
+      await expect.poll(inView).toBe(true);
+      await page.screenshot({ path: info.outputPath("rail-opens-on-databank.png") });
+      const labels = await sections.locator(".shell-rail-button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? ""));
+      // Both directions: the last section first, then each one above it, then the first section again.
+      for (const label of [...labels.toReversed(), ...labels.slice(0, 1)]) {
+        await page.keyboard.press("Control+KeyK");
+        const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
+        await palette.getByRole("combobox").fill(label);
+        await palette.getByRole("option", { name: label, exact: true }).click();
+        await expect(current).toHaveAccessibleName(label);
+        await expect.poll(inView, { message: `${label} is in view after the change` }).toBe(true);
+      }
+      await page.screenshot({ path: info.outputPath("rail-after-changes.png") });
+    });
+  });
+}
+
+/** Serves the shell's reads from a corpus owner and seeds the section it opens on. */
+async function serveShell(
+  page: Page,
+  corpus: Parameters<typeof createShellAmbientReads>[0],
+  root: Awaited<ReturnType<typeof createCorpusHarness>>,
+  section: string,
+): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+  });
+  await seedShellState(page, { activeSection: section });
+}
+
 async function withinViewport(control: Locator): Promise<void> {
   await expect(control).toBeInViewport();
   const box = await settledBox(control);

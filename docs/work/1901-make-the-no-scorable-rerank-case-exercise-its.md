@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P3
 area: kit
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Make the no-scorable rerank case exercise its stated result cap

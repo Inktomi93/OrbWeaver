@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: tooling
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Snap keeps typed secrets out of run files and session logs

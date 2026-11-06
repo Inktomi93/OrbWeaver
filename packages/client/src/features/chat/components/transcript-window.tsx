@@ -12,7 +12,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQue
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_HISTORY_RETRY_NAME } from "../lib/chat-surface-names.ts";
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
-import { noHistoryFailures, observeHistoryFetch, shownHistoryFailure } from "../lib/history-failures.ts";
+import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
@@ -77,8 +77,7 @@ function HistoryFailureRow({
 }): ReactElement {
   const retriable = failure === "bridge" || failure === "refresh";
   return (
-    // Dismissed but still in the box the focused control keeps pinned: globals.css hides the row there, and only there.
-    <Row align="center" data-dismissed={retriable || pinned ? undefined : ""}>
+    <Row align="center">
       <Text key={announcement} className="px-block py-row" tone="destructive" role="alert" voice="label">
         {CHAT_HISTORY_FAILURE_COPY[failure]}
       </Text>
@@ -222,7 +221,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
       setFailures((state) => ({ ...state, asked: true }));
       void refetch().catch(globalThis.reportError);
     },
-    onDismiss: (): void => setFailures((state) => ({ ...state, pinned: false })),
+    onDismiss: (): void => setFailures(dismissHistoryFailure),
   };
   return (
     <Stack className="block-full min-block-0" gap="field" aria-busy={(bridging && failure === null) || isFetching}>

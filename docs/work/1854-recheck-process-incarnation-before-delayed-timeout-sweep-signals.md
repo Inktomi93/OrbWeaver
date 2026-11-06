@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P1
 area: tooling
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Recheck process incarnation before delayed timeout sweep signals

@@ -4,11 +4,12 @@
 // is put back at the reader's top edge each frame until the rows stop moving.
 
 import type { RefObject } from "react";
+import type { RowKey } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT } from "./row-roving.ts";
 
 /** A row by key and index, and the share of its height above the reader's top edge; negative while it starts below it. */
 export interface ReadingRow {
-  readonly key: unknown;
+  readonly key: RowKey;
   readonly index: number;
   readonly into: number;
 }
@@ -23,7 +24,7 @@ function mountedRows(scroller: HTMLElement): readonly HTMLElement[] {
 }
 
 /** The row at the scroller's top edge, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
-export function readingRowOf(scroller: HTMLElement, count: number, keyAt: (index: number) => unknown): ReadingRow | null {
+export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows): ReadingRow | null {
   const edge = scroller.getBoundingClientRect().top;
   const rows = mountedRows(scroller);
   let found: { readonly row: HTMLElement; readonly box: DOMRect } | null = null;
@@ -51,7 +52,7 @@ export function readingRowOf(scroller: HTMLElement, count: number, keyAt: (index
 /** The list's rows as of its last commit. */
 export interface LiveRows {
   readonly count: number;
-  readonly keyAt: (index: number) => unknown;
+  readonly keyAt: (index: number) => RowKey;
 }
 
 interface HoldOptions {
@@ -67,25 +68,26 @@ interface HoldOptions {
   readonly onDone: () => void;
 }
 
+/** Where `row` sits in the list now, found by key because a prepend shifts every index; -1 once the row has left. */
+export function rowIndexNow(row: ReadingRow, { count, keyAt }: LiveRows): number {
+  if (row.index < count && keyAt(row.index) === row.key) {
+    return row.index;
+  }
+  for (let index = 0; index < count; index += 1) {
+    if (keyAt(index) === row.key) {
+      return index;
+    }
+  }
+  return -1;
+}
+
 /** Holds `row` at the scroller's top edge until the rows settle; returns a cancel. */
 export function holdReadingRow({ scroller, row, rows, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
   let frame = 0;
   let still = 0;
   let handle = 0;
-  const indexNow = (): number => {
-    const { count, keyAt } = rows.current;
-    if (row.index < count && keyAt(row.index) === row.key) {
-      return row.index;
-    }
-    for (let index = 0; index < count; index += 1) {
-      if (keyAt(index) === row.key) {
-        return index;
-      }
-    }
-    return -1;
-  };
   const step = (): void => {
-    const index = indexNow();
+    const index = rowIndexNow(row, rows.current);
     if (index < 0 || yieldTo()) {
       onDone();
       return;

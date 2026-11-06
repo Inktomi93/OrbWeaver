@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P3
 area: testing
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Align component-test React runtime mode with the testing law

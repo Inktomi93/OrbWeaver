@@ -203,10 +203,67 @@ test("a decorative loop owns its easing; its duration, a one-shot animation and 
   expect(await rulesHit(declaration("transition: opacity var(--motion-fast) var(--ease-out-expo);"))).toEqual([]);
 });
 
-test("a container condition is bound to the container ladder, and a shadow colour to a served variable", async () => {
+const THRESHOLD = "orb/query-threshold-from-token";
+
+test("a container threshold is a rem step of the container ladder", async () => {
   expect(await rulesHit(layered("@container shell-main (max-width: 32rem) { .probe { opacity: 1; } }"))).toEqual([]);
-  expect(await rulesHit(layered("@container (max-width: 30rem) { .probe { opacity: 1; } }"))).toEqual(["orb/no-raw-media-condition"]);
-  expect(await rulesHit(layered("@container (max-width: 512px) { .probe { opacity: 1; } }"))).toEqual(["orb/no-raw-media-condition"]);
+  expect(await rulesHit(layered("@container (max-width: 30rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@container (max-width: 512px) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@container shell-main (height <= 20rem) or (inline-size < 21rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+});
+
+test("a custom variant's threshold is a container step inside a container query and a breakpoint inside a media query", async () => {
+  expect(await rulesHit("@custom-variant probe (@container dialog (height <= 24rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@container dialog (height <= 25rem) and (width <= 32rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@media (width > 48rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@media (width <= 30rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@media (width > 50rem));")).toEqual([THRESHOLD]);
+  // 56rem is a container step and no breakpoint, so a media query cannot borrow it.
+  expect(await rulesHit("@custom-variant probe (@media (width > 56rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@media (pointer: coarse));")).toEqual([]);
+});
+
+test("the generated theme is read against the same thresholds", async () => {
+  expect(await rulesHit("@custom-variant shell-desktop (@media (width > 49rem));", THEME_FILE)).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant shell-desktop (@media (width > 48rem));", THEME_FILE)).toEqual([]);
+  // The theme turns the raw-media rule off, so its bare and block-form media queries are read here or nowhere.
+  expect(await rulesHit(layered("@media (width > 50rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@media (width > 48rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([]);
+  expect(await rulesHit("@custom-variant shell-desktop { @media (width > 50rem) { @slot; } }", THEME_FILE)).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant shell-desktop { @media (width > 48rem) { @slot; } }", THEME_FILE)).toEqual([]);
+});
+
+test("a threshold is read from the parsed query, not from its text", async () => {
+  const container = (params: string): string => layered(`@container ${params} { .probe { opacity: 1; } }`);
+  // A comment against its neighbours stays part of the params, and holds no threshold.
+  expect(await rulesHit(container("(min-width: 28rem/* 99rem */)"))).toEqual([]);
+  expect(await rulesHit(container("(min-width:/*12px*/28rem)"))).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@container (min-width:/*12px*/28rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant shell-desktop (@media (width >/*12px*/48rem));", THEME_FILE)).toEqual([]);
+  // A style query compares a custom property's value, which is no threshold.
+  expect(await rulesHit(container("style(--gap: 12px)"))).toEqual([]);
+  expect(await rulesHit(container("shell-main style(--gap: 12px) and (min-width: 28rem)"))).toEqual([]);
+  // A container name that ends in a length is a name.
+  expect(await rulesHit(container("col-2em (min-width: 28rem)"))).toEqual([]);
+  // Units are case-insensitive, and a leading-dot number is its own value.
+  expect(await rulesHit(container("(min-width: 30REM)"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(container("(min-width: 512PX)"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(container("(min-width: 28REM)"))).toEqual([]);
+  expect(await rulesHit(container("(min-width: .8rem)"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(container("(min-width: .5rem)"))).toEqual([THRESHOLD]);
+  // A range written without spaces still holds a threshold.
+  expect(await rulesHit(container("(width>=30rem)"))).toEqual([THRESHOLD]);
+  expect(await rulesHit(container("(width>=28rem)"))).toEqual([]);
+  // At-keywords are case-insensitive too.
+  expect(await rulesHit(layered("@CONTAINER (min-width: 30rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@CONTAINER (min-width: 30rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@MEDIA (width > 50rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([THRESHOLD]);
+  // Lengths that are not thresholds on the ladder's units stay clean.
+  expect(await rulesHit(container("(min-width: 28rem) and (aspect-ratio: 16/9) and (resolution: 2dppx)"))).toEqual([]);
+  expect(await rulesHit(container("(min-width: 50%)"))).toEqual([]);
+});
+
+test("a shadow colour is a served variable", async () => {
   for (const body of [
     "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-rule) var(--color-ring);",
     "box-shadow: 0 0 0 transparent;",

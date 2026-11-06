@@ -29,9 +29,18 @@ const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
   .map((name) => `var(--leading-${name})`);
 
-const containerSteps = Object.entries(tokens.container)
-  .filter(([name]) => !name.startsWith("$"))
-  .flatMap(([, step]) => (typeof step === "object" && "$value" in step ? [step.$value.value] : []));
+/** The rem value of every dimension token in a vault group, which a query's hand-spelled threshold must equal. */
+function remSteps(group: Record<string, unknown>): number[] {
+  return Object.entries(group)
+    .filter(([name]) => !name.startsWith("$"))
+    .flatMap(([, step]) => (isDimensionToken(step) ? [step.$value.value] : []));
+}
+
+function isDimensionToken(step: unknown): step is { readonly $value: { readonly value: number } } {
+  return typeof step === "object" && step !== null && "$value" in step;
+}
+
+const thresholdSteps = { container: remSteps(tokens.container), media: remSteps(tokens.breakpoint) };
 
 /** Tailwind's own at-rules and functions (tailwindcss.com/docs/functions-and-directives). */
 const TAILWIND_AT_RULES = ["theme", "utility", "variant", "custom-variant", "source", "reference", "apply", "config", "plugin"];
@@ -103,7 +112,8 @@ const config: Config = {
     "orb/motion-token-purity": true,
     "orb/no-raw-color-in-css": true,
     "orb/rest-transform-grid": [true, { reportDisables: true }],
-    "orb/no-raw-media-condition": [true, { containerSteps }],
+    "orb/no-raw-media-condition": true,
+    "orb/query-threshold-from-token": [true, thresholdSteps],
     "orb/shadow-from-ingredients": true,
     "orb/appearance-name-in-manifest": [true, appearance],
     "orb/browser-support-css": [true, { harmless: HARMLESS_WHEN_UNSUPPORTED }],
@@ -192,6 +202,7 @@ const config: Config = {
     },
     {
       // Generated from the vault: its values are the token sources, so the allow-lists and the orb/ value rules do not apply.
+      // Its query thresholds stay under `orb/query-threshold-from-token`, which flags a sheet the generator has not rewritten.
       files: ["packages/ui/src/styles/theme.css"],
       rules: {
         "orb/no-raw-color-in-css": null,

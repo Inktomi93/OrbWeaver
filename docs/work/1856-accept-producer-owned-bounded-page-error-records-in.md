@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: tooling
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Accept producer-owned bounded page-error records in the core reader

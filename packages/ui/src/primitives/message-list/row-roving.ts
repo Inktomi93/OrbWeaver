@@ -26,6 +26,9 @@ const MESSAGE_LIST_ROW_NAVIGATIONS = ["none", "roving"] as const;
 /** How the log's rows participate in the document tab order. */
 export type MessageListRowNavigation = (typeof MESSAGE_LIST_ROW_NAVIGATIONS)[number];
 
+/** A row's stable identity, the caller's item key. */
+export type RowKey = string | number;
+
 /** The row wrapper the primitive stamps; the sweep's unit of work. */
 export const MESSAGE_LIST_ROW_SLOT = "message-list-row";
 
@@ -93,7 +96,7 @@ function closestRow(node: EventTarget | null): HTMLElement | null {
 
 /** The key of the item at `index`, or null when there is none. Module scope, not a `useCallback` —
  *  the React Compiler owns memoization on this tree (`no-manual-memo` gate). */
-function keyAt<T>(items: readonly T[], getItemKey: (item: T, index: number) => string | number, index: number): string | number | null {
+function keyAt<T>(items: readonly T[], getItemKey: (item: T, index: number) => RowKey, index: number): RowKey | null {
   const item = items.at(index);
   return item === undefined ? null : getItemKey(item, index);
 }
@@ -114,15 +117,33 @@ function rovingTargetIndex(key: string, current: number, count: number): number 
   }
 }
 
+/** How the list scrolls a row the reader moved to; the virtualizer's placement is the only one a walk gets. */
+export interface RowPlacement {
+  /** Brings a row into view. `rowPx` is its laid-out height, which the virtualizer may not have measured yet. */
+  readonly row: (index: number, rowPx: number) => void;
+  /** Goes to the end of the last row and follows it. */
+  readonly tail: () => void;
+}
+
+function place(placement: RowPlacement, row: HTMLElement, index: number, toTail: boolean): void {
+  if (toTail) {
+    placement.tail();
+  } else {
+    placement.row(index, row.getBoundingClientRect().height);
+  }
+}
+
 export interface RowRovingOptions<T> {
   /** False ⇒ every effect below is a no-op and the returned index is -1: the list is byte-identical. */
   readonly enabled: boolean;
   readonly items: readonly T[];
   /** Stable per-item key — must be id-based, not index (the list both appends and prepends). */
-  readonly getItemKey: (item: T, index: number) => string | number;
+  readonly getItemKey: (item: T, index: number) => RowKey;
   readonly viewportRef: RefObject<HTMLOListElement | null>;
-  /** Bring a row into view before focus lands on it (the virtualizer's own scrollToIndex). */
-  readonly scrollToIndex: (index: number) => void;
+  /** The row a Tab lands on until a row has had focus, or null for the tail: the reader's first row on screen. */
+  readonly restingKey: RowKey | null;
+  /** Late-bound: the virtualizer that fills it needs this hook's index first. */
+  readonly placementRef: RefObject<RowPlacement>;
 }
 
 /**
@@ -130,31 +151,32 @@ export interface RowRovingOptions<T> {
  *
  * The tab stop is tracked by ITEM KEY, never index: this list prepends ("load older history"), which
  * shifts every index but no key, so an index-tracked stop would silently jump to a different message.
- * `null` = nobody has moved it ⇒ the tail, which is where a bottom-anchored transcript's reader is.
+ * `null` = no row has had focus ⇒ `restingKey`, the row the reader is on, so a Tab never moves them far.
  *
  * Listeners are attached NATIVELY rather than as JSX props: `focusin`/`focusout` are what this actually
  * wants (React's onFocus/onBlur are those events wearing a different name), the behaviour is imperative
  * anyway, and it keeps a non-interactive `<ol>` free of handler props that read as a role claim.
  */
-export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrollToIndex }: RowRovingOptions<T>): number {
-  const [activeKey, setActiveKey] = useState<string | number | null>(null);
-  // The focus() call waits for the row to MOUNT — an arrow press can target a virtualized-out row, so the
-  // scroll happens first and a per-commit effect retries until the node exists (media-grid's precedent).
-  // Index, not key: this is a within-a-few-frames handoff, not durable state.
-  const pendingFocusIndexRef = useRef<number | null>(null);
+export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, restingKey, placementRef }: RowRovingOptions<T>): number {
+  const [activeKey, setActiveKey] = useState<RowKey | null>(null);
+  // A step lands in the commit that mounts its row: focus waits for the node, and placement waits for its height, because
+  // virtual-core settles `auto` into `start` or `end` once, from whatever size it holds, and keeps that through reconcile.
+  // Only a key that changes the active row may write this: nothing else commits to consume it, and a later commit's
+  // focus would land on a reader who has moved on. By key, because a prepend in between shifts every index.
+  const landingRef = useRef<{ readonly key: RowKey; readonly toTail: boolean } | null>(null);
 
   const count = items.length;
+  const indexOfKey = (key: RowKey | null): number => (key === null ? -1 : items.findIndex((item, index) => getItemKey(item, index) === key));
   const activeIndex = ((): number => {
     if (!enabled || count === 0) {
       return -1;
     }
-    if (activeKey !== null) {
-      const found = items.findIndex((item, index) => getItemKey(item, index) === activeKey);
-      if (found >= 0) {
-        return found;
-      }
+    const focused = indexOfKey(activeKey);
+    if (focused >= 0) {
+      return focused;
     }
-    return count - 1;
+    const resting = indexOfKey(restingKey);
+    return resting >= 0 ? resting : count - 1;
   })();
 
   // THE SWEEP IS MUTATION-DRIVEN, not commit-driven — because the things that can restore a control to the
@@ -178,17 +200,26 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrol
     return (): void => observer.disconnect();
   }, [enabled, viewportRef]);
 
-  // Deliberately unkeyed: it retries the pending focus each commit and no-ops once satisfied.
+  // Deliberately unkeyed: it retries the landing each commit and no-ops once satisfied.
   useEffect((): void => {
-    const pending = pendingFocusIndexRef.current;
+    const landing = landingRef.current;
     const viewport = viewportRef.current;
-    if (pending === null || viewport === null) {
+    if (landing === null || viewport === null) {
       return;
     }
-    const row = viewport.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-index="${pending}"]`);
+    if (keyAt(items, getItemKey, activeIndex) !== landing.key) {
+      // A row that left before its step landed would take focus from a reader who has moved on when it returned.
+      if (indexOfKey(landing.key) < 0) {
+        landingRef.current = null;
+      }
+      return;
+    }
+    const row = viewport.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-index="${activeIndex}"]`);
     if (row !== null) {
-      row.focus();
-      pendingFocusIndexRef.current = null;
+      landingRef.current = null;
+      // The browser's own focus scroll would race the virtualizer, and the list would read it as the reader's.
+      row.focus({ preventScroll: true });
+      place(placementRef.current, row, activeIndex, landing.toTail);
     }
   });
 
@@ -197,15 +228,18 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrol
     if (!enabled || viewport === null) {
       return;
     }
-    const moveTo = (target: number): void => {
+    const moveTo = (from: HTMLElement, target: number, toTail: boolean): void => {
       const clamped = Math.min(Math.max(target, 0), count - 1);
       const key = keyAt(items, getItemKey, clamped);
       if (key === null) {
         return;
       }
+      if (clamped === activeIndex) {
+        place(placementRef.current, from, clamped, toTail);
+        return;
+      }
       setActiveKey(key);
-      pendingFocusIndexRef.current = clamped;
-      scrollToIndex(clamped);
+      landingRef.current = { key, toTail };
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       const row = closestRow(event.target);
@@ -216,7 +250,7 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrol
       // which is also the keystroke that re-suppresses that row (the sweep reads document.activeElement).
       if (event.key === "Escape" && event.target !== row) {
         event.preventDefault();
-        row.focus();
+        row.focus({ preventScroll: true });
         return;
       }
       // Arrow/Home/End move rows only from the ROW itself — inside a control they belong to that control
@@ -229,7 +263,8 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrol
         return;
       }
       event.preventDefault();
-      moveTo(next);
+      // Past the last row is the only way left to go in a row too tall to show whole, which opens at its start.
+      moveTo(row, next, event.key === "End" || next >= count);
     };
     // Auto-entry: focus landing anywhere in a row (a click on a suppressed control, an autofocused edit
     // textarea, a programmatic focus) makes that row the active one and re-sweeps, so the reader can Tab
@@ -257,7 +292,7 @@ export function useRowRoving<T>({ enabled, items, getItemKey, viewportRef, scrol
       viewport.removeEventListener("focusin", onFocusIn);
       viewport.removeEventListener("focusout", onFocusOut);
     };
-  }, [enabled, viewportRef, count, activeIndex, items, getItemKey, scrollToIndex]);
+  }, [enabled, viewportRef, count, activeIndex, items, getItemKey, placementRef]);
 
   return activeIndex;
 }

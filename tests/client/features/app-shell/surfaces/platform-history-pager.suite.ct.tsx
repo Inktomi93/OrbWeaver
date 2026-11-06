@@ -21,9 +21,13 @@ const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const WITNESS_ROWS = 115;
 const WALK_STEPS = 6;
 const SHRINK_PX = 120;
+// The list reads as at its end within this distance.
+const TAIL_PX = 80;
+const FOCUS_SCROLL_MARK = "data-focus-scrolled";
 const WALK_TIMEOUT_MS = 60_000;
 // Repeats per row, cycled so the page opens on a row taller than the screen and a short row follows it: real replies vary this much, and a uniform room never lets a measurement move the list mid-walk.
 const VARIED_ROW_REPEATS = [3, 40, 180, 260, 8, 90, 20] as const;
+const VARIED_CYCLE = VARIED_ROW_REPEATS.length;
 const VARIED_ROWS = 60;
 const DESKTOP = { width: 1280, height: 900 } as const;
 const LANDSCAPE_PHONE = { width: 844, height: 390 } as const;
@@ -150,6 +154,48 @@ function loadedRows(list: Locator): Promise<string | null> {
   return list.locator('[data-slot="message-list-row"]').first().getAttribute("aria-setsize");
 }
 
+/** A served room of varied rows, ready to mount. */
+async function prepareVariedRoom(page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], caller: Caller): Promise<ChatId> {
+  const { chatId } = await preparePagedRoom(caller, "document");
+  await seedVariedRows(caller, chatId);
+  await serveRoom(page, corpus, caller);
+  return chatId;
+}
+
+/** Puts focus on the transcript's one tab stop in a mounted room. */
+async function focusTabStop(page: Page): Promise<{ readonly list: Locator; readonly focused: Locator }> {
+  const list = page.locator('[data-slot="message-list-scroll"]');
+  await expect(earlierIn(list)).toBeAttached();
+  await list.locator('[data-slot="message-list-row"][tabindex="0"]').focus();
+  return { list, focused: list.locator('[data-slot="message-list-row"]:focus') };
+}
+
+/** Stamps the document whenever a focus call itself moves the transcript: a walk's position is the virtualizer's alone. */
+async function markFocusScrolls(page: Page): Promise<void> {
+  await page.addInitScript((mark) => {
+    const focus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function (options): void {
+      const port = this.closest('[data-slot="message-list-scroll"]');
+      const before = port?.scrollTop;
+      focus.call(this, options);
+      if (port?.scrollTop !== before) {
+        document.documentElement.setAttribute(mark, "");
+      }
+    };
+  }, FOCUS_SCROLL_MARK);
+}
+
+/** A row's edges against the scrollport's, and whether it is taller than the scrollport. */
+function rowAgainstPort(row: Element): { readonly top: number; readonly bottom: number; readonly tall: boolean } {
+  const port = row.closest('[data-slot="message-list-scroll"]')?.getBoundingClientRect();
+  const box = row.getBoundingClientRect();
+  return { top: box.top - (port?.top ?? Number.NaN), bottom: box.bottom - (port?.bottom ?? Number.NaN), tall: box.height > (port?.height ?? Number.NaN) };
+}
+
+function tailDistance(list: Locator): Promise<number> {
+  return list.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight);
+}
+
 /** The widest pinned box around a control: nothing else may cover the reading. */
 function pinnedInlineSize(control: Element): number {
   let widest = 0;
@@ -198,7 +244,7 @@ for (const cell of CELLS) {
       await expect(earlier).toBeInViewport({ ratio: 1 });
       const reading = list.locator(`[data-slot="message-row"][data-message-id="${oldestShown}"]`);
       const before = await settledBox(reading);
-      await earlier.click();
+      await (cell.coarse ? earlier.tap() : earlier.click());
       await expect(list.locator(`[data-slot="message-list-row"]:has([data-message-id="${oldestShown}"])`)).not.toHaveAttribute("data-index", "0");
       const after = await settledBox(reading);
       await test.info().attach("anchor-shift", { body: JSON.stringify({ before: before.y, after: after.y }), contentType: "application/json" });
@@ -296,6 +342,7 @@ for (const cell of [
     ] as const) {
       test(`stays out of the way of a ${walk.key} walk from ${walk.start}, every step on screen`, async ({ corpus, mount, page }) => {
         test.setTimeout(WALK_TIMEOUT_MS);
+        await markFocusScrolls(page);
         await using root = await pagedRoot();
         const caller = await root.internalCallerFor(root.ownerId);
         const { chatId } = await preparePagedRoom(caller, "document");
@@ -308,6 +355,7 @@ for (const cell of [
         await list.locator('[data-slot="message-list-row"][tabindex="0"]').focus();
         await page.keyboard.press(walk.start);
         await expect(focused).toBeInViewport();
+        await page.locator("html").evaluate((node, mark) => node.removeAttribute(mark), FOCUS_SCROLL_MARK);
         for (let step = 0; step < WALK_STEPS; step += 1) {
           const from = Number(await focused.getAttribute("data-index"));
           await page.keyboard.press(walk.key);
@@ -316,8 +364,184 @@ for (const cell of [
           await settledBox(focused);
           await expect(focused).toBeInViewport();
         }
+        await expect(page.locator("html")).not.toHaveAttribute(FOCUS_SCROLL_MARK);
       });
     }
+
+    test("is back on the tail, following it, after Home then End across rows it never measured", async ({ corpus, mount, page, viewport }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const { list, focused } = await focusTabStop(page);
+      const last = await focused.getAttribute("data-index");
+      await page.keyboard.press("Home");
+      await expect(focused).toHaveAttribute("data-index", "0");
+      await settledBox(focused);
+      await page.keyboard.press("End");
+      await expect(focused).toHaveAttribute("data-index", last ?? "");
+      await expect.poll(() => tailDistance(list)).toBeLessThan(TAIL_PX);
+      await settledBox(focused);
+      // A shrinking scrollport re-pins only a list that is following.
+      await page.setViewportSize({ width: viewport?.width ?? PHONE.width, height: (viewport?.height ?? PHONE.height) - SHRINK_PX });
+      await expect.poll(() => tailDistance(list)).toBeLessThan(TAIL_PX);
+    });
+
+    for (const walk of [
+      { key: "ArrowDown", start: "Home", direction: 1 },
+      { key: "ArrowUp", start: "End", direction: -1 },
+    ] as const) {
+      test(`opens a tall row at its start and meets the next row at the near edge on a ${walk.key} walk`, async ({ corpus, mount, page }) => {
+        test.setTimeout(WALK_TIMEOUT_MS);
+        await using root = await pagedRoot();
+        const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const { focused } = await focusTabStop(page);
+        await page.keyboard.press(walk.start);
+        await settledBox(focused);
+        const landings: ReturnType<typeof rowAgainstPort>[] = [];
+        for (let step = 0; step < VARIED_CYCLE; step += 1) {
+          const from = Number(await focused.getAttribute("data-index"));
+          await page.keyboard.press(walk.key);
+          await expect(focused).toHaveAttribute("data-index", String(from + walk.direction));
+          await settledBox(focused);
+          landings.push(await focused.evaluate(rowAgainstPort));
+        }
+        const tallRows = landings.filter(({ tall }) => tall);
+        expect(tallRows.length).toBeGreaterThan(0);
+        expect(Math.max(...tallRows.map(({ top }) => Math.abs(top)))).toBeLessThanOrEqual(1);
+        // Off screen before the step: the virtualizer brings it in at the near edge, where the browser's focus scroll would centre it.
+        const rowsPastTall = landings.filter(({ tall }, step) => !tall && landings[step - 1]?.tall === true);
+        expect(rowsPastTall.length).toBeGreaterThan(0);
+        expect(Math.max(...rowsPastTall.map(({ top, bottom }) => Math.abs(walk.direction > 0 ? bottom : top)))).toBeLessThanOrEqual(1);
+      });
+    }
+
+    test("holds a last row taller than the screen at its start, and the next ArrowDown goes on to the tail", async ({ corpus, mount, page, viewport }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const { list, focused } = await focusTabStop(page);
+      await page.keyboard.press("ArrowUp");
+      await settledBox(focused);
+      await page.keyboard.press("ArrowDown");
+      await settledBox(focused);
+      const landed = await focused.evaluate(rowAgainstPort);
+      expect(landed.tall).toBe(true);
+      expect(Math.abs(landed.top)).toBeLessThanOrEqual(1);
+      // A shrinking scrollport re-pins only a list that is following.
+      await page.setViewportSize({ width: viewport?.width ?? PHONE.width, height: (viewport?.height ?? PHONE.height) - SHRINK_PX });
+      await settledBox(focused);
+      expect(Math.abs((await focused.evaluate(rowAgainstPort)).top)).toBeLessThanOrEqual(1);
+      await page.keyboard.press("ArrowDown");
+      await expect.poll(() => tailDistance(list)).toBeLessThan(TAIL_PX);
+    });
+
+    test("brings the focused first row back when Home has nowhere else to go", async ({ corpus, mount, page }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const { list, focused } = await focusTabStop(page);
+      await page.keyboard.press("Home");
+      await settledBox(focused);
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await expect(focused).not.toBeInViewport();
+      await page.keyboard.press("Home");
+      await expect(focused).toBeInViewport();
+    });
+
+    test("leaves the reader where they are when Escape hands focus back to a row taller than the screen", async ({ corpus, mount, page }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const { list, focused } = await focusTabStop(page);
+      expect((await focused.evaluate(rowAgainstPort)).tall).toBe(true);
+      const index = await focused.getAttribute("data-index");
+      await page.keyboard.press("Tab");
+      await expect(focused).toHaveCount(0);
+      await settledReadingRow(list);
+      const before = await list.evaluate((node) => node.scrollTop);
+      await page.keyboard.press("Escape");
+      await expect(focused).toHaveAttribute("data-index", index ?? "");
+      await settledBox(focused);
+      expect(await list.evaluate((node) => node.scrollTop)).toBe(before);
+    });
+
+    for (const clamp of [
+      { key: "Home", start: "Home" },
+      { key: "ArrowUp", start: "Home" },
+      { key: "End", start: "End" },
+      { key: "ArrowDown", start: "End" },
+    ] as const) {
+      test(`keeps focus on Earlier messages after ${clamp.key} on the row it cannot leave`, async ({ corpus, mount, page }) => {
+        test.setTimeout(WALK_TIMEOUT_MS);
+        await using root = await pagedRoot();
+        const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const { list, focused } = await focusTabStop(page);
+        await page.keyboard.press(clamp.start);
+        await settledBox(focused);
+        const row = await focused.getAttribute("data-index");
+        await page.keyboard.press(clamp.key);
+        await expect(focused).toHaveAttribute("data-index", row ?? "");
+        await settledBox(focused);
+        await page.keyboard.press("Shift+Tab");
+        await expect(earlierIn(list)).toBeFocused();
+        const rows = await loadedRows(list);
+        await page.keyboard.press("Enter");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(earlierIn(list)).toBeFocused();
+        await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
+      });
+    }
+
+    test("takes a parked reader's Tab to the first row on screen, not the latest", async ({ corpus, mount, page }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      // A quarter of the way down: the last row can be half the page, and a reader inside it proves nothing.
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 4;
+      });
+      await settledReadingRow(list);
+      await earlierIn(list).focus();
+      await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
+      const { id } = await settledReadingRow(list);
+      await page.keyboard.press("Tab");
+      const focused = list.locator('[data-slot="message-list-row"]:focus');
+      await expect(focused.locator(`[data-message-id="${id ?? ""}"]`)).toBeAttached();
+      await expect(focused).not.toHaveAttribute("data-index", String(Number(await focused.getAttribute("aria-setsize")) - 1));
+      await settledBox(focused);
+      await expect(focused).toBeInViewport();
+    });
+
+    test("takes a Tab back to the row that last had focus", async ({ corpus, mount, page }) => {
+      test.setTimeout(WALK_TIMEOUT_MS);
+      await using root = await pagedRoot();
+      const chatId = await prepareVariedRoom(page, corpus, await root.internalCallerFor(root.ownerId));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const { list, focused } = await focusTabStop(page);
+      await page.keyboard.press("ArrowUp");
+      await settledBox(focused);
+      const walkedTo = await focused.getAttribute("data-index");
+      await page.keyboard.press("Shift+Tab");
+      await expect(earlierIn(list)).toBeFocused();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      await page.keyboard.press("Tab");
+      await expect(focused).toHaveAttribute("data-index", walkedTo ?? "");
+      await expect(focused).toBeInViewport();
+    });
 
     test("pressed offline says so and pins, then loads when the connection returns", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();
@@ -342,7 +566,39 @@ for (const cell of [
       await expect(alert).toHaveCount(0);
     });
 
-    test("that fails pins until dismissed, keeps the failure at the pager's home, and pins again on the next failure", async ({ corpus, mount, page }) => {
+    test("pressed offline, dismissed, then pressed again says so again", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      // The context outlives the test, so the connection comes back whatever the assertions find.
+      await page.context().setOffline(true);
+      try {
+        await earlierIn(list).dispatchEvent("click");
+        const alert = list.getByRole("alert");
+        await expect(alert).toBeInViewport({ ratio: 1 });
+        const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+        await (cell.coarse ? dismiss.tap() : dismiss.click());
+        await expect(alert).toHaveCount(0);
+        await earlierIn(list).dispatchEvent("click");
+        await expect(alert).toBeInViewport({ ratio: 1 });
+      } finally {
+        await page.context().setOffline(false);
+      }
+    });
+
+    test(`that fails pins until dismissed by ${cell.coarse ? "a tap" : "a click"}, which removes the failure, and pins again on the next failure`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { chatId } = await preparePagedRoom(caller, "document");
@@ -358,36 +614,58 @@ for (const cell of [
       const alert = list.getByRole("alert");
       await expect(alert).toBeInViewport({ ratio: 1 });
       const before = await settledReadingRow(list);
-      await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
-      await expect(alert).not.toBeInViewport();
-      await expect(alert).toBeAttached();
+      const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+      await (cell.coarse ? dismiss.tap() : dismiss.click());
+      await expect(alert).toHaveCount(0);
+      await expect(dismiss).toHaveCount(0);
+      await expect(earlierIn(list)).toBeFocused();
       await expect.poll(() => settledReadingRow(list)).toEqual(before);
       await earlierIn(list).dispatchEvent("click");
       await expect(alert).toBeInViewport({ ratio: 1 });
     });
 
-    test("that is dismissed from the keyboard hands focus to Earlier messages", async ({ corpus, mount, page }) => {
+    test("that is dismissed at the pager's home removes the failure from the transcript", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { chatId } = await preparePagedRoom(caller, "document");
       await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
       const list = page.locator('[data-slot="message-list-scroll"]');
-      await focusFromMidway(list);
-      await page.keyboard.press("Enter");
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      await earlierIn(list).dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeInViewport({ ratio: 1 });
       const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
-      await dismiss.focus();
-      await page.keyboard.press("Enter");
-      await expect(dismiss).toHaveCount(0);
-      await expect(earlierIn(list)).toBeFocused();
-      // The control keeps its pin for the focus it holds; the failure has been read and leaves the reader's view.
+      await (cell.coarse ? dismiss.tap() : dismiss.click());
+      await expect(alert).toHaveCount(0);
       await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
-      const alert = list.getByRole("alert", { includeHidden: true });
-      await expect(alert).not.toBeInViewport();
-      await earlierIn(list).blur();
-      await expect(alert).toBeAttached();
-      await expect(alert).not.toBeInViewport();
     });
+
+    for (const key of ["Enter", "Space"] as const) {
+      test(`that is dismissed from the keyboard with ${key} removes the failure and hands focus to Earlier messages`, async ({ corpus, mount, page }) => {
+        await using root = await pagedRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { chatId } = await preparePagedRoom(caller, "document");
+        await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        await focusFromMidway(list);
+        await page.keyboard.press("Enter");
+        const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+        await dismiss.focus();
+        await page.keyboard.press(key);
+        await expect(dismiss).toHaveCount(0);
+        await expect(earlierIn(list)).toBeFocused();
+        // The control keeps its pin for the focus it holds, and the failure has left the transcript.
+        await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
+        await expect(list.getByRole("alert")).toHaveCount(0);
+        await earlierIn(list).blur();
+        await expect(list.getByRole("alert")).toHaveCount(0);
+      });
+    }
 
     test("sits on the room's track, and the failure and the control share one inset", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();

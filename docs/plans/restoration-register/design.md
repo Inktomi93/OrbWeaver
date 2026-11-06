@@ -11,6 +11,16 @@ updated: 2026-10-30
 
 Record which legacy reference cases have maintained homes, so a port never repeats covered work and a ledger citation of a removed test has a place to point.
 
+## Test audit evidence
+
+A full read of the maintained tests records what each case asserts and traces it to production. It lives in `reports/codex-test-audit/`, on the owner's machine only, and is read at revision `af3fba26a9`.
+
+1. Search `index.sqlite` before you read or port a test. Use `cases_fts` for behaviour, `helpers` for support modules and `triage` for each register row.
+2. Treat a case with `stale = 1` as a lead, because its test file changed after the audit.
+3. Reuse a current case's record instead of rereading an unchanged file.
+
+The records are source reads. They were not run, and `legacy_comparison` is `not-compared` unless a row says otherwise.
+
 ## Shape
 
 One table of reference scopes with a porting state, a maintained home or decision, and the remaining action. Ledger, law and work docs link to it instead of to removed tests. The test-foundation plan owns the rebuild order.
