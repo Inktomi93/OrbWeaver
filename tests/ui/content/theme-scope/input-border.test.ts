@@ -4,7 +4,7 @@ import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, compositeSrgb, oklchToSrgb, RING_OVER_EDGE_MARGIN, rampDeltas, rampSurface, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { TOKENS } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
@@ -15,6 +15,8 @@ const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const EDGE = TOKENS["color.input-border"].cssVar;
 /** An accent that clears the card as authored, so the ring is not pulled down to the 3:1 floor the edge also holds. */
 const STRONG_ACCENT = "oklch(0.2 0.1 260)";
+/** A light-polarity page near the crossover, whose nearest edge on the panels alone sits on the light side, on top of the near-white field fill. */
+const LIGHT_MID_TONE = "oklch(0.6599 0.14 30)";
 
 interface Pixel {
   readonly r: number;
@@ -39,13 +41,28 @@ function emittedGrey(spelling: string | undefined, hue: number): { readonly colo
   return { color: { l: Number(match[1]), c: 0, h: hue }, alpha: Number(match[2]) };
 }
 
+/** The fill a text field paints from `--color-field-fill`: the light arm of the token a light scope restates, else the emitted wash. */
+function emittedFieldFill(
+  spelling: string | undefined,
+  hue: number,
+  colorScheme: "light" | "dark" | undefined,
+): { readonly color: Oklch; readonly alpha: number } {
+  if (spelling !== TOKENS["color.field-fill"].value) {
+    return emittedGrey(spelling, hue);
+  }
+  if (colorScheme !== "light") {
+    throw new Error(`a ${colorScheme} scope restated the static field fill`);
+  }
+  return { color: parsed(TOKEN_POLARITY_ARMS["color.field-fill"].light), alpha: 1 };
+}
+
 function pixel(color: Oklch): Pixel {
   const { r, g, b } = oklchToSrgb(color);
   return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
 }
 
 interface Judged {
-  /** The lowest ratio between the edge and any panel, or any panel under the input fill. */
+  /** The lowest ratio between the edge and any panel, or any panel under a fill a control paints. */
   readonly worst: number;
   readonly edgeOnCard: number;
   readonly ringOnCard: number | null;
@@ -58,7 +75,10 @@ function judged(background: string, accent: string | undefined): Judged {
   const clamped = clampThemeTokens({ background, ...(accent === undefined ? {} : { accent }) }, undefined, accent);
   const { vars } = clamped;
   const edge = pixel(emittedGrey(vars[EDGE], base.h).color);
-  const fill = emittedGrey(vars[TOKENS["color.input"].cssVar], base.h);
+  const fills = [
+    emittedGrey(vars[TOKENS["color.input"].cssVar], base.h),
+    emittedFieldFill(vars[TOKENS["color.field-fill"].cssVar], base.h, clamped.colorScheme),
+  ];
   const deltas = rampDeltas(base);
   const panels = [
     base,
@@ -71,13 +91,14 @@ function judged(background: string, accent: string | undefined): Judged {
     rampSurface(base, deltas.secondary),
     rampSurface(base, deltas.muted),
   ].map((panel) => pixel(panel));
-  const fillPixel = oklchToSrgb(fill.color);
   const seen = [
     ...panels,
-    ...panels.map((panel) => {
-      const lit = compositeSrgb(fillPixel, fill.alpha, panel);
-      return { r: Math.round(lit.r), g: Math.round(lit.g), b: Math.round(lit.b) };
-    }),
+    ...fills.flatMap((fill) =>
+      panels.map((panel) => {
+        const lit = compositeSrgb(oklchToSrgb(fill.color), fill.alpha, panel);
+        return { r: Math.round(lit.r), g: Math.round(lit.g), b: Math.round(lit.b) };
+      }),
+    ),
   ];
   const card = pixel(rampSurface(base, deltas.card));
   const ringFill = vars[TOKENS["color.ring"].cssVar];
@@ -113,6 +134,12 @@ test("a mid-grey scope whose inherited accent is corrected only to 3:1 raises th
   expect(reported).toBe(false);
   // The accent fill itself is not moved: only the ring is raised.
   expect(vars[TOKENS["color.ring"].cssVar]).not.toBe(vars[TOKENS["color.primary"].cssVar]);
+});
+
+test("a light mid-tone scope's edge holds 3:1 on the opaque text field it paints around, not only on the input wash", () => {
+  const { worst, reported } = judged(LIGHT_MID_TONE, HEARTH_ACCENT);
+  expect(worst).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+  expect(reported).toBe(false);
 });
 
 test(

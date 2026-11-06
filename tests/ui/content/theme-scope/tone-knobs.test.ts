@@ -4,14 +4,18 @@
 import { hueDistance } from "@orb/kit/safe-color";
 import type { Oklch, ToneHost } from "@orb/kit/theme-derivation";
 import {
+  AA_NORMAL_RATIO,
   carriedLiteralRoles,
   oklchToSrgb,
   paintedDistance,
+  rampDeltas,
+  rampSurface,
   roleFloorMisses,
   srgbToOklch,
   TONE_HOSTS,
   TONE_HUE_ADJACENT_DEGREES,
   TONE_TINT_SEPARATION,
+  toneContrast,
   toneFloorMisses,
   tonePaletteOn,
   toneRoleColors,
@@ -251,6 +255,33 @@ test("an out-of-gamut accent is judged as the pixel it paints", () => {
   expect(toOklch(vars[TOKENS["color.primary"].cssVar] ?? "")?.inGamut).toBe(true);
   expect(emittedMisses("oklch(0.158 0.006 60)", { accent: authored })).toEqual([]);
 });
+
+test(
+  "every colored tone's text and the page ink clear AA on the popover and the sidebar they are painted on",
+  () => {
+    const misses = ACCEPTED_BASES.map((base) => serializeOpaqueOklch(base)).flatMap((background) => {
+      const base = parsed(background);
+      const deltas = rampDeltas(base);
+      const hosts = { popover: rampSurface(base, deltas.popover), sidebar: rampSurface(base, deltas.sidebar) };
+      const { vars, tones } = emittedScope(background, {}, HEARTH_ACCENT);
+      const inks = [
+        { name: "foreground", ink: emittedInk(vars[TOKENS["color.foreground"].cssVar]) },
+        ...tones.flatMap(({ tone }) => {
+          const ink = emittedLiterals(vars, tone).text;
+          return ink === undefined ? [] : [{ name: tone, ink }];
+        }),
+      ];
+      return Object.entries(hosts).flatMap(([host, surface]) =>
+        inks.flatMap(({ name, ink }) => {
+          const ratio = toneContrast({ ...ink, h: ink.c === 0 ? base.h : ink.h }, surface);
+          return ratio >= AA_NORMAL_RATIO ? [] : [`${background} ${name} on ${host} ${ratio.toFixed(3)}`];
+        }),
+      );
+    });
+    expect(misses).toEqual([]);
+  },
+  SWEEP_TIMEOUT_MS,
+);
 
 test(
   "every tone clears every D336 floor and every tint its separation over the accepted-base matrix with the inherited accent",

@@ -21,6 +21,8 @@ const SEMANTIC_PAIRS = [
   ["card", "foreground"],
   ["card", "card-foreground"],
   ["card", "prose-body"],
+  ["popover", "foreground"],
+  ["sidebar", "foreground"],
   ["accent", "foreground"],
   ["muted", "foreground"],
   ["background", "sidebar-foreground"],
