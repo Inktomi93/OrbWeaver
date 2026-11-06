@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Keep MacroSourceRef.id and show each macro's real source wherever macros are offered. Add plugin.listMacros beside listCommands, read from the installer-keyed macro registry, so plugin macros reach the client with their plugin id and display name. Make the plugin source id the plugin's own, not the chat id turn assembly passes today. Compose one client catalog from builtin, preset, game and plugin macros with real sources, retiring COMPOSITION_ONLY_SOURCE. Carry the source into suggestions and show it in the completion row. Feed the macro browser from that catalog, link each source to its editor, and mount the browser on the game macros tab. Correct the macro.list promise in kit metadata and the one-display-home comment in prompt-macros.
+Keep MacroSourceRef.id and show each macro's real source wherever macros are offered. Make MacroSourceRef a union on kind with PresetId, ChatId and PluginId, so a wrong id cannot compile; kit already holds those brands. Add plugin.listMacros beside listCommands, read from the installer-keyed macro registry, so plugin macros reach the client with their plugin id and display name. Compose one client catalog from builtin, preset, game and plugin macros with real sources, retiring COMPOSITION_ONLY_SOURCE. Carry the source into suggestions and show it in the completion row. Feed the macro browser from that catalog, link each source to its editor, and mount the browser on the game macros tab. Correct the macro.list promise in kit metadata, the kit branded-id claim in the source comment, and the one-display-home comment in prompt-macros.
 
 ## Why
 

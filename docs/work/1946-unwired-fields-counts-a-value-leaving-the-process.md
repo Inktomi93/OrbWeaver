@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Rescope pnpm unwired fields by boundary. Everything in packages/contracts crosses a boundary, so no in-process read proves nothing there: check a wire field against whether the other side uses it. Keep member-read judgment for internal shapes, and count these as reads: a Drizzle insert, stored JSON, a type serialized to a file, persisted-state reads, extending types in another world, and Object.freeze writes.
+Rescope pnpm unwired fields by boundary. Everything in packages/contracts crosses a boundary, so no in-process read proves nothing there: check a wire field against whether the other side uses it. Keep member-read judgment for internal shapes, and count these as reads: a Drizzle insert, stored JSON, a type serialized to a file, persisted-state reads, extending types in another world, and Object.freeze writes. Judge each forgotten row for the unfinished feature behind it, and include comments that promise a read, verb or field that does not exist.
 
 ## Why
 
