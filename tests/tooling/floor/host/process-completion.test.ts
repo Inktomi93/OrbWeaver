@@ -53,7 +53,7 @@ test("completion distinguishes absent, zombie, reused identity and unreadable pr
   ]) {
     expect(processCompletion(42, { platform: "linux", readFile })).toEqual({ kind: "unknown" });
   }
-  expect(processCompletion(42, { platform: "win32" })).toEqual({ kind: "unknown" });
+  expect(processCompletion(42, { platform: "freebsd" })).toEqual({ kind: "unknown" });
   expect(() =>
     completionProcesses({
       platform: "linux",

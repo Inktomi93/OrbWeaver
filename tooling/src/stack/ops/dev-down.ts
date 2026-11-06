@@ -6,8 +6,9 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
-import type { ListeningPortsRead } from "../../floor/host/platform.ts";
-import { listeningPids, processGroupId, processInfo } from "../../floor/host/platform.ts";
+import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
+import { listeningPids, processCompletion, processGroupId, processInfo } from "../../floor/host/platform.ts";
+import { sameIncarnation } from "../../floor/process/incarnation.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
 import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
@@ -32,6 +33,8 @@ export function result(line: string): void {
 export interface DevPortDeps {
   readonly readPorts: () => ListeningPortsRead;
   readonly process?: ProcessGroupDeps;
+  /** A holder's incarnation, read before a stop and again before every signal; the real read when absent. */
+  readonly incarnationOf?: (pid: number) => ProcessCompletion;
 }
 
 export const REAL_PORT_DEPS: DevPortDeps = { readPorts: () => listeningPids() };
@@ -196,8 +199,9 @@ function waitOutcome(watch: ReturnType<typeof portWatch>, freed: boolean): PortW
   return freed ? { kind: "free" } : { kind: "held" };
 }
 
-/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. */
-async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
+/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. Each signal reaches only the
+ *  incarnation `pinned` recorded before its ownership was judged, so a pid reused during the grace is spared. */
+async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
   if ((deps.process?.platform ?? process.platform) === "win32") {
     const tree = captureProcessGroup(pid, deps.process);
     return waitOutcome(
@@ -211,7 +215,13 @@ async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>, deps
       }),
     );
   }
-  return waitOutcome(watch, await escalateStop({ signal: (signal) => signalHolder(pid, signal), gone: watch.free }));
+  const incarnationOf = deps.incarnationOf ?? processCompletion;
+  const signal = (kind: NodeJS.Signals): void => {
+    if (sameIncarnation(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
+      signalHolder(pid, kind);
+    }
+  };
+  return waitOutcome(watch, await escalateStop({ signal, gone: watch.free }));
 }
 
 function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
@@ -249,6 +259,8 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
   }
   const pid = owner.pid;
   const watch = portWatch(port, deps);
+  // Read before the command line: a pid reused between the two reads then fails the identity check at the signal.
+  const pinned = (deps.incarnationOf ?? processCompletion)(pid);
   const info = processInfo(pid);
   // A holder with no command line is on its way out (the first port's group kill reaches this one too, and
   // an exiting process keeps its pid and its socket row for a moment, not its argv): wait for the port
@@ -260,8 +272,11 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
   if (!cmdlineNamesCheckout(info.cmdline, ctx.repoRoot)) {
     return { kind: "held", holder };
   }
+  if (pinned.kind === "unknown") {
+    return { kind: "unreadable", reason: `pid ${String(pid)} holds :${String(port)} for this checkout, but its identity could not be read before a stop` };
+  }
   log(`:${String(port)} is still held by pid ${String(pid)} from this checkout; stopping its group`);
-  return outcomeOf(await stopHolder(pid, watch, deps), holder);
+  return outcomeOf(await stopHolder(pid, pinned, watch, deps), holder);
 }
 
 /** The ports after the record: a holder whose command line names this checkout is stopped through its

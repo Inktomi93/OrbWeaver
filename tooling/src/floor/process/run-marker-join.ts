@@ -4,6 +4,7 @@ import process from "node:process";
 import { budget } from "../host/load-budget.ts";
 import type { ProcessCompletion, ProcessEntry } from "../host/platform.ts";
 import { completionProcesses, processCompletion } from "../host/platform.ts";
+import { sameIncarnation } from "./incarnation.ts";
 
 /** One sweep's receipt. `terminated` were sent SIGTERM; `killed` were the same incarnation still alive after the grace and sent SIGKILL. */
 export interface RunMarkerSweep {
@@ -53,26 +54,23 @@ export function incarnationGuard(
   return {
     observed,
     signal: (pid, kind): boolean => {
-      const current = read(pid);
-      if (current.kind === "unknown") {
-        throw new Error(`run-marker ${marker}: process identity unavailable before signal`);
-      }
-      if (!observed.has(pid)) {
-        observed.set(pid, current);
-        if (current.kind === "live" && !select().includes(pid)) {
-          throw new Error(`run-marker ${marker}: process ownership unavailable before signal`);
+      const subject = `run-marker ${marker}`;
+      let pinned = observed.get(pid);
+      if (pinned === undefined) {
+        pinned = read(pid);
+        if (pinned.kind === "unknown") {
+          throw new Error(`${subject}: process identity unavailable before signal`);
+        }
+        observed.set(pid, pinned);
+        if (pinned.kind === "live" && !select().includes(pid)) {
+          throw new Error(`${subject}: process ownership unavailable before signal`);
         }
       }
-      const previous = observed.get(pid);
-      const latest = read(pid);
-      if (latest.kind === "unknown") {
-        throw new Error(`run-marker ${marker}: process identity unavailable before signal`);
+      if (!sameIncarnation(pid, pinned, read, subject)) {
+        return false;
       }
-      if (latest.kind === "live" && previous?.kind === "live" && latest.identity === previous.identity) {
-        signal(pid, kind);
-        return true;
-      }
-      return false;
+      signal(pid, kind);
+      return true;
     },
   };
 }

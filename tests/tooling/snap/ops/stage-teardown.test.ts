@@ -6,7 +6,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
-import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
+import type { ListeningPortsRead, PortOwner, ProcessCompletion } from "../../../../tooling/src/floor/host/platform.ts";
 import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageStopDeps } from "../../../../tooling/src/snap/contract/stage.ts";
 import { reapStrandedBand, stopStage, tearDownRowlessBand } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
@@ -25,11 +25,15 @@ const HELD_BY_STAGE = table(new Map([[PORTS.server, { kind: "pid", pid: STAGE_PI
 
 /** Deps that answer `reads` in order (the last one repeats), treat `STAGE_PID` as stage-rooted in group
  *  `STAGE_GROUP`, and record every signal and wait instead of acting. */
-function planted(reads: readonly ListeningPortsRead[]): { readonly deps: StageStopDeps; readonly signals: string[]; readonly waits: number[] } {
+function planted(
+  reads: readonly ListeningPortsRead[],
+  incarnationOf: (signals: readonly string[]) => ProcessCompletion = () => ({ kind: "live", identity: "original" }),
+): { readonly deps: StageStopDeps; readonly signals: string[]; readonly waits: number[] } {
   const signals: string[] = [];
   const waits: number[] = [];
   let next = 0;
   const deps: StageStopDeps = {
+    incarnationOf: () => incarnationOf(signals),
     readPorts: (): ListeningPortsRead => {
       const read = reads[Math.min(next, reads.length - 1)] ?? FREE;
       next += 1;
@@ -101,6 +105,28 @@ test("a stage group that exits on TERM frees the port, and the stop is confirmed
   const run = planted([HELD_BY_STAGE, HELD_BY_STAGE, FREE]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({ kind: "stopped" });
   expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+});
+
+test("a holder replaced during the TERM grace is refused the KILL, and the stop stays unconfirmed", ({ scratch }) => {
+  const run = planted([HELD_BY_STAGE], (signals) => ({ kind: "live", identity: signals.length === 0 ? "original" : "replacement" }));
+  expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
+    kind: "unconfirmed",
+    reason: expect.stringContaining(`:${String(PORTS.server)} is still held by pid ${String(STAGE_PID)}`),
+  });
+  expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+});
+
+test("a holder whose identity cannot be read is never signalled", ({ scratch }) => {
+  const unreadable = planted([HELD_BY_STAGE], () => ({ kind: "unknown" }));
+  expect(stopStage(noStage(scratch), PORTS, unreadable.deps)).toEqual({
+    kind: "unconfirmed",
+    reason: expect.stringContaining("identity could not be read"),
+  });
+  expect(unreadable.signals).toEqual([]);
+  // The identity goes unreadable only after the first signal: the KILL is refused the same way.
+  const vanishing = planted([HELD_BY_STAGE], (signals) => (signals.length === 0 ? { kind: "live", identity: "original" } : { kind: "unknown" }));
+  expect(() => stopStage(noStage(scratch), PORTS, vanishing.deps)).toThrow("identity unavailable");
+  expect(vanishing.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
 });
 
 // ── the launcher stop: the staged stack must sweep the band's ports, never the dev stack's ───────────────

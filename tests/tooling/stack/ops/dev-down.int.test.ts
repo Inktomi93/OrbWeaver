@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { ListeningPortsRead } from "../../../../tooling/src/floor/host/platform.ts";
+import { listeningPids } from "../../../../tooling/src/floor/host/platform.ts";
 import { killPidGroup } from "../../../../tooling/src/floor/process/proc.ts";
 import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -63,6 +64,96 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
     }
   });
 }
+
+/** A checkout-owned listener that ignores TERM (and says so), so the stop escalates to KILL. */
+async function plantStubbornListener(scratch: string): Promise<{
+  readonly child: ReturnType<typeof spawn>;
+  readonly pid: number;
+  readonly context: ReturnType<typeof stackContext>;
+  readonly termSeen: () => boolean;
+}> {
+  const checkout = join(scratch, "checkout");
+  mkdirSync(checkout, { recursive: true });
+  const script = join(checkout, "listener.mjs");
+  writeFileSync(
+    script,
+    `import { createServer } from "node:http";
+process.on("SIGTERM", () => process.stdout.write("term\\n"));
+const server = createServer((_request, response) => response.end());
+server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: server.address().port }) + "\\n"));`,
+  );
+  const child = spawn(process.execPath, [script], { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
+  const chunks: unknown[] = await once(child.stdout, "data");
+  const { port } = z.object({ port: z.number().int().positive() }).parse(JSON.parse(String(chunks[0])));
+  let seen = false;
+  child.stdout.on("data", (bytes) => {
+    seen ||= String(bytes).includes("term");
+  });
+  if (child.pid === undefined) {
+    throw new Error("the planted child has no pid");
+  }
+  const context = stackContext(
+    checkout,
+    Object.fromEntries([
+      ["PORT", String(port)],
+      ["VITE_PORT", String(port)],
+      ["STACK_RUN_DIR", join(scratch, "private-record")],
+    ]),
+    null,
+  );
+  return { child, pid: child.pid, context, termSeen: () => seen };
+}
+
+const STOP_TIMEOUT = scaledBudget(120_000);
+
+test("a holder replaced during the TERM grace is refused the KILL and left standing", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+  const { child, context, termSeen } = await plantStubbornListener(scratch);
+  try {
+    const outcome = await doDevDown(
+      context,
+      {},
+      { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: termSeen() ? "replacement" : "original" }) },
+    );
+    expect(outcome).toBe(EXIT.violations);
+    expect(termSeen(), "the original incarnation still got its TERM").toBe(true);
+    expect(child.exitCode === null && child.signalCode === null, "the replacement was not KILLed").toBe(true);
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
+
+test("a holder of the same incarnation that survives TERM is KILLed", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+  const { child, context } = await plantStubbornListener(scratch);
+  const exited = once(child, "exit");
+  try {
+    const outcome = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: "original" }) });
+    expect(outcome).toBe(EXIT.clean);
+    await exited;
+    expect(child.signalCode).toBe("SIGKILL");
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
+
+test("a holder whose identity cannot be read is never signalled", { timeout: STOP_TIMEOUT }, async ({ scratch }) => {
+  const { child, context, termSeen } = await plantStubbornListener(scratch);
+  try {
+    const unreadableAtPin = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "unknown" }) });
+    expect(unreadableAtPin).toBe(EXIT.toolError);
+    let reads = 0;
+    await expect(
+      doDevDown(
+        context,
+        {},
+        { readPorts: () => listeningPids(), incarnationOf: () => (++reads === 1 ? { kind: "live", identity: "original" } : { kind: "unknown" }) },
+      ),
+    ).rejects.toThrow("identity unavailable");
+    expect(termSeen()).toBe(false);
+    expect(child.exitCode === null && child.signalCode === null).toBe(true);
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
 
 for (const finalRead of ["free", "refused", "held"] as const) {
   test(`after stopping its owned group, teardown observes an unnamed sibling socket until ${finalRead}`, { timeout: scaledBudget(60_000) }, async ({

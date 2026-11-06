@@ -28,8 +28,9 @@ import process from "node:process";
 import { activeRunSlot } from "../../floor/artifacts/artifact-out.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { listeningPids } from "../../floor/host/platform.ts";
+import { listeningPids, processCompletion } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
+import { sameIncarnation } from "../../floor/process/incarnation.ts";
 import { killPidGroup, runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { escalateStopSync } from "../../floor/process/stop-escalation.ts";
@@ -48,6 +49,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 const REAL_STOP_DEPS: StageStopDeps = {
   readPorts: () => listeningPids(),
   isStageRooted: pidIsStageRooted,
+  incarnationOf: processCompletion,
   groupOf: processGroupTarget,
   signalGroup: killPidGroup,
   wait: waitSync,
@@ -70,9 +72,14 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
   if (owner.kind === "unknown") {
     return `:${port} is still held by an owner the OS will not name`;
   }
+  // Read before the stage-root judgment: a pid reused between the two then fails the identity check at the signal.
+  const pinned = deps.incarnationOf(owner.pid);
   const target = deps.isStageRooted(owner.pid) ? deps.groupOf(owner.pid) : null;
   if (target === null) {
     return `:${port} is still held by pid ${owner.pid}, not a stage group this could kill`;
+  }
+  if (pinned.kind === "unknown") {
+    return `:${port} is still held by pid ${owner.pid}, whose identity could not be read before a stop`;
   }
   // A table that stops answering ends the wait; its reason outranks the wait's own result.
   const lost: string[] = [];
@@ -84,9 +91,21 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
     }
     return !read.value.has(port);
   };
-  const freed = escalateStopSync({ signal: (signal) => deps.signalGroup(target, signal), gone: free }, deps.wait);
+  // Each signal reaches only the incarnation judged above; a pid reused during the grace keeps its group.
+  const refused: NodeJS.Signals[] = [];
+  const signal = (kind: NodeJS.Signals): void => {
+    if (sameIncarnation(owner.pid, pinned, deps.incarnationOf, `stage pid ${String(owner.pid)}`)) {
+      deps.signalGroup(target, kind);
+    } else {
+      refused.push(kind);
+    }
+  };
+  const freed = escalateStopSync({ signal, gone: free }, deps.wait);
   if (lost.length > 0) {
     return `cannot confirm :${port} was released after stopping pid ${owner.pid} — ${lost.join("; ")}`;
+  }
+  if (refused.length > 0 && !freed) {
+    return `:${port} is still held by pid ${owner.pid}, which is no longer the process this stop began on; its group was not signalled again`;
   }
   if (!freed) {
     return `:${port} is still held by pid ${owner.pid} after TERM and KILL to its group`;

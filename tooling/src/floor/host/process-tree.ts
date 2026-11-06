@@ -12,8 +12,10 @@ export interface ProcessTreeRow {
 
 const DECIMAL = /^\d+$/u;
 const POWERSHELL = "powershell.exe";
-const IDENTITY_QUERY =
-  "$ErrorActionPreference = 'Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -ErrorAction Stop | ForEach-Object { @{ pid = $_.ProcessId; ppid = $_.ParentProcessId; identity = $(if ($null -eq $_.CreationDate) { $null } else { $_.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) }) } })";
+/** A Win32_Process row's creation time as a decimal tick string, or null: the Windows identity of one incarnation of a pid. */
+export const CIM_START_IDENTITY =
+  "$(if ($null -eq $_.CreationDate) { $null } else { $_.CreationDate.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture) })";
+const IDENTITY_QUERY = `$ErrorActionPreference = 'Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -ErrorAction Stop | ForEach-Object { @{ pid = $_.ProcessId; ppid = $_.ParentProcessId; identity = ${CIM_START_IDENTITY} } })`;
 
 function pidValue(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;

@@ -187,6 +187,40 @@ test("the timeout teardown still KILLs a survivor of the same incarnation, and r
   expect(unreadable.signalled).toEqual([]);
 });
 
+// The identity read is per platform; these drive the real reader with the tool output each OS documents.
+// Never captured from a macOS or Windows host here.
+const cimRow = (identity: string): string => `[{"pid":810,"identity":"${identity}"}]`;
+const IDENTITY_READS = [
+  { platform: "darwin", before: "Ss   Thu Nov  6 14:03:22 2026\n", after: "Ss   Thu Nov  6 14:09:41 2026\n" },
+  { platform: "win32", before: cimRow("639000000000000001"), after: cimRow("639000000000000002") },
+] as const;
+
+for (const { platform, before, after } of IDENTITY_READS) {
+  for (const replaced of [true, false]) {
+    test(`on ${platform} the timeout teardown ${replaced ? "never KILLs a replaced pid" : "still KILLs the same incarnation"}`, async () => {
+      const marker = mintRunMarker(800, 1_700_000_000_000);
+      const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+      let graced = false;
+      await runMarkerTranscriptTeardown(marker, {
+        ...base,
+        completionOf: (pid) => processCompletion(pid, { platform, run: () => ({ status: 0, stdout: graced && replaced ? after : before, stderr: "" }) }),
+        sleep: (): Promise<void> => {
+          graced = true;
+          return Promise.resolve();
+        },
+      }).afterTimeoutKill();
+      expect(base.signalled).toEqual(
+        replaced
+          ? [[810, "SIGTERM"]]
+          : [
+              [810, "SIGTERM"],
+              [810, "SIGKILL"],
+            ],
+      );
+    });
+  }
+}
+
 test("the abandoned sweep never KILLs a pid replaced during the grace", async () => {
   const dead = mintRunMarker(600, 1_700_000_000_000);
   const base = fakeTree(new Map([[601, { marker: dead, parent: 1 }]]), 1);
