@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Keep MacroSourceRef.id and show each macro's real source wherever macros are offered. Authors see macros in the macro browser and in the completion popover on the preset, game, persona, character, greeting and imagery editors; suggestions drop the source today, and plugin macros reach neither. Carry the source into suggestions and give the client the plugin macro names, with the game and member projections kept to names the viewer may see.
+Keep MacroSourceRef.id and show each macro's real source wherever macros are offered. Add plugin.listMacros beside listCommands, read from the installer-keyed macro registry, so plugin macros reach the client with their plugin id and display name. Make the plugin source id the plugin's own, not the chat id turn assembly passes today. Compose one client catalog from builtin, preset, game and plugin macros with real sources, retiring COMPOSITION_ONLY_SOURCE. Carry the source into suggestions and show it in the completion row. Feed the macro browser from that catalog, link each source to its editor, and mount the browser on the game macros tab. Correct the macro.list promise in kit metadata and the one-display-home comment in prompt-macros.
 
 ## Why
 
