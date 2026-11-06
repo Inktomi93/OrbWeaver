@@ -1,3 +1,4 @@
+import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { expect, test } from "@playwright/test";
 import type { LogViewerScrollportStory, MessageListScrollportStory } from "./_scrollport-stories.tsx";
 
@@ -105,3 +106,24 @@ test("the virtualized log caller keeps its own reader anchor and follows a pinne
   await expect(log.getByText("Log line 261", { exact: true })).toBeVisible();
   await expect.poll(async () => await log.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeLessThanOrEqual(1);
 });
+
+for (const scrollMode of SCROLL_MODES) {
+  test(`a Tab from above the rows lands on the first row on screen under ${scrollMode}`, async ({ mount, page }) => {
+    await mount<typeof MessageListScrollportStory>("tests/ui/primitives/message-list/_scrollport-stories/MessageListScrollportStory", {
+      initialCount: 40,
+      roving: true,
+      scrollMode,
+    });
+    const log = page.getByRole("log", { name: "Scrollport lifecycle", exact: true });
+    await expect(log.getByText("Row 39", { exact: true })).toBeVisible();
+    await log.evaluate((node) => {
+      node.scrollTop = node.scrollHeight / 2;
+    });
+    await expect(log.getByText("Row 20", { exact: true })).toBeInViewport();
+    await page.getByRole("button", { name: "Pin last row", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    const focused = log.locator('[data-slot="message-list-row"]:focus');
+    await expect(focused).toBeInViewport();
+    await expect(focused).not.toHaveAttribute("data-index", "39");
+  });
+}
