@@ -12,12 +12,18 @@ import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts"
 import { scaledBudget } from "../../_load-budget.ts";
 import { PLANTED_PORTS } from "../_dev-verbs.ts";
 
-for (const owned of [true, false]) {
-  test(`recordless teardown ${owned ? "stops its checkout's listener" : "refuses a foreign listener"}`, { timeout: scaledBudget(30_000) }, async ({
-    scratch,
-  }) => {
+// Where the listener's script lives, relative to the checkout the teardown is aimed at. The mirror carries the
+// checkout's whole path as its tail, so a prefix-blind ownership test reads it as the checkout's own.
+const LISTENER_HOMES = [
+  { name: "stops its checkout's listener", owned: true, home: (checkout: string): string => checkout },
+  { name: "refuses a sibling-prefix listener", owned: false, home: (checkout: string): string => `${checkout}-foreign` },
+  { name: "refuses a listener under a foreign leading prefix", owned: false, home: (checkout: string): string => join(`${checkout}-mirror`, checkout) },
+] as const;
+
+for (const { name, owned, home } of LISTENER_HOMES) {
+  test(`recordless teardown ${name}`, { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
     const checkout = join(scratch, "checkout");
-    const sourceDir = owned ? checkout : `${checkout}-foreign`;
+    const sourceDir = home(checkout);
     mkdirSync(sourceDir, { recursive: true });
     const script = join(sourceDir, "listener.mjs");
     writeFileSync(

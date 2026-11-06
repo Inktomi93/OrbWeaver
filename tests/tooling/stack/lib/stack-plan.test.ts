@@ -118,3 +118,32 @@ test("a holder under this checkout's own path is ours; a nested worktree's or a 
   expect(cmdlineNamesCheckout(String.raw`node C:\srv\orbweaver\tooling\src\stack\cli.ts`, String.raw`C:\srv\orbweaver`)).toBe(true);
   expect(cmdlineNamesCheckout(String.raw`node C:\srv\orbweaver2\tooling\src\stack\cli.ts`, String.raw`C:\srv\orbweaver`)).toBe(false);
 });
+
+test("a path that merely ENDS in this checkout's path is foreign, in both path regimes", () => {
+  const root = "/srv/orbweaver";
+  const cli = "tooling/src/stack/cli.ts";
+  // A mirror, a backup or a chroot-style prefix carries our whole path as its tail.
+  expect(cmdlineNamesCheckout(`node /mnt/backup${root}/${cli}`, root)).toBe(false);
+  expect(cmdlineNamesCheckout(`node /mirror${root}/${cli}`, root)).toBe(false);
+  expect(cmdlineNamesCheckout(`node mirror${root}/${cli}`, root), "a relative path ending in the root").toBe(false);
+  // One genuine mention is enough, wherever the foreign one sits.
+  expect(cmdlineNamesCheckout(`node /mnt/backup${root}/a ${root}/${cli}`, root)).toBe(true);
+  const winRoot = String.raw`C:\srv\orbweaver`;
+  expect(cmdlineNamesCheckout(String.raw`node D:\mirror\xC:\srv\orbweaver\tooling\src\stack\cli.ts`, winRoot)).toBe(false);
+  expect(cmdlineNamesCheckout(String.raw`node "C:\srv\orbweaver\tooling\src\stack\cli.ts"`, winRoot)).toBe(true);
+});
+
+test("the checkout's path is recognised wherever an argument legitimately carries it", () => {
+  const root = "/srv/orbweaver";
+  expect(cmdlineNamesCheckout(`node --cwd=${root} x`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`node --config="${root}/vite.config.ts"`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`sh -c 'node ${root}/tooling/src/stack/cli.ts'`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`env NODE_PATH=/usr/lib:${root}/node_modules node`, root)).toBe(true);
+});
+
+test("a lane's worktrees directory is a whole path segment, not a name prefix", () => {
+  const root = "/srv/orbweaver";
+  expect(cmdlineNamesCheckout(`node ${root}/.claude/worktrees/agent-abc/x.ts`, root)).toBe(false);
+  expect(cmdlineNamesCheckout(`node ${root}/.claude/worktrees-old/x.ts`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`node ${root}/.claude/worktreesX/x.ts`, root)).toBe(true);
+});

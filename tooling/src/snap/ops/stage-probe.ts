@@ -16,6 +16,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget } from "../../floor/host/load-budget.ts";
+import { pathOccurrences } from "../../floor/host/path-boundary.ts";
 import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../floor/host/platform.ts";
 import { establishedConnections, processAgeSeconds, processGroupId, processInfo, processStartTicks } from "../../floor/host/platform.ts";
 import { httpOkSync } from "../../floor/http/http-probe.ts";
@@ -102,7 +103,8 @@ export function pidIsStageRooted(pid: number): boolean {
   if (info === null) {
     return false;
   }
-  return (info.cwd?.includes(STAGE_ROOT_REL) ?? false) || info.cmdline.includes(STAGE_ROOT_REL);
+  // Whole segments: a `.cache/snap-stage-backup/` dir or an `x.cache/snap-stage/` dir is no stage.
+  return pathOccurrences(info.cwd ?? "", STAGE_ROOT_REL).length > 0 || pathOccurrences(info.cmdline, STAGE_ROOT_REL).length > 0;
 }
 
 /** Elapsed seconds of a process, or null when the OS cannot say (a dead/unreadable pid). The AGE signal for
