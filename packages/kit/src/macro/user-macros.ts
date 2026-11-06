@@ -286,7 +286,6 @@ export interface RejectedUserMacro {
 }
 
 export interface UserMacroRegistration {
-  readonly registered: readonly string[];
   /** Refused definitions — the boot/config-error posture: a name may NEVER shadow a builtin
    *  (or an earlier registration); the surface that owns the defs renders these as authoring errors. */
   readonly rejected: readonly RejectedUserMacro[];
@@ -438,7 +437,6 @@ function userMacroMetadata(def: UserMacroDef, source: MacroSourceRef): MacroMeta
     description: def.description,
     category: "user",
     args: def.args,
-    returnType: "string",
     aliases: [],
     variadic: false,
     ...(def.strict ? { strict: true } : {}),
@@ -477,7 +475,6 @@ function deriveUserMacroFacts(defs: readonly UserMacroDef[], registry: MacroRegi
  *  Each accepted macro gets full DX metadata (category `user`, its declared args, `source`, `strict`)
  *  plus evaluator-derived volatile and cache-dependency facts. */
 export function registerUserMacros(registry: MacroRegistry, defs: readonly UserMacroDef[], opts: RegisterUserMacrosOptions): UserMacroRegistration {
-  const registered: string[] = [];
   const rejected: RejectedUserMacro[] = [];
   const accepted: UserMacroDef[] = [];
   const claimed = new Set(registry.names());
@@ -503,7 +500,6 @@ export function registerUserMacros(registry: MacroRegistry, defs: readonly UserM
       blockContentAfterDeclaredArgs: true,
       metadata: userMacroMetadata(def, opts.source),
     });
-    registered.push(def.name);
   }
-  return { registered, rejected };
+  return { rejected };
 }

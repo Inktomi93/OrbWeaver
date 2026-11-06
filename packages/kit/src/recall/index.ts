@@ -178,7 +178,6 @@ export function inLiveWindow(seq: number, cutoff: number): boolean {
 
 /** The resolved recall knobs the query reads. `mode` stays the caller's own literal union. */
 export interface RecallKnobs<Mode extends string> {
-  readonly queryWindow: number;
   readonly mode: Mode;
   readonly keywordMatch: boolean;
   readonly minScore: number;

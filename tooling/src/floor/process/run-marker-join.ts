@@ -4,8 +4,9 @@ import process from "node:process";
 import { budget } from "../host/load-budget.ts";
 import type { ProcessCompletion, ProcessEntry } from "../host/platform.ts";
 import { completionProcesses, processCompletion } from "../host/platform.ts";
+import { sameIncarnation } from "./incarnation.ts";
 
-/** One sweep's receipt. `terminated` got SIGTERM, `killed` were still alive after the grace. */
+/** One sweep's receipt. `terminated` were sent SIGTERM; `killed` were the same incarnation still alive after the grace and sent SIGKILL. */
 export interface RunMarkerSweep {
   readonly marker: string;
   readonly terminated: readonly number[];
@@ -23,10 +24,59 @@ export interface RunMarkerDeps {
   readonly alive?: (pid: number) => boolean;
   readonly selfPid?: number;
   readonly sleep?: (ms: number) => Promise<void>;
+  /** One pid's incarnation identity; every signal a sweep sends is checked against it. */
+  readonly completionOf?: (pid: number) => ProcessCompletion;
+  /** The guard a joining caller built, so the sweep and the join share one record of what was signalled. */
+  readonly guard?: IncarnationGuard;
 }
 
-export interface RunMarkerJoinDeps extends RunMarkerDeps {
-  readonly completionOf?: (pid: number) => ProcessCompletion;
+/** Every signal of one sweep, checked per pid: the first sight must be an owned, identifiable process, and a
+ *  later signal reaches only that same incarnation. `observed` is what the guard first saw, for the join. */
+export interface IncarnationGuard {
+  readonly observed: ReadonlyMap<number, ProcessCompletion>;
+  /** True when the signal was sent; false when the pid is gone or a different incarnation now. */
+  readonly signal: (pid: number, kind: NodeJS.Signals) => boolean;
+}
+
+export function incarnationGuard(
+  marker: string,
+  {
+    read,
+    select,
+    signal,
+  }: {
+    readonly read: (pid: number) => ProcessCompletion;
+    readonly select: () => readonly number[];
+    readonly signal: (pid: number, kind: NodeJS.Signals) => void;
+  },
+): IncarnationGuard {
+  const observed = new Map<number, ProcessCompletion>();
+  return {
+    observed,
+    signal: (pid, kind): boolean => {
+      const subject = `run-marker ${marker}`;
+      let pinned = observed.get(pid);
+      if (pinned === undefined) {
+        pinned = read(pid);
+        if (pinned.kind === "unknown") {
+          throw new Error(`${subject}: process identity unavailable before signal`);
+        }
+        observed.set(pid, pinned);
+        // Leaving the selection by exiting is a normal outcome (a pipe partner ends on this sweep's own TERM); only a pid still the same live incarnation yet unselected is a custody failure.
+        if (pinned.kind === "live" && !select().includes(pid)) {
+          if (sameIncarnation(pid, pinned, read, subject)) {
+            throw new Error(`${subject}: process ownership unavailable before signal`);
+          }
+          return false;
+        }
+      }
+      if (!sameIncarnation(pid, pinned, read, subject)) {
+        return false;
+      }
+      signal(pid, kind);
+      return true;
+    },
+  };
 }
 
 const JOIN_POLL_BASE_MS = 25;
@@ -40,36 +90,13 @@ export interface RunMarkerJoinOwner {
   readonly sleep: (ms: number) => Promise<void>;
 }
 
-export async function sweepAndJoin(marker: string, deps: RunMarkerJoinDeps, owner: RunMarkerJoinOwner): Promise<RunMarkerSweep> {
+export async function sweepAndJoin(marker: string, deps: RunMarkerDeps, owner: RunMarkerJoinOwner): Promise<RunMarkerSweep> {
   const processTable = deps.processTable ?? boundCompletionTable(marker, owner.ownerPid);
   const selection = { ...deps, processTable };
   const read = deps.completionOf ?? processCompletion;
-  const original = new Map<number, ProcessCompletion>();
-  const signal = deps.signal ?? owner.signal;
-  const sweep = await owner.sweep(marker, {
-    ...selection,
-    signal: (pid, kind): void => {
-      const current = read(pid);
-      if (current.kind === "unknown") {
-        throw new Error(`run-marker ${marker}: process identity unavailable before signal`);
-      }
-      if (!original.has(pid)) {
-        original.set(pid, current);
-        if (current.kind === "live" && !owner.select(marker, selection).includes(pid)) {
-          throw new Error(`run-marker ${marker}: process ownership unavailable before signal`);
-        }
-      }
-      const previous = original.get(pid);
-      const latest = read(pid);
-      if (latest.kind === "unknown") {
-        throw new Error(`run-marker ${marker}: process identity unavailable before signal`);
-      }
-      if (latest.kind === "live" && previous?.kind === "live" && latest.identity === previous.identity) {
-        signal(pid, kind);
-      }
-    },
-  });
-  await joinMarkedProcesses(sweep, original, {
+  const guard = incarnationGuard(marker, { read, select: () => owner.select(marker, selection), signal: deps.signal ?? owner.signal });
+  const sweep = await owner.sweep(marker, { ...selection, guard });
+  await joinMarkedProcesses(sweep, guard.observed, {
     read,
     sleep: deps.sleep ?? owner.sleep,
     finalOwned: () => owner.select(marker, selection),

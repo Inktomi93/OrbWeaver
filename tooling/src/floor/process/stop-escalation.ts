@@ -8,52 +8,63 @@ const STOP_POLL_MS = 500;
 /** Quiet-box grace for a TERM before KILL; a server's own drain is ten seconds. Load-scaled per call. */
 export const TERM_GRACE_BASE_MS = 15_000;
 const KILL_GRACE_BASE_MS = 10_000;
+
+/** How often an escalation polls and how long it waits after each signal; a test injects a short one. */
+export interface StopTiming {
+  readonly pollMs: number;
+  readonly termGraceMs: number;
+  readonly killGraceMs: number;
+}
+
+const REAL_TIMING: StopTiming = { pollMs: STOP_POLL_MS, termGraceMs: TERM_GRACE_BASE_MS, killGraceMs: KILL_GRACE_BASE_MS };
 const PHASES = [
-  ["SIGTERM", TERM_GRACE_BASE_MS],
-  ["SIGKILL", KILL_GRACE_BASE_MS],
-] as const satisfies readonly (readonly [NodeJS.Signals, number])[];
+  ["SIGTERM", "termGraceMs"],
+  ["SIGKILL", "killGraceMs"],
+] as const satisfies readonly (readonly [NodeJS.Signals, keyof StopTiming])[];
 
 /** One escalation: how to signal the group, how to tell it is gone, and what to say before KILL. */
 export interface StopEscalation {
   readonly signal: (signal: NodeJS.Signals) => void;
   readonly gone: () => boolean;
   readonly onEscalate?: () => void;
+  readonly timing?: StopTiming;
 }
 
-function pollsFor(graceBaseMs: number): number {
-  return Math.ceil(budget(graceBaseMs) / STOP_POLL_MS);
+function pollsFor(graceBaseMs: number, pollMs: number): number {
+  return Math.ceil(budget(graceBaseMs) / pollMs);
 }
 
 /** Poll `done` through a load-scaled grace, counted in polls. True once it holds. */
-export async function settle(done: () => boolean, graceBaseMs: number): Promise<boolean> {
-  for (let poll = 0; poll < pollsFor(graceBaseMs); poll += 1) {
+export async function settle(done: () => boolean, graceBaseMs: number, pollMs: number = STOP_POLL_MS): Promise<boolean> {
+  for (let poll = 0; poll < pollsFor(graceBaseMs, pollMs); poll += 1) {
     if (done()) {
       return true;
     }
-    await sleep(STOP_POLL_MS);
+    await sleep(pollMs);
   }
   return done();
 }
 
 /** {@link settle} for a caller that cannot yield: `wait` blocks for the given milliseconds. */
-export function settleSync(done: () => boolean, graceBaseMs: number, wait: (ms: number) => void): boolean {
-  for (let poll = 0; poll < pollsFor(graceBaseMs); poll += 1) {
+export function settleSync(done: () => boolean, graceBaseMs: number, wait: (ms: number) => void, pollMs: number = STOP_POLL_MS): boolean {
+  for (let poll = 0; poll < pollsFor(graceBaseMs, pollMs); poll += 1) {
     if (done()) {
       return true;
     }
-    wait(STOP_POLL_MS);
+    wait(pollMs);
   }
   return done();
 }
 
 /** TERM, wait, KILL, wait. True when `gone` held within a grace; false when the group outlived both. */
 export async function escalateStop(stop: StopEscalation): Promise<boolean> {
-  for (const [index, [signal, graceBaseMs]] of PHASES.entries()) {
+  const timing = stop.timing ?? REAL_TIMING;
+  for (const [index, [signal, grace]] of PHASES.entries()) {
     if (index > 0) {
       stop.onEscalate?.();
     }
     stop.signal(signal);
-    if (await settle(stop.gone, graceBaseMs)) {
+    if (await settle(stop.gone, timing[grace], timing.pollMs)) {
       return true;
     }
   }
@@ -62,12 +73,13 @@ export async function escalateStop(stop: StopEscalation): Promise<boolean> {
 
 /** {@link escalateStop} for a caller that cannot yield. */
 export function escalateStopSync(stop: StopEscalation, wait: (ms: number) => void): boolean {
-  for (const [index, [signal, graceBaseMs]] of PHASES.entries()) {
+  const timing = stop.timing ?? REAL_TIMING;
+  for (const [index, [signal, grace]] of PHASES.entries()) {
     if (index > 0) {
       stop.onEscalate?.();
     }
     stop.signal(signal);
-    if (settleSync(stop.gone, graceBaseMs, wait)) {
+    if (settleSync(stop.gone, timing[grace], wait, timing.pollMs)) {
       return true;
     }
   }

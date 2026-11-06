@@ -14,9 +14,9 @@ export interface ProcReads {
   readonly readLink?: (path: string) => string | null;
 }
 
-/** A targeted identity/state read, never a process scanner; unsupported platforms refuse completion. */
-export function processCompletion(pid: number, deps: ProcReads & { readonly platform?: NodeJS.Platform } = {}): ProcessCompletion {
-  return sampleCompletion(pid, deps).value;
+/** A targeted identity/state read of `/proc`, never a process scanner. */
+export function linuxProcessCompletion(pid: number, reads: ProcReads = {}): ProcessCompletion {
+  return sampleCompletion(pid, reads).value;
 }
 
 interface CompletionSample {
@@ -26,11 +26,8 @@ interface CompletionSample {
   readonly statRead: string;
 }
 
-function sampleCompletion(pid: number, deps: ProcReads & { readonly platform?: NodeJS.Platform }): CompletionSample {
+function sampleCompletion(pid: number, deps: ProcReads): CompletionSample {
   const unavailable = (kind: "unknown" | "gone", statRead: string): CompletionSample => ({ value: { kind }, state: null, startTicks: null, statRead });
-  if ((deps.platform ?? process.platform) !== "linux") {
-    return unavailable("unknown", "unsupported");
-  }
   let stat: string | null;
   try {
     stat = deps.readFile === undefined ? readFileSync(`${PROC}/${String(pid)}/stat`, "utf8") : deps.readFile(`${PROC}/${String(pid)}/stat`);
@@ -54,14 +51,11 @@ function sampleCompletion(pid: number, deps: ProcReads & { readonly platform?: N
 }
 
 /** Reuse the native table walk, but a failed directory read is not a completed empty sweep. */
-export function completionProcesses(
-  deps: ProcReads & { readonly platform?: NodeJS.Platform; readonly owner?: ProcessCompletionOwner; readonly marker?: string } = {},
+export function linuxCompletionProcesses(
+  deps: ProcReads & { readonly owner?: ProcessCompletionOwner; readonly marker?: string } = {},
 ): readonly ProcessEntry[] {
-  if ((deps.platform ?? process.platform) !== "linux") {
-    throw new Error("process completion table unavailable on this platform");
-  }
   if (deps.owner !== undefined) {
-    const current = processCompletion(process.pid, deps);
+    const current = linuxProcessCompletion(process.pid, deps);
     if (deps.owner.pid !== process.pid || current.kind !== "live" || current.identity !== deps.owner.identity) {
       throw new Error("process completion owner identity unavailable");
     }

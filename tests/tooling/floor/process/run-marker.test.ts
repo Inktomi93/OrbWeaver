@@ -14,8 +14,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { processCompletion } from "@orb/tooling/floor/host/platform";
-import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";
+import { spawnFullPriorityChild, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
 import {
@@ -41,6 +41,8 @@ import {
 const PLANTED_TIMEOUT_BASE_MS = 4000;
 /** The whole probe: spawn + the short ceiling + the sweep's own TERM→KILL grace + reaping slack. */
 const PROBE_BUDGET_BASE_MS = 60_000;
+/** Pipelines in the cascade probe: each holds a `sleep` and a `cat`, and the sweep's TERM to the first ends the second. */
+const PIPELINE_CHILDREN = 6;
 
 test("strong sweep waits for observed exit after signalling", async () => {
   const marker = mintRunMarker(800, 1_700_000_000_000);
@@ -154,6 +156,154 @@ test("strong sweep accepts a zombie but refuses a newly owned survivor and an un
   ).rejects.toThrow("unreadable final table");
 });
 
+// The weak door: the timeout teardown that surface-walk and the corpus scripts hand to the transcript runner.
+test("the timeout teardown never KILLs a pid that was replaced during the grace", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  let replaced = false;
+  const line = await runMarkerTranscriptTeardown(marker, {
+    ...base,
+    completionOf: () => ({ kind: "live", identity: replaced ? "replacement" : "original" }),
+    sleep: (): Promise<void> => {
+      replaced = true;
+      return Promise.resolve();
+    },
+  }).afterTimeoutKill();
+  expect(base.signalled).toEqual([[810, "SIGTERM"]]);
+  expect(line, "the receipt names only what was signalled").not.toContain("SIGKILL");
+});
+
+test("the timeout teardown still KILLs a survivor of the same incarnation, and refuses an unreadable identity", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const survivor = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  const line = await runMarkerTranscriptTeardown(marker, { ...survivor, completionOf: () => ({ kind: "live", identity: "original" }) }).afterTimeoutKill();
+  expect(survivor.signalled).toEqual([
+    [810, "SIGTERM"],
+    [810, "SIGKILL"],
+  ]);
+  expect(line).toContain("SIGKILL 810");
+  const unreadable = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  await expect(runMarkerTranscriptTeardown(marker, { ...unreadable, completionOf: () => ({ kind: "unknown" }) }).afterTimeoutKill()).rejects.toThrow(
+    "identity unavailable",
+  );
+  expect(unreadable.signalled).toEqual([]);
+});
+
+// A marked process that exits on its own, or because the sweep's TERM ended its pipe partner, leaves the table
+// between the guard's first sight of it and the re-selection. That is a normal outcome, never a custody failure.
+for (const door of ["timeout teardown", "strong sweep"] as const) {
+  test(`the ${door} skips a marked pid that exits before its signal and still reaches the rest`, async () => {
+    const marker = mintRunMarker(800, 1_700_000_000_000);
+    const rows = new Map([
+      [810, { marker, parent: 1 }],
+      [811, { marker, parent: 1 }],
+    ]);
+    const base = fakeTree(rows, 1);
+    let scans = 0;
+    const deps: RunMarkerDeps = {
+      ...base,
+      listPids: (): readonly number[] => {
+        scans += 1;
+        if (scans === 2) {
+          rows.delete(810);
+        }
+        return [...rows.keys()];
+      },
+      completionOf: (pid) => (rows.has(pid) ? { kind: "live", identity: `start-${String(pid)}` } : { kind: "gone" }),
+      signal: (pid, kind): void => {
+        base.signalled.push([pid, kind]);
+        if (kind === "SIGKILL") {
+          rows.delete(pid);
+        }
+      },
+    };
+    const sweep = door === "strong sweep" ? await joinRunMarkerSweep(marker, deps) : await runMarkerTranscriptTeardown(marker, deps).afterTimeoutKill();
+    expect(base.signalled).toEqual([
+      [811, "SIGTERM"],
+      [811, "SIGKILL"],
+    ]);
+    expect(sweep, "a clean sweep verdict").not.toBeNull();
+  });
+}
+
+// The reviewer's repro on real processes: nothing exits by itself, and the sweep's TERM to `sleep` ends its `cat`.
+test("a sweep over pipelines whose members exit from its own TERM completes", async () => {
+  const marker = mintRunMarker();
+  const children = Array.from({ length: PIPELINE_CHILDREN }, () =>
+    spawnFullPriorityChild("sh", ["-c", "sleep 30 | cat"], { env: inheritedProcessEnv(runMarkerEnv(marker)), stdio: "ignore" }),
+  );
+  const exits = children.map((child) => child.wait());
+  try {
+    await expect.poll(() => markedPids(marker).length, { timeout: budget(PROBE_BUDGET_BASE_MS), interval: 20 }).toBeGreaterThanOrEqual(PIPELINE_CHILDREN * 2);
+    const sweep = await sweepRunMarker(marker, { sleep: () => new Promise((resolve) => setTimeout(resolve, 10)) });
+    expect(sweep.terminated.length).toBeGreaterThan(0);
+    await expect.poll(() => markedPids(marker), { timeout: budget(PROBE_BUDGET_BASE_MS), interval: 20 }).toEqual([]);
+  } finally {
+    sweepRunMarkerNow(marker);
+    for (const child of children) {
+      child.kill("SIGKILL");
+    }
+    await Promise.all(exits);
+  }
+});
+
+test("a darwin ps that exits 0 with no process table is no verdict, so the strong sweep rejects instead of resolving clean", async () => {
+  const marker = mintRunMarker();
+  const processTable = (): ReturnType<typeof completionProcesses> =>
+    completionProcesses({ platform: "darwin", run: () => ({ status: 0, stdout: "", stderr: "" }) });
+  await expect(joinRunMarkerSweep(marker, { processTable })).rejects.toThrow("table unreadable");
+});
+
+// The identity read is per platform; these drive the real reader with the tool output each OS documents.
+// Never captured from a macOS or Windows host here.
+const cimRow = (identity: string): string => `[{"pid":810,"identity":"${identity}"}]`;
+const IDENTITY_READS = [
+  { platform: "darwin", before: "Ss   Thu Nov  6 14:03:22 2026\n", after: "Ss   Thu Nov  6 14:09:41 2026\n" },
+  { platform: "win32", before: cimRow("639000000000000001"), after: cimRow("639000000000000002") },
+] as const;
+
+for (const { platform, before, after } of IDENTITY_READS) {
+  for (const replaced of [true, false]) {
+    test(`on ${platform} the timeout teardown ${replaced ? "never KILLs a replaced pid" : "still KILLs the same incarnation"}`, async () => {
+      const marker = mintRunMarker(800, 1_700_000_000_000);
+      const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+      let graced = false;
+      await runMarkerTranscriptTeardown(marker, {
+        ...base,
+        completionOf: (pid) => processCompletion(pid, { platform, run: () => ({ status: 0, stdout: graced && replaced ? after : before, stderr: "" }) }),
+        sleep: (): Promise<void> => {
+          graced = true;
+          return Promise.resolve();
+        },
+      }).afterTimeoutKill();
+      expect(base.signalled).toEqual(
+        replaced
+          ? [[810, "SIGTERM"]]
+          : [
+              [810, "SIGTERM"],
+              [810, "SIGKILL"],
+            ],
+      );
+    });
+  }
+}
+
+test("the abandoned sweep never KILLs a pid replaced during the grace", async () => {
+  const dead = mintRunMarker(600, 1_700_000_000_000);
+  const base = fakeTree(new Map([[601, { marker: dead, parent: 1 }]]), 1);
+  let replaced = false;
+  await sweepAbandonedRunMarkers({
+    ...base,
+    alive: (pid) => pid !== 600,
+    completionOf: () => ({ kind: "live", identity: replaced ? "replacement" : "original" }),
+    sleep: (): Promise<void> => {
+      replaced = true;
+      return Promise.resolve();
+    },
+  });
+  expect(base.signalled).toEqual([[601, "SIGTERM"]]);
+});
+
 function fakeTree(
   rows: ReadonlyMap<number, { readonly marker: string | null; readonly lease?: string; readonly parent: number }>,
   self: number,
@@ -167,6 +317,7 @@ function fakeTree(
     identitiesOf: (pid): readonly string[] => [rows.get(pid)?.marker ?? null, rows.get(pid)?.lease ?? null].filter((v): v is string => v !== null),
     parentOf: (pid): number | null => rows.get(pid)?.parent ?? null,
     alive: (pid): boolean => rows.has(pid) && !dead.has(pid),
+    completionOf: (pid) => (rows.has(pid) && !dead.has(pid) ? { kind: "live", identity: `start-${String(pid)}` } : { kind: "gone" }),
     signal: (pid, signal): void => {
       signalled.push([pid, signal]);
     },

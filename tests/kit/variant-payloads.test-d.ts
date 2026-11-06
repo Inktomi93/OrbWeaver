@@ -3,7 +3,7 @@ import { expectTypeOf, test } from "vitest";
 import type { MacroArgViolation } from "#kit/macro/types.ts";
 
 test("macro type errors require argument identity while arity errors stay call-scoped", () => {
-  type Detail = Pick<MacroArgViolation, "macro" | "message">;
+  type Detail = Pick<MacroArgViolation, "message">;
   expectTypeOf<Detail & { kind: "bad-type" }>().not.toExtend<MacroArgViolation>();
   expectTypeOf<Detail & { kind: "bad-type"; argIndex: number; argName: string }>().toExtend<MacroArgViolation>();
   expectTypeOf<Detail & { kind: "missing-required"; argIndex: number }>().not.toExtend<MacroArgViolation>();
@@ -11,7 +11,7 @@ test("macro type errors require argument identity while arity errors stay call-s
 });
 
 test("update verdicts correlate upstream identity and explanatory failure", () => {
-  expectTypeOf<{ status: "behind"; local: string; remote: null; reason: null }>().not.toExtend<UpdateCheck>();
-  expectTypeOf<{ status: "unknown"; local: string; remote: null; reason: null }>().not.toExtend<UpdateCheck>();
-  expectTypeOf<{ status: "unknown"; local: string; remote: null; reason: string }>().toExtend<UpdateCheck>();
+  expectTypeOf<{ status: "behind"; remote: null; reason: null }>().not.toExtend<UpdateCheck>();
+  expectTypeOf<{ status: "unknown"; remote: null; reason: null }>().not.toExtend<UpdateCheck>();
+  expectTypeOf<{ status: "unknown"; remote: null; reason: string }>().toExtend<UpdateCheck>();
 });

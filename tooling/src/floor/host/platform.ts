@@ -9,11 +9,23 @@ import { join } from "node:path";
 import process from "node:process";
 import type { FullPriorityChild, RunNicedSyncOptions, RunNicedSyncResult } from "../process/proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "../process/proc.ts";
-import type { PnpmInvocation, ProcessEntry, SocketRow } from "./platform-parse.ts";
-import { parseCimProcesses, parseLsofSockets, parseNetstatSockets, parsePsClock, parsePsProcesses, parseSsSockets } from "./platform-parse.ts";
+import { inheritedProcessEnv } from "../process/process-env.ts";
+import type { PnpmInvocation, ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
+import {
+  parseCimCompletion,
+  parseCimProcesses,
+  parseLsofSockets,
+  parseNetstatSockets,
+  parsePsClock,
+  parsePsCompletion,
+  parsePsProcesses,
+  parseSsSockets,
+} from "./platform-parse.ts";
 import type { ProcReads } from "./platform-probes.ts";
 import {
+  linuxCompletionProcesses,
   linuxIsWsl2,
+  linuxProcessCompletion,
   linuxProcessDiagnostics,
   linuxProcesses,
   linuxProcessGroup,
@@ -21,13 +33,10 @@ import {
   linuxProcessStartTicks,
   linuxProcSockets,
   PROC_NET_TCP_TABLES,
-  completionProcesses as readCompletionProcesses,
-  processCompletion as readProcessCompletion,
 } from "./platform-probes.ts";
+import { CIM_START_IDENTITY } from "./process-tree.ts";
 
 export type { PnpmInvocation, ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
-export const completionProcesses = readCompletionProcesses;
-export const processCompletion = readProcessCompletion;
 
 /** The platforms with a backend here. Any other platform reads nothing and never guesses. */
 export const SUPPORTED_PLATFORMS = ["linux", "darwin", "win32"] as const;
@@ -37,7 +46,7 @@ export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
  *  fixture output and a fake `/proc`. Production callers take the defaults. */
 export interface PlatformDeps extends ProcReads {
   readonly platform?: NodeJS.Platform;
-  readonly run?: (cmd: string, args: readonly string[]) => RunNicedSyncResult;
+  readonly run?: (cmd: string, args: readonly string[], options?: Pick<RunNicedSyncOptions, "env">) => RunNicedSyncResult;
   /** Starts the default-browser opener; `openUrl` releases it at once and reads how it ended. */
   readonly launch?: (cmd: string, args: readonly string[]) => OpenerChild;
 }
@@ -83,8 +92,8 @@ function supportedPlatform(deps: PlatformDeps): SupportedPlatform | null {
   return isSupported(platform) ? platform : null;
 }
 
-function runOf(deps: PlatformDeps): (cmd: string, args: readonly string[]) => RunNicedSyncResult {
-  return deps.run ?? ((cmd, args): RunNicedSyncResult => runNicedSync(cmd, args));
+function runOf(deps: PlatformDeps): NonNullable<PlatformDeps["run"]> {
+  return deps.run ?? ((cmd, args, options): RunNicedSyncResult => runNicedSync(cmd, args, options));
 }
 
 function stdoutOf(result: RunNicedSyncResult): string {
@@ -249,9 +258,13 @@ function parseLsofCwd(output: string): string | null {
   return line === undefined ? null : line.slice(1).trim();
 }
 
-function win32Processes(deps: PlatformDeps, filter: string | null): readonly ProcessEntry[] {
+function win32ProcessQuery(filter: string | null): string {
   const query = filter === null ? "Get-CimInstance Win32_Process" : `Get-CimInstance Win32_Process -Filter "${filter}"`;
-  const output = stdoutOf(runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, `${query} | Select-Object ${CIM_FIELDS} | ConvertTo-Json -Compress`]));
+  return `${query} | Select-Object ${CIM_FIELDS} | ConvertTo-Json -Compress`;
+}
+
+function win32Processes(deps: PlatformDeps, filter: string | null): readonly ProcessEntry[] {
+  const output = stdoutOf(runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, win32ProcessQuery(filter)]));
   // PowerShell output that is not the JSON asked for is "nothing observed" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict.
   try {
     return parseCimProcesses(output);
@@ -283,6 +296,94 @@ function processInfoOn(platform: SupportedPlatform, pid: number, deps: PlatformD
     case "win32":
       return win32ProcessInfo(pid, deps);
   }
+}
+
+/** One pid's incarnation: `live` or `zombie` with an identity that changes when the pid is reused, `gone`, or
+ *  `unknown` when the OS could not be read. The identity is `/proc` start ticks on Linux, the `ps` start time
+ *  (seconds resolution) on darwin and the Win32_Process creation ticks on win32. `unknown` authorizes nothing. */
+export function processCompletion(pid: number, deps: PlatformDeps = {}): ProcessCompletion {
+  const platform = supportedPlatform(deps);
+  return platform === null ? { kind: "unknown" } : processCompletionOn(platform, pid, deps);
+}
+
+const LOCALE_ENV = "LC_ALL";
+
+/** `ps` exits 1 with both streams empty when no process matches the pid. */
+const PS_NO_MATCH_STATUS = 1;
+
+function processCompletionOn(platform: SupportedPlatform, pid: number, deps: PlatformDeps): ProcessCompletion {
+  switch (platform) {
+    case "linux":
+      return linuxProcessCompletion(pid, deps);
+    case "darwin": {
+      // `lstart` is formatted in the caller's locale and the parser reads only the C spelling.
+      const result = runOf(deps)("ps", ["-o", "stat=,lstart=", "-p", String(pid)], { env: inheritedProcessEnv({ [LOCALE_ENV]: "C" }) });
+      if (result.errorCode !== undefined) {
+        return { kind: "unknown" };
+      }
+      if (result.status === 0) {
+        return parsePsCompletion(result.stdout) ?? { kind: "unknown" };
+      }
+      return result.status === PS_NO_MATCH_STATUS && result.stdout.trim() === "" && result.stderr.trim() === "" ? { kind: "gone" } : { kind: "unknown" };
+    }
+    case "win32": {
+      const query = `$ErrorActionPreference = 'Stop'; ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter "ProcessId = ${String(pid)}" | ForEach-Object { @{ pid = $_.ProcessId; identity = ${CIM_START_IDENTITY} } })`;
+      const result = runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, query]);
+      return result.status !== 0 || result.errorCode !== undefined ? { kind: "unknown" } : (parseCimCompletion(result.stdout, pid) ?? { kind: "unknown" });
+    }
+  }
+}
+
+/** Every process on the box for a sweep that must know it read the whole table: a failed read throws and is
+ *  never an empty list. With `owner`, only that incarnation of this process may read it. `marker` lets Linux
+ *  skip processes this user cannot read and that provably descend from no marked process. */
+export function completionProcesses(deps: PlatformDeps & { readonly owner?: ProcessCompletionOwner; readonly marker?: string } = {}): readonly ProcessEntry[] {
+  const platform = supportedPlatform(deps);
+  if (platform === null) {
+    throw new Error("process completion table unavailable on this platform");
+  }
+  if (platform === "linux") {
+    return linuxCompletionProcesses(deps);
+  }
+  if (deps.owner !== undefined) {
+    const current = processCompletion(process.pid, deps);
+    if (deps.owner.pid !== process.pid || current.kind !== "live" || current.identity !== deps.owner.identity) {
+      throw new Error("process completion owner identity unavailable");
+    }
+  }
+  return platform === "darwin" ? darwinCompletionTable(deps) : win32CompletionTable(deps);
+}
+
+function darwinCompletionTable(deps: PlatformDeps): readonly ProcessEntry[] {
+  const result = runOf(deps)("ps", ["-axEww", "-o", PS_PROCESS_COLUMNS]);
+  const failure = toolFailure(result);
+  if (failure !== null) {
+    throw new Error(`process completion table unreadable: ps ${failure}`);
+  }
+  const table = parsePsProcesses(result.stdout);
+  // `ps` lists itself, so a table that parses to no rows was not read.
+  if (table.length === 0) {
+    throw new Error("process completion table unreadable: ps printed no process table");
+  }
+  return table;
+}
+
+function win32CompletionTable(deps: PlatformDeps): readonly ProcessEntry[] {
+  const result = runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, win32ProcessQuery(null)]);
+  const failure = toolFailure(result);
+  if (failure !== null || result.stdout.trim() === "") {
+    throw new Error(`process completion table unreadable: powershell ${failure ?? "printed no process table"}`);
+  }
+  let table: readonly ProcessEntry[];
+  try {
+    table = parseCimProcesses(result.stdout);
+  } catch (cause) {
+    throw new Error("process completion table unreadable: powershell printed a table that is not JSON", { cause });
+  }
+  if (table.length === 0) {
+    throw new Error("process completion table unreadable: powershell printed no process table");
+  }
+  return table;
 }
 
 /** The POSIX process group of a pid, or null: win32 has no process group, and a pid that is gone has none. */

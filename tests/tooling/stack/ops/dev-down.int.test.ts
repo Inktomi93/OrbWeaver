@@ -4,20 +4,29 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
+import { vi } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { ListeningPortsRead } from "../../../../tooling/src/floor/host/platform.ts";
+import { listeningPids, processCompletion } from "../../../../tooling/src/floor/host/platform.ts";
 import { killPidGroup } from "../../../../tooling/src/floor/process/proc.ts";
 import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { plantSplitGroup } from "../../_split-group.ts";
 import { PLANTED_PORTS } from "../_dev-verbs.ts";
 
-for (const owned of [true, false]) {
-  test(`recordless teardown ${owned ? "stops its checkout's listener" : "refuses a foreign listener"}`, { timeout: scaledBudget(30_000) }, async ({
-    scratch,
-  }) => {
+// Where the listener's script lives, relative to the checkout the teardown is aimed at. The mirror carries the
+// checkout's whole path as its tail, so a prefix-blind ownership test reads it as the checkout's own.
+const LISTENER_HOMES = [
+  { name: "stops its checkout's listener", owned: true, home: (checkout: string): string => checkout },
+  { name: "refuses a sibling-prefix listener", owned: false, home: (checkout: string): string => `${checkout}-foreign` },
+  { name: "refuses a listener under a foreign leading prefix", owned: false, home: (checkout: string): string => join(`${checkout}-mirror`, checkout) },
+] as const;
+
+for (const { name, owned, home } of LISTENER_HOMES) {
+  test(`recordless teardown ${name}`, { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
     const checkout = join(scratch, "checkout");
-    const sourceDir = owned ? checkout : `${checkout}-foreign`;
+    const sourceDir = home(checkout);
     mkdirSync(sourceDir, { recursive: true });
     const script = join(sourceDir, "listener.mjs");
     writeFileSync(
@@ -57,6 +66,175 @@ server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: 
     }
   });
 }
+
+/** A checkout-owned listener that ignores TERM (and says so), so the stop escalates to KILL. */
+async function plantStubbornListener(scratch: string): Promise<{
+  readonly child: ReturnType<typeof spawn>;
+  readonly pid: number;
+  readonly context: ReturnType<typeof stackContext>;
+  readonly termSeen: () => boolean;
+}> {
+  const checkout = join(scratch, "checkout");
+  mkdirSync(checkout, { recursive: true });
+  const script = join(checkout, "listener.mjs");
+  writeFileSync(
+    script,
+    `import { createServer } from "node:http";
+process.on("SIGTERM", () => process.stdout.write("term\\n"));
+const server = createServer((_request, response) => response.end());
+server.listen(0, "127.0.0.1", () => process.stdout.write(JSON.stringify({ port: server.address().port }) + "\\n"));`,
+  );
+  const child = spawn(process.execPath, [script], { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
+  const chunks: unknown[] = await once(child.stdout, "data");
+  const { port } = z.object({ port: z.number().int().positive() }).parse(JSON.parse(String(chunks[0])));
+  let seen = false;
+  child.stdout.on("data", (bytes) => {
+    seen ||= String(bytes).includes("term");
+  });
+  if (child.pid === undefined) {
+    throw new Error("the planted child has no pid");
+  }
+  const context = stackContext(
+    checkout,
+    Object.fromEntries([
+      ["PORT", String(port)],
+      // A second, unbound port: one holder is swept once, so the reads below count one stop.
+      ["VITE_PORT", String(port === PLANTED_PORTS.vite ? PLANTED_PORTS.server : PLANTED_PORTS.vite)],
+      ["STACK_RUN_DIR", join(scratch, "private-record")],
+    ]),
+    null,
+  );
+  return { child, pid: child.pid, context, termSeen: () => seen };
+}
+
+// The grace is injected so the escalation the tests prove (TERM, a look at the holder, then KILL) takes
+// milliseconds: the holder ignores TERM, so every case reaches the KILL step.
+const FAST_STOP = { pollMs: 5, termGraceMs: 10, killGraceMs: 10 } as const;
+
+/** Run `stop` with the verb's own output captured, so a test can read what the operator would. */
+async function capturingOutput<T>(stop: () => Promise<T>): Promise<{ readonly value: T; readonly output: string }> {
+  const chunks: string[] = [];
+  const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    chunks.push(String(chunk));
+    return true;
+  });
+  try {
+    return { value: await stop(), output: chunks.join("") };
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+test("a holder replaced during the TERM grace is refused the KILL, left standing, and reported as replaced", async ({ scratch }) => {
+  const { child, context, termSeen } = await plantStubbornListener(scratch);
+  try {
+    // Read 1 pins the holder, read 2 guards its TERM, and every later read is the process that reused the pid.
+    let reads = 0;
+    const incarnationOf = (): { readonly kind: "live"; readonly identity: string } => ({ kind: "live", identity: ++reads <= 2 ? "original" : "replacement" });
+    const { value, output } = await capturingOutput(() => doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf, timing: FAST_STOP }));
+    expect(value).toBe(EXIT.violations);
+    expect(reads, "one pin, one guard per signal").toBe(3);
+    await expect.poll(termSeen, { timeout: scaledBudget(5000) }).toBe(true);
+    expect(child.exitCode === null && child.signalCode === null, "the replacement was not KILLed").toBe(true);
+    expect(output).toContain("is no longer that process");
+    expect(output, "a replaced owned pid is not called foreign").not.toContain("not this checkout's");
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
+
+// A real group on a real port: the leader (the port's named owner) exits on TERM, so by the KILL the holder pid is gone
+// and only a group member still holds the port. The grace is long enough for the leader to exit and be reaped.
+const SPLIT_STOP = { pollMs: 40, termGraceMs: 120, killGraceMs: 80 } as const;
+
+function splitContext(scratch: string, checkout: string, port: number): ReturnType<typeof stackContext> {
+  return stackContext(
+    checkout,
+    Object.fromEntries([
+      ["PORT", String(port)],
+      ["VITE_PORT", String(port === PLANTED_PORTS.vite ? PLANTED_PORTS.server : PLANTED_PORTS.vite)],
+      ["STACK_RUN_DIR", join(scratch, "private-record")],
+    ]),
+    null,
+  );
+}
+
+test("a holder that exited on TERM leaves its group member to the KILL", { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
+  const group = await plantSplitGroup(scratch, "member-holds-port");
+  try {
+    const context = splitContext(scratch, group.checkout, group.port);
+    const { value, output } = await capturingOutput(() => doDevDown(context, {}, { readPorts: () => listeningPids(), timing: SPLIT_STOP }));
+    expect(output, "a gone holder of this checkout is not called foreign").not.toContain("not this checkout's");
+    expect(value).toBe(EXIT.clean);
+    await expect.poll(() => processCompletion(group.leaderPid), { timeout: scaledBudget(5000) }).toEqual({ kind: "gone" });
+  } finally {
+    group.dispose();
+  }
+});
+
+test("a group seen empty is not signalled again while something outside it holds the port", { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
+  const group = await plantSplitGroup(scratch, "outsider-holds-port");
+  try {
+    const context = splitContext(scratch, group.checkout, group.port);
+    const sent: string[] = [];
+    const signal = (target: number, kind: NodeJS.Signals | 0): boolean => {
+      if (kind !== 0) {
+        sent.push(`${String(target)} ${kind}`);
+      }
+      return process.kill(target, kind);
+    };
+    const { value, output } = await capturingOutput(() =>
+      doDevDown(context, {}, { readPorts: () => listeningPids(), timing: SPLIT_STOP, process: { signal } }),
+    );
+    expect(value).toBe(EXIT.violations);
+    expect(sent, "TERM reached the group once; the emptied group id never got a KILL").toEqual([`-${String(group.groupId)} SIGTERM`]);
+    expect(output).toContain("left its group empty");
+    expect(processCompletion(group.outsiderPid ?? 0).kind, "the outsider was not touched").toBe("live");
+  } finally {
+    group.dispose();
+  }
+});
+
+test("a holder of the same incarnation that survives TERM is KILLed", async ({ scratch }) => {
+  const { child, context } = await plantStubbornListener(scratch);
+  const exited = once(child, "exit");
+  try {
+    const outcome = await doDevDown(
+      context,
+      {},
+      { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "live", identity: "original" }), timing: FAST_STOP },
+    );
+    expect(outcome).toBe(EXIT.clean);
+    await exited;
+    expect(child.signalCode).toBe("SIGKILL");
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
+
+test("a holder whose identity cannot be read is never signalled", async ({ scratch }) => {
+  const { child, context, termSeen } = await plantStubbornListener(scratch);
+  try {
+    const unreadableAtPin = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf: () => ({ kind: "unknown" }), timing: FAST_STOP });
+    expect(unreadableAtPin).toBe(EXIT.toolError);
+    let reads = 0;
+    await expect(
+      doDevDown(
+        context,
+        {},
+        {
+          readPorts: () => listeningPids(),
+          incarnationOf: () => (++reads === 1 ? { kind: "live", identity: "original" } : { kind: "unknown" }),
+          timing: FAST_STOP,
+        },
+      ),
+    ).rejects.toThrow("identity unavailable");
+    expect(termSeen()).toBe(false);
+    expect(child.exitCode === null && child.signalCode === null).toBe(true);
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
 
 for (const finalRead of ["free", "refused", "held"] as const) {
   test(`after stopping its owned group, teardown observes an unnamed sibling socket until ${finalRead}`, { timeout: scaledBudget(60_000) }, async ({
