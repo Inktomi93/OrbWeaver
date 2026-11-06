@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
+updated: 2026-11-06
 priority: P2
 area: testing
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Close scratch database ownership in native fault helper tests

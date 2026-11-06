@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P3
 area: testing
-plan: restoration-register
+plan: test-foundation
 ---
 
 # Audit findings with no board item: bug form required field, injected script, snap flag subset
