@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: ui
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Fix three control findings from the closeout 4 side-eye review. The picker skeleton is shorter than the loaded list and the dialog jumps and re-centers. The plugin panel switch sits far from its label on desktop. Two controls have 42px tap targets: the Corpus omnibox and the Appearance number stepper on a phone.
 
 ## Why
 
-The symptom or the ruling behind it.
+The review measured each of these, and the design audit flags the gap and the tap targets. The Evidence names the source report and its run ids.
 
 ## Done when
 
-The observable bar a verifier can check.
+The skeleton reserves the height of the loaded list, the switch sits beside its label, and both tap targets meet the touch floor. The design audit reports none of the three.
 
 ## Evidence
 

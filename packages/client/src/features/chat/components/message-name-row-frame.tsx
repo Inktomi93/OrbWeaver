@@ -9,11 +9,9 @@ import { cn } from "#lib";
 import { usePinnedHeader } from "../hooks/use-pinned-header.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
-import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { HeaderEdges, RowSkin } from "../lib/message-row-variants.ts";
 import { ROLE_FILL } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
-
-type HeaderPlacement = RowSkin["headerPlacement"];
 
 // THE STICKY PIN: the identity header stays within its own row while pinning to the scrollport's
 // top as the row's one raised layer (`--z-raised`, scoped to the row's stacking context, never over the shell). It is
@@ -21,13 +19,28 @@ type HeaderPlacement = RowSkin["headerPlacement"];
 // sticky band paint past the row's bottom. Over wallpaper the chrome plate already supplies the outside inset.
 // Inside a container only the top inset is cancelled; the bottom inset contains the action rail's focus paint.
 // `-top-px` rather than `top-0` because the pin observer reads the pin as a one-pixel top clip.
-const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
-const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
+const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised)";
+const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised)";
 
 // While pinned, a card's bar reaches the card's side edges: the bubble's own inset on each side, which client
 // globals.css defaults to `--spacing-block` and echo widens to its art pane. A band reaches across the column's inset.
 const REACH_CARD = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";
-const REACH_COLUMN = "-mx-section px-section @max-cq-28:-mx-row @max-cq-28:px-row";
+const REACH_COLUMN_BLEED = "-mx-section @max-cq-28:-mx-row";
+
+/** The header row's inline inset, decided once from its placement and the reach of its pinned bar. `pager` is an outside
+ *  header's (tide's), which sits on the inset of the pager under its train so the last action ends where the forward
+ *  chevron does and its touch area stays inside the scrollport; it holds the same at rest and pinned. `card` takes the
+ *  bubble's own inset by variable, and `column` the column's inset. */
+type FrameInset = keyof typeof INSET_PADDING;
+
+function frameInset(edges: HeaderEdges, pinned: boolean): FrameInset {
+  if (edges.headerPlacement === "outside") {
+    return "pager";
+  }
+  return pinned ? edges.pinnedHeader.reach : "none";
+}
+
+const INSET_PADDING = { none: undefined, pager: "field", card: undefined, column: "section" } as const;
 
 /** The header's FRAME — the ONE home for the chrome row's anatomy, shared by the settled row
  *  (`renderRowNameRow`) and the streaming ghost (`renderGhostNameRow`). Both carry the same `data-slot`, the same
@@ -52,11 +65,10 @@ export interface NameRowFrameProps {
   readonly actions: ReactNode;
   readonly stickyAttribution: boolean;
   readonly actionsReveal: ActionsReveal;
-  readonly placement: HeaderPlacement;
+  /** The skin's header placement and the row's own surface its pinned bar paints (`RowSkin`). */
+  readonly edges: HeaderEdges;
   /** User identity sits at the trailing edge; its action cluster takes the opposite edge. */
   readonly mirrored: boolean;
-  /** `RowSkin.pinnedHeader`: the row's own surface, applied only while pinned. */
-  readonly pinnedHeader: RowSkin["pinnedHeader"];
   readonly messageRole: MessageRole;
   /** Whether the bar names the speaker and takes a line of its own (`headerShape`). */
   readonly shape: HeaderShape;
@@ -69,22 +81,22 @@ export function NameRowFrame({
   actions,
   stickyAttribution,
   actionsReveal,
-  placement,
+  edges,
   mirrored,
-  pinnedHeader,
   messageRole,
   shape,
   rule,
 }: NameRowFrameProps): ReactElement {
   const sticky = stickyAttribution && (shape.ownLine || actions !== null);
   const { ref, pinned } = usePinnedHeader(sticky);
-  const outside = placement === "outside";
-  const reach = pinned ? pinnedHeader.reach : "none";
+  const outside = edges.headerPlacement === "outside";
+  const pinnedHeader = edges.pinnedHeader;
+  const inset = frameInset(edges, pinned);
   const overlayClass = shape.ownLine ? undefined : overlayLayout(sticky);
   return (
     <FrameRow
       rowRef={ref}
-      placement={placement}
+      placement={edges.headerPlacement}
       sticky={sticky}
       pinned={pinned}
       bubbleInk={pinned ? pinnedHeader.fill === "role" : !outside}
@@ -93,11 +105,11 @@ export function NameRowFrame({
       flip={mirrored}
       stickyOutside={sticky && outside}
       stickyInside={sticky && !outside}
-      reachCard={reach === "card"}
-      reachColumn={reach === "column"}
-      reachTrain={reach === "train"}
+      inset={inset}
+      reachCard={inset === "card"}
+      reachColumn={inset === "column"}
+      reachTrain={pinned && pinnedHeader.reach === "train"}
       chip={!shape.identity}
-      outside={outside}
       overlayClass={overlayClass}
       overlayReveal={shape.ownLine ? undefined : ACTIONS_REVEAL_POSTURE[actionsReveal]}
       reserve={!outside && shape.ownLine}
@@ -141,7 +153,7 @@ function pinnedPaint(pinned: RowSkin["pinnedHeader"], role: MessageRole): FrameP
 
 interface FrameRowProps {
   readonly rowRef: ReturnType<typeof usePinnedHeader>["ref"];
-  readonly placement: HeaderPlacement;
+  readonly placement: HeaderEdges["headerPlacement"];
   readonly sticky: boolean;
   readonly pinned: boolean;
   readonly bubbleInk: boolean;
@@ -150,11 +162,11 @@ interface FrameRowProps {
   readonly flip: boolean;
   readonly stickyOutside: boolean;
   readonly stickyInside: boolean;
+  readonly inset: FrameInset;
   readonly reachCard: boolean;
   readonly reachColumn: boolean;
   readonly reachTrain: boolean;
   readonly chip: boolean;
-  readonly outside: boolean;
   readonly overlayClass: string | undefined;
   readonly overlayReveal: (typeof ACTIONS_REVEAL_POSTURE)[ActionsReveal];
   readonly reserve: boolean;
@@ -174,11 +186,11 @@ function FrameRow({
   flip,
   stickyOutside,
   stickyInside,
+  inset,
   reachCard,
   reachColumn,
   reachTrain,
   chip,
-  outside,
   overlayClass,
   overlayReveal,
   reserve,
@@ -201,20 +213,20 @@ function FrameRow({
       ground={paint.ground}
       cardCorners={paint.cardCorners}
       reveal={overlayReveal}
+      paddingBlock={sticky ? "row" : undefined}
+      paddingInline={INSET_PADDING[inset]}
+      paddingInlineNarrow={inset === "column" ? "row" : undefined}
       className={cn(
         "flex-wrap",
         flip && "flex-row-reverse",
         stickyOutside && STICKY_OUTSIDE,
         stickyInside && STICKY_INSIDE,
         reachCard && REACH_CARD,
-        reachColumn && REACH_COLUMN,
+        reachColumn && REACH_COLUMN_BLEED,
         reachTrain && "self-stretch",
         // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
         // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
         chip && !pinned && "ms-auto inline-fit",
-        // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
-        // ends where the forward chevron does and its touch area stays inside the scrollport.
-        outside && "px-field",
         overlayClass,
         // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.

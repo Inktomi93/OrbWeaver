@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Fix four editor findings from the closeout 4 side-eye review. The save bar shows no name at 300% text on a 320 wide phone and cuts the name at 200%. The preset tab reveal fails on return. The World Info entry heading and its fields do not align. Hand-edit on an empty scope opens with no fields and no reason.
 
 ## Why
 
-The symptom or the ruling behind it.
+The review measured each of these on screen. The Evidence names the source report and its run ids.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each finding is fixed with a component test, or answered with a cited reason, and a rendered pass of the same views shows none of them.
 
 ## Evidence
 

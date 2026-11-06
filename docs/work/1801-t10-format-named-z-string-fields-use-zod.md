@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: contracts
 plan: type-law
@@ -11,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Type the format-named z.string fields with zod format types after the stored data is checked, trial z.codec on one stored JSON column, and try strict-void-return.
 
 ## Why
 
-The symptom or the ruling behind it.
+A field named for a format, such as an id, a url or an email, is validated as an arbitrary string, so a malformed value passes the schema.
 
 ## Done when
 
-The observable bar a verifier can check.
+Format-named fields use zod format types and stored rows still parse. The z.codec trial and the strict-void-return trial each have a recorded outcome, adopted or declined with a reason.
 
 ## Evidence
 

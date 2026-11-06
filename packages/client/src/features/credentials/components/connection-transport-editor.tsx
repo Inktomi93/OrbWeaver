@@ -70,7 +70,7 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
 
   return (
     <Stack gap="row">
-      <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
+      <Row align="start" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
         <Field className="grow min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
           <Textarea
             defaultValue={Object.entries(headers)

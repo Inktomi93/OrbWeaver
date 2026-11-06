@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: tooling
 plan: surface-walk
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+Run tests/tooling/design-audit-walker.ct.tsx from a root script that selects the tooling project of playwright-ct.config.ts.
 
 ## Why
 
-The symptom or the ruling behind it.
+The chromium project ignores tests/tooling, and test:ct runs only that project. The tooling project exists but no root script selects it, so the walker test never runs.
 
 ## Done when
 
-The observable bar a verifier can check.
+A root package.json script runs the tooling project and the walker test executes and passes in it.
 
 ## Evidence
 

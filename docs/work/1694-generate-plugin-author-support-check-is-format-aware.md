@@ -1,25 +1,25 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P3
-plan: test-enforcement
 area: tooling
+plan: test-enforcement
 ---
 
 # generate-plugin-author-support --check is format-aware and runs in a check, or is deleted
 
 ## What
 
-The change, in a sentence.
+Make scripts/generate-plugin-author-support.ts --check compare against the formatted file it generates and run it in a check, or delete the script and its generated file.
 
 ## Why
 
-The symptom or the ruling behind it.
+The --check mode compares the raw JSON.stringify output with the bytes on disk. packages/plugin-toolchain/src/support.generated.ts is committed formatted, so the comparison cannot be trusted, and no package script runs it.
 
 ## Done when
 
-The observable bar a verifier can check.
+Either a root check runs the generator in check mode and passes on the committed file and fails when a contract registry changes, or the script and the generated file are gone and nothing imports them.
 
 ## Evidence
 

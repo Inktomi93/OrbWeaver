@@ -119,7 +119,8 @@ function TrackerValueRest({
           {...(empty ? ({ ink: "muted" } as const) : restPaint)}
           numeric={numeric}
           italic={italic}
-          className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
+          className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : undefined}
+          truncate={!wrap}
         >
           {restText}
         </Text>

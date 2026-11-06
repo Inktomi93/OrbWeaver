@@ -336,7 +336,7 @@ function ResumeArm({
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
-          <Stack className="pbs-row" divider="top">
+          <Stack paddingBlockStart="row" divider="top">
             <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>
@@ -364,13 +364,13 @@ function LandingFrame({
   return (
     // THE SCROLL BOX AND ITS `Container` LIVE ABOVE THE BOUNDARY (#1748) — `character-library-welcome.tsx`'s
     // own header carries why. What is left here is the chrome the read authors: the lead, the doors, the shelves.
-    <Stack gap="section" className="py-section">
+    <Stack gap="section" paddingBlock="section">
       {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
             `justify=between`, the two buttons took ~250px of a 398px pane and squeezed "Pick up where you
-            left off" into a ~110px column eleven lines tall. `@max-cq-28:flex-col` is the `actionBar` recipe's
+            left off" into a ~110px column eleven lines tall. `stackBelow="cq-28"` is the `actionBar` recipe's
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
-      <Row align="start" className="@max-cq-28:flex-col" gap="section" justify="between">
+      <Row align="start" gap="section" justify="between" stackBelow="cq-28">
         <Stack className="flex-1 min-inline-0" gap="tight">
           <Heading level={1} voice="promoted">
             {title}

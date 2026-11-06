@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: testing
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Remove the repeated work from the eight integration tests that hit the 5 second budget under whole-suite load and pass alone.
 
 ## Why
 
-The symptom or the ruling behind it.
+A whole pnpm test run on a loaded machine failed eight tests that pass alone. The owner rule is to remove repeated work and never raise the timeout. The files are in the Evidence.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each of the eight tests passes in a whole pnpm test run at the load that failed them, with no raised timeout.
 
 ## Evidence
 

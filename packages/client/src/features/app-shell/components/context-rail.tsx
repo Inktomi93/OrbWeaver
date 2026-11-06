@@ -117,7 +117,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
       ground={ownership === "owning" ? "raised" : undefined}
     >
-      <Row align="center" gap="row" className="relative px-row pbs-field pbe-row min-inline-0">
+      <Row align="center" gap="row" className="relative pbe-row min-inline-0" paddingBlockStart="field" paddingInline="row">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}
@@ -213,7 +213,7 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch px-block min-inline-0">
+      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch min-inline-0" paddingInline="block">
         <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
@@ -357,7 +357,7 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" truncate={true} className="max-inline-full" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="max-inline-full" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST

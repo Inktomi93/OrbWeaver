@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: contracts
 plan: type-law
@@ -11,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Turn each string-typed kind, status and role field that has a closed value set into a tuple-backed union. The scan half, a value-set column in pnpm brand-flow, is already written.
 
 ## Why
 
-The symptom or the ruling behind it.
+A field typed as a plain string accepts any spelling, so a wrong or new value compiles. The scan lists the fields and the literal values production code uses for each.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each field the scan lists with a closed value set is typed as a union from one tuple, and its dispatch is a total Record or ends in assertNever. The type-law rule for closed vocabularies is on at zero sites.
 
 ## Evidence
 

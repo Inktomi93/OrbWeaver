@@ -34,7 +34,7 @@ export function LabelsContent(): ReactElement {
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
     <Container className="block-full min-block-0">
-      <Stack scroll="y" className="py-section block-full" data-slot="labels-content">
+      <Stack scroll="y" className="block-full" paddingBlock="section" data-slot="labels-content">
         {tagId === null ? (
           <LabelsLandingSurface returning={editorWasOpen} />
         ) : (

@@ -89,7 +89,7 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
   const members = memberPins(chat);
   const offersRepin = chat.viewerIsHost && (members.length > 0 || chat.anchorState === "held");
   return (
-    <Row gap="row" align="center" className="justify-between" data-slot="persona-anchor-line" data-anchor-state={chat.anchorState}>
+    <Row gap="row" align="center" justify="between" data-slot="persona-anchor-line" data-anchor-state={chat.anchorState}>
       <Row gap="field" align="center" className="min-inline-0">
         <Icon icon={IdCard} size="xs" />
         <Text ink="muted" voice="gloss" prose={true}>

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: tooling
 plan: surface-walk
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+Let a snap wheel step run at a chosen point without hovering first, and give snap a print-media case, a PDF case and a swipe from a chosen point.
 
 ## Why
 
-The symptom or the ruling behind it.
+runWheelStep calls loc.hover() in tooling/src/snap/ops/drive-actions.ts. Hovering scrolls nested scrollers into view and voids the scroll-chaining evidence.
 
 ## Done when
 
-The observable bar a verifier can check.
+A wheel step at a chosen point scrolls nothing into view before the wheel. Snap has a print-media or PDF case and a swipe that starts at a chosen point, each with a test.
 
 ## Evidence
 

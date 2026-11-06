@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-31
+updated: 2026-11-06
 priority: P2
-plan: unwired-code
 area: server
+plan: unwired-code
 ---
 
 # Plugin card-data reads and writes guard json_valid, so getCardData on an over-deep row does not raise
 
 ## What
 
-The change, in a sentence.
+Guard readPluginCardData and writePluginCardData with json_valid, as findPluginCardData already does, so an over-deep extensions value does not raise.
 
 ## Why
 
-The symptom or the ruling behind it.
+findPluginCardData wraps its JSON functions in a json_valid case because an uploaded card can nest past the SQLite JSON limit. The read and the write call json_type, json_extract and json_set on the same column with no guard, so getCardData on such a row raises.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test in tests/server/domain/character/persistence/plugin-card-data.int.test.ts stores an over-deep extensions value on a card. The read and the write each answer without raising.
 
 ## Evidence
 

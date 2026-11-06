@@ -21,14 +21,15 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
-import type { RowSkin } from "../lib/message-row-variants.ts";
+import type { HeaderEdges, RowSkin } from "../lib/message-row-variants.ts";
 import type { HeaderShape } from "../lib/row-placement.ts";
 import { MessageTimestamp } from "./message-metadata-row.tsx";
 import { NameRowFrame } from "./message-name-row-frame.tsx";
 
-// A phone puts the timestamp under the name, packed to the side the speaker's header packs to.
-const STAMP_STACK_START = "@max-cq-28:flex-nowrap @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:gap-0";
-const STAMP_STACK_END = "@max-cq-28:flex-nowrap @max-cq-28:flex-col @max-cq-28:items-end @max-cq-28:gap-0";
+// A phone puts the timestamp under the name (`stackBelow`), packed to the side the speaker's header packs to: stretched for the start,
+// at the end for a mirrored row.
+const STAMP_STACK_START = "@max-cq-28:flex-nowrap @max-cq-28:gap-0";
+const STAMP_STACK_END = "@max-cq-28:flex-nowrap @max-cq-28:items-end @max-cq-28:gap-0";
 
 /** The live turn always names its speaker on a line of its own. */
 const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
@@ -94,6 +95,8 @@ function renderRowIdentity(args: {
     <Row
       gap="field"
       align="center"
+      stackBelow={stackStamp ? "cq-28" : undefined}
+      stretchBelow={stackStamp && !mirrored ? "cq-28" : undefined}
       className={cn("flex-wrap min-inline-0", mirrored && "flex-row-reverse", stackStamp && (mirrored ? STAMP_STACK_END : STAMP_STACK_START))}
     >
       {attribution.name === null ? null : (
@@ -129,9 +132,8 @@ export function renderRowNameRow(args: {
   readonly stickyAttribution: boolean;
   readonly actionsReveal: ActionsReveal;
   readonly actions: ReactNode;
-  readonly placement: HeaderPlacement;
-  /** `RowSkin.pinnedHeader`: the bar's paint while pinned. */
-  readonly pinnedHeader: RowSkin["pinnedHeader"];
+  /** The skin's header placement and its pinned bar's paint (`RowSkin`). */
+  readonly edges: HeaderEdges;
   readonly role: MessageRole;
   /** The row sits mirrored at the trailing edge (`rowMirrored`): its header packs to that edge too. */
   readonly mirrored: boolean;
@@ -160,9 +162,8 @@ export function renderRowNameRow(args: {
       actions={args.actions}
       stickyAttribution={args.stickyAttribution}
       actionsReveal={args.actionsReveal}
-      placement={args.placement}
+      edges={args.edges}
       mirrored={mirrored}
-      pinnedHeader={args.pinnedHeader}
       messageRole={args.role}
       shape={args.shape}
       rule={args.rule}
@@ -190,8 +191,7 @@ export function renderGhostNameRow(args: {
   readonly stickyAttribution: boolean;
   /** #288 — the SAME placement the settled row will use for this chatStyle. A live turn whose header sat
    *  above the bubble and jumped inside it at commit would be a visible one-frame reflow on every reply. */
-  readonly placement: HeaderPlacement;
-  readonly pinnedHeader: RowSkin["pinnedHeader"];
+  readonly edges: HeaderEdges;
   /** `RowSkin.actionsRow.identity`. A style that names nobody still reserves the empty bar line its
    *  settled last row will carry, so the commit does not shift the reply down a line. */
   readonly named: boolean;
@@ -210,9 +210,8 @@ export function renderGhostNameRow(args: {
         actions={null}
         stickyAttribution={false}
         actionsReveal="expanded"
-        placement={args.placement}
+        edges={args.edges}
         mirrored={false}
-        pinnedHeader={args.pinnedHeader}
         messageRole="assistant"
         shape={GHOST_UNNAMED_SHAPE}
         rule={false}
@@ -235,10 +234,9 @@ export function renderGhostNameRow(args: {
       actions={args.actionsFootprint}
       stickyAttribution={args.stickyAttribution}
       actionsReveal="expanded"
-      placement={args.placement}
+      edges={args.edges}
       // The ghost is always the assistant side; there is no own-message mirror to take.
       mirrored={false}
-      pinnedHeader={args.pinnedHeader}
       messageRole="assistant"
       shape={GHOST_SHAPE}
       rule={args.rule}

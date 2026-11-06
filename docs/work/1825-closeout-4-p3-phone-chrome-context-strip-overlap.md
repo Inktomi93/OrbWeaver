@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-The change, in a sentence.
+Fix four phone chrome findings from the closeout 4 side-eye review. The chat context strip overlaps the tab control. The phone character sheet has two adjacent kebab menus. Screen titles truncate when actions share the bar. Refinery in short landscape opens scrolled past its top.
 
 ## Why
 
-The symptom or the ruling behind it.
+The review measured each of these on screen. The Evidence names the source report and its run ids.
 
 ## Done when
 
-The observable bar a verifier can check.
+Each finding is fixed with a component test, or answered with a cited reason, and a rendered pass at the phone sizes shows none of them.
 
 ## Evidence
 

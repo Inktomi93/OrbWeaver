@@ -163,7 +163,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
+      <Row gap="field" align="baseline" className="flex-1 min-inline-0" justify="end">
         <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>

@@ -2,7 +2,7 @@
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import type { DocCommand, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
+import type { DocCommand, ItemContent, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
 import { ADR_SECTION_FLAGS, ITEM_EDIT_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { ITEM_STATES } from "../contract/vocab.ts";
 import { isItemKind, isItemState } from "./items.ts";
@@ -19,10 +19,10 @@ const VERB_USAGE = {
     "  new law <slug> [--title <t>]",
   ],
   item: [
-    "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
-    "       [--what <text>] [--why <text>] [--done <text>] [--commit]      (the title is positional, not --title)",
-    "  item --from <file.json> [--commit]  a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
-    "                                      what, why, done), written all-or-nothing",
+    "  item <title> --kind bug|work|decision|tooling --what <text> --why <text> --done <text>",
+    "       [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>] [--commit]      (the title is positional, not --title)",
+    "  item --from <file.json> [--commit]  a JSON array of items; title, kind, what, why and done are required keys,",
+    "                                      priority, area, plan, lane and blocked optional; written all-or-nothing",
   ],
   status: ["  status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason> (status parked, a plan)]"],
   set: [
@@ -177,6 +177,17 @@ function parseItemBatch(args: readonly string[]): DocCommand {
   return { kind: "item-batch", from, commit: args.includes(COMMIT_FLAG) };
 }
 
+/** An item is minted with its What, Why and Done when text: a missing flag refuses by name. */
+function parseItemContent(args: readonly string[]): ItemContent {
+  const content = parseContent(args, ITEM_CONTENT_FLAGS);
+  const { what, why, done } = content;
+  if (what === undefined || why === undefined || done === undefined) {
+    const missing = contentFlagNames(ITEM_CONTENT_FLAGS.filter((flag) => content[flag] === undefined));
+    throw new UsageError(`item requires ${contentFlagNames(ITEM_CONTENT_FLAGS).join(" ")} — missing ${missing.join(" ")}\n${usageFor("item")}`);
+  }
+  return { what, why, done };
+}
+
 function parseItem(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, [...ITEM_FLAGS, COMMIT_FLAG], "item", (flag) =>
     flag === "--title" ? `the title is positional: pnpm doc item "${args[args.indexOf(flag) + 1] ?? "<title>"}" --kind …` : null,
@@ -202,7 +213,7 @@ function parseItem(args: readonly string[]): DocCommand {
       plan: flagValue(args, "--plan"),
       lane: flagValue(args, "--lane"),
       blocked: flagValue(args, "--blocked"),
-      content: parseContent(args, ITEM_CONTENT_FLAGS),
+      content: parseItemContent(args),
     },
     commit: args.includes(COMMIT_FLAG),
   };

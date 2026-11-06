@@ -69,6 +69,9 @@ export type PlanSectionFlag = (typeof PLAN_SECTION_FLAGS)[number];
 /** The authored text per section. An absent section keeps its template prompt. */
 export type SectionContent<F extends string> = { readonly [K in F]?: string };
 
+/** The text an item is minted with: every authored section, so a mint cannot leave one to its prompt. */
+export type ItemContent = { readonly [K in ItemSectionFlag]: string };
+
 /** One item to mint. `lane` makes it `doing`, `blocked` makes it `blocked`, neither leaves it `open`. */
 export interface NewItemInput {
   readonly title: string;
@@ -78,7 +81,7 @@ export interface NewItemInput {
   readonly plan: string | null;
   readonly lane: string | null;
   readonly blocked?: string | null;
-  readonly content?: SectionContent<ItemSectionFlag>;
+  readonly content: ItemContent;
 }
 
 /** One ADR or plan to mint; a null title derives from the slug. */
@@ -165,6 +168,8 @@ export interface DriftFacts {
   /** `Closes:` ids per `main` commit carrying that trailer, across the whole branch, newest first. An id
    *  still open on the tree is dropped unless the commit's own tree holds today's file for it. */
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
+  /** Items whose What, Why or Done when text is still its template prompt, with the sections concerned. */
+  readonly templateItems: readonly { readonly id: number; readonly flags: readonly ItemSectionFlag[] }[];
   /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
   /** Parked plans whose wake condition the tree meets, by slug. */

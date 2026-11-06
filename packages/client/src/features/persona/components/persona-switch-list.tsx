@@ -153,7 +153,7 @@ function SwitchRow({
       <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
-      <Text as="span" truncate="fill" className="pointer-events-none relative basis-(--width-title-floor)" voice="label">
+      <Text as="span" className="pointer-events-none relative basis-(--width-title-floor)" truncate="fill" voice="label">
         {persona.name}
       </Text>
       {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}

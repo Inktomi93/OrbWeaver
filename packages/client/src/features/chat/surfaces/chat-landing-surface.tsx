@@ -38,7 +38,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   useFocusOnMount(surfaceRef, true, false);
 
   return (
-    <Stack align="center" scroll="y" className="justify-center block-full" focusTarget={true} padding="section" ref={surfaceRef} tabIndex={-1}>
+    <Stack align="center" scroll="y" className="block-full" justify="center" focusTarget={true} padding="section" ref={surfaceRef} tabIndex={-1}>
       <Stack className="inline-full max-inline-(--width-shell-content)" gap="section">
         <EmptyState
           action={

@@ -10,6 +10,7 @@ export type {
   DriftFacts,
   Frontmatter,
   GovernedDoc,
+  ItemContent,
   ItemKind,
   ItemPatch,
   ItemSectionFlag,

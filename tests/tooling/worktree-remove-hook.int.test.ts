@@ -40,14 +40,25 @@ function hookPayload(worktree: string): string {
 }
 
 /** Add a worktree, write a band row owned by `owner`, run the hook over that worktree. */
-function removeWorktree(planted: { readonly repo: string; readonly bin: string }, name: string, owner: (worktree: string) => string): string {
+function removeWorktree(
+  planted: { readonly repo: string; readonly bin: string },
+  name: string,
+  owner: (worktree: string) => string,
+  prepare?: (worktree: string) => void,
+): string {
   const worktree = join(planted.repo, ".claude", "worktrees", name);
   execFixtureGit(planted.repo, ["worktree", "add", "-q", "-b", `wt/${name}`, worktree]);
   const row = { band: 0, checkout: owner(worktree), dir: join(owner(worktree), ".cache", "snap-stage", "x") };
   writeFileSync(join(planted.repo, ".cache", "snap-stage", "bands.json"), `${JSON.stringify({ v: 1, rows: [row] })}\n`);
+  prepare?.(worktree);
   const payload = hookPayload(worktree);
   runNicedSync("bash", ["-c", `printf '%s' '${payload}' | PATH="${planted.bin}:$PATH" bash ${HOOK}`]);
   return worktree;
+}
+
+function plantReport(checkout: string, path: string, text: string): void {
+  mkdirSync(join(checkout, "reports", path, ".."), { recursive: true });
+  writeFileSync(join(checkout, "reports", path), text);
 }
 
 test("removing a worktree that OWNS a stage band tears the stage down through snap's own door first", ({ scratch }) => {
@@ -108,4 +119,39 @@ test("teardown preserves commits that have not reached the main checkout", ({ sc
   runNicedSync("bash", ["-c", `printf '%s' '${hookPayload(worktree)}' | bash '${HOOK}'`]);
   expect(existsSync(worktree)).toBe(false);
   expect(execFixtureGit(planted.repo, ["rev-parse", "--verify", "refs/heads/wt/unmerged"]).trim()).toBe(tip);
+});
+
+test("removal keeps lane and review reports, and never the bulky run output", ({ scratch }) => {
+  const planted = plantRepo(scratch);
+  const worktree = removeWorktree(
+    planted,
+    "reported",
+    () => "/elsewhere",
+    (checkout) => {
+      plantReport(checkout, "lanes/lane.md", "lane\n");
+      plantReport(checkout, "code-reviewer/review.md", "review\n");
+      plantReport(checkout, "ct-results/trace.zip", "bulk\n");
+    },
+  );
+
+  expect(existsSync(worktree)).toBe(false);
+  expect(readFileSync(join(planted.repo, "reports/lanes/lane.md"), "utf8")).toBe("lane\n");
+  expect(readFileSync(join(planted.repo, "reports/code-reviewer/review.md"), "utf8")).toBe("review\n");
+  expect(existsSync(join(planted.repo, "reports/ct-results"))).toBe(false);
+});
+
+test("a report main already holds with other text survives beside the worktree's copy", ({ scratch }) => {
+  const planted = plantRepo(scratch);
+  plantReport(planted.repo, "lanes/lane.md", "main with an addendum\n");
+  removeWorktree(
+    planted,
+    "clash",
+    () => "/elsewhere",
+    (checkout) => {
+      plantReport(checkout, "lanes/lane.md", "worktree\n");
+    },
+  );
+
+  expect(readFileSync(join(planted.repo, "reports/lanes/lane.md"), "utf8")).toBe("main with an addendum\n");
+  expect(readFileSync(join(planted.repo, "reports/lanes/lane.md.clash"), "utf8")).toBe("worktree\n");
 });

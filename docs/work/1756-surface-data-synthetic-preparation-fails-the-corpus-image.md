@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: tests
 plan: test-foundation
@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-The change, in a sentence.
+Make the surface-data synthetic preparation supply the corpus image bytes that its image requests need.
 
 ## Why
 
-The symptom or the ruling behind it.
+After the count wiring, a request with a customized count neither reads nor seeds the reuse rows, and the corpus asked for more images than it supplies. The Evidence holds the cause and the fix.
 
 ## Done when
 
-The observable bar a verifier can check.
+The surface-data synthetic case in tests/support/node and the corpus chat imagery test both pass.
 
 ## Evidence
 

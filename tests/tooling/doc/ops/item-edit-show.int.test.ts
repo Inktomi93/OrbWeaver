@@ -1,9 +1,11 @@
 // `edit` and `show` on planted trees: edit replaces named section bodies through the judged write path and
 // leaves everything else byte-identical, and every write that touches a doc leaves it formatted.
+
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { editItem, newItem, sectionsOf, setItems, showItems, splitDocument } from "../../../../tooling/src/doc/index.ts";
+import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const LATER = "2026-10-01";
@@ -18,7 +20,7 @@ function read(root: string, path: string): string {
 
 async function rootWithItem(plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>): Promise<string> {
   const root = await plantedTree({});
-  newItem({ ...MINT, title: "A", content: { what: "Old what.", why: "Old why.", done: "Old done." } }, root, TODAY);
+  newItem(written({ ...MINT, title: "A", content: { what: "Old what.", why: "Old why.", done: "Old done." } }), root, TODAY);
   return root;
 }
 
@@ -75,7 +77,7 @@ test("show returns the files in the order given, drops a repeated id, and refuse
   plantedTree,
 }) => {
   const root = await rootWithItem(plantedTree);
-  newItem({ ...MINT, title: "B" }, root, TODAY);
+  newItem(written({ ...MINT, title: "B" }), root, TODAY);
   const shown = showItems([2, 9, 1, 2], root);
   expect(shown.shown.map((doc) => doc.path)).toEqual(["docs/work/0002-b.md", ITEM]);
   expect(shown.shown.map((doc) => doc.source)).toEqual([read(root, "docs/work/0002-b.md"), read(root, ITEM)]);
@@ -93,7 +95,7 @@ test("a retitling set rewrites the references in other docs and leaves each chan
   const root = await plantedTree({
     "docs/law/x.md": `---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n\n# X\n\nSee [A](../work/0001-a.md).\n\n${PADDED_TABLE}\n`,
   });
-  newItem({ ...MINT, title: "A" }, root, TODAY);
+  newItem(written({ ...MINT, title: "A" }), root, TODAY);
   const outcome = setItems([1], { title: "Renamed" }, root, LATER);
   expect(outcome.refusals).toEqual([]);
   expect(outcome.written).toContain("docs/law/x.md");

@@ -253,7 +253,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
       return null;
     }
     return (
-      <Text as="span" voice="gloss" truncate={true} className="px-field">
+      <Text as="span" voice="gloss" className="px-field" truncate={true}>
         {status}
       </Text>
     );

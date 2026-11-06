@@ -86,7 +86,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
       ref={(node): void => rowRef?.(row.path, node)}
       tabIndex={-1}
     >
-      <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field" justify="between">
+      <Row align="start" gap="field" justify="between" stackBelow="cq-32" stretchBelow="cq-32">
         <Text className="shrink-0" voice="code">
           {row.name}
         </Text>
@@ -96,7 +96,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
           </Text>
           <Text voice="gloss">{row.source}</Text>
         </Stack>
-        <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
+        <Row className="shrink-0" endBelow="cq-32" gap="field">
           {row.overridden ? (
             <ConfirmDialog
               confirmLabel="Reset"
@@ -149,7 +149,7 @@ function FactOverrideEditor({
   const refusal = boundRefusal(row.edit, draft);
 
   return (
-    <Row align="end" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
+    <Row align="end" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
       <Stack className="grow min-inline-0" gap="tight">
         <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
         {refusal === null ? (
@@ -160,7 +160,7 @@ function FactOverrideEditor({
           </Text>
         )}
       </Stack>
-      <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
+      <Row className="shrink-0" endBelow="cq-32" gap="field">
         <Button variant="ghost" onClick={onCancel} size="sm">
           {DIALOG_VERBS.cancel}
         </Button>

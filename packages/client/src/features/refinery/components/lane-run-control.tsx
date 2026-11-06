@@ -162,7 +162,7 @@ export function LaneRunControl({
         {/* Token arithmetic is shown only when it is the reason to act (this stage would not fit): on a run
             that fits, "in ≈ 517 / 1048576" is jargon with nothing to do about it. */}
         {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}
-        <Row className="flex-1 justify-end" gap="field">
+        <Row className="flex-1" justify="end" gap="field">
           {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
               A neutral outline takes its host's ink, so a non-focal lane's Run button would paint at the SAME ink
               as the one filled lane beside it on the canvas — the header's own "every other lane's stays

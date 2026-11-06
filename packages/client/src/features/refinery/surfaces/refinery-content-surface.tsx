@@ -193,7 +193,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
     // INSTRUMENT tier (UI-Density-Law.md §3.1): the workbench is a cockpit you scan — three payloads per
     // glance — so its islands resolve the dense steps and its rails are kickers + hairlines, not boxes.
     <Surface tier="instrument">
-      <Stack className="pbs-block pbe-gutter" data-testid={testId("refineryContent")} gap="block">
+      <Stack className="pbe-gutter" paddingBlockStart="block" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
           // The live card took this session's commit: the server's lock, or an Apply this view just made. A copy
@@ -220,7 +220,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           // stack, which keeps every lane's full width at the phone/3-pane mount instead of crushing the
           // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
           // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)
-          <Row align="start" className="@max-cq-64:flex-col @max-cq-64:items-stretch" gap="block">
+          <Row align="start" gap="block" stackBelow="cq-64" stretchBelow="cq-64">
             <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
               <PayloadLane
                 arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}

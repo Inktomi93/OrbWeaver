@@ -145,7 +145,17 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     // the ONE surviving island (the hearth hero) resolves its padding and radius from.
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
-      <Stack scroll="y" className="px-section pbs-section pbe-gutter block-full" scrollFade="y" focusTarget={true} gap="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack
+        scroll="y"
+        className="pbe-gutter block-full"
+        paddingInline="section"
+        paddingBlockStart="section"
+        scrollFade="y"
+        focusTarget={true}
+        gap="section"
+        ref={surfaceRef}
+        tabIndex={-1}
+      >
         {/* The anchor sets NO `size`: the container-query context survives (the split answers to THIS pane's
             inline size, never the viewport — the shell's docked panels narrow it independently) and the
             max-width cap that was eating 37% of the page goes. */}

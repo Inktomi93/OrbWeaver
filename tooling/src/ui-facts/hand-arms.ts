@@ -78,12 +78,24 @@ function offersFamily(arms: ArmClasses, base: string): boolean {
   return written.length === 1 && arms.size > 1 && (written[0]?.length ?? 0) > 0;
 }
 
+/** The axis of a component's recipe that owns the class: an arm writes it alone, or writes it as the axis's choice in its family. */
+export function axisWriting(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
+  const axes = [...(recipe?.axes ?? [])];
+  return (
+    axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
+    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token))
+  );
+}
+
+/** The arm of an axis that writes the class: one that writes it alone, else the first that lists it. */
+export function armWriting(arms: ArmClasses, token: string): readonly [string, Arm] | undefined {
+  const all = [...arms];
+  return all.find(([, candidate]) => writesOnly(candidate, token)) ?? all.find(([, candidate]) => candidate.tokens.includes(token));
+}
+
 /** The axis that owns the class: an arm writes it alone, or writes it as the axis's choice in its family. Null when the element is not a primitive or no arm does. */
 export function writingAxis(elem: Elem | null, token: string, components: ComponentTables): DeclaredAxis | null {
-  const axes = [...(recipeOf(elem, components)?.axes ?? [])];
-  const found =
-    axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token));
+  const found = axisWriting(recipeOf(elem, components), token);
   return elem === null || found === undefined ? null : declaredAxis(elem, found[0], found[1]);
 }
 
@@ -134,9 +146,7 @@ const conditionalMark = (token: string, guarded: boolean): string => (guarded ||
 
 /** The recipe verdict for a class an arm of the axis writes, naming the slots when the arm is slot-keyed. */
 export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boolean): Judgement {
-  const arms = [...axis.arms];
-  const [arm, written] = arms.find(([, candidate]) => writesOnly(candidate, token)) ??
-    arms.find(([, candidate]) => candidate.tokens.includes(token)) ?? ["", null];
+  const [arm, written] = armWriting(axis.arms, token) ?? ["", null];
   const slots = written === null || written.slots.length === 0 ? "" : ` in slots ${written.slots.join(", ")}`;
   return {
     verdict: "recipe",

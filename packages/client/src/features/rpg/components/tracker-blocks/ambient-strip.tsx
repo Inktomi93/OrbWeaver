@@ -146,7 +146,7 @@ function AmbientVocabPicker({
           like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
-        <Row divider="top" className="mbs-field basis-full pbs-field">
+        <Row divider="top" className="mbs-field basis-full" paddingBlockStart="field">
           <Button
             type="button"
             variant="ghost"

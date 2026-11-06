@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release this checkout's Snap stage; the caller owns Git worktree removal.
+# Keep this checkout's written reports and release its Snap stage; the caller owns Git worktree removal.
 set -euo pipefail
 
 checkout=$(pwd -P)
@@ -14,4 +14,22 @@ if [ -r "$table" ]; then
   if [ "$owned" -gt 0 ]; then
     (cd "$root" && pnpm snap --stage-down --stage-owner "$checkout" --force)
   fi
+fi
+
+# Reports are gitignored, so removal would delete them. Only written reports move: run output such as
+# reports/ct-results is bulky and rebuilt by the next run. A report main already holds with other text may
+# carry later additions, so it stays and this copy lands beside it.
+if [ "$checkout" != "$root" ]; then
+  for family in lanes code-reviewer ux-reviewer deep-reviewer; do
+    [ -d "$checkout/reports/$family" ] || continue
+    (cd "$checkout/reports" && find "$family" -type f) | while IFS= read -r report; do
+      target="$root/reports/$report"
+      mkdir -p "$(dirname "$target")"
+      if [ ! -e "$target" ]; then
+        cp -p "$checkout/reports/$report" "$target"
+      elif ! cmp -s "$checkout/reports/$report" "$target"; then
+        cp -p "$checkout/reports/$report" "$target.$(basename "$checkout")"
+      fi
+    done
+  done
 fi

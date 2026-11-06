@@ -15,9 +15,9 @@ import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
-import { applyPatch, commitRefusal, isItemPath, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
+import { applyPatch, commitRefusal, isItemPath, itemEditCommand, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
 import { basenameOf, folderOf, numberedName, parseNumberedName, referencePatterns, slugify } from "../lib/names.ts";
-import { ITEM_SECTIONS, itemTemplate } from "../lib/templates.ts";
+import { ITEM_SECTIONS, itemTemplate, templateItemFlags, unwrittenItemFlags } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import {
@@ -111,7 +111,8 @@ function planExists(slug: string, repoRoot: string): boolean {
   return existsSync(join(repoRoot, DOC_TOOL_TREES.plans, slug, DESIGN_FILE));
 }
 
-/** The refusals an input earns before it has a path: an unknown plan, an empty title, two states. */
+/** The refusals an input earns before it has a path: an unknown plan, an empty title, two states, an
+ *  authored section left blank or at its prompt. */
 function inputProblems(input: NewItemInput, repoRoot: string): readonly string[] {
   const problems: string[] = [];
   if (input.plan !== null && !planExists(input.plan, repoRoot)) {
@@ -122,6 +123,9 @@ function inputProblems(input: NewItemInput, repoRoot: string): readonly string[]
   }
   if (input.lane !== null && (input.blocked ?? null) !== null) {
     problems.push(`"${input.title}": a lane makes an item doing and a blocker makes it blocked — name one`);
+  }
+  for (const flag of unwrittenItemFlags(input.content)) {
+    problems.push(`"${input.title}": --${flag} (key \`${flag}\` in an --from file) needs real text, not a blank or the template prompt`);
   }
   return problems;
 }
@@ -224,6 +228,18 @@ function itemEdit(item: WorkItem, patch: ItemPatch, repoRoot: string, date: stri
   return { from: item.path, doc: { path, source } };
 }
 
+/** An item with no written What, Why and Done when carries no work a lane could take, so `doing` and
+ *  `--lane` refuse it; `open` and `blocked` stay available, which keeps the board writable. */
+function laneRefusals(items: readonly WorkItem[], patch: ItemPatch, repoRoot: string): readonly string[] {
+  if (patch.state !== "doing" && typeof patch.lane !== "string") {
+    return [];
+  }
+  return items.flatMap((item) => {
+    const unwritten = templateItemFlags(splitDocument(readDoc(item.path, repoRoot).source).body);
+    return unwritten.length === 0 ? [] : [`${String(item.id)}: still holds template text, so it cannot go to a lane — ${itemEditCommand(item.id, unwritten)}`];
+  });
+}
+
 /** Apply one patch to N items. Each item's final shape is judged against the tree AFTER the patch, so a
  *  `blocked on 12` naming an item that exists passes and one naming nothing refuses. A new title renames
  *  the file and rewrites every reference to the old name. */
@@ -234,6 +250,13 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
   const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
   const refusals = ids.filter((id) => !byId.has(id)).map((id) => `${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`);
   const edits: DocEdit[] = [];
+  refusals.push(
+    ...laneRefusals(
+      ids.flatMap((id) => byId.get(id) ?? []),
+      patch,
+      repoRoot,
+    ),
+  );
   for (const id of ids) {
     const item = byId.get(id);
     const edit = item === undefined ? null : itemEdit(item, patch, repoRoot, date);
@@ -281,9 +304,14 @@ function replaceSections(
   }
   let next = source;
   const refusals: string[] = [];
+  const unwritten = unwrittenItemFlags(sections);
   for (const section of ITEM_SECTIONS) {
     const text = section.flag === null ? undefined : sections[section.flag];
     if (text === undefined) {
+      continue;
+    }
+    if (unwritten.some((flag) => flag === section.flag)) {
+      refusals.push(`${path}: the ${section.name} text is blank or the template prompt — --${section.flag} takes real text`);
       continue;
     }
     const headings = structuralHeadings(text);

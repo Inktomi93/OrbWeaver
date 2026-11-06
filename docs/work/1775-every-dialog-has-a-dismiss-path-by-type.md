@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
 area: ui
 plan: type-law
@@ -11,15 +11,15 @@ plan: type-law
 
 ## What
 
-The change, in a sentence.
+Make FormDialog own its footer, with a required submit and a Cancel that is always rendered, and remove the orb/dialog-needs-dismiss rule.
 
 ## Why
 
-The symptom or the ruling behind it.
+A dialog can ship with no way out because only a lint rule checks for one. Type law 5 says a wrong composition fails the typecheck.
 
 ## Done when
 
-The observable bar a verifier can check.
+A dialog built on FormDialog without a submit fails the typecheck. orb/dialog-needs-dismiss is gone from eslint.config.ts and tooling/src/eslint/ui-feature-policy.ts, and docs/law/client-architecture-lockdown.md no longer lists the item.
 
 ## Evidence
 

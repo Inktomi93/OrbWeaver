@@ -69,7 +69,16 @@ export function PluginSurfaceShell({
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}
-        <Row align="center" className="shrink-0 px-block py-field" data-testid={testId("pluginPageAttribution")} divider="bottom" gap="field" ground="faint">
+        <Row
+          align="center"
+          className="shrink-0"
+          paddingBlock="field"
+          paddingInline="block"
+          data-testid={testId("pluginPageAttribution")}
+          divider="bottom"
+          gap="field"
+          ground="faint"
+        >
           <Icon icon={Blocks} size="sm" />
           <Text voice="label">{pluginName}</Text>
           {showTitle ? (
@@ -90,7 +99,7 @@ export function PluginSurfaceShell({
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={regionName} scroll="y" className="grow p-block" gap="block" role="group">
+        <Stack aria-label={regionName} scroll="y" className="grow" padding="block" gap="block" role="group">
           {children}
         </Stack>
       </Stack>

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P3
 area: testing
 plan: surface-walk
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-The change, in a sentence.
+After a delete in a walk journey, make the walker assert that focus is not on the page body and that no read of the deleted id follows.
 
 ## Why
 
-The symptom or the ruling behind it.
+The focus drop after a delete and the 404 from a read of a deleted preset are one class of defect, and no walk step checks for either.
 
 ## Done when
 
-The observable bar a verifier can check.
+The walker fails a journey that leaves focus on the body or reads the deleted id after a delete. A planted control journey that does both fails the check.
 
 ## Evidence
 

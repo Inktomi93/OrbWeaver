@@ -226,7 +226,7 @@ function PairFace({
 }): ReactElement {
   return (
     <Row align="center" className="inline-full min-inline-0" gap="field" justify="between">
-      <Text as="span" truncate={true} className="text-start">
+      <Text as="span" className="text-start" truncate={true}>
         {left} ↔ {right}
       </Text>
       <Row align="center" className="shrink-0" gap="field">

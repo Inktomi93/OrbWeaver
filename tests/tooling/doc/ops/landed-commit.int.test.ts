@@ -1,6 +1,7 @@
 // `landedCommit` names the commit that deleted an item's file. A merge counts only when the deletion happened
 // IN the merge; a merge that merely carries a deletion one parent already had, or an `ours` merge, is not a
 // landing. A wrong answer here lets a bad `Closes:` trailer read as landed.
+
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -8,6 +9,7 @@ import { landStaged, newItem } from "../../../../tooling/src/doc/index.ts";
 import { landedCommit } from "../../../../tooling/src/doc/ops/tree.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const TIMEOUT = { timeout: scaledBudget(60_000) };
@@ -32,7 +34,7 @@ async function repoWithItem(
   git(root, "init", "-q", "-b", "main");
   configureFixtureGitIdentity(root);
   const base = commitAll(root, "chore: base");
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   return { root, base };
 }

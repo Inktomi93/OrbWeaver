@@ -91,7 +91,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={containerRef}>
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" paddingBlock="section" ref={containerRef}>
       <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two

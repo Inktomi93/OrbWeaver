@@ -4,6 +4,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { docFileCount, docLayerProblems, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
+import { WRITTEN_CONTENT, written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 const MISSION = "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# Mission\n\nWhy this shape.\n";
@@ -12,21 +13,20 @@ test("a freshly minted tree is clean, and the count is the governed docs read", 
   const root = await plantedTree({ "docs/Mission.md": MISSION });
   newAdr({ slug: "one", title: "One" }, root, TODAY);
   newPlan({ slug: "p", title: "P" }, root, TODAY);
-  newItem({ title: "T", kind: "work", priority: "P1", area: "docs", plan: "p", lane: null }, root, TODAY);
+  newItem(written({ title: "T", kind: "work", priority: "P1", area: "docs", plan: "p", lane: null }), root, TODAY);
   expect(docLayerProblems(root)).toEqual([]);
   // The ADR, the plan, the item, the mission doc, the four indexes and the plan's tasks file.
   expect(docFileCount(root)).toBe(9);
 });
 
 test("a batch of complete items, blocked ones included, round-trips through the check clean", async ({ plantedTree }) => {
-  const text = { what: "The change.", why: "The symptom.", done: "The bar." };
   const root = await plantedTree({
     "docs/Mission.md": MISSION,
     "items.json": JSON.stringify([
-      { title: "Build it", kind: "work", priority: "P1", area: "docs", ...text },
-      { title: "After it", kind: "work", blocked: "on 1", ...text },
-      { title: "Owner call", kind: "decision", blocked: "owner", ...text },
-      { title: "In flight", kind: "tooling", lane: "cb-x", ...text },
+      { title: "Build it", kind: "work", priority: "P1", area: "docs", ...WRITTEN_CONTENT },
+      { title: "After it", kind: "work", blocked: "on 1", ...WRITTEN_CONTENT },
+      { title: "Owner call", kind: "decision", blocked: "owner", ...WRITTEN_CONTENT },
+      { title: "In flight", kind: "tooling", lane: "cb-x", ...WRITTEN_CONTENT },
     ]),
   });
   expect(newItemsFrom("items.json", root, TODAY).refusals).toEqual([]);
@@ -71,7 +71,7 @@ test("a relative code-span path resolves against its own file: a missing target 
 
 test("the walk sees a nested item folder and a non-markdown file under a governed tree (F12)", async ({ plantedTree }) => {
   const root = await plantedTree({ "docs/Mission.md": MISSION, "docs/adr/notes.txt": "stray\n" });
-  newItem({ title: "T", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "T", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   const { mkdirSync, renameSync } = await import("node:fs");
   const { join } = await import("node:path");
   mkdirSync(join(root, "docs/work/sub"));

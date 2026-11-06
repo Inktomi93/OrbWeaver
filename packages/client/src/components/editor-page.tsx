@@ -29,13 +29,12 @@ export function EditorPage({ kind = "form", inset = "none", gap, padding, focusT
         {...stack}
         gap={gap}
         padding={padding}
+        paddingBlock={inset === "none" ? undefined : inset}
         focusTarget={focusTarget}
         className={cn(
           kind === "form"
             ? "mx-auto inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
             : "mx-auto inline-full max-inline-(--width-content-col) min-inline-0",
-          inset === "block" ? "py-block" : undefined,
-          inset === "section" ? "py-section" : undefined,
         )}
       />
     </Surface>
