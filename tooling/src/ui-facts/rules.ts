@@ -137,8 +137,9 @@ export const NOT_LINTABLE: readonly NotLintable[] = [
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
   "Class strings assembled across statements are not read. A constant is read when it is named *Class or *Classes, or when a className, *ClassName, cn or tv in its own file or a relative importer reads it; an import through an alias is not followed.",
-  "A computed prop, or a spread that is not an object literal, is unread by the variant census; an axis with such a use cannot claim an unused value.",
+  "A computed prop is unread by the variant census; an axis with such a use cannot claim an unused value. A spread that is not an object literal writes nothing there, on the word of orb/no-opaque-variant-spread.",
   "Layout variants are merged per door, so a value used on Row counts for Stack.",
+  "A `<Track of={X}>` counts as X, and a door that renders another door's core.tsx (GlyphButton, InlineAction, PictureButton) counts for that door's axes. A prop renamed onto an axis (`actionsFloat` to `float`), a value computed inside a component, and a wrapper door that writes another door's axis (RadioGroupPicker to PickerCell) are not seen, so read the component before deleting an unwritten value.",
   "Dialog dismiss evidence is read per file: a file with two dialogs shares one answer. Dismiss evidence is an element, not a runtime check.",
   "The destructive-verb check reads button text against a word list; a Delete behind an icon-only button is not matched.",
   "CSS is read line by line; a declaration split over lines is partly read. Selector context is not read.",

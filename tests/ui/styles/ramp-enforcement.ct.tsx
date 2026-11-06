@@ -48,7 +48,7 @@ test("public icon ink and optical weights follow tokens and scaling without chan
   for (const scale of [1, LARGE_SCALE]) {
     await rootScale(page, scale);
     for (const [name, token, stroke] of [
-      ["Small icon", "size.icon-xs", "stroke-width.icon-hairline"],
+      ["Small icon", "size.icon-xs", "stroke-width.icon-regular"],
       ["Regular icon", "size.icon-md", "stroke-width.icon-regular"],
       ["Bold icon", "size.icon-lg", "stroke-width.icon-bold"],
     ] as const) {
@@ -67,8 +67,8 @@ test("public icon ink and optical weights follow tokens and scaling without chan
     await expect(parent).toBeVisible();
   }
   const compact = component.getByRole("status").filter({ hasText: "Compact loader" });
-  const hero = component.getByRole("status").filter({ hasText: "Hero loader" });
-  await expect(compact.locator(".orb-web-spokes")).not.toHaveAttribute("d", (await hero.locator(".orb-web-spokes").getAttribute("d")) ?? "missing");
+  const large = component.getByRole("status").filter({ hasText: "Large loader" });
+  await expect(compact.locator(".orb-web-spokes")).not.toHaveAttribute("d", (await large.locator(".orb-web-spokes").getAttribute("d")) ?? "missing");
 });
 
 test("owner size and border overrides reach icon ink, editor diagnostics and the textarea row box", async ({ mount, page }, testInfo) => {

@@ -19,7 +19,7 @@ const COMPOSITION_CANNOT_SEE: readonly string[] = [
   "Success feedback is file-level: a toast manager anywhere in the file counts for every mutation in it. A success message built in a shared helper is invisible.",
   "Inline failure is a read of error, isError, retry or clearError on the hook result; an error shown through a prop passed from a parent is invisible.",
   "Form mode follows factory names across imports and tags; a form built by a helper in another file is attributed by its imported name only.",
-  "Variant uses resolve through same-file consts, conditionals and `??`, `||`, `&&` of literals, three hops deep. A prop, a call, an import or a template with substitutions stays unresolved. A spread of an object literal (or a same-file const of one) writes its axes; any other spread leaves every axis of its door unresolved.",
+  "Variant uses resolve through same-file consts, conditionals and `??`, `||`, `&&` of literals, three hops deep. A prop, a call, an import or a template with substitutions stays unresolved. A spread of an object literal (or a same-file const of one) writes its axes. Any other spread writes nothing here, because `orb/no-opaque-variant-spread` refuses one whose type can carry an axis; a computed key or a getter in a literal stays unresolved.",
 ];
 const COHORT_NAMES = ["section-structure", "read-shape", "feedback", "form"] as const;
 
@@ -174,7 +174,7 @@ function variantLines(facts: UiFacts): string[] {
   return [
     "### Variant use",
     "",
-    `Read ${report.sitesRead} primitive axis writes. Cells are literal writes, plus writes reached through a same-file const map, conditional or fallback after the plus. ${report.spreadSites} primitive elements spread props; the literal ones are read as writes, the rest stay unresolved on every axis of their door.`,
+    `Read ${report.sitesRead} primitive axis writes. Cells are literal writes, plus writes reached through a same-file const map, conditional or fallback after the plus. ${report.spreadSites} primitive elements spread props; the literal ones are read as writes, and the lint rule keeps every other spread free of variant axes.`,
     "",
     `Declared axes whose values the syntax could not fully read (${report.unreadAxes.length}): ${report.unreadAxes.join(", ") || "none"}. Their census is a lower bound.`,
     "",

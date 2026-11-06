@@ -34,7 +34,15 @@ function Satellite({ orb, ordinal }: { readonly orb: RpgTrackerOrb; readonly ord
     return <CoinFigure amount={orb.value} label={orb.label} color={color.color} showCaption={true} />;
   }
   return (
-    <RingGauge value={orb.value} max={orb.max} {...color} label={orb.label} showCaption={true} captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()} />
+    <RingGauge
+      value={orb.value}
+      max={orb.max}
+      color={color.color}
+      {...(color.customColor === undefined ? {} : { customColor: color.customColor })}
+      label={orb.label}
+      showCaption={true}
+      captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
+    />
   );
 }
 

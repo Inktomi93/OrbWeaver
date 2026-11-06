@@ -20,7 +20,8 @@ export function FlowDialogStory(): ReactElement {
       <FlowDialog
         defaultOpen={true}
         title="Join a room"
-        bodyProps={{ container: true, ref: bodyRef, tabIndex: -1, role: "region", "aria-label": "Dialog stage" }}
+        bodyContainer={true}
+        bodyProps={{ ref: bodyRef, tabIndex: -1, role: "region", "aria-label": "Dialog stage" }}
         footer={
           <button onClick={(): void => bodyRef.current?.focus()} type="button">
             Continue

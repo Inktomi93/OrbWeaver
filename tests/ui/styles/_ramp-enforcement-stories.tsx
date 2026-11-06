@@ -26,12 +26,12 @@ export function RampControlsStory(): ReactElement {
     <CtIsolation subject="Token-backed public controls" isolates="Primitive ink, chrome and pointer hit geometry have no application state dependency.">
       <div style={{ display: "grid", gap: `var(${TOKENS["spacing.section"].cssVar})`, padding: `var(${TOKENS["spacing.section"].cssVar})` }}>
         <div data-slot="icon-samples">
-          <Icon icon={Lock} label="Small icon" size="xs" weight="hairline" />
+          <Icon icon={Lock} label="Small icon" size="xs" />
           <Icon icon={Lock} label="Regular icon" size="md" />
           <Icon icon={Lock} label="Bold icon" size="lg" weight="bold" />
         </div>
         <WebSpinner label="Compact loader" size="sm" />
-        <WebSpinner label="Hero loader" size="hero" />
+        <WebSpinner label="Large loader" size="xl" />
         <WeaveGlyph size="lg" />
         <SegmentedClock filled={1} segments={4} label="Hidden clock" hidden={true} />
         <Button size="sm" aria-pressed={pressed} onClick={(): void => setPressed(!pressed)}>

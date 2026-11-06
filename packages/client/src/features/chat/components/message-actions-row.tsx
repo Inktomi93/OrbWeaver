@@ -104,11 +104,28 @@ export interface MessageActionsRowProps {
 
 // The document chip paints the reading band under the cluster at the card radius, positioned and raised so it paints
 // over the line it sits on, not under its words.
-function ActionsFrame({ chip, className, ...row }: ComponentProps<typeof Row> & { readonly chip: boolean }): ReactElement {
+function ActionsFrame({
+  chip,
+  className,
+  gap,
+  align,
+  justify,
+  reveal,
+  ...row
+}: ComponentProps<"div"> & { readonly chip: boolean } & Pick<ComponentProps<typeof Row>, "gap" | "align" | "justify" | "reveal">): ReactElement {
   return chip ? (
-    <Row {...row} ground="readingBand" cardCorners="all" className={cn("relative z-(--z-raised)", className) ?? ""} />
+    <Row
+      {...row}
+      gap={gap}
+      align={align}
+      justify={justify}
+      reveal={reveal}
+      ground="readingBand"
+      cardCorners="all"
+      className={cn("relative z-(--z-raised)", className) ?? ""}
+    />
   ) : (
-    <Row {...row} className={className ?? ""} />
+    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} className={className ?? ""} />
   );
 }
 

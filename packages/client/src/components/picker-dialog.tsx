@@ -4,5 +4,5 @@ import { ContentDialog, ContentDialogClose } from "./content-dialog.tsx";
 
 /** Selection surface whose header stays put as filtered results change height. */
 export function PickerDialog(props: ContentDialogProps): ReactElement {
-  return <ContentDialog {...props} popupProps={{ anchor: "top", ...props.popupProps }} headerActions={props.headerActions ?? <ContentDialogClose />} />;
+  return <ContentDialog {...props} anchor={props.anchor ?? "top"} headerActions={props.headerActions ?? <ContentDialogClose />} />;
 }

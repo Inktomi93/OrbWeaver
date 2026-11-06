@@ -112,6 +112,8 @@ function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, Value
 export interface DeclaredVariants {
   /** Door to axis to the values its `tv` calls declare. */
   readonly axes: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+  /** A door whose components render another door's `core.tsx`, to that door: their attributes write the owner's axes. */
+  readonly carriers: ReadonlyMap<string, string>;
   /** `door.axis` of every declared axis whose values the syntax could not fully read: its census is a lower bound. */
   readonly unread: readonly string[];
 }
@@ -134,12 +136,41 @@ function doorAxes(
   return { axes: merged, unread };
 }
 
+const CORE_IMPORT = /^\.\.\/([^/]+)\/core\.tsx$/u;
+
+/** The sibling directories whose `core.tsx` the file imports. */
+function coreImports(sf: ts.SourceFile): readonly string[] {
+  return sf.statements.flatMap((statement) => {
+    const name =
+      ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier) ? CORE_IMPORT.exec(statement.moduleSpecifier.text)?.[1] : undefined;
+    return name === undefined ? [] : [name];
+  });
+}
+
+const doorAt = (dirs: ReadonlyMap<string, string>, dir: string): string | undefined => [...dirs].find(([, candidate]) => candidate === dir)?.[0];
+
+/** Door to the door whose `core.tsx` its files import: GlyphButton, InlineAction and PictureButton render the button core. */
+function coreCarriers(sources: readonly Source[], dirs: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+  const carriers = new Map<string, string>();
+  for (const source of sources) {
+    const door = source.layer === "ui" && source.sf !== null ? doorAt(dirs, dirname(source.path)) : undefined;
+    for (const name of door === undefined || source.sf === null ? [] : coreImports(source.sf)) {
+      const owner = doorAt(dirs, join(dirname(source.path), "..", name));
+      if (door !== undefined && owner !== undefined && owner !== door) {
+        carriers.set(door, owner);
+      }
+    }
+  }
+  return carriers;
+}
+
 /** Declared variant axes and values per door, read from the `tv` calls in the door directory's variants files. */
 export function declaredVariants(root: string, sources: readonly Source[]): DeclaredVariants {
   const index = scaleIndex(sources);
   const axes = new Map<string, ReadonlyMap<string, readonly string[]>>();
   const unread = new Set<string>();
-  for (const [door, dir] of doorDirs(root)) {
+  const dirs = doorDirs(root);
+  for (const [door, dir] of dirs) {
     const files = sources.filter((source) => source.layer === "ui" && dirname(source.path) === dir && /variants\.ts$/u.test(source.path));
     const read = doorAxes(door, files, index);
     if (read.axes.size > 0) {
@@ -149,7 +180,7 @@ export function declaredVariants(root: string, sources: readonly Source[]): Decl
       unread.add(entry);
     }
   }
-  return { axes, unread: [...unread] };
+  return { axes, carriers: coreCarriers(sources, dirs), unread: [...unread] };
 }
 
 interface Resolution {
@@ -255,8 +286,6 @@ function attributeResolution(elem: Elem, name: string, sf: ts.SourceFile): { rea
   return { resolution: resolve(expression, sf, 0), direct: literalOf(unwrap(expression)) !== null };
 }
 
-const SPREAD_UNREAD = "spread of a prop, parameter or import";
-
 function objectAxis(object: ts.ObjectLiteralExpression, axis: string, sf: ts.SourceFile, hops: number): Resolution {
   const parts = object.properties.map((property): Resolution => {
     if (ts.isSpreadAssignment(property)) {
@@ -279,7 +308,10 @@ function objectAxis(object: ts.ObjectLiteralExpression, axis: string, sf: ts.Sou
   return merge(NONE, ...parts);
 }
 
-/** What `{...expression}` writes on one axis: object literals are read, anything else could carry any axis. */
+/**
+ * What `{...expression}` writes on one axis: object literals are read. Any other spread writes nothing here: the lint rule
+ * `orb/no-opaque-variant-spread` refuses one whose type can carry an axis of the element it lands on.
+ */
 function resolveSpread(expression: ts.Expression, axis: string, sf: ts.SourceFile, hops: number): Resolution {
   const node = unwrap(expression);
   if (ts.isObjectLiteralExpression(node)) {
@@ -298,7 +330,7 @@ function resolveSpread(expression: ts.Expression, axis: string, sf: ts.SourceFil
     }
   }
   const init = ts.isIdentifier(node) && hops < MAX_HOPS ? constInitializer(sf, node.text) : null;
-  return init === null ? unresolved(SPREAD_UNREAD) : resolveSpread(init, axis, sf, hops + 1);
+  return init === null ? NONE : resolveSpread(init, axis, sf, hops + 1);
 }
 
 export interface ValueUse {
@@ -322,7 +354,7 @@ export interface AxisUse {
 
 export interface VariantReport {
   readonly axes: readonly AxisUse[];
-  /** Elements of a primitive that spread props: a spread can carry any axis. */
+  /** Elements of a primitive that spread props. */
   readonly spreadSites: number;
   readonly sitesRead: number;
   /** Declared axes whose values the syntax could not fully read. */
@@ -343,14 +375,14 @@ interface AxisSite {
   readonly direct: boolean;
 }
 
-function axisSites(all: readonly FileFacts[], door: string, axis: string): readonly AxisSite[] {
+function axisSites(all: readonly FileFacts[], writers: ReadonlySet<string>, axis: string): readonly AxisSite[] {
   return all.flatMap((facts) => {
     const sf = facts.source.sf;
     if (sf === null || facts.source.layer !== "client") {
       return [];
     }
     return facts.elems.flatMap((elem) => {
-      if (elem.door !== door) {
+      if (elem.door === null || !writers.has(elem.door)) {
         return [];
       }
       const path = facts.source.path;
@@ -362,10 +394,16 @@ function axisSites(all: readonly FileFacts[], door: string, axis: string): reado
   });
 }
 
-function tallyAxis(all: readonly FileFacts[], door: string, axis: string, declared: readonly string[]): { axisUse: AxisUse; sites: number } {
+interface AxisKey {
+  readonly door: string;
+  readonly axis: string;
+}
+
+function tallyAxis(all: readonly FileFacts[], writers: ReadonlySet<string>, axis: AxisKey, declared: readonly string[]): { axisUse: AxisUse; sites: number } {
+  const { door } = axis;
   const tallies = new Map<string, Tally>(declared.map((value) => [value, { direct: 0, resolved: 0, files: new Set(), tags: new Set() }]));
   const reasons: Record<string, number> = {};
-  const sites = axisSites(all, door, axis);
+  const sites = axisSites(all, writers, axis.axis);
   for (const site of sites) {
     for (const reason of site.resolution.reasons) {
       reasons[reason] = (reasons[reason] ?? 0) + 1;
@@ -386,7 +424,7 @@ function tallyAxis(all: readonly FileFacts[], door: string, axis: string, declar
     files: tally.files.size,
     tags: [...tally.tags].sort(),
   }));
-  return { axisUse: { door, axis, values, unresolved: reasons }, sites: sites.length };
+  return { axisUse: { door, axis: axis.axis, values, unresolved: reasons }, sites: sites.length };
 }
 
 export function variantReport(all: readonly FileFacts[], declared: DeclaredVariants): VariantReport {
@@ -394,7 +432,8 @@ export function variantReport(all: readonly FileFacts[], declared: DeclaredVaria
   let sitesRead = 0;
   for (const [door, byAxis] of declared.axes) {
     for (const [axis, values] of byAxis) {
-      const { axisUse, sites } = tallyAxis(all, door, axis, values);
+      const writers = new Set([door, ...[...declared.carriers].filter(([, owner]) => owner === door).map(([carrier]) => carrier)]);
+      const { axisUse, sites } = tallyAxis(all, writers, { door, axis }, values);
       axes.push(axisUse);
       sitesRead += sites;
     }

@@ -1,4 +1,4 @@
-import { FOCUS_RING, RECEDED, TONE_ARMS, tv } from "#lib";
+import { FOCUS_RING, TONE_ARMS, tv } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -14,8 +14,6 @@ const MEANING_EDGE = "border-tone-solid data-[tone=neutral]:border-tone-edge";
 export const cardVariants = tv({
   base: "rounded-base border p-block text-card-foreground",
   variants: {
-    // A bounded column surface passes its allocated height to shrinkable content.
-    layout: { stack: "flex flex-col" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
     // preview row): the control radius, because you operate it. The radius is re-declared in tiers.css, where the
@@ -41,8 +39,6 @@ export const cardVariants = tv({
     // A set state marked on the card's leading edge (an override that differs from the default).
     rail: { none: "", primary: "border-s-2 border-s-primary" },
     artDecoration: ART_DECORATION,
-    // The whole box at the receded step, fill and ink together: a box that stays readable but stands behind its siblings.
-    receded: { true: RECEDED, false: "" },
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
     focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },
     dashed: { true: "border-dashed", false: "" },
@@ -108,7 +104,6 @@ export const cardVariants = tv({
     dashed: false,
     glow: "none",
     rail: "none",
-    receded: false,
     focusable: false,
   },
 });

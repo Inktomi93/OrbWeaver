@@ -176,17 +176,10 @@ function clusterSpacers(rendered: number, reserved: number): readonly ReactEleme
  *  `subtitle={undefined}` is not the same as an absent `subtitle`. Hoisting the four conditionals out of the
  *  component keeps its own complexity under the ceiling (they cost 1 each, and the row already spends its
  *  budget on the cluster arithmetic below). */
-function optionalSlots({
-  leading,
-  subtitle,
-  subtitleStep,
-  markers,
-  subtitleLead,
-}: LibraryRowProps): Pick<ListRowProps, "leading" | "subtitle" | "subtitleStep" | "markers" | "subtitleLead"> {
+function optionalSlots({ leading, subtitle, markers, subtitleLead }: LibraryRowProps): Pick<ListRowProps, "leading" | "subtitle" | "markers" | "subtitleLead"> {
   return {
     ...(leading === undefined ? {} : { leading }),
     ...(subtitle === undefined ? {} : { subtitle }),
-    ...(subtitleStep === undefined ? {} : { subtitleStep }),
     ...(markers === undefined ? {} : { markers }),
     ...(subtitleLead === undefined ? {} : { subtitleLead }),
   };
@@ -230,6 +223,7 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
       data-selected={selected ? "" : undefined}
       title={title}
       {...passthrough(props)}
+      {...(props.subtitleStep === undefined ? {} : { subtitleStep: props.subtitleStep })}
       {...optionalSlots(props)}
       {...(hasCluster
         ? {

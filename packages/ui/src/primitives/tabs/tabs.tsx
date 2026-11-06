@@ -58,7 +58,7 @@ export function TabsList({ className, rule, fold, ...rest }: TabsListProps): Rea
   return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants({ listRule: rule, fold }).list(), className)} data-slot="tabs-list" {...rest} />;
 }
 
-// `layout="stacked"` is the glyph-over-caption cell (the rpg HUD's rails): the ONE home for a tab whose
+// `layout="cell"` is the glyph-over-caption rail cell: the ONE home for a tab whose
 // height must follow its content — a caller cannot get there with `className` (see variants.ts).
 export function TabsTab({ className, layout, quiet, ...rest }: TabsTabProps): ReactElement {
   return (

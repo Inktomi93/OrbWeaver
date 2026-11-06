@@ -98,7 +98,9 @@ test("variant values reached through a const map or a conditional count as writt
   expect(axes.find((entry) => entry.axis === "size")?.unresolved).toEqual({});
 });
 
-test("a spread of object literals writes its axes, and a spread the syntax cannot read makes every axis of the door unclaimable", ({ scratch }) => {
+test("a spread of object literals writes its axes, and a spread the syntax cannot read writes nothing, because the lint rule keeps it free of axes", ({
+  scratch,
+}) => {
   const root = plantDir(scratch, "variant-spreads");
   plant(root, {
     "components/spreads.tsx": [
@@ -118,8 +120,8 @@ test("a spread of object literals writes its axes, and a spread the syntax canno
   const resolved = (name: string, value: string): number | undefined => axis(name)?.values.find((entry) => entry.value === value)?.resolved;
   expect(resolved("variant", "ghost")).toBe(1);
   expect(resolved("size", "md")).toBe(1);
-  expect(axis("variant")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
-  expect(axis("size")?.unresolved).toEqual({ "spread of a prop, parameter or import": 1 });
+  expect(axis("variant")?.unresolved).toEqual({});
+  expect(axis("size")?.unresolved).toEqual({});
 });
 
 test("the skeleton cohorts hold list panes and context bodies, not the transcript, the host or the wiring file", () => {
@@ -265,6 +267,42 @@ test("a spread with a computed key or a getter leaves its door's axes unresolved
   });
   const variant = analyse(root, [], null).composition.variants.axes.find((entry) => entry.axis === "variant");
   expect(variant?.unresolved).toEqual({ "spread with a computed key": 1, "spread with a getter or method": 1 });
+});
+
+test("a Track carrying a ui element writes that element's axes", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-track");
+  plant(root, {
+    "components/carried.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'import { Track } from "../lib/chat-track.tsx";',
+      'export const A = () => <Track of={Button} track="chat" variant="ghost" />;',
+    ].join("\n"),
+  });
+  const variant = analyse(root, [], null).composition.variants.axes.find((entry) => entry.door === "button" && entry.axis === "variant");
+  expect(variant?.values.find((value) => value.value === "ghost")?.direct).toBe(1);
+});
+
+test("a door that renders another door's core writes that door's axes", ({ scratch }) => {
+  const root = plantDir(scratch, "variant-core");
+  plantFile(
+    root,
+    "packages/ui/package.json",
+    JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts", "./inline-action": "./src/primitives/inline-action/index.ts" } }),
+  );
+  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantFile(root, "packages/ui/src/primitives/button/variants.ts", BUTTON_VARIANTS);
+  plantFile(
+    root,
+    "packages/ui/src/primitives/inline-action/inline-action.tsx",
+    'import { ButtonCore } from "../button/core.tsx";\nexport const InlineAction = ButtonCore;',
+  );
+  plantFile(
+    root,
+    `${FEATURE}/components/inline.tsx`,
+    'import { InlineAction } from "@orb/ui/inline-action";\nexport const A = () => <InlineAction variant="link" />;',
+  );
+  const variant = analyse(root, [], null).composition.variants.axes.find((entry) => entry.door === "button" && entry.axis === "variant");
+  expect(variant?.values.find((value) => value.value === "link")?.direct).toBe(1);
 });
 
 test("a section's list boundary is the shell, the boundary or none", ({ scratch }) => {

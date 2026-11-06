@@ -62,7 +62,7 @@ import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { intentColorRecipeRule } from "./ui-intent-color.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import { noManualMemoRule, noUsePromiseRule } from "./ui-law-policy.ts";
-import { nativeCallbackNarrowingRule, overwrittenRefRule, unresolvedStyleSpreadRule } from "./ui-native-contracts.ts";
+import { nativeCallbackNarrowingRule, opaqueVariantSpreadRule, overwrittenRefRule, unresolvedStyleSpreadRule } from "./ui-native-contracts.ts";
 import {
   CLASS_RESTRICTIONS,
   CLIENT_CONFIG_HOST_RESTRICTIONS,
@@ -175,6 +175,7 @@ export function createOrbPlugin(options: {
       "no-native-title": nativeTitleRule,
       "no-overwritten-ref": overwrittenRefRule,
       "no-unresolved-style-spread": unresolvedStyleSpreadRule,
+      "no-opaque-variant-spread": opaqueVariantSpreadRule,
       "no-native-callback-narrowing": nativeCallbackNarrowingRule,
       "no-manual-memo": noManualMemoRule,
       "no-use-promise": noUsePromiseRule,

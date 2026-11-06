@@ -68,12 +68,21 @@ function useSlotImage(urlAt: ((cssWidth: number) => string) | undefined): {
   return { attach: setElement, url, failed };
 }
 
+// The Avatar's look rides on named props of these wrappers, so the variant census reads the Avatar they land on.
+const AVATAR_LOOK = ["size", "shape", "aspect", "ring", "cardCorners", "fade", "keepMounted"] as const;
+type AvatarLookKey = (typeof AVATAR_LOOK)[number];
+
 // A speaker's art as the control that opens it full size. The bare style: a tint over the art would read as a smudge,
 // and the press scale already answers a tap. The picture button sizes itself from its child, so wrapped art keeps its box.
-function ArtButton({ view, ...button }: Omit<PictureButtonProps, "aria-label" | "onClick" | "ref" | "variant"> & { readonly view: ArtView }): ReactElement {
+function ArtButton({
+  view,
+  cardCorners,
+  ...button
+}: Pick<PictureButtonProps, "cardCorners" | "className" | "children"> & { readonly view: ArtView }): ReactElement {
   return (
     <PictureButton
       {...button}
+      cardCorners={cardCorners}
       ref={(opener): void => view.control.attach(opener)}
       aria-label={view.label}
       onClick={(event): void => view.open(event.currentTarget)}
@@ -224,18 +233,31 @@ export function PortraitAvatar({
   view,
   stickyClassName,
   className,
+  size,
+  shape,
+  aspect,
+  ring,
+  cardCorners,
+  fade,
   ...avatar
-}: AvatarProps & {
-  readonly urlAt: ((cssWidth: number) => string) | undefined;
-  readonly view: ArtView | null;
-  readonly stickyClassName: string;
-}): ReactElement {
+}: Omit<AvatarProps, AvatarLookKey> &
+  Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
+    readonly urlAt: ((cssWidth: number) => string) | undefined;
+    readonly view: ArtView | null;
+    readonly stickyClassName: string;
+  }): ReactElement {
   const { attach, url, failed } = useSlotImage(urlAt);
   const tappable = view !== null && !failed;
   const portrait = (
     <Avatar
       ref={attach}
       {...avatar}
+      size={size}
+      shape={shape}
+      aspect={aspect}
+      ring={ring}
+      cardCorners={cardCorners}
+      fade={fade}
       className={cn(tappable ? undefined : stickyClassName, className) ?? ""}
       {...(url === undefined || failed ? {} : { src: url })}
     />
@@ -244,7 +266,7 @@ export function PortraitAvatar({
     return portrait;
   }
   return (
-    <ArtButton view={view} cardCorners={avatar.cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
+    <ArtButton view={view} cardCorners={cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
       {portrait}
     </ArtButton>
   );
@@ -257,15 +279,35 @@ export function ChipAvatar({
   src,
   view,
   layoutClassName,
+  size,
+  shape,
+  aspect,
+  ring,
+  cardCorners,
+  fade,
   ...avatar
-}: Omit<AvatarProps, "className" | "src"> & {
-  readonly src?: string;
-  readonly view: ArtView | null;
-  readonly layoutClassName: string;
-}): ReactElement {
+}: Omit<AvatarProps, "className" | "src" | AvatarLookKey> &
+  Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
+    readonly src?: string;
+    readonly view: ArtView | null;
+    readonly layoutClassName: string;
+  }): ReactElement {
   const { attach, failed } = useSlotImage(src === undefined ? undefined : (): string => src);
   const tappable = view !== null && !failed;
-  const chip = <Avatar ref={attach} {...avatar} className={tappable ? "" : layoutClassName} {...(src === undefined || failed ? {} : { src })} />;
+  const chip = (
+    <Avatar
+      ref={attach}
+      {...avatar}
+      size={size}
+      shape={shape}
+      aspect={aspect}
+      ring={ring}
+      cardCorners={cardCorners}
+      fade={fade}
+      className={tappable ? "" : layoutClassName}
+      {...(src === undefined || failed ? {} : { src })}
+    />
+  );
   if (!tappable) {
     return chip;
   }

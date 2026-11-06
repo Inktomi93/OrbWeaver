@@ -69,7 +69,8 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
       title={error !== null && isNotFound(error) ? "Card unavailable" : (card?.name ?? PENDING_TITLE)}
       open={open}
       onOpenChange={onOpenChange}
-      popupProps={{ size: "lg", "data-testid": testId("memberCardViewer") }}
+      size="lg"
+      popupProps={{ "data-testid": testId("memberCardViewer") }}
       titleProps={{ className: "truncate" }}
       headerLeading={
         card === undefined ? null : (

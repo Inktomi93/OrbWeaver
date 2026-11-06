@@ -120,6 +120,12 @@ function kindOf(tag: string, imports: ReadonlyMap<string, string>): { readonly k
   return from === "#components" || /\/components\//u.test(from) ? { kind: "composite", door: null } : { kind: "local", door: null };
 }
 
+/** A `<Track of={Stack}>` renders the element named by its `of` attribute with the remaining attributes, so that element is the one written to. */
+function carrierOf(attrs: ReadonlyMap<string, ts.JsxAttribute>): string | undefined {
+  const init = attrs.get("of")?.initializer;
+  return init !== undefined && ts.isJsxExpression(init) && init.expression !== undefined && ts.isIdentifier(init.expression) ? init.expression.text : undefined;
+}
+
 export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
   const imports = importsOf(sf);
   const out: Elem[] = [];
@@ -137,7 +143,7 @@ export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
         spreads.push(attribute.expression);
       }
     }
-    const tag = opening.tagName.getText(sf);
+    const tag = carrierOf(attrs) ?? opening.tagName.getText(sf);
     out.push({ tag, ...kindOf(tag, imports), line: lineOf(sf, opening), opening, element: node, attrs, hasSpread: spreads.length > 0, spreads });
   });
   return out;

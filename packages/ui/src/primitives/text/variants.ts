@@ -7,24 +7,17 @@ export const textVariants = tv({
   base: "font-sans text-foreground",
   variants: {
     size: {
-      display: "text-display leading-display",
       headline: "text-headline leading-headline",
       title: "text-title leading-title",
       body: "text-body leading-body",
       label: "text-label leading-label",
-      code: "font-mono text-code leading-label-relaxed",
-      // micro-caps section-label voice: 10.5px + micro tracking. Pair with weight="semibold" transform="caps".
-      micro: "text-micro leading-micro tracking-micro",
     },
     weight: {
       regular: "font-normal",
-      medium: "font-medium",
       semibold: "font-semibold",
-      bold: "font-bold",
     },
     transform: {
       none: "",
-      caps: "uppercase",
     },
     // THE VOICE GRAMMAR (UI-Density-Law.md §2.3) — the closed axis that replaces choosing
     // size×weight×tone×transform per call site by taste (336 legal combinations, which is the mechanism by
@@ -214,7 +207,7 @@ export const textVariants = tv({
     artScale: { portrait: "text-art-initial", banner: "text-band-initial" },
     solidLine: { true: "leading-none", false: "" },
     // A wordmark over live art keeps a dark, theme-derived halo behind its glyphs.
-    halo: { true: "text-shadow-wordmark", false: "" },
+    halo: { true: "text-shadow-wordmark" },
     // The slanted face for words that are not spoken: a character's inner thought, a guide line.
     italic: { true: "italic", false: "" },
     // Machine text a reader copies whole (a source URL, a key fingerprint): one click selects the run.

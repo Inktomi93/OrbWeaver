@@ -23,7 +23,7 @@ export interface TableColumn<TData> {
   readonly cell?: (value: unknown, row: TData) => ReactNode;
   /** Enables the click-to-sort header button + `aria-sort`. @defaultValue false */
   readonly sortable?: boolean;
-  readonly align?: "start" | "center" | "end";
+  readonly align?: "start" | "end";
 }
 
 export interface TableSort {

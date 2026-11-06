@@ -93,12 +93,15 @@ export interface RowActionsMenuProps {
 /** The props every trigger box shares; the box picks the component that draws it. */
 interface TriggerShared {
   readonly "aria-label": string;
+  readonly ref: Ref<HTMLButtonElement> | undefined;
+  readonly tabIndex?: -1;
+}
+
+/** The trigger's look, spelled on each box's element so the variant census reads it. */
+interface TriggerLook {
   readonly reveal: "hover" | undefined;
   readonly ink: "muted" | undefined;
-  readonly variant: "ghost";
-  readonly ref: Ref<HTMLButtonElement> | undefined;
   readonly shape: NonNullable<RowActionsMenuProps["shape"]>;
-  readonly tabIndex?: -1;
 }
 
 /**
@@ -113,27 +116,27 @@ interface TriggerShared {
  * text step — the one-union-plus-mapped-Record discipline the spine asks of every dispatch axis.
  */
 const TRIGGER_BOX = {
-  glyph: ({ ref, ...shared }, glyph) => (
-    <GlyphButton ref={ref} {...shared} glyph="lg">
+  glyph: ({ ref, ...shared }, glyph, look) => (
+    <GlyphButton ref={ref} {...shared} variant="ghost" reveal={look.reveal} ink={look.ink} shape={look.shape} glyph="lg">
       {glyph}
     </GlyphButton>
   ),
-  icon: ({ ref, ...shared }, glyph) => (
-    <Button ref={ref} {...shared} square={true}>
+  icon: ({ ref, ...shared }, glyph, look) => (
+    <Button ref={ref} {...shared} variant="ghost" reveal={look.reveal} ink={look.ink} shape={look.shape} square={true}>
       {glyph}
     </Button>
   ),
-  inline: ({ ref, ...shared }, glyph) => (
-    <InlineAction ref={ref} {...shared} step="label">
+  inline: ({ ref, ...shared }, glyph, look) => (
+    <InlineAction ref={ref} {...shared} variant="ghost" reveal={look.reveal} ink={look.ink} shape={look.shape} step="label">
       {glyph}
     </InlineAction>
   ),
-  sm: ({ ref, ...shared }, glyph) => (
-    <Button ref={ref} {...shared} size="sm" square={true}>
+  sm: ({ ref, ...shared }, glyph, look) => (
+    <Button ref={ref} {...shared} variant="ghost" reveal={look.reveal} ink={look.ink} shape={look.shape} size="sm" square={true}>
       {glyph}
     </Button>
   ),
-} as const satisfies Record<NonNullable<RowActionsMenuProps["triggerSize"]>, (shared: TriggerShared, glyph: ReactElement) => ReactElement>;
+} as const satisfies Record<NonNullable<RowActionsMenuProps["triggerSize"]>, (shared: TriggerShared, glyph: ReactElement, look: TriggerLook) => ReactElement>;
 
 function actionsTrigger({
   label,
@@ -156,14 +159,11 @@ function actionsTrigger({
 }): ReactElement {
   const shared: TriggerShared = {
     "aria-label": label,
-    reveal: reveal ? "hover" : undefined,
-    ink: ink === "receded" ? "muted" : undefined,
-    variant: "ghost",
     ref: triggerRef,
-    shape,
     ...(tabIndex === undefined ? {} : { tabIndex }),
   };
-  return TRIGGER_BOX[size](shared, <Icon icon={icon} size="sm" />);
+  const look: TriggerLook = { reveal: reveal ? "hover" : undefined, ink: ink === "receded" ? "muted" : undefined, shape };
+  return TRIGGER_BOX[size](shared, <Icon icon={icon} size="sm" />, look);
 }
 
 /**

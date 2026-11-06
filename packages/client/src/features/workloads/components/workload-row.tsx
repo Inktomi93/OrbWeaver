@@ -86,6 +86,7 @@ function WorkloadRowBody({
   const deferred = isDeferredWorkload(workload);
   const waiting = isWaitingOnDependencies(workload);
   const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
+  const statusBadge = depFailed ? ({ tone: "warning", variant: "solid" } as const) : WORKLOAD_STATUS_BADGE[workload.status];
   const statusLabel = depFailed ? "Dependency failed" : WORKLOAD_STATUS_LABELS[workload.status];
   const resultSummary = workload.status === "succeeded" ? workloadResultSummary(workload.kind, workload.result) : null;
 
@@ -119,7 +120,9 @@ function WorkloadRowBody({
             ) : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
-              <Badge {...(depFailed ? ({ tone: "warning", variant: "solid" } as const) : WORKLOAD_STATUS_BADGE[workload.status])}>{statusLabel}</Badge>
+              <Badge tone={statusBadge.tone} variant={statusBadge.variant}>
+                {statusLabel}
+              </Badge>
             </Row>
             {active ? (
               <Button type="button" variant="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>

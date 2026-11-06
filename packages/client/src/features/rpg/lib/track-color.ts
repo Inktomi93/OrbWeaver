@@ -48,7 +48,7 @@ export function resolveTrackerColor(color: string | null | undefined, ordinal: n
 }
 
 /** Spread-ready props for `TrackBar`/`RingGauge` from a resolved color (`color` XOR `customColor`). */
-export function trackColorProps(resolved: ResolvedTrackColor): { readonly color: TrackColor } | { readonly color: TrackColor; readonly customColor: string } {
+export function trackColorProps(resolved: ResolvedTrackColor): { readonly color: TrackColor; readonly customColor?: string } {
   if (resolved.kind === "custom") {
     // The ramp step under a custom color is inert (customColor wins) — 1 keeps the prop total.
     return { color: 1, customColor: resolved.css };

@@ -29,7 +29,6 @@ export const tableVariants = tv({
   variants: {
     align: {
       start: { th: "text-start", td: "text-start" },
-      center: { th: "text-center", td: "text-center" },
       end: { th: "text-end", td: "text-end" },
     },
     sortActive: {

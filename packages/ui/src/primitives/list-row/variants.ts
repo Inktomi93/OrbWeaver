@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_INSET, HOVER_REVEAL, RECEDED, SELECTION_RAIL, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -143,6 +143,11 @@ export const listRowVariants = tv({
       "cq-32": {},
       "cq-24": {},
     },
+    // A row that stands behind its live siblings (an archived chat): the whole row at the receded step.
+    receded: {
+      true: { root: RECEDED },
+      false: {},
+    },
     // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
     // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
     // the cluster OUT OF FLOW at the row's inline end so the text column keeps the full width at rest, and
@@ -157,17 +162,6 @@ export const listRowVariants = tv({
     //     P3's "an invisible control must not be hit-testable" is enforced, because THIS is the arm where
     //     the hidden cluster sits over real text; an in-flow cluster overlays nothing and keeps a live hit
     //     target at rest (see `HOVER_REVEAL.hover`).
-    // The trailing cluster hidden at rest and revealed on the row's hover or focus-within;
-    // a coarse pointer keeps it visible. The root's unnamed `group` is the key.
-    revealActions: {
-      true: { actions: HOVER_REVEAL.hover },
-      false: {},
-    },
-    // A row that stands behind its live siblings (an archived chat): the whole row at the receded step.
-    receded: {
-      true: { root: RECEDED },
-      false: {},
-    },
     float: {
       true: {
         actions: [

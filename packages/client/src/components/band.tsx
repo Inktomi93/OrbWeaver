@@ -82,7 +82,29 @@ import { CountText } from "./count-text.tsx";
  * to say in `state` or `lib`. A consumer that needs to NAME an arm derives it — `BandProps["chevron"]` —
  * which is the §5.5 "one importable union, never re-spelled" shape with the union's one home right here.
  */
-export interface BandProps extends Omit<ButtonBaseProps, "children" | "variant" | "tone" | "focal" | "shape" | "selection" | "size"> {
+export interface BandProps
+  extends Omit<
+    ButtonBaseProps,
+    | "children"
+    | "variant"
+    | "tone"
+    | "focal"
+    | "shape"
+    | "selection"
+    | "size"
+    | "hiddenAt"
+    | "touchFloor"
+    | "cardCorners"
+    | "reveal"
+    | "underline"
+    | "reserveEdge"
+    | "confirming"
+    | "quietDisabled"
+    | "focusRing"
+    | "loading"
+  > {
+  /** The band's ink, spelled on its Button so the variant census reads it. */
+  readonly ink?: ButtonBaseProps["ink"];
   /** The region's name — the band's visible label and, absent an `aria-label`, its accessible name. */
   readonly label: string;
   /** The chevron gutter's three arms. `reserved` keeps the BOX and drops the paint — a band with nothing to
@@ -116,7 +138,7 @@ const BAND_CHASSIS = "min-inline-0 inline-full justify-start gap-tight px-tight"
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
 /** One band: `[chevron] [glyph] Label … count marks`. */
-export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, className, ...rest }: BandProps): ReactElement {
+export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, className, ink, ...rest }: BandProps): ReactElement {
   // The paint half of `aria-current` (see the header). `"true"` is the token BOTH band species state
   // (config-list-group.tsx's row-less leaf and config-list-collection-group.tsx's library door — the mock design
   // §3.1's owner-authorised amendment picked one token for the pane); `true` is accepted because React's
@@ -131,6 +153,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
       data-selected={current ? "" : undefined}
       variant="ghost"
       size="sm"
+      ink={ink}
       type="button"
       {...rest}
     >

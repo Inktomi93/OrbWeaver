@@ -124,10 +124,10 @@ export function TouchFloorStory(): ReactElement {
   );
 }
 
-/** A hover-revealed action Row and a ListRow with revealed actions, each inside a hover group. */
+/** Hover-revealed action Rows inside a hover group. */
 export function RevealStory(): ReactElement {
   return (
-    <CtIsolation subject="Row reveal and ListRow revealActions" isolates="The hover-reveal arms against their group">
+    <CtIsolation subject="Row reveal" isolates="The hover-reveal arms against their group">
       <div className="group" data-case="row-group">
         <Row reveal="hover" data-case="row-hover">
           <Button variant="ghost" size="sm">
@@ -140,15 +140,6 @@ export function RevealStory(): ReactElement {
           </Button>
         </Row>
       </div>
-      <ListRow
-        title="Row with revealed actions"
-        revealActions={true}
-        actions={
-          <Button variant="ghost" size="sm">
-            edit
-          </Button>
-        }
-      />
       <span data-case="away">elsewhere</span>
     </CtIsolation>
   );

@@ -19,7 +19,6 @@ export const badgeVariants = tv({
       // Title-only rows need state chrome without the vertical padding that changes their pitch.
       compact: "px-field font-sans text-label leading-label",
       sm: "px-row py-field text-label leading-label",
-      md: "px-block py-field text-body leading-body",
     },
     // A chip carrying a glyph control whose overflowing hit area a wrap gap would clip takes the touch floor on
     // its own block size at a coarse pointer, so the hit area fits inside the chip.
