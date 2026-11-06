@@ -1,10 +1,9 @@
 ---
 kind: decision
-status: blocked
+status: open
 updated: 2026-11-06
-priority: P3
+priority: P2
 area: server
-blocked: owner
 plan: unwired-code
 ---
 
@@ -12,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Decide whether the browse surface shows the setting facet distill produces, or whether distill stops asking for it.
+Show the distilled setting on the character browse beside genre and tone, as a catalog row field and a facet. Owner ruling: show it.
 
 ## Why
 
@@ -20,7 +19,7 @@ Every distill call requires and stores setting, so each card pays for it, and no
 
 ## Done when
 
-The decision is recorded. If kept, the browse view carries and renders it. If dropped, the payload schema, the stored column through a numbered migration, and the prompt stop requesting it.
+The browse view carries setting from character_summaries, the browse renders it and can filter by it, and a test pins it at the door with a CT.
 
 ## Evidence
 

@@ -1,10 +1,9 @@
 ---
 kind: decision
-status: blocked
+status: open
 updated: 2026-11-06
-priority: P3
+priority: P2
 area: server
-blocked: owner
 plan: unwired-code
 ---
 
@@ -12,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Decide whether the flag marking an activity bucket as built from migrated, approximate dates gets a door or is removed with its column and accumulator.
+Show approximate activity. Stats charts mark a bucket built from migrated, approximate dates, reading message_dates_approx through a stats view. Owner ruling: show it.
 
 ## Why
 
@@ -20,7 +19,7 @@ The rollup writes the flag on every rebuild and nothing reads it since its wire 
 
 ## Done when
 
-The decision is recorded. If kept, a stats view shows approximate buckets and a test pins it. If dropped, a numbered migration removes the column and the accumulator field is gone.
+A stats view carries the flag, the activity chart marks approximate buckets, and a test pins it at the door with a CT for the mark.
 
 ## Evidence
 
