@@ -151,6 +151,8 @@ export const HAND_ROLLING_CANNOT_SEE: readonly string[] = [
   "A repeated cluster is the same sorted set of three or more class tokens written three or more times, judged once per kind of element that wears it: a composite is offered to raw containers and layout primitives only. A class constant names no element, so its uses are a decision. A near-duplicate set is not matched.",
   "A string under a `tv()` call is class text except an arm key, a default arm, a compound condition and a string compared with `===`. A sentinel is found by the word `sentinel` in the name of the constant that holds it, and a feature probe by sitting in an `@supports` test.",
   "A colour equals a token only by identical normalised text. A hex or `rgb()` is never equal to an `oklch()` token, so it reads as a new token.",
+  "A utility of an owned family on a component that declares no such axis is `no axis` when another component of its door declares one. A family no component of the door declares is not reported. A component is found by the name its import exports, so an aliased import reads its own table.",
+  "A migration plan (`--plan`) lists a recipe row only when its arm writes exactly the class and no other arm writes it. It assumes the prop is named for the axis and reads no compound variant that reacts to the prop. The typecheck after the rewrite proves the prop exists.",
   "CSS selector context and the cascade are not read, and a value that only the cascade produces is not seen. Generated files are skipped by their header.",
 ];
 

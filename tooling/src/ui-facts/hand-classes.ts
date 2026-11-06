@@ -2,7 +2,7 @@
 import type { TokenFact } from "./classes.ts";
 import { baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import { coveredJudgement, declaredAxis, uncoveredJudgement } from "./hand-arms.ts";
+import { coveredJudgement, declaredAxis, elementRefOf, uncoveredJudgement, undeclaredJudgement } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -237,7 +237,7 @@ interface Candidate {
   readonly pattern: RegExp | null;
 }
 
-/** A valid token utility on a primitive that declares the family's axis: an arm owns it, a new arm would, or no axis does. */
+/** A valid token utility on a primitive of a door that has the family's axis: an arm owns it, a new arm would, or no axis does. */
 function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassContext): Judgement | null {
   const base = baseOf(token).base;
   const bare = BARE_AXES[base];
@@ -249,7 +249,12 @@ function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassConte
       return coveredJudgement(axis, token, guarded) ?? uncoveredJudgement(axis, token, pattern, guarded);
     }
   }
-  return null;
+  return undeclaredJudgement(
+    elem,
+    token,
+    candidates.flatMap((candidate) => candidate.axes),
+    context.components,
+  );
 }
 
 /** The family's pattern matches and its suffix names a token in the family's namespaces. */
@@ -311,7 +316,7 @@ function tokenHits({ source, line, tokens, elem, guarded }: ClassUse, context: C
     const used: UsedToken = { token, elem, guarded };
     const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
-      out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement));
+      out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, elementRefOf(elem)));
     }
   }
   return out;

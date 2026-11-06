@@ -36,6 +36,14 @@ export const KEEP_REASONS = {
 } as const;
 export type KeepCode = keyof typeof KEEP_REASONS;
 
+/** The primitive a class hit is written on, as its import names it: what a rewrite must prove before it moves the class. */
+export interface ElementRef {
+  readonly source: string;
+  readonly name: string;
+  /** The class is written on a carrier that renders this component, not on the component itself. */
+  readonly carried: boolean;
+}
+
 export interface Hit {
   readonly category: Category;
   readonly path: string;
@@ -52,6 +60,8 @@ export interface Hit {
   readonly owner: string;
   readonly reason: string;
   readonly keep: KeepCode | null;
+  /** The `@orb/ui` component a class utility is written on; null for every other hit. */
+  readonly element: ElementRef | null;
 }
 
 export interface Place {
@@ -192,7 +202,12 @@ export interface Written {
   readonly detail: string;
 }
 
-export const hitOf = (place: Place, written: Written, judgement: Judgement): Hit => ({ ...written, ...place, ...judgement });
+export const hitOf = (place: Place, written: Written, judgement: Judgement, element: ElementRef | null = null): Hit => ({
+  ...written,
+  ...place,
+  ...judgement,
+  element,
+});
 
 /** The hit order every report uses: path, line, category, detail. */
 export const byPlace = (left: Hit, right: Hit): number =>

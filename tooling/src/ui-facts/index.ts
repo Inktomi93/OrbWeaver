@@ -6,11 +6,15 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { analyse } from "./analysis.ts";
 import { loadExceptions } from "./exceptions.ts";
+import type { Hit } from "./hand-model.ts";
 import { HAND_ROLLING_PART } from "./hand-model.ts";
+import { isMigratableOwner, planOwner, proveOwner, readPlan, readSkips, writePlan } from "./migration.ts";
 import { renderReport } from "./report.ts";
+import { loadSources } from "./source.ts";
+import { componentTables } from "./variant-tables.ts";
 
 const OUT_DIR = "reports/ui-facts";
-const FLAGS = ["--only", "--out", "--root"] as const;
+const FLAGS = ["--only", "--out", "--root", "--plan", "--prove", "--map"] as const;
 const REPORT_PARTS: readonly string[] = [HAND_ROLLING_PART];
 
 interface Args {
@@ -20,6 +24,8 @@ interface Args {
   readonly parts: readonly string[];
   readonly out: string;
   readonly root: string;
+  /** An owner to write a migration plan for, or to prove after its rewrite; both need the plan's map file. */
+  readonly migration: { readonly mode: "plan" | "prove"; readonly owner: string; readonly map: string } | null;
 }
 
 function flag(argv: readonly string[], name: (typeof FLAGS)[number]): string | null {
@@ -37,7 +43,18 @@ export function parseArgs(argv: readonly string[]): Args {
       ?.split(",")
       .filter((name) => name !== "") ?? [];
   const sections = names.filter((name) => !REPORT_PARTS.includes(name));
+  const plan = flag(argv, "--plan");
+  const prove = flag(argv, "--prove");
+  const owner = plan ?? prove;
+  const map = flag(argv, "--map");
+  if (plan !== null && prove !== null) {
+    throw new UsageError("--plan and --prove are separate runs");
+  }
+  if (owner !== null && (!isMigratableOwner(owner) || map === null)) {
+    throw new UsageError("--plan and --prove take a `component.axis` owner such as row.justify, and the plan's --map=<file>");
+  }
   return {
+    migration: owner === null || map === null ? null : { mode: plan === null ? "prove" : "plan", owner, map },
     only: sections.length === 0 ? null : sections,
     parts: names.filter((name) => REPORT_PARTS.includes(name)),
     out: flag(argv, "--out") ?? OUT_DIR,
@@ -57,5 +74,25 @@ export function runUiFacts(argv: readonly string[]): number {
   process.stdout.write(
     `ui-facts: scanned ${scanned.total} files (${scanned.ts} ts, ${scanned.tsx} tsx, ${scanned.css} css), ${facts.sites.length} sites, wrote ${args.out}/ui-facts.{json,md}\n`,
   );
-  return EXIT.clean;
+  return args.migration === null ? EXIT.clean : runMigration(args.root, args.migration, facts.handRolling);
+}
+
+/** Write the plan for one owner, or prove it against the census that was just rerun. */
+function runMigration(root: string, { mode, owner, map }: NonNullable<Args["migration"]>, hits: readonly Hit[]): number {
+  if (mode === "plan") {
+    const plan = planOwner(hits, componentTables(root, loadSources(root)), owner);
+    writePlan(root, map, plan);
+    const files = new Set(plan.sites.map((site) => site.path)).size;
+    process.stdout.write(`ui-facts: planned ${owner}: ${plan.sites.length} sites in ${files} files, ${plan.review.length} for review, wrote ${map}\n`);
+    return EXIT.clean;
+  }
+  const skips = readSkips(root, map);
+  const proof = proveOwner(readPlan(root, map), hits, skips);
+  process.stdout.write(
+    `ui-facts: proved ${owner}: planned ${proof.planned}, review ${proof.review}, codemod skips ${skips.length}, ${proof.remaining.length} remain, ${proof.unexplained.length} without a reason\n`,
+  );
+  for (const hit of proof.unexplained) {
+    process.stdout.write(`  no reason: ${hit.path}:${hit.line} ${hit.detail}\n`);
+  }
+  return proof.unexplained.length === 0 ? EXIT.clean : EXIT.violations;
 }

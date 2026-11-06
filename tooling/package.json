@@ -137,6 +137,7 @@
     "typescript": "catalog:"
   },
   "devDependencies": {
+    "@jssg/utils": "catalog:",
     "@orb/db": "workspace:*",
     "@orb/ui": "workspace:*",
     "@trpc/client": "catalog:",

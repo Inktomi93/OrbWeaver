@@ -559,6 +559,9 @@
       "includes": ["tooling/src/codemods/*/scripts/*.ts"],
       "linter": {
         "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          },
           "style": {
             "noDefaultExport": "off",
             "useNodejsImportProtocol": "off"

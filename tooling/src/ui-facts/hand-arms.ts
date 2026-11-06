@@ -1,6 +1,6 @@
 // A recipe axis owns a class only when the element's own component writes it: the arm is read from that component's `tv()` table, and the axis must be one the component forwards.
 import { baseOf } from "./classes.ts";
-import type { Judgement } from "./hand-model.ts";
+import type { ElementRef, Judgement } from "./hand-model.ts";
 import type { Elem } from "./source.ts";
 import type { ComponentTables } from "./variant-tables.ts";
 import type { ArmClasses } from "./variants.ts";
@@ -14,15 +14,48 @@ export interface DeclaredAxis {
 
 const kebab = (name: string): string => name.replaceAll(/([a-z0-9])([A-Z])/gu, "$1-$2").toLowerCase();
 
+/** The component an element renders, by the name its import exports: an aliased import still names its own table. */
+const componentOf = (elem: Elem): string => elem.imported?.name ?? elem.tag;
+
+/** The import a rewrite must prove for a primitive element; null for any other element. */
+export function elementRefOf(elem: Elem | null): ElementRef | null {
+  return elem?.kind === "ui" && elem.imported !== null && !elem.tag.includes(".")
+    ? { source: elem.imported.source, name: elem.imported.name, carried: elem.carried }
+    : null;
+}
+
 /** The first candidate axis the element's own component declares and forwards, with its arms; null when the element is not a primitive or declares none. */
 export function declaredAxis(elem: Elem | null, candidates: readonly string[], components: ComponentTables): DeclaredAxis | null {
-  const axes = elem?.kind === "ui" && elem.door !== null ? components.get(elem.door)?.get(elem.tag) : undefined;
+  const axes = elem?.kind === "ui" && elem.door !== null ? components.get(elem.door)?.get(componentOf(elem)) : undefined;
   const axis = candidates.find((candidate) => axes?.has(candidate) === true);
   if (elem === null || axes === undefined || axis === undefined) {
     return null;
   }
-  const component = kebab(elem.tag);
+  const component = kebab(componentOf(elem));
   return { label: `${component}.${axis}`, component, arms: axes.get(axis) ?? new Map() };
+}
+
+/**
+ * The verdict for a utility of an owned family on a component that declares no such axis, while another component of its door does:
+ * the hit stays, with no arm to move it to. Null when the element is not a primitive or no component of its door has the axis.
+ */
+export function undeclaredJudgement(elem: Elem | null, token: string, axes: readonly string[], components: ComponentTables): Judgement | null {
+  const door = elem?.kind === "ui" && elem.door !== null ? components.get(elem.door) : undefined;
+  if (elem === null || door === undefined || ![...door.values()].some((table) => axes.some((axis) => table.has(axis)))) {
+    return null;
+  }
+  const component = kebab(componentOf(elem));
+  const own = door.get(componentOf(elem));
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `no axis: ${token} on ${component}`,
+    reason:
+      own === undefined
+        ? `${component} applies no tv() table in its own file, so no axis is read for ${token}`
+        : `${component} declares no ${axes.join(" or ")} axis (its axes: ${[...own.keys()].join(", ")}), so ${token} has no arm to move to`,
+    keep: null,
+  };
 }
 
 /** An arm writes one unconditional class; a class under a variant, a ternary or `&&` is a conditional use. */

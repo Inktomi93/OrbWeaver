@@ -1,0 +1,32 @@
+[
+  {
+    "path": "a.tsx",
+    "line": 3,
+    "token": "!w-auto",
+    "reason": "conflict: two planned tokens want different values for one prop"
+  },
+  {
+    "path": "a.tsx",
+    "line": 3,
+    "token": "!w-(--size-avatar-md)",
+    "reason": "conflict: two planned tokens want different values for one prop"
+  },
+  {
+    "path": "a.tsx",
+    "line": 4,
+    "token": "!p-0",
+    "reason": "prop-present: the element already carries padding"
+  },
+  {
+    "path": "a.tsx",
+    "line": 5,
+    "token": "!p-0",
+    "reason": "conditional: the class sits under a condition the prop would lose"
+  },
+  {
+    "path": "a.tsx",
+    "line": 6,
+    "token": "!p-0",
+    "reason": "conditional: the class sits under a condition the prop would lose"
+  }
+]

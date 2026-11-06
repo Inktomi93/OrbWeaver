@@ -1,0 +1,56 @@
+{
+  "owner": "fixture",
+  "sites": [
+    {
+      "path": "a.tsx",
+      "line": 6,
+      "source": "@orb/ui/layout",
+      "name": "Stack",
+      "attribute": "className",
+      "token": "justify-end",
+      "prop": "justify",
+      "value": "end"
+    },
+    {
+      "path": "a.tsx",
+      "line": 8,
+      "source": "@orb/ui/layout",
+      "name": "Row",
+      "attribute": "className",
+      "token": "justify-end",
+      "prop": "justify",
+      "value": "end"
+    },
+    {
+      "path": "a.tsx",
+      "line": 9,
+      "source": "@orb/ui/layout",
+      "name": "Gap",
+      "attribute": "className",
+      "token": "justify-end",
+      "prop": "justify",
+      "value": "end"
+    },
+    {
+      "path": "a.tsx",
+      "line": 10,
+      "source": "@orb/ui/layout",
+      "name": "Row",
+      "attribute": "className",
+      "token": "justify-end",
+      "prop": "justify",
+      "value": "end"
+    },
+    {
+      "path": "a.tsx",
+      "line": 11,
+      "source": "@orb/ui/layout",
+      "name": "Stack",
+      "attribute": "className",
+      "token": "justify-end",
+      "prop": "justify",
+      "value": "end"
+    }
+  ],
+  "review": []
+}

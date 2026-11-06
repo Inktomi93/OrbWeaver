@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "class-token-to-prop"
 version: "0.1.0"
-description: "Move a class token off a JSX attribute's string literals and onto a named prop, by a map read from the target directory."
+description: "Move a class token off a JSX attribute's string literal and onto a recipe prop, at the exact sites a census plan lists, proving each element by its import."
 author: "Orbweaver"
 license: "MIT"
 targets:

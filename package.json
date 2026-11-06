@@ -38,6 +38,7 @@
     "unwired": "node tooling/src/unwired/cli.ts",
     "brand-flow": "node tooling/src/brand-flow/cli.ts",
     "ui-facts": "node tooling/src/ui-facts/cli.ts",
+    "migrate-owner": "node tooling/src/migrate-owner/cli.ts",
     "trace:render": "node tooling/src/render-trace/cli.ts render",
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",
     "trace:fire": "node tooling/src/render-trace/cli.ts fire",

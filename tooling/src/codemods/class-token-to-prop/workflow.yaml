@@ -2,20 +2,57 @@
 version: "1"
 params:
   schema:
-    map:
-      name: "Map file"
-      description: "Path, relative to the target directory, of the JSON object with the `rules` list (element, attribute, token, prop, value)"
+    owner:
+      name: "Census owner"
+      description: "The `component.axis` owner of the hand-rolling census to migrate, such as row.justify"
       type: string
-      default: "codemod-class-prop-map.json"
+      default: ""
+    map:
+      name: "Plan file"
+      description: "Path, relative to the target directory, of the plan `pnpm ui-facts --plan` writes: the exact class sites to move"
+      type: string
+      default: "reports/migration/plan.json"
+    apply:
+      name: "Apply"
+      description: "`yes` rewrites, formats, proves the owner against a census rerun and typechecks; any other value previews the rewrite only"
+      type: string
+      default: "no"
 nodes:
   - id: class-token-to-prop
-    name: Move class tokens onto props by map
+    name: Move one census owner onto its recipe prop
     type: automatic
     steps:
-      - name: TSX files
+      - name: Plan the owner's sites
+        run: pnpm ui-facts --only=hand-rolling --out=reports/ui-facts-census --plan=${{ params.owner }} --map=${{ params.map }}
+      - name: Preview the rewrite
+        if: params.apply != "yes"
         js-ast-grep:
           js_file: scripts/codemod.ts
           base_path: "."
           language: "tsx"
           include: ["**/*.tsx"]
           exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+          semantic_analysis: workspace
+          dry_run: true
+      - name: Rewrite TSX files
+        if: params.apply == "yes"
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+          semantic_analysis: workspace
+      - name: Format the planned files
+        if: params.apply == "yes"
+        run: |
+          MAP=${{ params.map }}
+          xargs -r -a "${MAP%.json}.files" pnpm exec biome check --write --diagnostic-level=error
+      - name: Prove the owner with a census rerun
+        if: params.apply == "yes"
+        run: pnpm ui-facts --only=hand-rolling --out=reports/ui-facts-census --prove=${{ params.owner }} --map=${{ params.map }}
+      - name: Typecheck the touched programs
+        if: params.apply == "yes"
+        run: |
+          MAP=${{ params.map }}
+          xargs -r -a "${MAP%.json}.programs" pnpm typecheck

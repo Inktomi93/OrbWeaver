@@ -97,6 +97,7 @@ Run a rewrite that a census can list as one workflow. The census is the plan and
 - Gate the apply steps with `if: params.apply == "yes"`.
 - Run the plan step before a dry run, because `--dry-run` skips every `run:` step.
 - Stop a run with `failStep` when the plan and the tree disagree. Report a skipped site with `warn`.
+- Migrate a `component.axis` recipe owner with `pnpm migrate-owner <owner>`: a dry run that plans and previews. Add `--apply` to rewrite, format, prove and typecheck. The workflow is `tooling/src/codemods/class-token-to-prop/workflow.yaml`.
 
 ## Gotchas
 
