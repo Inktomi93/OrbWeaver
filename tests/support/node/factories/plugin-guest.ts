@@ -66,6 +66,59 @@ export async function installGuest(root: ServerTestHarness, caller: Principal, p
   return installed.id;
 }
 
+/** One macro a guest registers. It resolves to `answer`, or to the number of times it has run (`counts`, kept in the
+ *  plugin's own storage), or throws (`throws`), or never settles (`stalls`, a guest past the deadline). */
+export interface GuestMacro {
+  readonly name: string;
+  readonly description: string;
+  readonly answer?: string;
+  readonly counts?: true;
+  readonly throws?: true;
+  readonly stalls?: true;
+}
+
+/** Install and enable a real guest whose activation registers the given macros. */
+export async function installMacroGuest(
+  root: ServerTestHarness,
+  caller: Principal,
+  plugin: Pick<GuestPlugin, "slug" | "name">,
+  macros: readonly GuestMacro[],
+): Promise<PluginId> {
+  const capabilities: PluginCapability[] = macros.some((macro) => macro.counts === true) ? ["chat.transform", "storage.kv"] : ["chat.transform"];
+  const manifest = pluginManifestSchema.parse({
+    id: plugin.slug,
+    name: plugin.name ?? plugin.slug,
+    version: "1.0.0",
+    hostVersion: PLUGIN_HOST_VERSIONS[0],
+    entry: PLUGIN_MAIN_ENTRY,
+    description: "Registers macros.",
+    capabilities,
+  });
+  const source = `const h = orb.host(1);
+for (const { answer, counts, throws, stalls, ...macro } of ${JSON.stringify(macros)}) {
+  h.macros.register({
+    ...macro,
+    resolve: async () => {
+      if (stalls) {
+        return new Promise(() => {});
+      }
+      if (throws) {
+        throw new Error("boom");
+      }
+      if (counts) {
+        const runs = Number((await h.storage.get("runs")) ?? "0") + 1;
+        await h.storage.set("runs", String(runs));
+        return String(runs);
+      }
+      return answer ?? "answer";
+    },
+  });
+}`;
+  const installed = await root.services.plugin.install({ caller, bundle: makePluginBundle(manifest, source, root.clock.now()), grant: [] });
+  await root.services.plugin.setGrant({ caller, pluginId: installed.id, grant: capabilities, acknowledgedNetHosts: [], enable: true });
+  return installed.id;
+}
+
 interface GuestTarget {
   readonly root: ServerTestHarness;
   readonly caller: Principal;

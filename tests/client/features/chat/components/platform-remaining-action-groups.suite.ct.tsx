@@ -259,6 +259,7 @@ for (const regime of REGIMES) {
           "rpg.getTrackerView",
           "rpg.getConfigView",
           "preset.list",
+          "plugin.listMacros",
         ]),
       );
       await mount<typeof GameTrackerActionsStory>(`${STORIES}/GameTrackerActionsStory`, { chatId, width: regime.width, appearance: regime.appearance });

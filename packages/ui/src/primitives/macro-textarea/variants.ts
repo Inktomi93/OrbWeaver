@@ -42,6 +42,7 @@ export const macroTextareaVariants = tv({
     ],
     itemMain: "flex flex-col gap-field min-inline-0",
     itemName: "font-mono text-code leading-label-relaxed text-foreground",
+    itemSource: "shrink-0 text-label leading-label text-muted-foreground",
     itemDescription: "truncate text-label leading-label text-muted-foreground",
     helper: "font-sans text-label leading-label text-muted-foreground",
     argHint: "font-sans text-label leading-label text-muted-foreground",

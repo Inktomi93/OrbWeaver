@@ -73,12 +73,21 @@ const PROSE_ENTITY_ID = "prose-settings";
  *  a PROSE-1 product decision about what those bytes mean to the summarizers/memory/arbiter that read
  *  them — not a client wiring gap. */
 function slotSuggestions(id: ProseSlotId): readonly MacroSuggestion[] {
-  return PROSE_SLOTS[id].requiredMacros.map((macro) => ({
+  const cached = slotSuggestionsById.get(id);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const built = PROSE_SLOTS[id].requiredMacros.map((macro) => ({
     name: macro.replaceAll(/[{}]/gu, ""),
     category: "slot",
     description: "Replaced with this slot's own value when the prompt is built.",
   }));
+  slotSuggestionsById.set(id, built);
+  return built;
 }
+
+/** One list per slot for the page's life: the field takes the array by identity, so a fresh one per render re-runs its completion. */
+const slotSuggestionsById = new Map<ProseSlotId, readonly MacroSuggestion[]>();
 
 /** The Prose section body — mounted at the chat-behavior pane's contributed-sections anchor. */
 export function ProseSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {

@@ -52,8 +52,18 @@ const IMAGERY_TEMPLATE_MACROS: readonly MacroSuggestion[] = [
  *  Only the plane ROWS are taken from the hook (`category === "user"`); its builtin half is the app-wide
  *  catalog, which over-promises on this surface for the reason above. */
 function extractionSuggestions(plane: readonly MacroSuggestion[]): readonly MacroSuggestion[] {
-  return [...IMAGERY_TEMPLATE_MACROS, ...plane.filter((s) => s.category === "user")];
+  const cached = extractionCache.get(plane);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const built = [...IMAGERY_TEMPLATE_MACROS, ...plane.filter((s) => s.category === "user")];
+  extractionCache.set(plane, built);
+  return built;
 }
+
+/** `<MacroTextarea>` memoizes its fuzzy index by the suggestions array's identity, so the union is built once per
+ *  plane, not once per render. */
+const extractionCache = new WeakMap<readonly MacroSuggestion[], readonly MacroSuggestion[]>();
 
 /** One card descriptor: the form field, its human title, the "fires on" copy, whether it resolves macros, and
  *  the shipped default it ghosts as a placeholder. */
@@ -131,7 +141,8 @@ function ImageryTemplatesBody({
 }): ReactElement {
   const { form, saveState, retrySave } = session;
   // IMGMAC — the author's user-macro plane, unioned onto the two identity macros for the EXTRACTION cards.
-  const suggestions = extractionSuggestions(usePromptMacroSuggestions());
+  // `extractQuiet` renders these templates against preset and game defs only, so plugin macros are not offered.
+  const suggestions = extractionSuggestions(usePromptMacroSuggestions({ plugins: false }));
   return (
     <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">

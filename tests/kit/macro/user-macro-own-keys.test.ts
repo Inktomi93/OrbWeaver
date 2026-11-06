@@ -1,11 +1,13 @@
 // A user-macro or input name is author text, and MACRO_NAME_RE admits Object.prototype member names: every
 // name-keyed read of the per-turn planes must address only the plane's own entries.
-import type { UserMacroDef, UserMacroInputDef } from "@orb/kit/macro";
+
+import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { MacroSourceRef, UserMacroDef, UserMacroInputDef } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node";
 
 const INHERITED_NAMES = ["constructor", "toString"] as const;
-const SOURCE = { kind: "preset", id: "preset_test" } as const;
+const SOURCE: MacroSourceRef = { kind: "preset", id: createIdSource().typeId(ID_PREFIX.preset) };
 const OPTIONS = { char: "C", user: "U", persona: "P", scenario: "S", env: {} };
 const POOL = [
   { label: "Reunion", value: "reunion" },

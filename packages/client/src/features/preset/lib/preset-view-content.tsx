@@ -24,7 +24,7 @@ export interface ViewContentProps {
   readonly capability: GenerationCapability | undefined;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
-  /** The Macros body's source attribution (`preset:<id>` in the browser). */
+  /** The preset the Macros body's catalog attributes its macros to. */
   readonly presetId: PresetId;
   /** Can this preset hold regex ATTACHMENTS? `false` for the built-in default (null `ownerId`), whose
    *  attachment read `ensurePresetOwned` refuses by construction. The SAME fact the CONTEXT readout takes
@@ -50,6 +50,7 @@ export function viewContent(id: PresetEditorView["id"], props: ViewContentProps)
       return (
         <ActionsView
           form={form}
+          presetId={presetId}
           // THE REAL DOOR (crunch-list O-13): the cross-link used to select a rack row and leave you
           // standing in Actions, where no rack exists — a click with no visible effect. `openSectionInPrompt`
           // does both halves (view + selection); the reveal stays for the narrow regime, where the readout

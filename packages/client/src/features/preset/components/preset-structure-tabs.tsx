@@ -183,6 +183,7 @@ function PromptTab({
               <SectionDrillIn
                 form={form}
                 index={index}
+                presetId={presetId}
                 key={drilled.id}
                 onBack={(): void => {
                   setRestoreFocusSectionId(drilled.id);

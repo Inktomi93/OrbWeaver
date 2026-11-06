@@ -15,6 +15,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { MacroSliceDetail } from "./macro-slice-detail.tsx";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
 
 /** The instrument's section voice (the mock's `.kicker`): micro-caps, muted — a panel-width heading, never the
@@ -59,6 +60,7 @@ export function AssemblyPreviewDiagnostics({
           <TraceSummary trace={trace} />
           <WorldInfoActivated activated={trace.worldInfoActivated} />
           <MemoryRecallDetail recall={trace.memoryRecall} />
+          <MacroSliceDetail macros={trace.macros} />
           <ShapeTraceSummary trace={shapeTrace} />
           <WireRows rows={shapeTrace.rows} />
         </Stack>

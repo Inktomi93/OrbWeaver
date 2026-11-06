@@ -62,7 +62,7 @@ import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
 import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
 import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
-import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
+import { scrollContentToTop, scrollToAnchor, whenControlMounts } from "../lib/config-jump.ts";
 
 /** The landmark containers the shell's focus rescue lands on (`main`, the list pane, the pane scroller) are
  *  `tabindex=-1` stops no reader tabs to. */
@@ -120,6 +120,7 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // The cleanup marks this landing superseded, so its late focus below stands down.
     let superseded = false;
     let cancelJump: (() => void) | undefined;
+    let cancelControl: (() => void) | undefined;
     // The reader moving on is INPUT (a press or a key) after the request, or focus landing on a control other
     // than where the request found it: assistive technology and `element.focus()` move focus with no input
     // event. The shell's focus rescue and the LIST's arrival focus move it too, and neither is the reader, so
@@ -140,6 +141,7 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     const supersede = (): void => {
       superseded = true;
       cancelJump?.();
+      cancelControl?.();
       listening.abort();
     };
     if (target === null) {
@@ -159,19 +161,20 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // A setting-level landing lands on the leaf's own control when its section stamps one: the control is
     // scrolled into view (a leaf low in a long section sits below the fold once the section's top is in view)
     // and takes keyboard focus, so the reader lands on the thing the link named rather than on the LIST row
-    // that holds it. The section may suspend first, so a reader who pressed or typed meanwhile wins over this late one.
+    // that holds it. The section may suspend first and mount the control late, so a reader who pressed or typed meanwhile wins over this late one.
     const landOnControl =
       setting === null
         ? undefined
         : (anchor: HTMLElement): void => {
-            const control = anchor.querySelector<HTMLElement>(`#${CSS.escape(configSettingControlId(target.group, setting))}`);
-            if (superseded || control === null) {
-              return;
-            }
-            control.scrollIntoView({ block: "center", behavior: scrollBehavior() });
-            if (!(readerMoved || focusMovedByReader())) {
-              control.focus({ preventScroll: true });
-            }
+            cancelControl = whenControlMounts(anchor, configSettingControlId(target.group, setting), (control): void => {
+              if (superseded) {
+                return;
+              }
+              control.scrollIntoView({ block: "center", behavior: scrollBehavior() });
+              if (!(readerMoved || focusMovedByReader())) {
+                control.focus({ preventScroll: true });
+              }
+            });
           };
     const anchorId = resolveConfigSectionAnchor(sectionRegistry, target.group, target.sub, viewer);
     if (anchorId === null) {

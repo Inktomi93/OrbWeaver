@@ -37,6 +37,7 @@ for (const shown of [true, false]) {
         "worldInfo.listForPersona",
         "persona.listConnectedCharacters",
         "preset.get",
+        "plugin.listMacros",
       ]),
     );
     // A notice leaves the page again within the beat, so its appearance is recorded as it happens.

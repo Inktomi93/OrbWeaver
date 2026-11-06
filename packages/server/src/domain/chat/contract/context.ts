@@ -43,6 +43,7 @@ import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/image
 import type { BindingActor, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
+import type { PluginMacroDefs, PluginMacroNames } from "@orb/contracts/plugin";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
@@ -71,7 +72,7 @@ import type {
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
-import type { RandomSource, UserMacroDef } from "@orb/kit/macro";
+import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { TestKeyRegex } from "@orb/kit/world-info";
 import type { AuditWiring } from "#foundation/observability";
@@ -296,7 +297,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
 /** The PLUGIN-MACRO resolve op — the per-turn read of the TURN AUTHOR's own
  *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
- *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
+ *  assembly deadline) into kit `UserMacroDef`s, grouped by the plugin that registered them, which the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
  *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`tools` seams use.
  *
  *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
@@ -304,7 +305,11 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  which guest, and what budget it ran under are all the other side's business. */
 // Not exported (the `ResolvePromptVariablesOp` precedent): its only consumers are `ChatContext` here
 // and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
-type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
+type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly PluginMacroDefs[]>;
+
+/** The names alone of the macros {@link ResolvePluginMacrosOp} resolves: no guest runs, so a read that is not a turn
+ *  can list a plugin's macros without executing the plugin. */
+type ListPluginMacrosOp = (authorUserId: UserId) => readonly PluginMacroNames[];
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}
@@ -691,6 +696,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly teaching: ChatTeachingRegistry;
   /** The per-turn plugin-macro resolve (U6, §5.15) — `null` when no plugin host is wired (byte-identical). */
   readonly pluginMacros: ResolvePluginMacrosOp | null;
+  /** The plugin-macro names a preview lists beside the turn's resolution; `null` with `pluginMacros`. */
+  readonly listPluginMacros: ListPluginMacrosOp | null;
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
   readonly resolveCurrentPersona: ResolveCurrentPersonaOp;
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;

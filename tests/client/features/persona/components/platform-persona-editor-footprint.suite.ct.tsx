@@ -45,6 +45,7 @@ for (const regime of REGIMES) {
           "worldInfo.listForPersona",
           "persona.listConnectedCharacters",
           "preset.get",
+          "plugin.listMacros",
         ]),
       );
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
@@ -97,6 +98,7 @@ test.describe("macro popup composition", () => {
         "worldInfo.listForPersona",
         "persona.listConnectedCharacters",
         "preset.get",
+        "plugin.listMacros",
       ]),
     );
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });

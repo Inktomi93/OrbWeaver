@@ -9,7 +9,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 /** The rpg context tabs the stories mount, by their production contribution id. */
-const RPG_TAB_IDS = ["rpg.status", "rpg.scene", "rpg.journal"] as const;
+const RPG_TAB_IDS = ["rpg.status", "rpg.scene", "rpg.journal", "rpg.game"] as const;
 type RpgTabId = (typeof RPG_TAB_IDS)[number];
 
 // Calls the section's resolver the way the shell's context host does: as a hook handed in by the definition.
@@ -33,6 +33,26 @@ export function RpgContextTabStory({ chatId, tab }: { readonly chatId: ChatId; r
       </Suspense>
     </CtClientProviders>
   );
+}
+
+/** The game tab beside the Presets section's own content, so a link in the tab lands where the section would show it. */
+export function RpgContextTabBesidePresetsStory({ chatId, tab }: { readonly chatId: ChatId; readonly tab: RpgTabId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <Suspense>
+        <ChatsContextTab chatId={chatId} tab={tab} />
+        <PresetsContent />
+      </Suspense>
+    </CtClientProviders>
+  );
+}
+
+function PresetsContent(): ReactNode {
+  const { content } = useSectionRegistry().get("presets");
+  if (typeof content !== "function") {
+    throw new Error("Presets has no content contribution");
+  }
+  return content();
 }
 
 /** The rpg dice group as contributed to the composer's Message tools menu, inside a story-owned menu host. */

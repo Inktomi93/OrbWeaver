@@ -1,7 +1,7 @@
 import type { LoadOptionalPreset } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { LoadUserSettings } from "@orb/contracts/settings";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { DebugRoutesOptions } from "#foundation/observability";
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
 import type { ResolveTurnPersonas } from "./foreign.ts";
@@ -30,6 +30,8 @@ export interface ChatRoomInputs
       | "resolveWelcomeAssistantId"
     >,
     Pick<ChatServiceDeps, "resolveForeignInputs"> {
+  /** The id of the preset behind `resolvePromptUserMacros`; null when that is the built-in default. */
+  readonly resolvePromptPresetId: (chatId: ChatId) => Promise<PresetId | null>;
   readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
 }

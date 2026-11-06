@@ -384,6 +384,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       registerMacros: (macros, invoke, scope) =>
         pluginMacros.register({
           installer: scope.installer.userId,
+          pluginId: scope.pluginId,
           slug: scope.slug,
           macros,
           invoke,

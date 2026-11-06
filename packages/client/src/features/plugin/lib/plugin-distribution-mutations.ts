@@ -27,6 +27,7 @@ export const useUpgradePluginFromStoredGit = createEntityMutation<
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
     trpc.plugin.listSurfaces.queryFilter(),
     trpc.plugin.listCommands.queryFilter(),
+    trpc.plugin.listMacros.queryFilter(),
     trpc.plugin.listBundleAssets.queryFilter(),
     ...providerDependentConnectionReads(trpc),
   ],

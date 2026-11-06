@@ -22,6 +22,7 @@ test("an added section and its duplicate take their ids from the runtime's sourc
       "settings.getUserSettings",
       "sessions.me",
       "preset.get",
+      "plugin.listMacros",
       "preset.list",
       "preset.resolveEffective",
       "connection.resolveChatCapability",

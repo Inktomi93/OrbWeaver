@@ -26,9 +26,9 @@
 //       law 7 requires the house primitive at exactly that write boundary.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
-import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginMacroDefs, PluginMacroNames, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { ScheduleOp } from "@orb/kit/time";
@@ -50,6 +50,7 @@ const PLUGIN_MACROS_MAX = 16;
 /** ONE registered plugin macro as the registry holds it: the host-NAMESPACED name, the guest handle, and the
  *  per-plugin invoker activation closed over. */
 interface RegisteredMacro {
+  readonly pluginId: PluginId;
   readonly slug: string;
   readonly name: string;
   /** The PRE-#1391 spelling of {@link RegisteredMacro.name}, or `null` when the slug carries no hyphen and the
@@ -122,6 +123,7 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
 
   const register = (req: {
     readonly installer: UserId;
+    readonly pluginId: PluginId;
     readonly slug: string;
     readonly macros: readonly PluginMacroRegistration[];
     readonly invoke: PluginInvokeHandler;
@@ -132,6 +134,7 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
       throw new Error(`plugin macros: a plugin may register at most ${PLUGIN_MACROS_MAX} macros (got ${req.macros.length})`);
     }
     const entries: RegisteredMacro[] = req.macros.map((macro) => ({
+      pluginId: req.pluginId,
       slug: req.slug,
       name: pluginMacroName(req.slug, macro.name),
       legacyName: pluginMacroLegacyName(req.slug, macro.name),
@@ -166,7 +169,7 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
     };
   };
 
-  const resolveForTurn = async (authorUserId: UserId, chatId: ChatId): Promise<readonly UserMacroDef[]> => {
+  const resolveForTurn = async (authorUserId: UserId, chatId: ChatId): Promise<readonly PluginMacroDefs[]> => {
     const forInstaller = byInstaller.get(authorUserId);
     if (forInstaller === undefined || forInstaller.size === 0) {
       return [];
@@ -184,14 +187,38 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
     });
     try {
       const values = await Promise.all(macros.map((macro) => resolveOne(macro, chat, deadline, logger)));
-      const defs = macros.map((macro, index) => toDef(macro.name, macro, values[index] ?? null));
-      return [...defs, ...legacyAliases(macros, values)];
+      const defsByPlugin = new Map<PluginId, UserMacroDef[]>();
+      const add = (pluginId: PluginId, def: UserMacroDef): void => {
+        defsByPlugin.set(pluginId, [...(defsByPlugin.get(pluginId) ?? []), def]);
+      };
+      for (const [index, macro] of macros.entries()) {
+        add(macro.pluginId, toDef(macro.name, macro, values[index] ?? null));
+      }
+      for (const alias of legacyAliases(macros)) {
+        add(alias.macro.pluginId, toDef(alias.name, alias.macro, values[macros.indexOf(alias.macro)] ?? null));
+      }
+      return [...defsByPlugin].map(([pluginId, defs]) => ({ pluginId, defs }));
     } finally {
       cancelTimer?.();
     }
   };
 
-  return { register, resolveForTurn };
+  const listNames = (authorUserId: UserId): readonly PluginMacroNames[] => {
+    const macros = [...(byInstaller.get(authorUserId)?.values() ?? [])].flat();
+    const namesByPlugin = new Map<PluginId, string[]>();
+    const add = (pluginId: PluginId, name: string): void => {
+      namesByPlugin.set(pluginId, [...(namesByPlugin.get(pluginId) ?? []), name]);
+    };
+    for (const macro of macros) {
+      add(macro.pluginId, macro.name);
+    }
+    for (const alias of legacyAliases(macros)) {
+      add(alias.macro.pluginId, alias.name);
+    }
+    return [...namesByPlugin].map(([pluginId, names]) => ({ pluginId, names }));
+  };
+
+  return { register, resolveForTurn, listNames };
 }
 
 /** One resolved macro as a kit `UserMacroDef`: no args, no inputs, and the guest's answer as the BODY —
@@ -219,9 +246,9 @@ function toDef(name: string, macro: RegisteredMacro, value: string | null): User
  *      winner the author never chose, so it resolves to nothing, exactly as it does today.
  *    • NO SHADOWING — a legacy spelling that equals some macro's LIVE name loses to the live name. The
  *      alias plane may never take a name the current mint hands out.
- *  The values array is the ALREADY-RESOLVED per-turn answers, so an alias costs no second guest invoke: one
- *  resolution, two names pointing at it. */
-function legacyAliases(macros: readonly RegisteredMacro[], values: readonly (string | null)[]): readonly UserMacroDef[] {
+ *  An alias is a second NAME for the macro's one resolution, so it costs no second guest invoke, and the claims
+ *  are known without running a guest: `listNames` reads the same set. */
+function legacyAliases(macros: readonly RegisteredMacro[]): readonly { readonly macro: RegisteredMacro; readonly name: string }[] {
   const live = new Set(macros.map((macro) => macro.name));
   const claims = new Map<string, number>();
   for (const macro of macros) {
@@ -229,11 +256,11 @@ function legacyAliases(macros: readonly RegisteredMacro[], values: readonly (str
       claims.set(macro.legacyName, (claims.get(macro.legacyName) ?? 0) + 1);
     }
   }
-  return macros.flatMap((macro, index) => {
+  return macros.flatMap((macro) => {
     const legacy = macro.legacyName;
     if (legacy === null || claims.get(legacy) !== 1 || live.has(legacy)) {
       return [];
     }
-    return [toDef(legacy, macro, values[index] ?? null)];
+    return [{ macro, name: legacy }];
   });
 }

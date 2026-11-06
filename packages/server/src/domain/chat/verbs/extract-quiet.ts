@@ -36,12 +36,6 @@ import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;
 
-/** The `MacroSourceRef.id` the preset group carries here. Extract-quiet never SURFACES a source ref (there is
- *  no picks pane and no refusal channel on this path — a rejected def just doesn't render), so the group id is
- *  a label, and re-resolving the host's preset id for it would buy a db read for a log field. The preview
- *  builder's `presetId ?? "default"` fallback is the same literal. */
-const PRESET_GROUP_ID = "default";
-
 /** IMGMAC — the PER-CALL user-macro render registry for one imagery mode template. Builds over BOTH authoring
  *  homes with the ruled shadow (`buildTurnUserMacros` owns the policy), the chat's persisted picks bag, and a
  *  STABLE prng (`() => 0`): an extraction is not a turn — it persists no draw record, so a random-pick input
@@ -54,9 +48,8 @@ async function resolveUserMacroRegistry(deps: ExtractQuietDeps, chatId: ChatId):
     return; // the null fast path — no values read, no registry allocated
   }
   const built = buildTurnUserMacros({
-    preset: { id: PRESET_GROUP_ID, defs: defs.preset },
-    // The game group's `MacroSourceRef.id` is the game's CHAT id (the turn build's convention).
-    ...(defs.game.length > 0 ? { game: { id: chatId, defs: defs.game } } : {}),
+    preset: { source: { kind: "preset", id: defs.presetId }, defs: defs.preset },
+    ...(defs.game.length > 0 ? { game: { source: { kind: "game", id: chatId }, defs: defs.game } } : {}),
     values: await loadStoredUserMacroValues(deps.db, chatId),
     prng: () => 0,
   });

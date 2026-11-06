@@ -8,7 +8,7 @@
 import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
-import type { VarOp } from "@orb/kit/macro";
+import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
@@ -230,6 +230,40 @@ export interface MemoryRecallSlice {
  *  policy: the admitted blocks are always all present, and the counts stay exact. */
 export const MEMORY_RECALL_REJECTS_SHOWN = 12;
 
+/** ONE user macro in a {@link MacroSlice}: the name a prompt calls it by and the authoring home that supplied it.
+ *  CONTENT-FREE: the macro's body, and for a plugin the value it resolved to, ride the assembled prompt itself,
+ *  where the host gate already governs them. Findings about a single macro belong on its entry. */
+export interface MacroSliceEntry {
+  name: string;
+  source: MacroSourceRef;
+  /** Present on a plugin macro a preview lists without running it: the plugin's guest runs once per turn and never
+   *  in a preview, so its value is known only when the turn resolves it. */
+  deferred?: true;
+}
+
+/** A user macro that did not reach the registry, with the home it came from and the reason in words a person can
+ *  act on: a name already taken, a name the macro syntax refuses, or a same-named macro from a higher-precedence
+ *  home. */
+export interface MacroSliceRejection extends MacroSliceEntry {
+  reason: string;
+}
+
+/** WHICH USER MACROS THIS TURN HAD AND WHICH LOST (`AssembleTrace.macros`) — the per-turn registry build's slice of
+ *  the assembly trace, produced by `domain/chat/assembly/user-macros.ts` on every build that had any user macro.
+ *
+ *  Collisions between homes are only knowable per turn: the game's macros shadow the preset's, plugin macros
+ *  register last, and each plugin's macros resolve under the turn's author. An editor sees its own home alone, so
+ *  this is the one place an author learns that a macro lost a name, and to whom. `registered` lists every macro a
+ *  `{{name}}` can reach, in registration order (game, preset, then each plugin); `rejected` lists every macro
+ *  that was offered and did not register.
+ *
+ *  Served here because every consumer of {@link AssembleTrace} is host-gated, so a source may name the host's
+ *  private preset. */
+export interface MacroSlice {
+  registered: readonly MacroSliceEntry[];
+  rejected: readonly MacroSliceRejection[];
+}
+
 /** Debug metadata about what assembly did — NOT the prompt text. Answers "why did/didn't this fire?"
  *  without dumping RP content (the host/admin-only trace surface). */
 export interface AssembleTrace {
@@ -255,6 +289,9 @@ export interface AssembleTrace {
    *  never called the subsystem at all, which is a different fact from `memoryIncluded: false` (recall ran
    *  and the marker still delivered nothing). */
   memoryRecall: MemoryRecallSlice | null;
+  /** Which user macros this turn had and which lost a name (see {@link MacroSlice}). Absent when no home offered
+   *  a user macro, which is the overwhelming case. */
+  macros?: MacroSlice;
   /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn (DB6). Distinct from
    *  "documents are attached": a chat with a full bank still reads false when the active preset places no
    *  databank section, which is exactly the invisible failure issue #80 was. */
@@ -581,6 +618,9 @@ export interface VariantWireView {
   macroDraws: UserMacroDraws | null;
   rawContent: string | null;
   macroFreezes: MacroFreezeRecord | null;
+  /** The macro slice the turn's assembly trace recorded: which user macros it registered and which lost a name.
+   *  `null` when the stored prompt carries none (a turn with no user macros, or a snapshot from before the slice). */
+  macros?: MacroSlice | null;
 }
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
@@ -695,6 +735,9 @@ export interface AssembleContext {
    *  ctx beside the value it explains, so the two can never describe different recalls. Absent ⇒ recall never
    *  ran for this context (a preview / hand-built ctx) ⇒ the trace reports `memoryRecall: null`. */
   memoryTrace?: MemoryRecallSlice | undefined;
+  /** The user-macro registry build that produced this turn's registries (see {@link MacroSlice}), copied verbatim
+   *  onto {@link AssembleTrace.macros} by the BUILD walk. Absent ⇒ no home offered a user macro. */
+  macroTrace?: MacroSlice | undefined;
   /** Retrieved databank document context (the `{{databank}}` marker), pre-formatted + budget-fitted by the
    *  databank GATHER op (DB6). ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
    *  non-databank turn. */
@@ -775,6 +818,27 @@ const memoryRecallSliceSchema = z.strictObject({
   candidates: z.array(memoryRecallCandidateSchema).readonly(),
 }) satisfies z.ZodType<MemoryRecallSlice>;
 
+const macroSourceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("preset"), id: typeIdSchema(ID_PREFIX.preset).nullable() }),
+  z.strictObject({ kind: z.literal("game"), id: typeIdSchema(ID_PREFIX.chat) }),
+  z.strictObject({ kind: z.literal("plugin"), id: typeIdSchema(ID_PREFIX.plugin) }),
+]) satisfies z.ZodType<MacroSourceRef>;
+
+const macroSliceEntrySchema = z.strictObject({
+  name: z.string(),
+  source: macroSourceSchema,
+  deferred: z.literal(true).exactOptional(),
+}) satisfies z.ZodType<MacroSliceEntry>;
+
+const macroSliceSchema = z.strictObject({
+  registered: z.array(macroSliceEntrySchema).readonly(),
+  rejected: z.array(macroSliceEntrySchema.extend({ reason: z.string() })).readonly(),
+}) satisfies z.ZodType<MacroSlice>;
+
+/** The macro slice inside a stored prompt snapshot: the one part of a stored trace the host reads back
+ *  ({@link VariantWireView.macros}). A snapshot with no slice, or a malformed one, fails the parse and reads as none. */
+export const storedMacroSliceSchema = z.looseObject({ trace: z.looseObject({ macros: macroSliceSchema }) });
+
 export const assembleTraceSchema = z.strictObject({
   staticSections: z.array(z.string()),
   dynamicSections: z.array(z.string()),
@@ -788,6 +852,7 @@ export const assembleTraceSchema = z.strictObject({
   compactSummaryIncluded: z.boolean(),
   memoryIncluded: z.boolean(),
   memoryRecall: memoryRecallSliceSchema.nullable(),
+  macros: macroSliceSchema.exactOptional(),
   databankIncluded: z.boolean(),
   guidedInstructionIncluded: z.boolean(),
   staticCacheBusters: z.array(z.string()),
@@ -882,6 +947,7 @@ export const variantWireViewSchema = z.strictObject({
   macroDraws: userMacroDrawsSchema.nullable(),
   rawContent: z.string().nullable(),
   macroFreezes: z.array(macroFreezeSchema.strict()).nullable(),
+  macros: macroSliceSchema.nullable().exactOptional(),
 }) satisfies z.ZodType<VariantWireView>;
 
 export const contextFitAnswerSchema = z.union([contextFitPreviewSchema, contextFitUnboundSchema]) satisfies z.ZodType<ContextFitAnswer>;
