@@ -253,7 +253,7 @@ Lanes can share main's checkout with you.
 - A dispatch with `isolation: "worktree"` gets a working tree from `.claude/hooks/worktree-setup.sh`. Never brief `pnpm install`.
 - A manual `git worktree add` runs only git's post-checkout hook. Run `pnpm worktree:bootstrap` after it.
 - Codex app worktrees use `.codex/environments/environment.toml` for setup and cleanup.
-- Before manual removal, run `env -C <worktree> bash scripts/worktree-cleanup.sh` to release its Snap stage.
+- Before manual removal, run `env -C <worktree> bash scripts/worktree-cleanup.sh`. It keeps the lane and review reports on main and releases the Snap stage. Read a live lane's report from its worktree; do not copy it.
 - Worktrees stay after an agent finishes. Sweep them by hand at session end.
 - Scope a sweep to `.claude/worktrees/agent-*`. Other directories there, and trees listed elsewhere by `git worktree list`, belong to other sessions.
 - Never remove a lane you might resume. A leg sent to a deleted worktree fails.
