@@ -20,23 +20,29 @@ import { Swatch } from "@orb/ui/swatch";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { Tone, ToneRole } from "@orb/ui/tokens";
-import { TOKENS } from "@orb/ui/tokens";
+import type { PigmentScope, Tone, ToneRole } from "@orb/ui/tokens";
+import { PIGMENTS, TOKENS } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { CSSProperties, ReactElement } from "react";
 
 // A probe is a bare span painted straight from the token a case should resolve to, so the CT compares like with like. A
 // probe that reads a D336 tone role stamps the tone the case stamps.
-function Probe({ name, style, tone }: { readonly name: string; readonly style: CSSProperties; readonly tone?: Tone }): ReactElement {
-  return <span data-probe={name} data-tone={tone} style={{ display: "block", ...style }} />;
+function Probe({
+  name,
+  style,
+  tone,
+  pigment,
+}: {
+  readonly name: string;
+  readonly style: CSSProperties;
+  readonly tone?: Tone;
+  readonly pigment?: PigmentScope;
+}): ReactElement {
+  return <span data-pigment={pigment} data-probe={name} data-tone={tone} style={{ display: "block", ...style }} />;
 }
 
 function role(name: ToneRole): string {
   return `var(${TOKENS[`color.tone-${name}`].cssVar})`;
-}
-
-function mix(token: string, percent: number): string {
-  return `color-mix(in oklab, var(${token}) ${percent}%, transparent)`;
 }
 
 /** The Text and Icon modifiers and the two new voices. */
@@ -273,7 +279,7 @@ export function LayoutFinishStory(): ReactElement {
       {GROUNDS.map((ground) => (
         <Probe key={ground} name={`ground-${ground}`} style={{ backgroundColor: GROUND_FILLS[ground] }} />
       ))}
-      <Probe name="ground-faint" style={{ backgroundColor: mix(TOKENS["color.card"].cssVar, 40) }} />
+      <Probe name="ground-faint" style={{ backgroundColor: GROUND_FILLS.background }} />
       <Probe name="reading-plate" style={{ backgroundColor: `var(${TOKENS["color.reading-plate"].cssVar})` }} />
       <Probe name="card" style={{ backgroundColor: `var(${TOKENS["color.card"].cssVar})` }} />
       <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
@@ -356,7 +362,8 @@ export function PartsFinishStory(): ReactElement {
       <Probe name="sidebar" style={{ backgroundColor: `var(${TOKENS["color.sidebar"].cssVar})` }} />
       <Probe name="success" style={{ backgroundColor: `var(${TOKENS["color.success"].cssVar})` }} />
       <Probe name="muted-ink" style={{ borderColor: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
-      <Probe name="step2" style={{ backgroundColor: mix(TOKENS["color.foreground"].cssVar, 32) }} />
+      <Probe name="ladder-2" pigment="swatch-ladder" style={{ backgroundColor: `var(${PIGMENTS["swatch-ladder"]["step-2"]})` }} />
+      <Probe name="quiet" style={{ opacity: `var(${TOKENS["opacity.quiet"].cssVar})` }} />
     </CtIsolation>
   );
 }

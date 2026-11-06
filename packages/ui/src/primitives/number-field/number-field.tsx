@@ -144,7 +144,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           `getByLabel`/manual voice-control match resolves to exactly the input. The steppers still name
           their subject (`stepperLabel`, below) — that reads the `ariaLabel` JS variable directly, never
           the group's DOM attribute, so dropping it here costs the steppers nothing. */}
-      <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
+      <BaseNumberField.Group className={slots.group()} data-slot="number-field-group" data-tone="neutral">
         {hasSteppers ? (
           <BaseNumberField.Decrement aria-label={stepperLabel(DECREMENT_LABEL, ariaLabel)} className={slots.decrement()} data-slot="number-field-decrement">
             <Icon className={slots.stepIcon()} icon={Minus} size="xs" />

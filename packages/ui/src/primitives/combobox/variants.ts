@@ -29,7 +29,7 @@ export const comboboxVariants = tv({
       "data-disabled:opacity-disabled",
     ],
     chipRemove: [
-      "flex shrink-0 items-center justify-center rounded-full text-secondary-foreground/70 outline-none",
+      "flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none",
       // Offset-less ring — the ChipRemove sits INSIDE the chip; an offset ring would escape it.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
       DISABLED_STATE_NATIVE,

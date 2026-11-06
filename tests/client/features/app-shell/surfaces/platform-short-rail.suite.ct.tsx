@@ -110,10 +110,55 @@ const PEEK_SHARE = 0.25;
 const SCROLL_SECTIONS = ".shell-rail-sections";
 // Enough to move the cut by most of a button, small enough that every phone still overflows.
 const RAIL_RESIZE_PX = 40;
+// Tall enough for the rail to hold every section on every phone above.
+const GROWN_WINDOW_PX = 1200;
 
 interface RailEdge {
   readonly overflow: number;
   readonly straddling: readonly { readonly label: string | null; readonly visible: number; readonly hidden: number; readonly height: number }[];
+}
+
+/** How far a cap may sit from its button's midline: the fit floors the midline to a whole pixel. */
+const MIDLINE_EPSILON = 1;
+
+interface RailFit {
+  readonly overflow: number;
+  /** The section the live bottom edge cuts through. */
+  readonly cut: string | null;
+  /** The live `max-block-size` in px. */
+  readonly cap: number | null;
+  /** The last section whose midline fits the room the rail gives the scroller uncapped; null when every section fits or fewer than two do. */
+  readonly expected: { readonly label: string | null; readonly middle: number } | null;
+}
+
+/** The live cut beside the cut the rail's room calls for, read by lifting the cap and putting it back in one task, so no observer sees it. */
+function railFit(scroller: HTMLElement): RailFit {
+  const edge = scroller.getBoundingClientRect().bottom;
+  const buttons = [...scroller.querySelectorAll(".shell-rail-button")];
+  const cutting = buttons.find((button) => {
+    const { top, bottom } = button.getBoundingClientRect();
+    return top < edge && bottom > edge;
+  });
+  const cap = scroller.style.getPropertyValue("max-block-size");
+  scroller.style.removeProperty("max-block-size");
+  const room = scroller.clientHeight;
+  const overflow = scroller.scrollHeight - room;
+  const origin = scroller.getBoundingClientRect().top - scroller.scrollTop;
+  const fitting = buttons
+    .map((button) => {
+      const { top, height } = button.getBoundingClientRect();
+      return { label: button.getAttribute("aria-label"), middle: top - origin + height / 2 };
+    })
+    .filter(({ middle }) => middle <= room);
+  if (cap !== "") {
+    scroller.style.setProperty("max-block-size", cap);
+  }
+  return {
+    overflow,
+    cut: cutting?.getAttribute("aria-label") ?? null,
+    cap: cap === "" ? null : Number.parseFloat(cap),
+    expected: overflow > 1 && fitting.length >= 2 ? (fitting.at(-1) ?? null) : null,
+  };
 }
 
 /** The rail buttons the section scroller's bottom edge cuts through, with how much of each shows. */
@@ -147,22 +192,43 @@ for (const viewport of LANDSCAPE_PHONES) {
       await page.screenshot({ path: info.outputPath("rail-at-rest.png") });
     });
 
-    test("fits again to a shorter and a taller window, with the next section still part clipped at rest", async ({ corpus, mount, page }) => {
+    test("fits again to a shorter and a taller window, ending on the midline of the last button that fits", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "home");
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
       const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
-      const peeks = async (): Promise<boolean> => {
-        const { overflow, straddling } = await sections.evaluate(railEdge);
+      const fitsRoom = async (): Promise<boolean> => {
+        const fit = await sections.evaluate(railFit);
         return (
-          overflow > 0 && straddling.length === 1 && straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)
+          fit.overflow > 0 &&
+          fit.expected !== null &&
+          fit.cut === fit.expected.label &&
+          fit.cap !== null &&
+          Math.abs(fit.cap - fit.expected.middle) <= MIDLINE_EPSILON
         );
       };
-      await expect.poll(peeks).toBe(true);
+      await expect.poll(fitsRoom, { message: "the cut rests on the last midline that fits at boot" }).toBe(true);
       for (const height of [viewport.height - RAIL_RESIZE_PX, viewport.height + RAIL_RESIZE_PX, viewport.height]) {
         await page.setViewportSize({ width: viewport.width, height });
-        await expect.poll(peeks, { message: `the cut rests on a button's midline at height ${String(height)}` }).toBe(true);
+        await expect.poll(fitsRoom, { message: `the cut rests on the last midline that fits at height ${String(height)}` }).toBe(true);
+        const { straddling } = await sections.evaluate(railEdge);
+        expect(straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)).toBe(true);
       }
+    });
+
+    test("drops the bottom fade when the window grows past the sections, and brings it back when it shrinks", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      await expect(sections).toHaveAttribute("data-fade-bottom", "");
+      // The fit writes the cap from its own observer, so the fade hook does not watch the box: only the fit's direct sync clears it.
+      await page.setViewportSize({ width: viewport.width, height: GROWN_WINDOW_PX });
+      await expect.poll(async () => (await sections.evaluate(railFit)).overflow, { message: "the rail holds every section" }).toBe(0);
+      await expect(sections).not.toHaveAttribute("data-fade-bottom", /.*/u);
+      await page.setViewportSize(viewport);
+      await expect.poll(async () => (await sections.evaluate(railFit)).overflow).toBeGreaterThan(0);
+      await expect(sections).toHaveAttribute("data-fade-bottom", "");
     });
 
     test("opens with the active section in view, and brings it back after every section change", async ({ corpus, mount, page }, info) => {
@@ -190,6 +256,39 @@ for (const viewport of LANDSCAPE_PHONES) {
         await expect.poll(inView, { message: `${label} is in view after the change` }).toBe(true);
       }
       await page.screenshot({ path: info.outputPath("rail-after-changes.png") });
+    });
+  });
+}
+
+const LOOP_ERROR_MARK = "data-ro-loop-error";
+// The sizes where the rail fit and the section fade both measure the scroller on boot and the box is capped.
+const LOOP_ERROR_SIZES = [
+  { width: 844, height: 340 },
+  { width: 844, height: 430 },
+  { width: 932, height: 430 },
+] as const;
+
+for (const viewport of LOOP_ERROR_SIZES) {
+  test.describe(`boot at ${String(viewport.width)}x${String(viewport.height)}`, () => {
+    test.use({ viewport, hasTouch: true, isMobile: true });
+
+    // The console ring and `console-errors=0` leave this class out of the verdict, so the page's own error event is the evidence.
+    test("raises no ResizeObserver loop error while the rail fits and fades", async ({ corpus, mount, page }) => {
+      await page.addInitScript((mark) => {
+        globalThis.addEventListener("error", (event) => {
+          if (event.message.includes("ResizeObserver loop")) {
+            document.documentElement.setAttribute(mark, event.message);
+          }
+        });
+      }, LOOP_ERROR_MARK);
+      await using root = await createCorpusHarness();
+      await serveShell(page, corpus, root, "home");
+      await mount<typeof SectionShellStory>(STORY, { section: "home" });
+      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      await expect.poll(async () => (await sections.evaluate(railFit)).cap).not.toBeNull();
+      await expect(sections).toHaveAttribute("data-fade-bottom", "");
+      await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+      await expect(page.locator("html")).not.toHaveAttribute(LOOP_ERROR_MARK, /.+/u);
     });
   });
 }

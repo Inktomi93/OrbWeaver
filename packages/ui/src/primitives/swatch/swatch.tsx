@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { SWATCH_FILL_TONE, swatchVariants } from "./variants.ts";
+import { SWATCH_FILL_PIGMENT, SWATCH_FILL_TONE, swatchVariants } from "./variants.ts";
 
 export interface SwatchProps extends ComponentProps<"span">, VariantProps<typeof swatchVariants> {}
 
@@ -16,6 +16,7 @@ export function Swatch({ className, fill, shape, edge, indeterminate, ...props }
   return (
     <span
       aria-hidden={true}
+      data-pigment={SWATCH_FILL_PIGMENT[fill ?? "none"] ?? undefined}
       data-slot="swatch"
       data-tone={SWATCH_FILL_TONE[fill ?? "none"] ?? undefined}
       {...props}

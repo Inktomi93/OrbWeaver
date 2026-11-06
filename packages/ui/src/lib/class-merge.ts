@@ -16,7 +16,7 @@
 // Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
 import type { DefaultClassGroupIds } from "tailwind-merge";
-import { extendTailwindMerge } from "tailwind-merge";
+import { extendTailwindMerge, validators } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
 import { TOKENS } from "#tokens";
@@ -122,9 +122,15 @@ const BORDER_WIDTH_GROUPS = {
   ...Object.fromEntries(BORDER_WIDTH_SIDES.map((side) => [`border-w-${side}`, [{ [`border-${side}`]: BORDER_WIDTH_SCALE }]])),
 };
 
+// The focus ring's offset is spelled `ring-offset-(length:--focus-ring-offset)`. tailwind-merge's offset width takes a
+// number or an arbitrary length only, so the variable form fell to the offset COLOR group and `ring-offset-sidebar`
+// evicted it, leaving a ring with no offset. Registering the variable length keeps both.
+const RING_OFFSET_WIDTH = [{ "ring-offset": [validators.isArbitraryVariableLength] }];
+
 const CLASS_GROUPS = {
   ...CUSTOM_CLASS_GROUPS,
   ...BORDER_WIDTH_GROUPS,
+  "ring-offset-w": RING_OFFSET_WIDTH,
   w: [{ w: WIDTH_SCALE }],
   size: [{ size: SIZE_SCALE }],
   h: [{ h: HEIGHT_SCALE }],

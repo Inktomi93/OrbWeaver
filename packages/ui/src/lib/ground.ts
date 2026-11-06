@@ -9,8 +9,8 @@ export const GROUND = {
   backgroundUnlessArt: "not-in-data-has-bg-image:bg-background",
   /** The card fill and its ink: a sticky band over a scrolling card body. */
   card: "bg-card tone-host-card text-card-foreground",
-  /** A band laid over the card at low strength, so it reads as part of the page it labels. */
-  faint: "bg-card/40",
+  /** The page ground under a band on a card, so the band reads as part of the page it labels. */
+  faint: "bg-background tone-host-background",
   /** The popover fill: a footer pinned inside a floating surface. */
   popover: "bg-popover tone-host-popover text-popover-foreground",
   /** The raised step: the rail that holds the current selection. */

@@ -75,7 +75,7 @@ export const sliderVariants = tv({
   //
   // `neutral` and `ghost` are the KnobRow pair, and both drop the accent (side-eye F-09, 2026-08-02):
   //  · `neutral` = EXPLICIT. §4.1 rations the ember to focus + the pane's one primary, so a set knob is
-  //    signalled by WEIGHT (a 45%-foreground fill + the full-weight thumb — the mock's own explicit row),
+  //    signalled by WEIGHT (a foreground fill at the `faint` step + the full-weight thumb — the mock's own explicit row),
   //    not by accent; twelve ember fills in one column was the CD3 budget break the review measured.
   //  · `ghost` = INHERITED, and it paints NO FILL AT ALL. A dimmed fill still draws a bar from the rail's
   //    start to the thumb, so an unset Top-P at its 1.00 model default rendered a FULL grey meter and read
@@ -94,7 +94,8 @@ export const sliderVariants = tv({
   variants: {
     tone: {
       default: { indicator: "bg-primary", thumb: "bg-foreground" },
-      neutral: { indicator: "bg-foreground/45", thumb: "bg-foreground" },
+      // Element opacity survives a colour swap, so an invalid Field clears the step back to the opaque destructive fill.
+      neutral: { indicator: "bg-foreground opacity-faint data-invalid:opacity-100", thumb: "bg-foreground" },
       ghost: { indicator: "bg-transparent", thumb: "border-rule border-muted-foreground bg-transparent" },
     },
   },

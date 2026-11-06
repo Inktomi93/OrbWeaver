@@ -16,7 +16,7 @@ const FILL_PAINT = {
   accent: { bg: "bg-accent", edge: "edge-tone", ink: "ink-accent" },
   sidebar: { bg: "bg-sidebar", edge: "edge-sidebar", ink: "ink-sidebar" },
   sidebarEdge: { bg: "bg-card", edge: "edge-sidebar", ink: "ink-card" },
-  translucent: { bg: "bg-translucent", edge: "edge-tone", ink: "ink-card" },
+  translucent: { bg: "bg-translucent", edge: "edge-tone", ink: "ink-plate" },
 } as const;
 
 for (const { name, ...props } of SEED_CASES) {

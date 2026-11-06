@@ -57,6 +57,12 @@ const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
 
 // The D336 tones that carry a base `--color-*` token; neutral binds the ramp instead and has none.
 const INTENT_COLORS = TONES.filter((tone) => `color.${tone}` in TOKENS);
+// Every other colour token, longest name first so an alternation never stops on a prefix. The tone roles are the row above's.
+const NEUTRAL_COLORS = Object.keys(TOKENS)
+  .filter((path) => path.startsWith("color."))
+  .map((path) => path.slice("color.".length))
+  .filter((name) => !(name.startsWith("tone-") || INTENT_COLORS.some((tone) => name === tone || name === `${tone}-foreground`)))
+  .sort((a, b) => b.length - a.length);
 
 // Tailwind utilities the namespace resets cannot remove (the compiler still accepts them), refused here instead.
 // `size`, `height` and `width` tokens compile as bare `size-<name>`/`h-<name>`/`w-<name>` on some axes only, so the
@@ -86,11 +92,26 @@ const CLASS_SELECTORS: Selector[] = [
   },
   { kind: SelectorKind.Callee, name: "^tv$", match: CLASS_STRING_MATCHERS },
 ];
+// A colour as a class names it: `foreground`, or the variable it reads, `(--color-foreground)` / `(color:--color-foreground)`.
+// Both compile to the same `color-mix()` under an opacity modifier, so a row that names only the first leaves a hole.
+const colorRef = (names: string): string => String.raw`(?:${names}|\((?:color:)?--color-${names}\))`;
 const RESTRICTED_CLASSES = [
   {
     // D336: a translucent intent or tone colour has no fixed contrast, because its pair depends on the host under it.
-    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:${INTENT_COLORS.join("|")}|tone-[a-z-]+?)(?:-foreground)?\/[^\s]+$`,
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-${colorRef(`(?:${INTENT_COLORS.join("|")}|tone-[a-z-]+?)(?:-foreground)?`)}\/[^\s]+$`,
     message: "An opacity modifier on an intent or tone colour (D336); paint an opaque *-tone-* role (tint, edge, text-on-tint) under the element's tone.",
+  },
+  {
+    // A neutral colour mixes alpha by hand the same way: the page inks and grounds, borders and fills. A step is named
+    // once instead: an opaque role, a colour token, or an element opacity step (`opacity-receded`).
+    pattern: String.raw`^(?:[^\s]*:)?!?[a-z-]+-(?:current|${colorRef(`(?:${NEUTRAL_COLORS.join("|")})`)})\/[^\s]+$`,
+    message:
+      "An opacity modifier on a neutral colour; paint an opaque role or colour token, or an element opacity step such as opacity-receded (opacity-<step> in tokens.json).",
+  },
+  {
+    // `0` is the reset and stays legal; the ring's weight is `--border-width-rule` and its offset `--focus-ring-offset`.
+    pattern: String.raw`^(?:[^\s]*:)?-?(?:ring-offset|outline-offset|outline)-[1-9]\d*$`,
+    message: "A numeric ring offset or outline width; spell the focus tokens: ring-offset-(length:--focus-ring-offset), outline-(length:--border-width-rule).",
   },
   {
     // An arbitrary class value that carries a design number: a length, a decimal, or a track share other than 1fr.

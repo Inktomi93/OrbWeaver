@@ -180,7 +180,7 @@ export function PresetEditorHeader({
                 The scroll box is a WRAPPER and not the `TabsList` itself, for two reasons: the list's own
                 `w-fit` is what makes the tabs measure their words, and a scroll container clips its
                 overflow on BOTH axes (CSS computes a `visible` axis to `auto` when the other is not),
-                which would eat the tabs' `ring-offset-2` focus halo — `py-tight` is the 4px of headroom
+                which would eat the tabs' offset focus halo — `py-tight` is the 4px of headroom
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}

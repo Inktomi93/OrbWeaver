@@ -1,5 +1,6 @@
 import type { ToneStamp } from "#lib";
-import { tv } from "#lib";
+import { SWATCH_LADDER_PIGMENT, tv } from "#lib";
+import type { PigmentScope } from "#tokens";
 
 // A decorative mark that IS its colour: a palette sample, a presence dot, a preview's pane, a running hairline. The
 // caller sizes and places it; the swatch owns its fill, its shape and its edge, so a feature never paints a box.
@@ -18,9 +19,9 @@ export const swatchVariants = tv({
       success: "bg-success",
       // A brightness ladder in the foreground over whatever ground the swatch sits on, for a preview that shows
       // surfaces stepping apart by shade. Each step clears the 1.5:1 separation floor against the one below it.
-      step1: "bg-foreground/8",
-      step2: "bg-foreground/32",
-      step3: "bg-foreground/60",
+      step1: "bg-(--pigment-swatch-ladder-step-1)",
+      step2: "bg-(--pigment-swatch-ladder-step-2)",
+      step3: "bg-(--pigment-swatch-ladder-step-3)",
     },
     shape: {
       square: "",
@@ -51,3 +52,16 @@ export const SWATCH_FILL_TONE = {
   step2: null,
   step3: null,
 } as const satisfies Record<keyof typeof swatchVariants.variants.fill, ToneStamp>;
+
+/** The D336 pigment scope each fill stamps; only the brightness ladder reads one. */
+export const SWATCH_FILL_PIGMENT = {
+  none: null,
+  foreground: null,
+  muted: null,
+  primary: null,
+  primaryFaint: null,
+  success: null,
+  step1: SWATCH_LADDER_PIGMENT,
+  step2: SWATCH_LADDER_PIGMENT,
+  step3: SWATCH_LADDER_PIGMENT,
+} as const satisfies Record<keyof typeof swatchVariants.variants.fill, PigmentScope | null>;

@@ -7,3 +7,6 @@ export const GRADIENT_RING_PIGMENT = "gradient-ring" satisfies PigmentScope;
 
 /** The accent glows behind an empty-state glyph and under a media cell's pointer. */
 export const ACCENT_AURA_PIGMENT = "accent-aura" satisfies PigmentScope;
+
+/** The foreground-over-ground brightness rungs of an elevation diagram's swatches. */
+export const SWATCH_LADDER_PIGMENT = "swatch-ladder" satisfies PigmentScope;
