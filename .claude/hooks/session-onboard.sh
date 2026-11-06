@@ -107,7 +107,7 @@ fi
 
 # OPEN P1s AND THE FIRST-MESSAGE CARD. A pointer to read relies on the session remembering to; these print the
 # facts instead. The owner cannot see what a fresh session read, so its first message shows it.
-echo "--- open P1 items (dispatch by the skill's Plan order, never by recency):"
+echo "--- open P1 items (dispatch by the rank order in docs/plans/README.md, never by recency):"
 /usr/bin/grep -l '^priority: P1$' docs/work/[0-9]*.md 2>/dev/null | while IFS= read -r item; do
   printf '    %s %s\n' "$(basename "$item" | cut -c1-4)" "$(/usr/bin/grep -m1 '^# ' "$item" | cut -c3-110)"
 done

@@ -1,7 +1,8 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-31
+updated: 2026-11-06
+rank: 6
 ---
 
 # Mechanical checks that keep tests on production
@@ -11,6 +12,8 @@ updated: 2026-10-31
 A test cannot restate production by accident: copied values, rosters, weak refusals, unseeded ids and hand-built fixtures fail lint, tsc or a testkit helper before review sees them.
 
 ## Shape
+
+This plan starts after the owed proof runs named in the [test-foundation plan](../test-foundation/design.md#execution-sequence).
 
 Production first exports a home for every value tests need. The testkit then gains the helpers whose absence made copying easier. Lint rules and type shapes refuse the copy. Review keeps only what no tool can judge.
 

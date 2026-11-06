@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P3
 area: client
-plan: unwired-code
+plan: cross-surface-consistency
 ---
 
 # Image modal and inbox review P3 leftovers (1737 P3-3, P3-4, P3-7 and 1735 B1-9 to B1-14)

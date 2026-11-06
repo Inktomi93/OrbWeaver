@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P3
 area: plugin
+plan: cross-surface-consistency
 ---
 
 # A screen-reader user hears a plugin's free-text title on its suggestion card but never hears the installer

@@ -76,8 +76,8 @@ export function adrTemplate(title: string, today: string, content: SectionConten
   return `${renderFrontmatter({ kind: "adr", status: "active", updated: today })}\n# ${title}\n\n${render(ADR_SECTIONS, content)}`;
 }
 
-export function planTemplate(title: string, today: string, content: SectionContent<PlanSectionFlag> = {}): string {
-  return `${renderFrontmatter({ kind: "plan", status: "active", updated: today })}\n# ${title}\n\n${render(PLAN_SECTIONS, content)}`;
+export function planTemplate(title: string, today: string, rank: number, content: SectionContent<PlanSectionFlag> = {}): string {
+  return `${renderFrontmatter({ kind: "plan", status: "active", updated: today, rank: String(rank) })}\n# ${title}\n\n${render(PLAN_SECTIONS, content)}`;
 }
 
 /** A law doc has no required sections: the rule decides its shape. */

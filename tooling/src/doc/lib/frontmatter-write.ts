@@ -10,6 +10,7 @@ const KEY_ORDER: readonly string[] = [
   "kind",
   "status",
   "updated",
+  "rank",
   "supersedes",
   "superseded-by",
   "priority",

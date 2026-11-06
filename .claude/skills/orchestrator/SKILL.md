@@ -62,16 +62,7 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 
 ## Plan order
 
-Finish an active plan before opening new work. File a finding; it never jumps this order.
-
-1. P1 items in any plan.
-2. The client and ui lint drain that lands the lint branch.
-3. `cross-surface-consistency` through acceptance and integrated verification, with `surface-walk` beside it.
-4. `type-law` in its own order: server and contract steps first, client and ui steps after acceptance.
-5. `inference-flow` and `easy-sharing`.
-6. `test-foundation` and `test-enforcement`, owed proof runs first.
-7. `unwired-code`: server bugs first, then field judgments in bulk.
-8. `restoration-register` judging pass, not started: it waits until `type-law` is done in full and `unwired-code` cleanup is finished (owner, 2026-11-01).
+Finish an active plan before opening new work, and take P1 items first. `docs/plans/README.md` holds the order. A finding goes on the board; it never jumps the order.
 
 ## Lane cap
 
@@ -166,7 +157,7 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 | Land from `Closes:` trailers | `pnpm doc land --merged [--head-merge]` |
 | Delete uncited docs | `pnpm doc remove <id\|path…>` |
 | Mint an ADR | `pnpm doc new adr <slug> [--title <t>] [--context <t>] [--decision <t>] [--consequences <t>] [--alternatives <t>]` |
-| Mint a plan | `pnpm doc new plan <slug> [--title <t>] [--goal <t>] [--shape <t>] [--rejected <t>] [--coupled <t>] [--test-plan <t>]` |
+| Mint a plan | `pnpm doc new plan <slug> --rank <n> [--title <t>] [--goal <t>] [--shape <t>] [--rejected <t>] [--coupled <t>] [--test-plan <t>]` |
 | Mint a law doc | `pnpm doc new law <slug> [--title <t>]` |
 | Change a doc's status | `pnpm doc status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason>]` |
 | Mark docs reviewed | `pnpm doc review <path\|glob…>` |

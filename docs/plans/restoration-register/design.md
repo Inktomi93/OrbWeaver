@@ -1,8 +1,9 @@
 ---
 kind: plan
 status: parked
+updated: 2026-11-06
+rank: 8
 blocked: wake gone docs/plans/type-law/design.md
-updated: 2026-10-30
 ---
 
 # Restoration register
@@ -22,6 +23,8 @@ A full read of the maintained tests records what each case asserts and traces it
 The records are source reads. They were not run, and `legacy_comparison` is `not-compared` unless a row says otherwise.
 
 ## Shape
+
+This plan waits until the [type law](../type-law/design.md) plan is done in full and the [unwired code](../unwired-code/design.md) cleanup is finished; then its judging pass starts.
 
 One table of reference scopes with a porting state, a maintained home or decision, and the remaining action. Ledger, law and work docs link to it instead of to removed tests. The test-foundation plan owns the rebuild order.
 

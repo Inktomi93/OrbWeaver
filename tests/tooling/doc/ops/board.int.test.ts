@@ -46,7 +46,7 @@ test("land refuses evidence that is not on main, then deletes the item, releases
     TODAY,
   );
   newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null, blocked: "on 1" }), root, TODAY);
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: "p", lane: null }), root, TODAY);
   expect(setStatus({ status: "parked", paths: ["docs/plans/p/design.md"], by: null, blocked: "on 1" }, root, TODAY).refusals).toEqual([]);
   const head = commitAll(root, "feat(x): a");

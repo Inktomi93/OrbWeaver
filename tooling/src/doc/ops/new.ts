@@ -4,7 +4,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { AdrSectionFlag, NewDocInput, PlanSectionFlag } from "../contract/types.ts";
+import type { AdrSectionFlag, NewDocInput, NewPlanInput } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { basenameOf, numberedName, parseNumberedName } from "../lib/names.ts";
@@ -57,12 +57,12 @@ export function newAdr({ slug, title, content = {} }: NewDocInput<AdrSectionFlag
   return mint(path, adrTemplate(titleFrom(slug, title), date, content), repoRoot);
 }
 
-export function newPlan({ slug, title, content = {} }: NewDocInput<PlanSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
+export function newPlan({ slug, title, rank, content = {} }: NewPlanInput, repoRoot = root, date = today()): WriteOutcome {
   const path = `${DOC_TOOL_TREES.plans}${slug}/${DESIGN_FILE}`;
   if (existsSync(join(repoRoot, DOC_TOOL_TREES.plans, slug))) {
     return { written: [], refusals: [`${DOC_TOOL_TREES.plans}${slug}/: exists — edit ${path}, or delete a finished one with pnpm doc remove ${path}`] };
   }
-  return mint(path, planTemplate(titleFrom(slug, title), date, content), repoRoot);
+  return mint(path, planTemplate(titleFrom(slug, title), date, rank, content), repoRoot);
 }
 
 /** A law doc is `docs/law/<slug>.md`. A doc of the same name in any letter case is a twin: the law tree's

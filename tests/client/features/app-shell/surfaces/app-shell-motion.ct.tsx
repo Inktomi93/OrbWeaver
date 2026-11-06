@@ -792,7 +792,7 @@ test.describe("a row mounted mid flank door", () => {
     await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
     await waitForShellIdle(page);
     await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] .orb-chat-track', "room-flank-centre-flip");
-    const read = await page.evaluate(async () => {
+    const read = await page.evaluate(async (maxFrames) => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
       if (scroller === null) {
@@ -804,26 +804,25 @@ test.describe("a row mounted mid flank door", () => {
         element.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "room-flank-centre-flip");
       const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
-      const reference = (): Animation | undefined =>
-        Array.from(armed)
-          .filter((track) => track.isConnected)
-          .map(flip)
-          .find((animation) => animation?.playState === "running");
+      // Read before the scroll: the held clock fixes this time, and the scroll can replace every armed row.
+      const at = Array.from(armed)
+        .map(flip)
+        .find((animation) => animation?.playState === "running");
+      const reference = at === undefined ? null : Number(at.currentTime);
       scroller.scrollTop = 0;
       const newcomers = (): Element[] => tracks().filter((track) => !armed.has(track));
-      while (reference() !== undefined && newcomers().length === 0) {
+      for (let frames = 0; frames < maxFrames && newcomers().length === 0; frames += 1) {
         await frame();
       }
       await frame();
-      const at = reference();
       return {
-        reference: at === undefined ? null : Number(at.currentTime),
+        reference,
         newcomers: newcomers().map((track) => {
           const animation = flip(track);
           return animation === undefined ? null : Number(animation.currentTime);
         }),
       };
-    });
+    }, SAMPLE_FRAMES);
     expect(read.reference, "the door's flip had already finished, so the read proves nothing").not.toBeNull();
     expect(read.reference).toBeGreaterThan(2 * PHASE_TOLERANCE_MS);
     expect(read.newcomers.length, "the scroll mounted no row mid-door, so the read proves nothing").toBeGreaterThan(0);

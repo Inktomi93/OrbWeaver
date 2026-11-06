@@ -6,12 +6,11 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { ADR_KIND, DOC_TOOL_TREES, PLAN_KIND } from "../contract/vocab.ts";
+import { ADR_KIND, DOC_TOOL_TREES, PARKED, PLAN_KIND } from "../contract/vocab.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { DESIGN_FILE, isGeneratedPath, planSlugOf } from "../lib/indexes.ts";
 import { isItemPath, parseBlocker } from "../lib/items.ts";
 import { basenameOf, folderOf, parseNumberedName, referencePatterns } from "../lib/names.ts";
-import { PARKED } from "../lib/rules.ts";
 import { loadPlans } from "./board.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";

@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-06
 priority: P3
 area: client
-plan: unwired-code
+plan: cross-surface-consistency
 ---
 
 # Import and inbox rendered review P3 bundle (P3-1 to P3-8, inbox-and-import side-eye report), plus importTree taking an abort signal
