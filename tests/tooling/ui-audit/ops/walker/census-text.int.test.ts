@@ -360,3 +360,46 @@ auditRuleTest(
     expect(report.populationAccounting?.["distorted-image"]).toMatchObject({ judged: 1, emitted: 1 });
   },
 );
+
+// ── a translucent plate over a replaced-element art layer ─────────────────────
+// The paint-layer census sees an art layer painted by CSS; a fixed <img> paints no CSS background, so a
+// plate over it composited against the opaque body and read as a passing flat backdrop.
+
+const ART_RASTER_URL =
+  "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22%3E%3Crect width=%2210%22 height=%2210%22 fill=%22white%22/%3E%3C/svg%3E";
+const FIXED_ART = `<img alt="" src="${ART_RASTER_URL}" style="position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none">`;
+const GLASS_PLATE = '<div style="margin:20px;width:300px;padding:10px;background:rgba(0,0,0,0.3);color:#ffffff;font-size:14px"><span>Small ink</span></div>';
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason:
+        "white ink over a 30% black plate over a white fixed image reads about 2.4:1 on screen; the CSS composite against the black body reads as passing",
+    },
+  ],
+  "small ink on a translucent plate over a fixed image is measured from pixels and fails",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "plate-over-img-art", `${FIXED_ART}${GLASS_PLATE}`);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "the same plate with no art behind it is a true flat backdrop: 30% black over the black body passes, and text-over-art stays excluded",
+    },
+  ],
+  "the same plate over no art stays a flat backdrop",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "plate-over-flat", GLASS_PLATE);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
+    expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
+  },
+);

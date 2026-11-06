@@ -19,14 +19,15 @@ pre-commit:
 post-commit:
   commands:
     # `git commit -- <path>` commits from a temporary index, so stage_fixed restages the formatted text
-    # there only: the real index keeps the unformatted text and status shows `MM`. Resetting the committed
-    # docs to HEAD leaves the formatted working copy as the clean state.
+    # there only: the real index keeps the unformatted text and status shows `MM`. Resetting such a doc to
+    # HEAD leaves the formatted working copy as the clean state. Only a doc whose working copy already
+    # equals HEAD is reset: a doc whose staged text differs from HEAD in the working copy too is another
+    # change's staging (an amend with a pathspec), and a reset would drop it.
     restage-docs:
-      glob:
-        - "docs/{adr,plans,work,law}/*.md"
-        - "docs/{adr,plans,work,law}/**/*.md"
-      files: git diff-tree --no-commit-id --name-only -r HEAD
-      run: git reset -q HEAD -- {files}
+      run: |
+        for f in $(git diff --cached --name-only -- 'docs/adr/*.md' 'docs/plans/*.md' 'docs/work/*.md' 'docs/law/*.md'); do
+          if git diff --quiet HEAD -- "$f"; then git reset -q HEAD -- "$f"; fi
+        done
 
 pre-merge-commit:
   commands:
