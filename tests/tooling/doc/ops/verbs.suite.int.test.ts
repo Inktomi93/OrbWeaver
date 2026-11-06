@@ -46,13 +46,19 @@ test("new adr mints at the next free id past the ADR tree and the reserved range
   expect(nextAdrId(reservedOnly)).toBe(106);
 });
 
-test("new plan mints design.md in its own folder and refuses an existing folder", async ({ plantedTree }) => {
+test("new plan mints design.md in its own folder with its rank and refuses an existing folder or a taken rank", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  const outcome = newPlan({ slug: "doc-migration", title: null }, root, TODAY);
+  const outcome = newPlan({ slug: "doc-migration", title: null, rank: 1 }, root, TODAY);
   expect(outcome.written[0]).toBe("docs/plans/doc-migration/design.md");
   expect(read(root, "docs/plans/doc-migration/design.md")).toContain("# Doc migration\n\n## Goal\n");
-  expect(read(root, "docs/plans/README.md")).toContain("| [Doc migration](doc-migration/design.md) | active |");
-  expect(newPlan({ slug: "doc-migration", title: null }, root, TODAY).refusals[0]).toContain("docs/plans/doc-migration/: exists");
+  expect(read(root, "docs/plans/doc-migration/design.md")).toContain("---\nkind: plan\nstatus: active\nupdated: 2026-09-23\nrank: 1\n---\n");
+  expect(read(root, "docs/plans/README.md")).toContain("| 1 | [Doc migration](doc-migration/design.md) | active |");
+  expect(newPlan({ slug: "doc-migration", title: null, rank: 1 }, root, TODAY).refusals[0]).toContain("docs/plans/doc-migration/: exists");
+  const taken = newPlan({ slug: "other", title: null, rank: 1 }, root, TODAY);
+  expect(taken.written).toEqual([]);
+  expect(taken.refusals).toEqual(["docs/plans/other/design.md: rank 1 is already docs/plans/doc-migration/design.md"]);
+  expect(newPlan({ slug: "other", title: null, rank: 2 }, root, TODAY).refusals).toEqual([]);
+  expect(read(root, "docs/plans/README.md")).toContain("| 1 | [Doc migration](doc-migration/design.md) | active |\n| 2 | [Other](other/design.md) | active |");
 });
 
 test("status writes both halves of a supersession and refuses a status the kind does not take", async ({ plantedTree }) => {
@@ -73,7 +79,7 @@ test("status writes both halves of a supersession and refuses a status the kind 
 
 test("item mints under docs/work with the next id, joins its plan's tasks.md, and refuses an unknown plan", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   const missing = newItem(written({ title: "Fix it", kind: "bug", priority: "P1", area: "docs", plan: "ghost", lane: null }), root, TODAY);
   expect(missing.written).toEqual([]);
   expect(missing.refusals[0]).toContain("no such plan");
@@ -119,7 +125,7 @@ test("review sets updated on a glob of docs in one write, and index regenerates 
 
 test("index deletes a plan's tasks.md once its last item leaves the plan (F11)", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   newItem(written({ title: "Task", kind: "work", priority: null, area: null, plan: "p", lane: null }), root, TODAY);
   expect(existsSync(join(root, "docs/plans/p/tasks.md"))).toBe(true);
   const moved = setItems([1], { state: "open", plan: null }, root, TODAY);
@@ -129,7 +135,7 @@ test("index deletes a plan's tasks.md once its last item leaves the plan (F11)",
 
 test("a plan parks with a wake condition and unparks; --blocked belongs to a parked plan only", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   const plan = "docs/plans/p/design.md";
   expect(setStatus({ status: "parked", paths: [plan], by: null }, root, TODAY).refusals).toEqual([
     `${plan}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
@@ -139,8 +145,8 @@ test("a plan parks with a wake condition and unparks; --blocked belongs to a par
   ]);
   const parked = setStatus({ status: "parked", paths: [plan], by: null, blocked: "wake path docs/adr/0200-x.md" }, root, "2026-09-24");
   expect(parked.refusals).toEqual([]);
-  expect(read(root, plan)).toContain("---\nkind: plan\nstatus: parked\nupdated: 2026-09-24\nblocked: wake path docs/adr/0200-x.md\n---\n");
-  expect(read(root, "docs/plans/README.md")).toContain("| [P](p/design.md) | parked |");
+  expect(read(root, plan)).toContain("---\nkind: plan\nstatus: parked\nupdated: 2026-09-24\nrank: 1\nblocked: wake path docs/adr/0200-x.md\n---\n");
+  expect(read(root, "docs/plans/README.md")).toContain("| 1 | [P](p/design.md) | parked |");
   expect(setStatus({ status: "active", paths: [plan], by: null }, root, TODAY).refusals).toEqual([]);
   expect(read(root, plan)).not.toContain("blocked:");
   newItem(written({ title: "An item", kind: "work", ...OPEN }), root, TODAY);
@@ -258,7 +264,7 @@ test("new adr and new plan write the section text they are given, and refuse tex
   expect(read(root, "docs/adr/0001-one.md")).toContain(
     "## Context\n\nWhy.\n\n## Decision\n\nThe rule.\n\n## Consequences\n\nWhat follows.\n\n## Alternatives rejected\n\nNone.\n",
   );
-  const plan = newPlan({ slug: "p", title: "P", content: { goal: "The outcome.", "test-plan": "One test." } }, root, TODAY);
+  const plan = newPlan({ slug: "p", title: "P", rank: 1, content: { goal: "The outcome.", "test-plan": "One test." } }, root, TODAY);
   expect(plan.refusals).toEqual([]);
   expect(read(root, "docs/plans/p/design.md")).toContain("## Goal\n\nThe outcome.\n\n## Shape\n\nThe chosen shape, with the homes it touches.\n");
   expect(read(root, "docs/plans/p/design.md")).toContain("## Test plan\n\nOne test.\n");
@@ -270,7 +276,7 @@ test("new adr and new plan write the section text they are given, and refuse tex
 
 test("set changes an item's kind and clears its plan, which drops the plan's tasks.md", async ({ plantedTree }) => {
   const root = await plantedTree({});
-  newPlan({ slug: "p", title: "P" }, root, TODAY);
+  newPlan({ slug: "p", title: "P", rank: 1 }, root, TODAY);
   newItem(written({ title: "Parked", kind: "decision", ...OPEN, plan: "p" }), root, TODAY);
   const outcome = setItems([1], { kind: "work", plan: null }, root, "2026-09-24");
   expect(outcome.refusals).toEqual([]);

@@ -21,7 +21,7 @@ function allMarked<F extends string>(flags: readonly F[]): { [K in F]?: string }
 test("every ADR, plan and item content flag renders into its template", () => {
   const rendered: readonly (readonly [readonly string[], string])[] = [
     [ADR_SECTION_FLAGS, adrTemplate("A", TODAY, allMarked(ADR_SECTION_FLAGS))],
-    [PLAN_SECTION_FLAGS, planTemplate("P", TODAY, allMarked(PLAN_SECTION_FLAGS))],
+    [PLAN_SECTION_FLAGS, planTemplate("P", TODAY, 1, allMarked(PLAN_SECTION_FLAGS))],
     [ITEM_SECTION_FLAGS, itemTemplate({ kind: "work", status: "open", updated: TODAY }, "T", allMarked(ITEM_SECTION_FLAGS))],
   ];
   for (const [flags, text] of rendered) {

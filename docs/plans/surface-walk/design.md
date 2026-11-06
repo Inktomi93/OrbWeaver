@@ -1,7 +1,8 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-28
+updated: 2026-11-06
+rank: 2
 ---
 
 # Automated product surface review
@@ -13,6 +14,8 @@ Run repeatable production-backed surface journeys and retain complete local evid
 ## Shape
 
 Use native Playwright projects and shared journeys with separate measurement and evidence passes. Select synthetic or owner-clone data explicitly and reuse existing testkit composition, collectors and production navigation.
+
+This plan runs beside [cross-surface consistency](../cross-surface-consistency/design.md) and supplies the repeatable collection its acceptance scores.
 
 ## Rejected
 

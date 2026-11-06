@@ -17,6 +17,7 @@ export type {
   ItemState,
   NewDocInput,
   NewItemInput,
+  NewPlanInput,
   OverviewFilter,
   OverviewState,
   PlanState,
@@ -33,6 +34,7 @@ export {
   ITEM_KINDS,
   ITEM_STATES,
   LAST_RESERVED_RULING,
+  PARKED,
   PLAN_KIND,
 } from "./contract/vocab.ts";
 export { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "./lib/drift.ts";
@@ -46,7 +48,7 @@ export type { LandingRecord, StagedLanding } from "./lib/items.ts";
 export { applyPatch, itemShapeProblems, landingMessage, parseBlocker, parseItem, parseItemBatch, stagedLanding, workCommitMessage } from "./lib/items.ts";
 export { numberedName, padId, parseNumberedName, slugify } from "./lib/names.ts";
 export { parseDocCommand, USAGE } from "./lib/parse.ts";
-export { docProblems, KIND_RULES, nextFreeRulingId, PARKED } from "./lib/rules.ts";
+export { docProblems, KIND_RULES, nextFreeRulingId } from "./lib/rules.ts";
 export { adrTemplate, itemTemplate, lawTemplate, planTemplate } from "./lib/templates.ts";
 export { drift, driftFacts, loadPlans, overview } from "./ops/board.ts";
 export { docFileCount, docLayerProblems, introducedDocProblems, pendingDocProblems } from "./ops/check.ts";

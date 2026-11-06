@@ -26,20 +26,26 @@ function item(overrides: Partial<WorkItem>): WorkItem {
 
 test("the ADR index sorts by id, links by basename and names a superseder", () => {
   const rendered = renderAdrIndex([
-    { path: "docs/adr/0170-later.md", title: "Later", kind: "adr", status: "active", supersededBy: null },
-    { path: "docs/adr/0164-first.md", title: "First", kind: "adr", status: "superseded", supersededBy: "docs/adr/0170-later.md" },
+    { path: "docs/adr/0170-later.md", title: "Later", kind: "adr", status: "active", supersededBy: null, rank: null },
+    { path: "docs/adr/0164-first.md", title: "First", kind: "adr", status: "superseded", supersededBy: "docs/adr/0170-later.md", rank: null },
   ]);
   expect(rendered).toContain("---\nkind: index\nstatus: active\n---\n");
   expect(rendered).toContain("| D164 | [First](0164-first.md) | superseded by [0170-later.md](0170-later.md) |\n| D170 | [Later](0170-later.md) | active |");
   expect(renderAdrIndex([])).toBe(renderAdrIndex([]));
 });
 
-test("the plan index links relative to docs/plans with each plan's status", () => {
+test("the plan index is the work order: rank column, ascending, parked plans after active ones", () => {
   const rendered = renderPlanIndex([
-    { path: "docs/plans/waiting/design.md", title: "Waiting", kind: "plan", status: "parked", supersededBy: null },
-    { path: "docs/plans/live/design.md", title: "Live", kind: "plan", status: "active", supersededBy: null },
+    { path: "docs/plans/waiting/design.md", title: "Waiting", kind: "plan", status: "parked", supersededBy: null, rank: 1 },
+    { path: "docs/plans/later/design.md", title: "Later", kind: "plan", status: "active", supersededBy: null, rank: 5 },
+    { path: "docs/plans/first/design.md", title: "First", kind: "plan", status: "active", supersededBy: null, rank: 2 },
+    { path: "docs/plans/tenth/design.md", title: "Tenth", kind: "plan", status: "active", supersededBy: null, rank: 10 },
   ]);
-  expect(rendered).toContain("| [Live](live/design.md) | active |\n| [Waiting](waiting/design.md) | parked |");
+  expect(rendered).toContain("| Rank | Plan | Status |\n| - | - | - |\n");
+  expect(rendered).toContain(
+    "| 2 | [First](first/design.md) | active |\n| 5 | [Later](later/design.md) | active |\n| 10 | [Tenth](tenth/design.md) | active |\n| 1 | [Waiting](waiting/design.md) | parked |",
+  );
+  expect(rendered).toContain("This is the work order");
   expect(rendered).toContain("delete a finished one with `pnpm doc remove <path>`");
 });
 

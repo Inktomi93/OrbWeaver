@@ -11,6 +11,7 @@ import {
   isGeneratedPath,
   LAW_INDEX_PATH,
   PLAN_INDEX_PATH,
+  parseRank,
   planDirOf,
   planSlugOf,
   renderAdrIndex,
@@ -35,6 +36,7 @@ function summary(doc: GovernedDoc): DocSummary | null {
     kind: fields["kind"] ?? "",
     status: fields["status"] ?? "",
     supersededBy: fields["superseded-by"] ?? null,
+    rank: parseRank(fields["rank"]),
   };
 }
 

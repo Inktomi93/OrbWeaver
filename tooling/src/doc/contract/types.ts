@@ -91,6 +91,11 @@ export interface NewDocInput<F extends string> {
   readonly content?: SectionContent<F>;
 }
 
+/** A plan also takes its place in the work order. */
+export interface NewPlanInput extends NewDocInput<PlanSectionFlag> {
+  readonly rank: number;
+}
+
 /** One document write judged by the pre-write check: `from` is where the doc lives now, `doc` where and
  *  what it will be (a different path is a rename). */
 export interface DocEdit {
@@ -139,6 +144,8 @@ export interface DocSummary {
   readonly kind: string;
   readonly status: string;
   readonly supersededBy: string | null;
+  /** A plan's place in the work order; null on every other kind and on a plan whose rank is not a positive whole number. */
+  readonly rank: number | null;
 }
 
 /** What `pnpm doc due` reads per doc: the review date and the repository paths the body cites. */
@@ -188,7 +195,13 @@ export interface OverviewFilter {
 export type DocCommand =
   | { readonly kind: "help"; readonly text: string }
   | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<AdrSectionFlag> }
-  | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
+  | {
+      readonly kind: "new-plan";
+      readonly slug: string;
+      readonly title: string | null;
+      readonly rank: number;
+      readonly content: SectionContent<PlanSectionFlag>;
+    }
   | { readonly kind: "new-law"; readonly slug: string; readonly title: string | null }
   | { readonly kind: "item"; readonly input: NewItemInput; readonly commit: boolean }
   | { readonly kind: "item-batch"; readonly from: string; readonly commit: boolean }
