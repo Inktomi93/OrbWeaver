@@ -34,6 +34,7 @@ import {
   TOOL_TRAILER,
   today,
   uncommittedBoardPaths,
+  uncommittedDocSources,
   writeDoc,
 } from "./tree.ts";
 
@@ -63,16 +64,19 @@ function itemIdsOf(paths: readonly string[]): readonly number[] {
 }
 
 /** What makes a board commit unsafe, checked BEFORE the verb writes anything: a merge waiting for its commit
- *  (a plumbing commit would drop its second parent) and a staged landing (its deletion would commit with
- *  no record and no `Closes:` line). */
+ *  (a plumbing commit would drop its second parent), a staged deletion (it would commit with no record and
+ *  no `Closes:` line), and an uncommitted hand-owned doc (the swept indexes describe it, so a commit without
+ *  it fails the docs check at HEAD). */
 function commitBlockers(repoRoot: string): readonly string[] {
   if (mergeInProgress(repoRoot)) {
     return ["--commit cannot run while a merge waits for its commit (MERGE_HEAD exists) — commit the merge first"];
   }
   const staged = stagedWorkDeletions(repoRoot);
-  return staged.length === 0
-    ? []
-    : [`--commit would commit the staged deletion of ${staged.join(", ")} with no landing record and no Closes: line — commit the landing first`];
+  if (staged.length > 0) {
+    return [`--commit would commit the staged deletion of ${staged.join(", ")} with no landing record and no Closes: line — commit it first`];
+  }
+  const sources = uncommittedDocSources(repoRoot);
+  return sources.length === 0 ? [] : [`--commit needs these docs committed first, because the generated indexes describe them: ${sources.join(", ")}`];
 }
 
 /** `--commit`: commit what the verb wrote plus every other uncommitted change under docs/work/ and the
@@ -259,17 +263,22 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
 }
 
 /** The section list of an item file, in order. */
-function sectionList(source: string): string {
-  return sectionsOf(splitDocument(source).body).join(" | ");
+function headingList(source: string): string {
+  return structuralHeadings(splitDocument(source).body).join(" | ");
 }
 
-/** `source` with each given section body replaced, or the refusals: a text carrying a `#` or `##` heading,
- *  or a section the item does not have. */
+/** `source` with each given section body replaced, or the refusals: an item whose required sections do not
+ *  all parse, or a text carrying a `#` or `##` heading. */
 function replaceSections(
   path: string,
   source: string,
   sections: SectionContent<ItemSectionFlag>,
 ): { readonly source: string } | { readonly refusals: readonly string[] } {
+  const found = sectionsOf(splitDocument(source).body);
+  const missing = ITEM_SECTIONS.filter((section) => !found.includes(section.name));
+  if (missing.length > 0) {
+    return { refusals: missing.map((section) => `${path}: has no ## ${section.name} section — every item carries one; restore it by hand`) };
+  }
   let next = source;
   const refusals: string[] = [];
   for (const section of ITEM_SECTIONS) {
@@ -278,23 +287,21 @@ function replaceSections(
       continue;
     }
     const headings = structuralHeadings(text);
-    const replaced = headings.length === 0 ? withSectionText(next, section.name, text) : null;
-    if (replaced !== null) {
-      next = replaced;
-    } else if (headings.length > 0) {
+    if (headings.length > 0) {
       refusals.push(`${path}: the ${section.name} text carries a heading line (${headings.join(", ")}) — a section body holds none; fence it or drop it`);
-    } else {
-      refusals.push(`${path}: has no ## ${section.name} section — every item carries one; restore it by hand`);
+      continue;
     }
+    next = withSectionText(next, section.name, text) ?? next;
   }
   return refusals.length > 0 ? { refusals } : { source: next };
 }
 
 /** Replace the body of the named sections of ONE item and judge the result like a `set`. The title, the
  *  fields except `updated` and the other sections keep their text; the final format pass may still
- *  normalise a sibling section that was not canonical. The section list must come out as it went in: an
- *  item without the named section, new text with a `#` or `##` heading, or text that opens a fence it never
- *  closes all refuse, because `introducedDocProblems` only subtracts findings the item already has and
+ *  normalise a sibling section that was not canonical. Every required section must parse first, so an unclosed
+ *  fence that hides a sibling cannot delete it. The `#` and `##` headings must come out as they went in, read
+ *  after the format pass so an indented or setext heading counts: new text with a heading, or text that opens a
+ *  fence it never closes, refuses, because `introducedDocProblems` only subtracts findings the item already has and
  *  would let such an edit through on an item that is already red. */
 export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
   const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
@@ -307,11 +314,11 @@ export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, 
     return { written: [], refusals: replaced.refusals };
   }
   const edit: DocEdit = { from: item.path, doc: { path: item.path, source: formattedDoc(withFields(replaced.source, { updated: date })) } };
-  if (sectionList(edit.doc.source) !== sectionList(original)) {
+  if (headingList(edit.doc.source) !== headingList(original)) {
     return {
       written: [],
       refusals: [
-        `${item.path}: the edit would change its sections from [${sectionList(original)}] to [${sectionList(edit.doc.source)}] — check the text for an unclosed code fence`,
+        `${item.path}: the edit would change its sections from [${headingList(original)}] to [${headingList(edit.doc.source)}] — check the text for an unclosed code fence`,
       ],
     };
   }

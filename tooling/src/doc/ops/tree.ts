@@ -255,6 +255,13 @@ export function uncommittedBoardPaths(repoRoot = root): readonly string[] {
     .filter((path) => path.startsWith(DOC_TOOL_TREES.work) || isGeneratedPath(path));
 }
 
+/** Every uncommitted hand-owned doc outside `docs/work/`: what a board commit cannot carry. */
+export function uncommittedDocSources(repoRoot = root): readonly string[] {
+  return statusEntries(repoRoot, DOC_TOOL_TREE_PREFIXES)
+    .map((entry) => entry.path)
+    .filter((path) => !(path.startsWith(DOC_TOOL_TREES.work) || isGeneratedPath(path)));
+}
+
 /** The paths among `paths` that differ from HEAD in the working tree or the index. */
 export function changedPaths(paths: readonly string[], repoRoot = root): readonly string[] {
   return statusEntries(repoRoot, paths).map((entry) => entry.path);

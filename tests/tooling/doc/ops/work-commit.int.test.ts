@@ -1,6 +1,6 @@
 // `set --commit` and `item --commit`: the verb's written paths plus every other uncommitted change under
 // docs/work/ go into one commit, and nothing outside docs/work/ rides along.
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import {
@@ -199,4 +199,17 @@ test("the parsed command runs --commit through runDocCommand against the given r
   expect(Number(git(root, "rev-list", "--count", "HEAD")) - Number(before)).toBe(1);
   expect(git(root, "log", "-1", "--format=%B")).toBe(`chore(work): update 1, 2\n\n${TOOL_TRAILER}`);
   expect(git(root, "status", "--porcelain")).toBe("");
+});
+
+test("--commit refuses before any write while a hand-owned doc the indexes describe is uncommitted", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  const before = readFileSync(join(root, "docs/work/0002-b.md"), "utf8");
+  mkdirSync(join(root, "docs/law"), { recursive: true });
+  writeFileSync(join(root, "docs/law/zed.md"), "# Zed\n");
+  const outcome = runWrite(true, root, () => setItems([2], { state: "doing", lane: "l" }, root, TODAY));
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals.join("\n")).toContain("docs/law/zed.md");
+  expect(readFileSync(join(root, "docs/work/0002-b.md"), "utf8")).toBe(before);
+  expect(git(root, "rev-parse", "HEAD")).toBe(head);
 });

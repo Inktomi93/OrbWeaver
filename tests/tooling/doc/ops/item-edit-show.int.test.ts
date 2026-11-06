@@ -124,3 +124,23 @@ test("a four-backtick block holding a fence and a ## line is text, in the new bo
   expect(read(root, ITEM)).toContain(fenced);
   expect(sectionsOf(splitDocument(read(root, ITEM)).body)).toEqual(["What", "Why", "Done when", "Evidence"]);
 });
+
+test("edit refuses an item whose unclosed fence hides its other sections, rather than deleting them", async ({ plantedTree }) => {
+  const root = await rootWithItem(plantedTree);
+  writeFileSync(join(root, ITEM), read(root, ITEM).replace("Old what.", "```foo``` is inline."));
+  const before = read(root, ITEM);
+  const outcome = editItem(1, { what: "New." }, root, LATER);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals.join("\n")).toContain("## Why");
+  expect(read(root, ITEM)).toBe(before);
+});
+
+test.for(["New.\n\n  # Other title\n\nI.", "New.\n\nOther title\n===\n\nI.", "New.\n\n#\tOther title\n\nI."])(
+  "edit refuses a title heading in any spelling: %j",
+  async (what, { plantedTree }) => {
+    const root = await rootWithItem(plantedTree);
+    const before = read(root, ITEM);
+    expect(editItem(1, { what }, root, LATER).written).toEqual([]);
+    expect(read(root, ITEM)).toBe(before);
+  },
+);
