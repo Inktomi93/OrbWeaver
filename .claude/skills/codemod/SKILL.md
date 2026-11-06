@@ -81,6 +81,23 @@ Run from the repository root.
 5. Run the affected tests. The commit hook checks staged files.
 6. Keep the codemod directory. A rewrite that may recur, or whose fixtures document a shape, stays; delete a one-shot codemod in the same commit that applies it.
 
+## Mass migration
+
+Run a rewrite that a census can list as one workflow. The census is the plan and the proof.
+
+1. Add the missing owner by hand first: the recipe value, token or primitive. A codemod moves a site only to an owner that exists.
+2. Plan: a `run:` step writes the map into the target directory from the census output. Keep the map out of the commit.
+3. Rewrite: one `js-ast-grep` step per language, with `semantic_analysis: workspace` when a rule keys on a component.
+4. Format: a `run:` step formats the touched files with Biome.
+5. Prove: a `run:` step reruns the census. The owner's count reaches zero, or each remaining site has a skip reason.
+6. Check: a `run:` step typechecks the touched programs. Run the affected tests.
+7. Close: turn on a lint rule at zero, so the shape cannot return.
+
+- Treat a site as mechanical only when the owner writes exactly what it replaces. Send any other site to review.
+- Gate the apply steps with `if: params.apply == "yes"`.
+- Run the plan step before a dry run, because `--dry-run` skips every `run:` step.
+- Stop a run with `failStep` when the plan and the tree disagree. Report a skipped site with `warn`.
+
 ## Gotchas
 
 | Fact | Consequence |

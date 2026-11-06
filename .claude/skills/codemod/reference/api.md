@@ -23,7 +23,7 @@ Languages: `codemod:ast-grep/langs/typescript`, `tsx`, `javascript`, `css`, `jso
 
 | Key | Meaning |
 | - | - |
-| `pattern: "import $NAME from $SRC"` | code with `$META` single captures and `$$$MULTI` spread captures |
+| `pattern: "import $NAME from $SRC"` | code with `$META` single captures and `$$$MULTI` spread captures; `$NAME:kind` restricts a capture to one node kind |
 | `kind: "import_statement"` | tree-sitter node kind; list them with `pnpm codemod ai node-types <language>` |
 | `regex: "^foo$"` | matches the node text; use on leaves |
 | `has: { field: "source", ... }` | a child, optionally in a named field; add `stopBy: "end"` for any descendant |
@@ -70,11 +70,11 @@ Positions are UTF-8 byte offsets. An empty `insertedText` deletes. Build edits f
 
 | Module | Use |
 | - | - |
-| `codemod:ast-grep` `parseAsync(language, text)` | parse an embedded language, for example CSS in a template literal |
+| `codemod:ast-grep` `parse(language, text)`, `parseAsync(language, text)` | parse an embedded language, for example CSS in a template literal |
 | `codemod:ast-grep` `jssgTransform(fn, path, language)` | edit a second file from the current one; applied with the primary file |
 | `codemod:workflow` `getState`, `setState`, `acquireLock` | shared state across files in one step; lock a read-modify-write |
 | `codemod:metrics` | `useMetricAtom(name).increment(labels)`; counts print at the end of a run, so use it to count edits and skip reasons |
-| `codemod:runtime` | progress, warnings, explicit failure |
+| `codemod:runtime` | `progress`, `warn`, `failFile`, `failStep`, `isCanceled`; prefer these to a thrown error, which logs less context |
 
 `@jssg/utils` runs inside the sandbox. It is not in the catalog yet; add it with the first codemod that imports it, because knip refuses an unused dependency.
 
