@@ -203,6 +203,7 @@ Name your lane, state your default, and keep working. Send nothing else.
 
 ## Report
 
+- A rule that refuses a test, or a value no door can show, is a design finding. Report what is missing: a production read, a testkit helper, or a deletion. Never drop the test and call the behavior proven.
 - Write the full report to `reports/lanes/<YYYY-MM-DD>-<slug>.md` inside your worktree: every command and its result, decisions, what you refused and what you deferred. It is gitignored; worktree cleanup moves it to main.
 - Your final message is a return card of 15 lines or fewer. Pass the path, never the report's contents:
   - Outcome: one line, then each acceptance item with met or not met.
