@@ -80,7 +80,7 @@ function RosterRow(props: {
       <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
         <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">
-            <Text voice="label" className="flex-1 truncate min-inline-0">
+            <Text voice="label" className="flex-1 min-inline-0" truncate={true}>
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
@@ -96,7 +96,7 @@ function RosterRow(props: {
             {roster.hasGroupConfig ? <Badge className="shrink-0">Group behavior</Badge> : null}
             {roster.game === null ? null : <Badge className="shrink-0">Game</Badge>}
           </Row>
-          <Text voice="gloss" className="truncate">
+          <Text voice="gloss" truncate={true}>
             {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>

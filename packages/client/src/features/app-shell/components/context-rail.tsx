@@ -214,7 +214,7 @@ export function ContextHeaderTabs({
   if (tabs.length <= 1) {
     return (
       <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch px-block min-inline-0">
-        <Text as="span" voice="label" data-slot="context-header-title" className="truncate min-inline-0">
+        <Text as="span" voice="label" data-slot="context-header-title" className="min-inline-0" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
       </Row>
@@ -285,7 +285,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       className="shrink-0"
     >
       {renderCellIcon(tab, isActive, locked)}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} /> : null}
@@ -357,7 +357,7 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate max-inline-full" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="max-inline-full" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST

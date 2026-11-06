@@ -31,7 +31,7 @@ export function PresetReadoutHeader(): ReactElement {
   const label = presetId === null ? NO_SELECTION_LABEL : (entry?.label ?? "Preset");
   return (
     <Row align="baseline" className="min-inline-0" gap="field">
-      <Text voice="promoted" className="truncate">
+      <Text voice="promoted" truncate={true}>
         {label}
       </Text>
     </Row>

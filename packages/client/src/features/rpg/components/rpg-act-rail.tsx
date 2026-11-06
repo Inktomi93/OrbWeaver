@@ -112,7 +112,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
             </Row>
           )}
           {plot.title === "" ? null : (
-            <Text as="span" voice="gloss" className="truncate">
+            <Text as="span" voice="gloss" truncate={true}>
               {plot.title}
             </Text>
           )}

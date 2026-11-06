@@ -274,7 +274,7 @@ function PickerRow({
         <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-inline-0">
           <Row align="center" className="min-inline-0" gap="field">
-            <Text className="truncate">{name}</Text>
+            <Text truncate={true}>{name}</Text>
             {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
                 so attaching it here changes nothing until you enable it there. */}

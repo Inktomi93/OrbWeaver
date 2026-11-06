@@ -211,7 +211,7 @@ function nameGloss(names: readonly string[]): string {
 function Kicker({ children }: { readonly children: string }): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Text voice="kicker" className="truncate">
+      <Text voice="kicker" truncate={true}>
         {children}
       </Text>
       <Separator className="flex-1" />
@@ -253,7 +253,7 @@ function OverviewRow({
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is a tabular figure and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="truncate min-inline-0" ink="muted" id={labelId}>
+        <Text voice="label" className="min-inline-0" truncate={true} ink="muted" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0 max-inline-full">

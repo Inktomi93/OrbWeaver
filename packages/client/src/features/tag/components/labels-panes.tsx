@@ -69,7 +69,7 @@ export function LabelsContextHeader(): ReactElement {
   const tagId = useSelectedLabelId();
   const name = useTagName(tagId);
   return (
-    <Text className="truncate" voice="label">
+    <Text truncate={true} voice="label">
       {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Tag")}
     </Text>
   );

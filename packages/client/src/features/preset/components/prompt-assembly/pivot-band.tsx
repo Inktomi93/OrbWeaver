@@ -61,7 +61,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
             <Text ink="inherit" as="span" className="shrink-0" voice="label">
               Chat history
             </Text>
-            <Text as="span" className="truncate min-inline-0" voice="gloss">
+            <Text as="span" className="min-inline-0" truncate={true} voice="gloss">
               your conversation splices in here — always on, always placed
             </Text>
           </Button>

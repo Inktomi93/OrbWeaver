@@ -137,7 +137,7 @@ function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly
       className="flex-1 flex-col items-start gap-field p-row text-start min-inline-0"
       onClick={(): void => onSelect(block.section.id)}
     >
-      <Text voice="kicker" className="truncate">
+      <Text voice="kicker" truncate={true}>
         {block.name}
       </Text>
       <BlockBody block={block} />

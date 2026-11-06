@@ -62,7 +62,7 @@ function RosterRuleBlock(props: {
   const gloss = rosterRuleKnobGloss(preset, knobs);
   return (
     <Stack gap="tight">
-      <Text voice="label" className="truncate">
+      <Text voice="label" truncate={true}>
         {preset === undefined ? rulePresetId : preset.title}
       </Text>
       {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
@@ -190,7 +190,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       <Section kicker="Characters">
         {roster.members.map((member) => (
           <Row align="center" gap="field" key={member.characterId}>
-            <Text voice="label" className="flex-1 truncate min-inline-0">
+            <Text voice="label" className="flex-1 min-inline-0" truncate={true}>
               {member.name}
             </Text>
             {member.disabled ? (

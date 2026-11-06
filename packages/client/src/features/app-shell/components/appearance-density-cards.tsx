@@ -34,7 +34,7 @@ function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
       {["The first row", "A second row", "And a third"].map((line) => (
         <ThemePreviewPane key={line} fill="accent" shape="row" padding="none" className="min-inline-0">
           <Row align="center" className="p-field min-inline-0" gap="field">
-            <Text as="span" className="truncate" voice="gloss">
+            <Text as="span" truncate={true} voice="gloss">
               {line}
             </Text>
           </Row>

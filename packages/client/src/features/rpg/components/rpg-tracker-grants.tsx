@@ -123,7 +123,7 @@ export function TrackerGrantsEditor({
               <Row key={def.key} gap="field" align="center" className="flex-wrap" data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
                 {/* A long host-authored label ellipsizes in this column, so it carries its full text on
                     `title` — the mouse-hover recovery a truncated datum owes the reader (side-eye P3). */}
-                <Text as="span" voice="label" className="flex-1 truncate min-inline-0" data-slot="rpg-tracker-grant-label">
+                <Text as="span" voice="label" className="flex-1 min-inline-0" truncate={true} data-slot="rpg-tracker-grant-label">
                   {def.label}
                 </Text>
                 <Badge id={outcomeId} tone={carried ? "success" : "neutral"} size="sm" data-slot="rpg-tracker-grant-outcome">

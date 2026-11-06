@@ -106,7 +106,8 @@ export function MemberRow(props: MemberRowProps): ReactElement {
           voice="label"
           data-slot="member-name"
           ink={row.kind === "character" && row.disabled ? "muted" : undefined}
-          className="truncate min-inline-0"
+          className="min-inline-0"
+          truncate={true}
         >
           {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
               an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer

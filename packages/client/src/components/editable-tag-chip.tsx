@@ -69,7 +69,7 @@ export function EditableTagChip({
               {iconOnly ? (
                 <Icon icon={Pencil} size="xs" />
               ) : (
-                <Text ink="inherit" as="span" className="truncate min-inline-0" voice="label">
+                <Text ink="inherit" as="span" className="min-inline-0" truncate={true} voice="label">
                   {name}
                 </Text>
               )}

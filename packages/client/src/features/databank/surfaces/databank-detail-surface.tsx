@@ -321,7 +321,9 @@ function DetailRow({ label, value }: { readonly label: string; readonly value: s
   return (
     <>
       <Text voice="gloss">{label}</Text>
-      <Text className="truncate min-inline-0">{value}</Text>
+      <Text className="min-inline-0" truncate={true}>
+        {value}
+      </Text>
     </>
   );
 }

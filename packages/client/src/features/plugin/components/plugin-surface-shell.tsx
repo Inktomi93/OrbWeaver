@@ -117,11 +117,11 @@ export function PluginSurfaceShell({
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
               <Stack className="flex-1 text-start min-inline-0" gap="tight">
-                <Text className="truncate" voice="label">
+                <Text truncate={true} voice="label">
                   {pluginName}
                 </Text>
                 {showTitle ? (
-                  <Text className="truncate" voice="gloss">
+                  <Text truncate={true} voice="gloss">
                     {title}
                   </Text>
                 ) : null}

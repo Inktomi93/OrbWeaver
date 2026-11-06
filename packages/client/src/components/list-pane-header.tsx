@@ -79,7 +79,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
               is the same spelling the accent half beside it already uses. */}
           {/* The title is what gives when the band is short: the census beside it keeps its width, since a figure cut
               to "10…" says nothing, while a cut name still reads as its pane. */}
-          <Text as="span" className="truncate" voice="masthead">
+          <Text as="span" truncate={true} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two

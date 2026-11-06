@@ -53,7 +53,7 @@ function ResumeSessions(): ReactElement | null {
         <Stack gap="tight">
           {active.map((session) => (
             <Button className="justify-start" variant="outline" key={session.id} onClick={(): void => selectRefinerySession(session.id)} size="sm">
-              <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
+              <Text as="span" className="min-inline-0" truncate={true} ink="inherit" voice="label">
                 {session.name ?? session.characterName}
               </Text>
               <Text as="span" ink="inherit" voice="gloss">

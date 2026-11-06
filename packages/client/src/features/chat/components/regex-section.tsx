@@ -266,7 +266,7 @@ function RegexLeverStrip({
         return (
           <Row align="center" gap="field" justify="between" key={tier.scope}>
             <Row align="baseline" className="min-inline-0" gap="tight">
-              <Text as="span" className="truncate" voice="label">
+              <Text as="span" truncate={true} voice="label">
                 {label}
               </Text>
               <InlineToken>{regexTierLeverCount(rows)}</InlineToken>

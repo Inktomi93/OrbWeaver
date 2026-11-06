@@ -33,7 +33,7 @@ export function CorpusContextHeader(): ReactElement {
     <Row align="center" gap="field" className="min-inline-0">
       <Icon icon={Library} size="sm" />
       {/* D271: owner-wide context must never read as a description of the selected artifact. */}
-      <Text className="truncate" voice="promoted">
+      <Text truncate={true} voice="promoted">
         {subject === null ? CORPUS_WHOLE_LABEL : "Selected artifact"}
       </Text>
       {/* The count is the only part that reads: it sits in its own boundary, so the band itself never suspends. */}

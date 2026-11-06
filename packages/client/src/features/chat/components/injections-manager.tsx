@@ -189,7 +189,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                           Not delivered — no content
                         </Badge>
                       ) : (
-                        <Text voice="gloss" className="truncate min-inline-0">
+                        <Text voice="gloss" className="min-inline-0" truncate={true}>
                           {rowSummary(values)}
                         </Text>
                       )}

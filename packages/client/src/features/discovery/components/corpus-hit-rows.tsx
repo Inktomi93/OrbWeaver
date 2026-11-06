@@ -84,7 +84,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
                     size="sm"
                     onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                   >
-                    <Text as="span" className="truncate min-inline-0" ink="muted" voice="label">
+                    <Text as="span" className="min-inline-0" truncate={true} ink="muted" voice="label">
                       {chatSubtitle(segment.chatTitle, hit.name)}
                       {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
                     </Text>
