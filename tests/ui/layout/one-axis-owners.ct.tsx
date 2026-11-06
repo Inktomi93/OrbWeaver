@@ -56,6 +56,29 @@ test.describe("cap", () => {
   });
 });
 
+test.describe("corner", () => {
+  test("every primitive pins a badge to its parent's block-start, inline-end corner", async ({ mount }) => {
+    const component = await mount<typeof OneAxisOwnersStory>(STORY);
+    const host = await component.locator('[data-probe="corner-host"]').boundingBox();
+    expect(host).not.toBeNull();
+    // Icon takes no data attribute, so it is addressed as the host's one svg.
+    const marks = {
+      "corner-badge": component.locator('[data-probe="corner-badge"]'),
+      "corner-text": component.locator('[data-probe="corner-text"]'),
+      "corner-dot": component.locator('[data-probe="corner-dot"]'),
+      "corner-button": component.locator('[data-probe="corner-button"]'),
+      "corner-icon": component.locator('[data-probe="corner-host"] > svg'),
+    };
+    for (const [probe, element] of Object.entries(marks)) {
+      await expect(element, probe).toHaveCSS("position", "absolute");
+      const box = await element.boundingBox();
+      expect(box, probe).not.toBeNull();
+      expect(box?.y ?? Number.NaN, probe).toBeLessThan((host?.y ?? 0) + (host?.height ?? 0) / 2);
+      expect(box?.x ?? Number.NaN, probe).toBeGreaterThan((host?.x ?? 0) + (host?.width ?? 0) / 2);
+    }
+  });
+});
+
 test.describe("truncate", () => {
   for (const probe of ["text-truncate", "heading-truncate"]) {
     test(`${probe} clips one line with an ellipsis`, async ({ mount }) => {

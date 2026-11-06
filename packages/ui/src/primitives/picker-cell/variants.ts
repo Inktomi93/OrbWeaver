@@ -1,4 +1,4 @@
-import { COLOR_MOTION, DISABLED_STATE, FIELD_STACK, FOCUS_RING, SELECTION_RING_CHECKED, tv } from "#lib";
+import { COLOR_MOTION, CORNER, DISABLED_STATE, FIELD_STACK, FOCUS_RING, SELECTION_RING_CHECKED, tv } from "#lib";
 
 // picker-cell — the ONE cell anatomy every single-choice PICTURE picker in this app wears (#929 E6).
 //
@@ -81,7 +81,7 @@ export const pickerCellVariants = tv({
     // register, so it takes the label step and carries its quiet only in tone.
     description: "min-inline-0",
     // The check rides the frame's top-trailing corner, over the art, out of the footer's flow.
-    check: "absolute inset-e-field inset-bs-field flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground",
+    check: `${CORNER.badge} flex items-center justify-center rounded-full bg-primary p-tight text-primary-foreground`,
   },
   variants: {
     /** Detailed pictures need two readable columns rather than three miniature ones. */

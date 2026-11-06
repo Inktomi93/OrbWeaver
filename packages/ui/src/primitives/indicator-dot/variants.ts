@@ -1,4 +1,4 @@
-import { TONE_ARMS, tv } from "#lib";
+import { CORNER, TONE_ARMS, tv } from "#lib";
 
 // The childless 6px circle that means "something is here". `solid` fills with the tone's solid role. `outline` is a ring
 // for the absent state: no fill, and the border on the tone's text ink because the tone edge is too faint to read at this
@@ -8,6 +8,7 @@ import { TONE_ARMS, tv } from "#lib";
 export const indicatorDotVariants = tv({
   base: "inline-flex shrink-0 rounded-full select-none block-field inline-field",
   variants: {
+    corner: CORNER,
     tone: TONE_ARMS,
     variant: {
       solid: "bg-tone-solid",

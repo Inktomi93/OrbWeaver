@@ -1,4 +1,8 @@
 import { CtIsolation } from "@orb/testkit/browser";
+import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
+import { Icon, Lock } from "@orb/ui/icons";
+import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { TOKENS } from "@orb/ui/tokens";
@@ -16,6 +20,19 @@ export function OneAxisOwnersStory(): ReactElement {
       <Row paddingInline="field" data-probe="row-inline" />
       <Row paddingBlock="row" data-probe="row-block" />
       <Stack padding="gutter" paddingInline="field" data-probe="stack-override" />
+      <div data-probe="corner-host" style={{ position: "relative", width: BOX_PX, height: BOX_PX }}>
+        <Badge corner="badge" data-probe="corner-badge">
+          3
+        </Badge>
+        <Text as="span" corner="badge" data-probe="corner-text">
+          3
+        </Text>
+        <IndicatorDot corner="badge" data-probe="corner-dot" />
+        <Button aria-label="Close" corner="badge" data-probe="corner-button" square={true} variant="ghost">
+          x
+        </Button>
+        <Icon corner="badge" icon={Lock} />
+      </div>
       <Stack cap="column" data-probe="stack-cap-column" />
       <Row cap="fit" data-probe="row-cap-fit" />
       <div data-probe="ref-column" style={{ maxWidth: `var(${TOKENS["width.content-col"].cssVar})` }} />

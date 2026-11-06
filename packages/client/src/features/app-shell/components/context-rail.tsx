@@ -366,7 +366,7 @@ function ContextCell({
           cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" ink="muted" receded={true} /> : null}
+      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} corner="badge" ink="muted" receded={true} /> : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -385,10 +385,10 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
+      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} corner="badge">
         {count}
       </Badge>
     );
   }
-  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
+  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} corner="badge" /> : null;
 }

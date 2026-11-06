@@ -1,4 +1,4 @@
-import { INLINE_FIELD_ROW, TONE_ARMS, TONE_OUTLINE, TONE_SOFT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { CORNER, INLINE_FIELD_ROW, TONE_ARMS, TONE_OUTLINE, TONE_SOFT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The badge/chip/pill skin — status pills (ui-package-design §6.1). Every fill style paints the D336 roles of the tone
@@ -9,6 +9,7 @@ import type { Tone } from "#tokens";
 export const badgeVariants = tv({
   base: `${INLINE_FIELD_ROW} rounded-full font-medium whitespace-nowrap select-none`,
   variants: {
+    corner: CORNER,
     variant: {
       solid: "bg-tone-solid text-tone-foreground",
       soft: TONE_SOFT,

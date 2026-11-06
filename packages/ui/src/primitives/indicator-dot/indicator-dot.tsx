@@ -10,6 +10,6 @@ export interface IndicatorDotProps extends Omit<ComponentProps<"span">, "childre
  * it marks belongs to the host control's accessible name, or `role="img"` with an `aria-label` when the dot is the only
  * carrier. Its position belongs to the call site.
  */
-export function IndicatorDot({ className, tone, variant, ...props }: IndicatorDotProps): ReactElement {
-  return <span data-slot="badge" {...props} {...variantProps(indicatorDotVariants, { tone, variant }, className, tone ?? "neutral")} />;
+export function IndicatorDot({ className, tone, variant, corner, ...props }: IndicatorDotProps): ReactElement {
+  return <span data-slot="badge" {...props} {...variantProps(indicatorDotVariants, { tone, variant, corner }, className, tone ?? "neutral")} />;
 }

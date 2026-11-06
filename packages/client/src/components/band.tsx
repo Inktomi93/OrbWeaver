@@ -102,6 +102,7 @@ export interface BandProps
     | "quietDisabled"
     | "focusRing"
     | "loading"
+    | "corner"
   > {
   /** The band's ink, spelled on its Button so the variant census reads it. */
   readonly ink?: ButtonBaseProps["ink"];

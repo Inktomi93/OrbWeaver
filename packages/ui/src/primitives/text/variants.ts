@@ -1,4 +1,4 @@
-import { HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
+import { CORNER, HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -6,6 +6,7 @@ import { HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv }
 export const textVariants = tv({
   base: "font-sans text-foreground",
   variants: {
+    corner: CORNER,
     size: {
       headline: "text-headline leading-headline",
       title: "text-title leading-title",

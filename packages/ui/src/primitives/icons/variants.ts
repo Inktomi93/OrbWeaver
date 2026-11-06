@@ -1,8 +1,9 @@
-import { HOVER_YIELD, INKS, OPEN_TURN, PULSE, RECEDED, TONE_TEXT, tv } from "#lib";
+import { CORNER, HOVER_YIELD, INKS, OPEN_TURN, PULSE, RECEDED, TONE_TEXT, tv } from "#lib";
 
 // The glyph paints `currentColor`, so `tone` and `ink` colour it from the maps Text shares (D336).
 export const iconVariants = tv({
   variants: {
+    corner: CORNER,
     size: {
       xs: "block-(--size-icon-xs) inline-(--size-icon-xs)",
       sm: "block-(--size-icon-sm) inline-(--size-icon-sm)",

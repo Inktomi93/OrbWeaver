@@ -1,4 +1,4 @@
-import { FIELD_STACK, FOCUS_RING, tv } from "#lib";
+import { CORNER, FIELD_STACK, FOCUS_RING, tv } from "#lib";
 import { MEDIA_ASPECT_CLASSES } from "../aspect-frame/aspect.ts";
 
 // The BROWSE TILE skin. Distinct from `media-grid`'s cell, which is a square THUMBNAIL cell for an asset
@@ -29,7 +29,7 @@ export const mediaTileGridVariants = tv({
     image: "object-cover block-full inline-full",
     // The no-cover fallback still occupies the reserved box, so a mixed grid stays on its rows.
     coverEmpty: "flex items-center justify-center text-muted-foreground block-full inline-full",
-    badge: "absolute inset-e-field inset-bs-field",
+    badge: CORNER.badge,
     // The tag chip row: ONE row, clipped at the tile edge (no wrap — a tile is a card, not a taxonomy; the
     // chips that fit are the scent, the rest are the detail view's job).
     tagRow: "flex gap-tight overflow-hidden",

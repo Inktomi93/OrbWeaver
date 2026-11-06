@@ -5,6 +5,7 @@ import {
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
   CONTROL_SIZES,
+  CORNER,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
@@ -46,6 +47,7 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
+    corner: CORNER,
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).

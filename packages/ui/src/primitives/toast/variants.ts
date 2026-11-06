@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, CAPTION, COLOR_MOTION, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#lib";
+import { ACCENT_HOVER, CAPTION, COLOR_MOTION, CORNER, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 export const toastVariants = tv({
@@ -64,7 +64,7 @@ export const toastVariants = tv({
     title: "text-label leading-label font-semibold",
     description: CAPTION,
     close: `
-      absolute inset-e-field inset-bs-field flex items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
+      ${CORNER.badge} flex items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
       inline-(--size-control-sm)
       ${ACCENT_HOVER}
       ${FOCUS_RING_ON_POPOVER}
