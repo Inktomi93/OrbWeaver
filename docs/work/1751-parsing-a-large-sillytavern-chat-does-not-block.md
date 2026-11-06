@@ -15,7 +15,7 @@ Parse a large SillyTavern chat in slices that yield to the event loop.
 
 ## Why
 
-A single synchronous parse of a large chat file blocks the event loop, so every other request waits until it ends.
+The parse of a chat file is one synchronous call: `parseChatJsonl` in `packages/server/src/primitives/serde/chat/index.ts` splits and parses every line with no yield. Its callers are `domain/import/loader/collect.ts` (two sites) and `domain/import/verbs/import-chat-file.ts`. The profile loop in `domain/import/loader/profile-directory.ts` already yields between files, so a single large file is the case left. No test measures event-loop gaps on an import.
 
 ## Done when
 

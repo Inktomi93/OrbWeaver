@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Seed the ambient crypto.randomUUID calls in tests/e2e/support/surface-sections.ts and surface-chat.ts from the run's id source, or record the reason an e2e support file may use them.
+Seed the ambient `crypto.randomUUID` calls in `tests/e2e/support/surface-sections.ts` and `tests/e2e/support/surface-chat.ts` from the run id source, or record the reason an e2e support file may use them. The same call also appears in `tests/e2e/support/modes.ts` and `tests/e2e/support/sse.ts`; decide those in the same pass.
 
 ## Why
 

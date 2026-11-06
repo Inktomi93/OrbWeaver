@@ -11,15 +11,15 @@ plan: test-foundation
 
 ## What
 
-Add a committed test that pins the image decompression-bomb caps through both doors that accept an image.
+Add a committed test that sends an over-cap image through each caller of `isAllowedImageBuffer` (`packages/server/src/infra/network/image-guard.ts`): background materialization, inline reply image storage and plugin net egress.
 
 ## Why
 
-The caps protect the server only when every door applies them, and one test over both doors keeps a later change in either door from dropping a cap.
+The dimension, pixel and byte caps protect the server only when every caller applies them. No test reaches `isAllowedImageBuffer` or `ImageRejectedError`, so a caller can drop the guard unseen.
 
 ## Done when
 
-The test sends an over-cap image through each door and sees a refusal from both. It fails when either door skips its cap.
+For each of the three callers, an over-dimension, an over-pixel and an over-byte image is refused with `ImageRejectedError` or the caller refusal. The test fails when a caller skips the guard.
 
 ## Evidence
 

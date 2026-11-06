@@ -15,7 +15,7 @@ After a delete in a walk journey, make the walker assert that focus is not on th
 
 ## Why
 
-The focus drop after a delete and the 404 from a read of a deleted preset are one class of defect, and no walk step checks for either.
+A delete that leaves focus on the page body strands keyboard users, and a read of the deleted id returns 404 (the deleted-preset `preset.get` case). `walkDoor` in tests/e2e/support/surface-walker.ts asserts focus returns to the opening door only; no walk step checks focus after a delete or watches reads of a deleted id.
 
 ## Done when
 
@@ -23,6 +23,4 @@ The walker fails a journey that leaves focus on the body or reads the deleted id
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-Why: C5 and the deleted-preset `preset.get` 404 are one class. Done when a planted control fails the check.
+Checked tests/e2e/support/surface-walker.ts: its only focus assertion is `toBeFocused` on the door trigger after close.

@@ -14,7 +14,7 @@ Find why platform-history-pagination times out in WebKit at 1280x900 flat, and r
 
 ## Why
 
-The flake is also seen in Chromium: line 114 of the suite timed out once at 390x844 under load, then passed on repeats. The Evidence holds the sighting.
+The flake is not WebKit-only. At load about 16, one Chromium run of tests/client/features/chat/components/platform-history-pagination.suite.ct.tsx exited 1 (its failing assertion was not captured), and the next run passed 28 of 28. The suite was edited three times on the day of that run (433b3b84d4, 7222dd70f7, 193a6877e8), so the earlier line 114 sighting no longer points at the same statement.
 
 ## Done when
 
@@ -22,6 +22,4 @@ The suite passes repeated consecutive WebKit and Chromium runs under whole-suite
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-- The same flake in a second browser and size: `platform-history-pagination.suite.ct.tsx:114` at 390x844 timed out once in Chromium under load 41, then passed 6 of 6 repeats.
+Second run output: 28 passed (1.9m). The first run died with exit 1 and its output was truncated by the tool.
