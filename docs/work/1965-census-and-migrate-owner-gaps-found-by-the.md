@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-The census cannot see classes held in constants. migrate-owner cannot plan variant-prefixed tokens. A move leaves cn(X) and a dead import behind.
+The census cannot see classes held in constants. migrate-owner cannot plan variant-prefixed tokens. A move leaves cn(X) and a dead import behind. The census has no keep code for a gradient inside its owning recipe, a vendor inline override that needs an important modifier, SVG user-unit geometry, a DOM-API literal or dev seed data. pixelContrast's ring backdrop picks up the mark's own strokes, so a small glyph reads lower than it renders.
 
 ## Why
 
