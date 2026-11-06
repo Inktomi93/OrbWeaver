@@ -35,6 +35,26 @@ export function RpgContextTabStory({ chatId, tab }: { readonly chatId: ChatId; r
   );
 }
 
+/** The game tab beside the Presets section's own content, so a link in the tab lands where the section would show it. */
+export function RpgContextTabBesidePresetsStory({ chatId, tab }: { readonly chatId: ChatId; readonly tab: RpgTabId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <Suspense>
+        <ChatsContextTab chatId={chatId} tab={tab} />
+        <PresetsContent />
+      </Suspense>
+    </CtClientProviders>
+  );
+}
+
+function PresetsContent(): ReactNode {
+  const { content } = useSectionRegistry().get("presets");
+  if (typeof content !== "function") {
+    throw new Error("Presets has no content contribution");
+  }
+  return content();
+}
+
 /** The rpg dice group as contributed to the composer's Message tools menu, inside a story-owned menu host. */
 export function RpgDiceComposerStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (

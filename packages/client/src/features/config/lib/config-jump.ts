@@ -63,6 +63,33 @@ export function scrollContentToTop(contentRef: RefObject<HTMLDivElement | null>,
   afterPaint((): void => contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() }));
 }
 
+/** Call `onFound` with `#controlId` inside `root` once it exists: at once, or as it mounts, for at most
+ *  {@link ANCHOR_WAIT_MS}. A section that suspends on its own read paints its anchor first and its controls after
+ *  the read resolves, so a landing that looked once would find nothing. Returns the cancel. */
+export function whenControlMounts(root: HTMLElement, controlId: string, onFound: (control: HTMLElement) => void): () => void {
+  const find = (): HTMLElement | null => root.querySelector<HTMLElement>(`#${CSS.escape(controlId)}`);
+  const existing = find();
+  if (existing !== null) {
+    onFound(existing);
+    return (): void => undefined;
+  }
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const observer = new MutationObserver((): void => {
+    const control = find();
+    if (control !== null) {
+      stop();
+      onFound(control);
+    }
+  });
+  function stop(): void {
+    observer.disconnect();
+    globalThis.clearTimeout(timer);
+  }
+  timer = globalThis.setTimeout(stop, ANCHOR_WAIT_MS);
+  observer.observe(root, { childList: true, subtree: true });
+  return stop;
+}
+
 /**
  * Jump to a section anchor inside the CONTENT scroller. Switching group remounts the body, which may SUSPEND
  * on its settings read — under CPU contention the resolve can outlast any frame budget, and the old 20-frame

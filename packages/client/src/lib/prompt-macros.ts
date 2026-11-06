@@ -21,8 +21,8 @@
 // another preset's names, plugin macros), composed exactly as the turn composes them (`createDefaultRegistry`
 // + `registerUserMacros`). Every plane carries its `MacroSourceRef`, so the completion row and the macro browser
 // name where each macro lives. A function, not a second list: the planes are form state and query data. The
-// builtin-only catalog stays module-private — it is what a plane-less call gets back (one shared array, one
-// shared fuzzy index).
+// builtin-only catalog is one shared array with one shared fuzzy index — what a plane-less call gets back, and
+// what `BUILTIN_MACRO_SUGGESTIONS` exports for a field that renders where no plane is registered.
 //
 // DELIBERATELY UNANNOTATED (no `: readonly MacroSuggestion[]`): this module rides the `#lib` barrel, which
 // node-side `.ts` tests import — and `@orb/ui/macro-textarea` re-exports its type FROM the browser `.tsx`, so

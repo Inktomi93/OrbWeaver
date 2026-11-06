@@ -43,7 +43,7 @@ import type { GeneratePicturePrompt, SizePresetName } from "@orb/contracts/image
 import type { BindingActor, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveConnectedPersonaOp, ResolveCurrentPersonaOp, ResolveDefaultPersonaOp, ResolveUserPublicsOp } from "@orb/contracts/persona";
-import type { PluginMacroDefs } from "@orb/contracts/plugin";
+import type { PluginMacroDefs, PluginMacroNames } from "@orb/contracts/plugin";
 import type { ChoiceBlockSpec, ResolveUtilityPresetParams, RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import type { CopyHandoffRegexScriptsArgs, CountHandoffRegexScripts } from "@orb/contracts/regex";
 import type { CancelStateRoundsOp } from "@orb/contracts/rpg";
@@ -306,6 +306,10 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 // Not exported (the `ResolvePromptVariablesOp` precedent): its only consumers are `ChatContext` here
 // and compose, which reaches it as `ChatContext["pluginMacros"]` — an export nothing imports is a false public.
 type ResolvePluginMacrosOp = (authorUserId: UserId, chatId: ChatId) => Promise<readonly PluginMacroDefs[]>;
+
+/** The names alone of the macros {@link ResolvePluginMacrosOp} resolves: no guest runs, so a read that is not a turn
+ *  can list a plugin's macros without executing the plugin. */
+type ListPluginMacrosOp = (authorUserId: UserId) => readonly PluginMacroNames[];
 
 /** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}
@@ -692,6 +696,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly teaching: ChatTeachingRegistry;
   /** The per-turn plugin-macro resolve (U6, §5.15) — `null` when no plugin host is wired (byte-identical). */
   readonly pluginMacros: ResolvePluginMacrosOp | null;
+  /** The plugin-macro names a preview lists beside the turn's resolution; `null` with `pluginMacros`. */
+  readonly listPluginMacros: ListPluginMacrosOp | null;
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
   readonly resolveCurrentPersona: ResolveCurrentPersonaOp;
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;

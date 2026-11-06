@@ -83,7 +83,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
-import type { MacroRenderEnv, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
+import type { MacroRenderEnv, TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
@@ -567,21 +567,19 @@ async function resolveRoomInputs(
 /** The PRNG every preview render draws from: stable, so `{{random}}`/`{{roll}}`/`{{pick}}` read the same on every poll. */
 const PREVIEW_RANDOM = (): number => 0;
 
-/** The per-preview user-macro build (WAVE MU) — resolves the preset's, the game's and the host's plugin macros
- *  with the stable {@link PREVIEW_RANDOM}, so a random-pick previews its FIRST-pool value and a re-poll never
- *  varies. Draws are discarded (a preview persists nothing). Plugin macros resolve under the host exactly as a
- *  turn resolves them under its author: a preview that left them out would render `{{plugin_…}}` as raw bytes the
- *  turn never sends. `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
-async function buildPreviewMacros(ctx: ChatContext, inputs: PreviewInputs): Promise<TurnUserMacros | null> {
-  const pluginGroups = ctx.pluginMacros === null ? [] : await ctx.pluginMacros(inputs.hostUserId, inputs.chatId);
+/** The per-preview user-macro build (WAVE MU) — registers the preset's and the game's macros with the stable
+ *  {@link PREVIEW_RANDOM}, so a random-pick previews its FIRST-pool value and a re-poll never varies. Draws are
+ *  discarded (a preview persists nothing). A plugin's guest runs once per turn and never in a preview, which any
+ *  member's read may trigger: its macros are listed by name in the trace and render as they did before the plugin
+ *  plane existed. `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
+function buildPreviewMacros(ctx: ChatContext, inputs: PreviewInputs): TurnUserMacros | null {
+  const pluginNames = ctx.listPluginMacros === null ? [] : ctx.listPluginMacros(inputs.hostUserId);
   return buildTurnUserMacros({
     preset: { source: { kind: "preset", id: inputs.foreign.presetId ?? null }, defs: inputs.foreign.promptConfig.userMacros },
     // The GAME's defs (shadowing the preset's on a name clash) — a preview of a game chat must render the
     // macro the TURN would render, not the one the game overrode.
     ...(inputs.gameUserMacros.length > 0 ? { game: { source: { kind: "game", id: inputs.chatId }, defs: inputs.gameUserMacros } } : {}),
-    ...(pluginGroups.length > 0
-      ? { plugin: pluginGroups.map(({ pluginId, defs }): UserMacroDefGroup<"plugin"> => ({ source: { kind: "plugin", id: pluginId }, defs })) }
-      : {}),
+    pluginNames,
     values: {},
     prng: PREVIEW_RANDOM,
   });
@@ -1393,7 +1391,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       speakerCharacterId,
       ...(presetOverride === undefined ? {} : { presetOverride }),
     });
-    const macros = await buildPreviewMacros(ctx, inputs);
+    const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, guided, timeZone });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
@@ -1439,7 +1437,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const macros = await buildPreviewMacros(ctx, inputs);
+    const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
@@ -1550,7 +1548,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const macros = await buildPreviewMacros(ctx, inputs);
+    const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, previewRender(registry));
@@ -1626,7 +1624,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
       anchorPersonaId: membership.chat.anchorPersonaId,
       presetOverride: presetId,
     });
-    const macros = await buildPreviewMacros(ctx, inputs);
+    const macros = buildPreviewMacros(ctx, inputs);
     const registry = macros?.registry ?? null;
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, macros, timeZone });
     const config = inputs.foreign.promptConfig;

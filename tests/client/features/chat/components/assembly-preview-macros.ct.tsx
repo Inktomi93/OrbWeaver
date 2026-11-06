@@ -63,4 +63,6 @@ test("the diagnostics list the turn's registered macros by source and the preset
   const registered = page.locator('[data-slot="macro-registered"]');
   await expect(registered.filter({ hasText: `{{${SHARED_NAME}}}` }).getByText("Game", { exact: true })).toBeVisible();
   await expect(registered.filter({ hasText: `{{${pluginMacro}}}` }).getByText(`Plugin: ${PLUGIN_NAME}`, { exact: true })).toBeVisible();
+  // A preview never runs the plugin's guest, so its macros are named without a value: the live name and the hyphen alias.
+  await expect(page.locator('[data-slot="macro-registered"][data-deferred]')).toHaveCount(2);
 });

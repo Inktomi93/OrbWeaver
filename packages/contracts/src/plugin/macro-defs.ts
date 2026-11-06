@@ -7,3 +7,10 @@ export interface PluginMacroDefs {
   readonly pluginId: PluginId;
   readonly defs: readonly UserMacroDef[];
 }
+
+/** One plugin's registered macro names, with no guest run: what a preview lists while the turn alone resolves the
+ *  values. Includes the legacy hyphen spellings the turn resolves as aliases. */
+export interface PluginMacroNames {
+  readonly pluginId: PluginId;
+  readonly names: readonly string[];
+}

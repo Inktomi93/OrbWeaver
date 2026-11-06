@@ -4,6 +4,7 @@
 // `assembly/user-macros.ts` (the `contract/macro-ids.ts` precedent — the same §7.4 move).
 
 import type { AssembleContext, MacroSlice, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
+import type { PluginMacroNames } from "@orb/contracts/plugin";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, MacroSourceKind, MacroSourceOf, RandomSource, UserMacroDef } from "@orb/kit/macro";
@@ -84,6 +85,9 @@ export interface BuildTurnUserMacrosArgs {
    *  preset/game def that deliberately spells the same name simply wins by registering first. Absent ⇒ a chat
    *  with no plugin macros, byte-identical to preset+game only. */
   readonly plugin?: readonly UserMacroDefGroup<"plugin">[] | undefined;
+  /** Plugin macros a PREVIEW lists without resolving: their names land in the trace as deferred entries and nowhere
+   *  in the registry, so a render leaves them as it always did. A real turn passes {@link BuildTurnUserMacrosArgs.plugin}. */
+  readonly pluginNames?: readonly PluginMacroNames[] | undefined;
   /** The per-chat input picks bag — macro NAME → input name → pick. `{}` is fully functional (unpicked
    *  inputs resolve their per-kind defaults; a random-pick pool falls back to ALL options). Keyed by NAME,
    *  never by source: a pick made while the PRESET owned `{{mood}}` keeps applying when a game def shadows

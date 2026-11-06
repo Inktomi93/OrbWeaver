@@ -1,9 +1,11 @@
 // @subject packages/server/src/domain/chat/verbs/read.ts
 // @subject packages/server/src/domain/chat/assembly/user-macros.ts
-// The host's preview shows where each user macro came from and which lost its name: the macro slice of the assembly
-// trace, read through the host-gated door beside the prompt it explains. Plugin macros resolve in a real guest.
+// The previews show where each user macro came from and which lost its name: the macro slice of the assembly trace,
+// read through the host-gated door beside the prompt it explains. A plugin's guest runs once per turn and never in a
+// preview, which any room member's read may trigger, so the previews name its macros and never run them.
 
 import { spawn } from "node:child_process";
+import { setTimeout as realDelay } from "node:timers/promises";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import type { PluginId } from "@orb/kit/ids";
@@ -13,15 +15,14 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { installMacroGuest } from "@orb/testkit/node/composed";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
-import { textRoom } from "../scenario-physical.ts";
+import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
 import { GAME_MOOD } from "./turn-rpg-macro-data.ts";
 import { turnRpgRoom } from "./turn-rpg-physical.ts";
 
-// One step of the root's scoped clock; the poll repeats it until the macro deadline has passed. The poll is shorter
-// than the sandbox's own settlement wall for a stalled invoke, so only the macro deadline can settle the preview in it.
-const TICK_MS = 250;
-const POLL_TIMEOUT_MS = 2000;
-const TEST_TIMEOUT_MS = 15_000;
+// Longer than a preview takes and shorter than the sandbox's settlement wall for a stalled invoke, so only a preview
+// that never waits on the guest finishes inside it.
+const PREVIEW_WINDOW_MS = 1500;
+const PREVIEWS_PER_KIND = 3;
 
 type Preview = Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["previewAssembly"]>>;
 
@@ -37,11 +38,6 @@ async function preview(h: ChatRoot): Promise<Preview> {
 
 function renderedText({ prompt }: Preview): string {
   return `${prompt.static}\n${prompt.dynamic}`;
-}
-
-/** The probe row with each token written as `token=<its render>`, so an unresolved token is visible as raw braces. */
-function probe(tokens: readonly string[]): string {
-  return `PROBE ${tokens.map((token) => `${token}={{${token}}}`).join(" ; ")} END`;
 }
 
 /** Put text on the room character's card, which every preview renders: plugin macro names are only known after install. */
@@ -62,46 +58,18 @@ async function macroNameOf(h: ChatRoot, pluginId: PluginId): Promise<string> {
   return row.name;
 }
 
-test("two plugins resolve to their own values under their own ids, and the legacy hyphen spelling keeps resolving", async () => {
-  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
-  const oracle = await installMacroGuest(h.root, h.owner, { slug: "oracle-deck", name: "Oracle Deck" }, [
-    { name: "omen", description: "Draws an omen.", answer: "OMEN-VALUE" },
-  ]);
-  const ledger = await installMacroGuest(h.root, h.owner, { slug: "ledger", name: "Ledger" }, [
-    { name: "tally", description: "Counts coins.", answer: "TALLY-VALUE" },
-  ]);
-  const omen = await macroNameOf(h, oracle);
-  const tally = await macroNameOf(h, ledger);
-  const legacyOmen = "plugin_oracle_deck_omen";
-  await writeOnCard(h, probe([omen, legacyOmen, tally]));
+/** Every kind of preview a plugin's macro could reach: the host's prompt preview and the member-gated context fit. */
+async function everyPreview(h: ChatRoot, member: ChatRoot["owner"]): Promise<void> {
+  for (let run = 0; run < PREVIEWS_PER_KIND; run += 1) {
+    await preview(h);
+    await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
+    await h.root.services.chat.previewContextFit({ principal: member, chatId: h.chatId });
+  }
+}
 
-  const shown = await preview(h);
-
-  const text = renderedText(shown);
-  expect(text).toContain(`${omen}=OMEN-VALUE`);
-  expect(text).toContain(`${tally}=TALLY-VALUE`);
-  expect(text).toContain(`${legacyOmen}=OMEN-VALUE`);
-  expect(shown.trace.macros?.registered).toEqual(
-    expect.arrayContaining([
-      { name: omen, source: { kind: "plugin", id: oracle } },
-      { name: tally, source: { kind: "plugin", id: ledger } },
-    ]),
-  );
-  expect(shown.trace.macros?.rejected).toEqual([]);
-});
-
-test("a legacy spelling two plugins both claim stays with the live name, not with either hyphenated plugin", async () => {
-  const claimed = "plugin_foo_bar_baz";
-  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
-  await installMacroGuest(h.root, h.owner, { slug: "foo-bar" }, [{ name: "baz", description: "d", answer: "HYPHEN-VALUE" }]);
-  await installMacroGuest(h.root, h.owner, { slug: "foo" }, [{ name: "bar_baz", description: "d", answer: "PLAIN-VALUE" }]);
-  await writeOnCard(h, probe([claimed]));
-
-  const text = renderedText(await preview(h));
-
-  expect(text).toContain(`${claimed}=PLAIN-VALUE`);
-  expect(text).not.toContain("HYPHEN-VALUE");
-});
+async function pluginStatus(h: ChatRoot, pluginId: PluginId): Promise<string | undefined> {
+  return (await h.caller.plugin.list()).find((plugin) => plugin.id === pluginId)?.status;
+}
 
 test("a preset macro a game macro shadows is rejected with its source, and the game's macro is registered", async () => {
   await using h = await turnRpgRoom([], {
@@ -118,31 +86,6 @@ test("a preset macro a game macro shadows is rejected with its source, and the g
   expect(shown.trace.macros?.registered).toContainEqual({ name: "mood", source: { kind: "game", id: h.chatId } });
 });
 
-test("a plugin macro that never answers renders empty at the deadline while another plugin's macro still resolves", { timeout: TEST_TIMEOUT_MS }, async () => {
-  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
-  const slow = await installMacroGuest(h.root, h.owner, { slug: "slow-deck" }, [{ name: "stalled", description: "Never answers.", stalls: true }]);
-  const quick = await installMacroGuest(h.root, h.owner, { slug: "quick-deck" }, [{ name: "quick", description: "Answers.", answer: "QUICK-VALUE" }]);
-  await writeOnCard(h, `Omen:[{{${await macroNameOf(h, slow)}}}] Quick:[{{${await macroNameOf(h, quick)}}}]`);
-
-  let settled = false;
-  const pending = preview(h).finally(() => {
-    settled = true;
-  });
-  await expect
-    .poll(
-      () => {
-        h.root.timers.advance(TICK_MS);
-        return settled;
-      },
-      { timeout: POLL_TIMEOUT_MS, interval: 25 },
-    )
-    .toBe(true);
-
-  const text = renderedText(await pending);
-  expect(text).toContain("Omen:[]");
-  expect(text).toContain("Quick:[QUICK-VALUE]");
-});
-
 test("the macro slice rides the host's preview only: a member is refused the read", async () => {
   await using h = await textRoom([], {
     promptConfig: presetLeading("Mood: {{mood}}.", {
@@ -153,4 +96,78 @@ test("the macro slice rides the host's preview only: a member is refused the rea
 
   expect((await preview(h)).trace.macros?.registered).toBeDefined();
   await expect(h.root.services.chat.previewAssembly({ principal: member, chatId: h.chatId })).rejects.toMatchObject({ code: CHAT_OP_CODES.notHost });
+});
+
+test("a preview names a plugin's macros, hyphen alias included, without a value and without running the guest", async () => {
+  await using h = await textRoom(["The deck answers."], { server: { pluginSpawn: spawn } });
+  const deck = await installMacroGuest(h.root, h.owner, { slug: "tick-deck", name: "Tick Deck" }, [
+    { name: "tick", description: "Counts its runs.", counts: true },
+  ]);
+  const live = await macroNameOf(h, deck);
+  const legacy = "plugin_tick_deck_tick";
+  await writeOnCard(h, `PROBE ${live}={{${live}}} ${legacy}={{${legacy}}} END`);
+  const member = await invitePerson(h);
+
+  const shown = await preview(h);
+
+  expect(shown.trace.macros?.registered).toEqual(
+    expect.arrayContaining([
+      { name: live, source: { kind: "plugin", id: deck }, deferred: true },
+      { name: legacy, source: { kind: "plugin", id: deck }, deferred: true },
+    ]),
+  );
+  // The guest has not run, so the render leaves the call as it always did.
+  expect(renderedText(shown)).toContain(`${live}={{${live}}}`);
+
+  await everyPreview(h, member);
+
+  // Counting runs in the guest's own storage: the first run of all is the turn's, so no preview ran it.
+  expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." })).aborted).toBe(false);
+  const wire = wireText((await wireBodies(h)).at(-1) ?? null);
+  expect(wire).toContain(`${live}=1`);
+  expect(wire).toContain(`${legacy}=1`);
+});
+
+test("the fit a plugin's macro could change is the fit without the plugin", async () => {
+  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
+  const deck = await installMacroGuest(h.root, h.owner, { slug: "fit-deck", name: "Fit Deck" }, [
+    { name: "fit", description: "A long answer.", answer: "A VALUE MUCH LONGER THAN THE RAW CALL ".repeat(30) },
+  ]);
+  await writeOnCard(h, `Deck: {{${await macroNameOf(h, deck)}}}`);
+  const withPlugin = await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
+
+  await h.root.services.plugin.setEnabled({ caller: h.owner, pluginId: deck, enabled: false });
+  const withoutPlugin = await h.root.services.chat.previewContextFit({ principal: h.owner, chatId: h.chatId });
+
+  expect(withPlugin).toEqual(withoutPlugin);
+});
+
+test("three previews of every kind leave a throwing macro's plugin enabled, and three turns disable it", async () => {
+  await using h = await textRoom(["one", "two", "three"], { server: { pluginSpawn: spawn } });
+  const deck = await installMacroGuest(h.root, h.owner, { slug: "boom-deck", name: "Boom Deck" }, [{ name: "boom", description: "Throws.", throws: true }]);
+  await writeOnCard(h, `Deck: {{${await macroNameOf(h, deck)}}}`);
+  const member = await invitePerson(h);
+
+  await everyPreview(h, member);
+  expect(await pluginStatus(h, deck)).toBe("enabled");
+
+  for (let turn = 0; turn < PREVIEWS_PER_KIND; turn += 1) {
+    expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Again." })).aborted).toBe(false);
+  }
+  expect(await pluginStatus(h, deck)).toBe("errored");
+});
+
+test("a macro that never answers holds no preview, the host's or a member's", async () => {
+  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
+  const deck = await installMacroGuest(h.root, h.owner, { slug: "stall-deck", name: "Stall Deck" }, [
+    { name: "stall", description: "Never answers.", stalls: true },
+  ]);
+  await writeOnCard(h, `Deck: {{${await macroNameOf(h, deck)}}}`);
+  const member = await invitePerson(h);
+
+  const settledInWindow = async (read: Promise<unknown>): Promise<boolean> =>
+    await Promise.race([read.then(() => true), realDelay(PREVIEW_WINDOW_MS).then(() => false)]);
+
+  expect(await settledInWindow(preview(h))).toBe(true);
+  expect(await settledInWindow(h.root.services.chat.previewContextFit({ principal: member, chatId: h.chatId }))).toBe(true);
 });

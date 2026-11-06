@@ -48,6 +48,7 @@ export {
   registerUserMacros,
   resolveUserMacroInputs,
   USER_MACRO_INPUT_KINDS,
+  USER_MACRO_NAME_COLLISION_REASON,
   type UserMacroDef,
   type UserMacroInputDef,
   type UserMacroInputKind,

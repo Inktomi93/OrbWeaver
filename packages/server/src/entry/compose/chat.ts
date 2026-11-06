@@ -226,6 +226,8 @@ export interface ChatComposeInput {
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
    *  registry without either importing the other. */
   readonly pluginMacros?: PluginMacroRegistry["resolveForTurn"];
+  /** The registry's names-only read: a preview lists a plugin's macros without running its guest. */
+  readonly listPluginMacros?: PluginMacroRegistry["listNames"];
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -558,6 +560,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     promptTransforms: promptTransformRegistry.apply,
     // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
     pluginMacros: input.pluginMacros ?? null,
+    listPluginMacros: input.listPluginMacros ?? null,
   };
 
   const chatDeps: ChatServiceDeps = {

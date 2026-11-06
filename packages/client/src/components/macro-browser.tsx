@@ -17,8 +17,8 @@ export interface MacroBrowserProps {
 }
 
 /** The existing navigation that opens the editor owning a source, or `null` when the reader cannot get there from
- *  here: a game's editor is the console the browser already sits in, and a preset with no id is the built-in default.
- *  or a names-only view. A total switch, so a new source kind fails `tsc`. */
+ *  here: a game's editor is the console the browser already sits in, and a preset with no id is the built-in default
+ *  or a view that knows the preset by name alone. A total switch, so a new source kind fails `tsc`. */
 function sourceOpener(source: MacroSourceRef): (() => void) | null {
   switch (source.kind) {
     case "preset": {

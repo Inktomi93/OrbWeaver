@@ -75,6 +75,7 @@ export {
   MEMORY_RECALL_REJECTS_SHOWN,
   sentPromptSchema,
   shapeTraceSchema,
+  storedMacroSliceSchema,
   variantWireViewSchema,
 } from "./assemble.ts";
 // The two corpus-sweep workloads' params + results chat OWNS (the junk-drawer exit: a workload's wire shapes

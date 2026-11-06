@@ -26,7 +26,7 @@
 //       law 7 requires the house primitive at exactly that write boundary.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
-import type { InvocationChat, PluginMacroDefs, PluginMacroRegistration } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginMacroDefs, PluginMacroNames, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
@@ -194,8 +194,8 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
       for (const [index, macro] of macros.entries()) {
         add(macro.pluginId, toDef(macro.name, macro, values[index] ?? null));
       }
-      for (const alias of legacyAliases(macros, values)) {
-        add(alias.pluginId, alias.def);
+      for (const alias of legacyAliases(macros)) {
+        add(alias.macro.pluginId, toDef(alias.name, alias.macro, values[macros.indexOf(alias.macro)] ?? null));
       }
       return [...defsByPlugin].map(([pluginId, defs]) => ({ pluginId, defs }));
     } finally {
@@ -203,7 +203,22 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
     }
   };
 
-  return { register, resolveForTurn };
+  const listNames = (authorUserId: UserId): readonly PluginMacroNames[] => {
+    const macros = [...(byInstaller.get(authorUserId)?.values() ?? [])].flat();
+    const namesByPlugin = new Map<PluginId, string[]>();
+    const add = (pluginId: PluginId, name: string): void => {
+      namesByPlugin.set(pluginId, [...(namesByPlugin.get(pluginId) ?? []), name]);
+    };
+    for (const macro of macros) {
+      add(macro.pluginId, macro.name);
+    }
+    for (const alias of legacyAliases(macros)) {
+      add(alias.macro.pluginId, alias.name);
+    }
+    return [...namesByPlugin].map(([pluginId, names]) => ({ pluginId, names }));
+  };
+
+  return { register, resolveForTurn, listNames };
 }
 
 /** One resolved macro as a kit `UserMacroDef`: no args, no inputs, and the guest's answer as the BODY —
@@ -231,12 +246,9 @@ function toDef(name: string, macro: RegisteredMacro, value: string | null): User
  *      winner the author never chose, so it resolves to nothing, exactly as it does today.
  *    • NO SHADOWING — a legacy spelling that equals some macro's LIVE name loses to the live name. The
  *      alias plane may never take a name the current mint hands out.
- *  The values array is the ALREADY-RESOLVED per-turn answers, so an alias costs no second guest invoke: one
- *  resolution, two names pointing at it. */
-function legacyAliases(
-  macros: readonly RegisteredMacro[],
-  values: readonly (string | null)[],
-): readonly { readonly pluginId: PluginId; readonly def: UserMacroDef }[] {
+ *  An alias is a second NAME for the macro's one resolution, so it costs no second guest invoke, and the claims
+ *  are known without running a guest: `listNames` reads the same set. */
+function legacyAliases(macros: readonly RegisteredMacro[]): readonly { readonly macro: RegisteredMacro; readonly name: string }[] {
   const live = new Set(macros.map((macro) => macro.name));
   const claims = new Map<string, number>();
   for (const macro of macros) {
@@ -244,11 +256,11 @@ function legacyAliases(
       claims.set(macro.legacyName, (claims.get(macro.legacyName) ?? 0) + 1);
     }
   }
-  return macros.flatMap((macro, index) => {
+  return macros.flatMap((macro) => {
     const legacy = macro.legacyName;
     if (legacy === null || claims.get(legacy) !== 1 || live.has(legacy)) {
       return [];
     }
-    return [{ pluginId: macro.pluginId, def: toDef(legacy, macro, values[index] ?? null) }];
+    return [{ macro, name: legacy }];
   });
 }

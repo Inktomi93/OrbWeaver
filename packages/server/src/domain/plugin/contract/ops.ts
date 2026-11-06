@@ -16,6 +16,7 @@ import type {
   PluginHandlerRef,
   PluginInvokeArgs,
   PluginMacroDefs,
+  PluginMacroNames,
   PluginMacroRegistration,
   PluginNotificationDelivery,
   PluginNotificationPost,
@@ -448,6 +449,9 @@ export interface PluginMacroRegistry {
    *  plugin that registered them, ready to hand to `buildTurnUserMacros`. `[]` when that author has none — the
    *  byte-identical arm chat's turn path leans on. */
   readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly PluginMacroDefs[]>;
+  /** The same macros as {@link PluginMacroRegistry.resolveForTurn} by name alone, grouped by plugin. Invokes no guest,
+   *  so a read can name what a turn will resolve. */
+  readonly listNames: (authorUserId: UserId) => readonly PluginMacroNames[];
 }
 
 /** The process-wide PRIVATE plugin-event bus — ONE instance minted at compose (the

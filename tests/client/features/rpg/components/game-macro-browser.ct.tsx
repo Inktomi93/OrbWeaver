@@ -1,6 +1,6 @@
 // The game console's macro browser lists the macros the game's turn would resolve, each naming its source: this
-// game's own with no link, the active preset's as a name that links to that preset (the console knows only names), and a
-// plugin's as a link to that plugin's editor. The same catalog feeds the editor's completion rows, which print the source too. Reads come
+// game's own with no link, the active preset's as a link to that preset's editor, and a plugin's as a link to that
+// plugin's editor. The same catalog feeds the editor's completion rows, which print the source too. Reads come
 // from a real corpus root with a live plugin guest.
 import { spawn } from "node:child_process";
 import { userMacroSchema } from "@orb/contracts/preset";
@@ -8,15 +8,17 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { createCorpusHarness, installMacroGuest, seedRpgGame } from "@orb/testkit/node/composed";
-import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
+import { PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import type { RpgContextTabBesidePresetsStory, RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
+const PRESETS_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabBesidePresetsStory";
 const PLUGIN_NAME = "Omen Deck";
 const PLUGIN_MACRO = "omen";
 const GAME_MACRO = "scene_tone";
 const PRESET_MACRO = "house_rule";
 
-test("the browser names each macro's source and links only the plugin's, and a completion row prints the same source", async ({ mount, page }) => {
+test("the browser names each macro's source, links the preset's and the plugin's, and a completion row prints the same source", async ({ mount, page }) => {
   await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
@@ -70,4 +72,47 @@ test("the browser names each macro's source and links only the plugin's, and a c
   await page.getByRole("textbox", { name: "Template" }).fill(`{{${pluginMacroName.slice(0, -2)}`);
   const option = page.locator('[data-slot="macro-textarea-option"]', { hasText: `{{${pluginMacroName}}}` });
   await expect(option.locator('[data-slot="macro-textarea-option-source"]')).toHaveText(`Plugin: ${PLUGIN_NAME}`);
+});
+
+test("the browser's preset link opens the editor of the preset it names", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const principal = await root.principalFor(root.ownerId);
+  const preset = await caller.preset.create({
+    name: "Host mood preset",
+    kind: "custom",
+    config: makePromptConfig({ userMacros: [userMacroSchema.parse({ name: PRESET_MACRO, body: "Be kind." })] }),
+  });
+  await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: preset.id } });
+  const chatId = (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id;
+  await seedRpgGame(root, { principal, chatId, mode: "lite", ruleset: "freeform" });
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [
+      "sessions.me",
+      "settings.getUserSettings",
+      "chat.getChat",
+      "chat.listMessages",
+      "rpg.getGame",
+      "rpg.getTrackerView",
+      "rpg.getConfigView",
+      "preset.list",
+      "preset.get",
+      "preset.resolveEffective",
+      "connection.resolveChatCapability",
+      "connection.providersAvailable",
+      "connection.list",
+      "plugin.listMacros",
+    ]),
+  );
+  await mount<typeof RpgContextTabBesidePresetsStory>(PRESETS_STORY, { chatId, tab: "rpg.game" });
+
+  // eslint-disable-next-line orb/no-hand-copied-label -- RPG owns this literal trigger; the exported chat group label names a different feature's disclosure.
+  await page.getByRole("button", { name: "Advanced", exact: true }).click();
+  await page.getByRole("button", { name: "Macro browser", exact: true }).click();
+  const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
+  await expect(editor).toHaveCount(0);
+  await page.getByRole("button", { name: "Preset", exact: true }).click();
+
+  await expect(editor.getByRole("heading", { name: "Host mood preset", exact: true })).toBeVisible();
 });

@@ -86,8 +86,8 @@ export const MACRO_SOURCE_KINDS = ["preset", "game", "plugin"] as const;
 export type MacroSourceKind = (typeof MACRO_SOURCE_KINDS)[number];
 
 /** The id each source kind carries. A kind with no entry here fails `tsc` at {@link MacroSourceRef}. A preset id is
- *  `null` only where no preset row backs the macros: the built-in default preset, and a client view that knows
- *  the active preset by name alone (the game console). A server build of a real preset always carries its id. */
+ *  `null` only where no preset row backs the macros: the built-in default preset, and a client view whose settings
+ *  have not loaded yet. A server build of a real preset always carries its id. */
 interface MacroSourceIdByKind {
   readonly preset: PresetId | null;
   readonly game: ChatId;

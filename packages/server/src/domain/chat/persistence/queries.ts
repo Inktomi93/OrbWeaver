@@ -38,6 +38,7 @@ import {
   parseVariantMetadata,
   sentPromptSchema,
   standaloneVariableDeltasSchema,
+  storedMacroSliceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
   variableDeltaSchema,
@@ -1037,6 +1038,7 @@ export async function loadVariantWire(db: Db, chatId: ChatId, variantId: Message
     macroDraws: draws.success ? draws.data : null,
     rawContent: row.rawContent,
     macroFreezes: freezes.success ? freezes.data : null,
+    macros: storedMacroSliceSchema.safeParse(row.promptSnapshot).data?.trace.macros ?? null,
   };
 }
 

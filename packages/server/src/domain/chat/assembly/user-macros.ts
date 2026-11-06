@@ -22,8 +22,15 @@
 // prior turn's frozen draw for the same name — one question per name, whoever owns it this turn.
 
 import type { MacroSliceEntry, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
+import type { PluginMacroNames } from "@orb/contracts/plugin";
 import type { MacroRegistry, MacroSourceKind, UserMacroDef } from "@orb/kit/macro";
-import { createDefaultRegistry, createVolatileOnlyRegistry, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
+import {
+  createDefaultRegistry,
+  createVolatileOnlyRegistry,
+  registerUserMacros,
+  resolveUserMacroInputs,
+  USER_MACRO_NAME_COLLISION_REASON,
+} from "@orb/kit/macro";
 import type { BuildTurnUserMacrosArgs, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
 import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 
@@ -68,7 +75,8 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   // AUTHORING homes competing for one name — a namespace is not a competitor.
   const pluginGroups = (args.plugin ?? []).filter((group) => group.defs.length > 0);
   const pluginDefs = pluginGroups.flatMap((group) => group.defs);
-  if (gameDefs.length === 0 && presetDefs.length === 0 && pluginDefs.length === 0) {
+  const pluginNames = (args.pluginNames ?? []).filter((group) => group.names.length > 0);
+  if (gameDefs.length === 0 && presetDefs.length === 0 && pluginDefs.length === 0 && pluginNames.length === 0) {
     return null;
   }
   // Resolve every EFFECTIVE macro's typed inputs ONCE — the bindings the handlers splice + the draw record.
@@ -105,6 +113,7 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   const shadowed = args.preset.defs
     .filter((def) => !presetDefs.includes(def))
     .map((def): MacroSliceRejection => ({ name: def.name, reason: SHADOWED_BY_GAME_REASON, source: args.preset.source }));
+  const deferred = listDeferred(registry, pluginNames);
   const all = [game, preset, ...plugins];
 
   return {
@@ -113,10 +122,32 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
     draws,
     rejected: all.flatMap((group) => group.refused),
     trace: {
-      registered: all.flatMap((group) => group.registered),
-      rejected: [...game.refused, ...shadowed, ...preset.refused, ...plugins.flatMap((group) => group.refused)],
+      registered: [...all.flatMap((group) => group.registered), ...deferred.registered],
+      rejected: [...game.refused, ...shadowed, ...preset.refused, ...plugins.flatMap((group) => group.refused), ...deferred.refused],
     },
   };
+}
+
+/** A preview's plugin macros, listed by name where a turn would register them (after every other home, so a name
+ *  already taken is refused as the turn refuses it) and registered nowhere: the guest runs once per turn, never in a
+ *  preview, so its macros render as they did before the plugin plane existed. */
+function listDeferred(registry: MacroRegistry, groups: readonly PluginMacroNames[]): GroupRegistration {
+  const claimed = new Set(registry.names());
+  const registered: MacroSliceEntry[] = [];
+  const refused: MacroSliceRejection[] = [];
+  for (const { pluginId, names } of groups) {
+    const source = { kind: "plugin", id: pluginId } as const;
+    for (const name of names) {
+      const key = name.toLowerCase();
+      if (claimed.has(key)) {
+        refused.push({ name, reason: USER_MACRO_NAME_COLLISION_REASON, source });
+        continue;
+      }
+      claimed.add(key);
+      registered.push({ name, source, deferred: true });
+    }
+  }
+  return { registered, refused };
 }
 
 /** One def's input resolution + its draw-record contribution (hoisted so the builder stays flat). */

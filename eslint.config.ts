@@ -1148,12 +1148,12 @@ export const DOM_LOOKUP_HOMES = [
     reason: "the settings host addresses contribution anchors by the registry-minted id prefix (client-architecture-lockdown.md §8)",
   },
   {
-    file: "packages/client/src/features/config/surfaces/config-content-surface.tsx",
-    function: "ConfigContentSurface",
+    file: "packages/client/src/features/config/lib/config-jump.ts",
+    function: "whenControlMounts/find",
     method: "querySelector",
-    receiver: "anchor",
+    receiver: "root",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: Selector interpolation is literal source; the formatter reverts its escaped template form.
-    selector: "(`#${CSS.escape(configSettingControlId(target.group, setting))}`)",
+    selector: "(`#${CSS.escape(controlId)}`)",
     reason: "the settings host addresses a setting control by the registry-minted control id (client-architecture-lockdown.md §8)",
   },
   {

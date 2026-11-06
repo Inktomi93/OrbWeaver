@@ -4,7 +4,7 @@
 // that card, through the production mutation, takes its macros out of the browser without a reload.
 
 import { spawn } from "node:child_process";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, installMacroGuest } from "@orb/testkit/node/composed";
 import type { PluginMacroBrowserStory } from "./_plugin-macro-browser-stories.tsx";
@@ -29,10 +29,33 @@ test("the browser's plugin link lands on that plugin's own installed card", asyn
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
 
   await mount<typeof PluginMacroBrowserStory>(STORY);
-  const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
-  // The landing looks for the card once, so the list it lives in has to be loaded first.
-  await expect(card).toBeVisible();
+  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })).toBeVisible();
   await page.getByRole("button", { name: `Plugin: ${PLUGIN_NAME}`, exact: true }).click();
+  await expect(page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })).toBeFocused();
+});
+
+test("a link pressed before the plugin list has loaded still lands on the card once it does", async ({ mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const principal = await root.principalFor(root.ownerId);
+  await installMacroGuest(root, principal, { slug: "omen-deck", name: PLUGIN_NAME }, [{ name: "omen", description: "Draws an omen." }]);
+  await installMacroGuest(root, principal, { slug: "ledger", name: "Ledger" }, [{ name: "tally", description: "Counts coins." }]);
+  const list = holdServed();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(
+      caller,
+      PROCEDURES.filter((path) => path !== "plugin.list"),
+    ),
+    ...serveCorpusProcedures(caller, ["plugin.list"], () => list),
+  });
+
+  await mount<typeof PluginMacroBrowserStory>(STORY, { cold: true });
+  await page.getByRole("button", { name: `Plugin: ${PLUGIN_NAME}`, exact: true }).click();
+  await list.requested;
+  const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
+  await expect(card).toHaveCount(0);
+
+  list.release();
   await expect(card).toBeFocused();
 });
 

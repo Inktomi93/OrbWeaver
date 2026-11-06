@@ -1042,6 +1042,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // U6 §5.15 — the per-turn plugin-macro resolve, off the registry minted just above (the plugin plane below
     // registers into the SAME instance at activation).
     pluginMacros: pluginMacros.resolveForTurn,
+    listPluginMacros: pluginMacros.listNames,
     emitChatEvent,
     emitChatEventChecked,
     openChatTurns: chatBus.openTurns,

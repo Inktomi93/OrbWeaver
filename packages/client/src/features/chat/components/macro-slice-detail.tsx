@@ -10,6 +10,9 @@ import type { ReactElement } from "react";
 import { usePluginMacroPlanes } from "#data";
 import { macroSourceLabel } from "#lib";
 
+/** Why a plugin macro in a preview shows no value. */
+const DEFERRED_NOTE = "Its plugin runs when the turn does, so a preview names it without a value.";
+
 /** The home a macro came from, in the browser's own words; a plugin is named by its display name. */
 function useSourceLabel(): (entry: MacroSliceEntry) => string {
   const planes = usePluginMacroPlanes();
@@ -40,10 +43,18 @@ export function MacroSliceDetail({ macros }: { readonly macros: MacroSlice | und
           </Stack>
         ))}
         {macros.registered.map((entry) => (
-          <Row key={`${entry.source.kind}:${entry.source.id}:${entry.name}`} gap="block" justify="between" align="center" data-slot="macro-registered">
-            <Text voice="datum">{`{{${entry.name}}}`}</Text>
-            <Text voice="gloss">{sourceLabel(entry)}</Text>
-          </Row>
+          <Stack
+            key={`${entry.source.kind}:${entry.source.id}:${entry.name}`}
+            gap="row"
+            data-slot="macro-registered"
+            {...(entry.deferred === true ? { "data-deferred": "" } : {})}
+          >
+            <Row gap="block" justify="between" align="center">
+              <Text voice="datum">{`{{${entry.name}}}`}</Text>
+              <Text voice="gloss">{sourceLabel(entry)}</Text>
+            </Row>
+            {entry.deferred === true ? <Text voice="gloss">{DEFERRED_NOTE}</Text> : null}
+          </Stack>
         ))}
       </Stack>
     </Section>

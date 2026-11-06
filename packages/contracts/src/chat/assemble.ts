@@ -236,6 +236,9 @@ export const MEMORY_RECALL_REJECTS_SHOWN = 12;
 export interface MacroSliceEntry {
   name: string;
   source: MacroSourceRef;
+  /** Present on a plugin macro a preview lists without running it: the plugin's guest runs once per turn and never
+   *  in a preview, so its value is known only when the turn resolves it. */
+  deferred?: true;
 }
 
 /** A user macro that did not reach the registry, with the home it came from and the reason in words a person can
@@ -615,6 +618,9 @@ export interface VariantWireView {
   macroDraws: UserMacroDraws | null;
   rawContent: string | null;
   macroFreezes: MacroFreezeRecord | null;
+  /** The macro slice the turn's assembly trace recorded: which user macros it registered and which lost a name.
+   *  `null` when the stored prompt carries none (a turn with no user macros, or a snapshot from before the slice). */
+  macros?: MacroSlice | null;
 }
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
@@ -818,12 +824,20 @@ const macroSourceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("plugin"), id: typeIdSchema(ID_PREFIX.plugin) }),
 ]) satisfies z.ZodType<MacroSourceRef>;
 
-const macroSliceEntrySchema = z.strictObject({ name: z.string(), source: macroSourceSchema }) satisfies z.ZodType<MacroSliceEntry>;
+const macroSliceEntrySchema = z.strictObject({
+  name: z.string(),
+  source: macroSourceSchema,
+  deferred: z.literal(true).exactOptional(),
+}) satisfies z.ZodType<MacroSliceEntry>;
 
 const macroSliceSchema = z.strictObject({
   registered: z.array(macroSliceEntrySchema).readonly(),
   rejected: z.array(macroSliceEntrySchema.extend({ reason: z.string() })).readonly(),
 }) satisfies z.ZodType<MacroSlice>;
+
+/** The macro slice inside a stored prompt snapshot: the one part of a stored trace the host reads back
+ *  ({@link VariantWireView.macros}). A snapshot with no slice, or a malformed one, fails the parse and reads as none. */
+export const storedMacroSliceSchema = z.looseObject({ trace: z.looseObject({ macros: macroSliceSchema }) });
 
 export const assembleTraceSchema = z.strictObject({
   staticSections: z.array(z.string()),
@@ -933,6 +947,7 @@ export const variantWireViewSchema = z.strictObject({
   macroDraws: userMacroDrawsSchema.nullable(),
   rawContent: z.string().nullable(),
   macroFreezes: z.array(macroFreezeSchema.strict()).nullable(),
+  macros: macroSliceSchema.nullable().exactOptional(),
 }) satisfies z.ZodType<VariantWireView>;
 
 export const contextFitAnswerSchema = z.union([contextFitPreviewSchema, contextFitUnboundSchema]) satisfies z.ZodType<ContextFitAnswer>;
