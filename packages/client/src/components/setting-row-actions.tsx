@@ -28,9 +28,9 @@
 // in-flow box (zero layout shift on reveal is the owner's bar), and the exact wire of Reset and of the
 // deep-link grammar.
 //
-// A DISABLED RESET'S LEGIBILITY (`opacity: 0.5`) is answered by the SHAPE, not by a token: in production a
+// A DISABLED RESET'S LEGIBILITY is answered by the SHAPE: in production a
 // disabled Reset does not exist — an unmodified row renders the empty cell. The dev menu
-// keeps `data-disabled:opacity-50`, which is the house-wide disabled convention shared by every menu,
+// keeps `data-disabled:opacity-disabled`, which is the house-wide disabled convention shared by every menu,
 // select and command item in `@orb/ui`; retuning it here would be a cross-cutting change to a surface this
 // row does not own.
 

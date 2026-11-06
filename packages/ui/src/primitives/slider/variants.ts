@@ -95,7 +95,7 @@ export const sliderVariants = tv({
     tone: {
       default: { indicator: "bg-primary", thumb: "bg-foreground" },
       neutral: { indicator: "bg-foreground/45", thumb: "bg-foreground" },
-      ghost: { indicator: "bg-transparent", thumb: "border-2 border-muted-foreground bg-transparent" },
+      ghost: { indicator: "bg-transparent", thumb: "border-rule border-muted-foreground bg-transparent" },
     },
   },
   defaultVariants: { tone: "default" },

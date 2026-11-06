@@ -58,7 +58,7 @@ export const compareBlocksVariants = tv({
     decision: {
       undecided: { block: "border-warning", stateChip: "bg-warning text-warning-foreground" },
       kept: { stateChip: "bg-success text-success-foreground" },
-      discarded: { block: "border-dashed border-border", body: "opacity-70", stateChip: "bg-destructive text-destructive-foreground" },
+      discarded: { block: "border-dashed border-border", body: "opacity-receded", stateChip: "bg-destructive text-destructive-foreground" },
     },
   },
 });

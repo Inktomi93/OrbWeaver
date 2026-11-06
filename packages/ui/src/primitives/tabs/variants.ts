@@ -9,8 +9,7 @@ import type { Tone } from "#tokens";
 // list stacks its tabs in a column. Tabs ride h-(--size-control-sm) (the ≥44px touch floor, §4b axis 3) in the
 // default `inline` layout; the `cell` arm trades the fixed height for content height + a min-height
 // floor (see the variant's own note). The indicator follows Base UI's geometry on the orientation's axis.
-// `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
-// `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
+// The track is the plain `border` (the default border width); the bar is the `rule` step of the border-width family.
 export const tabsVariants = tv({
   slots: {
     root: "flex flex-col gap-block inline-full data-[orientation=vertical]:flex-row",
@@ -44,7 +43,7 @@ export const tabsVariants = tv({
     // pins the FLIP's scale to the bar's leading edge, which is where the left var measures from.
     indicator: [
       `
-        absolute inset-s-(--active-tab-left) inset-be-0 z-(--z-raised) origin-left rounded-full bg-primary block-(--border-width-accent)
+        absolute inset-s-(--active-tab-left) inset-be-0 z-(--z-raised) origin-left rounded-full bg-primary block-(--border-width-rule)
         inline-(--active-tab-width)
       `,
       // Select the matching physical measurement for the logical start edge.
@@ -53,10 +52,7 @@ export const tabsVariants = tv({
         data-[orientation=vertical]:inset-s-auto data-[orientation=vertical]:inset-e-0 data-[orientation=vertical]:inset-bs-(--active-tab-top)
         data-[orientation=vertical]:inset-be-auto
       `,
-      `
-        data-[orientation=vertical]:origin-top data-[orientation=vertical]:block-(--active-tab-height)
-        data-[orientation=vertical]:inline-(--border-width-accent)
-      `,
+      "data-[orientation=vertical]:origin-top data-[orientation=vertical]:block-(--active-tab-height) data-[orientation=vertical]:inline-(--border-width-rule)",
       "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],
     // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by
@@ -110,7 +106,7 @@ export const tabsVariants = tv({
       cell: {
         tab: [
           `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}`,
-          "border-be-2 border-transparent data-active:border-tone-solid data-active:bg-tone-tint data-active:text-tone-text-on-tint",
+          "border-be-rule border-transparent data-active:border-tone-solid data-active:bg-tone-tint data-active:text-tone-text-on-tint",
           "pointer-coarse:min-block-(--size-control-lg) pointer-fine:@max-cq-20:data-active:border-transparent",
         ],
       },
@@ -123,7 +119,7 @@ export const tabsVariants = tv({
     // clips; a phone keeps one row and scrolls.
     fold: { true: { list: "pointer-fine:@max-cq-20:grid-flow-row pointer-fine:@max-cq-20:grid-cols-3" }, false: {} },
     // A tab column topped by the accent rule: the context pane's bracket, which says the pane belongs to the view.
-    topRule: { primary: { root: "border-bs-2 border-tone-edge" } },
+    topRule: { primary: { root: "border-bs-rule border-tone-edge" } },
     panelGround: {
       none: {},
       sidebar: { panel: GROUND.sidebar },

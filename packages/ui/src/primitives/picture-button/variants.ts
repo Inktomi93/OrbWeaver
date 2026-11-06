@@ -7,6 +7,6 @@ export const pictureButtonVariants = tv({
   variants: {
     // Whether the shared recipe paints a style. Unpainted, the button draws nothing at any state: the art stays the
     // affordance and dims a step on hover instead of gaining a tint.
-    painted: { true: "", false: "cursor-pointer bg-transparent text-current hover:opacity-80" },
+    painted: { true: "", false: "cursor-pointer bg-transparent text-current hover:opacity-hover" },
   },
 });

@@ -15,11 +15,12 @@ import { OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 // The submenu TRIGGER deliberately does NOT take the ring on `data-popup-open` (below): while a child popup
 // is open the parent keeps its fill and the child's highlighted row wears the ring, which is exactly the
 // parent-vs-child disambiguation the finding asked for.
-const HIGHLIGHT_INDICATOR = "data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring focus-visible:inset-ring-2 focus-visible:inset-ring-ring";
+const HIGHLIGHT_INDICATOR =
+  "data-highlighted:inset-ring-(length:--border-width-rule) data-highlighted:inset-ring-ring focus-visible:inset-ring-(length:--border-width-rule) focus-visible:inset-ring-ring";
 
 // Shared item skin — every clickable menu row wears it, so highlight/disabled/touch-floor behave
 // identically. `data-highlighted` is Base UI's own hover/rove state.
-const itemBase = `flex min-block-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
+const itemBase = `flex min-block-(--size-control-sm) cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-disabled data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
 
 // EVERY COMMAND ROW RESERVES THE LEADING GLYPH GUTTER (side-eye 2026-08-06 P2). One menu mixes iconed rows
 // (`<Icon>` as the first child) with bare-text rows, and the bare ones started their label a whole glyph +

@@ -265,12 +265,12 @@ test("a threshold is read from the parsed query, not from its text", async () =>
 
 test("a shadow colour is a served variable", async () => {
   for (const body of [
-    "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-accent) var(--color-ring);",
+    "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-rule) var(--color-ring);",
     "box-shadow: 0 0 0 transparent;",
     "text-shadow: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45);",
     "text-shadow: 0 0 var(--spacing-px) hwb(from var(--color-shadow-ambient-far) h w b / .5);",
     "text-shadow: 0 0 var(--spacing-px) color(from var(--color-shadow-ambient-far) srgb r g b / .5);",
-    "--shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-ring) 55%, transparent);",
+    "--shell-band-ember: inset 0 var(--border-width-rule) 0 color-mix(in oklab, var(--color-ring) 55%, transparent);",
     "filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));",
   ]) {
     expect(await rulesHit(declaration(body)), body).toEqual([]);
@@ -300,7 +300,7 @@ test("a governed length takes tokens, formulas, viewport units and zero sentinel
     "box-shadow: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);",
     "--list-track: 0px;",
     "--pane-deficit: max(0px, var(--dimension-content-reading-floor) - 100dvw);",
-    "border-inline-start: var(--border-width-accent) solid var(--color-primary);",
+    "border-inline-start: var(--border-width-rule) solid var(--color-primary);",
   ];
   for (const body of admitted) {
     expect(await rulesHit(declaration(body)), body).toEqual([]);

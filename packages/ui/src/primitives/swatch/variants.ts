@@ -32,7 +32,7 @@ export const swatchVariants = tv({
     edge: {
       none: "",
       ring: "border border-muted-foreground",
-      outline: "ring-1 ring-border",
+      outline: "ring ring-border",
       dashed: "border border-dashed border-border",
     },
   },

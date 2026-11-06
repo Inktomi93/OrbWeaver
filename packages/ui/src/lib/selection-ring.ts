@@ -25,7 +25,7 @@
 // A third spelling is a third idiom, which is the finding this file closes.
 
 /** The selected-cell ring for a `data-checked` carrier (Base UI radio/checkbox-backed picker cells). */
-export const SELECTION_RING_CHECKED = "data-checked:ring-2 data-checked:ring-inset data-checked:ring-primary";
+export const SELECTION_RING_CHECKED = "data-checked:ring-(length:--border-width-rule) data-checked:ring-inset data-checked:ring-primary";
 
 /** The selected-cell ring for a `data-selected` carrier (media/thumbnail cells). */
-export const SELECTION_RING_SELECTED = "data-selected:ring-2 data-selected:ring-inset data-selected:ring-primary";
+export const SELECTION_RING_SELECTED = "data-selected:ring-(length:--border-width-rule) data-selected:ring-inset data-selected:ring-primary";

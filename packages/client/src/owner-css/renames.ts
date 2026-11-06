@@ -60,6 +60,7 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },
+  { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
   ...RETIRED_PROPERTIES.map(propertyRename),
   ...RETIRED_ATTRIBUTES.map(([name, key]): OwnerCssRename => ({ kind: "appearance-attribute", name, to: null, see: appearanceChannelName(key) })),
 ];

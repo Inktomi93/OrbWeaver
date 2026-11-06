@@ -15,7 +15,7 @@ export const numberFieldVariants = tv({
     decrement: [
       `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
+      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/hover",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",
@@ -30,7 +30,7 @@ export const numberFieldVariants = tv({
     increment: [
       `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
+      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/hover",
       `outline-none ${FOCUS_RING_INSET}`,
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",

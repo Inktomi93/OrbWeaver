@@ -20,13 +20,13 @@ export const comboboxVariants = tv({
       "relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
-      "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
+      "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
     ],
     chips: "contents",
     chip: [
       "inline-flex items-center gap-field rounded-full bg-secondary ps-block pe-field text-label leading-label text-secondary-foreground outline-none",
       FOCUS_RING,
-      "data-disabled:opacity-50",
+      "data-disabled:opacity-disabled",
     ],
     chipRemove: [
       "flex shrink-0 items-center justify-center rounded-full text-secondary-foreground/70 outline-none",

@@ -223,7 +223,7 @@
   /* The picker glyph is an image, so `color` does not reach it; opacity composites it toward the field's plate.
    * In either state, since the indicator is a secondary affordance beside the consumer's clear glyph. */
   [data-slot="input-root"]::-webkit-calendar-picker-indicator {
-    opacity: 0.55;
+    opacity: var(--opacity-receded);
   }
 
   /* A drawer's last row clears the home indicator. A drawer portals beside the shell grid, so the grid's insets never

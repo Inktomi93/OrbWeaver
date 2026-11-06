@@ -59,7 +59,7 @@ design quantity the token system owns, make it a FUNCTION of the container's gua
 of a fourth guarded length. The switch knob is `track-height − 2×border − 2×inset` at the site
 (`packages/ui/src/primitives/switch/variants.ts`), so the halved difference is `2×inset` — even by
 construction — and the rest landing is exactly `border + inset`, whole at every scale. There is no
-knob-size token. Measured at a fine pointer with `--border-width-control` 1px:
+knob-size token. `--border-width-control` aliases `--border-width-default` and is not snapped, so `b` below is that width and the table holds only while the default is a whole CSS px (`tests/ui/border-width-family.test.ts` pins it). A fractional default puts the rest offset `b + i` and every `--size-combobox-chip-*` size on a fractional px. Measured at a fine pointer with `--border-width-control` 1px:
 
 | `--appearance-font-scale` | root | inset | knob = track−2b−2i | track | content box | rest offset = b + i | lands |
 | - | - | - | - | - | - | - | - |

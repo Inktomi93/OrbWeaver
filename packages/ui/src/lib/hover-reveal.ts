@@ -10,7 +10,7 @@ export const HOVER_REVEAL = {
   hover: "transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
   /** Secondary chrome (a pin, a crown): faint on the row's hover, full on its own hover or focus, or when focus is inside it (it sits on a wrapper), always faint on touch. */
   faint:
-    "opacity-40 transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-60 group-has-focus-visible:opacity-60 hover:opacity-100 focus-visible:opacity-100 has-focus-visible:opacity-100",
+    "opacity-faint transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 group-hover:opacity-receded group-has-focus-visible:opacity-receded hover:opacity-100 focus-visible:opacity-100 has-focus-visible:opacity-100",
   /** `hover` for a cluster of controls: it also takes no pointer while hidden, so a pass over the row lands on nothing. */
   interactive:
     "transition-opacity duration-(--motion-fast) ease-out-expo hover-capable:opacity-0 hover-capable:pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto",
@@ -22,8 +22,8 @@ export const HOVER_REVEAL = {
 /** Art that is also its own tap target dims while the pointer is over it: `self` on the art's box, `parent` on a layer
  *  whose parent box takes the hover (a masked tile under the button that covers it). */
 export const HOVER_DIM = {
-  self: "hover:opacity-80",
-  parent: "hover-capable:[:hover>&]:opacity-80",
+  self: "hover:opacity-hover",
+  parent: "hover-capable:[:hover>&]:opacity-hover",
 } as const;
 
 /** A rest-visible marker whose fact the revealed cluster also carries (a starred row's ★): it yields while the
