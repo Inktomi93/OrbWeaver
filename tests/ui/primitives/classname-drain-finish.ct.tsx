@@ -227,7 +227,8 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await style(kase(root, "tabs"), "border-block-start-color")).toBe(await probe(root, "primary", "border-block-start-color"));
   expect(await style(kase(root, "tabs-list"), "border-block-end-width")).toBe("0px");
   expect(await style(kase(root, "tab-cell"), "border-block-end-color")).toBe(await probe(root, "primary-solid", "color"));
-  expect(await style(kase(root, "tab-quiet"), "color")).not.toBe(await style(kase(root, "tab-cell"), "color"));
+  expect(await style(kase(root, "tab-quiet"), "opacity")).toBe(await probe(root, "quiet", "opacity"));
+  expect(await style(kase(root, "tab-cell"), "opacity")).toBe("1");
   expect(await style(kase(root, "tabs-panel"), "background-color")).toBe(await probe(root, "sidebar", "background-color"));
   expect(await style(kase(root, "dialog-header"), "position")).toBe("sticky");
   expect(await style(kase(root, "command"), "box-shadow")).not.toBe("none");
@@ -236,7 +237,8 @@ test("the other primitives' arms take their properties", async ({ mount, page })
   expect(await style(kase(root, "swatch-offline"), "border-block-start-width")).toBe("1px");
   expect(await style(kase(root, "swatch-offline"), "border-block-start-color")).toBe(await probe(root, "muted-ink", "border-block-start-color"));
   expect(await style(kase(root, "swatch-outline"), "box-shadow")).not.toBe("none");
-  expect(await style(kase(root, "swatch-step2"), "background-color")).toBe(await probe(root, "step2", "background-color"));
+  expect(await style(kase(root, "swatch-step2"), "background-color")).toBe(await probe(root, "foreground", "color"));
+  expect(await style(kase(root, "swatch-step2"), "opacity")).toBe(await probe(root, "ladder-2", "opacity"));
   await expect(menuItem(page, "always")).toBeVisible();
   await expect(menuItem(page, "coarse only")).toBeHidden();
 });

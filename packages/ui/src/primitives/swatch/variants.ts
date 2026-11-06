@@ -18,9 +18,9 @@ export const swatchVariants = tv({
       success: "bg-success",
       // A brightness ladder in the foreground over whatever ground the swatch sits on, for a preview that shows
       // surfaces stepping apart by shade. Each step clears the 1.5:1 separation floor against the one below it.
-      step1: "bg-foreground/8",
-      step2: "bg-foreground/32",
-      step3: "bg-foreground/60",
+      step1: "bg-foreground opacity-ladder-1",
+      step2: "bg-foreground opacity-ladder-2",
+      step3: "bg-foreground opacity-ladder-3",
     },
     shape: {
       square: "",

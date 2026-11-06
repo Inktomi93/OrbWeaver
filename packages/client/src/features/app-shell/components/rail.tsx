@@ -208,7 +208,8 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
 
 export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, inert }: RailProps): ReactElement {
   const sectionsRef = useRef<HTMLDivElement>(null);
-  useScrollFadeY(sectionsRef);
+  // The fit writes the scroller's size, so the fade is told after each fit and never observes the box itself.
+  useScrollFadeY(sectionsRef, { sizedByCaller: true });
   useRailSectionsFit(sectionsRef);
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");

@@ -1,7 +1,7 @@
 // D336 step 4d: the visual-state axes left the layout boxes for named components, so each box refuses them.
 import { CurrentGrid, CurrentStack } from "@orb/ui/current";
 import { FocalSection } from "@orb/ui/focal-section";
-import { Grid, Row, Section, Stack } from "@orb/ui/layout";
+import { DialogBody, Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { createElement } from "react";
 import { expectTypeOf, test } from "vitest";
 
@@ -51,4 +51,13 @@ test("a divider's meaning is a stamped tone, so dividerTone keeps only the borde
   createElement(Row, { divider: "start", tone: "primary" }, "x");
   createElement(Stack, { divider: "start", tone: "warning" }, "x");
   expectTypeOf<Parameters<typeof Row>[0]["dividerTone"]>().toEqualTypeOf<"border" | "sidebar" | undefined>();
+});
+
+test("DialogBody refuses the inline padding its glyph bleed owns and keeps the block axis", () => {
+  // @ts-expect-error the body's inline padding is the glyph bleed
+  createElement(DialogBody, { paddingInline: "row" }, "x");
+  // @ts-expect-error the whole-box padding would name the inline axis too
+  createElement(DialogBody, { padding: "block" }, "x");
+  createElement(DialogBody, { paddingBlock: "row" }, "x");
+  expectTypeOf<Parameters<typeof DialogBody>[0]>().not.toHaveProperty("paddingInline");
 });

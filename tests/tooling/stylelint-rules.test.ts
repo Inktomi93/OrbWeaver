@@ -258,6 +258,16 @@ test("a threshold is read from the parsed query, not from its text", async () =>
   expect(await rulesHit(layered("@CONTAINER (min-width: 30rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
   expect(await rulesHit("@custom-variant probe (@CONTAINER (min-width: 30rem));")).toEqual([THRESHOLD]);
   expect(await rulesHit(layered("@MEDIA (width > 50rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([THRESHOLD]);
+  // No space after the keyword: the parser reads `@media(` as a function, in a wrapped query and at the top level alike.
+  expect(await rulesHit("@custom-variant probe (@media(width > 50rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@media(width > 48rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@container(min-width: 30rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit("@custom-variant probe (@container(min-width: 28rem));")).toEqual([]);
+  expect(await rulesHit("@custom-variant probe (@MEDIA(width > 50rem));")).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@media(width > 50rem) { .probe { opacity: 1; } }"), THEME_FILE)).toEqual([THRESHOLD]);
+  expect(await rulesHit(layered("@container(min-width: 30rem) { .probe { opacity: 1; } }"))).toEqual([THRESHOLD]);
+  // A function that is no at-keyword keeps the kind of the query it sits in.
+  expect(await rulesHit("@custom-variant probe (@media (width > calc(50rem)));")).toEqual([THRESHOLD]);
   // Lengths that are not thresholds on the ladder's units stay clean.
   expect(await rulesHit(container("(min-width: 28rem) and (aspect-ratio: 16/9) and (resolution: 2dppx)"))).toEqual([]);
   expect(await rulesHit(container("(min-width: 50%)"))).toEqual([]);

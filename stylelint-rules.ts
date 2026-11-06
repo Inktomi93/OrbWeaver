@@ -286,18 +286,31 @@ function lengthsIn(nodes: readonly QueryNode[], start: QueryKind | null): readon
   const found: QueryLength[] = [];
   let kind = start;
   for (const node of nodes) {
-    if (node.type === "function" && node.value.toLowerCase() !== "style") {
-      found.push(...lengthsIn(node.nodes, kind));
+    const keyword = queryKindOf(node.value);
+    if (node.type === "function") {
+      // `@media(width > 50rem)` has no space after the keyword, so the parser reads it as a function named `@media`.
+      if (keyword !== undefined) {
+        found.push(...lengthsIn(node.nodes, keyword));
+      } else if (node.value.toLowerCase() !== "style") {
+        found.push(...lengthsIn(node.nodes, kind));
+      }
     } else if (node.type === "word") {
-      const keyword = QUERY_AT_KEYWORD.exec(node.value)?.groups?.["kind"]?.toLowerCase();
       if (keyword === undefined) {
         found.push(...lengthsOfWord(node.value, kind));
       } else {
-        kind = keyword === "media" ? "media" : "container";
+        kind = keyword;
       }
     }
   }
   return found;
+}
+
+function queryKindOf(text: string): QueryKind | undefined {
+  const keyword = QUERY_AT_KEYWORD.exec(text)?.groups?.["kind"]?.toLowerCase();
+  if (keyword === undefined) {
+    return undefined;
+  }
+  return keyword === "media" ? "media" : "container";
 }
 
 // A range written without spaces (`width>=30rem`) is one word.

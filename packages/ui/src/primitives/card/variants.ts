@@ -50,7 +50,7 @@ export const cardVariants = tv({
       `,
       focal: `
         relative isolate
-        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-receded before:shadow-glow
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-faint before:shadow-glow
         before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-['']
         hover:before:opacity-100
         data-returned:before:opacity-100

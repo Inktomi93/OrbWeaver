@@ -9,7 +9,7 @@ export const mediaGridVariants = tv({
     cell: [
       "group relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-control bg-muted outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
-      "hover:ring-(length:--border-width-rule) hover:ring-ring/50",
+      "hover:ring-(length:--border-width-rule) hover:ring-input-border",
       FOCUS_RING,
       // ONE RING, THE SHARED ONE (#1840, side-eye 2026-09-06 E2). This cell used to paint FOUR layers for
       // the state `PickerCell` states in one: an OUTSET accent ring, the rationed `--shadow-glow`, a

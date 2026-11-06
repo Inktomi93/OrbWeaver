@@ -10,7 +10,7 @@ export const GROUND = {
   /** The card fill and its ink: a sticky band over a scrolling card body. */
   card: "bg-card tone-host-card text-card-foreground",
   /** A band laid over the card at low strength, so it reads as part of the page it labels. */
-  faint: "bg-card/40",
+  faint: "bg-background tone-host-background",
   /** The popover fill: a footer pinned inside a floating surface. */
   popover: "bg-popover tone-host-popover text-popover-foreground",
   /** The raised step: the rail that holds the current selection. */

@@ -59,7 +59,7 @@ export const tabsVariants = tv({
     // Tab), so it needs a real focus ring: the UA's default outline measured 1.10:1 against the panel
     // background — under the 3:1 non-text-contrast law (2026-08-01 side-eye P1). It takes the INSET ring,
     // not the offset FOCUS_RING every control wears: a panel fills its container edge-to-edge (context
-    // panels, the rpg HUD), so an outward `ring-offset-2` halo paints into — and is clipped by — the
+    // panels, the rpg HUD), so an outward offset halo paints into — and is clipped by — the
     // scroll parent, i.e. the ring would be invisible exactly where the panel is used. Inset always paints.
     panel: ["text-body leading-body text-foreground inline-full", "outline-none", FOCUS_RING_INSET],
   },
@@ -90,7 +90,7 @@ export const tabsVariants = tv({
       // one component over. A `cell` is a RAIL cell, and a rail that has to fit more cells than its
       // width affords becomes an `overflow-x-auto` box — which forces `overflow-y` to `auto` too (CSS
       // computes a `visible` axis to `auto` when the other axis is not visible), while the list's client box
-      // is exactly one cell tall with no padding. `FOCUS_RING`'s `ring-offset-2` paints 4px OUTSIDE the
+      // is exactly one cell tall with no padding. `FOCUS_RING`'s offset paints 4px OUTSIDE the
       // cell's border box, i.e. entirely inside the clipped region: MEASURED by a real Tab traversal at 430
       // coarse, the focused cell's computed box-shadow was a non-inset 4px ring with 0px of headroom in a
       // non-`visible` overflow box — a keyboard indicator nobody can see. Paying for it with 4px of rail
@@ -112,7 +112,7 @@ export const tabsVariants = tv({
       },
     },
     // A cell in a rail that does not hold the current view steps its ink quieter; the active rail keeps the base.
-    quiet: { true: { tab: "text-muted-foreground/90" }, false: {} },
+    quiet: { true: { tab: "opacity-quiet" }, false: {} },
     // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
     listRule: { none: { list: "border-be-0" } },
     // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption

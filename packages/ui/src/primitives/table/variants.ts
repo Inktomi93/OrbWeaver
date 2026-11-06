@@ -16,7 +16,7 @@ export const tableVariants = tv({
     thead: "border-be border-border bg-muted",
     th: "px-row py-block text-label leading-label font-medium text-muted-foreground",
     sortButton: ["inline-flex cursor-pointer items-center gap-field bg-transparent font-medium text-muted-foreground inline-full", "outline-none", FOCUS_RING],
-    sortIcon: "shrink-0 text-muted-foreground/60",
+    sortIcon: "shrink-0 text-muted-foreground opacity-receded",
     tbody: "divide-y divide-border",
     // The start rail box stays reserved (transparent) so a row's cells sit where they always have.
     tr: "border-s-rule border-s-transparent",

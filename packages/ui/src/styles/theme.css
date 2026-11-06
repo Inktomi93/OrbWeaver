@@ -249,6 +249,10 @@
   --opacity-dragging: 50%;
   --opacity-loading: 70%;
   --opacity-hover: 80%;
+  --opacity-quiet: 90%;
+  --opacity-ladder-1: 8%;
+  --opacity-ladder-2: 32%;
+  --opacity-ladder-3: 60%;
   --opacity-grain: 4%;
   --stroke-width-icon-regular: 1.75px;
   --stroke-width-icon-bold: 2.5px;
@@ -257,6 +261,7 @@
   --border-width-control: 1px;
   --border-width-rule: 2px;
   --border-width-heavy: 4px;
+  --focus-ring-offset: 2px;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
   --text-display: 1.5rem;

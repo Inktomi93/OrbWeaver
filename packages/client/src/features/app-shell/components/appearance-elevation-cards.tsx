@@ -54,9 +54,9 @@ function FlatDiagram(): ReactElement {
 }
 
 /** LAYERED — separation BY SHADE STEP, not merely a removed line: every seam comes off AND the surfaces
- *  climb a brightness ladder. The steps are `foreground` at rising alpha over the base, which is the
+ *  climb a brightness ladder. The steps are `foreground` at the rising `opacity-ladder-*` rungs over the base, which is the
  *  exaggeration: the shipped ramp's real neighbours cannot read apart at diagram size (see the header).
- *  The three alphas are sized against the RECEIPT, not by eye — composited over the shipped bases they
+ *  The three rungs are sized against the RECEIPT, not by eye — composited over the shipped bases they
  *  step 2.08:1 / 2.30:1 on the dark polarity and 1.67:1 / 2.21:1 on the light one, both clear of G4's
  *  1.5:1 floor. The CT re-measures them from the rendered pixels rather than trusting this line. */
 function RampDiagram(): ReactElement {

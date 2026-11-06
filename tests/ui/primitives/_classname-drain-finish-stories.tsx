@@ -35,10 +35,6 @@ function role(name: ToneRole): string {
   return `var(${TOKENS[`color.tone-${name}`].cssVar})`;
 }
 
-function mix(token: string, percent: number): string {
-  return `color-mix(in oklab, var(${token}) ${percent}%, transparent)`;
-}
-
 /** The Text and Icon modifiers and the two new voices. */
 export function TextFinishStory(): ReactElement {
   return (
@@ -273,7 +269,7 @@ export function LayoutFinishStory(): ReactElement {
       {GROUNDS.map((ground) => (
         <Probe key={ground} name={`ground-${ground}`} style={{ backgroundColor: GROUND_FILLS[ground] }} />
       ))}
-      <Probe name="ground-faint" style={{ backgroundColor: mix(TOKENS["color.card"].cssVar, 40) }} />
+      <Probe name="ground-faint" style={{ backgroundColor: GROUND_FILLS.background }} />
       <Probe name="reading-plate" style={{ backgroundColor: `var(${TOKENS["color.reading-plate"].cssVar})` }} />
       <Probe name="card" style={{ backgroundColor: `var(${TOKENS["color.card"].cssVar})` }} />
       <Probe name="foreground" style={{ color: `var(${TOKENS["color.foreground"].cssVar})` }} />
@@ -356,7 +352,8 @@ export function PartsFinishStory(): ReactElement {
       <Probe name="sidebar" style={{ backgroundColor: `var(${TOKENS["color.sidebar"].cssVar})` }} />
       <Probe name="success" style={{ backgroundColor: `var(${TOKENS["color.success"].cssVar})` }} />
       <Probe name="muted-ink" style={{ borderColor: `var(${TOKENS["color.muted-foreground"].cssVar})` }} />
-      <Probe name="step2" style={{ backgroundColor: mix(TOKENS["color.foreground"].cssVar, 32) }} />
+      <Probe name="ladder-2" style={{ opacity: `var(${TOKENS["opacity.ladder-2"].cssVar})` }} />
+      <Probe name="quiet" style={{ opacity: `var(${TOKENS["opacity.quiet"].cssVar})` }} />
     </CtIsolation>
   );
 }

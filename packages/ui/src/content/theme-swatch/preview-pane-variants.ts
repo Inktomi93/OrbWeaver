@@ -14,7 +14,7 @@ export const themePreviewPaneVariants = tv({
       // The card fill with the rail's edge: a pane in a preview of the shell.
       sidebarEdge: "border-sidebar-border",
       // A card fill that lets a wallpaper or art read through it.
-      translucent: "bg-card/80",
+      translucent: "bg-reading-plate text-reading-plate-foreground",
     },
     // `island` is grouped content, whose inset and radius `tiers.css` resolves from the surface's tier. `row` is one
     // mini row drawn as its own box, and `inset` a sub-control mark.
