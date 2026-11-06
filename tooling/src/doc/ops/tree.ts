@@ -10,7 +10,7 @@ import { readGitPathHistory } from "../../floor/git/git-history.ts";
 import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
-import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
+import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
@@ -23,6 +23,8 @@ export const root = REPO_ROOT;
 const DOCS_DIR = "docs";
 const MISSION_PATH = "docs/Mission.md";
 const MAIN = "main";
+/** A porcelain status entry is `XY ` — two status letters and a space — then the path. */
+const STATUS_PREFIX = 3;
 
 export function today(): string {
   return new Date().toISOString().slice(0, "YYYY-MM-DD".length);
@@ -113,15 +115,18 @@ export function textFiles(repoRoot = root): readonly string[] {
   return [...new Set([...trackedTextFiles(repoRoot), ...governedPaths(repoRoot)])].filter((path) => existsSync(join(repoRoot, path)));
 }
 
-/** Apply `rewrite` to every text file and write the ones it changes; returns their paths. */
+/** Apply `rewrite` to every text file and write the ones it changes; returns their paths. A governed doc
+ *  it changes is written formatted, like every other doc write; code and other files keep the rewrite's
+ *  bytes. */
 export function rewriteTextFiles(rewrite: (path: string, source: string) => string, repoRoot = root): readonly string[] {
   const touched: string[] = [];
+  const governed = new Set(governedPaths(repoRoot));
   for (const path of textFiles(repoRoot)) {
     const abs = join(repoRoot, path);
     const source = readFileSync(abs, "utf8");
     const next = rewrite(path, source);
     if (next !== source) {
-      writeFileSync(abs, next);
+      writeFileSync(abs, governed.has(path) ? formattedDoc(next) : next);
       touched.push(path);
     }
   }
@@ -212,10 +217,27 @@ const COMMIT_MSG_CHECK = join(root, "scripts", "commit-msg-check.sh");
 /** The check's owner hand-commit waiver. A tool commit is never one, so the check runs without it. */
 const HUMAN_COMMIT_WAIVER_ENV = "ORB_HUMAN_COMMIT";
 
+/** The trailer on every commit the tool makes itself. */
+export const TOOL_TRAILER = "Co-Authored-By: pnpm doc <doc-tool@orbweaver.invalid>";
+
 /** A failed git step, with everything the child said: the sink is a refusal an operator reads. */
-function gitFailure(step: string, result: RunNicedSyncResult): CommitOutcome {
+function gitFailure(step: string, result: RunNicedSyncResult): GitFailure {
   const said = `${result.stdout}${result.stderr}`.trim();
   return { ok: false, reason: `git ${step} failed (exit ${String(result.status)})${said === "" ? "" : `: ${said}`}` };
+}
+
+/** Stage exactly `paths` in the checkout's real index — an add, a change or a deletion alike, whether or
+ *  not git ever tracked the path. Every other staged or unstaged path is left as it was. */
+export function stagePaths(paths: readonly string[], repoRoot = root): StageOutcome {
+  const result = runGit(repoRoot, ["update-index", "--add", "--remove", "--", ...paths]);
+  return result.status === 0 ? { ok: true } : gitFailure("update-index", result);
+}
+
+/** Every path under the work tree with an uncommitted change — staged, unstaged or untracked, deletions
+ *  included. Renames are listed as a delete and an add, so both halves are paths a commit must carry. */
+export function uncommittedWorkPaths(repoRoot = root): readonly string[] {
+  const out = git(repoRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames", "--", DOC_TOOL_TREES.work]);
+  return out === null ? [] : out.split("\0").flatMap((entry) => (entry === "" ? [] : [entry.slice(STATUS_PREFIX)]));
 }
 
 /** Commit the named paths ALONE, through plumbing, from a merge hook or by hand.
@@ -239,7 +261,7 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
       env: inheritedProcessEnv({ [HUMAN_COMMIT_WAIVER_ENV]: undefined }),
     });
     if (contract.status !== 0) {
-      return { ok: false, reason: `the landing message fails the commit-message contract: ${`${contract.stdout}${contract.stderr}`.trim()}` };
+      return { ok: false, reason: `the commit message fails the commit-message contract:${`${contract.stdout}${contract.stderr}`.trim()}` };
     }
     const scoped = { extra: { ["GIT_INDEX_FILE"]: join(scratch, "index") } };
     const steps: readonly (readonly [string, readonly string[]])[] = [
@@ -274,7 +296,6 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
   }
 }
 
-/** The commit that deleted item `id`'s file — its landing — or null when git has none. */
 /** The highest id any file under a numbered tree ever carried, on any branch: every path git added or
  *  deleted there. A landed or removed id is a name forever (commit subjects, `Closes:` trailers and
  *  `landedCommit` key on it), so a mint counts history, not only the files on disk. Zero outside a
@@ -308,7 +329,11 @@ export function workFileNamesAt(rev: string, repoRoot = root): readonly string[]
   return out === null ? [] : out.split(/\r?\n/u).flatMap((line) => (line === "" ? [] : [basenameOf(line)]));
 }
 
+/** The commit that deleted item `id`'s file — its landing — or null when git has none. `-m` diffs a merge
+ *  commit against each parent: a `land --stage` deletion committed inside a merge is otherwise invisible,
+ *  because `git log` prints no diff for a merge. */
 export function landedCommit(id: number, repoRoot = root): string | null {
-  const out = git(repoRoot, ["log", "-1", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`])?.trim() ?? "";
-  return out === "" ? null : out;
+  const out = git(repoRoot, ["log", "-1", "-m", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`]) ?? "";
+  const [first = ""] = out.trim().split(/\r?\n/u);
+  return first === "" ? null : first;
 }

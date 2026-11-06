@@ -1,9 +1,10 @@
-// Landing: `pnpm doc land <id…> --evidence <sha>` and the post-merge `land --merged`. A landed item is
-// DELETED, not kept (owner ruling: git keeps history; lasting knowledge lives in ADRs and law), and the
-// landing commit records what the file held — each item's title, evidence and What text. An item another
-// item or a parked plan waits on is released in the same commit: its `on <id>` blocker names a file that
-// is about to be gone. An item a doc still refers to refuses, so a landing never leaves a dead link.
-// All-or-nothing: any refusal writes and commits nothing.
+// Landing: `pnpm doc land <id…> --evidence <sha>` commits it, `land <id…> --stage` stages it for the
+// caller's own commit, and `land --merged` lands a merge's `Closes:` ids. A landed item is DELETED, not
+// kept (owner ruling: git keeps history; lasting knowledge lives in ADRs and law), and the landing record
+// holds what the file held — each item's title, evidence and What text. An item another item or a parked
+// plan waits on is released in the same landing: its `on <id>` blocker names a file that is about to be
+// gone. An item a doc still refers to refuses, so a landing never leaves a dead link.
+// All-or-nothing: any refusal writes, stages and commits nothing.
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -11,8 +12,8 @@ import type { DocEdit, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { closesTrailer } from "../lib/drift.ts";
 import { sectionText, splitDocument, withFields } from "../lib/frontmatter-write.ts";
-import type { LandingRecord } from "../lib/items.ts";
-import { landingMessage, parseBlocker } from "../lib/items.ts";
+import type { LandingRecord, StagedLanding } from "../lib/items.ts";
+import { commitRefusal, landingMessage, parseBlocker, stagedLanding } from "../lib/items.ts";
 import { basenameOf } from "../lib/names.ts";
 import { PARKED } from "../lib/rules.ts";
 import { loadPlans } from "./board.ts";
@@ -31,19 +32,28 @@ import {
   mergedCommits,
   readDoc,
   root,
+  stagePaths,
+  TOOL_TRAILER,
   today,
   workFileNamesAt,
   writeDoc,
 } from "./tree.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm doc land <id…> --evidence <sha>");
+refuseDirectInvocation(import.meta.url, "pnpm doc land <id…> --evidence <sha> | --stage");
 
-interface LandOutcome extends WriteOutcome {
+export interface LandOutcome extends WriteOutcome {
   readonly skipped: readonly string[];
+  /** Set by a successful `--stage`: the record and `Closes:` line for the caller's commit message. */
+  readonly staged?: StagedLanding;
+}
+
+interface WrittenLanding {
+  readonly outcome: LandOutcome;
+  /** One record per item the landing deleted; empty when nothing was written. */
+  readonly records: readonly LandingRecord[];
 }
 
 const SHORT_SHA = 12;
-const HOOK_TRAILER = "Co-Authored-By: pnpm doc <doc-tool@orbweaver.invalid>";
 const WHAT = "What";
 
 function waitsOn(blocked: string | null, ids: ReadonlySet<number>): boolean {
@@ -67,19 +77,16 @@ function releases(ids: ReadonlySet<number>, items: readonly WorkItem[], repoRoot
   return [...openItems, ...activePlans];
 }
 
-function record(item: WorkItem, evidence: string, repoRoot: string): LandingRecord {
+function record(item: WorkItem, evidence: string | null, repoRoot: string): LandingRecord {
   const { body } = splitDocument(readDoc(item.path, repoRoot).source);
   // An item that was already `done` keeps the evidence it landed with.
   return { id: item.id, title: item.title, what: sectionText(body, WHAT), evidence: item.state === "done" ? (item.evidence ?? evidence) : evidence };
 }
 
-/** Land items: prove the evidence is on `main`, delete the item files, release their dependents,
- *  regenerate the indexes and commit exactly those paths with the landing record. IDEMPOTENT: an id whose
- *  file git shows deleted is skipped with its landing commit, so a repeated trailer lands nothing twice. */
-export function landItems(ids: readonly number[], evidence: string, repoRoot = root, date = today()): LandOutcome {
-  if (!commitOnMain(evidence, repoRoot)) {
-    return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`], skipped: [] };
-  }
+/** The shared half of every landing: resolve the ids, refuse what must not land, then write the releases,
+ *  delete the item files and regenerate the indexes. `evidence` is null when the caller stages and has no
+ *  commit yet. Commits and stages nothing — that is the caller's step. */
+function writeLanding(ids: readonly number[], evidence: string | null, repoRoot: string, date: string): WrittenLanding {
   const items = loadItems(repoRoot);
   const byId = new Map(items.map((item) => [item.id, item] as const));
   const targets: WorkItem[] = [];
@@ -101,15 +108,15 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
   const paths = targets.map((item) => item.path);
   refusals.push(...textCiters(paths, repoRoot));
   if (refusals.length > 0) {
-    return { written: [], refusals, skipped: [] };
+    return { outcome: { written: [], refusals, skipped: [] }, records: [] };
   }
   if (targets.length === 0) {
-    return { written: [], refusals: [], skipped };
+    return { outcome: { written: [], refusals: [], skipped }, records: [] };
   }
   const released = releases(new Set(targets.map((item) => item.id)), items, repoRoot, date);
   const problems = introducedDocProblems(released, repoRoot);
   if (problems.length > 0) {
-    return { written: [], refusals: problems, skipped: [] };
+    return { outcome: { written: [], refusals: problems, skipped: [] }, records: [] };
   }
   const records = targets.map((item) => record(item, evidence, repoRoot));
   for (const { doc } of released) {
@@ -119,16 +126,41 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
     rmSync(join(repoRoot, path));
   }
   const written = [...paths, ...released.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
-  const message = landingMessage(records, HOOK_TRAILER);
-  const commit = commitPaths(written, message, repoRoot);
-  if (!commit.ok) {
-    return {
-      written,
-      refusals: [`the landing commit failed — ${commit.reason}. The files are written; commit them by hand with this message:\n${message}`],
-      skipped,
-    };
+  return { outcome: { written, refusals: [], skipped }, records };
+}
+
+/** Land items: prove the evidence is on `main`, delete the item files, release their dependents,
+ *  regenerate the indexes and commit exactly those paths with the landing record. IDEMPOTENT: an id whose
+ *  file git shows deleted is skipped with its landing commit, so a repeated trailer lands nothing twice. */
+export function landItems(ids: readonly number[], evidence: string, repoRoot = root, date = today()): LandOutcome {
+  if (!commitOnMain(evidence, repoRoot)) {
+    return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`], skipped: [] };
   }
-  return { written, refusals: [], skipped };
+  const { outcome, records } = writeLanding(ids, evidence, repoRoot, date);
+  if (records.length === 0) {
+    return outcome;
+  }
+  const message = landingMessage(records, TOOL_TRAILER);
+  const commit = commitPaths(outcome.written, message, repoRoot);
+  return commit.ok ? outcome : { ...outcome, refusals: [commitRefusal("landing", commit.reason, message)] };
+}
+
+/** Land items without a commit: the same resolution, refusals, releases and deletions as {@link landItems},
+ *  but no evidence check, and exactly the written paths are staged in the checkout's real index — every
+ *  other staged or unstaged path is left alone. The caller's own `git commit` carries the deletion with its
+ *  final files, and `staged` holds the record and `Closes:` line for that commit's message. Works on any
+ *  branch and during an in-progress merge. */
+export function landStaged(ids: readonly number[], repoRoot = root, date = today()): LandOutcome {
+  const { outcome, records } = writeLanding(ids, null, repoRoot, date);
+  if (records.length === 0) {
+    return outcome;
+  }
+  const staged = stagePaths(outcome.written, repoRoot);
+  if (!staged.ok) {
+    const byHand = `git update-index --add --remove -- ${outcome.written.join(" ")}`;
+    return { ...outcome, refusals: [`staging failed — ${staged.reason}. The files are written; stage them by hand with: ${byHand}`] };
+  }
+  return { ...outcome, staged: stagedLanding(records) };
 }
 
 /** The refusals for ids whose every closing commit's own tree lacks today's file for the id. */
@@ -163,11 +195,13 @@ function staleTrailers(
   return [...stale].filter(([id]) => !bound.has(id)).map(([, refusal]) => refusal);
 }
 
-/** The post-merge (and post-commit) door. On `main`, read the `Closes:` trailers of the commits the merge
- *  brought in and land those ids with the merge commit as evidence. Anywhere else, or with no trailer, it
- *  does nothing and says nothing. `headMerge` picks the range by which hook fired it, never by HEAD's
- *  shape (`mergedCommits`, tooling/src/doc/ops/tree.ts): post-merge always passes `false` (`ORIG_HEAD..HEAD`)
- *  and post-commit always passes `true` (`HEAD^1..HEAD`) — a fast-forward onto a branch whose tip is
+/** The merge-time door; the repository installs no git hook for it, so the orchestrator runs it by hand
+ *  after a merge. On `main`, read the `Closes:` trailers of the commits the merge brought in and land those
+ *  ids with the merge commit as evidence. Anywhere else, or with no trailer, it does nothing and says
+ *  nothing. An id a `land --stage` commit already deleted is skipped as already landed. `headMerge` picks
+ *  the range by which kind of merge ended, never by HEAD's shape (`mergedCommits`,
+ *  tooling/src/doc/ops/tree.ts): a git post-merge hook would pass `false` (`ORIG_HEAD..HEAD`) and a
+ *  post-commit hook `true` (`HEAD^1..HEAD`) — a fast-forward onto a branch whose tip is
  *  already a merge commit still fires post-merge, and reading `HEAD^1..HEAD` there would drop every id on
  *  the first-parent side. ALL-OR-NOTHING: an id that is neither on the tree nor landed in git refuses the
  *  whole trailer set before any write, and the refusal names the by-hand landing for the ids that do

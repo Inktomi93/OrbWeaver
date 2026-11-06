@@ -10,12 +10,14 @@ import { drift, overview } from "./board.ts";
 import { formatDocs, formatTargets } from "./format.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { newItem, newItemsFrom, setItems } from "./items.ts";
-import { landItems, landMerged } from "./land.ts";
+import { editItem, finishWrite, newItem, newItemsFrom, setItems, showItems } from "./items.ts";
+import type { LandOutcome } from "./land.ts";
+import { landItems, landMerged, landStaged } from "./land.ts";
 import { newAdr, newLaw, newPlan } from "./new.ts";
 import { removeDocs } from "./remove.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
+import { root } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
@@ -28,6 +30,9 @@ function report(verb: string, outcome: WriteOutcome): ExitCode {
   }
   for (const line of outcome.skipped ?? []) {
     print(`skipped ${line}`);
+  }
+  if (outcome.committed !== undefined) {
+    print(`committed ${outcome.committed}`);
   }
   if (outcome.refusals.length > 0) {
     const banner = outcome.written.length === 0 ? "NOTHING WRITTEN" : `wrote ${String(outcome.written.length)} file(s), then refused`;
@@ -74,10 +79,29 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
   return EXIT.violations;
 }
 
+/** `show`: each item's file under a `==> path <==` header, in the order given; an unknown id refuses by name
+ *  while the others still print. */
+function runShow(ids: readonly number[]): ExitCode {
+  const { shown, refusals } = showItems(ids);
+  for (const doc of shown) {
+    print(`==> ${doc.path} <==`);
+    print(doc.source.replace(/\n$/u, ""));
+  }
+  if (refusals.length > 0) {
+    warn(`doc show — ${String(refusals.length)} refusal(s):\n${refusals.map((line) => `  ${line}`).join("\n")}`);
+    return EXIT.violations;
+  }
+  return EXIT.clean;
+}
+
 // A landing can drain a plan or wake a blocked item, and nothing else reports that at the moment it
-// happens; print the board's drift right after any landing that wrote.
-function reportLanding(verb: string, outcome: WriteOutcome): ExitCode {
+// happens; print the board's drift right after any landing that wrote. A staged landing also prints the
+// record and `Closes:` line the caller pastes into its own commit message.
+function reportLanding(verb: string, outcome: LandOutcome): ExitCode {
   const code = report(verb, outcome);
+  if (outcome.staged !== undefined) {
+    print(`\n${outcome.staged.record}\n\n${outcome.staged.closes}`);
+  }
   if (outcome.written.length > 0) {
     for (const line of drift()) {
       print(`drift: ${line}`);
@@ -109,17 +133,23 @@ export function runDocCommand(command: DocCommand): ExitCode {
     case "new-law":
       return report("new law", newLaw(command));
     case "item":
-      return report("item", newItem(command.input));
+      return report("item", finishWrite(newItem(command.input), command.commit, root));
     case "item-batch":
-      return report("item", newItemsFrom(command.from));
+      return report("item", finishWrite(newItemsFrom(command.from), command.commit, root));
     case "status":
       return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind, blocked: command.blocked }));
     case "set":
-      return report("set", setItems(command.ids, command.patch));
+      return report("set", finishWrite(setItems(command.ids, command.patch), command.commit, root));
+    case "edit":
+      return report("edit", finishWrite(editItem(command.id, command.sections), command.commit, root));
+    case "show":
+      return runShow(command.ids);
     case "remove":
       return report("remove", removeDocs(command.targets));
     case "land":
       return reportLanding("land", landItems(command.ids, command.evidence));
+    case "land-stage":
+      return reportLanding("land --stage", landStaged(command.ids));
     case "land-merged":
       return reportLanding("land --merged", landMerged(undefined, undefined, command.headMerge));
     case "index":

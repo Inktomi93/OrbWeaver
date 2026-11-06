@@ -78,18 +78,47 @@ export function titleOf(body: string): string | null {
   return HEADING_RE.exec(body)?.[1] ?? null;
 }
 
+/** The line range of one `## ` section: its heading line, and the next heading outside a code fence (or
+ *  the end). Null when the body has no such section. */
+function sectionRange(lines: readonly string[], name: string): { readonly start: number; readonly end: number } | null {
+  let start = -1;
+  let inFence = false;
+  for (const [index, line] of lines.entries()) {
+    if (/^\s*(```|~~~)/u.test(line)) {
+      inFence = !inFence;
+    } else if (!inFence && line.startsWith("## ")) {
+      if (start !== -1) {
+        return { start, end: index };
+      }
+      if (line.trimEnd() === `## ${name}`) {
+        start = index;
+      }
+    }
+  }
+  return start === -1 ? null : { start, end: lines.length };
+}
+
 /** The text under one `## ` heading of a body, trimmed; empty when the section is absent. */
 export function sectionText(body: string, name: string): string {
   const lines = body.split(/\r?\n/u);
-  const start = lines.findIndex((line) => line.trimEnd() === `## ${name}`);
-  if (start === -1) {
-    return "";
+  const range = sectionRange(lines, name);
+  return range === null
+    ? ""
+    : lines
+        .slice(range.start + 1, range.end)
+        .join("\n")
+        .trim();
+}
+
+/** The document with the body of one `## ` section replaced by `text`, its heading and every other section
+ *  byte-identical; null when the document has no such section. */
+export function withSectionText(source: string, name: string, text: string): string | null {
+  const lines = source.split("\n");
+  const range = sectionRange(lines, name);
+  if (range === null) {
+    return null;
   }
-  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
-  return lines
-    .slice(start + 1, end === -1 ? undefined : end)
-    .join("\n")
-    .trim();
+  return [...lines.slice(0, range.start + 1), "", ...text.trim().split("\n"), "", ...lines.slice(range.end)].join("\n");
 }
 
 /** The `## ` headings of a body, in order. */
