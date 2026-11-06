@@ -1,0 +1,1026 @@
+// Explicit policy only: source violations cannot mint naming permissions.
+// Biome replaces convention arrays, so each scoped rule retains the complete ordered base.
+const BASE_CONVENTIONS = [
+  {
+    match: "[_$]+|[_$]*(.+?)[_$]*",
+  },
+  {
+    selector: {
+      kind: "classProperty",
+      modifiers: ["static"],
+    },
+    formats: ["camelCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "classGetter",
+      modifiers: ["static"],
+    },
+    formats: ["camelCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "function",
+      scope: "global",
+    },
+    match: "[A-Z][A-Z0-9_]*|(.+)",
+    formats: ["camelCase", "PascalCase"],
+  },
+  {
+    selector: {
+      kind: "const",
+      scope: "global",
+    },
+    formats: ["camelCase", "PascalCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "var",
+      scope: "global",
+    },
+    formats: ["camelCase", "PascalCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "typeLike",
+    },
+    formats: ["PascalCase"],
+  },
+  {
+    selector: {
+      kind: "enumMember",
+    },
+    formats: ["PascalCase"],
+  },
+  {
+    selector: {
+      kind: "function",
+    },
+    formats: ["camelCase", "PascalCase"],
+  },
+  {
+    selector: {
+      kind: "namespaceLike",
+    },
+    formats: ["camelCase", "PascalCase"],
+  },
+  {
+    selector: {
+      kind: "importAlias",
+    },
+    formats: ["camelCase", "PascalCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "exportAlias",
+    },
+    formats: ["camelCase", "PascalCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "variable",
+    },
+    formats: ["camelCase", "PascalCase"],
+  },
+  {
+    selector: {
+      kind: "functionParameter",
+    },
+    formats: ["camelCase", "PascalCase"],
+  },
+  {
+    selector: {
+      kind: "catchParameter",
+    },
+    formats: ["camelCase"],
+  },
+  {
+    selector: {
+      kind: "indexParameter",
+    },
+    formats: ["camelCase"],
+  },
+  {
+    selector: {
+      kind: "typeParameter",
+    },
+    formats: ["PascalCase"],
+  },
+  {
+    selector: {
+      kind: "classMember",
+    },
+    formats: ["camelCase"],
+  },
+  {
+    selector: {
+      kind: "typeProperty",
+      modifiers: ["readonly"],
+    },
+    formats: ["camelCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "typeGetter",
+    },
+    formats: ["camelCase", "CONSTANT_CASE"],
+  },
+  {
+    selector: {
+      kind: "typeMember",
+    },
+    formats: ["camelCase"],
+  },
+  {
+    selector: {
+      kind: "objectLiteralMember",
+    },
+    formats: ["camelCase"],
+  },
+] as const;
+
+interface NamingRule {
+  readonly level: "error";
+  readonly options: {
+    readonly strictCase: boolean;
+    readonly requireAscii: boolean;
+    readonly conventions: readonly object[];
+  };
+}
+
+function namingRule(...extra: readonly object[]): NamingRule {
+  return {
+    level: "error",
+    options: {
+      strictCase: false,
+      requireAscii: true,
+      conventions: [BASE_CONVENTIONS[0], ...extra, ...BASE_CONVENTIONS.slice(1)],
+    },
+  };
+}
+
+/** The explicitly authored source for the native Biome configuration. */
+export const BIOME_POLICY = {
+  $schema: "https://biomejs.dev/schemas/2.6.2/schema.json",
+  root: true,
+  plugins: [],
+  vcs: {
+    enabled: true,
+    clientKind: "git",
+    useIgnoreFile: true,
+    defaultBranch: "main",
+  },
+  files: {
+    ignoreUnknown: true,
+    includes: [
+      "**",
+      "!**/*.grit",
+      "!.claude/worktrees",
+      "!packages/ui/src/tokens/index.ts",
+      "!packages/ui/src/tokens/themes.gen.ts",
+      "!packages/ui/src/styles/theme.css",
+      "!packages/client/owner-css-surface.ts",
+      "!packages/client/src/styles/appearance-channel.gen.css",
+      "!tooling/src/snap/lib/devtools-frontend",
+      "!tooling/src/codemods/*/tests*",
+      "!**/node_modules",
+      "!**/.git",
+      "!**/reports",
+      "!**/coverage",
+      "!playwright/.cache",
+    ],
+  },
+  formatter: {
+    enabled: true,
+    formatWithErrors: false,
+    indentStyle: "space",
+    indentWidth: 2,
+    lineWidth: 160,
+    lineEnding: "lf",
+    bracketSpacing: true,
+    attributePosition: "auto",
+    expand: "auto",
+  },
+  assist: {
+    enabled: true,
+    actions: {
+      source: {
+        organizeImports: "on",
+      },
+    },
+  },
+  linter: {
+    enabled: true,
+    domains: {
+      project: "recommended",
+      types: "recommended",
+      react: "recommended",
+      test: "recommended",
+    },
+    rules: {
+      preset: "recommended",
+      correctness: {
+        useImportExtensions: "error",
+        noUnusedImports: "error",
+        noUnusedVariables: {
+          level: "error",
+          options: {
+            ignoreRestSiblings: false,
+          },
+        },
+        noUnusedFunctionParameters: "error",
+        noUndeclaredDependencies: "error",
+        noUnresolvedImports: "off",
+        noPrivateImports: "error",
+        noGlobalDirnameFilename: "error",
+        noProcessGlobal: "error",
+        noUnusedInstantiation: "error",
+        useExhaustiveDependencies: "error",
+        useHookAtTopLevel: "error",
+        useJsxKeyInIterable: "error",
+        useJsonImportAttributes: "error",
+        useSingleJsDocAsterisk: "error",
+        useUniqueElementIds: "error",
+        noNestedComponentDefinitions: "error",
+        noReactPropAssignments: "error",
+        noComponentHookFactories: "error",
+        noJsxNamespace: "error",
+        noPlaywrightMissingAwait: "error",
+        usePlaywrightValidDescribeCallback: "off",
+      },
+      complexity: {
+        noUselessFragments: "error",
+        noUselessUndefined: "error",
+        noUselessCatchBinding: "error",
+        noUselessReturn: "error",
+        noUselessStringConcat: "error",
+        noDivRegex: "error",
+        noRedundantDefaultExport: "error",
+        noExcessiveNestedTestSuites: "error",
+        useArrayFind: "error",
+        useWhile: "error",
+        noImplicitCoercions: {
+          level: "error",
+          options: {
+            allowDoubleNegation: true,
+          },
+        },
+        noExcessiveCognitiveComplexity: {
+          level: "error",
+          options: {
+            maxAllowedComplexity: 15,
+          },
+        },
+        useMaxParams: {
+          level: "error",
+          options: {
+            max: 4,
+          },
+        },
+        noForEach: "error",
+        useSimplifiedLogicExpression: "error",
+        noVoid: "off",
+        useLiteralKeys: "off",
+        noUnnecessaryTemplateExpression: "error",
+        useArraySome: "error",
+        useMathMinMax: "error",
+        noPlaywrightUselessAwait: "error",
+        useRegexpTest: "error",
+        noExcessiveNestedCallbacks: "error",
+      },
+      style: {
+        useImportType: {
+          level: "error",
+          options: {
+            style: "separatedType",
+          },
+        },
+        noRestrictedImports: {
+          level: "error",
+          options: {
+            paths: {
+              "tailwind-variants": {
+                importNames: ["cn", "cnMerge", "tv"],
+                message:
+                  "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes \u2014 so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned \u2014 class-merge.ts is its one caller.",
+              },
+            },
+            patterns: [
+              {
+                group: ["@base-ui-components/react", "@base-ui-components/react/**"],
+                message: "Dead rc-era package. Use @base-ui/react (D42).",
+              },
+              {
+                group: ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
+                message: "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design \u00a73, work-order item 15).",
+              },
+              {
+                group: ["@orb/contracts/sessions", "@orb/contracts/sessions/**"],
+                message:
+                  "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name \u2014 a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts.",
+              },
+              {
+                group: ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
+                message:
+                  "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env.",
+              },
+            ],
+          },
+        },
+        useExportType: "error",
+        useNodejsImportProtocol: "error",
+        useConsistentArrowReturn: "error",
+        noNonNullAssertion: "error",
+        noDefaultExport: "error",
+        noCommonJs: "error",
+        noEnum: "error",
+        noNamespace: "error",
+        noParameterProperties: "error",
+        noParameterAssign: "error",
+        noNestedTernary: "error",
+        noInferrableTypes: "error",
+        noExportedImports: "error",
+        noImplicitBoolean: "error",
+        noMultiAssign: "error",
+        noUnusedTemplateLiteral: "error",
+        noUselessElse: "error",
+        noYodaExpression: "error",
+        noSubstr: "error",
+        noProcessEnv: "error",
+        useThrowNewError: "error",
+        useThrowOnlyError: "error",
+        useErrorCause: "error",
+        useAsConstAssertion: "error",
+        useBlockStatements: "error",
+        useCollapsedElseIf: "error",
+        useCollapsedIf: "error",
+        useConsistentBuiltinInstantiation: "error",
+        useConsistentCurlyBraces: "error",
+        useConsistentMethodSignatures: "error",
+        useDefaultParameterLast: "error",
+        useExplicitLengthCheck: "error",
+        useFragmentSyntax: "error",
+        useGlobalThis: "error",
+        useNodeAssertStrict: "error",
+        useNumberNamespace: "error",
+        useObjectSpread: "error",
+        useSelfClosingElements: "error",
+        useShorthandAssign: "error",
+        useSingleVarDeclarator: "error",
+        useSpreadOverApply: "error",
+        useSymbolDescription: "error",
+        useTrimStartEnd: "error",
+        useComponentExportOnlyModules: {
+          level: "error",
+          options: {
+            allowConstantExport: true,
+          },
+        },
+        useConsistentArrayType: {
+          level: "error",
+          options: {
+            syntax: "shorthand",
+          },
+        },
+        useConsistentObjectDefinitions: {
+          level: "error",
+          options: {
+            syntax: "shorthand",
+          },
+        },
+        useConsistentTypeDefinitions: {
+          level: "error",
+          options: {
+            style: "interface",
+          },
+        },
+        useNamingConvention: namingRule(),
+        useFilenamingConvention: {
+          level: "error",
+          options: {
+            requireAscii: true,
+            filenameCases: ["kebab-case"],
+          },
+        },
+        noRestrictedTypes: {
+          level: "error",
+          options: {
+            types: {
+              "{}": "Use `object`, `unknown`, or a concrete type.",
+              Function: "Use a specific `(...args) => ...` signature.",
+            },
+          },
+        },
+        noMagicNumbers: "error",
+        useForOf: "error",
+        useAtIndex: "error",
+        useNumericSeparators: "error",
+        useUnifiedTypeSignatures: "error",
+        useDefaultSwitchClause: "off",
+        useLiteralEnumMembers: "off",
+        useVueMultiWordComponentNames: "off",
+        useReduceTypeParameter: "error",
+        useImportsFirst: "error",
+        useConsistentTestIt: "error",
+        useTestHooksInOrder: "error",
+        useTestHooksOnTop: "error",
+        noPlaywrightElementHandle: "error",
+        noPlaywrightEval: "error",
+        noPlaywrightWaitForSelector: "error",
+      },
+      suspicious: {
+        noConsole: {
+          level: "error",
+          options: {
+            allow: [],
+          },
+        },
+        noTsIgnore: "error",
+        noEvolvingTypes: "error",
+        noImportCycles: "error",
+        noDeprecatedImports: "off",
+        noFocusedTests: "error",
+        noSkippedTests: "off",
+        noVar: "error",
+        noForIn: "error",
+        noReturnAssign: "error",
+        noUnusedExpressions: "error",
+        noUnassignedVariables: "error",
+        noEmptyBlockStatements: "error",
+        noConstantBinaryExpressions: "error",
+        noBitwiseOperators: "error",
+        noNestedPromises: "error",
+        noParametersOnlyUsedInRecursion: "error",
+        noDuplicatedSpreadProps: "error",
+        noAlert: "error",
+        noLeakedRender: "error",
+        noUnknownAttribute: "error",
+        noMisplacedAssertion: "error",
+        noReactForwardRef: "error",
+        useAwait: "error",
+        useErrorMessage: "error",
+        useArraySortCompare: "off",
+        useNumberToFixedDigitsArgument: "error",
+        useStaticResponseMethods: "error",
+        noShadow: {
+          level: "error",
+          options: {
+            ignoreTypeValueShadow: true,
+          },
+        },
+        noDoubleEquals: {
+          level: "error",
+          options: {
+            ignoreNull: false,
+          },
+        },
+        noUnnecessaryConditions: "off",
+        noEmptySource: "off",
+        noJsxLeakedDollar: "error",
+        noReactStringRefs: "error",
+        noLoopFunc: "error",
+        useExpect: "error",
+        noConditionalExpect: "error",
+        noIdenticalTestTitle: "error",
+        noDrizzleDeleteWithoutWhere: "error",
+        noDrizzleUpdateWithoutWhere: "error",
+        noPlaywrightForceOption: "error",
+        noPlaywrightNetworkidle: "error",
+        noPlaywrightPagePause: "error",
+        noPlaywrightWaitForNavigation: "error",
+        noPlaywrightWaitForTimeout: "error",
+      },
+      performance: {
+        noBarrelFile: "error",
+        noReExportAll: "error",
+        noDelete: "error",
+        useTopLevelRegex: "off",
+        noAwaitInLoops: "off",
+        noNamespaceImport: "error",
+      },
+      security: {
+        noBlankTarget: "error",
+        noDangerouslySetInnerHtml: "error",
+        noDangerouslySetInnerHtmlWithChildren: "error",
+        noGlobalEval: "error",
+        noScriptUrl: "error",
+        noSecrets: "off",
+      },
+      a11y: {
+        preset: "recommended",
+        noStaticElementInteractions: "error",
+        noNoninteractiveElementInteractions: "error",
+        noSvgWithoutTitle: "error",
+        useSemanticElements: "error",
+      },
+      nursery: {
+        preset: "none",
+        noFloatingPromises: "error",
+        noMisusedPromises: "off",
+        useAwaitThenable: "off",
+        useExhaustiveSwitchCases: "error",
+        noBaseToString: "off",
+        noUnsafePlusOperands: "error",
+        noUselessTypeConversion: "off",
+        useNullishCoalescing: "off",
+        useIncludes: "off",
+        useStringStartsEndsWith: "off",
+        noImpliedEval: "error",
+        useExplicitReturnType: "error",
+        useRegexpExec: "off",
+        useDisposables: "error",
+      },
+    },
+  },
+  javascript: {
+    formatter: {
+      indentStyle: "space",
+      indentWidth: 2,
+      lineWidth: 160,
+      lineEnding: "lf",
+      quoteStyle: "double",
+      jsxQuoteStyle: "double",
+      quoteProperties: "asNeeded",
+      trailingCommas: "all",
+      semicolons: "always",
+      arrowParentheses: "always",
+      bracketSameLine: false,
+      bracketSpacing: true,
+      attributePosition: "auto",
+    },
+    parser: {
+      jsxEverywhere: false,
+    },
+    jsxRuntime: "transparent",
+  },
+  json: {
+    parser: {
+      allowTrailingCommas: false,
+    },
+    formatter: {
+      enabled: true,
+      indentStyle: "space",
+      indentWidth: 2,
+      lineWidth: 160,
+      lineEnding: "lf",
+      trailingCommas: "none",
+    },
+  },
+  overrides: [
+    {
+      includes: ["**/*.css"],
+      linter: {
+        enabled: false,
+        rules: {
+          recommended: false,
+        },
+      },
+    },
+    {
+      includes: ["tooling/src/codemods/*/scripts/*.ts"],
+      linter: {
+        rules: {
+          style: {
+            noDefaultExport: "off",
+            useNodejsImportProtocol: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}", "!tests/**/*.test.ts"],
+      linter: {
+        rules: {
+          correctness: {
+            usePlaywrightValidDescribeCallback: "error",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/plugin-sdk/package.json", "packages/plugin-toolchain/package.json"],
+      json: {
+        formatter: {
+          expand: "always",
+        },
+      },
+    },
+    {
+      includes: ["packages/*/src/**/index.ts", "tooling/src/*/index.ts"],
+      linter: {
+        rules: {
+          performance: {
+            noBarrelFile: "off",
+            noReExportAll: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/client/src/forms/editor/use-app-form.ts"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule({ selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] }),
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/server/src/foundation/env/index.ts"],
+      linter: {
+        rules: {
+          style: {
+            noProcessEnv: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/server/src/foundation/env/index.ts", "packages/server/src/foundation/env/record/index.ts"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case", "CONSTANT_CASE"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case", "CONSTANT_CASE"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: ["tooling/src/snap/ops/stage.ts", "tooling/src/snap/ops/stage-probe.ts", "tooling/src/render-trace/ops/fire.ts"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case", "CONSTANT_CASE"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case", "CONSTANT_CASE"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/client/**"],
+      linter: {
+        rules: {
+          correctness: {
+            noNodejsModules: "error",
+          },
+          suspicious: {
+            noConsole: {
+              level: "error",
+              options: {
+                allow: ["info", "warn", "error"],
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "packages/inference/src/backends/agent-sdk/runner.ts",
+        "packages/inference/src/backends/agent-sdk/wire-read.ts",
+        "packages/inference/src/backends/anthropic-messages/extras.ts",
+        "packages/inference/src/backends/anthropic-messages/index.ts",
+        "packages/inference/src/backends/local-light/st-head.ts",
+        "packages/inference/src/backends/openai-compat/body.ts",
+        "packages/inference/src/backends/openai-compat/chat.ts",
+        "packages/inference/src/backends/openai-compat/diagnostics.ts",
+        "packages/inference/src/backends/openai-compat/embed.ts",
+        "packages/inference/src/backends/openai-compat/images.ts",
+        "packages/inference/src/backends/openai-compat/ollama-native.ts",
+        "packages/inference/src/backends/openai-compat/reasoning.ts",
+        "packages/inference/src/backends/openai-compat/tokens.ts",
+        "packages/inference/src/backends/v4/fetch.ts",
+        "packages/inference/src/backends/v4/result.ts",
+        "packages/inference/src/backends/wire/anth-image-block.ts",
+        "packages/inference/src/backends/wire/cache-control.ts",
+        "packages/inference/src/backends/wire/provider-metadata.ts",
+        "packages/inference/src/catalog/detect.ts",
+        "packages/inference/src/catalog/endpoint.ts",
+        "packages/inference/src/catalog/openrouter.ts",
+        "packages/contracts/src/character/index.ts",
+        "packages/contracts/src/imagery/index.ts",
+        "packages/contracts/src/preset/index.ts",
+        "packages/contracts/src/settings/index.ts",
+        "packages/kit/src/macro/builtin-metadata.ts",
+        "packages/server/src/primitives/serde/chat/index.ts",
+        "packages/server/src/domain/imagery/substrate/mode.ts",
+        "packages/server/src/domain/imagery/substrate/size.ts",
+        "packages/server/src/domain/imagery/substrate/templates.ts",
+        "packages/server/src/domain/chat/assembly/macros.ts",
+        "packages/server/src/entry/http/auth-routes.ts",
+        "packages/client/src/features/chat/lib/imagery-templates-model.ts",
+        "packages/client/src/features/workloads/lib/workloads-model.ts",
+        "packages/client/src/features/refinery/lib/reason-copy.ts",
+      ],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule({ selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case"] }),
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "packages/inference/src/backends/agent-sdk/verify.ts",
+        "packages/inference/src/contract/local-light.ts",
+        "packages/inference/src/contract/runtime.ts",
+        "packages/inference/src/contract/wire.ts",
+      ],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule({ selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case"] }),
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "packages/inference/src/backends/agent-sdk/session/frames.ts",
+        "packages/inference/src/backends/local-light/model-cache.ts",
+        "packages/inference/src/backends/openai-compat/image-embed.ts",
+        "packages/inference/src/backends/openai-compat/rerank.ts",
+        "packages/server/src/primitives/serde/card/index.ts",
+      ],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "snake_case"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/inference/src/backends/agent-sdk/env.ts", "packages/client/src/features/refinery/lib/verdict.ts"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule({ selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "CONSTANT_CASE"] }),
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/inference/src/backends/agent-sdk/terminal-tools.ts", "packages/inference/src/backends/agent-sdk/translate.ts"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule({ selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] }),
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "**/*.config.ts",
+        "**/*.config.js",
+        "knip.ts",
+        ".dependency-cruiser.ts",
+        "eslint-plugins.d.ts",
+        "playwright*.config.ts",
+        "tests/e2e/support/global-setup.ts",
+        "tests/e2e/support/modes.ts",
+        "tests/e2e/support/fixture-provider.ts",
+        "tests/tooling/stack/index.test.ts",
+        "tests/tooling/stack/index.int.test.ts",
+        "tooling/src/floor/testing/run-temp-root-setup.ts",
+        "tooling/src/floor/testing/working-tree-guard.ts",
+      ],
+      linter: {
+        rules: {
+          style: {
+            noDefaultExport: "off",
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "packages/client/vite.config.ts",
+        "packages/client/native-typecheck.config.ts",
+        "packages/client/owner-css-surface.build.ts",
+        "packages/client/appearance-channel.build.ts",
+      ],
+      linter: {
+        rules: {
+          correctness: {
+            noNodejsModules: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: [
+        "packages/client/vite.config.ts",
+        "playwright-ct.config.ts",
+        "playwright.config.ts",
+        "tests/e2e/support/global-setup.ts",
+        "tests/e2e/support/modes.ts",
+        "vitest.config.ts",
+      ],
+      linter: {
+        rules: {
+          style: {
+            noProcessEnv: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/client/vite.config.ts", "playwright.config.ts", "vitest.config.ts"],
+      linter: {
+        rules: {
+          style: {
+            noMagicNumbers: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["scripts/**"],
+      linter: {
+        rules: {
+          suspicious: {
+            noConsole: "off",
+          },
+          style: {
+            useNamingConvention: namingRule(
+              {
+                selector: { kind: "objectLiteralProperty" },
+                match: "latestRecordSuccessOn2026_09_02|[_$]*(.+?)[_$]*",
+                formats: ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"],
+              },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: ["tooling/src/seed/lib/fake-local-light.ts"],
+      linter: {
+        rules: {
+          suspicious: {
+            noBitwiseOperators: "off",
+          },
+          style: {
+            useNumericSeparators: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/client/src/lib/create-registry-context.tsx"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] },
+            ),
+          },
+        },
+      },
+    },
+    {
+      includes: ["tests/**"],
+      linter: {
+        rules: {
+          style: {
+            noMagicNumbers: "off",
+            useConsistentTestIt: {
+              level: "error",
+              options: {
+                function: "test",
+                withinDescribe: "test",
+              },
+            },
+          },
+          performance: {
+            noBarrelFile: "off",
+          },
+          correctness: {
+            noEmptyPattern: "off",
+          },
+          nursery: {},
+        },
+      },
+    },
+    {
+      includes: ["tests/support/**", "tests/tooling/**", "tests/e2e/support/**", "tests/db/client/native-ownership-control.mjs"],
+      linter: {
+        rules: {
+          suspicious: {
+            noConsole: "off",
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/ui/**", "packages/client/**"],
+      linter: {
+        rules: {
+          style: {
+            noRestrictedGlobals: {
+              level: "error",
+              options: {
+                deniedGlobals: {
+                  Buffer:
+                    '`Buffer` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users. tsc will NOT stop you: `types: []` (tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`, and it cannot suppress the `/// <reference types="node" />` that DEPENDENCY .d.ts files inject \u2014 vite\'s own index.d.ts for the @orb/ui program, the @trpc/client WebSocket declarations for @orb/client. The generated AppRouter declaration removes our server implementation from the client program, but cannot remove Node types explicitly imported by upstream declarations. Use Uint8Array / TextEncoder / TextDecoder / atob / btoa.',
+                  setImmediate:
+                    "`setImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry for why `types: []` is not a program-level guarantee). Use queueMicrotask() for a microtask or setTimeout(fn, 0) for a macrotask.",
+                  clearImmediate:
+                    "`clearImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Pair setTimeout() with clearTimeout() instead.",
+                  global:
+                    "`global` is the node global object and does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use `globalThis`.",
+                  __dirname:
+                    "`__dirname` is a node CommonJS global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
+                  __filename:
+                    "`__filename` is a node CommonJS global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
+                  require:
+                    "`require` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use a static `import`, or `await import()` when the load must be lazy.",
+                  module:
+                    "`module` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `module` resolves to that binding, not the global, and is not flagged.)",
+                  exports:
+                    "`exports` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `exports` resolves to that binding, not the global, and is not flagged.)",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      includes: ["packages/client/src/features/**"],
+      linter: {
+        rules: {
+          correctness: {
+            noRestrictedElements: {
+              level: "error",
+              options: {
+                elements: {
+                  img: "Raw `<img>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  video:
+                    "Raw `<video>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  audio:
+                    "Raw `<audio>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  source:
+                    "Raw `<source>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      includes: ["tooling/src/eslint/**"],
+      linter: {
+        rules: {
+          style: {
+            useNamingConvention: namingRule(
+              { selector: { kind: "objectLiteralProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] },
+              { selector: { kind: "typeProperty" }, match: "[_$]*(.+?)[_$]*", formats: ["camelCase", "PascalCase"] },
+            ),
+          },
+        },
+      },
+    },
+  ],
+  yaml: {
+    formatter: {
+      enabled: false,
+    },
+  },
+  markdown: {
+    formatter: {
+      enabled: false,
+    },
+    linter: {
+      enabled: false,
+    },
+    analyzeEmbeds: false,
+  },
+  css: {
+    parser: {
+      tailwindDirectives: true,
+    },
+    linter: {
+      enabled: false,
+    },
+  },
+} as const;

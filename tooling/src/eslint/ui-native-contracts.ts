@@ -1,9 +1,9 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { TypeServices as Native } from "./checker.ts";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import type { Native } from "./test-routes.ts";
-import { nativeOf } from "./test-routes.ts";
 
 const BASE_UI_PACKAGE = /\/node_modules\/@base-ui\/react\//u;
 const REACT_TYPES_PACKAGE = /\/node_modules\/@types\/react\//u;
@@ -72,12 +72,9 @@ function narrowsCallback(native: Native, member: ts.TypeElement, name: string, b
 export const nativeCallbackNarrowingRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeOf(context);
-    if (native === undefined) {
-      return {};
-    }
+    const native = requireTypeServices(context);
     const judge = (node: TSESTree.Node): void => {
-      const shape = wrapperShape(native.toTs(node));
+      const shape = wrapperShape(native.esTreeNodeToTSNodeMap.get(node));
       if (shape === undefined) {
         return;
       }
@@ -85,7 +82,7 @@ export const nativeCallbackNarrowingRule: OrbRule = {
         const name = callbackName(member);
         if (name !== undefined && narrowsCallback(native, member, name, shape.bases)) {
           context.report({
-            node: native.toEs(member) ?? node,
+            node: native.tsNodeToESTreeNodeMap.get(member),
             message: `The redeclared ${name} narrows a native callback contract. Derive it from the owning props and preserve callback state and event details.`,
           });
         }
@@ -184,13 +181,10 @@ function conflictingSpread(native: Native, element: ts.JsxOpeningElement | ts.Js
 export const overwrittenRefRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeOf(context);
-    if (native === undefined) {
-      return {};
-    }
+    const native = requireTypeServices(context);
     return {
       JSXOpeningElement: (node: TSESTree.JSXOpeningElement): void => {
-        const element = native.toTs(node);
+        const element = native.esTreeNodeToTSNodeMap.get(node);
         if (!(ts.isJsxOpeningElement(element) || ts.isJsxSelfClosingElement(element))) {
           return;
         }
@@ -221,13 +215,10 @@ function cssContext(type: ts.Type): boolean {
 export const unresolvedStyleSpreadRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeOf(context);
-    if (native === undefined) {
-      return {};
-    }
+    const native = requireTypeServices(context);
     return {
       SpreadElement: (node: TSESTree.SpreadElement): void => {
-        const spread = native.toTs(node);
+        const spread = native.esTreeNodeToTSNodeMap.get(node);
         if (!(ts.isSpreadAssignment(spread) && ts.isObjectLiteralExpression(spread.parent))) {
           return;
         }

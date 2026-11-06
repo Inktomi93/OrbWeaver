@@ -11,6 +11,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
 import { levelOf, resolvedConfig } from "./_eslint-config.ts";
+import { programForSource } from "./_typescript-program.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const STYLE = "orb/no-static-style-prop";
@@ -34,12 +35,14 @@ beforeAll(async () => {
 
 async function findings(rule: string, source: string, path: string, force = false): Promise<readonly Linter.LintMessage[]> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
+  const configPath = path.startsWith("packages/ui/") ? "packages/ui/tsconfig.json" : "packages/client/tsconfig.json";
+  const programs = rule === STYLE ? [programForSource(ROOT, configPath, join(ROOT, path), source)] : null;
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
       plugins: config.plugins,
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs, ecmaFeatures: { jsx: true } } },
       rules: { [rule]: force ? "error" : (config.rules[rule] ?? "off") },
     },
     { filename: join(ROOT, path) },

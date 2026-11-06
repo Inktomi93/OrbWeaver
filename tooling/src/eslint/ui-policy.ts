@@ -112,7 +112,7 @@ export const CLIENT_STYLE_RESTRICTIONS = [{ id: "no-off-token-inline-style" }, {
 
 export const CLIENT_DOM_RESTRICTIONS = [{ id: "no-dom-lookup-in-features" }, { id: "no-class-list-write" }];
 
-const CAST_ID_CALL = `CallExpression:matches([callee.name='castId'], [callee.computed=false][callee.property.name='castId'], [callee.computed=true][callee.property.value='castId'])`;
+const CAST_ID_CALL = `CallExpression:matches([callee.name='castId'], ${memberNamed("castId", "callee.")})`;
 
 const EMPTY_ID_ARGUMENT =
   ":matches([arguments.0.value=''], [arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=''], [arguments.0.expression.value=''], " +
@@ -183,8 +183,7 @@ export const CLIENT_SEAL_RESTRICTIONS = [
     id: "bus-on-data-no-store-write",
     selectors: [
       {
-        selector:
-          ":matches(Property, MethodDefinition)[key.name=/^(onData|onConnectionStateChange)$/] CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.name='setState']",
+        selector: `:matches(Property, MethodDefinition)[key.name=/^(onData|onConnectionStateChange)$/] CallExpression[callee.type='MemberExpression']${memberNamed("setState", "callee.")}`,
         message:
           "A raw store write (.setState) inside a bus onData or onConnectionStateChange body forks canon into a second store. Route into the pure reducer (apply-chat-bus-event.ts), buffer through the chatStream api, or drive the invalidation seam.",
       },

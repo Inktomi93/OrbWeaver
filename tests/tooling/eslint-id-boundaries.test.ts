@@ -8,6 +8,7 @@ import tseslint from "typescript-eslint";
 import type { ResolvedConfig } from "./_eslint-config.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
+import { programForSource } from "./_typescript-program.ts";
 
 // The first case loads the whole flat config, which dwarfs every later one.
 const CONFIG_LOAD_TIMEOUT_MS = scaledBudget(60_000);
@@ -45,12 +46,19 @@ async function messages(root: string, rule: string, source: string, path: string
   const filename = join(root, path);
   const config = await configFor(root, filename);
   expect(config).toBeDefined();
+  let configPath = "tsconfig.node.json";
+  if (path.startsWith("packages/contracts/")) {
+    configPath = "packages/contracts/tsconfig.json";
+  } else if (path.startsWith("tooling/")) {
+    configPath = "tooling/tsconfig.json";
+  }
+  const programs = rule === RAW_ID ? [programForSource(root, configPath, filename, source)] : null;
   const found = new Linter().verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
       plugins: config.plugins,
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs, ecmaFeatures: { jsx: true } } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
       rules: { [rule]: config.rules[rule] ?? "off" },
     },

@@ -16,8 +16,11 @@ paths:
 
 TypeScript configs are checked-in configuration. Edit the owning config directly and validate with `pnpm typecheck`.
 
-`biome.json`, `eslint.config.ts` and `.dependency-cruiser.ts` are hand-authored on purpose, so a
-current violation cannot mint its own permission. Fix the native lint or dependency-cruiser rule that owns the constraint.
+Author lint and dependency policy explicitly. Generators may expand authored tables into checked-in native configuration. Never derive permissions, exceptions or baselines from existing violations.
+
+Biome policy lives in `tooling/src/biome-config/policy.config.ts`. Run `pnpm biome:write` after policy edits. `pnpm biome:check` rejects stale output without rewriting it; `pnpm lint` includes that check.
+
+Keep `eslint.config.ts` and `.dependency-cruiser.ts` as explicit policy composition. Fix the owning native rule when its constraint changes.
 
 Give every dependency-cruiser forbidden rule a unique name. Under `extends`, a later rule with the same name replaces the earlier one.
 

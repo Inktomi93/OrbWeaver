@@ -2,6 +2,8 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { TypeServices as Native } from "./checker.ts";
+import { requireTypeServices } from "./checker.ts";
 import { constantInitializer, staticKeyName, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
@@ -31,34 +33,6 @@ const isResponder = (node: TSESTree.Node): node is Responder =>
 
 const isTrpcErrorCall = (node: TSESTree.Node): boolean =>
   node.type === AST_NODE_TYPES.CallExpression && node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "trpcError";
-
-export interface Native {
-  readonly checker: ts.TypeChecker;
-  readonly program: ts.Program;
-  readonly toTs: (node: TSESTree.Node) => ts.Node;
-  readonly toEs: (node: ts.Node) => TSESTree.Node | undefined;
-}
-
-// A file outside every type-aware program (a declaration file) has no route map to judge.
-export function nativeOf(context: OrbRuleContext): Native | undefined {
-  const services = context.sourceCode.parserServices;
-  if (
-    services?.program === undefined ||
-    services.program === null ||
-    services.esTreeNodeToTSNodeMap === undefined ||
-    services.tsNodeToESTreeNodeMap === undefined
-  ) {
-    return undefined;
-  }
-  const toTsMap = services.esTreeNodeToTSNodeMap;
-  const toEsMap = services.tsNodeToESTreeNodeMap;
-  return {
-    checker: services.program.getTypeChecker(),
-    program: services.program,
-    toTs: (node) => toTsMap.get(node),
-    toEs: (node) => toEsMap.get(node),
-  };
-}
 
 const constituents = (type: ts.Type): readonly ts.Type[] => (type.isUnion() ? type.types : [type]);
 
@@ -105,7 +79,7 @@ function inputIsVoid(native: Native, current: ts.SourceFile, path: string): bool
 
 // A route value that is not a literal responder is a typed value: a kit marker, or a function taking the request.
 function typeAnswersRequests(native: Native, value: TSESTree.Node): boolean {
-  return constituents(native.checker.getTypeAtLocation(native.toTs(value))).every(
+  return constituents(native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(value))).every(
     (type) => MARKER_TYPES.has(type.getSymbol()?.name ?? "") || type.getCallSignatures().some((signature) => signature.getParameters().length > 0),
   );
 }
@@ -306,15 +280,15 @@ function responderVerdict(env: Env, fn: Responder, depth: number): Verdict {
 
 function localCallableVerdict(env: Env, value: TSESTree.Node, depth: number): Verdict | undefined {
   if (value.type === AST_NODE_TYPES.Identifier) {
-    const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value))?.valueDeclaration;
-    const fn = declaration === undefined ? undefined : env.native.toEs(declaration);
+    const declaration = env.native.checker.getSymbolAtLocation(env.native.esTreeNodeToTSNodeMap.get(value))?.valueDeclaration;
+    const fn = declaration === undefined ? undefined : env.native.tsNodeToESTreeNodeMap.get(declaration);
     if (fn !== undefined && isResponder(fn)) {
       return responderVerdict(env, fn, depth + 1);
     }
   }
   if (value.type === AST_NODE_TYPES.CallExpression) {
-    const declaration = env.native.checker.getSymbolAtLocation(env.native.toTs(value.callee))?.valueDeclaration;
-    const declared = declaration === undefined ? undefined : env.native.toEs(declaration);
+    const declaration = env.native.checker.getSymbolAtLocation(env.native.esTreeNodeToTSNodeMap.get(value.callee))?.valueDeclaration;
+    const declared = declaration === undefined ? undefined : env.native.tsNodeToESTreeNodeMap.get(declaration);
     const fn = declared?.type === AST_NODE_TYPES.VariableDeclarator ? declared.init : declared;
     if (fn !== undefined && fn !== null && isResponder(fn)) {
       return combine(returnedValues(env.context, fn).map((returned) => verdictOf(env, returned, depth + 1)));
@@ -349,7 +323,7 @@ function verdictOf(env: Env, node: TSESTree.Node, depth = 0): Verdict {
 
 // A literal is a route map when its contextual type holds a responder (one that can be a kit marker) for a dotted key it writes.
 function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTree.ObjectExpression): boolean {
-  const contextual = native.checker.getContextualType(native.toTs(object) as ts.Expression);
+  const contextual = native.checker.getContextualType(native.esTreeNodeToTSNodeMap.get(object));
   if (contextual === undefined) {
     return false;
   }
@@ -359,7 +333,7 @@ function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTr
       return false;
     }
     const symbol = native.checker.getPropertyOfType(contextual, key);
-    const slot = symbol === undefined ? undefined : native.checker.getTypeOfSymbolAtLocation(symbol, native.toTs(object));
+    const slot = symbol === undefined ? undefined : native.checker.getTypeOfSymbolAtLocation(symbol, native.esTreeNodeToTSNodeMap.get(object));
     return slot !== undefined && constituents(slot).some((type) => MARKER_TYPES.has(type.getSymbol()?.name ?? ""));
   });
 }
@@ -367,11 +341,8 @@ function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTr
 export const ctResponderReadsInputRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeOf(context);
-    if (native === undefined) {
-      return {};
-    }
-    const env: Env = { context, native, sourceFile: native.toTs(context.sourceCode.ast).getSourceFile() };
+    const native = requireTypeServices(context);
+    const env: Env = { context, native, sourceFile: native.esTreeNodeToTSNodeMap.get(context.sourceCode.ast).getSourceFile() };
     const judged = new Set<TSESTree.Node>();
 
     const judge = (path: string, property: TSESTree.Property): void => {
@@ -390,10 +361,10 @@ export const ctResponderReadsInputRule: OrbRule = {
     // Every property the map's type holds that this file declares, whether written in the literal, spread in from a
     // binding of this file, or typed on a variable: each is a `PropertyAssignment` the checker names.
     const judgeMap = (map: TSESTree.Node): void => {
-      const type = native.checker.getTypeAtLocation(native.toTs(map));
+      const type = native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(map));
       for (const symbol of native.checker.getPropertiesOfType(type)) {
         const declaration = symbol.valueDeclaration;
-        const property = declaration !== undefined && ts.isPropertyAssignment(declaration) ? native.toEs(declaration) : undefined;
+        const property = declaration !== undefined && ts.isPropertyAssignment(declaration) ? native.tsNodeToESTreeNodeMap.get(declaration) : undefined;
         if (property?.type === AST_NODE_TYPES.Property) {
           judge(symbol.getName(), property);
         }
@@ -409,15 +380,15 @@ export const ctResponderReadsInputRule: OrbRule = {
         }
       },
       "CallExpression[arguments.length>0]"(call: TSESTree.CallExpression): void {
-        const signature = native.checker.getResolvedSignature(native.toTs(call) as ts.CallExpression);
+        const signature = native.checker.getResolvedSignature(native.esTreeNodeToTSNodeMap.get(call));
         signature?.getParameters().forEach((parameter, index) => {
-          const type = native.checker.getTypeOfSymbolAtLocation(parameter, native.toTs(call));
+          const type = native.checker.getTypeOfSymbolAtLocation(parameter, native.esTreeNodeToTSNodeMap.get(call));
           const routeMap = native.checker
             .getPropertiesOfType(type)
             .some(
               (slot) =>
                 slot.getName().includes(".") &&
-                constituents(native.checker.getTypeOfSymbolAtLocation(slot, native.toTs(call))).some((member) =>
+                constituents(native.checker.getTypeOfSymbolAtLocation(slot, native.esTreeNodeToTSNodeMap.get(call))).some((member) =>
                   MARKER_TYPES.has(member.getSymbol()?.name ?? ""),
                 ),
             );

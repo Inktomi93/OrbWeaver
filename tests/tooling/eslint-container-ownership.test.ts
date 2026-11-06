@@ -4,6 +4,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
 import { resolvedConfig } from "./_eslint-config.ts";
+import { programForSource } from "./_typescript-program.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RAW = "orb/no-raw-container-in-features";
@@ -22,12 +23,13 @@ beforeAll(async () => {
 
 async function findings(rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
+  const programs = rule === SURFACE || rule === ANCHOR ? [programForSource(ROOT, "packages/client/tsconfig.json", join(ROOT, path), source)] : null;
   const found = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
       plugins: config.plugins,
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs, ecmaFeatures: { jsx: true } } },
       rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },

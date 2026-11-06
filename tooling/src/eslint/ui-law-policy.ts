@@ -2,6 +2,7 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // The React Compiler skips any module that imports the virtualizer (the installed compiler's own denylist;
@@ -121,12 +122,7 @@ export const noUsePromiseRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const bindings = reactBindings(context);
-    const services = context.sourceCode.parserServices;
-    if (services?.program === undefined || services.program === null || services.esTreeNodeToTSNodeMap === undefined) {
-      throw new Error("no-use-promise needs the parser's TypeScript Program to read the argument's type");
-    }
-    const checker = services.program.getTypeChecker();
-    const toTsNode = services.esTreeNodeToTSNodeMap;
+    const { checker, esTreeNodeToTSNodeMap: toTsNode } = requireTypeServices(context);
     return {
       "VariableDeclarator:exit"(node: TSESTree.VariableDeclarator): void {
         for (const { key, local } of destructuredFromNamespace(node, bindings)) {

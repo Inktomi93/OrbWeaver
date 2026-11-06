@@ -7,6 +7,7 @@ import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { NameMatch } from "../brand-names/index.ts";
 import { BrandTable } from "../brand-names/index.ts";
+import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
@@ -207,12 +208,9 @@ export const rawIdRule: OrbRule = {
         context.report({ node: property.key, message: ZOD_MESSAGE });
       }
     };
-    const services = context.sourceCode.parserServices;
-    const program = services?.program ?? null;
-    const toTs = services?.esTreeNodeToTSNodeMap;
-    const checker = program?.getTypeChecker();
-    const brand = program === null || checker === undefined ? null : brandedString(program, checker);
-    if (program === null || checker === undefined || brand === null || toTs === undefined) {
+    const { program, checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
+    const brand = brandedString(program, checker);
+    if (brand === null) {
       return { "ObjectExpression > Property": zodField };
     }
     const table = brandTable(program, checker, brand);

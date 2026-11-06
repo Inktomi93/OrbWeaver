@@ -49,7 +49,13 @@ test.for([
   ["prose carrying no statement keyword and terminator", "// this explains WHY the value is 1 (a prose comment)\nexport const x = 1;\n"],
   ["comment-looking text inside a template string is data", "export const source = `\n// const rendered = true;\n`;\n"],
   ["the terminator fence: prose that opens with a keyword", "// if the value is missing we fall back to the seed\nexport const x = 1;\n"],
-  ["the comment-kind fence: a block comment is out of subject", "/* const dead = compute(); */\nexport const x = 1;\n"],
+  ["JSDoc example", "/** @example\n * const sample = 1;\n */\nexport const x = 1;\n"],
+  ["block prose", "/* if the value is missing, use the seed; then continue. */\nexport const x = 1;\n"],
 ] as const)("%s", async ([, source]) => {
   expect(await findings(source)).toEqual([]);
+});
+
+test("block comments cannot park statements", async () => {
+  expect(await findings("/* const dead = compute(); */\nexport const x = 1;\n")).toHaveLength(1);
+  expect(await findings("/*\nconst dead = compute();\nreturn dead;\n*/\nexport const x = 1;\n")).toHaveLength(1);
 });

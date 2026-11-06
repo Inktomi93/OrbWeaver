@@ -3,6 +3,7 @@ import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { Restatement } from "../unwired/index.ts";
 import { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../unwired/index.ts";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { CONTRACT_FILE, declaredHere } from "./trpc-output.ts";
 
@@ -91,13 +92,7 @@ function subsetRestatement(checker: ts.TypeChecker, argument: ts.Expression, par
 export const derivedPortMemberRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const services = context.sourceCode.parserServices;
-    const toTsMap = services?.esTreeNodeToTSNodeMap;
-    const program = services?.program ?? null;
-    if (program === null || toTsMap === undefined) {
-      return {};
-    }
-    const checker = program.getTypeChecker();
+    const { checker, esTreeNodeToTSNodeMap: toTsMap, tsNodeToESTreeNodeMap: toEsMap } = requireTypeServices(context);
     const reported = new Set<ts.Node>();
     // A contract file builds its own shapes from each other; a restatement is judged where a consumer declares one.
     const inContract = CONTRACT_FILE.test(context.filename.replaceAll("\\", "/"));
@@ -112,7 +107,7 @@ export const derivedPortMemberRule: OrbRule = {
       for (const [index, argument] of call.arguments.entries()) {
         const parameter = declaration.parameters[index];
         const found = parameter === undefined ? null : subsetRestatement(checker, argument, parameter);
-        const at = found === null ? undefined : services?.tsNodeToESTreeNodeMap?.get(found.local.name);
+        const at = found === null ? undefined : toEsMap.get(found.local.name);
         if (found !== null && at !== undefined && !reported.has(found.local)) {
           reported.add(found.local);
           context.report({

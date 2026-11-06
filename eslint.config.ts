@@ -40,6 +40,8 @@ import { appearanceChannelVocabulary } from "./packages/client/appearance-channe
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 import { customPropertyUses } from "./tooling/src/css-names/index.ts";
+import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
+import { ROLE_DATA_RESTRICTIONS } from "./tooling/src/eslint/security-policy.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
@@ -439,7 +441,6 @@ const INVISIBLE_CONTROL_RANGES = [
 const HEX = 16;
 const INVISIBLE_CONTROL_CLASS = `[${INVISIBLE_CONTROL_RANGES.map(([first, last]) => `\\u${first}-\\u${last}`).join("")}]`;
 const INVISIBLE_CONTROL_MESSAGE = "Write bidi and C0/C1 control characters as escapes (\\uXXXX); a literal one hides what the code does from review.";
-// Flat config replaces a rule's options per block, so every no-restricted-syntax block must spread this entry.
 const INVISIBLE_CONTROL_SYNTAX = {
   selector: `:matches(Literal[raw=/${INVISIBLE_CONTROL_CLASS}/], TemplateElement[value.raw=/${INVISIBLE_CONTROL_CLASS}/], JSXText[raw=/${INVISIBLE_CONTROL_CLASS}/])`,
   message: INVISIBLE_CONTROL_MESSAGE,
@@ -498,7 +499,10 @@ const ORB_TRACK_CLASS_SYNTAX = {
   selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,
   message: "An orb-*-track class string belongs to its home file; render the carrier through the chat feature's `Track` component.",
 };
-const CLIENT_SYNTAX = [INVISIBLE_CONTROL_SYNTAX, CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX];
+// Flat config replaces rule options, so each authored override carries the invariant.
+const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
+
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -561,7 +565,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
         { object: "Object", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
         { object: "Reflect", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
       ],
-      "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX],
+      "no-restricted-syntax": restrictedSyntax(),
       "no-warning-comments": ["error", { terms: INVISIBLE_CONTROL_TERMS, location: "anywhere" }],
     },
   },
@@ -662,6 +666,10 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
     // Async test doubles implement Promise contracts without asynchronous work.
     rules: ASYNC_SAFETY_RULES,
+  },
+  {
+    files: ["tests/**/*.d.{ts,mts,cts}"],
+    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
   },
   {
     // The patched plugin of the old config under-reported these two on literal operands; without the patch they report less.
@@ -1597,22 +1605,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/client/src/state/durable-local.ts"], rules: { "orb/no-raw-zustand-persist-registry": "error" } },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       ignores: ["packages/client/src/forms/editor/contexts.ts", "packages/client/src/forms/editor/use-app-form.ts"],
       rules: { "orb/no-direct-useform": "error" },
     },
@@ -1698,42 +1691,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/no-raw-interactive-intrinsics": "error" },
     },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       ignores: ["**/*.test.{ts,tsx}"],
       rules: { "orb/no-static-staletime": "error" },
     },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       ignores: ["packages/ui/src/markdown/dialogue-paragraph.tsx"],
       rules: { "orb/no-legacy-react-api": "error" },
     },
@@ -1813,46 +1776,10 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/no-raw-container-in-features": "error" } },
     { files: ["packages/client/src/features/*/surfaces/**/*.tsx"], rules: { "orb/surface-consumes-container": "error" } },
     { files: ["packages/client/src/features/*/anchors/**/*.tsx"], rules: { "orb/anchor-provides-container": "error" } },
-    { files: ["packages/server/src/primitives/role-data/index.ts"], rules: { "orb/role-data-export-surface-0": "error" } },
-    { files: ["packages/server/src/primitives/role-data/registry.ts"], rules: { "orb/role-data-export-surface-1": "error" } },
-    { files: ["packages/server/src/primitives/role-data/decode/index.ts"], rules: { "orb/role-data-export-surface-2": "error" } },
-    { files: ["packages/server/src/domain/admin/guard.ts"], rules: { "orb/role-data-export-surface-3": "error" } },
-    { files: ["packages/server/src/domain/chat/substrate/participants-host.ts"], rules: { "orb/role-data-export-surface-4": "error" } },
-    { files: ["packages/server/src/domain/chat/substrate/member-visibility.ts"], rules: { "orb/role-data-export-surface-5": "error" } },
-    { files: ["packages/server/src/domain/chat/persistence/role-encoding.ts"], rules: { "orb/role-data-export-surface-6": "error" } },
-    { files: ["packages/server/src/entry/http/auth-meta.ts"], rules: { "orb/role-data-export-surface-7": "error" } },
-    { files: ["packages/server/src/transport/trpc/role-output.ts"], rules: { "orb/role-data-export-surface-8": "error" } },
-    { files: ["packages/server/src/domain/databank/persistence/scope.ts"], rules: { "orb/role-data-export-surface-9": "error" } },
-    { files: ["packages/server/src/domain/admin/persistence/queries.ts"], rules: { "orb/role-data-export-surface-10": "error" } },
-    { files: ["packages/server/src/entry/compose/chat.ts"], rules: { "orb/role-data-export-surface-11": "error" } },
-    { files: ["packages/server/src/domain/sessions/verbs/validate.ts"], rules: { "orb/role-data-export-surface-12": "error" } },
-    { files: ["packages/server/src/domain/sessions/verbs/load-user-by-id.ts"], rules: { "orb/role-data-export-surface-13": "error" } },
-    { files: ["packages/server/src/domain/sessions/verbs/provision-identity.ts"], rules: { "orb/role-data-export-surface-14": "error" } },
-    { files: ["packages/server/src/entry/auth/seam.ts"], rules: { "orb/role-data-export-surface-15": "error" } },
-    { files: ["packages/server/src/domain/automation/persistence/canon-reads.ts"], rules: { "orb/role-data-export-surface-16": "error" } },
-    { files: ["packages/server/src/domain/chat/persistence/queries.ts"], rules: { "orb/role-data-export-surface-17": "error" } },
-    { files: ["packages/server/src/domain/chat/persistence/participants-read.ts"], rules: { "orb/role-data-export-surface-18": "error" } },
-    { files: ["packages/server/src/domain/chat/verbs/edit.ts"], rules: { "orb/role-data-export-surface-19": "error" } },
-    { files: ["packages/server/src/domain/chat/verbs/read.ts"], rules: { "orb/role-data-export-surface-20": "error" } },
-    { files: ["packages/server/src/domain/chat/verbs/participants.ts"], rules: { "orb/role-data-export-surface-21": "error" } },
+    ...ROLE_DATA_RESTRICTIONS.map(({ id, path }): FlatConfig.Config => ({ files: [`packages/server/src/${path}`], rules: { [`orb/${id}`]: "error" } })),
     { files: ["packages/server/src/domain/chat/engine/**/*.{ts,tsx}"], rules: { "orb/turn-identity-name": "error", "orb/turn-identity-principal": "error" } },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       ignores: ["packages/contracts/**"],
       rules: { "orb/member-card-clamped": "error" },
     },
@@ -1899,22 +1826,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/bound-field-via-hook": "error" },
     },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "packages/client/src/data/bus/chat-bus-writes.ts"],
       rules: { "orb/chat-stream-writes-in-bus-only": "error" },
     },
@@ -1965,22 +1877,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/ui-overlay-modal-anatomy": "error" },
     },
     {
-      files: [
-        "packages/client/src/**/*.{ts,tsx}",
-        "packages/ui/src/**/*.{ts,tsx}",
-        "packages/ui/**/*.{ts,tsx}",
-        "packages/server/src/**/*.{ts,tsx}",
-        "packages/db/src/**/*.{ts,tsx}",
-        "packages/contracts/src/**/*.{ts,tsx}",
-        "packages/kit/src/**/*.{ts,tsx}",
-        "packages/showcase-plugins/src/**/*.{ts,tsx}",
-        "packages/plugin-toolchain/src/**/*.{ts,tsx}",
-        "packages/default-content/src/**/*.{ts,tsx}",
-        "packages/inference/src/**/*.{ts,tsx}",
-        "tooling/src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "scripts/**/*.{ts,tsx}",
-      ],
+      files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
     },
     {
@@ -2029,30 +1926,6 @@ const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   { files: [SUSPENSE_READS_HOME], rules: refuseImports(INFINITE_QUERY_IMPORT) },
 ];
 
-const PRINCIPAL_RULES: { id: string; notUnder?: string[] }[] = [
-  {
-    id: "principal-alias",
-  },
-  {
-    id: "principal-assertion",
-  },
-  {
-    id: "principal-return-site",
-  },
-  {
-    id: "principal-mint-site",
-  },
-  {
-    id: "principal-literal",
-  },
-  {
-    id: "principal-brand-launder",
-  },
-  {
-    id: "principal-synthetic-role",
-    notUnder: ["packages/server/src/entry/**"],
-  },
-];
 // Files whose module state is one process's by construction: each is its own process root or a documented
 // per-process latch, so `orb/no-module-state` does not apply. Each entry names its reason.
 const MODULE_STATE_OWN_PROCESS = [
@@ -2102,41 +1975,36 @@ export default [
     files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
     rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
-  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...SERVER_SYNTAX] } },
-  { files: rootSources("@db"), rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...MODULE_LOADER_SYNTAX] } },
+  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX) } },
+  { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX) } },
   {
     files: [CLIENT_SRC],
     ignores: ORB_TRACK_CLASS_HOMES,
-    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX, ORB_TRACK_CLASS_SYNTAX] },
+    rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX, ORB_TRACK_CLASS_SYNTAX) },
   },
   {
     files: ORB_TRACK_CLASS_HOMES,
-    rules: { "no-restricted-syntax": ["error", ...CLIENT_SYNTAX] },
+    rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX) },
   },
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
-    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX] },
+    rules: { "no-restricted-syntax": restrictedSyntax(EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX) },
   },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        INVISIBLE_CONTROL_SYNTAX,
-        ...SERVER_SYNTAX,
-        {
-          selector:
-            "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
-          message:
-            "System seed roots cannot forward exports through specifiers, defaults, stars or non-function value declarations; keep the declared seed functions. Function-return escape is outside this syntax claim (D328).",
-        },
-      ],
+      "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, {
+        selector:
+          "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
+        message:
+          "System seed roots cannot forward exports through specifiers, defaults, stars or non-function value declarations; keep the declared seed functions. Function-return escape is outside this syntax claim (D328).",
+      }),
     },
   },
   ...PRINCIPAL_RULES.map(
-    ({ id, notUnder }): FlatConfig.Config => ({
+    ({ id, scope }): FlatConfig.Config => ({
       files: PRINCIPAL_SCOPE,
-      ...(notUnder === undefined ? {} : { ignores: notUnder }),
+      ...(scope === "outside-entry" ? { ignores: ["packages/server/src/entry/**"] } : {}),
       plugins: { orb: localPlugin },
       rules: { [`orb/${id}`]: "error" },
     }),
@@ -2320,11 +2188,11 @@ export default [
     files: ["tooling/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
     // These existing adapters own native OS process behavior; ordinary tooling callers do not.
     ignores: ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"],
-    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, ...PORTABLE_PROCESS_SYNTAX] },
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
-    rules: { "no-restricted-syntax": ["error", INVISIBLE_CONTROL_SYNTAX, FILESYSTEM_MODULE_MOCK_RESTRICTION] },
+    rules: { "no-restricted-syntax": restrictedSyntax(FILESYSTEM_MODULE_MOCK_RESTRICTION) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
@@ -2336,21 +2204,13 @@ export default [
     // Tooling CLI subjects own process-environment inputs; inherited runner cleanup restores their stubs.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        INVISIBLE_CONTROL_SYNTAX,
-        INTERNAL_MODULE_MOCK_RESTRICTION,
-        EXTERNAL_MODULE_MOCK_RESTRICTION,
-        ...TEST_ENVIRONMENT_RESTRICTIONS,
-      ],
+      "no-restricted-syntax": restrictedSyntax(INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS),
     },
   },
   {
     files: ["tests/**/*.ct.tsx"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        INVISIBLE_CONTROL_SYNTAX,
+      "no-restricted-syntax": restrictedSyntax(
         INTERNAL_MODULE_MOCK_RESTRICTION,
         EXTERNAL_MODULE_MOCK_RESTRICTION,
         ...TEST_ENVIRONMENT_RESTRICTIONS,
@@ -2368,7 +2228,7 @@ export default [
           selector: String.raw`ImportDeclaration[importKind!='type'][source.value=/(?:-stories|-fixtures|\.stories|\.fixtures)(?:\.tsx)?$/] > :matches(ImportDefaultSpecifier, ImportNamespaceSpecifier, ImportSpecifier[importKind!='type'])`,
           message: "Import story types only in CT specs; the gallery loads the browser implementation.",
         },
-      ],
+      ),
     },
   },
 ] satisfies FlatConfig.Config[];

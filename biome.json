@@ -557,7 +557,14 @@
     },
     {
       "includes": ["tooling/src/codemods/*/scripts/*.ts"],
-      "linter": { "rules": { "style": { "noDefaultExport": "off", "useNodejsImportProtocol": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off",
+            "useNodejsImportProtocol": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}", "!tests/**/*.test.ts"],
@@ -751,7 +758,13 @@
     },
     {
       "includes": ["packages/server/src/foundation/env/index.ts"],
-      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["packages/server/src/foundation/env/index.ts", "packages/server/src/foundation/env/record/index.ts"],

@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { declaredInContract } from "./trpc-output.ts";
 
@@ -242,15 +243,9 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[], mintHomes: re
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
-      const services = context.sourceCode.parserServices;
-      const program = services?.program ?? null;
-      const toTs = services?.esTreeNodeToTSNodeMap;
+      const { program, checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
       const filename = context.filename.replaceAll("\\", "/");
-      if (program === null || toTs === undefined) {
-        return {};
-      }
       const sites = new Set(homes.filter(({ file }) => filename.endsWith(file)).map(({ site }) => site));
-      const checker = program.getTypeChecker();
       const brand = brandedString(program, checker);
       const scope: Judge = {
         checker,

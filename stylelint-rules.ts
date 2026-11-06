@@ -273,8 +273,8 @@ const SHADOW = "orb/shadow-from-ingredients";
 // A `--color-shadow-*` ingredient DEFINITION is a colour, not a shadow; it lives in the generated theme.
 const SHADOW_PROPERTY = /^(?:box-shadow|text-shadow|filter|--(?!color-)[a-z0-9-]*(?:shadow|band)[a-z0-9-]*)$/u;
 const SERVED_COLOR_FORMS =
-  /\b(?:oklch|oklab|rgb|hsl|lab|lch|color-mix)\((?:[^()]|\([^()]*\))*var\(--color-[a-z0-9-]+\)(?:[^()]|\([^()]*\))*\)|var\(--[a-z0-9-]+(?:,[^)]*)?\)/gu;
-const FROZEN_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color-mix)\(/iu;
+  /\b(?:oklch|oklab|rgb|hsl|hwb|lab|lch|color|color-mix)\((?:[^()]|\([^()]*\))*var\(--color-[a-z0-9-]+\)(?:[^()]|\([^()]*\))*\)|var\(--[a-z0-9-]+(?:,[^)]*)?\)/giu;
+const FROZEN_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lab|lch|color|color-mix)\(/iu;
 const SHADOW_MESSAGES = messagesOf(SHADOW, {
   rejected: "A shadow colour is a served --color-* variable, a relative colour from one, or a mix over one, never a literal",
 });

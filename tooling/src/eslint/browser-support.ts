@@ -5,6 +5,8 @@ import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { ConstantText } from "./browser-support-classes.ts";
 import { classSupportVisitor } from "./browser-support-classes.ts";
+import type { TypeServices } from "./checker.ts";
+import { requireTypeServices } from "./checker.ts";
 import { accessedName, staticTextValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import type { CandidatesToCss } from "./ui-feature-classname.ts";
@@ -99,14 +101,6 @@ function listenedEvent(context: OrbRuleContext, call: TSESTree.CallExpression): 
   return typeof event === "string" ? { receiver: call.callee.object, event } : undefined;
 }
 
-function receiverType(context: OrbRuleContext, receiver: TSESTree.Node): ts.Type | undefined {
-  const services = context.sourceCode.parserServices;
-  if (!services?.program || services.esTreeNodeToTSNodeMap === undefined) {
-    return undefined;
-  }
-  return services.program.getTypeChecker().getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(receiver));
-}
-
 function declaringInterface(symbol: ts.Symbol): string | undefined {
   for (const declaration of symbol.declarations ?? []) {
     const owner = declaration.parent;
@@ -190,15 +184,9 @@ const isAlias = (symbol: ts.Symbol): boolean => (symbol.flags & ts.SymbolFlags.A
 const isConstDeclaration = (declaration: ts.VariableDeclaration): boolean => (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) !== 0;
 
 /** The text of the `const` string an identifier names, following an import to its declaring module. */
-function constantTextOf(context: OrbRuleContext): ConstantText {
-  const services = context.sourceCode.parserServices;
-  const program = services?.program;
+function constantTextOf({ checker, esTreeNodeToTSNodeMap }: TypeServices): ConstantText {
   return (identifier) => {
-    if (!program || services.esTreeNodeToTSNodeMap === undefined) {
-      return;
-    }
-    const checker = program.getTypeChecker();
-    const found = checker.getSymbolAtLocation(services.esTreeNodeToTSNodeMap.get(identifier));
+    const found = checker.getSymbolAtLocation(esTreeNodeToTSNodeMap.get(identifier));
     const symbol = found !== undefined && isAlias(found) ? checker.getAliasedSymbol(found) : found;
     const declaration = symbol?.valueDeclaration;
     const isConst = declaration !== undefined && ts.isVariableDeclaration(declaration) && isConstDeclaration(declaration);
@@ -207,18 +195,13 @@ function constantTextOf(context: OrbRuleContext): ConstantText {
 }
 
 /** The lib interface declaring the member a property access names, or `undefined` outside the checker's reach. */
-function ownerOfMember(context: OrbRuleContext, node: TSESTree.MemberExpression): string | undefined {
-  const services = context.sourceCode.parserServices;
-  const program = services?.program;
-  if (!program || services.esTreeNodeToTSNodeMap === undefined) {
-    return undefined;
-  }
-  const tsNode = services.esTreeNodeToTSNodeMap.get(node);
+function ownerOfMember({ checker, esTreeNodeToTSNodeMap }: TypeServices, node: TSESTree.MemberExpression): string | undefined {
+  const tsNode = esTreeNodeToTSNodeMap.get(node);
   if (!(ts.isPropertyAccessExpression(tsNode) || ts.isElementAccessExpression(tsNode))) {
     return undefined;
   }
   const at = ts.isPropertyAccessExpression(tsNode) ? tsNode.name : tsNode.argumentExpression;
-  const symbol = program.getTypeChecker().getSymbolAtLocation(at);
+  const symbol = checker.getSymbolAtLocation(at);
   return symbol === undefined ? undefined : declaringInterface(symbol);
 }
 
@@ -254,6 +237,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
+      const native = requireTypeServices(context);
       const { sourceCode } = context;
       const refuse = (node: TSESTree.Node, what: string, lacking: Lacking): void => {
         context.report({
@@ -287,7 +271,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
       };
       const checkMember = (node: TSESTree.MemberExpression, name: string): void => {
         const owners = index.members.get(name);
-        const owner = owners === undefined ? undefined : ownerOfMember(context, node);
+        const owner = owners === undefined ? undefined : ownerOfMember(native, node);
         const lacking = owner === undefined ? undefined : owners?.get(owner);
         if (owner !== undefined && lacking !== undefined) {
           // The guard must test this receiver: `"m" in other` says nothing about `el.m`.
@@ -305,10 +289,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
         if (owners === undefined) {
           return;
         }
-        const type = receiverType(context, receiver);
-        if (type === undefined) {
-          return;
-        }
+        const type = native.checker.getTypeAtLocation(native.esTreeNodeToTSNodeMap.get(receiver));
         const missing = [...owners].find(([candidateOwner]) => hasEventOwner(type, candidateOwner, event));
         if (missing === undefined) {
           return;
@@ -319,7 +300,7 @@ export const browserSupportRule = ({ unsupported, harmless, candidatesToCss }: B
       };
       return {
         CallExpression: checkEvent,
-        ...classSupportVisitor(cssIndex, candidatesToCss, constantTextOf(context), (node, what, lacking) => {
+        ...classSupportVisitor(cssIndex, candidatesToCss, constantTextOf(native), (node, what, lacking) => {
           refuse(node, what, lacking);
         }),
         "Program:exit": checkLibGlobals,

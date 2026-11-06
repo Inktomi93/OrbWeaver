@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { resolvedConfig } from "./_eslint-config.ts";
+import { programForSource } from "./_typescript-program.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const UI = "packages/ui/src/charts/histogram/option.tsx";
@@ -14,12 +15,14 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 
 async function findings(rule: string, source: string, path = UI): Promise<readonly string[]> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
+  const configPath = path.startsWith("packages/ui/") ? "packages/ui/tsconfig.json" : "packages/client/tsconfig.json";
+  const programs = [programForSource(ROOT, configPath, join(ROOT, path), source)];
   const messages = new Linter({ cwd: ROOT }).verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
       plugins: config.plugins,
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs, ecmaFeatures: { jsx: true } } },
       rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: join(ROOT, path) },

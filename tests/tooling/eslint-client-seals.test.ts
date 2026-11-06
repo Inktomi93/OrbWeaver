@@ -266,13 +266,7 @@ for (const [name, rule, path, source, count] of [
     "export const sub = {\n  onData: () => {\n    const write = useX.setState;\n    void write;\n  },\n};\n",
     0,
   ],
-  [
-    "bus-on-data-no-store-write bracket spelling is the declared limit",
-    BUS,
-    BUS_FILE,
-    'export const sub = { onData: () => store["setState"]({ ready: true }) };\n',
-    0,
-  ],
+  ["bus-on-data-no-store-write computed member", BUS, BUS_FILE, 'export const sub = { onData: () => store["setState"]({ ready: true }) };\n', 1],
   [
     "bus-on-data-no-store-write outside data/bus is out of scope",
     BUS,

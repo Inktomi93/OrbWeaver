@@ -11,6 +11,7 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 const CLIENT = "packages/client/src/";
 const FEATURE = `${CLIENT}features/chat/components/probe.tsx`;
 const FEATURE_LIB = `${CLIENT}features/chat/lib/probe.tsx`;
+const BUS = `${CLIENT}data/bus/probe.ts`;
 const DATA = `${CLIENT}data/probe.ts`;
 const STATE = `${CLIENT}state/probe.ts`;
 const SHELL = `${CLIENT}features/app-shell/hooks/probe.ts`;
@@ -41,7 +42,15 @@ async function findings(rule: string, source: string, path: string): Promise<rea
 
 // [rule, label, source, path, expected finding count]
 const CASES = [
+  ["orb/bus-on-data-no-store-write", "dot store write", "const x = { onData() { store.setState({}); } };", BUS, 1],
   // persistence-boundary
+  ["orb/persistence-boundary", "template storage", "window[`indexedDB`];", FEATURE, 1],
+  ["orb/persistence-boundary", "dynamic storage key", "window[indexedDB];", FEATURE, 1],
+  ["orb/client-cache-surgery-only-in-data", "template cache", "client[`setQueryData`](key, value);", FEATURE, 1],
+  ["orb/client-cache-surgery-only-in-data", "dynamic cache key", "client[setQueryData](key, value);", FEATURE, 0],
+  ["orb/bus-on-data-no-store-write", "computed store write", 'const x = { onData() { store["setState"]({}); } };', BUS, 1],
+  ["orb/bus-on-data-no-store-write", "template store write", "const x = { onData() { store[`setState`]({}); } };", BUS, 1],
+  ["orb/bus-on-data-no-store-write", "dynamic store key", "const x = { onData() { store[setState]({}); } };", BUS, 0],
   ["orb/persistence-boundary", "a bare localStorage read", 'export const v = localStorage.getItem("k");', FEATURE, 1],
   ["orb/persistence-boundary", "a globalThis sessionStorage write", 'globalThis.sessionStorage.setItem("k", "1");', FEATURE, 1],
   ["orb/persistence-boundary", "a cast storage read", "export const s = (globalThis as { localStorage?: Storage }).localStorage;", FEATURE, 1],
@@ -278,6 +287,10 @@ test.for([
     1,
   ],
   ["a layout effect on a selected id", imp("useSelectedCharacterId") + keyed("useSelectedCharacterId", "useLayoutEffect"), 1],
+  ["a dot member effect", imp("useActiveChatId") + keyed("useActiveChatId", "React.useEffect"), 1],
+  ["a computed member effect", imp("useActiveChatId") + keyed("useActiveChatId", 'React["useEffect"]'), 1],
+  ["a template member effect", imp("useActiveChatId") + keyed("useActiveChatId", "React[`useEffect`]"), 1],
+  ["a dynamic member is not a named effect", imp("useActiveChatId") + keyed("useActiveChatId", "React[useEffect]"), 0],
   ["the persona editor pointer", imp("usePersonaEditorId") + keyed("usePersonaEditorId"), 1],
   ["the plugin page pointer", imp("usePluginPageKey") + keyed("usePluginPageKey"), 1],
   ["the collection selection", imp("useCollectionSelection") + keyed("useCollectionSelection"), 1],

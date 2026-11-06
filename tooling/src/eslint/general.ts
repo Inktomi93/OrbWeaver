@@ -5,6 +5,8 @@ import { staticKeyName, staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 const COMMENTED_CODE = /^\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
+const BLOCK_CODE =
+  /^\s*(?:(?:const|let|var|type|interface|class|function)\s+[$\w]+(?:\s*[:=({]|\s+extends\b)|(?:if|for|while|switch)\s*\(|(?:return|throw|await|import|export)\s+\S).*[;{}]\s*$/u;
 
 export const commentedCodeRule: OrbRule = {
   meta: { type: "problem", schema: [] },
@@ -12,7 +14,10 @@ export const commentedCodeRule: OrbRule = {
     return {
       Program: () => {
         for (const comment of context.sourceCode.getAllComments()) {
-          if (comment.type === AST_TOKEN_TYPES.Line && COMMENTED_CODE.test(comment.value)) {
+          if (
+            (comment.type === AST_TOKEN_TYPES.Line && COMMENTED_CODE.test(comment.value)) ||
+            (comment.type === AST_TOKEN_TYPES.Block && !comment.value.startsWith("*") && comment.value.split("\n").some((line) => BLOCK_CODE.test(line)))
+          ) {
             context.report({
               loc: comment.loc,
               message: "Commented-out code; delete it (git history keeps it). Comments are for prose, not parked code (.claude/rules/comments.md).",

@@ -3,6 +3,8 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { TypeServices } from "./checker.ts";
+import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable } from "./general.ts";
 import {
   accessedName,
@@ -241,6 +243,7 @@ const DIMENSION_PROPS = new Set(["width", "height", "size", "strokeWidth"]);
 export const offTokenInlineStyleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
     const reported = new Set<TSESTree.Node>();
     const flagWhenRaw = (node: TSESTree.Node, value: TSESTree.Node, name: string): void => {
       const raw = styleTexts(context, value).some((text) =>
@@ -286,7 +289,7 @@ export const offTokenInlineStyleRule: OrbRule = {
         }
       },
       ObjectExpression: (node: TSESTree.ObjectExpression): void => {
-        if (cssPropertiesObject(context, node) || chartStyleObject(context, node)) {
+        if (cssPropertiesObject(context, native, node) || chartStyleObject(context, node)) {
           judgeObject(node);
         }
       },
@@ -445,7 +448,7 @@ function memoStyleEntries(context: OrbRuleContext, call: TSESTree.CallExpression
   return results.flatMap((result) => staticStyleEntries(context, result, depth + 1));
 }
 
-function cssPropertiesObject(context: OrbRuleContext, node: TSESTree.ObjectExpression): boolean {
+function cssPropertiesObject(context: OrbRuleContext, native: TypeServices, node: TSESTree.ObjectExpression): boolean {
   const parent = node.parent;
   const wrapped = parent.type === AST_NODE_TYPES.TSAsExpression || parent.type === AST_NODE_TYPES.TSSatisfiesExpression ? parent.typeAnnotation : undefined;
   const annotation = parent.type === AST_NODE_TYPES.VariableDeclarator ? parent.id.typeAnnotation?.typeAnnotation : wrapped;
@@ -462,15 +465,11 @@ function cssPropertiesObject(context: OrbRuleContext, node: TSESTree.ObjectExpre
       return true;
     }
   }
-  const services = context.sourceCode.parserServices;
-  if (!services?.program || services.esTreeNodeToTSNodeMap === undefined) {
-    return false;
-  }
-  const expression = services.esTreeNodeToTSNodeMap.get(node);
+  const expression = native.esTreeNodeToTSNodeMap.get(node);
   if (!ts.isObjectLiteralExpression(expression)) {
     return false;
   }
-  const type = services.program.getTypeChecker().getContextualType(expression);
+  const type = native.checker.getContextualType(expression);
   const symbol = type?.getSymbol();
   return symbol?.name === "CSSProperties" && (symbol.declarations ?? []).some((declaration) => declaration.getSourceFile().fileName.includes("/@types/react/"));
 }
@@ -479,9 +478,10 @@ function cssPropertiesObject(context: OrbRuleContext, node: TSESTree.ObjectExpre
 export const noStaticStylePropRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
     return {
       ObjectExpression: (node: TSESTree.ObjectExpression): void => {
-        if (cssPropertiesObject(context, node)) {
+        if (cssPropertiesObject(context, native, node)) {
           for (const entry of staticObjectEntries(context, node, 0)) {
             context.report({ node: entry, message: STATIC_STYLE_MESSAGE });
           }

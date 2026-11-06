@@ -1,29 +1,10 @@
 import type { RuleVisitor } from "@eslint/core";
-import type { ParserServicesWithTypeInformation, TSESTree } from "@typescript-eslint/utils";
+import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { baseUiBindings } from "./ui-composition.ts";
-
-function nativeDeclarationContext(
-  context: OrbRuleContext,
-): Pick<ParserServicesWithTypeInformation, "program" | "esTreeNodeToTSNodeMap" | "tsNodeToESTreeNodeMap"> & { checker: ts.TypeChecker } {
-  const services = context.sourceCode.parserServices;
-  if (
-    services?.program === undefined ||
-    services.program === null ||
-    services.esTreeNodeToTSNodeMap === undefined ||
-    services.tsNodeToESTreeNodeMap === undefined
-  ) {
-    throw new Error("Native declaration contracts require the parser's owning TypeScript Program and node maps");
-  }
-  return {
-    program: services.program,
-    esTreeNodeToTSNodeMap: services.esTreeNodeToTSNodeMap,
-    tsNodeToESTreeNodeMap: services.tsNodeToESTreeNodeMap,
-    checker: services.program.getTypeChecker(),
-  };
-}
 
 function nativeAliasFlag(symbol: ts.Symbol): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
@@ -49,7 +30,7 @@ function nativeDeclarationExported(node: ts.FunctionDeclaration, checker: ts.Typ
 export const testFactoryContractRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     const check = (node: TSESTree.FunctionDeclaration | TSESTree.TSDeclareFunction) => {
       const declaration = native.esTreeNodeToTSNodeMap.get(node);
       if (!ts.isFunctionDeclaration(declaration) || declaration.name === undefined || !nativeDeclarationExported(declaration, native.checker)) {
@@ -116,7 +97,7 @@ function nativeRowWriteDeclaration(declaration: ts.Declaration | undefined): boo
 export const directRowWriteRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     return {
       CallExpression: (node: TSESTree.CallExpression): void => {
         const call = native.esTreeNodeToTSNodeMap.get(node);
@@ -142,7 +123,7 @@ function elementKey(member: ts.Node): ts.StringLiteralLike | undefined {
 export const directRowReadRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     const report = (node: TSESTree.Node): void =>
       context.report({
         node,
@@ -174,7 +155,7 @@ export const directRowReadRule: OrbRule = {
 export const contextReturnTypeRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     const check = (node: TSESTree.Identifier) => {
       if (node.name !== "ReturnType") {
         return;
@@ -244,7 +225,7 @@ function nativePortalExpression(attribute: ts.JsxAttribute | undefined): ts.Node
 export const baseUiPortalContainerRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     const tags = new Set(
       baseUiBindings(context.sourceCode.ast)
         .filter((binding) => !binding.typeOnly)
@@ -334,7 +315,7 @@ function fromReactTypes(declarations: readonly ts.Declaration[] | undefined): bo
 export const nativeTitleRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const native = nativeDeclarationContext(context);
+    const native = requireTypeServices(context);
     // The attribute names bind to transient symbols; the props type the element expects names the declaration.
     const targetIsNative = (opening: TSESTree.JSXOpeningElement): boolean => {
       if (opening.name.type === AST_NODE_TYPES.JSXIdentifier && NATIVE_TITLE_OWNERS.has(opening.name.name)) {

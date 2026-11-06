@@ -7,6 +7,7 @@
     "node": ">=26.3.0"
   },
   "exports": {
+    "./biome-config": "./src/biome-config/index.ts",
     "./browser-support": "./src/browser-support/index.ts",
     "./bug-reports": "./src/bug-reports/index.ts",
     "./cache-check": "./src/cache-check/index.ts",

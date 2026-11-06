@@ -331,14 +331,15 @@ const principalAliasRule: OrbRule = {
 };
 
 export const PRINCIPAL_RULES = [
-  { id: "principal-alias", rule: principalAliasRule },
-  { id: "principal-assertion", rule: principalAssertionRule },
-  { id: "principal-return-site", rule: principalReturnSiteRule },
-  { id: "principal-mint-site", rule: principalMintSiteRule },
-  { id: "principal-literal", rule: principalLiteralRule },
-  { id: "principal-brand-launder", rule: principalBrandLaunderRule },
+  { id: "principal-alias", rule: principalAliasRule, scope: "all" },
+  { id: "principal-assertion", rule: principalAssertionRule, scope: "all" },
+  { id: "principal-return-site", rule: principalReturnSiteRule, scope: "all" },
+  { id: "principal-mint-site", rule: principalMintSiteRule, scope: "all" },
+  { id: "principal-literal", rule: principalLiteralRule, scope: "all" },
+  { id: "principal-brand-launder", rule: principalBrandLaunderRule, scope: "all" },
   {
     id: "principal-synthetic-role",
+    scope: "outside-entry",
     rule: restrictionRule({
       selectors: [
         {
@@ -349,4 +350,4 @@ export const PRINCIPAL_RULES = [
       ],
     }),
   },
-];
+] as const satisfies readonly { readonly id: string; readonly rule: OrbRule; readonly scope: "all" | "outside-entry" }[];

@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { keysOf, undeclaredKeys } from "./type-keys.ts";
 
@@ -52,13 +53,7 @@ function factoryVariableKeys(checker: ts.TypeChecker, config: ts.Expression): re
 export const trpcPayloadKeysRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const services = context.sourceCode.parserServices;
-    const program = services?.program ?? null;
-    const toTs = services?.esTreeNodeToTSNodeMap;
-    if (program === null || toTs === undefined) {
-      return {};
-    }
-    const checker = program.getTypeChecker();
+    const { checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
     const judgeFactory = (config: TSESTree.ObjectExpression): void => {
       const expression = toTs.get(config);
       const carried = ts.isExpression(expression) ? factoryVariableKeys(checker, expression) : [];

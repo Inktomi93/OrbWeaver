@@ -6,6 +6,7 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { excessKeys, undeclaredKeys } from "./type-keys.ts";
 
@@ -72,13 +73,7 @@ function enclosingFunction(node: TSESTree.Node): TSESTree.Node | null {
 export const trpcOutputKeysRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
-    const services = context.sourceCode.parserServices;
-    const program = services?.program ?? null;
-    const toTs = services?.esTreeNodeToTSNodeMap;
-    if (program === null || toTs === undefined) {
-      return {};
-    }
-    const checker = program.getTypeChecker();
+    const { checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
     // A `.map` or `.flatMap` callback is typed by inference, so its own contextual return type is a bare type parameter; the element
     // type it must produce is the one the mapped array is headed for.
     const mappedElement = (owner: TSESTree.Node | null): ts.Type | undefined => {

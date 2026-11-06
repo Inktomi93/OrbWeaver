@@ -2,16 +2,16 @@ import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
-import { importedSymbol } from "./static-values.ts";
+import { importedSymbol, staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { alternation, wholeModule } from "./syntax.ts";
+import { memberNamed, wholeModule } from "./syntax.ts";
 
 // Gates for the client data, state and registry law (client-architecture-state-and-gates.md §9-§10,
 // ui-architecture-state-and-stack.md §5.1-§6.1, client-architecture-lockdown.md §6d/§8). Each entry is one
 // `orb/<id>` rule; eslint.config.ts scopes it and names every sanctioned home with its reason.
 
 const callOf = (names: readonly string[]): string =>
-  `CallExpression:matches([callee.property.name=${alternation(names)}], [callee.property.value=${alternation(names)}])`;
+  names.map((name) => `CallExpression[callee.type='MemberExpression']${memberNamed(name, "callee.")}`).join(", ");
 
 const STORAGE_NAMES = ["localStorage", "sessionStorage", "indexedDB"];
 
@@ -31,7 +31,7 @@ export const CLIENT_DATA_RESTRICTIONS = [
     })),
     selectors: [
       {
-        selector: `MemberExpression:matches([property.name=${alternation(STORAGE_NAMES)}], [property.value=${alternation(STORAGE_NAMES)}])`,
+        selector: STORAGE_NAMES.map((name) => `MemberExpression${memberNamed(name)}`).join(", "),
         message:
           "Raw browser storage outside the store doors: durable device state goes through createPersistedStore / createEntityDraftStore, which namespace the key per user (client-architecture-state-and-gates.md §9, §10a). A tab-scoped or pre-auth key needs its own named home in eslint.config.ts.",
       },
@@ -236,7 +236,7 @@ function readsSelectionPointer(variable: TSESLint.Scope.Variable, context: OrbRu
 /** A React import is judged by the name it imports, so `import { useEffect as run }` is still an effect; any other callee by its own name. */
 function effectName(callee: TSESTree.CallExpression["callee"], context: OrbRuleContext): string | undefined {
   if (callee.type === AST_NODE_TYPES.MemberExpression) {
-    return !callee.computed && callee.property.type === AST_NODE_TYPES.Identifier ? callee.property.name : undefined;
+    return staticMemberName(callee) ?? undefined;
   }
   if (callee.type !== AST_NODE_TYPES.Identifier) {
     return;

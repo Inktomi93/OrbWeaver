@@ -211,6 +211,8 @@ test("a container condition is bound to the container ladder, and a shadow colou
     "box-shadow: var(--shadow-overlay), inset 0 0 0 var(--border-width-accent) var(--color-ring);",
     "box-shadow: 0 0 0 transparent;",
     "text-shadow: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45);",
+    "text-shadow: 0 0 var(--spacing-px) hwb(from var(--color-shadow-ambient-far) h w b / .5);",
+    "text-shadow: 0 0 var(--spacing-px) color(from var(--color-shadow-ambient-far) srgb r g b / .5);",
     "--shell-band-ember: inset 0 var(--border-width-accent) 0 color-mix(in oklab, var(--color-ring) 55%, transparent);",
     "filter: drop-shadow(0 12px 32px var(--color-shadow-ambient-far));",
   ]) {
@@ -218,6 +220,9 @@ test("a container condition is bound to the container ladder, and a shadow colou
   }
   for (const body of [
     "text-shadow: 0 0 var(--spacing-px) #000;",
+    "box-shadow: 0 0 var(--spacing-px) hwb(120 0% 0%);",
+    "box-shadow: 0 0 var(--spacing-px) color(srgb 1 0 0);",
+    "box-shadow: 0 0 var(--spacing-px) HWB(120 0% 0%);",
     "filter: drop-shadow(0 0 var(--spacing-px) oklch(0 0 0 / 0.4));",
     "--shell-band-rule: 0 0 0 rgb(0 0 0 / 0.2);",
   ]) {

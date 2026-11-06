@@ -1,14 +1,15 @@
 // Containment rules judge the primitive a JSX name resolves to, never the name as written. A static import chain is
-// followed (alias, namespace member, destructured namespace); where a file has type information, a re-export through
-// another module is followed to the symbol's declaration. A render path is not followed.
+// followed (alias, namespace member, destructured namespace); a re-export through another module resolves to the
+// symbol's declaration through the owning TypeScript Program. A render path is not followed.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { TypeServices } from "./checker.ts";
+import { requireTypeServices } from "./checker.ts";
 import { importedSymbol } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
-import { nativeOf } from "./test-routes.ts";
 import { SURFACE_SELECTORS } from "./ui-feature-policy.ts";
 
 const LAYOUT_DOOR = /^@orb\/ui\/layout(?:\/|$)/u;
@@ -39,12 +40,11 @@ const containerPropOn = (element: TSESTree.JSXOpeningElement): TSESTree.JSXAttri
   );
 
 /** The name a JSX tag's symbol is declared under, when the checker traces it through re-exports to a file matching `home`. */
-function declaredName(context: OrbRuleContext, name: TSESTree.JSXTagNameExpression, home: RegExp): string | undefined {
-  const native = nativeOf(context);
-  if (native === undefined || name.type === AST_NODE_TYPES.JSXNamespacedName) {
+function declaredName(native: TypeServices, name: TSESTree.JSXTagNameExpression, home: RegExp): string | undefined {
+  if (name.type === AST_NODE_TYPES.JSXNamespacedName) {
     return undefined;
   }
-  const tag = native.toTs(name);
+  const tag = native.esTreeNodeToTSNodeMap.get(name);
   const reference = ts.isPropertyAccessExpression(tag) ? tag.name : tag;
   let symbol = native.checker.getSymbolAtLocation(reference);
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
@@ -56,17 +56,17 @@ function declaredName(context: OrbRuleContext, name: TSESTree.JSXTagNameExpressi
 }
 
 /** The layout primitive the element is, whatever it is called here or how many modules re-export it. */
-function layoutPrimitive(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): string | undefined {
+function layoutPrimitive(context: OrbRuleContext, native: TypeServices, element: TSESTree.JSXOpeningElement): string | undefined {
   const symbol = importedSymbol(context, element.name);
   if (symbol !== undefined && LAYOUT_DOOR.test(symbol.source)) {
     return symbol.name;
   }
-  return symbol !== undefined && LOCAL_SOURCE.test(symbol.source) ? declaredName(context, element.name, LAYOUT_HOME) : undefined;
+  return symbol !== undefined && LOCAL_SOURCE.test(symbol.source) ? declaredName(native, element.name, LAYOUT_HOME) : undefined;
 }
 
 /** Container, or Section and Stack with containment on: the elements that own a container. */
-function ownsContainer(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): boolean {
-  const primitive = layoutPrimitive(context, element);
+function ownsContainer(context: OrbRuleContext, native: TypeServices, element: TSESTree.JSXOpeningElement): boolean {
+  const primitive = layoutPrimitive(context, native, element);
   return primitive === "Container" || ((primitive === "Section" || primitive === "Stack") && containerPropOn(element) !== undefined);
 }
 
@@ -97,12 +97,12 @@ function spreadsContainer(element: TSESTree.JSXOpeningElement): boolean {
   );
 }
 
-function isModalRoot(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): boolean {
+function isModalRoot(context: OrbRuleContext, native: TypeServices, element: TSESTree.JSXOpeningElement): boolean {
   const symbol = importedSymbol(context, element.name);
   if (symbol === undefined) {
     return false;
   }
-  const declared = LOCAL_SOURCE.test(symbol.source) ? declaredName(context, element.name, MODAL_HOME) : undefined;
+  const declared = LOCAL_SOURCE.test(symbol.source) ? declaredName(native, element.name, MODAL_HOME) : undefined;
   return (MODAL_ROOT_DOOR.test(symbol.source) && MODAL_ROOTS.has(symbol.name)) || (declared !== undefined && MODAL_ROOTS.has(declared));
 }
 
@@ -124,15 +124,16 @@ function isDialogBox(context: OrbRuleContext, element: TSESTree.JSXOpeningElemen
 export const surfaceConsumesContainerRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
     return {
       ...restrictionRule({ selectors: SURFACE_SELECTORS }).create(context),
       JSXOpeningElement: (element: TSESTree.JSXOpeningElement): void => {
-        if (ownsContainer(context, element) || carriesContainerFlag(element) || spreadsContainer(element)) {
+        if (ownsContainer(context, native, element) || carriesContainerFlag(element) || spreadsContainer(element)) {
           context.report({
             node: element,
             message: "A surface never declares its own container. Move the <Container> (or `container` prop) to the anchor that mounts it.",
           });
-        } else if (isModalRoot(context, element)) {
+        } else if (isModalRoot(context, native, element)) {
           context.report({
             node: element,
             message:
@@ -148,10 +149,11 @@ export const surfaceConsumesContainerRule: OrbRule = {
 export const anchorProvidesContainerRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
     let provides = false;
     return {
       JSXOpeningElement: (element: TSESTree.JSXOpeningElement): void => {
-        provides ||= ownsContainer(context, element) || isDialogBox(context, element);
+        provides ||= ownsContainer(context, native, element) || isDialogBox(context, element);
       },
       "Program:exit"(program: TSESTree.Program): void {
         if (!provides) {

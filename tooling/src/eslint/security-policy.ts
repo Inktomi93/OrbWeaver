@@ -464,8 +464,9 @@ const ROLE_DATA_EXPORTS = [
   { path: "domain/chat/verbs/participants.ts", names: ["createParticipants", "setParticipantActivePersona"] },
 ];
 
-export const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ names }, index) => ({
+export const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, index) => ({
   id: `role-data-export-surface-${index}`,
+  path,
   selectors: [
     {
       selector:
