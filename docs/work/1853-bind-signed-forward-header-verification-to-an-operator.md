@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-11-03
-priority: P1
+updated: 2026-11-06
+priority: P3
 area: security
 plan: restoration-register
 ---
