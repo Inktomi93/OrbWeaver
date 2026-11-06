@@ -18,6 +18,7 @@ import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const SHELL_STORY = `${SHELL_STORIES}/AppShellStory`;
 const LANDSCAPE_PHONE = { width: 844, height: 390 } as const;
+const KEYBOARD_VIEWPORTS = [LANDSCAPE_PHONE, { width: 390, height: 844 }, { width: 1280, height: 900 }] as const;
 const SUBPIXEL = 1;
 // A unique title, so the Chats list row that opens the room can be found by what it shows.
 const ROOM_TITLE = "Short room witness";
@@ -195,14 +196,8 @@ async function wheelOver(list: Locator, direction: 1 | -1): Promise<void> {
   await list.page().mouse.wheel(0, direction * box.height);
 }
 
-/** The short room's pointer copy of Earlier messages, inside the transcript and hidden from assistive tech. */
-function pointerEarlier(list: Locator): Locator {
-  return list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true, includeHidden: true });
-}
-
-/** The keyboard copy: the one a Tab or a screen reader reaches, outside the transcript. */
-function keyboardEarlier(page: Page): Locator {
-  return page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+function earlierIn(scope: Locator): Locator {
+  return scope.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
 }
 
 /** The message at the transcript's top edge, by id, with the share of it above the edge. */
@@ -255,7 +250,7 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
     const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
     const send = page.getByRole("button", { name: CHAT_SEND_NAME, exact: true });
     const list = page.locator('[data-slot="message-list-scroll"]');
-    const earlier = pointerEarlier(list);
+    const earlier = earlierIn(list);
     // The copy of the strip the room paints inside the transcript.
     const strip = list.getByTestId(testId("chatCharacterBar"));
     await expect(input).toBeVisible();
@@ -293,7 +288,7 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     const list = page.locator('[data-slot="message-list-scroll"]');
-    const earlier = pointerEarlier(list);
+    const earlier = earlierIn(list);
     await expect(earlier).toBeAttached();
     await list.evaluate((node) => {
       node.scrollTop = 0;
@@ -314,20 +309,41 @@ test.describe("a paged group room on a landscape phone at normal text", () => {
   });
 });
 
-test.describe("a keyboard reader parked mid-transcript on a landscape phone", () => {
-  test.use({ viewport: LANDSCAPE_PHONE });
+// Earlier messages lives in the scroll content, so focus would otherwise take the reader to the oldest loaded row.
+forEachNonEmpty(KEYBOARD_VIEWPORTS, "KEYBOARD_VIEWPORTS", (viewport) => {
+  test.describe(`a keyboard reader at ${String(viewport.width)}x${String(viewport.height)}`, () => {
+    test.use({ viewport });
 
-  test("reaches Earlier messages outside the transcript, on screen, and the transcript keeps the row they were reading", async ({ mount, page }) => {
-    await seedShellState(page, { activeSection: "chats" });
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    const list = page.locator('[data-slot="message-list-scroll"]');
-    const parked = await parkMidway(list);
-    const earlier = keyboardEarlier(page);
-    await earlier.focus();
-    await expect(earlier).toBeFocused();
-    await expect(earlier).toBeInViewport({ ratio: 1 });
-    expect(await earlier.evaluate((button) => button.closest('[role="log"]') === null)).toBe(true);
-    await expect.poll(() => list.evaluate(readingRow).then((row) => row.id)).toBe(parked);
+    test("parked mid-transcript reaches Earlier messages on screen, and the transcript keeps the row they were reading", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const parked = await parkMidway(list);
+      const earlier = earlierIn(list);
+      await earlier.focus();
+      await expect(earlier).toBeFocused();
+      await expect(earlier).toBeInViewport({ ratio: 1 });
+      expect(await settledReadingRow(list)).toBe(parked);
+      await expect(earlier).toBeInViewport({ ratio: 1 });
+    });
+
+    test("at the latest row stays there when Earlier messages takes focus, and pressing it keeps the row they were reading", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await expect(earlier).toBeAttached();
+      const reading = await settledReadingRow(list);
+      await earlier.focus();
+      await expect(earlier).toBeInViewport({ ratio: 1 });
+      expect(await settledReadingRow(list)).toBe(reading);
+      const rows = await list.evaluate((node) => node.querySelector('[data-slot="message-list-row"]:last-child')?.getAttribute("aria-setsize"));
+      await page.keyboard.press("Space");
+      await expect
+        .poll(() => list.evaluate((node) => node.querySelector('[data-slot="message-list-row"]:last-child')?.getAttribute("aria-setsize")))
+        .not.toBe(rows);
+      expect(await settledReadingRow(list)).toBe(reading);
+    });
   });
 });
 
@@ -349,7 +365,7 @@ test.describe("a reader on a tall phone whose text size crosses the short room's
   test("keeps focus on Earlier messages through each crossing", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    const earlier = keyboardEarlier(page);
+    const earlier = earlierIn(page.locator('[data-slot="message-list-scroll"]'));
     await earlier.focus();
     await expect(earlier).toBeFocused();
     for (const factor of [2, 1]) {
@@ -372,7 +388,7 @@ forEachNonEmpty(EMPTY_ROOM_VIEWPORTS, "EMPTY_ROOM_VIEWPORTS", (viewport) => {
       await expect(page.getByTestId(testId("chatCharacterBar")).first()).toBeAttached();
       await expect(page.locator('[data-slot="message-row"]')).toHaveCount(0);
       await expect.poll(() => page.getByTestId(testId("chatCharacterBar")).evaluateAll(paintedCopies, SUBPIXEL)).toBe(1);
-      expect(await pointerEarlier(page.locator('[data-slot="chat-room-surface"]')).evaluateAll(paintedCopies, SUBPIXEL)).toBeLessThanOrEqual(1);
+      expect(await earlierIn(page.locator('[data-slot="chat-room-surface"]')).evaluateAll(paintedCopies, SUBPIXEL)).toBeLessThanOrEqual(1);
     });
   });
 });

@@ -85,7 +85,8 @@ export interface MessageListProps<T> {
   readonly renderItem: (item: T, index: number) => ReactNode;
   /**
    * Chrome that scrolls with the rows, above the first one (a history pager). It is part of the scroll content, so
-   * it leaves with the oldest rows and comes back with them, and it is not a row: no position, no roving stop.
+   * it leaves with the oldest rows and comes back with them, and it is not a row: no position, no roving stop. A keyboard
+   * reader can still tab to it from anywhere in the list: it pins over the rows while it holds focus, and the rows stay put.
    */
   readonly leading?: ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
@@ -118,6 +119,26 @@ export function MessageList<T>({
   ref,
 }: MessageListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Stable on purpose: React detaches a changed ref before a commit and reattaches it after the children's refs. A row's
+  // first measure runs in between, and with the scroller gone its compensating write would be dropped.
+  const setScrollNode = useCallback((node: HTMLDivElement | null): void => {
+    scrollRef.current = node;
+  }, []);
+  useLayoutEffect((): (() => void) | undefined => {
+    if (typeof scrollContainerRef === "function") {
+      scrollContainerRef(scrollRef.current);
+      return (): void => {
+        scrollContainerRef(null);
+      };
+    }
+    if (scrollContainerRef) {
+      scrollContainerRef.current = scrollRef.current;
+      return (): void => {
+        scrollContainerRef.current = null;
+      };
+    }
+    return undefined;
+  }, [scrollContainerRef]);
   const [leadingNode, setLeadingNode] = useState<HTMLDivElement | null>(null);
   // The leading chrome's content height, without its top inset. The inset and the `scrollMargin` that counts it apply only
   // while there is chrome to show: a caller's chrome can be all `display: none`, and an empty header must shift nothing.
@@ -126,6 +147,9 @@ export function MessageList<T>({
   const leadingPxRef = useRef(0);
   // The row at the reader's top edge and how far into it they are, kept from the last scroll; null while following.
   const readingRowRef = useRef<ReadingRow | null>(null);
+  // The scroller's position as of its last scroll event. Focus reads this rather than the live value because a browser may
+  // have scrolled to the focused control before its focus event fires.
+  const settledTopRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);
   const leadingInsetPx = Math.round(gapPxFor(blockPaddingToken));
@@ -278,21 +302,24 @@ export function MessageList<T>({
   // `this.shouldAdjustScrollPositionOnItemSizeChange` and nothing in virtual-core or react-virtual
   // assigns it from `options`. Passing it to `useVirtualizer` is a SILENT no-op (verified against
   // virtual-core 3.17.3's shipped source; it cost this lane a green-looking run).
+  //
+  // Every input comes from the instance, and the veto stays installed across commits, because a new row's first measure
+  // runs in its ref callback, mid-commit, before the DOM takes a prepend's anchor write. A row above the fold that read
+  // the DOM's offset there would go uncompensated and move the reader by its whole delta.
   useLayoutEffect((): (() => void) => {
-    const lastIndex = items.length - 1;
     virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance): boolean =>
       shouldAdjustForResizedItem({
         hasCachedSize: instance.itemSizeCache.has(item.key),
         index: item.index,
-        lastIndex,
+        lastIndex: instance.options.count - 1,
         scrollDirection: instance.scrollDirection,
-        scrollOffset: scrollRef.current?.scrollTop ?? 0,
+        scrollOffset: instance.scrollOffset ?? 0,
         start: item.start,
       });
     return (): void => {
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
     };
-  }, [virtualizer, items.length]);
+  }, [virtualizer]);
 
   // The reader's own hand on the axis — passive listeners, wired in `follow-yield.ts`.
   useLayoutEffect((): (() => void) | undefined => {
@@ -341,6 +368,36 @@ export function MessageList<T>({
     holdingRef.current = false;
   }, []);
 
+  // Tabbing to the leading chrome scrolls it into view, which would throw the reader to the oldest loaded row. The chrome
+  // pins while it holds focus, so the rows go back where they were. A pointer press is left alone: the reader is at the
+  // chrome already, and a held position would fight the prepend that press may start.
+  useEffect((): (() => void) | undefined => {
+    if (leadingNode === null) {
+      return undefined;
+    }
+    let frame = 0;
+    const onFocusIn = (event: FocusEvent): void => {
+      const el = scrollRef.current;
+      if (el === null || !(event.target instanceof Element) || !event.target.matches(":focus-visible")) {
+        return;
+      }
+      const top = settledTopRef.current;
+      const following = stickToBottomRef.current;
+      stopHold();
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame((): void => {
+        el.scrollTop = top;
+        programmaticTopRef.current = el.scrollTop;
+        setFollowing(following);
+      });
+    };
+    leadingNode.addEventListener("focusin", onFocusIn);
+    return (): void => {
+      cancelAnimationFrame(frame);
+      leadingNode.removeEventListener("focusin", onFocusIn);
+    };
+  }, [leadingNode, setFollowing, stopHold]);
+
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
     virtualizer.scrollToEnd({ behavior: "auto" });
@@ -357,6 +414,7 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
+    settledTopRef.current = el.scrollTop;
     if (!holdingRef.current) {
       readingRowRef.current = readingRowOf(el, items.length, keyAt);
     }
@@ -457,14 +515,7 @@ export function MessageList<T>({
 
   return (
     <div
-      ref={(node): void => {
-        scrollRef.current = node;
-        if (typeof scrollContainerRef === "function") {
-          scrollContainerRef(node);
-        } else if (scrollContainerRef) {
-          scrollContainerRef.current = node;
-        }
-      }}
+      ref={setScrollNode}
       role="log"
       aria-label={ariaLabel}
       // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
@@ -478,7 +529,7 @@ export function MessageList<T>({
         // Paper says what the transcript leaves out on its own, so none of this chrome prints.
         <div
           ref={setLeadingNode}
-          className="print:hidden"
+          className="has-focus-visible:sticky has-focus-visible:inset-bs-0 has-focus-visible:z-(--z-overlay) has-focus-visible:bg-background print:hidden"
           data-slot={MESSAGE_LIST_LEADING_SLOT}
           style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}
         >
@@ -492,7 +543,7 @@ export function MessageList<T>({
             key={virtualItem.key}
             // Nothing is measured while printing: the first measure of a row mounted for paper above a scrolled-up reader
             // re-places every row below it. Rows are still placed at their screen offset; paper flows them statically.
-            ref={printing ? placeWithoutMeasure(virtualItem.start) : virtualizer.measureElement}
+            ref={printing ? placeWithoutMeasure(virtualItem.start - virtualizer.options.scrollMargin) : virtualizer.measureElement}
             data-index={virtualItem.index}
             data-slot={MESSAGE_LIST_ROW_SLOT}
             className={cn("absolute inset-x-0", roving && FOCUS_RING_OUTLINE)}
