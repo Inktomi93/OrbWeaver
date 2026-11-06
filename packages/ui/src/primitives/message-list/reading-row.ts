@@ -4,11 +4,12 @@
 // is put back at the reader's top edge each frame until the rows stop moving.
 
 import type { RefObject } from "react";
+import type { RowKey } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT } from "./row-roving.ts";
 
 /** A row by key and index, and the share of its height above the reader's top edge; negative while it starts below it. */
 export interface ReadingRow {
-  readonly key: unknown;
+  readonly key: RowKey;
   readonly index: number;
   readonly into: number;
 }
@@ -23,7 +24,7 @@ function mountedRows(scroller: HTMLElement): readonly HTMLElement[] {
 }
 
 /** The row at the scroller's top edge, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
-export function readingRowOf(scroller: HTMLElement, count: number, keyAt: (index: number) => unknown): ReadingRow | null {
+export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows): ReadingRow | null {
   const edge = scroller.getBoundingClientRect().top;
   const rows = mountedRows(scroller);
   let found: { readonly row: HTMLElement; readonly box: DOMRect } | null = null;
@@ -51,7 +52,7 @@ export function readingRowOf(scroller: HTMLElement, count: number, keyAt: (index
 /** The list's rows as of its last commit. */
 export interface LiveRows {
   readonly count: number;
-  readonly keyAt: (index: number) => unknown;
+  readonly keyAt: (index: number) => RowKey;
 }
 
 interface HoldOptions {

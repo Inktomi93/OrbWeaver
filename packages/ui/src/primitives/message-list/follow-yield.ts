@@ -34,7 +34,7 @@ const SCROLL_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "PageU
  * reader 800px — the prepend-stability CT caught exactly that. A scrollbar drag is covered instead by
  * {@link shouldAdjustForResizedItem}, which needs no gesture at all.
  */
-export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () => void {
+export function attachUserScrollInput(el: HTMLElement, onInput: () => void, isControl: (target: EventTarget | null) => boolean): () => void {
   const onKey = (event: KeyboardEvent): void => {
     // A row walk cancels its key and writes the axis itself: the yield would drop that write.
     // Space presses a focused button instead of scrolling, and that press can start a prepend whose anchor must land.
@@ -46,8 +46,15 @@ export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () 
   if ("onwheel" in el) {
     el.addEventListener("wheel", onInput, { passive: true });
   }
+  // A finger that lands on a control may be a tap, which scrolls nothing and whose change the reader's row must be held
+  // through; a drag from it still reaches `touchmove`.
+  const onTouchStart = (event: TouchEvent): void => {
+    if (!isControl(event.target)) {
+      onInput();
+    }
+  };
   if ("ontouchstart" in el) {
-    el.addEventListener("touchstart", onInput, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
   }
   if ("ontouchmove" in el) {
     el.addEventListener("touchmove", onInput, { passive: true });
@@ -55,7 +62,7 @@ export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () 
   el.addEventListener("keydown", onKey, { passive: true });
   return (): void => {
     el.removeEventListener("wheel", onInput);
-    el.removeEventListener("touchstart", onInput);
+    el.removeEventListener("touchstart", onTouchStart);
     el.removeEventListener("touchmove", onInput);
     el.removeEventListener("keydown", onKey);
   };

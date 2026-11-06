@@ -116,6 +116,14 @@ function connection(state: HistoryFailures, paused: boolean): HistoryFailures {
   return state.offline ? { ...state, offline: false, pinned: state.press } : state;
 }
 
+/**
+ * The reader closed what they asked for: the line leaves, and a failure behind it, if one stands, shows instead. A held
+ * read is not cancelled, so the connection's return still loads it; the next failure to speak is a new one.
+ */
+export function dismissHistoryFailure(state: HistoryFailures): HistoryFailures {
+  return { ...state, press: false, offline: false, pinned: false, asked: false };
+}
+
 /** The state after one render's view; the same object when nothing changed. */
 export function observeHistoryFetch(previous: HistoryFailures, view: HistoryFetchView): HistoryFailures {
   if (previous.chatId !== view.chatId) {
