@@ -59,7 +59,7 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
         <Stack align="center" justify="start" padding="section">
           {/* relative: the content column paints above the positioned web canvas. */}
           {/* The page's one landmark: the sign-in and join card is the content a screen reader jumps to. */}
-          <Container name="login" role="main" className="relative inline-full max-inline-cq-24">
+          <Container name="login" role="main" size="sm" className="relative inline-full">
             <Stack gap="block">
               <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
                 {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The

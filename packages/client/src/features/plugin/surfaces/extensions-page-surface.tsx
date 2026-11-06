@@ -77,7 +77,8 @@ function InsetPane({
 }): ReactElement {
   return (
     <Stack
-      className={cn("relative overflow-y-auto px-section block-full min-block-0", className)}
+      className={cn("relative overflow-y-auto block-full min-block-0", className)}
+      paddingInline="section"
       {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
     >
       <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>

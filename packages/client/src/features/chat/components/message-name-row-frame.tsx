@@ -21,8 +21,8 @@ type HeaderPlacement = RowSkin["headerPlacement"];
 // sticky band paint past the row's bottom. Over wallpaper the chrome plate already supplies the outside inset.
 // Inside a container only the top inset is cancelled; the bottom inset contains the action rail's focus paint.
 // `-top-px` rather than `top-0` because the pin observer reads the pin as a one-pixel top clip.
-const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
-const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised) py-row";
+const STICKY_OUTSIDE = "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised)";
+const STICKY_INSIDE = "-mbs-row sticky -inset-bs-px z-(--z-raised)";
 
 // While pinned, a card's bar reaches the card's side edges: the bubble's own inset on each side, which client
 // globals.css defaults to `--spacing-block` and echo widens to its art pane. A band reaches across the column's inset.
@@ -201,6 +201,7 @@ function FrameRow({
       ground={paint.ground}
       cardCorners={paint.cardCorners}
       reveal={overlayReveal}
+      paddingBlock={sticky ? "row" : undefined}
       className={cn(
         "flex-wrap",
         flip && "flex-row-reverse",
@@ -213,7 +214,8 @@ function FrameRow({
         // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
         chip && !pinned && "ms-auto inline-fit",
         // An outside header (tide's) sits on the same inset as the pager under its train, so the last action
-        // ends where the forward chevron does and its touch area stays inside the scrollport.
+        // ends where the forward chevron does and its touch area stays inside the scrollport. It stays a class: it must follow the
+        // reach classes above, which evict each other's padding in class order, and a prop would sit before them.
         outside && "px-field",
         overlayClass,
         // The rail is centred on this row, so a content height of

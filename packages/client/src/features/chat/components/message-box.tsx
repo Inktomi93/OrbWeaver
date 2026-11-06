@@ -108,6 +108,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDe
   return (
     <Stack
       data-slot={MESSAGE_BUBBLE_SLOT}
+      align={weld ? "start" : undefined}
       gap={inset ? "row" : undefined}
       plate="reading"
       ink={readingInk(box, role)}
@@ -116,7 +117,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDe
       className={cn(
         "inline-full",
         overlayPage ? "grid" : undefined,
-        weld ? "flex-row items-start" : undefined,
+        weld ? "flex-row" : undefined,
         plateInset ? PLATE_INSET : undefined,
         pageInset ? PAGE_INSET : undefined,
         floor ? PAGE_LAST_ROW_FLOOR : undefined,

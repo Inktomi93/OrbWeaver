@@ -146,7 +146,8 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className="relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter block-full min-block-0"
+        className="relative overflow-y-auto overscroll-contain pbs-section pbe-gutter block-full min-block-0"
+        paddingInline="section"
         scrollFade="y"
         focusTarget={true}
         gap="section"

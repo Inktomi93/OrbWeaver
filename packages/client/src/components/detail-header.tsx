@@ -45,7 +45,8 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
           <Text
             aria-hidden="true"
             as="span" // A title-step name truncates so its verbs keep its line; a masthead never truncates, so its verbs close its line.
-            className={step === "title" ? "truncate min-inline-0" : "wrap-break-word min-inline-0"}
+            className={step === "title" ? "min-inline-0" : "wrap-break-word min-inline-0"}
+            truncate={step === "title"}
             data-shell-identity={deferToShell ? "defer" : undefined}
             voice={NAME_VOICE[step]}
           >

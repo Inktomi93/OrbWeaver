@@ -57,7 +57,7 @@ function FootRow({
     return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" className={FOOT_CARD} />;
   }
   if (edge === "plate") {
-    return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap px-field" />;
+    return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap" paddingInline="field" />;
   }
   return <Row {...props} align={align} justify={justify} gap={gap} className={FOOT_INSIDE} />;
 }

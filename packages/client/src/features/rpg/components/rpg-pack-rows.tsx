@@ -85,7 +85,6 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
 // `rpg-pack-cell` owner-CSS hook as its own slot.
 const TILE_SLOT = "rpg-pack-cell";
 const TILE_BOX = "relative inline-full min-inline-0";
-const TILE_INSET = "px-row py-field";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
@@ -155,7 +154,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
   if (edit === undefined) {
     return (
       <Card className={TILE_BOX} ownSlot={TILE_SLOT} padding="none" shape="row">
-        <Row align="center" className={TILE_INSET} gap="field">
+        <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
           <PackCellInk item={item} />
         </Row>
       </Card>
@@ -170,7 +169,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       <PopoverTrigger
         render={
           <Card aria-label={`Edit ${item.name}`} as="button" className={TILE_BOX} interactive={true} ownSlot={TILE_SLOT} padding="none" shape="row">
-            <Row align="center" className={TILE_INSET} gap="field">
+            <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
               <PackCellInk item={item} pinned={pinned} />
             </Row>
           </Card>
