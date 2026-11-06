@@ -111,9 +111,10 @@ const EASE_SCALE = scaleOf("ease");
 // `--opacity-*` (`opacity-receded`) sits beside the stock numeric steps; unregistered, a stock step beside it survives.
 const OPACITY_SCALE = scaleOf("opacity");
 const STROKE_WIDTH_SCALE = scaleOf("stroke-width");
-// `--border-width-*` (`border-hairline`) is a width, but tailwind-merge reads an unknown `border-<name>` as a border
-// colour, so a later edge colour (`border-tone-edge`) evicted the width and left a ring at zero width. Each side group
-// takes the scale too, so `border-s-hairline` is a width in the same way.
+// `--border-width-*` (`border-hairline`, `border-s-rule`) is a width, but tailwind-merge reads an unknown `border-<name>`
+// as a border colour, so a later edge colour (`border-tone-edge`) evicted the width and left a ring at zero width. Each
+// side group takes the scale too. A ring width has no theme namespace here: it is spelled `ring-(length:--border-width-rule)`,
+// which tailwind-merge already reads as a width, so no ring group is registered.
 const BORDER_WIDTH_SCALE = scaleOf("border-width");
 const BORDER_WIDTH_SIDES = ["x", "y", "s", "e", "t", "r", "b", "l", "bs", "be"] as const;
 const BORDER_WIDTH_GROUPS = {

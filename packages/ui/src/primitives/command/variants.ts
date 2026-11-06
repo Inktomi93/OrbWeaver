@@ -49,7 +49,7 @@ export const commandVariants = tv({
     item: `
       flex cursor-default items-center gap-row rounded-control px-row text-body leading-body orb-skip-offscreen outline-none select-none
       min-block-(--size-control-sm)
-      data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50
+      data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-disabled
       data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground
     `,
     separator: "my-field border-bs border-border",

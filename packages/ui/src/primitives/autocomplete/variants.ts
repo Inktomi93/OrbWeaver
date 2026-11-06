@@ -21,7 +21,7 @@ export const autocompleteVariants = tv({
       "relative flex items-center rounded-control border border-input-border bg-field-fill inline-full min-inline-0",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_WITHIN,
-      "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
+      "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
     ],
     input: [
       "flex-1 bg-transparent px-block text-field leading-field text-foreground block-full inline-full min-inline-0",

@@ -60,7 +60,7 @@ export const avatarVariants = tv({
     ring: {
       none: {},
       accent: {
-        root: "shadow-glow ring-2 ring-ring ring-offset-2 ring-offset-background",
+        root: "shadow-glow ring-(length:--border-width-rule) ring-ring ring-offset-2 ring-offset-background",
       },
     },
   },

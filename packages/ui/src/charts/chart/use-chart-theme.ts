@@ -13,7 +13,7 @@ const CHART_LENGTHS = {
   tight: "spacing.tight",
   radius: "radius.inset",
   stroke: "border-width.control",
-  accentStroke: "border-width.accent",
+  accentStroke: "border-width.rule",
   dot: "size.dot",
   height: "height.chart",
 } as const satisfies Record<string, keyof typeof LENGTH_BASE_PX>;

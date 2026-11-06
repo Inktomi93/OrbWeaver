@@ -5,6 +5,6 @@ import { tv } from "#lib";
 export const fieldsetVariants = tv({
   slots: {
     root: "m-0 flex flex-col gap-field border-0 p-0 inline-full min-inline-0",
-    legend: "text-label leading-label font-medium text-foreground data-disabled:opacity-50",
+    legend: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
   },
 });

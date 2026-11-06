@@ -37,7 +37,7 @@ export const cardVariants = tv({
     },
     tone: TONE_ARMS,
     // A set state marked on the card's leading edge (an override that differs from the default).
-    rail: { none: "", primary: "border-s-2 border-s-primary" },
+    rail: { none: "", primary: "border-s-rule border-s-primary" },
     artDecoration: ART_DECORATION,
     // A region that takes programmatic focus (a `tabIndex={-1}` editor a list hands focus to) draws the focus ring.
     focusable: { true: `outline-none ${FOCUS_RING}`, false: "" },
@@ -50,7 +50,7 @@ export const cardVariants = tv({
       `,
       focal: `
         relative isolate
-        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-60 before:shadow-glow
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-[inherit] before:opacity-receded before:shadow-glow
         before:transition-opacity before:duration-(--motion-base) before:ease-out-expo before:content-['']
         hover:before:opacity-100
         data-returned:before:opacity-100

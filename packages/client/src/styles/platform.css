@@ -7,8 +7,8 @@
    * and a bar painted as a background (the tab indicator) merges into the canvas. Each gets a system colour. */
   @variant forced-colors {
     :focus-visible {
-      outline: var(--border-width-accent) solid Highlight;
-      outline-offset: calc(-1 * var(--border-width-accent));
+      outline: var(--border-width-rule) solid Highlight;
+      outline-offset: calc(-1 * var(--border-width-rule));
     }
     [data-slot="tabs-indicator"],
     [data-slot="scroll-area-thumb-vertical"],

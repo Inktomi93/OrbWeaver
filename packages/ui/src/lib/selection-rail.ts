@@ -25,7 +25,7 @@ import type { Tone } from "#tokens";
 // as the ink, so every carrier stamps `SELECTION_RAIL_TONE` on the element that wears the fragment while selected.
 // The page ink has no floor on a tint; text-on-tint does.
 export const SELECTION_RAIL =
-  "border-s-2 border-s-transparent data-selected:border-s-tone-solid data-selected:bg-tone-tint data-selected:text-tone-text-on-tint";
+  "border-s-rule border-s-transparent data-selected:border-s-tone-solid data-selected:bg-tone-tint data-selected:text-tone-text-on-tint";
 
 /** The D336 tone a selection-rail carrier stamps. */
 export const SELECTION_RAIL_TONE = "primary" satisfies Tone;

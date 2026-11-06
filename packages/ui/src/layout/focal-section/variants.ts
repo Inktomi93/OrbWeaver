@@ -6,9 +6,9 @@ export const focalSectionVariants = tv({
   variants: {
     focal: {
       true: `
-        relative isolate rounded-(--radius-base) p-row ring-1 ring-(--color-speaker)
-        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-40 before:shadow-glow
-        before:content-['']
+        relative isolate rounded-(--radius-base) p-row ring ring-(--color-speaker)
+        before:pointer-events-none before:absolute before:-inset-px before:-z-(--z-raised) before:rounded-(--radius-base) before:opacity-faint
+        before:shadow-glow before:content-['']
       `,
       false: "",
     },

@@ -81,6 +81,13 @@ function contractThemeTargets(): readonly string[] {
   return [...new Set(targets)].sort();
 }
 
+// Tailwind reads these two theme defaults for a bare `border` and a bare `ring`. Both resolve through the
+// border-width family and name no utility of their own, so the merge registry has nothing to register for them.
+const THEME_DEFAULT_FAMILY: Readonly<Record<string, string>> = {
+  "--default-border-width": "border-width",
+  "--default-ring-width": "border-width",
+};
+
 function contractThemeFamilies(): readonly string[] {
   const families = new Set<string>();
   for (const token of TOKEN_CONTRACT.baseTokens) {
@@ -92,7 +99,8 @@ function contractThemeFamilies(): readonly string[] {
     if (entry.placement !== "theme") {
       continue;
     }
-    const matches = FAMILY_PROBES.filter((probe) => target.startsWith(`--${probe.family}-`));
+    const defaultFamily = THEME_DEFAULT_FAMILY[target];
+    const matches = FAMILY_PROBES.filter((probe) => (defaultFamily === undefined ? target.startsWith(`--${probe.family}-`) : probe.family === defaultFamily));
     const match = matches[0];
     if (match === undefined || matches.length !== 1) {
       throw new Error(`INSTRUMENT ERROR: theme target ${target} maps to ${matches.length} compiler probe families`);
