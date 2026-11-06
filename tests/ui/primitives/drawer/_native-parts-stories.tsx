@@ -23,11 +23,11 @@ export function DrawerDepthStory(): ReactElement {
       <DrawerProvider>
         <DrawerIndentBackground />
         <DrawerIndent>
-          <Drawer side="bottom">
-            <DrawerSwipeArea side="bottom" />
+          <Drawer>
+            <DrawerSwipeArea />
             <DrawerTrigger>Open filters</DrawerTrigger>
             <DrawerVirtualKeyboardProvider>
-              <DrawerPopup side="bottom">
+              <DrawerPopup>
                 <DrawerTitle>Filters</DrawerTitle>
                 <DrawerDescription>Narrow the list.</DrawerDescription>
                 <DrawerClose>Done</DrawerClose>

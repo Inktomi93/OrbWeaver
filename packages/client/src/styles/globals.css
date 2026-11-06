@@ -108,6 +108,18 @@
   .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) {
     text-shadow: none;
   }
+  /* `light-dark()` resolves where the declaration computes and `text-shadow` inherits that result, so a nested scope with
+   * its own colour scheme re-declares the halo to resolve it against its own polarity. */
+  .shell-grid[data-has-bg-image] .shell-main [data-slot="theme-scope"] {
+    text-shadow: var(--shadow-shell-over-art);
+  }
+  /* A scope nested in a surface that already clears the halo (a bubble's speaker span, the composer) keeps it cleared. */
+  .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) [data-slot="theme-scope"] {
+    text-shadow: none;
+  }
+  .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main [data-slot="theme-scope"] {
+    text-shadow: none;
+  }
   /* The chats landing's empty state sits straight on the wallpaper, so it takes a plate. */
   .shell-grid[data-has-bg-image][data-section="chats"] .shell-content [data-slot="empty-state-root"] {
     inline-size: 100%;

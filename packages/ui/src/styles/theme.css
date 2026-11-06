@@ -244,7 +244,6 @@
   --reading-tide-share-phone: 90%;
   --fade-edge-stop: 10%;
   --opacity-receded: 60%;
-  --stroke-width-icon-hairline: 1px;
   --stroke-width-icon-regular: 1.75px;
   --stroke-width-icon-bold: 2.5px;
   --border-width-hairline: 1.25px;
@@ -373,7 +372,6 @@
   --height-prose-cap: 60cqh;
   --height-picker-art-landscape: calc(round(nearest, 100cqw * 9 / 16, 1px));
   --height-picker-art-standard: calc(round(nearest, round(nearest, 100cqw, 1px) * 3 / 4, 1px));
-  --height-picker-art-square: calc(round(nearest, 100cqw, 1px));
   --grid-lead: 1.55fr 1fr;
   --grid-lead-wide: 1.5fr 1.05fr;
   --reading-bubble-cap: min(100%, 65ch);

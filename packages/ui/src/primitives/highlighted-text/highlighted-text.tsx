@@ -1,11 +1,10 @@
 import type { Span } from "@orb/kit/chunk";
 import type { ComponentProps, ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { highlightedTextVariants } from "./variants.ts";
 
-export interface HighlightedTextProps extends Omit<ComponentProps<"div">, "children">, VariantProps<typeof highlightedTextVariants> {
+export interface HighlightedTextProps extends Omit<ComponentProps<"div">, "children"> {
   readonly text: string;
   /** `[start, end)` char-offset ranges to render as `<mark>`. Overlapping/adjacent ranges are merged before splitting. */
   readonly ranges: readonly Span[];
@@ -62,12 +61,9 @@ function splitRuns(text: string, ranges: readonly Span[]): TextRun[] {
  * Long plain text rendered with char-offset ranges as real `<mark>` elements (screen readers
  * announce them; a styled `<span>` would not). The first highlight scrolls into view instantly on
  * mount and whenever `ranges` genuinely changes value.
- *
- * `skin="code"` renders the runs as machine text (mono, micro, muted) — the resolved-template readout —
- * instead of the default body-voice prose.
  */
-export function HighlightedText({ className, text, ranges, skin, ...props }: HighlightedTextProps): ReactElement {
-  const slots = highlightedTextVariants({ skin });
+export function HighlightedText({ className, text, ranges, ...props }: HighlightedTextProps): ReactElement {
+  const slots = highlightedTextVariants();
   const firstMarkRef = useRef<HTMLElement | null>(null);
   const runs = splitRuns(text, ranges);
   const firstHighlightIndex = runs.findIndex((run) => run.highlighted);

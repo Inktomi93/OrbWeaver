@@ -83,7 +83,8 @@ function HistoryPager({ available, hasEarlier, busy, failed, loaded, onLoad }: H
         >
           {EARLIER_MESSAGES_LABEL}
         </Button>
-        <Text id={description} className="sr-only" role="status">
+        {/* The end of history is read on screen; the sr-only form is only the pager's description while older pages remain. */}
+        <Text id={description} className={hasEarlier ? "sr-only" : undefined} role="status" voice="gloss">
           {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
           {loaded === null ? "" : ` ${String(loaded)} messages loaded.`}
         </Text>

@@ -14,26 +14,19 @@ import type {
 } from "@base-ui/react/drawer";
 import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactElement } from "react";
-import type { VariantProps } from "tailwind-variants";
 import { usePortalContainer } from "#lib";
 import { drawerVariants } from "./variants.ts";
 
-type DrawerSide = NonNullable<VariantProps<typeof drawerVariants>["side"]>;
-
-const SWIPE_BY_SIDE: Record<DrawerSide, "down"> = {
-  bottom: "down",
-};
-
-export interface DrawerProps<Payload = unknown> extends Omit<BaseRootProps<Payload>, "swipeDirection">, VariantProps<typeof drawerVariants> {}
+export type DrawerProps<Payload = unknown> = Omit<BaseRootProps<Payload>, "swipeDirection">;
 
 /**
  * Drawer root — seals Base UI Drawer (swipe-to-dismiss, focus trap, Esc, scroll lock come free).
- * State-only. `side` sets the swipe-dismiss direction and must match `side` on DrawerPopup.
+ * State-only. The sheet rises from the bottom edge and dismisses by swiping down.
  */
 export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactElement {
-  const { side = "bottom", children, ...rest } = props;
+  const { children, ...rest } = props;
   return (
-    <BaseDrawer.Root swipeDirection={SWIPE_BY_SIDE[side]} {...rest}>
+    <BaseDrawer.Root swipeDirection="down" {...rest}>
       {children}
     </BaseDrawer.Root>
   );
@@ -47,7 +40,7 @@ export function DrawerTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDrawer.Trigger {...props} />;
 }
 
-export interface DrawerPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof drawerVariants> {
+export interface DrawerPopupProps extends Omit<BasePopupProps, "className"> {
   /** Portal target — defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
   /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @defaultValue false */
@@ -57,15 +50,14 @@ export interface DrawerPopupProps extends Omit<BasePopupProps, "className">, Var
 }
 
 /**
- * The drawer panel — bundles Portal → Backdrop → Viewport → Popup → Content at `--z-modal`. `side`
- * places the panel and must match the root's `side`.
+ * The drawer panel — bundles Portal → Backdrop → Viewport → Popup → Content at `--z-modal`, anchored to the bottom edge.
  */
 export function DrawerPopup(props: DrawerPopupProps): ReactElement {
-  const { children, side, container, keepMounted, forceRender, ...rest } = props;
+  const { children, container, keepMounted, forceRender, ...rest } = props;
   // Defaults the Portal target to the themed root from context so a feature-level drawer inherits
   // the active ThemeScope instead of Hearth chrome; an explicit `container` still wins.
   const portalContainer = usePortalContainer();
-  const slots = drawerVariants({ side });
+  const slots = drawerVariants();
   return (
     <BaseDrawer.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDrawer.Backdrop className={slots.backdrop()} data-slot="drawer-backdrop" forceRender={forceRender} />
@@ -99,16 +91,14 @@ export function DrawerClose(props: BaseCloseProps): ReactElement {
   return <BaseDrawer.Close {...props} />;
 }
 
-export type DrawerSwipeAreaProps = Omit<BaseSwipeAreaProps, "className"> & VariantProps<typeof drawerVariants>;
+export type DrawerSwipeAreaProps = Omit<BaseSwipeAreaProps, "className">;
 
 /**
  * An invisible edge hit-target that opens the drawer on an edge swipe. Mount it as a sibling of
- * the drawer (always present, even while closed); `side` must match the drawer's `side`.
+ * the drawer (always present, even while closed).
  */
 export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
-  const { side, ...rest } = props;
-  const slots = drawerVariants({ side });
-  return <BaseDrawer.SwipeArea className={slots.swipeArea()} data-slot="drawer-swipe-area" {...rest} />;
+  return <BaseDrawer.SwipeArea className={drawerVariants().swipeArea()} data-slot="drawer-swipe-area" {...props} />;
 }
 
 /**

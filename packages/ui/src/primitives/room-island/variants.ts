@@ -7,10 +7,17 @@ export const roomIslandVariants = tv({
   variants: {
     // A bounded column surface passes its allocated height to shrinkable content.
     layout: { stack: "flex flex-col" },
-    // A card that holds a text field takes its hover and focus lift on the opaque muted step and a focus edge in the
-    // ring colour held back in alpha.
+    // A card that holds a text field is the field's edge, so it wears the form-control edge token at rest and the ring
+    // colour on hover and focus: D159 solves the ring above the edge and at 3:1 on the card, so every state holds the
+    // floor. Focus adds a ring and hover yields to it, so focus is the strongest state however the pointer sits.
     holdsField: {
-      true: "focus-within:border-ring/60 focus-within:bg-muted hover:border-input hover:bg-muted",
+      true: `
+        border-input-border
+        focus-within:border-ring focus-within:bg-muted
+        focus-within:not-data-drag-over:ring-1 focus-within:not-data-drag-over:ring-ring
+        hover:bg-muted
+        hover:not-focus-within:border-ring
+      `,
       false: "",
     },
     // A card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.

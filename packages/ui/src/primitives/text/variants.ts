@@ -16,9 +16,6 @@ export const textVariants = tv({
       regular: "font-normal",
       semibold: "font-semibold",
     },
-    transform: {
-      none: "",
-    },
     // THE VOICE GRAMMAR (UI-Density-Law.md §2.3) — the closed axis that replaces choosing
     // size×weight×tone×transform per call site by taste (336 legal combinations, which is the mechanism by
     // which nothing recedes). A voice is an INTENT: what this text IS on the surface, not how it looks.
@@ -90,8 +87,7 @@ export const textVariants = tv({
       // THE ATTRIBUTION LINE UNDER A FOCAL ITEM (added 2026-08-16, program #102 review): who is in this
       // thing and how long ago — a film credit, not prose and not a datum you compare. The mock draws it
       // mono + UPPERCASE + tracked + muted (`home-c-hearth.html .fire .foot .meta`), and a feature has no
-      // route to that register: `transform` is one of the four @orb/ui-internal axes the density A3 arm
-      // reds at any feature call site, so the choice was a voice or a gate exemption.
+      // route to that register: caps is a voice, not a feature axis, so the choice was a voice or a gate exemption.
       //
       // IT RIDES THE `label` STEP, NOT `micro`, AND THAT IS THE POINT. The mock sets it at 10.5px, which is
       // correct for a static footnote and wrong here: this line sits INSIDE the hero's own button, so it is
@@ -221,7 +217,6 @@ export const textVariants = tv({
   defaultVariants: {
     size: "body",
     weight: "regular",
-    transform: "none",
     prose: false,
     strike: false,
     numeric: false,

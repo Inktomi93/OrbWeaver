@@ -116,7 +116,7 @@ export async function gateLineagePerAncestor(ctx: GuardCtx, principal: Principal
 }
 
 /** Entry supplies only the inert connection; membership and floor decisions remain in the private guard. */
-export function requireWiredParticipant(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
+function requireWiredParticipant(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
   return requireParticipant({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId);
 }
 

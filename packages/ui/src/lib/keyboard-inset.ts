@@ -17,7 +17,7 @@ interface KeyboardWindowLike {
 const keyboardWindow = globalThis as KeyboardWindowLike;
 
 /** Keyboard coverage in CSS pixels; pinch zoom and browser-chrome changes do not count as a keyboard. */
-export function readKeyboardInset(layoutHeight = keyboardWindow.innerHeight): number {
+function readKeyboardInset(layoutHeight = keyboardWindow.innerHeight): number {
   const viewport = keyboardWindow.visualViewport;
   if (
     viewport === null ||

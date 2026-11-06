@@ -243,6 +243,12 @@ for (const regime of [
       await earlier.click();
       await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
       await expect(earlier).toBeDisabled();
+      // The end of history is on screen, not only announced: its statement is a laid-out box, not the 1px screen-reader clip.
+      const endStatement = page.locator(`[id="${(await earlier.getAttribute("aria-describedby")) ?? ""}"]`);
+      await expect(endStatement).toBeVisible();
+      const endBox = await endStatement.boundingBox();
+      expect(endBox?.height ?? 0).toBeGreaterThan(1);
+      expect(endBox?.width ?? 0).toBeGreaterThan(1);
       const firstArrival = arrivals[0] ?? last;
       await page
         .getByRole("listitem")
