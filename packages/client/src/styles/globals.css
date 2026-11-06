@@ -130,6 +130,14 @@
     background-color: var(--color-background);
     text-shadow: none;
   }
+  /* The history pager pins at its own size, so its box cannot be the track; it starts where the track starts. */
+  [data-slot="message-list-leading-action"] {
+    @apply orb-chat-track;
+  }
+  /* Focus keeps the pin after a dismissal; the failure the reader closed must not ride along with it. */
+  [data-slot="message-list-leading-action"]:has(:focus-visible) [data-dismissed] {
+    display: none;
+  }
   /* The reading measure caps the content column, never the transcript region, which the user's width dial owns.
    * It is homed here because the message row and the ghost row both stamp the slot and their measures must not
    * drift. The column's own font size makes the token's `ch` follow reading scale without another multiplier.

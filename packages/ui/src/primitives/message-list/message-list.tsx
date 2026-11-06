@@ -8,7 +8,7 @@ import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
 import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
-import type { ReadingRow } from "./reading-row.ts";
+import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
@@ -165,9 +165,11 @@ export function MessageList<T>({
   const settledTopRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);
+  const measureLeadingRef = useRef<() => void>(() => undefined);
   const leadingInsetPx = Math.round(gapPxFor(blockPaddingToken));
   useLayoutEffect((): (() => void) | undefined => {
     if (leadingNode === null) {
+      measureLeadingRef.current = (): void => undefined;
       setLeadingPx(0);
       return undefined;
     }
@@ -177,11 +179,12 @@ export function MessageList<T>({
       // The chrome changes height when the caller's regime flips (a text-size change, a rotation), and rows re-measure in
       // the same pass; together they lose the reader's row, so the row read before the change is held through it.
       if (next !== leadingPxRef.current) {
-        leadingPxRef.current = next;
         holdReadingRowRef.current();
+        leadingPxRef.current = next;
       }
       setLeadingPx(next);
     };
+    measureLeadingRef.current = measure;
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(leadingNode);
@@ -191,7 +194,7 @@ export function MessageList<T>({
     return (): void => observer.disconnect();
   }, [leadingNode, leadingActionNode]);
   const reducedMotion = usePrefersReducedMotion();
-  // Follow-the-tail intent, moved ONLY by an external scroll (never by virtual-core's own drift).
+  // Follow-the-tail intent, moved by an external scroll or a row walk, never by virtual-core's own drift.
   const stickToBottomRef = useRef(true);
   const viewportNodeRef = useRef<HTMLOListElement | null>(null);
   // Last scrollTop virtual-core wrote via `scrollToFn`, used to tell its own drift from an external scroll.
@@ -351,12 +354,17 @@ export function MessageList<T>({
   // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
   const keyAt = (index: number): unknown => getItemKey(itemAt(index), index);
   const cancelHoldRef = useRef<() => void>(() => undefined);
-  useEffect((): void => {
+  const liveRowsRef = useRef<LiveRows>({ count: 0, keyAt: () => undefined });
+  // A layout effect, so no frame of a hold can run between a commit and its rows: on the old rows, the reader's index names
+  // a different message.
+  useLayoutEffect((): void => {
+    liveRowsRef.current = { count: items.length, keyAt };
     holdReadingRowRef.current = (): void => {
       const el = scrollRef.current;
       const row = readingRowRef.current;
-      // A reader at the chrome is reading it: chrome that grows there pushes the rows down and stays on screen.
-      if (el === null || row === null || stickToBottomRef.current || el.scrollTop < leadingPxRef.current) {
+      // A reader at the top of the list, or in its chrome as it stood before this change, stays there: chrome that grows
+      // pushes the rows down and stays on screen.
+      if (el === null || row === null || stickToBottomRef.current || el.scrollTop <= leadingPxRef.current) {
         return;
       }
       cancelHoldRef.current();
@@ -364,8 +372,7 @@ export function MessageList<T>({
       cancelHoldRef.current = holdReadingRow({
         scroller: el,
         row,
-        count: items.length,
-        keyAt,
+        rows: liveRowsRef,
         reveal: (index): void => virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" }),
         // The reader's hand, or a jump that made the list follow its tail again, ends the hold.
         yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current,
@@ -374,12 +381,22 @@ export function MessageList<T>({
         },
         onDone: (): void => {
           holdingRef.current = false;
-          readingRowRef.current = readingRowOf(el, items.length, keyAt);
+          readingRowRef.current = readingRowOf(el, liveRowsRef.current.count, liveRowsRef.current.keyAt);
         },
       });
     };
   });
   useEffect((): (() => void) => (): void => cancelHoldRef.current(), []);
+  // A frame's scroll events run ahead of its observers, so a commit that changes the chrome is measured here: a scroll event
+  // would otherwise read rows the change has moved, and the hold would keep that wrong place. The observer covers a reflow.
+  useLayoutEffect((): void => measureLeadingRef.current());
+  // The rows a jump mounts arrive after its scroll event, and no later event reads them.
+  useLayoutEffect((): void => {
+    const el = scrollRef.current;
+    if (el !== null && readingRowRef.current === null && !holdingRef.current) {
+      readingRowRef.current = readingRowOf(el, items.length, keyAt);
+    }
+  });
   // Every explicit placement (a jump, a reveal, a pin) outranks a hold still in flight.
   const stopHold = useCallback((): void => {
     cancelHoldRef.current();
@@ -421,7 +438,8 @@ export function MessageList<T>({
     virtualizer.scrollToEnd({ behavior: "auto" });
   }, [virtualizer]);
 
-  useTailRepin({ contentHeightPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
+  // The chrome counts: it sits above the rows, so its growth pushes the tail away from a reader who is following it.
+  useTailRepin({ contentHeightPx: contentHeightPx + leadingPx, scrollRef, scrollportHeightPx, stickToBottomRef, tailFollowActive, virtualizer });
 
   // A scroll position matching virtual-core's last recorded write is its own drift/re-pin — ignore
   // it for FOLLOW intent (edge fades track every scroll, whoever moved it). Anything else was moved
@@ -526,10 +544,15 @@ export function MessageList<T>({
   // ResizeObserver while content growth does not, are `./content-growth.ts`'s header.
   useScrollportSync({ contentHeightPx, pinnedIndexRef, scrollRef, setPinSpacerPx, setScrollportHeightPx, virtualizer });
 
-  // Late-bind the roving hook's scroll (declared above the virtualizer, used below it).
+  // Late-bind the roving hook's scroll (declared above the virtualizer, used below it). A walk writes through
+  // `scrollToFn`, so the scroll detector reads it as drift: it has to end following here, or the next measurement re-pins the tail.
   useEffect((): void => {
-    scrollToIndexRef.current = (index: number): void => virtualizer.scrollToIndex(index, { align: "auto", behavior: "auto" });
-  }, [virtualizer]);
+    scrollToIndexRef.current = (index: number): void => {
+      stopHold();
+      setFollowing(index === items.length - 1);
+      virtualizer.scrollToIndex(index, { align: "auto", behavior: "auto" });
+    };
+  }, [items.length, setFollowing, stopHold, virtualizer]);
 
   return (
     <div
@@ -556,7 +579,7 @@ export function MessageList<T>({
       )}
       {leadingAction === undefined ? null : (
         // A sibling of the chrome, never inside it: a sticky box cannot leave its parent, and the chrome ends with the oldest row.
-        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}>
+        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)} data-slot="message-list-leading-action">
           {leadingAction}
         </div>
       )}
