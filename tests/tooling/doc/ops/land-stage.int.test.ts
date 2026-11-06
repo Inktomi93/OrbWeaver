@@ -117,6 +117,17 @@ test("a refused land --stage stages, deletes and writes nothing", TIMEOUT, async
   expect(git(root, "status", "--porcelain")).toBe("");
 });
 
+test("a repeated land --stage before the commit says the landing is already staged and changes nothing", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  expect(landStaged([1], root, TODAY).refusals).toEqual([]);
+  const staged = stagedNames(root);
+  const again = landStaged([1], root, TODAY);
+  expect(again.written).toEqual([]);
+  expect(again.refusals).toHaveLength(1);
+  expect(again.refusals[0]).toContain("already staged");
+  expect(stagedNames(root)).toEqual(staged);
+});
+
 test("land --stage lands an item git never tracked, and several ids make one Closes line and one record each", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
   newItem({ title: "Fresh", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "Never committed." } }, root, TODAY);

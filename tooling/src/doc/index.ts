@@ -53,7 +53,7 @@ export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
 export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { regenerateIndexes } from "./ops/indexes.ts";
 export type { ShownItems, WriteOutcome } from "./ops/items.ts";
-export { editItem, finishWrite, loadItems, newItem, newItems, newItemsFrom, setItems, showItems } from "./ops/items.ts";
+export { editItem, loadItems, newItem, newItems, newItemsFrom, runWrite, setItems, showItems } from "./ops/items.ts";
 export type { LandOutcome } from "./ops/land.ts";
 export { landItems, landMerged, landStaged } from "./ops/land.ts";
 export { newAdr, newLaw, newPlan, nextAdrId } from "./ops/new.ts";

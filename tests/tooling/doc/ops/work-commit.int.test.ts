@@ -1,16 +1,29 @@
 // `set --commit` and `item --commit`: the verb's written paths plus every other uncommitted change under
 // docs/work/ go into one commit, and nothing outside docs/work/ rides along.
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { finishWrite, newItem, newItemsFrom, setItems, workCommitMessage } from "../../../../tooling/src/doc/index.ts";
+import {
+  docLayerProblems,
+  editItem,
+  landStaged,
+  newItem,
+  newItemsFrom,
+  newPlan,
+  parseDocCommand,
+  runDocCommand,
+  runWrite,
+  setItems,
+  workCommitMessage,
+} from "../../../../tooling/src/doc/index.ts";
+import { MAX_HEADER } from "../../../../tooling/src/doc/lib/items.ts";
+import { TOOL_TRAILER } from "../../../../tooling/src/doc/ops/tree.ts";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const TODAY = "2026-09-23";
 const TIMEOUT = { timeout: scaledBudget(60_000) };
-const TRAILER = "Co-Authored-By: pnpm doc <doc-tool@orbweaver.invalid>";
-const MAX_HEADER = 200;
 
 function git(root: string, ...args: readonly string[]): string {
   return execFixtureGit(root, args).trim();
@@ -47,12 +60,12 @@ test("set --commit sweeps an earlier uncommitted set into one commit that names 
   const root = await repoWithItems(plantedTree);
   const before = git(root, "rev-list", "--count", "HEAD");
   expect(setItems([1], { state: "doing", lane: "a" }, root, TODAY).refusals).toEqual([]);
-  const outcome = finishWrite(setItems([2, 3], { state: "doing", lane: "b" }, root, TODAY), true, root);
+  const outcome = runWrite(true, root, () => setItems([2, 3], { state: "doing", lane: "b" }, root, TODAY));
   expect(outcome.refusals).toEqual([]);
   expect(Number(git(root, "rev-list", "--count", "HEAD")) - Number(before)).toBe(1);
   expect(committedNames(root)).toEqual(expect.arrayContaining(["docs/work/0001-a.md", "docs/work/0002-b.md", "docs/work/0003-c.md"]));
   expect(outcome.written).toEqual(expect.arrayContaining(["docs/work/0001-a.md", "docs/work/0002-b.md", "docs/work/0003-c.md"]));
-  expect(git(root, "log", "-1", "--format=%B")).toBe(`chore(work): update 1, 2, 3\n\n${TRAILER}`);
+  expect(git(root, "log", "-1", "--format=%B")).toBe(`chore(work): update 1, 2, 3\n\n${TOOL_TRAILER}`);
   expect(outcome.committed).toBe(git(root, "rev-parse", "HEAD"));
   expect(git(root, "status", "--porcelain")).toBe("");
 });
@@ -62,7 +75,7 @@ test("set --commit leaves a staged and an unstaged file outside docs/work/ out o
   writeFileSync(join(root, "sibling-staged.txt"), "someone else's work\n");
   git(root, "add", "sibling-staged.txt");
   writeFileSync(join(root, "README.md"), "# edited by someone\n");
-  const outcome = finishWrite(setItems([1], { state: "doing", lane: "a" }, root, TODAY), true, root);
+  const outcome = runWrite(true, root, () => setItems([1], { state: "doing", lane: "a" }, root, TODAY));
   expect(outcome.refusals).toEqual([]);
   expect(committedNames(root)).toEqual(outcome.written.toSorted());
   expect(committedNames(root)).not.toContain("sibling-staged.txt");
@@ -73,7 +86,7 @@ test("set --commit leaves a staged and an unstaged file outside docs/work/ out o
 
 test("item --commit commits the minted items, from flags and from a batch file", TIMEOUT, async ({ plantedTree, scratch }) => {
   const root = await repoWithItems(plantedTree);
-  const single = finishWrite(newItem({ ...MINT, title: "D" }, root, TODAY), true, root);
+  const single = runWrite(true, root, () => newItem({ ...MINT, title: "D" }, root, TODAY));
   expect(single.refusals).toEqual([]);
   expect(git(root, "log", "-1", "--format=%s")).toBe("chore(work): update 4");
   expect(committedNames(root)).toEqual(expect.arrayContaining(["docs/work/0004-d.md"]));
@@ -85,7 +98,7 @@ test("item --commit commits the minted items, from flags and from a batch file",
       { title: "F", kind: "bug" },
     ]),
   );
-  const many = finishWrite(newItemsFrom(batch, root, TODAY), true, root);
+  const many = runWrite(true, root, () => newItemsFrom(batch, root, TODAY));
   expect(many.refusals).toEqual([]);
   expect(git(root, "log", "-1", "--format=%s")).toBe("chore(work): update 5, 6");
   expect(git(root, "status", "--porcelain")).toBe("");
@@ -94,7 +107,7 @@ test("item --commit commits the minted items, from flags and from a batch file",
 test("a refused set --commit commits nothing, and without --commit nothing is committed", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
   const head = git(root, "rev-parse", "HEAD");
-  const refused = finishWrite(setItems([99], { state: "doing", lane: "a" }, root, TODAY), true, root);
+  const refused = runWrite(true, root, () => setItems([99], { state: "doing", lane: "a" }, root, TODAY));
   expect(refused.written).toEqual([]);
   expect(refused.refusals).toHaveLength(1);
   expect(refused.committed).toBeUndefined();
@@ -108,7 +121,7 @@ test("a set --commit whose commit git refuses reports the written files and git'
   const head = git(root, "rev-parse", "HEAD");
   // A stale ref lock is git's own refusal shape: the commit object is written, the ref update is not.
   writeFileSync(join(root, ".git", "refs", "heads", "main.lock"), "");
-  const outcome = finishWrite(setItems([1], { state: "doing", lane: "a" }, root, TODAY), true, root);
+  const outcome = runWrite(true, root, () => setItems([1], { state: "doing", lane: "a" }, root, TODAY));
   expect(outcome.written).toContain("docs/work/0001-a.md");
   expect(outcome.refusals).toHaveLength(1);
   expect(outcome.refusals[0]).toContain("cannot lock ref");
@@ -118,7 +131,72 @@ test("a set --commit whose commit git refuses reports the written files and git'
 
 test("the work commit's header is capped at the commit-message limit however many ids it names", () => {
   const ids = Array.from({ length: 120 }, (_, index) => index + 1);
-  const message = workCommitMessage(ids, TRAILER);
+  const message = workCommitMessage(ids, TOOL_TRAILER);
   expect(message.split("\n")[0]?.length).toBeLessThanOrEqual(MAX_HEADER);
-  expect(message.endsWith(TRAILER)).toBe(true);
+  expect(message.endsWith(TOOL_TRAILER)).toBe(true);
+});
+
+test("edit --commit commits the edited section as one work commit", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const outcome = runWrite(true, root, () => editItem(1, { why: "A new reason." }, root, "2026-10-01"));
+  expect(outcome.refusals).toEqual([]);
+  expect(git(root, "log", "-1", "--format=%s")).toBe("chore(work): update 1");
+  expect(git(root, "show", "HEAD:docs/work/0001-a.md")).toContain("A new reason.");
+  expect(git(root, "status", "--porcelain")).toBe("");
+});
+
+test("set --commit carries the plan task list an earlier set regenerated, so the docs check is clean at HEAD", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  newPlan({ slug: "foo", title: "Foo" }, root, TODAY);
+  commitAll(root, "docs: plan foo");
+  expect(setItems([1], { plan: "foo" }, root, TODAY).refusals).toEqual([]);
+  const outcome = runWrite(true, root, () => setItems([2], { state: "doing", lane: "l" }, root, TODAY));
+  expect(outcome.refusals).toEqual([]);
+  expect(committedNames(root)).toContain("docs/plans/foo/tasks.md");
+  expect(git(root, "status", "--porcelain")).toBe("");
+  expect(docLayerProblems(root)).toEqual([]);
+});
+
+test("--commit refuses before any write while a landing is staged, and while a merge waits for its commit", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  const item = (): string => readFileSync(join(root, "docs/work/0002-b.md"), "utf8");
+  const before = item();
+  expect(landStaged([1], root, TODAY).refusals).toEqual([]);
+  const staged = runWrite(true, root, () => setItems([2], { state: "doing", lane: "l" }, root, TODAY));
+  expect(staged.written).toEqual([]);
+  expect(staged.refusals.join("\n")).toContain("docs/work/0001-a.md");
+  expect(item()).toBe(before);
+  expect(git(root, "rev-parse", "HEAD")).toBe(head);
+  // The landing commits with its record; then a merge waiting for its commit blocks the next --commit.
+  commitAll(root, "feat(x): work\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-qb", "lane");
+  writeFileSync(join(root, "lane.txt"), "lane work\n");
+  commitAll(root, "feat(x): lane\n\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--no-ff", "--no-commit", "lane");
+  const merging = runWrite(true, root, () => setItems([2], { state: "doing", lane: "l" }, root, TODAY));
+  expect(merging.written).toEqual([]);
+  expect(merging.refusals).toHaveLength(1);
+  expect(item()).toBe(before);
+});
+
+test("a --commit whose write changed nothing makes no commit and says so", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  const outcome = runWrite(true, root, () => setItems([1], { state: "open" }, root, TODAY));
+  expect(outcome.refusals).toEqual([]);
+  expect(outcome.committed).toBeUndefined();
+  expect(outcome.skipped).toHaveLength(1);
+  expect(git(root, "rev-parse", "HEAD")).toBe(head);
+});
+
+test("the parsed command runs --commit through runDocCommand against the given repository", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const before = git(root, "rev-list", "--count", "HEAD");
+  const code = runDocCommand(parseDocCommand(["set", "1", "2", "doing", "--lane", "l", "--commit"]), root);
+  expect(code).toBe(EXIT.clean);
+  expect(Number(git(root, "rev-list", "--count", "HEAD")) - Number(before)).toBe(1);
+  expect(git(root, "log", "-1", "--format=%B")).toBe(`chore(work): update 1, 2\n\n${TOOL_TRAILER}`);
+  expect(git(root, "status", "--porcelain")).toBe("");
 });

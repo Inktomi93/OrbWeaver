@@ -229,7 +229,8 @@ export interface StagedLanding {
   readonly closes: string;
 }
 
-const MAX_HEADER = 200;
+/** The longest commit header the commit-message contract accepts. */
+export const MAX_HEADER = 200;
 
 /** A work-commit header naming `ids`, or their count when the list would pass the commit-message cap. */
 function workHeader(verb: string, ids: readonly number[]): string {

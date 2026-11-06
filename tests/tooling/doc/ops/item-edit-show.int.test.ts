@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { editItem, newItem, setItems, showItems } from "../../../../tooling/src/doc/index.ts";
+import { editItem, newItem, sectionsOf, setItems, showItems, splitDocument } from "../../../../tooling/src/doc/index.ts";
 
 const TODAY = "2026-09-23";
 const LATER = "2026-10-01";
@@ -22,7 +22,7 @@ async function rootWithItem(plantedTree: (files: Readonly<Record<string, string>
   return root;
 }
 
-test("edit replaces the named section bodies, bumps updated, and leaves every other byte alone", async ({ plantedTree }) => {
+test("edit replaces the named section bodies and bumps updated; the other sections and fields keep their text", async ({ plantedTree }) => {
   const root = await rootWithItem(plantedTree);
   const before = read(root, ITEM);
   const outcome = editItem(1, { why: "New why, one clean sentence.", done: "New bar." }, root, LATER);
@@ -89,4 +89,38 @@ test("a retitling set rewrites the references in other docs and leaves each chan
   writeFileSync(join(root, "docs/law/untouched.md"), `---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n\n# U\n\n${PADDED_TABLE}\n`);
   expect(setItems([1], { priority: "P1" }, root, LATER).written).not.toContain("docs/law/untouched.md");
   expect(read(root, "docs/law/untouched.md")).toContain(PADDED_TABLE);
+});
+
+test("edit refuses text carrying a # or ## heading line and changes nothing", async ({ plantedTree }) => {
+  const root = await rootWithItem(plantedTree);
+  const before = read(root, ITEM);
+  for (const text of ["New.\n\n## Why\n\nInjected.", "# A second title\n\nBody."]) {
+    const outcome = editItem(1, { what: text }, root, LATER);
+    expect(outcome.written).toEqual([]);
+    expect(outcome.refusals).toHaveLength(1);
+    expect(read(root, ITEM)).toBe(before);
+  }
+});
+
+test("edit keeps a section list intact: an unclosed fence is refused, even on an item that is already red", async ({ plantedTree }) => {
+  const root = await rootWithItem(plantedTree);
+  const red = read(root, ITEM).replace("Old done.", "A load-bearing belt.");
+  writeFileSync(join(root, ITEM), red);
+  const outcome = editItem(1, { what: "Starts a fence.\n\n```ts\nconst x = 1;" }, root, LATER);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals.join("\n")).toContain("Why");
+  expect(read(root, ITEM)).toBe(red);
+});
+
+test("a four-backtick block holding a fence and a ## line is text, in the new body and in a sibling", async ({ plantedTree }) => {
+  const fenced = ["````md", "```", "## Fake", "```", "````"].join("\n");
+  const root = await rootWithItem(plantedTree);
+  const edited = editItem(1, { what: `Example:\n\n${fenced}` }, root, LATER);
+  expect(edited.refusals).toEqual([]);
+  expect(read(root, ITEM)).toContain(fenced);
+  expect(sectionsOf(splitDocument(read(root, ITEM)).body)).toEqual(["What", "Why", "Done when", "Evidence"]);
+  const sibling = editItem(1, { done: "New bar." }, root, LATER);
+  expect(sibling.refusals).toEqual([]);
+  expect(read(root, ITEM)).toContain(fenced);
+  expect(sectionsOf(splitDocument(read(root, ITEM)).body)).toEqual(["What", "Why", "Done when", "Evidence"]);
 });

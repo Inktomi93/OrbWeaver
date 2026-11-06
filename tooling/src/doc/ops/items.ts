@@ -4,15 +4,15 @@
 // writes nothing — a batch is all-or-nothing so a half-landed list can never be mistaken for a landed one.
 // Every write is judged by the docs check itself (shape, sections, caps, writing rules, references) before
 // the first byte lands: a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
-// `finishWrite` is the `--commit` step: it commits a verb's writes plus every other uncommitted change
-// under docs/work/, so a run of `set`s ends in one commit.
+// `runWrite` is the `--commit` step: it commits a verb's writes plus every other uncommitted change under
+// docs/work/ and the generated files they feed, so a run of `set`s ends in one commit.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { DocEdit, GovernedDoc, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, SectionContent, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
-import { withFields, withSectionText } from "../lib/frontmatter-write.ts";
+import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { applyPatch, commitRefusal, isItemPath, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
@@ -21,16 +21,19 @@ import { ITEM_SECTIONS, itemTemplate } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import {
+  changedPaths,
   commitPaths,
   formattedDoc,
   governedPaths,
   highestHistoricId,
+  mergeInProgress,
   readDoc,
   rewriteTextFiles,
   root,
+  stagedWorkDeletions,
   TOOL_TRAILER,
   today,
-  uncommittedWorkPaths,
+  uncommittedBoardPaths,
   writeDoc,
 } from "./tree.ts";
 
@@ -59,22 +62,45 @@ function itemIdsOf(paths: readonly string[]): readonly number[] {
   return [...new Set(ids)].toSorted((left, right) => left - right);
 }
 
-/** `--commit`: commit what the verb wrote plus every other uncommitted change under docs/work/, so a run of
- *  `set`s ends in one commit. Nothing outside docs/work/ rides along (`commitPaths` builds the commit from
- *  HEAD plus exactly these paths). A refused write commits nothing. */
+/** What makes a board commit unsafe, checked BEFORE the verb writes anything: a merge waiting for its commit
+ *  (a plumbing commit would drop its second parent) and a staged landing (its deletion would commit with
+ *  no record and no `Closes:` line). */
+function commitBlockers(repoRoot: string): readonly string[] {
+  if (mergeInProgress(repoRoot)) {
+    return ["--commit cannot run while a merge waits for its commit (MERGE_HEAD exists) — commit the merge first"];
+  }
+  const staged = stagedWorkDeletions(repoRoot);
+  return staged.length === 0
+    ? []
+    : [`--commit would commit the staged deletion of ${staged.join(", ")} with no landing record and no Closes: line — commit the landing first`];
+}
+
+/** `--commit`: commit what the verb wrote plus every other uncommitted change under docs/work/ and the
+ *  generated indexes and task lists they feed, so a run of `set`s ends in one commit that passes the docs
+ *  check. `commitPaths` builds the commit from HEAD plus exactly these paths, so any other staged or
+ *  unstaged file stays out. A refused write commits nothing, and a write that changed nothing makes no
+ *  commit and says so. */
 function commitWork(outcome: WriteOutcome, repoRoot: string): WriteOutcome {
   if (outcome.refusals.length > 0) {
     return outcome;
   }
-  const paths = [...new Set([...outcome.written, ...uncommittedWorkPaths(repoRoot)])];
+  const paths = [...new Set([...outcome.written, ...uncommittedBoardPaths(repoRoot)])];
+  if (changedPaths(paths, repoRoot).length === 0) {
+    return { written: outcome.written, refusals: [], skipped: ["nothing to commit — the write changed nothing"] };
+  }
   const message = workCommitMessage(itemIdsOf(paths), TOOL_TRAILER);
   const commit = commitPaths(paths, message, repoRoot);
   return commit.ok ? { written: paths, refusals: [], committed: commit.sha } : { written: paths, refusals: [commitRefusal("work", commit.reason, message)] };
 }
 
-/** The verb's outcome, committed when the caller asked. */
-export function finishWrite(outcome: WriteOutcome, commit: boolean, repoRoot: string): WriteOutcome {
-  return commit ? commitWork(outcome, repoRoot) : outcome;
+/** Run a write verb, committing its result when the caller asked. With `commit`, the blockers refuse
+ *  before `write` runs, so a refusal leaves the tree untouched. */
+export function runWrite(commit: boolean, repoRoot: string, write: () => WriteOutcome): WriteOutcome {
+  if (!commit) {
+    return write();
+  }
+  const blockers = commitBlockers(repoRoot);
+  return blockers.length > 0 ? { written: [], refusals: blockers } : commitWork(write(), repoRoot);
 }
 
 function planExists(slug: string, repoRoot: string): boolean {
@@ -232,33 +258,63 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
   return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [] };
 }
 
-/** Replace the body of the named sections of ONE item: every other section, the title and the fields
- *  except `updated` stay byte-identical, and the result is judged like a `set`. An item without the
- *  section refuses — every item shape requires all of them, so the missing one is a defect to repair by
- *  hand, not to guess a position for. */
-export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
-  const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
-  if (item === undefined) {
-    return { written: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };
-  }
-  let source = readDoc(item.path, repoRoot).source;
+/** The section list of an item file, in order. */
+function sectionList(source: string): string {
+  return sectionsOf(splitDocument(source).body).join(" | ");
+}
+
+/** `source` with each given section body replaced, or the refusals: a text carrying a `#` or `##` heading,
+ *  or a section the item does not have. */
+function replaceSections(
+  path: string,
+  source: string,
+  sections: SectionContent<ItemSectionFlag>,
+): { readonly source: string } | { readonly refusals: readonly string[] } {
+  let next = source;
   const refusals: string[] = [];
   for (const section of ITEM_SECTIONS) {
     const text = section.flag === null ? undefined : sections[section.flag];
     if (text === undefined) {
       continue;
     }
-    const replaced = withSectionText(source, section.name, text);
-    if (replaced === null) {
-      refusals.push(`${item.path}: has no ## ${section.name} section — every item carries one; restore it by hand`);
+    const headings = structuralHeadings(text);
+    const replaced = headings.length === 0 ? withSectionText(next, section.name, text) : null;
+    if (replaced !== null) {
+      next = replaced;
+    } else if (headings.length > 0) {
+      refusals.push(`${path}: the ${section.name} text carries a heading line (${headings.join(", ")}) — a section body holds none; fence it or drop it`);
     } else {
-      source = replaced;
+      refusals.push(`${path}: has no ## ${section.name} section — every item carries one; restore it by hand`);
     }
   }
-  if (refusals.length > 0) {
-    return { written: [], refusals };
+  return refusals.length > 0 ? { refusals } : { source: next };
+}
+
+/** Replace the body of the named sections of ONE item and judge the result like a `set`. The title, the
+ *  fields except `updated` and the other sections keep their text; the final format pass may still
+ *  normalise a sibling section that was not canonical. The section list must come out as it went in: an
+ *  item without the named section, new text with a `#` or `##` heading, or text that opens a fence it never
+ *  closes all refuse, because `introducedDocProblems` only subtracts findings the item already has and
+ *  would let such an edit through on an item that is already red. */
+export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
+  const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
+  if (item === undefined) {
+    return { written: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };
   }
-  const edit: DocEdit = { from: item.path, doc: { path: item.path, source: formattedDoc(withFields(source, { updated: date })) } };
+  const original = readDoc(item.path, repoRoot).source;
+  const replaced = replaceSections(item.path, original, sections);
+  if ("refusals" in replaced) {
+    return { written: [], refusals: replaced.refusals };
+  }
+  const edit: DocEdit = { from: item.path, doc: { path: item.path, source: formattedDoc(withFields(replaced.source, { updated: date })) } };
+  if (sectionList(edit.doc.source) !== sectionList(original)) {
+    return {
+      written: [],
+      refusals: [
+        `${item.path}: the edit would change its sections from [${sectionList(original)}] to [${sectionList(edit.doc.source)}] — check the text for an unclosed code fence`,
+      ],
+    };
+  }
   const problems = introducedDocProblems([edit], repoRoot);
   if (problems.length > 0) {
     return { written: [], refusals: problems };

@@ -10,7 +10,7 @@ import { drift, overview } from "./board.ts";
 import { formatDocs, formatTargets } from "./format.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { editItem, finishWrite, newItem, newItemsFrom, setItems, showItems } from "./items.ts";
+import { editItem, newItem, newItemsFrom, runWrite, setItems, showItems } from "./items.ts";
 import type { LandOutcome } from "./land.ts";
 import { landItems, landMerged, landStaged } from "./land.ts";
 import { newAdr, newLaw, newPlan } from "./new.ts";
@@ -81,8 +81,8 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
 
 /** `show`: each item's file under a `==> path <==` header, in the order given; an unknown id refuses by name
  *  while the others still print. */
-function runShow(ids: readonly number[]): ExitCode {
-  const { shown, refusals } = showItems(ids);
+function runShow(ids: readonly number[], repoRoot: string): ExitCode {
+  const { shown, refusals } = showItems(ids, repoRoot);
   for (const doc of shown) {
     print(`==> ${doc.path} <==`);
     print(doc.source.replace(/\n$/u, ""));
@@ -97,21 +97,21 @@ function runShow(ids: readonly number[]): ExitCode {
 // A landing can drain a plan or wake a blocked item, and nothing else reports that at the moment it
 // happens; print the board's drift right after any landing that wrote. A staged landing also prints the
 // record and `Closes:` line the caller pastes into its own commit message.
-function reportLanding(verb: string, outcome: LandOutcome): ExitCode {
+function reportLanding(verb: string, outcome: LandOutcome, repoRoot: string): ExitCode {
   const code = report(verb, outcome);
   if (outcome.staged !== undefined) {
     print(`\n${outcome.staged.record}\n\n${outcome.staged.closes}`);
   }
   if (outcome.written.length > 0) {
-    for (const line of drift()) {
+    for (const line of drift(repoRoot)) {
       print(`drift: ${line}`);
     }
   }
   return code;
 }
 
-function runDue(patterns: readonly string[]): ExitCode {
-  const docs = due(patterns);
+function runDue(patterns: readonly string[], repoRoot: string): ExitCode {
+  const docs = due(patterns, repoRoot);
   for (const doc of docs) {
     print(
       `${doc.path}: reviewed ${doc.updated}; changed since: ${doc.changed.map((change) => `${change.path} (${change.date})`).join(", ")} — pnpm doc review ${doc.path}`,
@@ -121,50 +121,66 @@ function runDue(patterns: readonly string[]): ExitCode {
   return EXIT.clean;
 }
 
-export function runDocCommand(command: DocCommand): ExitCode {
+/** Run one parsed command against `repoRoot` (the repository by default). */
+export function runDocCommand(command: DocCommand, repoRoot = root): ExitCode {
   switch (command.kind) {
     case "help":
       print(command.text);
       return EXIT.clean;
     case "new-adr":
-      return report("new adr", newAdr(command));
+      return report("new adr", newAdr(command, repoRoot));
     case "new-plan":
-      return report("new plan", newPlan(command));
+      return report("new plan", newPlan(command, repoRoot));
     case "new-law":
-      return report("new law", newLaw(command));
+      return report("new law", newLaw(command, repoRoot));
     case "item":
-      return report("item", finishWrite(newItem(command.input), command.commit, root));
+      return report(
+        "item",
+        runWrite(command.commit, repoRoot, () => newItem(command.input, repoRoot)),
+      );
     case "item-batch":
-      return report("item", finishWrite(newItemsFrom(command.from), command.commit, root));
+      return report(
+        "item",
+        runWrite(command.commit, repoRoot, () => newItemsFrom(command.from, repoRoot)),
+      );
     case "status":
-      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind, blocked: command.blocked }));
+      return report(
+        "status",
+        setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind, blocked: command.blocked }, repoRoot),
+      );
     case "set":
-      return report("set", finishWrite(setItems(command.ids, command.patch), command.commit, root));
+      return report(
+        "set",
+        runWrite(command.commit, repoRoot, () => setItems(command.ids, command.patch, repoRoot)),
+      );
     case "edit":
-      return report("edit", finishWrite(editItem(command.id, command.sections), command.commit, root));
+      return report(
+        "edit",
+        runWrite(command.commit, repoRoot, () => editItem(command.id, command.sections, repoRoot)),
+      );
     case "show":
-      return runShow(command.ids);
+      return runShow(command.ids, repoRoot);
     case "remove":
-      return report("remove", removeDocs(command.targets));
+      return report("remove", removeDocs(command.targets, repoRoot));
     case "land":
-      return reportLanding("land", landItems(command.ids, command.evidence));
+      return reportLanding("land", landItems(command.ids, command.evidence, repoRoot), repoRoot);
     case "land-stage":
-      return reportLanding("land --stage", landStaged(command.ids));
+      return reportLanding("land --stage", landStaged(command.ids, repoRoot), repoRoot);
     case "land-merged":
-      return reportLanding("land --merged", landMerged(undefined, undefined, command.headMerge));
+      return reportLanding("land --merged", landMerged(repoRoot, undefined, command.headMerge), repoRoot);
     case "index":
-      return report("index", { written: regenerateIndexes(), refusals: [] });
+      return report("index", { written: regenerateIndexes(repoRoot), refusals: [] });
     case "review":
-      return report("review", review(command.patterns));
+      return report("review", review(command.patterns, repoRoot));
     case "due":
-      return runDue(command.patterns);
+      return runDue(command.patterns, repoRoot);
     case "overview":
-      for (const line of overview(undefined, command.filter)) {
+      for (const line of overview(repoRoot, command.filter)) {
         print(line);
       }
       return EXIT.clean;
     case "drift":
-      for (const line of drift()) {
+      for (const line of drift(repoRoot)) {
         print(line);
       }
       return EXIT.clean;

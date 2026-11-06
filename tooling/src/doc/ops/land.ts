@@ -4,7 +4,8 @@
 // holds what the file held — each item's title, evidence and What text. An item another item or a parked
 // plan waits on is released in the same landing: its `on <id>` blocker names a file that is about to be
 // gone. An item a doc still refers to refuses, so a landing never leaves a dead link.
-// All-or-nothing: any refusal writes, stages and commits nothing.
+// All-or-nothing: any refusal writes, stages and commits nothing. A staging or commit step that fails after
+// the files are written leaves them written and says so, with the by-hand command.
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -14,7 +15,7 @@ import { closesTrailer } from "../lib/drift.ts";
 import { sectionText, splitDocument, withFields } from "../lib/frontmatter-write.ts";
 import type { LandingRecord, StagedLanding } from "../lib/items.ts";
 import { commitRefusal, landingMessage, parseBlocker, stagedLanding } from "../lib/items.ts";
-import { basenameOf } from "../lib/names.ts";
+import { basenameOf, parseNumberedName } from "../lib/names.ts";
 import { PARKED } from "../lib/rules.ts";
 import { loadPlans } from "./board.ts";
 import { introducedDocProblems } from "./check.ts";
@@ -32,6 +33,7 @@ import {
   mergedCommits,
   readDoc,
   root,
+  stagedWorkDeletions,
   stagePaths,
   TOOL_TRAILER,
   today,
@@ -89,6 +91,7 @@ function record(item: WorkItem, evidence: string | null, repoRoot: string): Land
 function writeLanding(ids: readonly number[], evidence: string | null, repoRoot: string, date: string): WrittenLanding {
   const items = loadItems(repoRoot);
   const byId = new Map(items.map((item) => [item.id, item] as const));
+  const stagedDeletions = stagedWorkDeletions(repoRoot);
   const targets: WorkItem[] = [];
   const skipped: string[] = [];
   const refusals: string[] = [];
@@ -99,7 +102,9 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
       continue;
     }
     const landed = landedCommit(id, repoRoot);
-    if (landed === null) {
+    if (landed === null && stagedDeletions.some((path) => parseNumberedName(basenameOf(path))?.id === id)) {
+      refusals.push(`${String(id)}: its landing is already staged — commit it with its Closes: ${String(id)} line, or unstage it`);
+    } else if (landed === null) {
       refusals.push(`${String(id)}: no such item under ${DOC_TOOL_TREES.work}, and git shows no landing for it — check the id`);
     } else {
       skipped.push(`${String(id)}: already landed at ${landed.slice(0, SHORT_SHA)}`);

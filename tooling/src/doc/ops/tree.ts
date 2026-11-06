@@ -13,6 +13,7 @@ import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
+import { isGeneratedPath } from "../lib/indexes.ts";
 import { isCommitId } from "../lib/items.ts";
 import { basenameOf, padId, parseNumberedName } from "../lib/names.ts";
 import { formatMarkdown } from "./format.ts";
@@ -233,11 +234,42 @@ export function stagePaths(paths: readonly string[], repoRoot = root): StageOutc
   return result.status === 0 ? { ok: true } : gitFailure("update-index", result);
 }
 
-/** Every path under the work tree with an uncommitted change — staged, unstaged or untracked, deletions
- *  included. Renames are listed as a delete and an add, so both halves are paths a commit must carry. */
-export function uncommittedWorkPaths(repoRoot = root): readonly string[] {
-  const out = git(repoRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames", "--", DOC_TOOL_TREES.work]);
-  return out === null ? [] : out.split("\0").flatMap((entry) => (entry === "" ? [] : [entry.slice(STATUS_PREFIX)]));
+interface StatusEntry {
+  readonly path: string;
+  /** The index column of `git status --porcelain`: `D` for a staged deletion. */
+  readonly index: string;
+}
+
+/** `git status` over `pathspecs` — staged, unstaged and untracked, deletions included. Renames are listed
+ *  as a delete and an add, so both halves are paths a commit must carry. */
+function statusEntries(repoRoot: string, pathspecs: readonly string[]): readonly StatusEntry[] {
+  const out = git(repoRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames", "--", ...pathspecs]);
+  return out === null ? [] : out.split("\0").flatMap((entry) => (entry === "" ? [] : [{ path: entry.slice(STATUS_PREFIX), index: entry.charAt(0) }]));
+}
+
+/** Every uncommitted path a board commit carries: all of `docs/work/`, plus the generated indexes and plan
+ *  task lists elsewhere in the governed trees, which are derived from the items being committed. */
+export function uncommittedBoardPaths(repoRoot = root): readonly string[] {
+  return statusEntries(repoRoot, DOC_TOOL_TREE_PREFIXES)
+    .map((entry) => entry.path)
+    .filter((path) => path.startsWith(DOC_TOOL_TREES.work) || isGeneratedPath(path));
+}
+
+/** The paths among `paths` that differ from HEAD in the working tree or the index. */
+export function changedPaths(paths: readonly string[], repoRoot = root): readonly string[] {
+  return statusEntries(repoRoot, paths).map((entry) => entry.path);
+}
+
+/** The item files under `docs/work/` whose deletion is staged: a `land --stage` waiting for its commit. */
+export function stagedWorkDeletions(repoRoot = root): readonly string[] {
+  return statusEntries(repoRoot, [DOC_TOOL_TREES.work])
+    .filter((entry) => entry.index === "D")
+    .map((entry) => entry.path);
+}
+
+/** True while a merge waits for its commit: git's `MERGE_HEAD` exists. */
+export function mergeInProgress(repoRoot = root): boolean {
+  return git(repoRoot, ["rev-parse", "-q", "--verify", "MERGE_HEAD"]) !== null;
 }
 
 /** Commit the named paths ALONE, through plumbing, from a merge hook or by hand.
@@ -261,7 +293,7 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
       env: inheritedProcessEnv({ [HUMAN_COMMIT_WAIVER_ENV]: undefined }),
     });
     if (contract.status !== 0) {
-      return { ok: false, reason: `the commit message fails the commit-message contract:${`${contract.stdout}${contract.stderr}`.trim()}` };
+      return { ok: false, reason: `the commit message fails the commit-message contract: ${`${contract.stdout}${contract.stderr}`.trim()}` };
     }
     const scoped = { extra: { ["GIT_INDEX_FILE"]: join(scratch, "index") } };
     const steps: readonly (readonly [string, readonly string[]])[] = [
@@ -329,11 +361,13 @@ export function workFileNamesAt(rev: string, repoRoot = root): readonly string[]
   return out === null ? [] : out.split(/\r?\n/u).flatMap((line) => (line === "" ? [] : [basenameOf(line)]));
 }
 
-/** The commit that deleted item `id`'s file — its landing — or null when git has none. `-m` diffs a merge
- *  commit against each parent: a `land --stage` deletion committed inside a merge is otherwise invisible,
- *  because `git log` prints no diff for a merge. */
+/** The commit that deleted item `id`'s file — its landing — or null when git has none. `-c` gives a merge
+ *  commit a combined diff, which lists a file only when the merge differs from EVERY parent: a deletion
+ *  made inside the merge (a `land --stage` committed with it) counts, while a merge that merely carries
+ *  a deletion one parent already had — or an `ours` merge that drops a file — does not. Git prints the
+ *  patch after the hash, so only the first line is read. */
 export function landedCommit(id: number, repoRoot = root): string | null {
-  const out = git(repoRoot, ["log", "-1", "-m", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`]) ?? "";
+  const out = git(repoRoot, ["log", "-1", "-c", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`]) ?? "";
   const [first = ""] = out.trim().split(/\r?\n/u);
   return first === "" ? null : first;
 }

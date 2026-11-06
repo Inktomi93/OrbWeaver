@@ -164,6 +164,7 @@ function parseNew(args: readonly string[]): DocCommand {
 const FROM_FLAG = "--from";
 /** The flag that commits a board write; it takes no value, so it is never in a value-flag list. */
 const COMMIT_FLAG = "--commit";
+const STAGE_FLAG = "--stage";
 const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane", "--blocked", ...contentFlagNames(ITEM_CONTENT_FLAGS), FROM_FLAG];
 
 /** `item --from <file>` stands alone: every field of every item lives in the file. */
@@ -286,15 +287,20 @@ function parseSet(args: readonly string[]): DocCommand {
   if (Object.keys(patch).length === 0) {
     throw new UsageError(`set names a state or at least one field\n${USAGE}`);
   }
-  return { kind: "set", ids: idList, patch, commit: args.includes(COMMIT_FLAG) };
+  const commit = args.includes(COMMIT_FLAG);
+  if (commit && patch.title !== undefined) {
+    throw new UsageError(
+      `set --title cannot take ${COMMIT_FLAG}: a retitle rewrites references in files outside the board, and the commit would carry a sibling's edits in them — retitle, then commit by hand\n${usageFor("set")}`,
+    );
+  }
+  return { kind: "set", ids: idList, patch, commit };
 }
 
-/** `--head-merge` selects the post-commit range (`HEAD^1..HEAD`, only right when HEAD is itself a merge
- *  commit); its absence keeps the post-merge range (`ORIG_HEAD..HEAD`). The two hooks pick the flag by
- *  which one fired them, never by HEAD's shape — a fast-forward onto a branch whose tip is a merge commit
- *  still fires post-merge, and `HEAD^1..HEAD` there would drop every id on the first-parent side. */
-const STAGE_FLAG = "--stage";
-
+/** `--head-merge` selects the range `HEAD^1..HEAD`, only right when HEAD is itself a merge commit; its
+ *  absence keeps `ORIG_HEAD..HEAD`. The caller picks the flag by which merge just ended, never by HEAD's
+ *  shape — a fast-forward onto a branch whose tip is a merge commit is still a plain merge, and
+ *  `HEAD^1..HEAD` there would drop every id on the first-parent side. `--stage` is the landing without a
+ *  commit; it takes ids and no evidence. */
 function parseLand(args: readonly string[]): DocCommand {
   if (args[0] === "--merged") {
     const rest = args.slice(1);

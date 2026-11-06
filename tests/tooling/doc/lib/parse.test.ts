@@ -213,6 +213,7 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["land", "abc1234", "--stage"],
     ["land", "3"],
     ["set", "1", "--commit"],
+    ["set", "1", "doing", "--title", "A new title", "--commit"],
     ["set", "1", "doing", "--lane", "--commit"],
     ["item", "--from", "items.json", "--commit", "--kind", "work"],
     ["item", "Title", "--kind", "work", "--commit", "--bogus"],

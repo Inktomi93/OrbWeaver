@@ -78,24 +78,62 @@ export function titleOf(body: string): string | null {
   return HEADING_RE.exec(body)?.[1] ?? null;
 }
 
-/** The line range of one `## ` section: its heading line, and the next heading outside a code fence (or
- *  the end). Null when the body has no such section. */
-function sectionRange(lines: readonly string[], name: string): { readonly start: number; readonly end: number } | null {
-  let start = -1;
-  let inFence = false;
+/** One ATX heading outside a code fence: its line index, level (1 to 6) and text. */
+interface Heading {
+  readonly line: number;
+  readonly level: number;
+  readonly text: string;
+}
+
+const FENCE_LINE_RE = /^\s*(`{3,}|~{3,})(.*)$/u;
+const HEADING_LINE_RE = /^(#{1,6}) (.+?)\s*$/u;
+
+/** THE heading scanner: every ATX heading outside a code fence. A fence closes only on the same character,
+ *  at least as long as its opener, with nothing after it, so a four-backtick block can hold three-backtick
+ *  lines and a `## ` line. An unclosed fence swallows the rest of the text. */
+function scanHeadings(lines: readonly string[]): readonly Heading[] {
+  const found: Heading[] = [];
+  let opener: string | null = null;
   for (const [index, line] of lines.entries()) {
-    if (/^\s*(```|~~~)/u.test(line)) {
-      inFence = !inFence;
-    } else if (!inFence && line.startsWith("## ")) {
-      if (start !== -1) {
-        return { start, end: index };
+    const [, marker = "", rest = ""] = FENCE_LINE_RE.exec(line) ?? [];
+    if (opener !== null) {
+      if (marker !== "" && marker.startsWith(opener.charAt(0)) && marker.length >= opener.length && rest.trim() === "") {
+        opener = null;
       }
-      if (line.trimEnd() === `## ${name}`) {
-        start = index;
+    } else if (marker !== "") {
+      opener = marker;
+    } else {
+      const [, hashes = "", text = ""] = HEADING_LINE_RE.exec(line) ?? [];
+      if (hashes !== "") {
+        found.push({ line: index, level: hashes.length, text });
       }
     }
   }
-  return start === -1 ? null : { start, end: lines.length };
+  return found;
+}
+
+/** The H1 and H2 headings of a text, in order: the ones that would restructure an item if they landed in
+ *  a section body. */
+export function structuralHeadings(text: string): readonly string[] {
+  return scanHeadings(text.split(/\r?\n/u))
+    .filter((heading) => heading.level <= 2)
+    .map((heading) => `${"#".repeat(heading.level)} ${heading.text}`);
+}
+
+/** The `## ` headings of a body, in order. */
+export function sectionsOf(body: string): readonly string[] {
+  return scanHeadings(body.split(/\r?\n/u))
+    .filter((heading) => heading.level === 2)
+    .map((heading) => heading.text);
+}
+
+/** The line range of one `## ` section: its heading line up to the next `## ` heading (or the end). Null
+ *  when the lines have no such section. */
+function sectionRange(lines: readonly string[], name: string): { readonly start: number; readonly end: number } | null {
+  const sections = scanHeadings(lines).filter((heading) => heading.level === 2);
+  const at = sections.findIndex((heading) => heading.text === name);
+  const start = sections[at]?.line;
+  return start === undefined ? null : { start, end: sections[at + 1]?.line ?? lines.length };
 }
 
 /** The text under one `## ` heading of a body, trimmed; empty when the section is absent. */
@@ -110,8 +148,9 @@ export function sectionText(body: string, name: string): string {
         .trim();
 }
 
-/** The document with the body of one `## ` section replaced by `text`, its heading and every other section
- *  byte-identical; null when the document has no such section. */
+/** The document with the body of one `## ` section replaced by `text`; its heading and the other sections
+ *  are untouched here (the caller's format pass may still normalise a sibling that was not canonical).
+ *  Null when the document has no such section. */
 export function withSectionText(source: string, name: string, text: string): string | null {
   const lines = source.split("\n");
   const range = sectionRange(lines, name);
@@ -119,21 +158,4 @@ export function withSectionText(source: string, name: string, text: string): str
     return null;
   }
   return [...lines.slice(0, range.start + 1), "", ...text.trim().split("\n"), "", ...lines.slice(range.end)].join("\n");
-}
-
-/** The `## ` headings of a body, in order. */
-export function sectionsOf(body: string): readonly string[] {
-  const out: string[] = [];
-  let inFence = false;
-  for (const line of body.split(/\r?\n/u)) {
-    if (/^\s*(```|~~~)/u.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    const heading = inFence ? undefined : /^## (.+?)\s*$/u.exec(line)?.[1];
-    if (heading !== undefined) {
-      out.push(heading);
-    }
-  }
-  return out;
 }
