@@ -69,6 +69,35 @@ for (const regime of REGIMES) {
   });
 }
 
+test.describe("coarse landscape rail fade", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+  test("the section scroller fades only the edge with more sections beyond it", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+    });
+    await seedShellState(page, { activeSection: "home" });
+    await mount<typeof SectionShellStory>(STORY, { section: "home" });
+    const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(".shell-rail-sections");
+    const edges = async (): Promise<{ top: boolean; bottom: boolean }> =>
+      await sections.evaluate((node) => ({ top: node.hasAttribute("data-fade-top"), bottom: node.hasAttribute("data-fade-bottom") }));
+    await sections.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await expect.poll(edges).toEqual({ top: false, bottom: true });
+    await sections.evaluate((node) => {
+      node.scrollTop = (node.scrollHeight - node.clientHeight) / 2;
+    });
+    await expect.poll(edges).toEqual({ top: true, bottom: true });
+    await sections.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    await expect.poll(edges).toEqual({ top: true, bottom: false });
+  });
+});
+
 async function withinViewport(control: Locator): Promise<void> {
   await expect(control).toBeInViewport();
   const box = await settledBox(control);
