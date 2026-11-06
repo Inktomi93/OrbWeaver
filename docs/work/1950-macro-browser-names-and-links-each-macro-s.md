@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Keep MacroSourceRef.id and wire it: the macro browser shows the preset, game or plugin name and links to where the macro is edited. Today it shows only a generic kind.
+Keep MacroSourceRef.id and show each macro's real source. The browser mounts only in the preset editor and builds its registry from that preset, so game and plugin macros never reach any client. Add a read verb returning the room's macro catalog by source group, with a resolved display name and link target, and a room surface that mounts the browser on it.
 
 ## Why
 
@@ -19,7 +19,7 @@ With several plugins installed, a generic label does not say where a macro lives
 
 ## Done when
 
-Each source kind shows its real name and links to its editor, an unreachable source shows the name with no link, and a room member sees no private source name.
+A room surface lists preset, game and plugin macros; each source kind shows its real name and links to its editor, an unreachable source shows the name with no link, and a room member sees the kind with no private source name.
 
 ## Evidence
 
