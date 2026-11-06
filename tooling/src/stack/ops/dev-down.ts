@@ -6,10 +6,12 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
-import type { ListeningPortsRead } from "../../floor/host/platform.ts";
-import { listeningPids, processGroupId, processInfo } from "../../floor/host/platform.ts";
+import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
+import { listeningPids, processCompletion, processGroupId, processInfo } from "../../floor/host/platform.ts";
+import { sameIncarnation } from "../../floor/process/incarnation.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
+import type { StopTiming } from "../../floor/process/stop-escalation.ts";
 import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
@@ -32,6 +34,10 @@ export function result(line: string): void {
 export interface DevPortDeps {
   readonly readPorts: () => ListeningPortsRead;
   readonly process?: ProcessGroupDeps;
+  /** A holder's incarnation, read before a stop and again before every signal; the real read when absent. */
+  readonly incarnationOf?: (pid: number) => ProcessCompletion;
+  /** The poll interval and the TERM and KILL graces of a holder stop; the real ones when absent. */
+  readonly timing?: StopTiming;
 }
 
 export const REAL_PORT_DEPS: DevPortDeps = { readPorts: () => listeningPids() };
@@ -148,6 +154,8 @@ interface PortHolder {
   readonly port: number;
   readonly pid: number;
   readonly cmdline: string | null;
+  /** The pid held this checkout's port when the stop began, but a later signal found a different process there. */
+  readonly replaced?: true;
 }
 
 type PortSweep =
@@ -160,7 +168,7 @@ type PortSweep =
   | { readonly kind: "unreadable"; readonly reason: string };
 
 /** How a wait for one port ended; `unreadable` wins over the wait, because a silent table is not a free port. */
-type PortWait = { readonly kind: "free" } | { readonly kind: "held" } | { readonly kind: "unreadable"; readonly reason: string };
+type PortWait = { readonly kind: "free" } | { readonly kind: "held"; readonly replaced?: true } | { readonly kind: "unreadable"; readonly reason: string };
 
 /** One port's end state after the sweep looked at it. */
 type PortOutcome =
@@ -196,8 +204,9 @@ function waitOutcome(watch: ReturnType<typeof portWatch>, freed: boolean): PortW
   return freed ? { kind: "free" } : { kind: "held" };
 }
 
-/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. */
-async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
+/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. Each signal reaches only the
+ *  incarnation `pinned` recorded before its ownership was judged, so a pid reused during the grace is spared. */
+async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
   if ((deps.process?.platform ?? process.platform) === "win32") {
     const tree = captureProcessGroup(pid, deps.process);
     return waitOutcome(
@@ -211,12 +220,22 @@ async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>, deps
       }),
     );
   }
-  return waitOutcome(watch, await escalateStop({ signal: (signal) => signalHolder(pid, signal), gone: watch.free }));
+  const incarnationOf = deps.incarnationOf ?? processCompletion;
+  let refusals = 0;
+  const signal = (kind: NodeJS.Signals): void => {
+    if (sameIncarnation(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
+      signalHolder(pid, kind);
+    } else {
+      refusals += 1;
+    }
+  };
+  const wait = waitOutcome(watch, await escalateStop({ signal, gone: watch.free, ...(deps.timing === undefined ? {} : { timing: deps.timing }) }));
+  return wait.kind === "held" && refusals > 0 ? { kind: "held", replaced: true } : wait;
 }
 
 function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
   if (wait.kind === "held") {
-    return { kind: "held", holder };
+    return { kind: "held", holder: wait.replaced === true ? { ...holder, replaced: true } : holder };
   }
   return wait.kind === "free" ? { kind: "freed" } : wait;
 }
@@ -249,6 +268,8 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
   }
   const pid = owner.pid;
   const watch = portWatch(port, deps);
+  // Read before the command line: a pid reused between the two reads then fails the identity check at the signal.
+  const pinned = (deps.incarnationOf ?? processCompletion)(pid);
   const info = processInfo(pid);
   // A holder with no command line is on its way out (the first port's group kill reaches this one too, and
   // an exiting process keeps its pid and its socket row for a moment, not its argv): wait for the port
@@ -260,8 +281,11 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
   if (!cmdlineNamesCheckout(info.cmdline, ctx.repoRoot)) {
     return { kind: "held", holder };
   }
+  if (pinned.kind === "unknown") {
+    return { kind: "unreadable", reason: `pid ${String(pid)} holds :${String(port)} for this checkout, but its identity could not be read before a stop` };
+  }
   log(`:${String(port)} is still held by pid ${String(pid)} from this checkout; stopping its group`);
-  return outcomeOf(await stopHolder(pid, watch, deps), holder);
+  return outcomeOf(await stopHolder(pid, pinned, watch, deps), holder);
 }
 
 /** The ports after the record: a holder whose command line names this checkout is stopped through its
@@ -337,7 +361,9 @@ export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: bool
   if (sweep.refused.length > 0) {
     for (const holder of sweep.refused) {
       log(
-        `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`,
+        holder.replaced === true
+          ? `REFUSED :${String(holder.port)} — pid ${String(holder.pid)} held it for this checkout when the stop began, but is no longer that process; its group was not signalled again; check what holds the port`
+          : `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`,
       );
     }
     result(`status=port-conflict ${sweep.refused.map((holder) => `port=${String(holder.port)} pid=${String(holder.pid)}`).join(" ")}`);

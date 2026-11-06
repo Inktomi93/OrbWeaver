@@ -12,7 +12,7 @@
 // derived value is a second home that drifts. Ports ARE stored because they are the band's identity as the
 // row was written — a row whose ports disagree with `stageBandPorts(row.band)` is evidence of a registry
 // edit, not something to silently paper over.
-import type { ListeningPortsRead } from "../../floor/host/platform.ts";
+import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
 import type { ServedState } from "../../stack/index.ts";
 
 export interface StagePorts {
@@ -29,6 +29,8 @@ export type StageStopVerdict = { readonly kind: "stopped" } | { readonly kind: "
 export interface StageStopDeps {
   readonly readPorts: () => ListeningPortsRead;
   readonly isStageRooted: (pid: number) => boolean;
+  /** A holder's incarnation, read before it is judged and again before every signal to its group. */
+  readonly incarnationOf: (pid: number) => ProcessCompletion;
   readonly groupOf: (pid: number) => number | null;
   readonly signalGroup: (target: number, signal: NodeJS.Signals) => void;
   readonly wait: (ms: number) => void;

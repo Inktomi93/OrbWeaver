@@ -154,6 +154,89 @@ test("strong sweep accepts a zombie but refuses a newly owned survivor and an un
   ).rejects.toThrow("unreadable final table");
 });
 
+// The weak door: the timeout teardown that surface-walk and the corpus scripts hand to the transcript runner.
+test("the timeout teardown never KILLs a pid that was replaced during the grace", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  let replaced = false;
+  const line = await runMarkerTranscriptTeardown(marker, {
+    ...base,
+    completionOf: () => ({ kind: "live", identity: replaced ? "replacement" : "original" }),
+    sleep: (): Promise<void> => {
+      replaced = true;
+      return Promise.resolve();
+    },
+  }).afterTimeoutKill();
+  expect(base.signalled).toEqual([[810, "SIGTERM"]]);
+  expect(line, "the receipt names only what was signalled").not.toContain("SIGKILL");
+});
+
+test("the timeout teardown still KILLs a survivor of the same incarnation, and refuses an unreadable identity", async () => {
+  const marker = mintRunMarker(800, 1_700_000_000_000);
+  const survivor = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  const line = await runMarkerTranscriptTeardown(marker, { ...survivor, completionOf: () => ({ kind: "live", identity: "original" }) }).afterTimeoutKill();
+  expect(survivor.signalled).toEqual([
+    [810, "SIGTERM"],
+    [810, "SIGKILL"],
+  ]);
+  expect(line).toContain("SIGKILL 810");
+  const unreadable = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+  await expect(runMarkerTranscriptTeardown(marker, { ...unreadable, completionOf: () => ({ kind: "unknown" }) }).afterTimeoutKill()).rejects.toThrow(
+    "identity unavailable",
+  );
+  expect(unreadable.signalled).toEqual([]);
+});
+
+// The identity read is per platform; these drive the real reader with the tool output each OS documents.
+// Never captured from a macOS or Windows host here.
+const cimRow = (identity: string): string => `[{"pid":810,"identity":"${identity}"}]`;
+const IDENTITY_READS = [
+  { platform: "darwin", before: "Ss   Thu Nov  6 14:03:22 2026\n", after: "Ss   Thu Nov  6 14:09:41 2026\n" },
+  { platform: "win32", before: cimRow("639000000000000001"), after: cimRow("639000000000000002") },
+] as const;
+
+for (const { platform, before, after } of IDENTITY_READS) {
+  for (const replaced of [true, false]) {
+    test(`on ${platform} the timeout teardown ${replaced ? "never KILLs a replaced pid" : "still KILLs the same incarnation"}`, async () => {
+      const marker = mintRunMarker(800, 1_700_000_000_000);
+      const base = fakeTree(new Map([[810, { marker, parent: 1 }]]), 1);
+      let graced = false;
+      await runMarkerTranscriptTeardown(marker, {
+        ...base,
+        completionOf: (pid) => processCompletion(pid, { platform, run: () => ({ status: 0, stdout: graced && replaced ? after : before, stderr: "" }) }),
+        sleep: (): Promise<void> => {
+          graced = true;
+          return Promise.resolve();
+        },
+      }).afterTimeoutKill();
+      expect(base.signalled).toEqual(
+        replaced
+          ? [[810, "SIGTERM"]]
+          : [
+              [810, "SIGTERM"],
+              [810, "SIGKILL"],
+            ],
+      );
+    });
+  }
+}
+
+test("the abandoned sweep never KILLs a pid replaced during the grace", async () => {
+  const dead = mintRunMarker(600, 1_700_000_000_000);
+  const base = fakeTree(new Map([[601, { marker: dead, parent: 1 }]]), 1);
+  let replaced = false;
+  await sweepAbandonedRunMarkers({
+    ...base,
+    alive: (pid) => pid !== 600,
+    completionOf: () => ({ kind: "live", identity: replaced ? "replacement" : "original" }),
+    sleep: (): Promise<void> => {
+      replaced = true;
+      return Promise.resolve();
+    },
+  });
+  expect(base.signalled).toEqual([[601, "SIGTERM"]]);
+});
+
 function fakeTree(
   rows: ReadonlyMap<number, { readonly marker: string | null; readonly lease?: string; readonly parent: number }>,
   self: number,
@@ -167,6 +250,7 @@ function fakeTree(
     identitiesOf: (pid): readonly string[] => [rows.get(pid)?.marker ?? null, rows.get(pid)?.lease ?? null].filter((v): v is string => v !== null),
     parentOf: (pid): number | null => rows.get(pid)?.parent ?? null,
     alive: (pid): boolean => rows.has(pid) && !dead.has(pid),
+    completionOf: (pid) => (rows.has(pid) && !dead.has(pid) ? { kind: "live", identity: `start-${String(pid)}` } : { kind: "gone" }),
     signal: (pid, signal): void => {
       signalled.push([pid, signal]);
     },
