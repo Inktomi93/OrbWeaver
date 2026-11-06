@@ -33,6 +33,21 @@ test("edit replaces the named section bodies and bumps updated; the other sectio
   );
 });
 
+test("edit replaces the Evidence section through the same judged write", async ({ plantedTree }) => {
+  const root = await rootWithItem(plantedTree);
+  const before = read(root, ITEM);
+  const outcome = editItem(1, { evidence: "Ran the suite; output is in the lane report." }, root, LATER);
+  expect(outcome.refusals).toEqual([]);
+  expect(read(root, ITEM)).toBe(
+    before
+      .replace("Filled at landing: what ran and where its output is.", "Ran the suite; output is in the lane report.")
+      .replace(`updated: ${TODAY}`, `updated: ${LATER}`),
+  );
+  const belt = editItem(1, { evidence: "A load-bearing belt." }, root, LATER);
+  expect(belt.written).toEqual([]);
+  expect(belt.refusals.join("\n")).toContain("load-bearing");
+});
+
 test("edit judges the write like set: a writing-rule finding refuses and changes nothing", async ({ plantedTree }) => {
   const root = await rootWithItem(plantedTree);
   const before = read(root, ITEM);

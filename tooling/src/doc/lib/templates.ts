@@ -2,10 +2,10 @@
 // `lib/rules.ts` requires for the kind. A section the author filled at mint time (its content flag)
 // carries that text; any other keeps a one-line prompt, so a minted file is never a silent placeholder:
 // the check reads the section, the author replaces the line.
-import type { AdrSectionFlag, ItemSectionFlag, PlanSectionFlag, SectionContent } from "../contract/types.ts";
+import type { AdrSectionFlag, ItemEditFlag, ItemSectionFlag, PlanSectionFlag, SectionContent } from "../contract/types.ts";
 import { renderFrontmatter } from "./frontmatter-write.ts";
 
-/** `flag` is the section's content flag, or null for a section only a later verb fills. */
+/** `flag` is the section's content flag, or null for a section no verb fills from text. It need not be a mint flag: Evidence's is `edit`-only. */
 interface Section<F extends string> {
   readonly name: string;
   readonly prompt: string;
@@ -27,11 +27,11 @@ export const PLAN_SECTIONS: readonly Section<PlanSectionFlag>[] = [
   { name: "Test plan", prompt: "Each red-first test and its planted control; the suites that run.", flag: "test-plan" },
 ];
 
-export const ITEM_SECTIONS: readonly Section<ItemSectionFlag>[] = [
+export const ITEM_SECTIONS: readonly Section<ItemEditFlag>[] = [
   { name: "What", prompt: "The change, in a sentence.", flag: "what" },
   { name: "Why", prompt: "The symptom or the ruling behind it.", flag: "why" },
   { name: "Done when", prompt: "The observable bar a verifier can check.", flag: "done" },
-  { name: "Evidence", prompt: "Filled at landing: what ran and where its output is.", flag: null },
+  { name: "Evidence", prompt: "Filled at landing: what ran and where its output is.", flag: "evidence" },
 ];
 
 export function sectionNames<F extends string>(sections: readonly Section<F>[]): readonly string[] {
@@ -61,5 +61,5 @@ export function lawTemplate(title: string, today: string): string {
 }
 
 export function itemTemplate(fields: Readonly<Record<string, string>>, title: string, content: SectionContent<ItemSectionFlag> = {}): string {
-  return `${renderFrontmatter(fields)}\n# ${title}\n\n${render(ITEM_SECTIONS, content)}`;
+  return `${renderFrontmatter(fields)}\n# ${title}\n\n${render<ItemEditFlag>(ITEM_SECTIONS, content)}`;
 }

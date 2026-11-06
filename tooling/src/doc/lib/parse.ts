@@ -3,7 +3,7 @@
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { DocCommand, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
-import { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
+import { ADR_SECTION_FLAGS, ITEM_EDIT_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { ITEM_STATES } from "../contract/vocab.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
@@ -29,7 +29,7 @@ const VERB_USAGE = {
     "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
     "       [--plan s] [--reviewed x] [--evidence sha] [--commit]      (--<field> - or --<field> none clears a field)",
   ],
-  edit: ["  edit <id> [--what <text>] [--why <text>] [--done <text>] [--commit]      replace those sections of one item"],
+  edit: ["  edit <id> [--what <text>] [--why <text>] [--done <text>] [--evidence <text>] [--commit]      replace those sections of one item"],
   show: ["  show <id…>                          print each item's file under a path header, in the order given"],
   remove: ["  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)"],
   land: [
@@ -210,11 +210,11 @@ function parseItem(args: readonly string[]): DocCommand {
 
 /** `edit <id>` rewrites the body of the sections it is given, so at least one section flag is required. */
 function parseEdit(args: readonly string[]): DocCommand {
-  const sectionFlags = contentFlagNames(ITEM_CONTENT_FLAGS);
+  const sectionFlags = contentFlagNames(ITEM_EDIT_FLAGS);
   refuseUnknownFlags(args, [...sectionFlags, COMMIT_FLAG], "edit");
   const tokens = positionals(args, sectionFlags);
   const [id] = ids(tokens, "edit");
-  const sections = parseContent(args, ITEM_CONTENT_FLAGS);
+  const sections = parseContent(args, ITEM_EDIT_FLAGS);
   if (tokens.length !== 1 || id === undefined) {
     throw new UsageError(`edit takes exactly one item id\n${usageFor("edit")}`);
   }
