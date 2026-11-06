@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-tests/client/features/chat/components/composer-two-rows.ct.tsx fails on main in both landscape keyboard cases with a row overlap. Find whether the composer rows overlap on screen, or whether the test measures a display contents box that reports zero.
+Cause: the keyboard-up rule in packages/client/src/styles/globals.css sets the composer-input row to display: contents, so its own getBoundingClientRect is 0x0 and the test's row overlap read the upper row's bottom edge (51 and 85). On screen the rows do not overlap. The test now measures the rows' children when the row has no box of its own, in expectRowsFit and in the keyboard-layout facts, and keeps every assertion.
 
 ## Why
 
