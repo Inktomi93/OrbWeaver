@@ -8,7 +8,7 @@ import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
 import { listeningPids, processCompletion, processGroupId, processInfo } from "../../floor/host/platform.ts";
-import { sameIncarnation } from "../../floor/process/incarnation.ts";
+import { pidReplaced } from "../../floor/process/incarnation.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
 import type { StopTiming } from "../../floor/process/stop-escalation.ts";
@@ -223,10 +223,10 @@ async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnT
   const incarnationOf = deps.incarnationOf ?? processCompletion;
   let refusals = 0;
   const signal = (kind: NodeJS.Signals): void => {
-    if (sameIncarnation(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
-      signalHolder(pid, kind);
-    } else {
+    if (pidReplaced(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
       refusals += 1;
+    } else {
+      signalHolder(pid, kind);
     }
   };
   const wait = waitOutcome(watch, await escalateStop({ signal, gone: watch.free, ...(deps.timing === undefined ? {} : { timing: deps.timing }) }));

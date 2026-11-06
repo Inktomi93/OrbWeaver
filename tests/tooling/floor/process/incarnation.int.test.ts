@@ -5,7 +5,7 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { processCompletion } from "@orb/tooling/floor/host/platform";
 import { killPidGroup, spawnFullPriorityChild } from "@orb/tooling/floor/process/proc";
-import { sameIncarnation } from "../../../../tooling/src/floor/process/incarnation.ts";
+import { pidReplaced, sameIncarnation } from "../../../../tooling/src/floor/process/incarnation.ts";
 import { incarnationGuard } from "../../../../tooling/src/floor/process/run-marker-join.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -26,6 +26,11 @@ test("a live child has a start-time identity, and the real stop door ends that i
     const live = processCompletion(pid);
     expect(live).toEqual({ kind: "live", identity: expect.stringMatching(/\S/u) });
     expect(sameIncarnation(pid, live, processCompletion, "disposable child")).toBe(true);
+    expect(pidReplaced(pid, live, processCompletion, "disposable child")).toBe(false);
+    expect(
+      pidReplaced(pid, { kind: "live", identity: "another" }, processCompletion, "disposable child"),
+      "a live pid with another start is a replacement",
+    ).toBe(true);
 
     // The guard sends through a recorder here, so only the door below signals a real process.
     const sent: string[] = [];
@@ -44,6 +49,7 @@ test("a live child has a start-time identity, and the real stop door ends that i
     await expect.poll(() => processCompletion(pid), { timeout: READ_TIMEOUT_MS, interval: READ_INTERVAL_MS }).toEqual({ kind: "gone" });
 
     expect(sameIncarnation(pid, live, processCompletion, "disposable child"), "an exited pid is not the incarnation recorded").toBe(false);
+    expect(pidReplaced(pid, live, processCompletion, "disposable child"), "an exited pid is not a replacement: its group may outlive it").toBe(false);
     expect(guard.signal(pid, "SIGKILL"), "an exited pid is refused").toBe(false);
     expect(sent, "and never signalled").toEqual([`${String(pid)} SIGTERM`]);
   } finally {

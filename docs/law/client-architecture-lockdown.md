@@ -243,11 +243,11 @@ Applications: sections (§6) · settings panes (§8) · contributors (§6c) · m
 ### 6a. SectionDefinition (absorbs six structures)
 
 A `SectionDefinition` carries its rail identity, panel defaults, placeholder, content, content-inset declaration, selection title, and context.
-A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
+A list-bearing section declares its selection seam and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
 The shell applies `--spacing-section` as the CONTENT inline inset. Where the shell main is under 20rem wide, an inset region takes `--spacing-block` instead, so a control row of its own width fits. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
-Every LIST pane is a `#components` `ListPage`, which marks its search with `ListSearch`. `orb/page-template-shapes` refuses `ListSearch` in a feature.
-A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
+Every LIST pane is a `#components` `ListPage`, the one home for list search. A section declares no search policy. `ListPage` requires its `search` prop, `orb/page-template-shapes` refuses `ListSearch` in a feature, and `tests/client/features/app-shell/surfaces/section-roster-census.ct.tsx` asserts every rendered roster has a search box.
+Type tests reject omitted band and inset declarations.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 
 - One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; Ownership follows the definition location, not the section name.

@@ -30,7 +30,7 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { listeningPids, processCompletion } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
-import { sameIncarnation } from "../../floor/process/incarnation.ts";
+import { pidReplaced } from "../../floor/process/incarnation.ts";
 import { killPidGroup, runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { escalateStopSync } from "../../floor/process/stop-escalation.ts";
@@ -91,13 +91,13 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
     }
     return !read.value.has(port);
   };
-  // Each signal reaches only the incarnation judged above; a pid reused during the grace keeps its group.
+  // A pid reused during the grace keeps its group; a holder that exited on TERM does not spare group members still holding the port.
   const refused: NodeJS.Signals[] = [];
   const signal = (kind: NodeJS.Signals): void => {
-    if (sameIncarnation(owner.pid, pinned, deps.incarnationOf, `stage pid ${String(owner.pid)}`)) {
-      deps.signalGroup(target, kind);
-    } else {
+    if (pidReplaced(owner.pid, pinned, deps.incarnationOf, `stage pid ${String(owner.pid)}`)) {
       refused.push(kind);
+    } else {
+      deps.signalGroup(target, kind);
     }
   };
   const freed = escalateStopSync({ signal, gone: free }, deps.wait);

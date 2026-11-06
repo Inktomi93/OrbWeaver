@@ -9,6 +9,7 @@ import { join } from "node:path";
 import process from "node:process";
 import type { FullPriorityChild, RunNicedSyncOptions, RunNicedSyncResult } from "../process/proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "../process/proc.ts";
+import { inheritedProcessEnv } from "../process/process-env.ts";
 import type { PnpmInvocation, ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
 import {
   parseCimCompletion,
@@ -45,7 +46,7 @@ export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
  *  fixture output and a fake `/proc`. Production callers take the defaults. */
 export interface PlatformDeps extends ProcReads {
   readonly platform?: NodeJS.Platform;
-  readonly run?: (cmd: string, args: readonly string[]) => RunNicedSyncResult;
+  readonly run?: (cmd: string, args: readonly string[], options?: Pick<RunNicedSyncOptions, "env">) => RunNicedSyncResult;
   /** Starts the default-browser opener; `openUrl` releases it at once and reads how it ended. */
   readonly launch?: (cmd: string, args: readonly string[]) => OpenerChild;
 }
@@ -91,8 +92,8 @@ function supportedPlatform(deps: PlatformDeps): SupportedPlatform | null {
   return isSupported(platform) ? platform : null;
 }
 
-function runOf(deps: PlatformDeps): (cmd: string, args: readonly string[]) => RunNicedSyncResult {
-  return deps.run ?? ((cmd, args): RunNicedSyncResult => runNicedSync(cmd, args));
+function runOf(deps: PlatformDeps): NonNullable<PlatformDeps["run"]> {
+  return deps.run ?? ((cmd, args, options): RunNicedSyncResult => runNicedSync(cmd, args, options));
 }
 
 function stdoutOf(result: RunNicedSyncResult): string {
@@ -305,6 +306,8 @@ export function processCompletion(pid: number, deps: PlatformDeps = {}): Process
   return platform === null ? { kind: "unknown" } : processCompletionOn(platform, pid, deps);
 }
 
+const LOCALE_ENV = "LC_ALL";
+
 /** `ps` exits 1 with both streams empty when no process matches the pid. */
 const PS_NO_MATCH_STATUS = 1;
 
@@ -313,7 +316,8 @@ function processCompletionOn(platform: SupportedPlatform, pid: number, deps: Pla
     case "linux":
       return linuxProcessCompletion(pid, deps);
     case "darwin": {
-      const result = runOf(deps)("ps", ["-o", "stat=,lstart=", "-p", String(pid)]);
+      // `lstart` is formatted in the caller's locale and the parser reads only the C spelling.
+      const result = runOf(deps)("ps", ["-o", "stat=,lstart=", "-p", String(pid)], { env: inheritedProcessEnv({ [LOCALE_ENV]: "C" }) });
       if (result.errorCode !== undefined) {
         return { kind: "unknown" };
       }
@@ -356,7 +360,12 @@ function darwinCompletionTable(deps: PlatformDeps): readonly ProcessEntry[] {
   if (failure !== null) {
     throw new Error(`process completion table unreadable: ps ${failure}`);
   }
-  return parsePsProcesses(result.stdout);
+  const table = parsePsProcesses(result.stdout);
+  // `ps` lists itself, so a table that parses to no rows was not read.
+  if (table.length === 0) {
+    throw new Error("process completion table unreadable: ps printed no process table");
+  }
+  return table;
 }
 
 function win32CompletionTable(deps: PlatformDeps): readonly ProcessEntry[] {
@@ -365,11 +374,16 @@ function win32CompletionTable(deps: PlatformDeps): readonly ProcessEntry[] {
   if (failure !== null || result.stdout.trim() === "") {
     throw new Error(`process completion table unreadable: powershell ${failure ?? "printed no process table"}`);
   }
+  let table: readonly ProcessEntry[];
   try {
-    return parseCimProcesses(result.stdout);
+    table = parseCimProcesses(result.stdout);
   } catch (cause) {
     throw new Error("process completion table unreadable: powershell printed a table that is not JSON", { cause });
   }
+  if (table.length === 0) {
+    throw new Error("process completion table unreadable: powershell printed no process table");
+  }
+  return table;
 }
 
 /** The POSIX process group of a pid, or null: win32 has no process group, and a pid that is gone has none. */

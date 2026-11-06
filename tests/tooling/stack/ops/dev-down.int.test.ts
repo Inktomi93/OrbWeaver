@@ -142,6 +142,24 @@ test("a holder replaced during the TERM grace is refused the KILL, left standing
   }
 });
 
+test("a holder that exited on TERM does not spare a group member still holding the port from the KILL", async ({ scratch }) => {
+  const { child, context } = await plantStubbornListener(scratch);
+  const exited = once(child, "exit");
+  try {
+    // Read 1 pins the holder and read 2 guards its TERM; the holder is gone from the third on, while the listener the
+    // test planted in its group keeps the port.
+    let reads = 0;
+    const incarnationOf = (): { readonly kind: "live"; readonly identity: string } | { readonly kind: "gone" } =>
+      ++reads <= 2 ? { kind: "live", identity: "original" } : { kind: "gone" };
+    const outcome = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf, timing: FAST_STOP });
+    expect(outcome).toBe(EXIT.clean);
+    await exited;
+    expect(child.signalCode).toBe("SIGKILL");
+  } finally {
+    killPidGroup(child.pid, "SIGKILL");
+  }
+});
+
 test("a holder of the same incarnation that survives TERM is KILLed", async ({ scratch }) => {
   const { child, context } = await plantStubbornListener(scratch);
   const exited = once(child, "exit");

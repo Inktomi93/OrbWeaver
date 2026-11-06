@@ -14,8 +14,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { processCompletion } from "@orb/tooling/floor/host/platform";
-import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";
+import { spawnFullPriorityChild, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { RunMarkerDeps } from "@orb/tooling/floor/process/run-marker";
 import {
@@ -41,6 +41,8 @@ import {
 const PLANTED_TIMEOUT_BASE_MS = 4000;
 /** The whole probe: spawn + the short ceiling + the sweep's own TERM→KILL grace + reaping slack. */
 const PROBE_BUDGET_BASE_MS = 60_000;
+/** Pipelines in the cascade probe: each holds a `sleep` and a `cat`, and the sweep's TERM to the first ends the second. */
+const PIPELINE_CHILDREN = 6;
 
 test("strong sweep waits for observed exit after signalling", async () => {
   const marker = mintRunMarker(800, 1_700_000_000_000);
@@ -185,6 +187,71 @@ test("the timeout teardown still KILLs a survivor of the same incarnation, and r
     "identity unavailable",
   );
   expect(unreadable.signalled).toEqual([]);
+});
+
+// A marked process that exits on its own, or because the sweep's TERM ended its pipe partner, leaves the table
+// between the guard's first sight of it and the re-selection. That is a normal outcome, never a custody failure.
+for (const door of ["timeout teardown", "strong sweep"] as const) {
+  test(`the ${door} skips a marked pid that exits before its signal and still reaches the rest`, async () => {
+    const marker = mintRunMarker(800, 1_700_000_000_000);
+    const rows = new Map([
+      [810, { marker, parent: 1 }],
+      [811, { marker, parent: 1 }],
+    ]);
+    const base = fakeTree(rows, 1);
+    let scans = 0;
+    const deps: RunMarkerDeps = {
+      ...base,
+      listPids: (): readonly number[] => {
+        scans += 1;
+        if (scans === 2) {
+          rows.delete(810);
+        }
+        return [...rows.keys()];
+      },
+      completionOf: (pid) => (rows.has(pid) ? { kind: "live", identity: `start-${String(pid)}` } : { kind: "gone" }),
+      signal: (pid, kind): void => {
+        base.signalled.push([pid, kind]);
+        if (kind === "SIGKILL") {
+          rows.delete(pid);
+        }
+      },
+    };
+    const sweep = door === "strong sweep" ? await joinRunMarkerSweep(marker, deps) : await runMarkerTranscriptTeardown(marker, deps).afterTimeoutKill();
+    expect(base.signalled).toEqual([
+      [811, "SIGTERM"],
+      [811, "SIGKILL"],
+    ]);
+    expect(sweep, "a clean sweep verdict").not.toBeNull();
+  });
+}
+
+// The reviewer's repro on real processes: nothing exits by itself, and the sweep's TERM to `sleep` ends its `cat`.
+test("a sweep over pipelines whose members exit from its own TERM completes", async () => {
+  const marker = mintRunMarker();
+  const children = Array.from({ length: PIPELINE_CHILDREN }, () =>
+    spawnFullPriorityChild("sh", ["-c", "sleep 30 | cat"], { env: inheritedProcessEnv(runMarkerEnv(marker)), stdio: "ignore" }),
+  );
+  const exits = children.map((child) => child.wait());
+  try {
+    await expect.poll(() => markedPids(marker).length, { timeout: budget(PROBE_BUDGET_BASE_MS), interval: 20 }).toBeGreaterThanOrEqual(PIPELINE_CHILDREN * 2);
+    const sweep = await sweepRunMarker(marker, { sleep: () => new Promise((resolve) => setTimeout(resolve, 10)) });
+    expect(sweep.terminated.length).toBeGreaterThan(0);
+    await expect.poll(() => markedPids(marker), { timeout: budget(PROBE_BUDGET_BASE_MS), interval: 20 }).toEqual([]);
+  } finally {
+    sweepRunMarkerNow(marker);
+    for (const child of children) {
+      child.kill("SIGKILL");
+    }
+    await Promise.all(exits);
+  }
+});
+
+test("a darwin ps that exits 0 with no process table is no verdict, so the strong sweep rejects instead of resolving clean", async () => {
+  const marker = mintRunMarker();
+  const processTable = (): ReturnType<typeof completionProcesses> =>
+    completionProcesses({ platform: "darwin", run: () => ({ status: 0, stdout: "", stderr: "" }) });
+  await expect(joinRunMarkerSweep(marker, { processTable })).rejects.toThrow("table unreadable");
 });
 
 // The identity read is per platform; these drive the real reader with the tool output each OS documents.

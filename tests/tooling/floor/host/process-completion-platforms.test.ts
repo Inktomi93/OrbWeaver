@@ -6,6 +6,7 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";
 import type { RunNicedSyncResult } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 /** A tool runner that answers every call with one planted result and records the spelling. */
 function answering(result: Partial<RunNicedSyncResult>): {
@@ -36,6 +37,18 @@ test("darwin reads state and start time from one ps call, at seconds resolution"
     kind: "zombie",
     identity: "Thu Nov 6 14:03:22 2026",
   });
+});
+
+test("darwin reads lstart under the C locale, so a non-US locale still parses", () => {
+  const seen: (NodeJS.ProcessEnv | undefined)[] = [];
+  const run = (_cmd: string, _args: readonly string[], options?: { readonly env?: NodeJS.ProcessEnv }): RunNicedSyncResult => {
+    seen.push(options?.env);
+    return { status: 0, stdout: "Ss   Thu Nov  6 14:03:22 2026\n", stderr: "" };
+  };
+  processCompletion(1234, { platform: "darwin", run });
+  expect(seen).toHaveLength(1);
+  expect(seen[0]?.["LC_ALL"]).toBe("C");
+  expect(seen[0]?.["PATH"], "the rest of the environment is kept").toBe(inheritedProcessEnv()["PATH"]);
 });
 
 test("darwin tells a pid ps cannot find from a read it could not make", () => {
@@ -87,8 +100,12 @@ test("the completion table is read strictly on darwin and win32, so a failed rea
   expect(completionProcesses({ platform: "win32", run: answering({ stdout: win32 }).run })).toEqual([
     { pid: 1234, ppid: 1, cmdline: "node x.ts", environ: null, cpuMs: 1000 },
   ]);
-  for (const result of [{ status: 1 }, { stdout: "" }, { stdout: "not json" }] satisfies Partial<RunNicedSyncResult>[]) {
+  for (const result of [{ status: 1 }, { stdout: "" }, { stdout: "not json" }, { stdout: "[]" }] satisfies Partial<RunNicedSyncResult>[]) {
     expect(() => completionProcesses({ platform: "win32", run: answering(result).run })).toThrow("table unreadable");
+  }
+  // `ps` always lists itself, so a table that parses to no rows was not read.
+  for (const stdout of ["", "\n", "ps: garbage line\n"]) {
+    expect(() => darwin(answering({ stdout }).run)).toThrow("table unreadable");
   }
   expect(() => completionProcesses({ platform: "freebsd" })).toThrow("unavailable on this platform");
   // The table is bound to its owner exactly as on Linux: only the owner's own incarnation may read it.

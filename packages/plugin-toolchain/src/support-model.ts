@@ -34,6 +34,7 @@ export function createPluginAuthorSupport(source: PluginAuthorSupportSource): Pl
       main: {
         world: "main",
         execution: "server-quickjs",
+        sourceEntry: "main.ts",
         sdkEntry: "@orb/plugin-sdk/main",
         entrypoint: "orb.host(1)",
         dom: false,
@@ -43,6 +44,7 @@ export function createPluginAuthorSupport(source: PluginAuthorSupportSource): Pl
       ui: {
         world: "ui",
         execution: "browser-quickjs-worker",
+        sourceEntry: "ui.ts",
         sdkEntry: "@orb/plugin-sdk/ui",
         entrypoint: "orb.ui(1)",
         dom: false,
@@ -52,6 +54,7 @@ export function createPluginAuthorSupport(source: PluginAuthorSupportSource): Pl
       frame: {
         world: "frame",
         execution: "isolated-browser-frame",
+        sourceEntry: "frame.ts",
         sdkEntry: "@orb/plugin-sdk/frame",
         entrypoint: "parent.postMessage",
         dom: true,

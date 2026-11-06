@@ -116,6 +116,15 @@ test("a holder replaced during the TERM grace is refused the KILL, and the stop 
   expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
 });
 
+test("a holder that exited on TERM does not spare its group from the KILL while the port is still held", ({ scratch }) => {
+  const run = planted([HELD_BY_STAGE], (signals) => (signals.length === 0 ? { kind: "live", identity: "original" } : { kind: "gone" }));
+  expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
+    kind: "unconfirmed",
+    reason: expect.stringContaining(`:${String(PORTS.server)} is still held by pid ${String(STAGE_PID)} after TERM and KILL`),
+  });
+  expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`, `${String(STAGE_GROUP)} SIGKILL`]);
+});
+
 test("a holder whose identity cannot be read is never signalled", ({ scratch }) => {
   const unreadable = planted([HELD_BY_STAGE], () => ({ kind: "unknown" }));
   expect(stopStage(noStage(scratch), PORTS, unreadable.deps)).toEqual({

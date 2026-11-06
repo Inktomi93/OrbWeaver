@@ -62,8 +62,12 @@ export function incarnationGuard(
           throw new Error(`${subject}: process identity unavailable before signal`);
         }
         observed.set(pid, pinned);
+        // Leaving the selection by exiting is a normal outcome (a pipe partner ends on this sweep's own TERM); only a pid still the same live incarnation yet unselected is a custody failure.
         if (pinned.kind === "live" && !select().includes(pid)) {
-          throw new Error(`${subject}: process ownership unavailable before signal`);
+          if (sameIncarnation(pid, pinned, read, subject)) {
+            throw new Error(`${subject}: process ownership unavailable before signal`);
+          }
+          return false;
         }
       }
       if (!sameIncarnation(pid, pinned, read, subject)) {

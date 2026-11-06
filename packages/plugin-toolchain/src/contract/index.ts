@@ -54,6 +54,7 @@ export type PluginAuthorExecution = (typeof PLUGIN_AUTHOR_EXECUTIONS)[number];
 export interface PluginAuthorRuntimeSupport {
   readonly world: PluginAuthorWorld;
   readonly execution: PluginAuthorExecution;
+  readonly sourceEntry: string;
   readonly sdkEntry: string;
   readonly entrypoint: string;
   readonly dom: boolean;

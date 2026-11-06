@@ -7,6 +7,7 @@ export const PLUGIN_AUTHOR_SUPPORT = {
     main: {
       world: "main",
       execution: "server-quickjs",
+      sourceEntry: "main.ts",
       sdkEntry: "@orb/plugin-sdk/main",
       entrypoint: "orb.host(1)",
       dom: false,
@@ -61,6 +62,7 @@ export const PLUGIN_AUTHOR_SUPPORT = {
     ui: {
       world: "ui",
       execution: "browser-quickjs-worker",
+      sourceEntry: "ui.ts",
       sdkEntry: "@orb/plugin-sdk/ui",
       entrypoint: "orb.ui(1)",
       dom: false,
@@ -81,6 +83,7 @@ export const PLUGIN_AUTHOR_SUPPORT = {
     frame: {
       world: "frame",
       execution: "isolated-browser-frame",
+      sourceEntry: "frame.ts",
       sdkEntry: "@orb/plugin-sdk/frame",
       entrypoint: "parent.postMessage",
       dom: true,

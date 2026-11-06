@@ -20,11 +20,11 @@ function renderMarkdown(): string {
     "",
     "## Runtime worlds",
     "",
-    "| World | Execution | SDK | Entry point | DOM | Host calls | Local helpers |",
-    "| - | - | - | - | - | - | - |",
+    "| World | Source | Execution | SDK | Entry point | DOM | Host calls | Local helpers |",
+    "| - | - | - | - | - | - | - | - |",
     ...Object.values(PLUGIN_AUTHOR_SUPPORT.runtimes).map(
       (runtime) =>
-        `| ${code(runtime.world)} | ${code(runtime.execution)} | ${code(runtime.sdkEntry)} | ${code(runtime.entrypoint)} | ${runtime.dom ? "Yes" : "No"} | ${list(runtime.hostFunctions)} | ${list(runtime.localHelpers)} |`,
+        `| ${code(runtime.world)} | ${code(runtime.sourceEntry)} | ${code(runtime.execution)} | ${code(runtime.sdkEntry)} | ${code(runtime.entrypoint)} | ${runtime.dom ? "Yes" : "No"} | ${list(runtime.hostFunctions)} | ${list(runtime.localHelpers)} |`,
     ),
     "",
     "## Capabilities and host calls",

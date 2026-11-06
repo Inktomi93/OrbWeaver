@@ -11,3 +11,14 @@ export function sameIncarnation(pid: number, pinned: ProcessCompletion, read: (p
   }
   return latest.kind === "live" && pinned.kind === "live" && latest.identity === pinned.identity;
 }
+
+/** True when `pid` now names a different live process than `pinned` recorded. An exited holder (gone or zombie)
+ *  is not replaced: a signal addressed to its process group still reaches members that outlived it, and a group
+ *  id is not reused while the group has members. Throws on an unreadable identity, like {@link sameIncarnation}. */
+export function pidReplaced(pid: number, pinned: ProcessCompletion, read: (pid: number) => ProcessCompletion, subject: string): boolean {
+  const latest = read(pid);
+  if (latest.kind === "unknown") {
+    throw new Error(`${subject}: process identity unavailable before signal`);
+  }
+  return latest.kind === "live" && !((pinned.kind === "live" || pinned.kind === "zombie") && pinned.identity === latest.identity);
+}
