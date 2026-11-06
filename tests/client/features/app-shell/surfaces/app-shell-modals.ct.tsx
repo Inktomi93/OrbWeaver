@@ -427,7 +427,7 @@ async function themedRoot(override: Record<string, string>, appearance: Record<s
   const theme = await caller.settings.createTheme({
     name: "Shell CT theme",
     override,
-    css: '[data-slot="dialog-header"] { outline: 2px solid var(--color-border); }',
+    css: `[data-slot="dialog-header"] { outline: var(${TOKENS["border-width.accent"].cssVar}) solid var(${TOKENS["color.border"].cssVar}); }`,
   });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: theme.id } });
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });

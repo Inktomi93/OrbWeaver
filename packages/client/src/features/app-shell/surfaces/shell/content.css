@@ -68,6 +68,8 @@
     position: absolute;
     inset: 0;
     inset-block-start: var(--dimension-chrome-row);
+    /* One step under the panels' overlay step: the scrim dims the content yet leaves the panel it dismisses on top. The
+     * offset stays relative so a re-ranked overlay moves both. */
     z-index: calc(var(--z-overlay) - 1);
     /* A dimmer: the polarity-fixed backdrop token, never the reading plate. */
     background: var(--color-backdrop);

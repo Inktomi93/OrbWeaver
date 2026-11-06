@@ -5,6 +5,8 @@
     --orb-ws-band-light-shift: 0.13;
     --orb-ws-band-c: 1;
   }
+  /* The `px` offsets in these keyframes and in the star radius below are SVG user units of the stone's own viewBox, so
+   * they scale with the stone; they are not CSS lengths and no spacing token applies. */
   @keyframes orb-ws-fall {
     to {
       translate: 0 var(--orb-ws-pitch);

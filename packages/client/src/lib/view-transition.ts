@@ -23,6 +23,7 @@
 // simply carried locally.
 
 import { prefersReducedMotionNow } from "@orb/ui/lib";
+import { TOKENS } from "@orb/ui/tokens";
 import { SHELL_SWAP_DEADLINE_PROPERTY } from "./view-transition-names.ts";
 import type { ViewTransitionVisibility } from "./view-transition-settlement.ts";
 import { isDocumentHidden, observeViewTransition } from "./view-transition-settlement.ts";
@@ -112,9 +113,6 @@ export function runAfterViewTransition(effect: () => void): void {
  *  so its loading state is not part of what the user sees arrive. */
 const DESTINATION_PENDING =
   '.shell-content [data-slot="skeleton"], .shell-content [data-ready="false"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-slot="skeleton"], .shell-panel[data-panel-side="list"]:not([data-panel-mode="collapsed"]) [data-ready="false"]';
-/** How long the old frame may be held for the destination's first real paint, in elapsed time: the frame's
- *  `--shell-swap-deadline` (shell/grid.css), and this value where the frame has none. */
-const DESTINATION_DEADLINE_MS = 150;
 const MS_PER_SECOND = 1000;
 const DESTINATION_POLL_MS = 16;
 /** With no DOM change at all in this long, the swap committed nothing new and there is nothing to wait for. */
@@ -131,16 +129,21 @@ interface VtComputedStyle {
   readonly getPropertyValue: (name: string) => string;
 }
 
-/** The deadline the frame declares: a CSS time on the grid, so the motion budget has one home and a test can state it. */
+/** A CSS time as milliseconds; NaN when it is not a time. */
+function cssTimeMs(raw: string): number {
+  const value = Number.parseFloat(raw);
+  return raw.endsWith("ms") ? value : value * MS_PER_SECOND;
+}
+
+/** How long the old frame may be held for the destination's first real paint, in elapsed time: the frame's
+ *  `--shell-swap-deadline` (shell/grid.css, which a test may restate), and the `motion.swap-deadline` token itself
+ *  where the frame is absent (the login route, an isolated mount). */
 function destinationDeadline(g: VtGlobals): number {
   const grid = g.document?.querySelector?.(".shell-grid");
   const readStyle = Reflect.get(globalThis, "getComputedStyle") as ((element: unknown) => VtComputedStyle) | undefined;
   const raw = grid === null || grid === undefined || readStyle === undefined ? "" : readStyle(grid).getPropertyValue(SHELL_SWAP_DEADLINE_PROPERTY).trim();
-  const value = Number.parseFloat(raw);
-  if (Number.isNaN(value)) {
-    return DESTINATION_DEADLINE_MS;
-  }
-  return raw.endsWith("ms") ? value : value * MS_PER_SECOND;
+  const declared = cssTimeMs(raw);
+  return Number.isNaN(declared) ? cssTimeMs(TOKENS["motion.swap-deadline"].value) : declared;
 }
 
 /** Resolve once the swap has COMMITTED and the destination shows no skeleton and no unsettled surface, or at the deadline. Returned from

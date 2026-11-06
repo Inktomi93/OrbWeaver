@@ -20,7 +20,7 @@
  * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
  * start margin is floored and the end margin absorbs the odd pixel. */
 @utility orb-chat-track {
-  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px) auto;
+  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), var(--dimension-device-pixel)) auto;
 }
 
 /* The composer's track: the dial's width, capped by the very expression the content column carries. A `ch` resolves in
@@ -30,7 +30,7 @@
   font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
   --composer-track: min(var(--width-shell-content), var(--reading-measure));
   max-inline-size: var(--composer-track);
-  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), 1px) auto;
+  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), var(--dimension-device-pixel)) auto;
 }
 
 @layer client {
@@ -353,6 +353,7 @@
   [data-slot="dialog-footer"],
   [data-slot="message-bubble"],
   [data-slot="empty-state-root"] {
+    /* `1px` casts the unitless strength dial to a length; it is a unit, not a spacing value. */
     --glass-blur-radius: calc(var(--appearance-blur-strength) * 1px);
     --glass-filter: blur(calc(var(--glass-blur-radius) * var(--glass-blur-scale))) saturate(var(--blur-saturate));
   }
@@ -487,9 +488,10 @@
       background-image: url("/grain.svg");
       border-radius: inherit;
     }
-    /* The card's positioning context for its grain carrier. */
+    /* The card's positioning context and stacking scope for its grain carrier. */
     [data-slot="card-root"] {
       position: relative;
+      isolation: isolate;
     }
     /* The shell already paints the grain over its cards; a portalled card owns its own carrier. */
     .shell-grid [data-slot="card-root"]::after {

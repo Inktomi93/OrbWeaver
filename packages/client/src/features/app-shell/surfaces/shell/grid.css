@@ -16,7 +16,7 @@
     --shell-motion: var(--motion-base);
     --shell-ease: var(--ease-out-expo);
     /* How long a section swap holds the old frame for the destination's first paint (`lib/view-transition.ts`). */
-    --shell-swap-deadline: 150ms;
+    --shell-swap-deadline: var(--motion-swap-deadline);
 
     display: grid;
     grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
@@ -153,8 +153,8 @@
   }
   .shell-grid[data-has-bg-image] .shell-main {
     background: transparent;
-    /* A legibility halo for text over the photo. Open: under a light theme it is dark smoke beneath dark ink;
-     * `--color-reading-plate` is the candidate if that proves a defect. */
+    /* A legibility halo for text over the photo, painted on the dark branch only (the token is transparent on light):
+     * dark smoke beneath dark ink smudges the glyphs, and on a light theme the over-art plate carries legibility (D144(b)). */
     text-shadow: var(--shadow-shell-over-art);
   }
 

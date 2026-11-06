@@ -1125,6 +1125,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--motion-layout",
   "--motion-precip",
   "--motion-shimmer",
+  "--motion-swap-deadline",
   "--motion-transit",
   "--opacity-receded",
   "--radius-base",
