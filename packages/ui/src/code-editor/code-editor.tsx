@@ -55,17 +55,17 @@ const TOKEN_THEME = EditorView.theme(
     ".cm-lintRange": {
       backgroundImage: "none",
       textDecorationLine: "underline",
-      textUnderlineOffset: cssVar("border-width.accent"),
+      textUnderlineOffset: cssVar("border-width.rule"),
     },
     ".cm-lintRange-error": {
       textDecorationStyle: "wavy",
       textDecorationColor: cssVar("color.destructive"),
-      textDecorationThickness: cssVar("border-width.accent"),
+      textDecorationThickness: cssVar("border-width.rule"),
     },
     ".cm-lintRange-warning": {
       textDecorationStyle: "dotted",
       textDecorationColor: cssVar("color.warning"),
-      textDecorationThickness: cssVar("border-width.accent"),
+      textDecorationThickness: cssVar("border-width.rule"),
     },
     ".cm-diagnostic": {
       backgroundColor: cssVar("color.popover"),

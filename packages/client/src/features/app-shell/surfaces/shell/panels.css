@@ -163,7 +163,7 @@
   /* The content-to-context binding signals state, so the ember top edge is the primary tone's solid (3:1 non-text). The
    * header stamps that tone (`SHELL_ACCENT_TONE`). */
   .shell-panel[data-panel-side="context"] .shell-panel-header {
-    --shell-band-ember: inset 0 var(--border-width-accent) 0 var(--color-tone-solid);
+    --shell-band-ember: inset 0 var(--border-width-rule) 0 var(--color-tone-solid);
   }
   /* A floating context pane binds to nothing, so its ember edge would be an orphan stripe under the topbar. */
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {

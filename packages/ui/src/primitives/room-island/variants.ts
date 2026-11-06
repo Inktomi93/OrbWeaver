@@ -14,7 +14,7 @@ export const roomIslandVariants = tv({
       true: `
         border-input-border
         focus-within:border-ring focus-within:bg-muted
-        focus-within:not-data-drag-over:ring-1 focus-within:not-data-drag-over:ring-ring
+        focus-within:not-data-drag-over:ring focus-within:not-data-drag-over:ring-ring
         hover:bg-muted
         hover:not-focus-within:border-ring
       `,
@@ -22,7 +22,7 @@ export const roomIslandVariants = tv({
     },
     // A card that takes dropped files announces the armed state (`data-drag-over`) louder than focus.
     dropTarget: {
-      true: "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-2 data-drag-over:ring-ring",
+      true: "data-drag-over:border-primary data-drag-over:bg-muted data-drag-over:ring-(length:--border-width-rule) data-drag-over:ring-ring",
       false: "",
     },
   },

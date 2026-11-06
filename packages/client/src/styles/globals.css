@@ -83,7 +83,7 @@
     block-size: 1lh;
     margin-inline-start: var(--spacing-px);
     vertical-align: text-bottom;
-    border-inline-start: var(--border-width-accent) solid var(--color-primary);
+    border-inline-start: var(--border-width-rule) solid var(--color-primary);
     opacity: 1;
     animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
   }
@@ -102,7 +102,7 @@
     border-radius: var(--radius-card);
     padding: var(--spacing-row);
     margin: calc(var(--spacing-row) * -1);
-    box-shadow: inset 0 0 0 var(--border-width-accent) var(--color-ring);
+    box-shadow: inset 0 0 0 var(--border-width-rule) var(--color-ring);
   }
   /* Over a wallpaper the shell gives `.shell-main` a legibility halo; a bubble and the composer carry their own fill. */
   .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) {
@@ -500,7 +500,7 @@
     [data-slot="card-root"]::after {
       @apply orb-paint-carrier;
       z-index: 1;
-      opacity: 0.04;
+      opacity: var(--opacity-grain);
       mix-blend-mode: soft-light;
       /* A `public/` path, never an inline `data:` URL: the CSP blocks `data:` images (D44); do not widen `img-src`. */
       background-image: url("/grain.svg");
@@ -549,20 +549,20 @@
     }
     @variant shell-desktop {
       .shell-panel[data-panel-side="list"] {
-        border-inline-end-width: var(--border-width-accent);
+        border-inline-end-width: var(--border-width-rule);
         border-inline-end-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
       }
       .shell-panel[data-panel-side="context"] {
-        border-inline-start-width: var(--border-width-accent);
+        border-inline-start-width: var(--border-width-rule);
         border-inline-start-color: color-mix(in oklab, var(--color-sidebar-foreground) var(--contrast-edge-mix), var(--color-sidebar));
       }
       [data-slot="composer"] {
-        border-width: var(--border-width-accent);
+        border-width: var(--border-width-rule);
         border-color: color-mix(in oklab, var(--color-foreground) var(--contrast-edge-mix), var(--color-card));
       }
       [data-slot="dialog-popup"],
       [data-slot="alert-dialog-popup"] {
-        border-width: var(--border-width-accent);
+        border-width: var(--border-width-rule);
         border-color: color-mix(in oklab, var(--color-popover-foreground) var(--contrast-edge-mix), var(--color-popover));
       }
     }

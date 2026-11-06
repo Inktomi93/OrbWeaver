@@ -39,6 +39,22 @@ const PADDING = {
   section: "p-section",
   gutter: "p-gutter",
 } as const;
+// One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` has no twin
+// here for the reason it has none above. Each class is a whole literal so Tailwind's scanner sees it.
+const PADDING_INLINE = {
+  field: "px-field",
+  row: "px-row",
+  block: "px-block",
+  section: "px-section",
+  gutter: "px-gutter",
+} as const;
+const PADDING_BLOCK = {
+  field: "py-field",
+  row: "py-row",
+  block: "py-block",
+  section: "py-section",
+  gutter: "py-gutter",
+} as const;
 const ALIGN = {
   start: "items-start",
   center: "items-center",
@@ -82,10 +98,10 @@ const DIVIDER_MEANING = { ...TONE_ARMS, primary: "border-tone-solid", warning: "
 // A dashed edge marks a doorway (a place to start something) rather than a boundary between neighbours.
 const DIVIDER_STYLE = { solid: "", dashed: "border-dashed" } as const;
 const DIVIDER_RULE = [
-  { divider: "start", dividerWeight: "rule", class: "border-s-2" },
-  { divider: "end", dividerWeight: "rule", class: "border-e-2" },
-  { divider: "top", dividerWeight: "rule", class: "border-bs-2" },
-  { divider: "bottom", dividerWeight: "rule", class: "border-be-2" },
+  { divider: "start", dividerWeight: "rule", class: "border-s-rule" },
+  { divider: "end", dividerWeight: "rule", class: "border-e-rule" },
+  { divider: "top", dividerWeight: "rule", class: "border-bs-rule" },
+  { divider: "bottom", dividerWeight: "rule", class: "border-be-rule" },
 ] as const;
 
 // A run of decorative fill, cut off at one edge into the ground: the cue that a scrolled strip hides more past that
@@ -117,6 +133,8 @@ export const stackVariants = tv({
     align: ALIGN,
     justify: JUSTIFY,
     padding: PADDING,
+    paddingInline: PADDING_INLINE,
+    paddingBlock: PADDING_BLOCK,
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -194,6 +212,8 @@ export const rowVariants = tv({
     align: ALIGN,
     justify: JUSTIFY,
     padding: PADDING,
+    paddingInline: PADDING_INLINE,
+    paddingBlock: PADDING_BLOCK,
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
@@ -552,7 +572,7 @@ export const toolbarSeparatorVariants = tv({
 // `disabled` that cascades to its items): tighter than the strip's own `gap-row` so a related cluster
 // reads as one unit against its neighbours.
 export const toolbarGroupVariants = tv({
-  base: "flex flex-row items-center gap-field data-disabled:opacity-50",
+  base: "flex flex-row items-center gap-field data-disabled:opacity-disabled",
 });
 
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM

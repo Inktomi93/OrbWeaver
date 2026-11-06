@@ -19,7 +19,7 @@ export const tableVariants = tv({
     sortIcon: "shrink-0 text-muted-foreground/60",
     tbody: "divide-y divide-border",
     // The start rail box stays reserved (transparent) so a row's cells sit where they always have.
-    tr: "border-s-2 border-s-transparent",
+    tr: "border-s-rule border-s-transparent",
     td: "px-row py-block text-body leading-body text-foreground",
     emptyCell: "py-section text-center",
     pager: "flex flex-wrap items-center justify-between gap-row border-bs border-border px-row py-block",

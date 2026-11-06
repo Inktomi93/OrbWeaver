@@ -7,6 +7,6 @@ import { tv } from "#lib";
 export const avatarStackVariants = tv({
   slots: {
     root: "flex items-center",
-    item: "shrink-0 ring-2 ring-background",
+    item: "shrink-0 ring-(length:--border-width-rule) ring-background",
   },
 });

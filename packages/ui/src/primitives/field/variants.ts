@@ -3,7 +3,7 @@ import { tv } from "#lib";
 export const fieldVariants = tv({
   slots: {
     root: "flex flex-col gap-field inline-full",
-    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-50",
+    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
     // inline-flex so the hint trigger sits on the label's baseline instead of dropping to its own line.
     // FINE-POINTER-ONLY WIDENING (#1286): HintTrigger renders `size="inline"` here — a 12px icon box whose
     // layout-neutral touch-target pseudo (button/variants.ts's `inline` arm) is centered on the box and

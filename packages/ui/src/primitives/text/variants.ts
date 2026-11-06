@@ -182,6 +182,12 @@ export const textVariants = tv({
     lines: {
       2: "line-clamp-2 whitespace-normal orb-lines-2",
     },
+    // ONE LINE, CLIPPED WITH AN ELLIPSIS (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`). It
+    // does not shrink the box: a flex child that must give way beside a sibling still adds its own `min-inline-0`.
+    truncate: {
+      true: "truncate",
+      false: "",
+    },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.
     tone: TONE_TEXT,
     // A struck-through line: a cancelled quest, a disabled prompt section. Not colour, so it pairs with any tone.
@@ -219,6 +225,7 @@ export const textVariants = tv({
     weight: "regular",
     prose: false,
     strike: false,
+    truncate: false,
     numeric: false,
     solidLine: false,
     italic: false,

@@ -114,7 +114,7 @@ export const buttonVariants = tv({
       /** SUBTRACTED from the set — the exclusion arm of a tri-state facet. It carries BOTH a hue and a
        *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
-      negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-2 inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
+      negated: `border-transparent ${SELECTED_FILL} line-through inset-ring-(length:--border-width-rule) inset-ring-destructive ${FOCUS_RING_ON_STATE_RING}`,
       /** A row in a list of rows (a facet in an editor's index): the start rail and tint mark the one keyed on
        *  `data-selected`, and the rail box is reserved at rest so selecting never shifts the row. */
       rail: SELECTION_RAIL,
@@ -129,7 +129,7 @@ export const buttonVariants = tv({
     // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
     reserveEdge: { true: "border border-transparent", false: "" },
     // The accent ring for the moment a change this control made has landed (a portrait just replaced).
-    confirming: { true: "ring-2 ring-accent", false: "" },
+    confirming: { true: "ring-(length:--border-width-rule) ring-accent", false: "" },
     // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.
     quietDisabled: { true: "disabled:opacity-100 data-disabled:opacity-100", false: "" },
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.

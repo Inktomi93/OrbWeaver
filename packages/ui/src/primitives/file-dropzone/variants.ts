@@ -12,7 +12,7 @@ export const fileDropzoneVariants = tv({
       // `rounded-control`: the box IS the file input (the native control covers 100% of it), and
       // UI-Density-Law.md §2.1 gives anything you operate the control step — it is not a floating island.
       `
-        relative flex flex-col items-center justify-center gap-field rounded-control border-2 border-dashed border-input-border bg-input/30 p-section
+        relative flex flex-col items-center justify-center gap-field rounded-control border-rule border-dashed border-input-border bg-input/30 p-section
         text-center
       `,
       "transition-colors duration-(--motion-fast) ease-out-expo",
@@ -21,7 +21,7 @@ export const fileDropzoneVariants = tv({
       "data-drag-over:border-primary data-drag-over:bg-accent/15",
       // The 8-state contract's loading/success arms (ui-package-design §5) — the toast.tsx
       // `data-type` border-tint precedent, applied here via plain boolean data-attributes.
-      "data-loading:cursor-wait data-loading:opacity-70",
+      "data-loading:cursor-wait data-loading:opacity-loading",
       "data-success:border-success",
     ],
     input: "absolute inset-0 cursor-pointer opacity-0 block-full inline-full disabled:cursor-not-allowed aria-busy:cursor-wait",

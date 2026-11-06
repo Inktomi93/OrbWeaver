@@ -118,9 +118,32 @@ test("a border width token is a width, so it survives beside a border colour and
   expect(cn("border-hairline", "border-s-0")).toBe("border-hairline border-s-0");
 });
 
+test("a border width step is a width on every side and never a colour", () => {
+  expect(cn("border-hairline", "border-rule")).toBe("border-rule");
+  expect(cn("border-rule", "border-tone-edge")).toBe("border-rule border-tone-edge");
+  expect(cn("border-s-rule", "border-s-primary")).toBe("border-s-rule border-s-primary");
+  expect(cn("border-s-rule", "border-s-0")).toBe("border-s-0");
+  expect(cn("border-be-heavy", "border-b-0")).toBe("border-b-0");
+  expect(cn("border-s-0", "border-s-rule")).toBe("border-s-rule");
+});
+
+test("a ring width spelled from the border-width family is a width, so it survives beside a ring colour", () => {
+  expect(cn("ring-(length:--border-width-rule)", "ring-ring")).toBe("ring-(length:--border-width-rule) ring-ring");
+  expect(cn("focus-visible:ring-(length:--border-width-rule)", "focus-visible:ring-0")).toBe("focus-visible:ring-0");
+  expect(cn("ring", "ring-(length:--border-width-rule)")).toBe("ring-(length:--border-width-rule)");
+});
+
 test("the receded opacity token and a stock opacity step are one axis", () => {
   expect(cn("opacity-50", "opacity-receded")).toBe("opacity-receded");
   expect(cn("opacity-receded", "opacity-100")).toBe("opacity-100");
+});
+
+test("every named opacity step is one axis", () => {
+  expect(cn("opacity-receded", "opacity-faint")).toBe("opacity-faint");
+  expect(cn("data-disabled:opacity-disabled", "data-disabled:opacity-100")).toBe("data-disabled:opacity-100");
+  expect(cn("opacity-loading", "opacity-hover")).toBe("opacity-hover");
+  expect(cn("data-dragging:opacity-dragging", "data-dragging:opacity-0")).toBe("data-dragging:opacity-0");
+  expect(cn("opacity-disabled", "text-muted-foreground")).toBe("opacity-disabled text-muted-foreground");
 });
 
 test("optical stroke widths override width steps without evicting stroke color", () => {

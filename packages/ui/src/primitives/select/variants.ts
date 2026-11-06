@@ -15,7 +15,7 @@ import {
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
-    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-50",
+    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
     trigger: [
       "flex cursor-pointer items-center justify-between gap-row select-none",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
@@ -42,7 +42,7 @@ export const selectVariants = tv({
     // `flex-1` gives the body the row's full width: a description that does not size the popup must still be
     // laid out across it, or it wraps at its label's width.
     itemBody: "flex flex-1 flex-col min-inline-0",
-    itemLabel: "group-data-disabled/select-item:opacity-50",
+    itemLabel: "group-data-disabled/select-item:opacity-disabled",
     // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
     // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the
     // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the

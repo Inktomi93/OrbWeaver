@@ -53,9 +53,9 @@
     inset-block: var(--spacing-field);
     inset-inline-start: 0;
     /* The accent bar is the hairline-plus width, the same species as the topbar divider. */
-    inline-size: var(--border-width-accent);
-    border-start-end-radius: var(--border-width-accent);
-    border-end-end-radius: var(--border-width-accent);
+    inline-size: var(--border-width-rule);
+    border-start-end-radius: var(--border-width-rule);
+    border-end-end-radius: var(--border-width-rule);
     background: var(--color-tone-solid);
   }
   .shell-rail-sections {
