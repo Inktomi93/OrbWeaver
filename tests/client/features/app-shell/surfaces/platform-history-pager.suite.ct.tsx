@@ -198,7 +198,7 @@ for (const cell of CELLS) {
       await expect(earlier).toBeInViewport({ ratio: 1 });
       const reading = list.locator(`[data-slot="message-row"][data-message-id="${oldestShown}"]`);
       const before = await settledBox(reading);
-      await earlier.click();
+      await (cell.coarse ? earlier.tap() : earlier.click());
       await expect(list.locator(`[data-slot="message-list-row"]:has([data-message-id="${oldestShown}"])`)).not.toHaveAttribute("data-index", "0");
       const after = await settledBox(reading);
       await test.info().attach("anchor-shift", { body: JSON.stringify({ before: before.y, after: after.y }), contentType: "application/json" });
@@ -342,7 +342,39 @@ for (const cell of [
       await expect(alert).toHaveCount(0);
     });
 
-    test("that fails pins until dismissed, keeps the failure at the pager's home, and pins again on the next failure", async ({ corpus, mount, page }) => {
+    test("pressed offline, dismissed, then pressed again says so again", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      // The context outlives the test, so the connection comes back whatever the assertions find.
+      await page.context().setOffline(true);
+      try {
+        await earlierIn(list).dispatchEvent("click");
+        const alert = list.getByRole("alert");
+        await expect(alert).toBeInViewport({ ratio: 1 });
+        const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+        await (cell.coarse ? dismiss.tap() : dismiss.click());
+        await expect(alert).toHaveCount(0);
+        await earlierIn(list).dispatchEvent("click");
+        await expect(alert).toBeInViewport({ ratio: 1 });
+      } finally {
+        await page.context().setOffline(false);
+      }
+    });
+
+    test(`that fails pins until dismissed by ${cell.coarse ? "a tap" : "a click"}, which removes the failure, and pins again on the next failure`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { chatId } = await preparePagedRoom(caller, "document");
@@ -358,36 +390,58 @@ for (const cell of [
       const alert = list.getByRole("alert");
       await expect(alert).toBeInViewport({ ratio: 1 });
       const before = await settledReadingRow(list);
-      await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
-      await expect(alert).not.toBeInViewport();
-      await expect(alert).toBeAttached();
+      const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+      await (cell.coarse ? dismiss.tap() : dismiss.click());
+      await expect(alert).toHaveCount(0);
+      await expect(dismiss).toHaveCount(0);
+      await expect(earlierIn(list)).toBeFocused();
       await expect.poll(() => settledReadingRow(list)).toEqual(before);
       await earlierIn(list).dispatchEvent("click");
       await expect(alert).toBeInViewport({ ratio: 1 });
     });
 
-    test("that is dismissed from the keyboard hands focus to Earlier messages", async ({ corpus, mount, page }) => {
+    test("that is dismissed at the pager's home removes the failure from the transcript", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { chatId } = await preparePagedRoom(caller, "document");
       await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
       const list = page.locator('[data-slot="message-list-scroll"]');
-      await focusFromMidway(list);
-      await page.keyboard.press("Enter");
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = 0;
+      });
+      await earlierIn(list).dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toBeInViewport({ ratio: 1 });
       const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
-      await dismiss.focus();
-      await page.keyboard.press("Enter");
-      await expect(dismiss).toHaveCount(0);
-      await expect(earlierIn(list)).toBeFocused();
-      // The control keeps its pin for the focus it holds; the failure has been read and leaves the reader's view.
+      await (cell.coarse ? dismiss.tap() : dismiss.click());
+      await expect(alert).toHaveCount(0);
       await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
-      const alert = list.getByRole("alert", { includeHidden: true });
-      await expect(alert).not.toBeInViewport();
-      await earlierIn(list).blur();
-      await expect(alert).toBeAttached();
-      await expect(alert).not.toBeInViewport();
     });
+
+    for (const key of ["Enter", "Space"] as const) {
+      test(`that is dismissed from the keyboard with ${key} removes the failure and hands focus to Earlier messages`, async ({ corpus, mount, page }) => {
+        await using root = await pagedRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { chatId } = await preparePagedRoom(caller, "document");
+        await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        await focusFromMidway(list);
+        await page.keyboard.press("Enter");
+        const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+        await dismiss.focus();
+        await page.keyboard.press(key);
+        await expect(dismiss).toHaveCount(0);
+        await expect(earlierIn(list)).toBeFocused();
+        // The control keeps its pin for the focus it holds, and the failure has left the transcript.
+        await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
+        await expect(list.getByRole("alert")).toHaveCount(0);
+        await earlierIn(list).blur();
+        await expect(list.getByRole("alert")).toHaveCount(0);
+      });
+    }
 
     test("sits on the room's track, and the failure and the control share one inset", async ({ corpus, mount, page }) => {
       await using root = await pagedRoot();

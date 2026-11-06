@@ -26,6 +26,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
 import { closeModal, mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry, useOpenModal } from "#state";
+import { useRailSectionsFit } from "../hooks/use-rail-sections-fit.ts";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 import { RailButton } from "./rail-button.tsx";
 
@@ -208,6 +209,7 @@ function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: strin
 export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, inert }: RailProps): ReactElement {
   const sectionsRef = useRef<HTMLDivElement>(null);
   useScrollFadeY(sectionsRef);
+  useRailSectionsFit(sectionsRef);
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
   const endEntries = entries.filter((e) => e.zone === "rail.end");
@@ -291,7 +293,7 @@ export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, in
         />
       )}
 
-      {/* A short viewport scrolls the sections inside the rail; the fade shows only on the edge with more beyond it. */}
+      {/* A short viewport scrolls the sections inside the rail; the fit leaves the next one half clipped at rest, and the fade shows only on the edge with more beyond it. */}
       <Stack className="shell-rail-sections" scrollFade="y" ref={sectionsRef}>
         {SECTION_GROUPS.map((group) => (
           <div className="shell-rail-group" key={group}>

@@ -605,6 +605,47 @@ for (const regime of [
       // One press, one read: the bridge must not fire behind it.
       expect(live.reads()).toBe(reads + 1);
     });
+    test("a dismissed press leaves the failed bridge behind it showing", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, tail } = await prepareHistory(caller);
+      let bridgeDown = false;
+      let allDown = false;
+      const forward = forwardFails(tail.messages[0]?.seq ?? 0, () => bridgeDown);
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: (input) => (allDown && input.cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : forward(input)),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeAttached();
+      const rows = await loadedRows(list);
+      await earlier.dispatchEvent("click");
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      bridgeDown = true;
+      await commitArrivals(caller, room.id);
+      await live.settle();
+      const alert = list.getByRole("alert");
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      allDown = true;
+      await earlier.dispatchEvent("click");
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.press);
+      await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
+      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toHaveCount(0);
+    });
     test("a refresh that fails in a bridging room keeps reporting after the forward read could land, until it is repeated", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
@@ -679,6 +720,39 @@ for (const regime of [
       await expect(alert).toBeInViewport({ ratio: 1 });
       await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toBeAttached();
       expect(await alertsSeen(page)).toEqual([CHAT_HISTORY_FAILURE_COPY.press]);
+    });
+    test("a dismissed press leaves the failed refresh behind it showing", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room } = await prepareHistory(caller);
+      await using live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeAttached();
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await settledReadingRow(list);
+      await earlier.dispatchEvent("click");
+      const alert = list.getByRole("alert");
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.press);
+      const reads = live.reads();
+      await live.settle();
+      await expect.poll(() => live.reads()).toBeGreaterThan(reads);
+      await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.refresh);
+      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toHaveCount(0);
     });
     test("a Try again from the keyboard that succeeds leaves focus on the pager", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();

@@ -20,6 +20,7 @@ const OVERSCAN = 2;
 /** The slot of the leading chrome's box. A caller that renders its chrome without rows (an empty thread) wraps it in
  *  the same slot, so a stylesheet that picks a copy by this slot reads one shape. */
 export const MESSAGE_LIST_LEADING_SLOT = "message-list-leading";
+const MESSAGE_LIST_LEADING_ACTION_SLOT = "message-list-leading-action";
 
 // The leading action pins while it holds keyboard focus, or while its content asks to stay in view. The fill covers the
 // rows under it on a plain background; over a wallpaper the action's own plate does.
@@ -346,9 +347,13 @@ export function MessageList<T>({
     const el = scrollRef.current;
     return el === null
       ? undefined
-      : attachUserScrollInput(el, (): void => {
-          userScrollAtRef.current = performance.now();
-        });
+      : attachUserScrollInput(
+          el,
+          (): void => {
+            userScrollAtRef.current = performance.now();
+          },
+          (target) => target instanceof Element && target.closest(`[data-slot="${MESSAGE_LIST_LEADING_ACTION_SLOT}"] button`) !== null,
+        );
   }, []);
 
   // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
@@ -579,7 +584,11 @@ export function MessageList<T>({
       )}
       {leadingAction === undefined ? null : (
         // A sibling of the chrome, never inside it: a sticky box cannot leave its parent, and the chrome ends with the oldest row.
-        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)} data-slot="message-list-leading-action">
+        <div
+          ref={setLeadingActionNode}
+          className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}
+          data-slot={MESSAGE_LIST_LEADING_ACTION_SLOT}
+        >
           {leadingAction}
         </div>
       )}

@@ -42,7 +42,12 @@ const REST_MESSAGES = messagesOf(REST, { rejected: "A fractional-pixel or percen
 const CONDITION_MESSAGES = messagesOf(CONDITION, {
   media: "Spell a media condition as a generated @variant (pointer-coarse, motion-reduce, shell-mobile, …), never a raw @media",
   primitive: "A primitive ramp step is referenced directly; use the semantic token that aliases it",
-  container: "A container condition's length is a rem value of the container.cq-* ladder; a container query cannot read a variable, so lint binds it",
+});
+
+const THRESHOLD = "orb/query-threshold-from-token";
+const THRESHOLD_MESSAGES = messagesOf(THRESHOLD, {
+  container: "A container threshold is a rem value of a --container-cq-* step; a query cannot read a variable, so lint binds it",
+  media: "A media threshold is a rem value of a --breakpoint-* token; a query cannot read a variable, so lint binds it",
 });
 
 // ── The value allow-lists (client-architecture-lockdown.md §4.4) ───────────────────────────────────────────
@@ -237,26 +242,12 @@ restRule.messages = REST_MESSAGES;
 
 // Authored CSS names a condition through a generated `@variant` and a value through a semantic token: a raw
 // `@media` re-spells a query the vault owns, and a `--primitive-*` reference skips the semantic tier.
-const CONTAINER_LENGTH = /(?<!\d)(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
-
-/** A container condition cannot read a variable, so its lengths are bound to the container steps by lint instead. */
-function containerLengthsOffLadder(params: string, steps: ReadonlySet<number>): boolean {
-  return [...params.matchAll(CONTAINER_LENGTH)].some((match) => match[2] !== "rem" || !steps.has(Number(match[1])));
-}
-
-const conditionRule: Rule<true, { readonly containerSteps?: readonly number[] } | undefined> = (primary, secondary) => (root, result) => {
-  const options = { actual: secondary, possible: { containerSteps: [(value: unknown): boolean => typeof value === "number"] }, optional: true };
-  if (!stylelint.utils.validateOptions(result, CONDITION, { actual: primary, possible: [true] }, options)) {
+const conditionRule: Rule<true> = (primary) => (root, result) => {
+  if (!stylelint.utils.validateOptions(result, CONDITION, { actual: primary, possible: [true] })) {
     return;
   }
-  const steps = new Set(secondary?.containerSteps ?? []);
   root.walkAtRules("media", (atRule) => {
     stylelint.utils.report({ result, ruleName: CONDITION, node: atRule, message: CONDITION_MESSAGES.media });
-  });
-  root.walkAtRules("container", (atRule) => {
-    if (containerLengthsOffLadder(atRule.params, steps)) {
-      stylelint.utils.report({ result, ruleName: CONDITION, node: atRule, message: CONDITION_MESSAGES.container });
-    }
   });
   root.walkDecls((declaration) => {
     if (withoutValueComments(authoredValue(declaration)).includes(PRIMITIVE_VAR)) {
@@ -266,6 +257,50 @@ const conditionRule: Rule<true, { readonly containerSteps?: readonly number[] } 
 };
 conditionRule.ruleName = CONDITION;
 conditionRule.messages = CONDITION_MESSAGES;
+
+// A query cannot read a variable, so each threshold repeats a token's value by hand; lint binds the copy to its source.
+const QUERY_LENGTH = /(?<!\d)(\d+(?:\.\d+)?)(px|rem|em)\b/gu;
+// A custom variant's params carry the query it wraps, so its kind is the at-keyword inside.
+const WRAPPED_QUERY = /@(?<kind>container|media)\b(?<condition>[^@]*)/gu;
+
+interface ThresholdSteps {
+  /** The rem values of the `--container-cq-*` steps. */
+  readonly container: readonly number[];
+  /** The rem values of the `--breakpoint-*` tokens. */
+  readonly media: readonly number[];
+}
+
+type QueryKind = keyof ThresholdSteps;
+
+function queriesOf(atRule: AtRule): readonly { readonly kind: QueryKind; readonly condition: string }[] {
+  if (atRule.name === "container") {
+    return [{ kind: "container", condition: atRule.params }];
+  }
+  return [...atRule.params.matchAll(WRAPPED_QUERY)].map((match) => ({
+    kind: match.groups?.["kind"] === "media" ? "media" : "container",
+    condition: match.groups?.["condition"] ?? "",
+  }));
+}
+
+const thresholdRule: Rule<true, ThresholdSteps> = (primary, secondary) => (root, result) => {
+  const numbers = [(value: unknown): boolean => typeof value === "number"];
+  const options = { actual: secondary, possible: { container: numbers, media: numbers } };
+  if (!stylelint.utils.validateOptions(result, THRESHOLD, { actual: primary, possible: [true] }, options)) {
+    return;
+  }
+  const steps: Readonly<Record<QueryKind, ReadonlySet<number>>> = { container: new Set(secondary.container), media: new Set(secondary.media) };
+  root.walkAtRules(/^(?:container|custom-variant)$/u, (atRule) => {
+    for (const { kind, condition } of queriesOf(atRule)) {
+      for (const length of condition.matchAll(QUERY_LENGTH)) {
+        if (length[2] !== "rem" || !steps[kind].has(Number(length[1]))) {
+          stylelint.utils.report({ result, ruleName: THRESHOLD, node: atRule, message: THRESHOLD_MESSAGES[kind], word: length[0] });
+        }
+      }
+    }
+  });
+};
+thresholdRule.ruleName = THRESHOLD;
+thresholdRule.messages = THRESHOLD_MESSAGES;
 
 // ADR 0200: a shadow's colours resolve through served variables (an ingredient, a relative colour from one, or a
 // mix over one) so a theme override reaches them; a frozen literal stays one colour under every palette.
@@ -815,6 +850,7 @@ export const CSS_RULES = [
   stylelint.createPlugin(COLOR, colorRule),
   stylelint.createPlugin(REST, restRule),
   stylelint.createPlugin(CONDITION, conditionRule),
+  stylelint.createPlugin(THRESHOLD, thresholdRule),
   stylelint.createPlugin(SHADOW, shadowRule),
   stylelint.createPlugin(APPEARANCE, appearanceRule),
   stylelint.createPlugin(LIFECYCLE_KEYFRAMES, lifecycleKeyframesRule),
