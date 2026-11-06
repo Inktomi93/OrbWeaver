@@ -12,11 +12,21 @@ pre-commit:
     # Hand-edited docs under the doc tool's trees get the tool's own formatting. A file the formatter
     # refuses is reported, never blocking: commits are not hard-blocked by this check, hence `|| true`.
     format-docs:
+      glob: "docs/{adr,plans,work,law}/*.md"
+      run: pnpm doc format --write {staged_files} || true
+      stage_fixed: true
+
+post-commit:
+  commands:
+    # `git commit -- <path>` commits from a temporary index, so stage_fixed restages the formatted text
+    # there only: the real index keeps the unformatted text and status shows `MM`. Resetting the committed
+    # docs to HEAD leaves the formatted working copy as the clean state.
+    restage-docs:
       glob:
         - "docs/{adr,plans,work,law}/*.md"
         - "docs/{adr,plans,work,law}/**/*.md"
-      run: pnpm doc format --write {staged_files} || true
-      stage_fixed: true
+      files: git diff-tree --no-commit-id --name-only -r HEAD
+      run: git reset -q HEAD -- {files}
 
 pre-merge-commit:
   commands:

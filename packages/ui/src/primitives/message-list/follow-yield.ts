@@ -36,7 +36,8 @@ const SCROLL_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "PageU
  */
 export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () => void {
   const onKey = (event: KeyboardEvent): void => {
-    if (SCROLL_KEYS.has(event.key)) {
+    // Space presses a focused button instead of scrolling, and that press can start a prepend whose anchor must land.
+    if (SCROLL_KEYS.has(event.key) && !(event.key === " " && event.target instanceof HTMLButtonElement)) {
       onInput();
     }
   };

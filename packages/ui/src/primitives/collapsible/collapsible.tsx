@@ -59,9 +59,9 @@ export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className">
    *  reduced-motion floor). Set on an AUTO open/close where the content BELOW the panel must land at its
    *  final position in one commit (the reasoning disclosure's answer-token collapse). Default `false`. */
   instant?: boolean;
-  /** What the panel holds. `prose` (the default) is running text in the muted ink; `controls` keeps the
-   *  foreground ink, so `text-current` buttons inside do not all recede to muted. */
-  holds?: "prose" | "controls";
+  /** What the panel holds. `controls` keeps the foreground ink instead of the panel's muted prose ink,
+   *  so `text-current` buttons inside do not all recede to muted. */
+  holds?: "controls";
 }
 
 // Removed from the DOM while closed by default. `keepMounted` keeps it mounted but hidden;

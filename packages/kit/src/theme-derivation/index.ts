@@ -1129,6 +1129,7 @@ export const CARRIED_TONE_HOSTS = [
   "card-foreground",
   "popover",
   "popover-foreground",
+  "sidebar",
   "muted",
   "muted-foreground",
   "accent",
@@ -1193,17 +1194,41 @@ function opaquePixel(color: Oklch): Oklch {
 }
 
 /**
- * The shared ink of the background, raised and card host family, of a field's value on the input wash over each panel,
- * and of a row that keeps this ink on a neutral tint. A carried palette has no call-site sweep to lean on, and `rampDeltas`
- * holds both tints where the polarity's end point clears them.
+ * The shared ink of the page family, the popover and rail a tone's text mixes it into included, of a field's value on the
+ * input wash over each panel, and of a row that keeps this ink on a neutral tint. A carried palette has no call-site sweep
+ * to lean on, and `rampDeltas` holds every one of them where the polarity's end point clears it.
  */
 function carriedForegroundLightness(base: Oklch, inputWash: number): number {
   const deltas = rampDeltas(base);
   const wash = oklchToSrgb({ l: inputWash, c: 0, h: base.h });
   const fields = fieldPanels(base, deltas).map((panel) => compositeSrgb(wash, THEME_DERIVATION.inputAlpha, oklchToSrgb(panel)));
   return derivedForegroundLightnessForSurfaces(
-    [base, rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.card), rampSurface(base, deltas.accent), rampSurface(base, deltas.muted)],
+    [
+      base,
+      rampSurface(base, deltas.surfaceRaised),
+      rampSurface(base, deltas.card),
+      rampSurface(base, deltas.popover),
+      rampSurface(base, deltas.sidebar),
+      rampSurface(base, deltas.accent),
+      rampSurface(base, deltas.muted),
+    ],
     fields,
+  );
+}
+
+/**
+ * The ink of one ramp member `rampDeltas` projected, at the base's polarity (D202). The projection holds that end point on
+ * the member, so the member needs no polarity of its own: a member a hair across the crossover would otherwise take the
+ * opposite ink from the page, and no tint could carry both.
+ */
+function rampMemberInkLightness(base: Oklch, surface: Oklch): number {
+  const polarity = surfacePolarity(base);
+  const surfaceRgb = oklchToSrgb(surface);
+  return neutralInkLightness(
+    polarity,
+    [surfaceRgb],
+    polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax,
+    neutralInkTarget(polarity, surfaceRgb),
   );
 }
 
@@ -1253,21 +1278,32 @@ export interface CarriedInks {
   readonly foreground: number;
   /** The ink of the accent and muted family, the neutral tone's text on its tints. */
   readonly accentForeground: number;
+  readonly cardForeground: number;
+  readonly popoverForeground: number;
+  readonly secondaryForeground: number;
   readonly muted: MutedForegroundPair;
 }
 
 export function carriedInks(base: Oklch): CarriedInks {
   const muted = carriedMutedForegroundPair(base);
-  return { foreground: carriedForegroundLightness(base, muted.inputWash), accentForeground: carriedAccentInkLightness(base), muted };
+  const deltas = rampDeltas(base);
+  return {
+    foreground: carriedForegroundLightness(base, muted.inputWash),
+    accentForeground: carriedAccentInkLightness(base),
+    cardForeground: rampMemberInkLightness(base, rampSurface(base, deltas.card)),
+    popoverForeground: rampMemberInkLightness(base, rampSurface(base, deltas.popover)),
+    secondaryForeground: rampMemberInkLightness(base, rampSurface(base, deltas.secondary)),
+    muted,
+  };
 }
 
 /** The painted pixels of a carried base's ramp hosts, the palette its tone roles resolve against; `inks` are {@link carriedInks} of the base. */
-export function carriedTonePalette(base: Oklch, { foreground: foregroundLightness, accentForeground, muted }: CarriedInks): TonePalette<CarriedToneHost> {
+export function carriedTonePalette(base: Oklch, inks: CarriedInks): TonePalette<CarriedToneHost> {
   const deltas = rampDeltas(base);
   const bubbles = bubbleFills(base);
   const polarity = surfacePolarity(base);
   const background = opaquePixel(base);
-  const foreground = opaquePixel({ l: foregroundLightness, c: 0, h: base.h });
+  const foreground = opaquePixel({ l: inks.foreground, c: 0, h: base.h });
   const borderInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
   return {
     polarity,
@@ -1279,14 +1315,14 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
       foreground,
       "surface-raised": opaquePixel(rampSurface(base, deltas.surfaceRaised)),
       card: opaquePixel(rampSurface(base, deltas.card)),
-      // Each surface's own ink, spelled as the scope emits `--color-card-foreground` and `--color-popover-foreground`.
-      "card-foreground": opaquePixel({ l: derivedForegroundLightness(rampSurface(base, deltas.card)), c: 0, h: base.h }),
+      "card-foreground": opaquePixel({ l: inks.cardForeground, c: 0, h: base.h }),
       popover: opaquePixel(rampSurface(base, deltas.popover)),
-      "popover-foreground": opaquePixel({ l: derivedForegroundLightness(rampSurface(base, deltas.popover)), c: 0, h: base.h }),
+      "popover-foreground": opaquePixel({ l: inks.popoverForeground, c: 0, h: base.h }),
+      sidebar: opaquePixel(rampSurface(base, deltas.sidebar)),
       muted: opaquePixel(rampSurface(base, deltas.muted)),
-      "muted-foreground": opaquePixel({ l: muted.lightness, c: 0, h: base.h }),
+      "muted-foreground": opaquePixel({ l: inks.muted.lightness, c: 0, h: base.h }),
       accent: opaquePixel(rampSurface(base, deltas.accent)),
-      "accent-foreground": opaquePixel({ l: accentForeground, c: 0, h: base.h }),
+      "accent-foreground": opaquePixel({ l: inks.accentForeground, c: 0, h: base.h }),
       border: srgbToOklch(compositeSrgb(borderInk, THEME_DERIVATION.borderAlpha, oklchToSrgb(base))),
       // A bubble's fill is the ramp member the base token binds it to (`user-bubble` to secondary, `ai-bubble` to card,
       // `system-bubble` to muted); a scope that picks a bubble fill is not judged on the pick.
@@ -1300,11 +1336,16 @@ export function carriedTonePalette(base: Oklch, { foreground: foregroundLightnes
 /** Lightness step of the form-control edge scan: fine enough that the first passing step sits within a tenth of a ratio point of the floor. */
 const INPUT_BORDER_L_STEP = 0.005;
 
-/** What the scope paints a form-control edge over: its chrome panels, and the `bg-input` fill (an ink at an alpha) laid over each. */
+/** A fill a form control paints inside its edge: an ink at an alpha, composited over each panel the control sits on. */
+interface InputBorderFill {
+  readonly ink: Oklch;
+  readonly alpha: number;
+}
+
+/** What the scope paints a form-control edge over: its chrome panels, and every fill a control paints, each laid over every panel. */
 interface InputBorderGrounds {
   readonly panels: readonly Oklch[];
-  readonly fillInk: Oklch;
-  readonly fillAlpha: number;
+  readonly fills: readonly InputBorderFill[];
 }
 
 export interface InputBorderSolve {
@@ -1327,20 +1368,16 @@ function quantizedPixel(color: Oklch): Rgb {
 
 /**
  * The form-control edge of a carried palette (D159): the nearest lightness to the base, on either side,
- * at which the edge holds WCAG 1.4.11's 3:1 against every panel and against the `bg-input` fill over each, measured on
+ * at which the edge holds WCAG 1.4.11's 3:1 against every panel and against each painted fill over each, measured on
  * 8-bit pixels. The nearest passing step is the quietest edge, so it is also the one furthest below the focus ring.
  * The focus ring is held above this edge afterwards, by {@link solveFocusRing}; the floor is never traded for it.
  */
 export function solveInputBorder({ base, inkLightness, grounds }: InputBorderInputs): InputBorderSolve {
   const preferred = inkLightness > base.l ? 1 : -1;
   const panelPixels = grounds.panels.map((panel) => quantizedPixel(panel));
-  const fillInk = oklchToSrgb(grounds.fillInk);
   const seen = [
     ...panelPixels,
-    ...panelPixels.map((panel) => {
-      const lit = compositeSrgb(fillInk, grounds.fillAlpha, panel);
-      return { r: Math.round(lit.r), g: Math.round(lit.g), b: Math.round(lit.b) };
-    }),
+    ...grounds.fills.flatMap(({ ink, alpha }) => panelPixels.map((panel) => quantized(compositeSrgb(oklchToSrgb(ink), alpha, panel)))),
   ];
   const steps = Math.round(1 / INPUT_BORDER_L_STEP);
   // Both directions are walked together: around the polarity pivot the fill's own ink can darken the grounds so far that

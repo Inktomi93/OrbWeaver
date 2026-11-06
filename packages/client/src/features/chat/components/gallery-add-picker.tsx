@@ -95,8 +95,8 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
   return (
     <PickerDialog
       title="Add images to the gallery"
-      bodyProps={{ container: true }}
-      popupProps={{ size: "lg" }}
+      bodyContainer={true}
+      size="lg"
       open={open}
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {

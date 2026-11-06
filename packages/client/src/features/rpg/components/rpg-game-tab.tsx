@@ -96,11 +96,20 @@ function TrackerRow({
   const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
   const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
   const removeLabel = `Remove ${def.label}`;
+  const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
     <DefRow slot="rpg-tracker-row">
       <Row gap="field" align="center" className="flex-wrap">
         <Row gap="field" align="center" touchFloor="block" className="flex-1 min-inline-(--width-title-floor)">
-          {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
+          {def.shape === "meter" ? (
+            <TrackBar
+              value={1}
+              max={1}
+              color={swatch.color}
+              {...(swatch.customColor === undefined ? {} : { customColor: swatch.customColor })}
+              width="swatch"
+            />
+          ) : null}
           <TrackerValue
             ariaLabel={`Tracker ${index + 1} label`}
             display={def.label}

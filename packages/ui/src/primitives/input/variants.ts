@@ -25,8 +25,8 @@ export const inputVariants = tv({
     // twMerge 3.6 pre-#146), so the shipped call sites had to write `!h-auto !px-field` — an !important escape
     // that also slips past the ui-size-via-variant gate. #146 registered the spacing scale, so those pairs now
     // resolve last-wins: the escape is inert AND a plain call-site class would now silently win, which is the
-    // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`,
-    // TabsTab `stacked` precedent).
+    // stronger reason for the arm to exist at all. The scale can only be chosen HERE (Button `media`/`wrap`
+    // precedent).
     layout: {
       field: FIELD_CONTROL,
       // `text-field-dense` IS THE DENSE STEP WITH THE PLATFORM FLOOR BAKED IN (#1868, §4b axis 3). This arm

@@ -108,29 +108,25 @@ for (const pointer of [
       expect((await style(component.locator('[data-case="row-gap"]'), "column-gap")) === blockGap).toBe(coarse);
     });
 
-    test("a revealed cluster rests hidden and shows on its group's hover, and a coarse pointer keeps it shown", async ({ mount }) => {
+    test("a revealed Row rests hidden and shows on its group's hover, and a coarse pointer keeps it shown", async ({ mount }) => {
       const component = await mount<typeof RevealStory>(`${STORIES}/RevealStory`, {});
       const hover = component.locator('[data-case="row-hover"]');
       const faint = component.locator('[data-case="row-faint"]');
-      const actions = component.locator('[data-slot="list-row-actions"]');
       const opacity = (locator: Locator): Promise<string> => style(locator, "opacity");
       await component.locator('[data-case="away"]').hover();
       await expect.poll(() => opacity(hover)).toBe(coarse ? "1" : "0");
       expect(await opacity(faint)).toBe(coarse ? "0.4" : "0");
-      await expect.poll(() => opacity(actions)).toBe(coarse ? "1" : "0");
     });
   });
 }
 
-test("at a fine pointer the group's hover reveals the cluster: full for an action, faint for secondary chrome", async ({ mount }) => {
+test("at a fine pointer the group's hover reveals the Row: full for an action, faint for secondary chrome", async ({ mount }) => {
   const component = await mount<typeof RevealStory>(`${STORIES}/RevealStory`, {});
   const opacity = (locator: Locator): Promise<string> => style(locator, "opacity");
   // Over the action row, so the faint row reads its group's hover and not its own.
   await component.locator('[data-case="row-hover"]').hover();
   await expect.poll(() => opacity(component.locator('[data-case="row-hover"]'))).toBe("1");
   await expect.poll(() => opacity(component.locator('[data-case="row-faint"]'))).toBe("0.6");
-  await component.locator('[data-slot="list-row-root"]').hover();
-  await expect.poll(() => opacity(component.locator('[data-slot="list-row-actions"]'))).toBe("1");
 });
 
 test("the row shape takes the control radius in and out of a tier, and the neutral soft style takes the muted tint", async ({ mount }) => {

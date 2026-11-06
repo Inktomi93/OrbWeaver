@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-06
 priority: P1
 area: ui
-lane: wt/agent-a8be2c9e358ff6ae8
 plan: surface-walk
 ---
 
@@ -107,6 +106,35 @@ For the component-test runner, mount the same document with `page.setContent` in
 
 ### Lead: the Skia GPU canvas path
 
-Playwright's Linux WebKit is the GTK/WPE port, which accelerates 2D canvas through Skia on the GPU ([WebKit bug 274305](https://bugs.webkit.org/show_bug.cgi?id=274305), [WebKit bug 291678](https://bugs.webkit.org/show_bug.cgi?id=291678)). A downstream report shows WebKitGTK 2.52 leaving unpainted output on one GPU driver through that path and recovering with `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` ([block/buzz#2643](https://github.com/block/buzz/issues/2643)). The observed controls fit the GPU path: a `willReadFrequently` canvas, which stays on the CPU, never showed the defect, and CPU load alone did not trigger it. This box renders through the Intel UHD 770 on Mesa 25.2.8; its two NVIDIA GPUs run the model engines.
+Playwright's Linux WebKit is the GTK/WPE port, which accelerates 2D canvas through Skia on the GPU ([WebKit bug 274305](https://bugs.webkit.org/show_bug.cgi?id=274305), [WebKit bug 291678](https://bugs.webkit.org/show_bug.cgi?id=291678)). A downstream report shows WebKitGTK 2.52 leaving unpainted output on one GPU driver through that path and recovering with `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` ([block/buzz#2643](https://github.com/block/buzz/issues/2643)). The observed controls fit the GPU path: a `willReadFrequently` canvas, which stays on the CPU, never showed the defect, and CPU load alone did not trigger it. This lead is unconfirmed: the test below never fired, so it separates nothing.
 
-Next test: run the reproduction script with and without `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` across several sessions, recording the Mesa version, which GPU WebKit's EGL selects, and whether the model engines hold GPU load. A CPU-rendering run that never fires while the default run fires confirms the path. Then file the bug upstream with the bare-HTML reproduction.
+### CPU-rendering test: never fired on demand
+
+Five standalone sessions and two runner rounds ran the first case with and without `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1`. The default run never fired, so a quiet CPU run proves nothing about the path. No cause is shown and no upstream bug is drafted.
+
+| Run | Mode | Load (1 min) | Fired |
+| - | - | - | - |
+| Standalone, accelerated canvas | default | 7.8 to 29.2 | 0 of 100 |
+| Standalone, accelerated canvas | CPU rendering | 8.1 to 30.1 | 0 of 100 |
+| Standalone, four concurrent pages per browser | default | 7.8 to 29.2 | 0 of 100 |
+| Standalone, four concurrent pages per browser | CPU rendering | 8.1 to 30.1 | 0 of 100 |
+| Standalone, `willReadFrequently` control | default and CPU rendering | 7.8 to 30.1 | 0 of 200 |
+| Standalone, Mesa EGL vendor only | default | 8.1 to 28.2 | 0 of 100 accelerated, 0 of 100 concurrent |
+| Standalone, Mesa vendor with `WPE_DRM_DEVICE` and `DRI_PRIME` on the Intel GPU | default | 14.9 to 15.4 | 0 of 40 accelerated, 0 of 40 concurrent |
+| Runner, `--workers=1` | default | 13.4 to 16.0 | 0 of 40 |
+| Runner, `--workers=1` | CPU rendering | 13.7 to 15.3 | 0 of 40 |
+| Runner, `--workers=4` | default | 12.3 to 15.2 | 0 of 40 |
+| Runner, `--workers=4` | CPU rendering | 13.4 to 15.2 | 0 of 40 |
+
+State recorded across those runs:
+
+- Software: Playwright WebKit build 2370 (the WPE MiniBrowser), Mesa 25.2.8-0ubuntu0.24.04.4, NVIDIA driver 580.178.04. The WebKit library contains the `WEBKIT_SKIA_ENABLE_CPU_RENDERING` string.
+- GPU selection: by default, WebKit's EGL takes the NVIDIA path, not the Intel UHD 770. `MiniBrowser` and `WPEWebProcess` hold `/dev/nvidia0`, `/dev/nvidia1`, `renderD129` and, for `WPEWebProcess`, `renderD130`, and map `libEGL_nvidia` and `libnvidia-eglcore`. `libEGL_mesa` is mapped too. `renderD129` is the NVIDIA card at PCI 01:00.0, `renderD130` the one at 02:00.0, and `renderD128` the Intel GPU, which no default run opened.
+- CPU rendering keeps those same descriptors, so the descriptors do not show which path painted.
+- Mesa modes: with the Mesa EGL vendor alone, neither process opened any DRM node, with or without the Intel settings. Those rows did not exercise the Intel GPU, so the Intel path remains untested.
+- Model engines: `llm-flashnext` and `llama-swap` were up throughout. They held 44849 MiB and 44480 MiB of the two 49140 MiB A6000s. One sample per standalone mode read 0 to 20 percent on GPU 0 and 0 percent on GPU 1. No sampled run had engine compute load that this test can attribute. Engines were not started or stopped.
+- WebGL reports the masked `Apple GPU`, so it identifies nothing.
+
+The runs in the first table did not record the GPU path they used. Whether engine load, free GPU memory or another host state decides the defect is not shown.
+
+Next test: when the defect next fires in any WebKit CT run, run the script with and without `WEBKIT_SKIA_ENABLE_CPU_RENDERING=1` in that same box state, and record `nvidia-smi` and the descriptors above. A CPU-rendering run that never fires while the default run fires confirms the path. Then file the bug upstream with the bare-HTML reproduction.

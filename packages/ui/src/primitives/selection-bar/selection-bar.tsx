@@ -11,8 +11,8 @@ export interface SelectionBarProps {
   onClear: () => void;
   /** The bulk-action controls — caller-owned; this primitive is dumb chrome around them. */
   children?: ReactNode;
-  /** `sticky` (default) pins to the bottom edge of a scroll container; `floating` is a centered pill. */
-  placement?: "sticky" | "floating";
+  /** `sticky` (default) pins to the bottom edge of a scroll container. */
+  placement?: "sticky";
 }
 
 /** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */

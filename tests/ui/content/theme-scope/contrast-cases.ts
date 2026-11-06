@@ -104,6 +104,9 @@ export const PICKED_ROOM_CASES = [
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";
 
+/** A typed fractional page whose card lands a hair across the crossover from it. */
+export const TYPED_CROSSOVER = "oklch(0.5606 0.12 240)";
+
 /**
  * Whether a painted colour keeps the tone hue `hue`: nearer it than any adjacent tone could sit, at a chroma at least
  * the tint separation off the grey axis. The unit suite judges the solved pixels with it and the CT the framebuffer.

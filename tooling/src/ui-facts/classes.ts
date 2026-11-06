@@ -1,7 +1,8 @@
 // Tailwind class tokens: which hand-rolled kind a token is, and every class string a source file writes.
+import { posix } from "node:path";
 import ts from "typescript";
-import type { Elem } from "./source.ts";
-import { elementsOf, lineOf, visit } from "./source.ts";
+import type { Elem, Source } from "./source.ts";
+import { constInitializers, elementsOf, lineOf, visit } from "./source.ts";
 import type { TokenNamespace } from "./tokens.ts";
 import { tailwindStepPx } from "./tokens.ts";
 
@@ -141,6 +142,8 @@ function classCallee(node: ts.Node): boolean {
 }
 
 const CLASS_CONSTANT = /(?:CLASS|CLASSES|Class|Classes)$/u;
+// `className` on an element, and the `*ClassName` props a composite forwards to a part it renders.
+const CLASS_ATTRIBUTE = /^(?:className|[a-z][A-Za-z]*ClassName)$/u;
 
 function literalText(node: ts.Node): string {
   return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)
@@ -148,29 +151,105 @@ function literalText(node: ts.Node): string {
     : "";
 }
 
-// The string pieces of a class context at this node: a className attribute, a cn/tv call, or a *Class constant.
-function classPieces(sf: ts.SourceFile, node: ts.Node, byOpening: ReadonlyMap<ts.Node, Elem>): readonly (readonly [ts.Node, Elem | null])[] {
-  if (ts.isJsxAttribute(node) && node.name.getText(sf) === "className" && node.initializer !== undefined) {
-    const elem = byOpening.get(node.parent.parent) ?? null;
-    return stringsIn(node.initializer).map((piece) => [piece, elem] as const);
+const declaredName = (node: ts.Node): string | null => (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) ? node.name.text : null);
+
+// The node whose string pieces are class text: a class attribute, a cn/tv call, or the initializer of a constant that
+// is named like a class or that a class context reads (`referenced`, as `path#name`).
+function classRoot(path: string, sf: ts.SourceFile, node: ts.Node, referenced: ReadonlySet<string>): ts.Node | null {
+  if (ts.isJsxAttribute(node)) {
+    return CLASS_ATTRIBUTE.test(node.name.getText(sf)) ? (node.initializer ?? null) : null;
   }
   if (classCallee(node)) {
-    return stringsIn(node).map((piece) => [piece, null] as const);
+    return node;
   }
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && CLASS_CONSTANT.test(node.name.text) && node.initializer !== undefined) {
-    return stringsIn(node.initializer).map((piece) => [piece, null] as const);
-  }
-  return [];
+  const name = declaredName(node);
+  const init = ts.isVariableDeclaration(node) ? node.initializer : undefined;
+  return name !== null && init !== undefined && (CLASS_CONSTANT.test(name) || referenced.has(`${path}#${name}`)) ? init : null;
 }
 
-/** Every class string a file writes: `className` attributes, `cn`/`tv` calls and `*Class` constants. */
-export function classStringsOf(path: string, sf: ts.SourceFile): readonly ClassString[] {
+/** The names a class context reads: an identifier outside a property key, a property name or a call's callee. */
+function namesIn(root: ts.Node): ReadonlySet<string> {
+  const names = new Set<string>();
+  visit(root, (node) => {
+    const parent = node.parent;
+    const skipped =
+      (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
+      (ts.isPropertyAssignment(parent) && parent.name === node) ||
+      (ts.isCallExpression(parent) && parent.expression === node);
+    if (ts.isIdentifier(node) && !skipped) {
+      names.add(node.text);
+    }
+  });
+  return names;
+}
+
+/** Relative imports of a file by local name: the constant they bring is `path#name` in the module they name. */
+function importedConstants(path: string, sf: ts.SourceFile, known: ReadonlyMap<string, ts.SourceFile>): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  for (const statement of sf.statements) {
+    if (!(ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text.startsWith("."))) {
+      continue;
+    }
+    const target = posix.join(posix.dirname(path), statement.moduleSpecifier.text);
+    const bindings = statement.importClause?.namedBindings;
+    if (known.has(target) && bindings !== undefined && ts.isNamedImports(bindings)) {
+      for (const specifier of bindings.elements) {
+        map.set(specifier.name.text, `${target}#${(specifier.propertyName ?? specifier.name).text}`);
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * The constants, as `path#name`, that a class context reads however they are named: in the file that declares them or in
+ * a file that imports them by a relative path. Follows a constant into the constants it reads. Scope is not read.
+ */
+export function referencedClassConstants(sources: readonly Source[]): ReadonlySet<string> {
+  const known = new Map(sources.flatMap((source) => (source.sf === null ? [] : [[source.path, source.sf] as const])));
+  const imports = new Map<string, ReadonlyMap<string, string>>();
+  const found = new Set<string>();
+  const queue: string[] = [];
+  const reach = (path: string, sf: ts.SourceFile, root: ts.Node): void => {
+    const brought = imports.get(path) ?? importedConstants(path, sf, known);
+    imports.set(path, brought);
+    for (const name of namesIn(root)) {
+      const key = constInitializers(sf).has(name) ? `${path}#${name}` : brought.get(name);
+      if (key !== undefined && !found.has(key)) {
+        found.add(key);
+        queue.push(key);
+      }
+    }
+  };
+  for (const [path, sf] of known) {
+    visit(sf, (node) => {
+      const root = classRoot(path, sf, node, found);
+      if (root !== null) {
+        reach(path, sf, root);
+      }
+    });
+  }
+  for (const key of queue) {
+    const [path = "", name = ""] = key.split("#");
+    const sf = known.get(path);
+    const init = sf === undefined ? undefined : constInitializers(sf).get(name);
+    if (sf !== undefined && init !== undefined) {
+      reach(path, sf, init);
+    }
+  }
+  return found;
+}
+
+/** Every class string a file writes: class attributes, `cn`/`tv` calls, `*Class` constants and the constants a class context reads. */
+export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
   const out: ClassString[] = [];
+  const emitted = new Set<ts.Node>();
   const emit = (node: ts.Node, elem: Elem | null): void => {
     const tokens = literalText(node)
       .split(/\s+/u)
       .filter((token) => token !== "");
-    if (tokens.length > 0) {
+    if (tokens.length > 0 && !emitted.has(node)) {
+      emitted.add(node);
       out.push({ path, line: lineOf(sf, node), tokens, elem });
     }
   };
@@ -179,7 +258,13 @@ export function classStringsOf(path: string, sf: ts.SourceFile): readonly ClassS
     byOpening.set(elem.opening, elem);
   }
   visit(sf, (node) => {
-    for (const [piece, elem] of classPieces(sf, node, byOpening)) {
+    const root = classRoot(path, sf, node, referenced);
+    if (root === null) {
+      return;
+    }
+    // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
+    const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
+    for (const piece of stringsIn(root)) {
       emit(piece, elem);
     }
   });

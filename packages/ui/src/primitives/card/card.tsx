@@ -45,11 +45,9 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, layout, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, receded, focusable, ownSlot } =
-    props;
+  const { className, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, focusable, ownSlot } = props;
   const skin = cn(
     cardVariants({
-      layout,
       shape,
       elevated,
       interactive,
@@ -61,7 +59,6 @@ export function Card(props: CardProps): ReactElement {
       glow,
       rail,
       artDecoration,
-      receded,
       focusable,
     }),
     className,
@@ -81,7 +78,6 @@ export function Card(props: CardProps): ReactElement {
     const {
       as: _as,
       className: _className,
-      layout: _layout,
       shape: _shape,
       elevated: _elevated,
       interactive: _interactive,
@@ -93,7 +89,6 @@ export function Card(props: CardProps): ReactElement {
       glow: _glow,
       rail: _rail,
       artDecoration: _artDecoration,
-      receded: _receded,
       focusable: _focusable,
       ownSlot: _ownSlot,
       ...rest
@@ -111,7 +106,6 @@ export function Card(props: CardProps): ReactElement {
   const {
     as: _as,
     className: _className,
-    layout: _layout,
     shape: _shape,
     elevated: _elevated,
     interactive: _interactive,
@@ -123,7 +117,6 @@ export function Card(props: CardProps): ReactElement {
     glow: _glow,
     rail: _rail,
     artDecoration: _artDecoration,
-    receded: _receded,
     focusable: _focusable,
     ownSlot: _ownSlot,
     ...rest

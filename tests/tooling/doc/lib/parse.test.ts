@@ -138,8 +138,15 @@ test("edit takes one id and the section flags it replaces; show takes a run of i
     commit: true,
   });
   expect(parseDocCommand(["edit", "--what", "x", "5"])).toEqual({ kind: "edit", id: 5, sections: { what: "x" }, commit: false });
+  expect(parseDocCommand(["edit", "5", "--evidence", "Ran the suite."])).toEqual({
+    kind: "edit",
+    id: 5,
+    sections: { evidence: "Ran the suite." },
+    commit: false,
+  });
   expect(parseDocCommand(["show", "3", "1", "2"])).toEqual({ kind: "show", ids: [3, 1, 2] });
   for (const argv of [
+    ["item", "A title", "--kind", "work", "--evidence", "x"],
     ["edit", "5"],
     ["edit", "--what", "x"],
     ["edit", "1", "2", "--what", "x"],

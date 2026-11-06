@@ -233,3 +233,131 @@ export const unresolvedStyleSpreadRule: OrbRule = {
     };
   },
 };
+
+const UI_SOURCE = /\/packages\/ui\/src\//u;
+const LITERAL_NAMES = new Set(["true", "false", "undefined", "null"]);
+const MAX_SPREAD_HOPS = 3;
+
+function members(type: ts.Type): readonly ts.Type[] {
+  return type.isUnion() ? type.types : [type];
+}
+
+// A tv config types its axes as literal unions through a mapped type, so an axis has no declaration or one inside @orb/ui;
+// a prop from React or Base UI declares itself in node_modules and is not an axis.
+function authoredHere(property: ts.Symbol): boolean {
+  const declarations = property.declarations ?? [];
+  return declarations.length === 0 || declarations.some((declaration) => UI_SOURCE.test(declaration.getSourceFile().fileName.replaceAll("\\", "/")));
+}
+
+function literalUnion(native: Native, type: ts.Type): boolean {
+  return members(type).every((member) => member.isLiteral() || LITERAL_NAMES.has(native.checker.typeToString(member)));
+}
+
+/** The variant axes of an element's props: the literal-union props the ui package authors, which its `tv` configs derive. */
+function variantAxes(native: Native, props: ts.Type, at: ts.Node): ReadonlySet<string> {
+  const names = members(props).flatMap((member) =>
+    member
+      .getProperties()
+      .filter((property) => authoredHere(property) && literalUnion(native, native.checker.getTypeOfSymbolAtLocation(property, at)))
+      .map((property) => property.name),
+  );
+  return new Set(names);
+}
+
+function outerExpression(node: ts.Expression): ts.Expression {
+  return ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)
+    ? outerExpression(node.expression)
+    : node;
+}
+
+function constOfObject(native: Native, identifier: ts.Identifier, hops: number): boolean {
+  const declaration = native.checker.getSymbolAtLocation(identifier)?.valueDeclaration;
+  return (
+    declaration !== undefined &&
+    ts.isVariableDeclaration(declaration) &&
+    declaration.getSourceFile() === identifier.getSourceFile() &&
+    declaration.parent.getFirstToken()?.kind === ts.SyntaxKind.ConstKeyword &&
+    declaration.initializer !== undefined &&
+    readableSpread(native, declaration.initializer, hops + 1)
+  );
+}
+
+function literalEntries(native: Native, object: ts.ObjectLiteralExpression, hops: number): boolean {
+  return object.properties.every((property) => {
+    if (ts.isSpreadAssignment(property)) {
+      return readableSpread(native, property.expression, hops + 1);
+    }
+    return (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) && !ts.isComputedPropertyName(property.name);
+  });
+}
+
+// What `pnpm ui-facts` reads as a write: an object literal with known keys, a conditional or logical of those, or a
+// same-file const of one. The variant census (tooling/src/ui-facts/variants.ts) reads exactly these spreads.
+function readableSpread(native: Native, expression: ts.Expression, hops: number): boolean {
+  const node = outerExpression(expression);
+  if (hops > MAX_SPREAD_HOPS) {
+    return false;
+  }
+  if (ts.isObjectLiteralExpression(node)) {
+    return literalEntries(native, node, hops);
+  }
+  if (ts.isConditionalExpression(node)) {
+    return readableSpread(native, node.whenTrue, hops) && readableSpread(native, node.whenFalse, hops);
+  }
+  if (ts.isBinaryExpression(node)) {
+    const op = node.operatorToken.kind;
+    if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return readableSpread(native, node.right, hops);
+    }
+    return (
+      (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) &&
+      readableSpread(native, node.left, hops) &&
+      readableSpread(native, node.right, hops)
+    );
+  }
+  return ts.isIdentifier(node) && constOfObject(native, node, hops);
+}
+
+// A type with a string index signature, or `any`, can carry every key, so it can write any axis the element has.
+function carriesAnyKey(native: Native, type: ts.Type): boolean {
+  return type.flags === ts.TypeFlags.Any || native.checker.getIndexInfosOfType(type).some((info) => info.keyType.flags === ts.TypeFlags.String);
+}
+
+function carriedAxes(native: Native, spread: ts.Type, axes: ReadonlySet<string>): readonly string[] {
+  const parts = members(spread);
+  if (parts.some((part) => carriesAnyKey(native, part))) {
+    return [...axes];
+  }
+  return [...new Set(parts.flatMap((part) => part.getProperties().map((property) => property.name)))].filter((name) => axes.has(name));
+}
+
+/**
+ * A spread on an element whose props have variant axes either is a literal the census reads or carries no axis. The
+ * census counts what an unreadable spread writes as nothing, so this rule is what makes its zero-use verdicts exact.
+ */
+export const opaqueVariantSpreadRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
+    return {
+      JSXSpreadAttribute: (node: TSESTree.JSXSpreadAttribute): void => {
+        const spread = native.esTreeNodeToTSNodeMap.get(node);
+        const props = native.checker.getContextualType(spread.parent);
+        if (props === undefined || readableSpread(native, spread.expression, 0)) {
+          return;
+        }
+        const axes = variantAxes(native, props, spread);
+        if (axes.size === 0) {
+          return;
+        }
+        const carried = carriedAxes(native, native.checker.getTypeAtLocation(spread.expression), axes);
+        if (carried.length > 0) {
+          context.report({
+            node,
+            message: `This spread can write the variant ${carried.length === 1 ? "axis" : "axes"} ${carried.join(", ")}, which the variant census cannot read. Spell the axis as an attribute, spread an object literal, or Omit the axis from the spread's type.`,
+          });
+        }
+      },
+    };
+  },
+};

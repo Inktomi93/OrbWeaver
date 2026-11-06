@@ -2078,6 +2078,11 @@ export default [
   },
   {
     files: [CLIENT_SRC],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-opaque-variant-spread": "error" },
+  },
+  {
+    files: [CLIENT_SRC],
     ignores: ["packages/client/src/lib/session-channel.ts"],
     plugins: { orb: localPlugin },
     rules: { "orb/session-channel-boundary": "error" },

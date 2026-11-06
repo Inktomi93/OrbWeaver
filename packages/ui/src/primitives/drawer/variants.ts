@@ -34,22 +34,6 @@ export const drawerVariants = tv({
         `,
         swipeArea: "inset-x-0 inset-be-0 block-row",
       },
-      left: {
-        popup: `
-          inset-y-0 inset-s-0 [transform:translateX(var(--drawer-swipe-movement-x))] rounded-e-card inline-full max-inline-cq-24
-          data-ending-style:-translate-x-full
-          data-starting-style:-translate-x-full
-        `,
-        swipeArea: "inset-y-0 inset-s-0 inline-row",
-      },
-      right: {
-        popup: `
-          inset-y-0 inset-e-0 [transform:translateX(var(--drawer-swipe-movement-x))] rounded-s-card inline-full max-inline-cq-24
-          data-ending-style:translate-x-full
-          data-starting-style:translate-x-full
-        `,
-        swipeArea: "inset-y-0 inset-e-0 inline-row",
-      },
     },
   },
   defaultVariants: {

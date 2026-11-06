@@ -38,7 +38,13 @@ export interface RefineryChipProps {
 export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
   // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
   return (
-    <Badge className={wrap ? "whitespace-normal max-inline-full" : undefined} data-testid={testId("refineryChip")} {...CHIP_BADGE[tone]} size="compact">
+    <Badge
+      className={wrap ? "whitespace-normal max-inline-full" : undefined}
+      data-testid={testId("refineryChip")}
+      tone={CHIP_BADGE[tone].tone}
+      variant={CHIP_BADGE[tone].variant}
+      size="compact"
+    >
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>

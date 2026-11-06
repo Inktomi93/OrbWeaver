@@ -1,5 +1,5 @@
-// D159: every form-control carrier's resting edge holds WCAG 1.4.11's 3:1 against the surface it sits on and stays below
-// the focus ring on the card, under each seed and under a custom ThemeScope that carries a mid-grey background.
+// D159: every form-control carrier's resting edge holds WCAG 1.4.11's 3:1 against the surface it sits on and the fill it
+// paints around, and stays below the focus ring on the card, under each seed and under custom ThemeScopes near the crossover.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
 import { keysOf } from "@orb/testkit/iso";
@@ -7,7 +7,7 @@ import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
-import { CUSTOM_MID_GREY, INHERITED_ACCENT, STRONG_ACCENT } from "./carrier-scopes.ts";
+import { CUSTOM_LIGHT_MID_TONE, CUSTOM_MID_GREY, INHERITED_ACCENT, STRONG_ACCENT } from "./carrier-scopes.ts";
 
 const STORY = "tests/ui/primitives/checkbox/_checkbox-contrast-stories/CarrierEdgeStory";
 const CARRIERS = [
@@ -21,6 +21,7 @@ const CASES = [
   ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom mid-grey ThemeScope", background: CUSTOM_MID_GREY, accent: STRONG_ACCENT },
   { name: "custom mid-grey ThemeScope with the inherited app accent", background: CUSTOM_MID_GREY, ambientAccent: INHERITED_ACCENT },
+  { name: "custom light mid-tone ThemeScope", background: CUSTOM_LIGHT_MID_TONE, ambientAccent: INHERITED_ACCENT },
 ] as const;
 
 function borderColorOf(locator: Locator): Promise<string> {
@@ -50,6 +51,12 @@ for (const { name, ...props } of CASES) {
         // A carrier paints the token itself: its computed edge is the swatch's computed fill.
         expect(await borderColorOf(control), `${label} on ${host}`).toBe(edgeColor);
       }
+      const field = await pixelSurface(page, component.getByRole("textbox", { name: `Input on ${host}`, exact: true }), {
+        region: { x0: 0.4, x1: 0.6, y0: 0.4, y1: 0.6 },
+      });
+      expect(wcagContrastRatio(edgePixel.rgb, field.rgb), `${host}: edge ${edgePixel.describe} on the field ${field.describe}`).toBeGreaterThanOrEqual(
+        AA_NON_TEXT_RATIO,
+      );
     }
     const card = grounds.get("card");
     if (card === undefined) {

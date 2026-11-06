@@ -73,7 +73,7 @@ const CUSTOM_CLASS_GROUPS = {
 // alphabetical within the family and has nothing to do with which layer meant to override which. Two
 // live instances were rendering right only by that accident (`CHIP_BOX`'s `gap-tight` over the control
 // primitives' `gap-field` base; the `Section` root's `gap-tight` over its own `gap-block`), and one was
-// rendering WRONG (the Tabs `stacked` arm's `gap-0` losing to the tab base's `gap-field`).
+// rendering WRONG (a tab arm's `gap-0` losing to the tab base's `gap-field`).
 //
 // So this extends the THEME entry rather than enumerating class groups: one registration, every group
 // Tailwind itself derives from the namespace — registering only `gap` would leave the identical latent

@@ -95,7 +95,8 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
   return (
     <ViewerDialog
       title={image === null ? "Image" : image.name}
-      popupProps={{ size: "xlFit", initialFocus: closeRef, finalFocus, ref: setPopup }}
+      size="xlFit"
+      popupProps={{ initialFocus: closeRef, finalFocus, ref: setPopup }}
       headerActions={
         <DialogClose
           render={

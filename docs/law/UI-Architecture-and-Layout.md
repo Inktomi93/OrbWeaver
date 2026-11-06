@@ -29,7 +29,7 @@ updated: 2026-10-17
 | diff | `diff` (jsdiff — snapshot/edit-history diffs, D28) | §2 |
 | layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
 | chart · bar-list · histogram · stat-figure | ECharts | §11.3 (D52) |
-| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per D58 | §11.3 (D52) |
+| meter (`linear`/`arc` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per D58 | §11.3 (D52) |
 | virtual-list (generic) + message-list (chat) + media-grid | TanStack Virtual (`directDomUpdates`) | §11.3 (D54) |
 | markdown | Streamdown (two trust policies) | §6.3 / §11.6 |
 | stream (smooth-text pacer · TTFT shimmer) | domain-free string-math | §6.3.1 |
@@ -152,6 +152,7 @@ The highest-leverage enforcement move, engine-agnostic:
 - The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D294 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
 - **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. These placement constraints remain product architecture law.
+- **A `z-index` in a sheet is a `--z-*` step, a one-step offset of one, or a layer of a pseudo-element.** `Z_INDEX_VALUES` in `stylelint-rules.ts` holds the legal forms. An offset (`calc(var(--z-overlay) - 1)`) carries a comment that names the neighbour it orders against. A pseudo-element may take `-1`, `0` or `1` only when its host is its own stacking scope (`isolation: isolate`, a z-indexed box, or `contain: layout`). The number then orders the host's own layers and nothing outside it. A blend-mode layer that must see what its host paints over stays unisolated and states that reason beside the rule.
 
 **DEFERRED-with-a-default (token enforcement level):** default = Tailwind v4 + DTCG + the raw-value gates (sufficient). **Panda CSS `strictTokens`** (raw value = `tsc` error) is the deferred upgrade — adopt only if gate-bypass becomes a real, observed problem; the same DTCG source wires into Panda `theme.tokens`. (ledger D42.)
 
@@ -378,5 +379,6 @@ The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fin
 
 - **`dvh`/`svh`, not `vh`** (with a `vh` fallback line): `svh` where above-fold must show, `dvh` for the shell.
 - **The keyboard:** measure the visual viewport against the CSS frame (`packages/ui/src/lib/keyboard-inset.ts`). Subtract only its remaining coverage. Preserve keyboard state while native layout resizing removes that coverage.
-- **The short room:** under the `shell-main` cq-28 height step, room chrome rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
+- **The short room:** under the `shell-main` cq-28 height step, the member strip rides in the transcript's scroll content, a reader opens on the transcript, and a writer's room holds its end (`packages/client/src/styles/globals.css`).
+- **The history pager:** Earlier messages rides in the transcript's scroll content in every regime, above the oldest loaded row. A keyboard reader reaches it from any row. The control alone pins over the rows while it holds focus or reports a failed load, and the rows stay put.
 - **`env(safe-area-inset-*)`** on shell and composer. Contain scroll chaining in scroll regions; suppress elastic overscroll on the room frame without disabling its overflow. Set `inputmode`/`type=` on inputs.

@@ -11,7 +11,6 @@ export const meterVariants = tv({
   variants: {
     kind: {
       linear: { root: "inline-full" },
-      bipolar: { root: "inline-full" },
       arc: { root: "items-center inline-max" },
     },
   },
@@ -66,18 +65,6 @@ export const arcMeterVariants = tv({
   },
 });
 
-export const bipolarMeterVariants = tv({
-  slots: {
-    root: "relative overflow-hidden rounded-full bg-muted block-field inline-full",
-    fill: "absolute inset-y-0 bg-primary",
-    origin: "absolute inset-y-0 bg-foreground inline-px",
-    tick: "absolute inset-y-0 bg-background inline-px",
-  },
-  variants: {
-    danger: { true: { fill: "bg-destructive" } },
-  },
-});
-
 export const segmentedClockVariants = tv({
   slots: {
     root: "text-primary",
@@ -93,7 +80,6 @@ export const segmentedClockVariants = tv({
     size: {
       sm: { root: "block-(--size-control-sm) inline-(--size-control-sm)" },
       md: { root: "block-(--size-control-md) inline-(--size-control-md)" },
-      lg: { root: "block-(--size-control-lg) inline-(--size-control-lg)" },
     },
     filled: { false: { segment: "text-muted" } },
     // Dims the whole glyph — never the sole signal, paired with the lock glyph in the center-emphasis slot.

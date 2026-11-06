@@ -44,6 +44,7 @@ import {
   PICKED_ROOM_CASES,
   PICKED_ROOM_PALETTES,
   SPEAKER_DIALOGUE,
+  TYPED_CROSSOVER,
 } from "./contrast-cases.ts";
 
 const SEED_THEMES = keysOf(SEED_THEME_VALUE_SETS);
@@ -53,13 +54,14 @@ const SEMANTIC_CASES = [
   { name: "hearth seed" },
   ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
   ...BASES.map(({ name, background }) => ({ name, background })),
+  { name: "typed crossover", background: TYPED_CROSSOVER },
 ] as const;
 
 for (const { name, ...props } of SEMANTIC_CASES) {
   test(`${name}: semantic and muted/input inks clear their painted backings`, async ({ mount, page }, testInfo) => {
     const component = await mount<typeof SemanticContrastStory>("tests/ui/content/theme-scope/_contrast-stories/SemanticContrastStory", props);
     const subjects = component.locator("p");
-    await expect(subjects).toHaveCount(27);
+    await expect(subjects).toHaveCount(29);
     for (const subject of await subjects.all()) {
       await expect(subject).toBeVisible();
       await subject.scrollIntoViewIfNeeded();
@@ -140,7 +142,11 @@ for (const { name, ...props } of SEMANTIC_CASES) {
 const TONE_CASES = [
   { name: "hearth seed" },
   ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
-  ...BASES.map(({ name, background }) => ({ name: `custom ${name} nested in the light seed`, theme: "light" as const, background })),
+  ...[...BASES, { name: "typed crossover", background: TYPED_CROSSOVER }].map(({ name, background }) => ({
+    name: `custom ${name} nested in the light seed`,
+    theme: "light" as const,
+    background,
+  })),
 ] as const;
 
 for (const { name, ...props } of TONE_CASES) {

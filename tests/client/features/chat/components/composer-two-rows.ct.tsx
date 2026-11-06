@@ -122,8 +122,19 @@ async function expectRowsFit(page: Page): Promise<void> {
     if (top === null || bottom === null) {
       throw new Error("Missing composer rows");
     }
+    // `display: contents` (keyboard up) leaves the row without a box of its own; its rendered extent is its children's.
+    function renderedBox(row: Element): DOMRect {
+      const own = row.getBoundingClientRect();
+      if (own.width > 0 || own.height > 0) {
+        return own;
+      }
+      const boxes = Array.from(row.children, (child) => child.getBoundingClientRect());
+      const left = Math.min(...boxes.map((box) => box.left));
+      const topEdge = Math.min(...boxes.map((box) => box.top));
+      return new DOMRect(left, topEdge, Math.max(...boxes.map((box) => box.right)) - left, Math.max(...boxes.map((box) => box.bottom)) - topEdge);
+    }
     const upperBox = top.getBoundingClientRect();
-    const lowerBox = bottom.getBoundingClientRect();
+    const lowerBox = renderedBox(bottom);
     const buttons = Array.from(top.querySelectorAll("button"));
     const boxes = buttons.map((button) => button.getBoundingClientRect());
     return {
@@ -367,6 +378,17 @@ for (const unavailable of [false, true]) {
       if (viewport === null || card === null || lower === null || upper === null) {
         throw new Error("Missing visible viewport or composer card");
       }
+      // `display: contents` (keyboard up) leaves the row without a box of its own; its rendered extent is its children's.
+      function renderedBox(row: Element): DOMRect {
+        const own = row.getBoundingClientRect();
+        if (own.width > 0 || own.height > 0) {
+          return own;
+        }
+        const boxes = Array.from(row.children, (child) => child.getBoundingClientRect());
+        const left = Math.min(...boxes.map((box) => box.left));
+        const topEdge = Math.min(...boxes.map((box) => box.top));
+        return new DOMRect(left, topEdge, Math.max(...boxes.map((box) => box.right)) - left, Math.max(...boxes.map((box) => box.bottom)) - topEdge);
+      }
       // A DOMRect crosses the evaluate boundary as its own fields; `toJSON()` is typed `any`.
       function rectOf(box: DOMRect): Pick<DOMRectReadOnly, "x" | "y" | "top" | "bottom" | "left" | "right" | "width" | "height"> {
         return { x: box.x, y: box.y, top: box.top, bottom: box.bottom, left: box.left, right: box.right, width: box.width, height: box.height };
@@ -403,14 +425,13 @@ for (const unavailable of [false, true]) {
         layoutHeight: innerHeight,
         card: rectOf(card.getBoundingClientRect()),
         field: rectOf(element.getBoundingClientRect()),
-        lower: rectOf(lower.getBoundingClientRect()),
+        lower: rectOf(renderedBox(lower)),
         upper: rectOf(upper.getBoundingClientRect()),
         buttons,
         hits,
         collisions: overlaps.filter(Boolean).length,
         refusal: refusal === null ? undefined : rectOf(refusal.getBoundingClientRect()),
-        refusalOverlap:
-          refusal === null ? 0 : Math.max(card.getBoundingClientRect().bottom, lower.getBoundingClientRect().bottom) - refusal.getBoundingClientRect().top,
+        refusalOverlap: refusal === null ? 0 : Math.max(card.getBoundingClientRect().bottom, renderedBox(lower).bottom) - refusal.getBoundingClientRect().top,
         cardPadding: getComputedStyle(card).padding,
         lowerMinimum: getComputedStyle(lower).minBlockSize,
         fieldMinimum: getComputedStyle(element).minBlockSize,

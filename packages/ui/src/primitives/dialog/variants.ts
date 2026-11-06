@@ -32,7 +32,7 @@ export const dialogVariants = tv({
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
   },
   variants: {
-    spaced: { true: { popup: "gap-block" }, false: {} },
+    spaced: { true: { popup: "gap-block" } },
     // The title clears the close button pinned over its corner. Under the narrow step the close takes its own line,
     // because a word beside it would break letter by letter.
     clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
@@ -40,7 +40,7 @@ export const dialogVariants = tv({
     focusTarget: { true: { title: "outline-none" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
-    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" }, false: {} },
+    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" } },
     size: {
       sm: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-sm)" },
       md: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-md)" },

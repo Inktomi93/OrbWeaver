@@ -40,6 +40,8 @@ function propertyRename([name, key]: readonly [string, AppearanceKey]): OwnerCss
 }
 
 export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
+  { kind: "slot", name: "origin", to: null },
+  { kind: "slot", name: "transcript-history", to: null, see: "message-list-leading" },
   { kind: "slot", name: "message-metadata-edited", to: null, see: "message-metadata-timestamp" },
   { kind: "slot", name: "drawer-tap-guard", to: null },
   { kind: "slot", name: "character-spoiler-field", to: null, see: "spoiler" },

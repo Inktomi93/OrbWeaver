@@ -121,7 +121,7 @@ export function requireWiredParticipant(ctx: DbAssemblyInput<GuardCtx>, principa
 }
 
 /** Preserve the same host kernel call after recovering the owner's actual connection. */
-export function requireWiredHost(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
+function requireWiredHost(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
   return requireHost({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId);
 }
 

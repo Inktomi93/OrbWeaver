@@ -3,7 +3,7 @@ import ts from "typescript";
 import type { Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
 import type { FileFacts } from "./file-facts.ts";
-import { attrString, childrenText, lineOf, visit } from "./source.ts";
+import { attrString, childrenText, constInitializer, lineOf, unwrap, visit } from "./source.ts";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "of", "to", "in", "on", "for", "and", "or", "with", "from", "by", "at", "as"]);
 
@@ -95,15 +95,71 @@ interface Collected {
   readonly path: string;
   readonly section: string;
   readonly line: number;
+  /** How a chip gets its words, see `wireOf`. */
+  readonly wire?: string;
+}
+
+// How an expression gets the words it shows, worst first. A `bare` read shows whatever the value is: a raw wire value when
+// that value is an enum, a word when the caller already mapped it. Syntax cannot tell the two apart, so `bare` is a candidate.
+const WIRE_RANK = ["bare", "call", "template", "lookup", "literal", "other"] as const;
+const MAX_WIRE_HOPS = 3;
+
+const worstWire = (...kinds: readonly string[]): string => WIRE_RANK.find((kind) => kinds.includes(kind)) ?? "other";
+
+function wireOfBinary(node: ts.BinaryExpression, sf: ts.SourceFile, hops: number): string {
+  const op = node.operatorToken.kind;
+  if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
+    return worstWire(wireOf(node.left, sf, hops), wireOf(node.right, sf, hops));
+  }
+  return op === ts.SyntaxKind.AmpersandAmpersandToken ? wireOf(node.right, sf, hops) : "other";
+}
+
+function wireOf(expression: ts.Expression, sf: ts.SourceFile, hops: number): string {
+  const node = unwrap(expression);
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return "literal";
+  }
+  if (ts.isConditionalExpression(node)) {
+    return worstWire(wireOf(node.whenTrue, sf, hops), wireOf(node.whenFalse, sf, hops));
+  }
+  if (ts.isBinaryExpression(node)) {
+    return wireOfBinary(node, sf, hops);
+  }
+  if (ts.isElementAccessExpression(node)) {
+    return "lookup";
+  }
+  if (ts.isCallExpression(node)) {
+    return "call";
+  }
+  if (ts.isTemplateExpression(node)) {
+    return "template";
+  }
+  if (ts.isIdentifier(node)) {
+    const init = hops < MAX_WIRE_HOPS ? constInitializer(sf, node.text) : null;
+    return init === null ? "bare" : wireOf(init, sf, hops + 1);
+  }
+  return ts.isPropertyAccessExpression(node) ? "bare" : "other";
+}
+
+interface ChipShown {
+  readonly text: string;
+  readonly wire: string;
 }
 
 // A chip that shows an expression: its case cannot be read from syntax, so it is listed as dynamic with its source.
-function dynamicChild(sf: ts.SourceFile, element: ts.JsxElement | ts.JsxSelfClosingElement): string | null {
+function dynamicChild(sf: ts.SourceFile, element: ts.JsxElement | ts.JsxSelfClosingElement): ChipShown | null {
   if (ts.isJsxSelfClosingElement(element)) {
     return null;
   }
-  const expression = element.children.find((child) => ts.isJsxExpression(child) && child.expression !== undefined);
-  return expression === undefined ? null : `{${expression.getText(sf).replace(/^\{|\}$/gu, "")}}`;
+  const child = element.children.find((entry) => ts.isJsxExpression(entry) && entry.expression !== undefined);
+  return child === undefined || !ts.isJsxExpression(child) || child.expression === undefined
+    ? null
+    : { text: `{${child.expression.getText(sf)}}`, wire: wireOf(child.expression, sf, 0) };
+}
+
+function chipShown(sf: ts.SourceFile, element: ts.JsxElement | ts.JsxSelfClosingElement): ChipShown | null {
+  const written = childrenText(element);
+  return written === null ? dynamicChild(sf, element) : { text: written, wire: "literal" };
 }
 
 function elementStrings(facts: FileFacts): readonly Collected[] {
@@ -112,9 +168,9 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
     return [];
   }
   const out: Collected[] = [];
-  const add = (kind: string, text: string | undefined | null, line: number): void => {
+  const add = (kind: string, text: string | undefined | null, line: number, wire?: string): void => {
     if (text !== undefined && text !== null && text !== "") {
-      out.push({ kind, text, path: facts.source.path, section: facts.source.section, line });
+      out.push({ kind, text, path: facts.source.path, section: facts.source.section, line, ...(wire === undefined ? {} : { wire }) });
     }
   };
   for (const elem of facts.elems) {
@@ -123,9 +179,8 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
     if (BUTTON_TAGS.has(elem.tag)) {
       add("button-label", childrenText(elem.element), elem.line);
     }
-    if (CHIP_TAGS.has(elem.tag)) {
-      add("chip", childrenText(elem.element) ?? dynamicChild(sf, elem.element), elem.line);
-    }
+    const chip = CHIP_TAGS.has(elem.tag) ? chipShown(sf, elem.element) : null;
+    add("chip", chip?.text, elem.line, chip?.wire);
     if (DIALOG_TAGS.has(elem.tag)) {
       add("dialog-title", attrString(elem.attrs.get("title")), elem.line);
     }
@@ -169,19 +224,29 @@ const KIND_WHAT: Readonly<Record<string, string>> = {
   "placeholder-search": "search placeholders",
   "button-label": "button labels, dialog confirm, cancel and dismiss labels",
   "dialog-title": "dialog titles",
-  chip: "chip and badge words written in place",
+  chip: "chip and badge words written in place; wire is how a shown expression gets its words (bare is a candidate raw wire value)",
   "word-map": "values of the WORD, LABEL and COPY maps",
 };
 
-/** One cohort per copy kind; each member is a string with its case, ellipsis and closing period. */
+const CHIP_KIND = "chip";
+
+/** One cohort per copy kind; each member is a string with its case, ellipsis and closing period. A chip also carries its wire. */
 export function buildCopyCohorts(all: readonly FileFacts[]): readonly Cohort[] {
   const collected = all.filter((facts) => facts.source.layer === "client").flatMap((facts) => [...elementStrings(facts), ...wordMapStrings(facts)]);
   return Object.entries(KIND_WHAT).map(([kind, what]) => ({
     name: `copy:${kind}`,
     what,
-    columns: ["case", "ellipsis", "period", "source"],
+    columns: kind === CHIP_KIND ? ["case", "ellipsis", "period", "source", "wire"] : ["case", "ellipsis", "period", "source"],
+    ...(kind === CHIP_KIND ? { defects: { wire: ["bare"] }, basis: { wire: "heuristic" as const } } : {}),
     members: collected
       .filter((entry) => entry.kind === kind)
-      .map((entry): Member => ({ path: entry.path, section: entry.section, label: entry.text, cells: copyCells(entry.text, entry.line) })),
+      .map(
+        (entry): Member => ({
+          path: entry.path,
+          section: entry.section,
+          label: entry.text,
+          cells: { ...copyCells(entry.text, entry.line), ...(entry.wire === undefined ? {} : { wire: { value: entry.wire, line: entry.line } }) },
+        }),
+      ),
   }));
 }

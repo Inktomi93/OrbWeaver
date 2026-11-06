@@ -52,7 +52,6 @@ export const collapsibleVariants = tv({
       true: { panel: "transition-none" },
     },
     holds: {
-      prose: {},
       controls: { panel: "text-foreground" },
     },
   },

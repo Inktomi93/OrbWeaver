@@ -1,26 +1,23 @@
-// Consumer: the refinery payload view (bounded-number fields — the hero `size="display"` readout and
-// the `showValue` row, payload-view.tsx) — the PREBUILT marker was deleted when it landed
-// , the same self-cleaning shape SegmentedClock took.
-// The rpg HUD resource/pool widgets it was originally sealed for (D58) are still
-// unbuilt; they inherit a consumed primitive rather than a sealed one.
+// Consumer: the refinery payload view (bounded-number fields — the hero readout and the `showValue` row, payload-view.tsx).
+// The rpg HUD resource/pool widgets (D58) are not built; they inherit a consumed primitive rather than a sealed one.
 // Base UI Meter.Root supplies the a11y shell (role="meter", aria-valuemin/max/now, aria-valuetext)
-// while custom SVG/div geometry (arc/bipolar/milestone) rides as its CHILDREN, not via `render` —
+// while custom SVG/div geometry (arc/milestone) rides as its CHILDREN, not via `render` —
 // Meter.Root always appends a visually-hidden span into `children`, and replacing the root with an
 // `<svg>` would inject that span inside it (invalid).
 import type { MeterRootProps as BaseMeterRootProps } from "@base-ui/react/meter";
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import type { ReactElement, ReactNode } from "react";
-import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVariants } from "./variants.ts";
+import { arcMeterVariants, linearMeterVariants, meterVariants } from "./variants.ts";
 
 export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress. */
-  kind: "linear" | "arc" | "bipolar";
+  kind: "linear" | "arc";
   value: NonNullable<BaseMeterRootProps["value"]>;
   /** @defaultValue 100 */
   max?: BaseMeterRootProps["max"];
-  /** @defaultValue 0 (bipolar: `-max`) */
+  /** @defaultValue 0 */
   min?: BaseMeterRootProps["min"];
-  /** Tick positions in value space (rendered on linear/bipolar; arc has no tick geometry). */
+  /** Tick positions in value space (rendered on linear; arc has no tick geometry). */
   milestones?: number[];
   /** When `value < dangerBelow` the fill swaps to the danger INTENT token. */
   dangerBelow?: number;
@@ -117,32 +114,9 @@ function ArcGeometry({ fraction, danger }: GeometryProps): ReactElement {
   );
 }
 
-interface BipolarGeometryProps extends GeometryProps {
-  /** The zero point of the value domain, as a track fraction. */
-  readonly origin: number;
-}
-
-function BipolarGeometry({ fraction, origin, ticks, danger }: BipolarGeometryProps): ReactElement {
-  const slots = bipolarMeterVariants({ danger });
-  const start = Math.min(origin, fraction);
-  const width = Math.abs(fraction - origin);
-  return (
-    <div className={slots.root()} data-slot="meter-track">
-      <div className={slots.fill()} data-slot="fill" style={{ left: pct(start), width: pct(width) }} />
-      <div className={slots.origin()} data-slot="origin" style={{ left: pct(origin) }} />
-      {ticks.map((tick) => (
-        <div className={slots.tick()} data-slot="tick" key={tick} style={{ left: pct(tick) }} />
-      ))}
-    </div>
-  );
-}
-
-function renderGeometry(kind: MeterProps["kind"], geo: GeometryProps, origin: number): ReactElement {
+function renderGeometry(kind: MeterProps["kind"], geo: GeometryProps): ReactElement {
   if (kind === "arc") {
     return <ArcGeometry {...geo} />;
-  }
-  if (kind === "bipolar") {
-    return <BipolarGeometry {...geo} origin={origin} />;
   }
   return <LinearGeometry {...geo} />;
 }
@@ -164,12 +138,12 @@ export function Meter({
   getAriaValueText,
   className,
 }: MeterProps): ReactElement {
-  const lower = min ?? (kind === "bipolar" ? -max : 0);
+  const lower = min ?? 0;
   const fraction = toFraction(value, lower, max);
   const danger = dangerBelow !== undefined && value < dangerBelow;
   const ticks = (milestones ?? []).map((milestone) => toFraction(milestone, lower, max));
   const wrap = meterVariants({ kind });
-  const geometry = renderGeometry(kind, { fraction, ticks, danger }, toFraction(0, lower, max));
+  const geometry = renderGeometry(kind, { fraction, ticks, danger });
 
   // SCALE-HONEST BY DEFAULT ("scale honesty"; live-drive D1 2026-08-14). Base UI's
   // Meter.Root formats BOTH aria-valuetext AND the Meter.Value readout as a PERCENT of (min,max) when it is

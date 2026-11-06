@@ -7,7 +7,7 @@ import type { Tone } from "#tokens";
 // `orientation="vertical"` (Base UI mirrors `data-orientation`
 // onto every part) is the one CSS branch: root/list flip from a stack to a side-by-side row, and the
 // list stacks its tabs in a column. Tabs ride h-(--size-control-sm) (the ≥44px touch floor, §4b axis 3) in the
-// default `inline` layout; the `stacked` arm trades the fixed height for content height + a min-height
+// default `inline` layout; the `cell` arm trades the fixed height for content height + a min-height
 // floor (see the variant's own note). The indicator follows Base UI's geometry on the orientation's axis.
 // `border`/`h-(--border-width-accent)` are Tailwind's untokenized hairline scale (the
 // `border border-border` precedent) — a 1px track + a 2px bar aren't worth a token each.
@@ -69,7 +69,7 @@ export const tabsVariants = tv({
   },
   variants: {
     // THE TAB CELL'S ARRANGEMENT — and, with it, its height rule. `inline` is the strip tab: one row, the
-    // fixed `h-(--size-control-sm)` chrome height. `stacked` is the HUD/rail cell: glyph OVER caption, so the height
+    // fixed `h-(--size-control-sm)` chrome height. `cell` is the rail cell: glyph OVER caption, so the height
     // must FOLLOW the content (`h-auto`) with `min-h-(--size-control-sm)` keeping the ≥44px coarse tap floor.
     //
     // This is a VARIANT and not a call-site `className` for a measured reason (the 2026-08-01 side-eye P0):
@@ -91,7 +91,7 @@ export const tabsVariants = tv({
       // this arm can forget it. It is a MIN, so an equal-column rail with room to spare still stretches.
       //
       // AND THE FOCUS RING FORKS WITH THE ARRANGEMENT, for the reason the `panel` slot above already states
-      // one component over. A `stacked` cell is a RAIL cell, and a rail that has to fit more cells than its
+      // one component over. A `cell` is a RAIL cell, and a rail that has to fit more cells than its
       // width affords becomes an `overflow-x-auto` box — which forces `overflow-y` to `auto` too (CSS
       // computes a `visible` axis to `auto` when the other axis is not visible), while the list's client box
       // is exactly one cell tall with no padding. `FOCUS_RING`'s `ring-offset-2` paints 4px OUTSIDE the
@@ -102,8 +102,8 @@ export const tabsVariants = tv({
       // was rebuilt for, and it is CT-pinned. The fork lives HERE rather than as an override appended to the
       // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
       // neutralise the other's offset.
-      stacked: { tab: `flex-col gap-0 p-field block-auto min-block-(--size-control-sm) min-inline-(--size-touch-target) ${FOCUS_RING_INSET}` },
-      // A cell in a rail of view switches (the context pane's state rail): `stacked`, plus the selected cell's tint
+      // A cell in a rail of view switches (the context pane's state rail): glyph over caption at content height,
+      // the focus ring INSIDE the cell (a rail that scrolls clips an offset ring), the selected cell's tint
       // and a bar on its bottom edge, the seam with the view it selects. The bar stands down where the rail folds
       // into rows (a fine pointer under the `@cq-20` step, `fold`), because there a first-row cell's bottom edge is
       // the seam above row two. At a coarse pointer the cell takes the large control floor.
@@ -118,12 +118,12 @@ export const tabsVariants = tv({
     // A cell in a rail that does not hold the current view steps its ink quieter; the active rail keeps the base.
     quiet: { true: { tab: "text-muted-foreground/90" }, false: {} },
     // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
-    listRule: { bottom: {}, none: { list: "border-be-0" } },
+    listRule: { none: { list: "border-be-0" } },
     // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption
     // clips; a phone keeps one row and scrolls.
     fold: { true: { list: "pointer-fine:@max-cq-20:grid-flow-row pointer-fine:@max-cq-20:grid-cols-3" }, false: {} },
     // A tab column topped by the accent rule: the context pane's bracket, which says the pane belongs to the view.
-    topRule: { none: {}, primary: { root: "border-bs-2 border-tone-edge" } },
+    topRule: { primary: { root: "border-bs-2 border-tone-edge" } },
     panelGround: {
       none: {},
       sidebar: { panel: GROUND.sidebar },

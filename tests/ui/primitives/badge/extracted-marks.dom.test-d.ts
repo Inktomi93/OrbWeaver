@@ -11,5 +11,5 @@ test("Badge refuses every mark a named component owns", () => {
   createElement(Badge, { size: "dot" });
   // @ts-expect-error the ink ring is the IndicatorDot outline
   createElement(Badge, { edge: "ink" });
-  expectTypeOf<NonNullable<BadgeProps["size"]>>().toEqualTypeOf<"compact" | "sm" | "md">();
+  expectTypeOf<NonNullable<BadgeProps["size"]>>().toEqualTypeOf<"compact" | "sm">();
 });

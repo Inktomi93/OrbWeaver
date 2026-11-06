@@ -123,9 +123,9 @@ function styleSites(source: Source, sf: ts.SourceFile, elem: Elem): readonly Sit
   return out;
 }
 
-function classSites(source: Source, sf: ts.SourceFile): readonly Site[] {
+function classSites(source: Source, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly Site[] {
   const out: Site[] = [];
-  for (const classString of classStringsOf(source.path, sf)) {
+  for (const classString of classStringsOf(source.path, sf, referenced)) {
     const cluster = classString.tokens.length >= CLUSTER_TOKENS ? classString.tokens.join(" ") : null;
     for (const token of classString.tokens) {
       const found = classifyToken(token);
@@ -138,12 +138,12 @@ function classSites(source: Source, sf: ts.SourceFile): readonly Site[] {
 }
 
 /** Every A and B site in one TS or TSX file. */
-export function scanMarkup(source: Source): readonly Site[] {
+export function scanMarkup(source: Source, referenced: ReadonlySet<string>): readonly Site[] {
   const sf = source.sf;
   if (sf === null) {
     return [];
   }
-  const out: Site[] = [...classSites(source, sf)];
+  const out: Site[] = [...classSites(source, sf, referenced)];
   if (source.kind === "tsx") {
     for (const elem of elementsOf(sf)) {
       out.push(...intrinsicSites(source, elem), ...svgSites(source, elem), ...textareaSites(source, elem), ...styleSites(source, sf, elem));

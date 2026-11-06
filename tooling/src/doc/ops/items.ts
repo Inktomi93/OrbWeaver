@@ -10,7 +10,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import type { DocEdit, GovernedDoc, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, SectionContent, WorkItem } from "../contract/types.ts";
+import type { DocEdit, GovernedDoc, ItemEditFlag, ItemPatch, ItemState, NewItemInput, SectionContent, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
@@ -272,7 +272,7 @@ function headingList(source: string): string {
 function replaceSections(
   path: string,
   source: string,
-  sections: SectionContent<ItemSectionFlag>,
+  sections: SectionContent<ItemEditFlag>,
 ): { readonly source: string } | { readonly refusals: readonly string[] } {
   const found = sectionsOf(splitDocument(source).body);
   const missing = ITEM_SECTIONS.filter((section) => !found.includes(section.name));
@@ -303,7 +303,7 @@ function replaceSections(
  *  after the format pass so an indented or setext heading counts: new text with a heading, or text that opens a
  *  fence it never closes, refuses, because `introducedDocProblems` only subtracts findings the item already has and
  *  would let such an edit through on an item that is already red. */
-export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
+export function editItem(id: number, sections: SectionContent<ItemEditFlag>, repoRoot = root, date = today()): WriteOutcome {
   const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
   if (item === undefined) {
     return { written: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };

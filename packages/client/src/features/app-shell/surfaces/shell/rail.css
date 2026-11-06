@@ -107,6 +107,8 @@
     background: var(--color-tone-tint);
     color: var(--color-tone-text-on-tint);
     position: relative;
+    /* The glow and ring layers order only inside this button. */
+    isolation: isolate;
   }
   /* On a `::before` layer: the Button's focus ring is also a box-shadow and would overwrite a direct one. */
   .shell-rail .shell-rail-button[data-active]::before {

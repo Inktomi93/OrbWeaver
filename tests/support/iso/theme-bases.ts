@@ -12,3 +12,24 @@ const LIGHTNESSES: readonly number[] = [...Array.from({ length: LIGHTNESS_STEPS 
 
 /** Every base the accepted-base contract covers: each chroma by each lightness by each hue. */
 export const ACCEPTED_BASES: readonly Oklch[] = CHROMAS.flatMap((c) => LIGHTNESSES.flatMap((l) => HUES.map((h) => ({ l, c, h }))));
+
+const CROSSOVER_L_START = 0.54;
+const CROSSOVER_L_STEP = 0.0007;
+const CROSSOVER_L_STEPS = 58;
+const CROSSOVER_CHROMAS = [0, 0.06, 0.12, 0.25] as const;
+
+/** Bases a person types with fractional digits: a ramp member lands a hair across the black/white crossover, between the accepted matrix's steps. */
+export const TYPED_CROSSOVER_BASES: readonly Oklch[] = [
+  { l: 0.5606, c: 0.12, h: 240 },
+  { l: 0.5548, c: 0.25, h: 120 },
+];
+
+/** The fractional grid across the crossover, where the page and a ramp member can sit on either side of it. */
+export const CROSSOVER_BASES: readonly Oklch[] = [
+  ...TYPED_CROSSOVER_BASES,
+  ...CROSSOVER_CHROMAS.flatMap((c) =>
+    Array.from({ length: CROSSOVER_L_STEPS }, (_unused, index) => Number((CROSSOVER_L_START + index * CROSSOVER_L_STEP).toFixed(4))).flatMap((l) =>
+      HUES.map((h) => ({ l, c, h })),
+    ),
+  ),
+];

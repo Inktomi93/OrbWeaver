@@ -20,7 +20,7 @@
  * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
  * start margin is floored and the end margin absorbs the odd pixel. */
 @utility orb-chat-track {
-  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), 1px) auto;
+  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), var(--dimension-device-pixel)) auto;
 }
 
 /* The composer's track: the dial's width, capped by the very expression the content column carries. A `ch` resolves in
@@ -30,7 +30,7 @@
   font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
   --composer-track: min(var(--width-shell-content), var(--reading-measure));
   max-inline-size: var(--composer-track);
-  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), 1px) auto;
+  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), var(--dimension-device-pixel)) auto;
 }
 
 @layer client {
@@ -195,27 +195,25 @@
     justify-self: end;
   }
 
-  /* The copies of the member strip and the history pager inside the transcript (`chat-room-surface.tsx`,
-   * `transcript-window.tsx`) are the short room's; elsewhere both stand above the transcript. */
-  [data-slot="message-list-leading"] :is([data-slot="character-bar"], [data-slot="transcript-history"]) {
+  /* The copy of the member strip inside the transcript (`chat-room-surface.tsx`) is the short room's; elsewhere the strip
+   * stands above the transcript. */
+  [data-slot="message-list-leading"] [data-slot="character-bar"] {
     display: none;
   }
   /* The short room (UI-Architecture-and-Layout.md §4b axis 4): a landscape phone, an open keyboard or enlarged text. The
-   * member strip and the history pager ride in the transcript's scroll content above the oldest row, so nothing stays
-   * pinned over the reading. A reader opens on the transcript, which keeps its floor and scrolls the room when the
+   * member strip rides in the transcript's scroll content above the oldest row, so nothing stays pinned over the reading.
+   * A reader opens on the transcript, which keeps its floor and scrolls the room when the
    * composer leaves less. A writer gets the room: the floor gives way, and `use-room-end-while-writing.ts` holds the room
    * at its end so Send stays above the keyboard. Writing is the old rule's own test: with the keyboard up, focus anywhere
    * in the composer or an open composer menu, so pressing a control cannot re-floor the room; without it, the field.
    * 28rem is the `container.cq-28` token's value: a query cannot read a var, and a landscape phone is over 24rem.
-   * The copies above the transcript stay in the accessibility tree and the tab order, visually hidden, so a keyboard or a
-   * screen reader meets them in every regime and focus on them survives a regime flip. Earlier shows while it holds focus;
-   * the copies inside the transcript are pointer-only (`transcript-window.tsx`). */
+   * The copy above the transcript stays in the accessibility tree, visually hidden, so a screen reader meets the strip in
+   * every regime; the copy inside the transcript is hidden from assistive tech. */
   @container shell-main (height <= 28rem) {
-    [data-slot="chat-room-surface"] > [data-slot="character-bar"],
-    [data-slot="chat-room-thread"] [data-slot="transcript-history"]:not([data-slot="message-list-leading"] *, :focus-within) {
+    [data-slot="chat-room-surface"] > [data-slot="character-bar"] {
       @apply sr-only;
     }
-    [data-slot="message-list-leading"] :is([data-slot="character-bar"], [data-slot="transcript-history"]) {
+    [data-slot="message-list-leading"] [data-slot="character-bar"] {
       display: flex;
     }
     [data-slot="chat-room-body"] {
@@ -353,6 +351,7 @@
   [data-slot="dialog-footer"],
   [data-slot="message-bubble"],
   [data-slot="empty-state-root"] {
+    /* `1px` casts the unitless strength dial to a length; it is a unit, not a spacing value. */
     --glass-blur-radius: calc(var(--appearance-blur-strength) * 1px);
     --glass-filter: blur(calc(var(--glass-blur-radius) * var(--glass-blur-scale))) saturate(var(--blur-saturate));
   }
@@ -487,7 +486,9 @@
       background-image: url("/grain.svg");
       border-radius: inherit;
     }
-    /* The card's positioning context for its grain carrier. */
+    /* The card's positioning context for its grain carrier. No `isolation`: the soft-light blend must see what the
+     * card is painted over, and an isolated group would blend with nothing on a translucent card. The carrier's
+     * `z-index` orders against the card's own children within the portal surface that hosts the card. */
     [data-slot="card-root"] {
       position: relative;
     }
