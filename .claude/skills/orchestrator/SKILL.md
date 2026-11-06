@@ -100,6 +100,8 @@ Re-derive the item first:
 3. Run `git log --all --grep="<key noun>"`.
 
 - A claim that work is unbuilt needs the same evidence as a claim that it is done.
+- Before you dispatch an audit finding, check that it applies to the owner's deployment.
+- A removal needs more than "no reader": check reader history, hand authorship, used siblings and promises in copy, settings or law prose.
 - Re-derive a data-binding claim from the ledger, not from memory.
 - Before you state that a doc approves or blocks something, read that clause in the doc.
 - A brief that quotes a law step re-checks the step's premise on the tree.
@@ -137,6 +139,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Review a fix batch once when it shows red-then-green tests and a passing typecheck.
 - Skip review for docs and mechanical edits that pass the floor.
 - Run `ux-reviewer` after code review is clean, so it measures code that will not change.
+- During a visual migration, run `ux-reviewer` once, after the CSS work lands. Do not run it per batch.
 - Call `ux-reviewer` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
