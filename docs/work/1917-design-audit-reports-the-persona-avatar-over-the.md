@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-The design audit reports an obscured target at phone landscape: the persona avatar takes a press aimed at the Databank button. Confirm by hand, then fix it at its owner.
+Audit finding verified false at 844x390 (run slot reports/runs/snap/agent-acee2ee5ffd47ff1f-3539114-2026-11-06T09-09-33-940Z and -3543294-2026-11-06T09-10-00-021Z). The rail's section scroller (.shell-rail-sections) spans y 56..242; Databank sits at y 322..378 inside it, clipped by that scroller, so the persona avatar owns the point the audit asked. A real tap on Databank scrolls the scroller (scrollTop 0 to 201) and opens the section (aria-current=page). Open question: the Databank, Presets and Refinery rail buttons start out of view with no visible scroll cue; the obscured-target census does not treat a point clipped by a scroll ancestor as unreachable-by-scroll (tooling/src/ui-audit/ops/walker/obscured-reach.ts).
 
 ## Why
 
