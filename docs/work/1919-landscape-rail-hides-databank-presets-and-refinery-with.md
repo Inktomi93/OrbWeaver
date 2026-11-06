@@ -19,7 +19,7 @@ A reader cannot find a destination they cannot see.
 
 ## Done when
 
-The owner has ruled, and the ruling is built or recorded.
+The rail shows a partly clipped next item at phone landscape sizes, so the scroll is obvious at rest. Owner ruling: use the clipped next item.
 
 ## Evidence
 
