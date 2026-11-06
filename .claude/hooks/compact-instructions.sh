@@ -5,11 +5,11 @@
 cat <<'TEXT'
 Orbweaver compaction instructions:
 - Keep each decision with its reason.
-- List each approach ruled out, with why.
+- Include a section named "Ruled out": each rejected approach with why, or "none".
 - Quote owner rulings and corrections word for word.
 - Name the commits, branches, worktrees, paths and commands that prove the current state.
 - For a lane, keep the brief's items, their done lines and each item's status.
 - For an orchestrator, keep each live lane's name, agent id, worktree and status.
 - List every `.claude/rules/*.md` file that applied, and tell the next turn to re-read them before acting.
-- End with the exact next step.
+- End with a section named "Next step": the exact next action, never optional.
 TEXT

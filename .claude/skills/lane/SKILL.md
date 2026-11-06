@@ -82,6 +82,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - Write old-source proofs against the old API, and assert through what the user sees.
 - Fix the cause. Never special-case a test's inputs to make it pass.
 - If a test is wrong, tell the orchestrator instead of bending the code to fit it.
+- When you fix a defect, search for its class. Fix every instance, or list the ones you left.
 
 ## Regenerators and shared files
 
@@ -202,8 +203,15 @@ Name your lane, state your default, and keep working. Send nothing else.
 
 ## Report
 
-- Lead with the outcome. List every command you ran and its result, what you refused, and what you deferred.
-- If the hand-back of your final report is refused, send the same report with SendMessage to `main`. A lane that ends without a delivered report loses its work.
+- Write the full report to `reports/lanes/<YYYY-MM-DD>-<slug>.md` under the main checkout: every command and its result, decisions, what you refused and what you deferred. It is gitignored and survives your worktree.
+- Your final message is a return card of 15 lines or fewer. Pass the path, never the report's contents:
+  - Outcome: one line, then each acceptance item with met or not met.
+  - Commits: the shas.
+  - Checks: passed or failed, with failures named.
+  - Flags: what needs a decision, and new board items.
+  - Report: the path.
+- Keep mid-run messages to the same shape.
+- If the hand-back of your card is refused, send it with SendMessage to `main`. A lane that ends without a delivered card loses its work.
 - A new board item goes in the report as title, what, why and done. The orchestrator files it.
 - Name coupled risks, such as a moved file or a removed last importer.
 - Put authored text such as specs, copy or ledger rows in a `docs/` file, and cite the path. Report text is not kept.

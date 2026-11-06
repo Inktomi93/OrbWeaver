@@ -112,6 +112,7 @@ A subagent gets its role body, its preloaded skills, `AGENTS.md`, git status, an
 not get your conversation, your reads, or your output style. Write each brief so a cold reader can finish.
 
 - The goal, the reason, the constraints, the done-criteria, and the paths, in one message.
+- Numbered acceptance items, A1 to An. The lane and the reviewer answer each one.
 - The outcome and the evidence you want. Name a mechanism only with `path:line` proof that it is the ruled home; otherwise ask the lane to find it.
 - The contracts to read first: `packages/contracts/src/<domain>/`, the domain's own `contract/`, and the drizzle schema files it touches.
 - Scope limits against sibling lanes, and the hunk regions when two lanes share a file.
@@ -135,6 +136,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Always review server logic, data, migrations and security changes.
 - Review a fix batch once when it shows red-then-green tests and a passing typecheck.
 - Skip review for docs and mechanical edits that pass the floor.
+- Run `ux-reviewer` after code review is clean, so it measures code that will not change.
 - Call `ux-reviewer` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.

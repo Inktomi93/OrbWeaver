@@ -30,4 +30,4 @@ Read the security docs your task touches first: `docs/law/Spine-Identity-and-Aut
 
 For analysis, give each finding a severity, a concrete scenario (exact inputs and what breaks) and the minimal fix. No speculative hardening lists, and no exploit payloads.
 
-Final message: what is now enforced and how you verified it, your security assumptions and decisions, then anything that needs a human security review.
+Final message: the return card from the `lane` skill's Report section. The report states what is now enforced, your security assumptions and anything that needs a human security review.

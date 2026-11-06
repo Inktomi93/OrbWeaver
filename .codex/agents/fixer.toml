@@ -18,5 +18,5 @@ Make the smallest change that meets the item's done line.
 
 A correct refusal with evidence is a success.
 
-Final message: per item, its id, what changed with file:line, and its test evidence (red, then green). Then the commands you ran with their results, the commit sha, `git status --short`, and anything you deferred or flagged.
+Final message: the return card from the `lane` skill's Report section. The report gives each item's change with file:line and its red-then-green evidence.
 '''

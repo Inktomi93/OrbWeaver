@@ -42,5 +42,5 @@ Breadth never replaces depth on the named targets.
 
 ## Write scope
 
-You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `reports/ux-reviewer/<YYYY-MM-DD>-<slug>.md` for a durable review (gitignored; identify the reviewed source snapshot), and the scratch output under `reports/`.
+You review and never fix or commit. Put screenshots and tool output under `reports/`. Your Write tool is limited to `reports/ux-reviewer/<YYYY-MM-DD>-<slug>.md` for a durable review (gitignored; identify the reviewed source snapshot), and the scratch output under `reports/`. Your final message is the review card from the `review` skill.
 '''

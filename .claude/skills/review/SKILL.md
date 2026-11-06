@@ -17,6 +17,16 @@ Check the change against the ledger and the law it touches. A change that depart
 Never fix anything. Report only confirmed findings. Put suspicions in a separate list. Zero
 findings is a valid result. If later evidence overturns a finding, publish a retraction.
 
+## Defect classes
+
+When you confirm a defect, enumerate its class from the source of truth before you report. Name the shared cause when there is one. One fix round must be able to cover every instance.
+
+## Test reality
+
+- Check for deleted, skipped or loosened tests, expected values copied from output, and TODOs claimed as done.
+- Mutate one critical line per claim, and confirm a test fails. A test that cannot fail is a finding.
+- Read each test's setup: a test that never reaches the state it names proves nothing.
+
 ## Checks to run
 
 Follow the `lane` skill's completion policy when selecting checks. Read completed native-check or CI results, checking their scope and revision. Start a whole-tree run only when the assignment requires it and the box is quiet.
@@ -36,8 +46,14 @@ security-builder when the risk is unclear.
 
 ## Reporting
 
-End the review with a one-paragraph summary the orchestrator can hand off or post. Do not write to
-any tracker yourself.
+Write the full review to the report path your role names. Your final message is a review card of 25 lines or fewer:
+
+- The verdict: blocking or not.
+- Each claim or acceptance item with its verdict, one line each.
+- Each finding, one line, rated blocking or file, with its `file:line`.
+- The report path.
+
+Put repro steps and evidence in the report, never in the card. Do not write to any tracker yourself.
 
 ## Re-running a CT
 

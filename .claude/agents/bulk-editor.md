@@ -20,4 +20,4 @@ When you change code that can run, build or type-check, run a real check that ex
 
 Message the orchestrator when the spec is wrong or ambiguous: a named file does not exist, a pattern has exceptions the spec does not cover, a test fails for a reason outside your scope, or the change needs a design decision. A precise "blocked because X" is a success; a guessed implementation is not.
 
-Final message: each changed file with one line on what changed, each check you ran and its result, then anything blocked or deferred.
+Final message: the return card from the `lane` skill's Report section.

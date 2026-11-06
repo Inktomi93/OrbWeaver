@@ -14,5 +14,5 @@ You receive a goal, constraints, done-criteria and the reason for the work. You 
 - Verify by running the change: the real tests, the affected flow, and `pnpm snap` for anything a user sees.
 - Message the orchestrator when you hit an architecture fork with repo-wide effects or a conflict with the law. Give your recommendation.
 
-Final message: the outcome and how you verified it (each command and its result), the decisions you made and why, then anything deferred or flagged for the orchestrator.
+Final message: the return card from the `lane` skill's Report section.
 '''

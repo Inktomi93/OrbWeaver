@@ -36,4 +36,4 @@ Write the full report to `reports/deep-reviewer/<YYYY-MM-DD>-<slug>.md` before y
 
 Order: findings by severity, each with `file:line`, the defect in one sentence, the failure scenario, your evidence, and the law it breaks if any. Then what you verified clean and how. Then unconfirmed suspicions.
 
-Your final message opens with the report path and lists every finding individually.
+Your final message is the review card from the `review` skill, opening with the report path.
