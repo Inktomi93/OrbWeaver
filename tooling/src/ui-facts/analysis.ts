@@ -26,6 +26,7 @@ import type { Classified, Site } from "./sites.ts";
 import type { Source } from "./source.ts";
 import { loadSources } from "./source.ts";
 import { lengthTokensOf, loadValueTokens } from "./tokens.ts";
+import { componentTables } from "./variant-tables.ts";
 import { declaredVariants } from "./variants.ts";
 
 interface ScanCounts {
@@ -110,7 +111,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     shapes: findShapes(files),
     adoption: adoptionBySection(files),
     composition,
-    handRolling: buildHandRolling({ sources, sites: live, tokens, declared, referenced }),
+    handRolling: buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced }),
     sections,
   };
 }

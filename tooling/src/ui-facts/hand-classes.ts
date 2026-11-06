@@ -11,7 +11,7 @@ import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
 import { KINDS } from "./sites.ts";
 import type { Elem, Source } from "./source.ts";
 import type { ValueNamespace, ValueTokens } from "./tokens.ts";
-import type { DeclaredVariants } from "./variants.ts";
+import type { ComponentTables } from "./variant-tables.ts";
 
 const CLUSTER_MIN_USES = 3;
 const CLUSTER_LABEL_MAX = 80;
@@ -69,7 +69,7 @@ const BARE_AXES: Readonly<Record<string, readonly string[]>> = {
 
 export interface ClassContext {
   readonly tokens: ValueTokens;
-  readonly declared: DeclaredVariants;
+  readonly components: ComponentTables;
   readonly referenced: ReadonlySet<string>;
 }
 
@@ -191,9 +191,9 @@ const FIXED: Readonly<Record<string, Judgement>> = {
 };
 
 /** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
-function flaggedJudgement(token: string, fact: TokenFact, elem: Elem | null, context: ClassContext): Judgement {
-  const axis = declaredAxis(elem, AXES_BY_KIND[fact.kind] ?? [], context.declared);
-  const covered = axis === null ? null : coveredJudgement(axis, token);
+function flaggedJudgement({ token, elem, guarded }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
+  const axis = declaredAxis(elem, AXES_BY_KIND[fact.kind] ?? [], context.components);
+  const covered = axis === null ? null : coveredJudgement(axis, token, guarded);
   if (covered !== null) {
     return covered;
   }
@@ -224,6 +224,13 @@ function ownerJudgement(token: string, fact: TokenFact): Judgement {
   return { verdict: "token", match: null, owner, reason: `${token} is hand-written; ${owner} owns it`, keep: null };
 }
 
+/** A class token as one element writes it, and whether a ternary or `&&` guards it. */
+interface UsedToken {
+  readonly token: string;
+  readonly elem: Elem | null;
+  readonly guarded: boolean;
+}
+
 interface Candidate {
   readonly axes: readonly string[];
   /** The utility family the axis's arms write, or null for a utility with no suffix. */
@@ -231,15 +238,15 @@ interface Candidate {
 }
 
 /** A valid token utility on a primitive that declares the family's axis: an arm owns it, a new arm would, or no axis does. */
-function ownedJudgement(token: string, elem: Elem | null, context: ClassContext): Judgement | null {
+function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassContext): Judgement | null {
   const base = baseOf(token).base;
   const bare = BARE_AXES[base];
   const candidates: readonly Candidate[] =
     bare === undefined ? OWNED_FAMILIES.filter((family) => ownsSuffix(family, base, context.tokens)) : [{ axes: bare, pattern: null }];
   for (const { axes, pattern } of candidates) {
-    const axis = declaredAxis(elem, axes, context.declared);
+    const axis = declaredAxis(elem, axes, context.components);
     if (axis !== null) {
-      return coveredJudgement(axis, token) ?? uncoveredJudgement(axis, token, pattern);
+      return coveredJudgement(axis, token, guarded) ?? uncoveredJudgement(axis, token, pattern, guarded);
     }
   }
   return null;
@@ -274,6 +281,8 @@ interface ClusterUse {
   readonly label: string;
   readonly place: Place;
   readonly door: string | null;
+  /** The element that wears the class set; null for a constant no element is known to wear. */
+  readonly elem: Elem | null;
 }
 
 interface ClassUse {
@@ -281,6 +290,7 @@ interface ClassUse {
   readonly line: number;
   readonly tokens: readonly string[];
   readonly elem: Elem | null;
+  readonly guarded: boolean;
 }
 
 function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
@@ -294,11 +304,12 @@ function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
       );
 }
 
-function tokenHits({ source, line, tokens, elem }: ClassUse, context: ClassContext): readonly Hit[] {
+function tokenHits({ source, line, tokens, elem, guarded }: ClassUse, context: ClassContext): readonly Hit[] {
   const out: Hit[] = [];
   for (const token of tokens) {
     const fact = classifyToken(token);
-    const judgement = fact === null ? ownedJudgement(token, elem, context) : flaggedJudgement(token, fact, elem, context);
+    const used: UsedToken = { token, elem, guarded };
+    const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
       out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement));
     }
@@ -306,24 +317,53 @@ function tokenHits({ source, line, tokens, elem }: ClassUse, context: ClassConte
   return out;
 }
 
-/** What owns a repeated class set: a shared slot when only the ui package writes it, a variant when one primitive wears it, else a composite. */
-function clusterJudgement(group: readonly ClusterUse[]): Judgement {
-  const first = group[0];
-  const label = first?.label ?? "";
-  const name = proposeName(first?.key ?? "");
-  const files = new Set(group.map((use) => use.place.path)).size;
-  const written = `the same class set is written ${group.length} times in ${files} files`;
-  const doors = new Set(group.map((use) => use.door));
+/** A layout box a composite such as PlainBox can replace: a raw container, or a layout primitive. */
+const isBox = ({ elem }: ClusterUse): boolean =>
+  elem !== null && ((elem.kind === "raw" && CONTAINER_TAGS.has(elem.tag)) || (elem.kind === "ui" && elem.door === "layout"));
+
+/** The group's uses as a whole: a shared slot when only the ui package writes the set, a variant when one primitive door wears it, else null. */
+function wholeJudgement(share: readonly ClusterUse[], label: string, written: string): Judgement | null {
+  const doors = new Set(share.map((use) => use.door));
   const [onlyDoor] = doors;
-  if (group.every((use) => use.place.layer === "ui")) {
+  if (share.every((use) => use.place.layer === "ui")) {
     return { verdict: "recipe", match: null, owner: `shared slot: ${label}`, reason: `${written}; one shared slot constant in @orb/ui owns it`, keep: null };
   }
   if (doors.size === 1 && onlyDoor !== null && onlyDoor !== undefined) {
     return { verdict: "recipe", match: null, owner: `variant on ${onlyDoor}: ${label}`, reason: `${written} on ${onlyDoor}; a variant owns it`, keep: null };
   }
-  return { verdict: "primitive", match: null, owner: `composite ${name}: ${label}`, reason: `${written}; a composite like ${name} owns it`, keep: null };
+  return null;
 }
 
+/** What a part of the group that wears the class set on one kind of element owns: a composite only for layout boxes, else a decision that names the element. */
+function partJudgement(part: readonly ClusterUse[], share: readonly ClusterUse[]): Judgement {
+  const first = part[0];
+  const label = first?.label ?? "";
+  const name = proposeName(first?.key ?? "");
+  const files = new Set(share.map((use) => use.place.path)).size;
+  const written = `the same class set is written ${share.length} times in ${files} files`;
+  const whole = wholeJudgement(share, label, written);
+  if (whole !== null) {
+    return whole;
+  }
+  if (part.every(isBox) && part.length >= CLUSTER_MIN_USES) {
+    return {
+      verdict: "primitive",
+      match: null,
+      owner: `composite ${name}: ${label}`,
+      reason: `${written}, ${part.length} of them on layout boxes; a composite like ${name} owns those`,
+      keep: null,
+    };
+  }
+  const constant = part.every((use) => use.elem === null);
+  const where = constant ? "a class constant" : [...new Set(part.map((use) => use.elem?.tag ?? ""))].join(", ");
+  const unfit = constant
+    ? `${where} names no element, so a composite like ${name} cannot be shown to fit`
+    : `${where} is not a layout box, so a composite like ${name} cannot replace it`;
+  const why = part.every(isBox) ? `only ${part.length} of the ${share.length} uses are on layout boxes, too few for a composite like ${name}` : unfit;
+  return { verdict: "decide", match: null, owner: `decide: ${label} on ${where}, no composite fits`, reason: `${written}; ${why}`, keep: null };
+}
+
+/** Each class set written enough times, judged once per kind of element that wears it, so a layout composite is never offered to a Text or a Badge. */
 function clusterHits(uses: readonly ClusterUse[]): readonly Hit[] {
   const groups = new Map<string, ClusterUse[]>();
   for (const use of uses) {
@@ -331,10 +371,14 @@ function clusterHits(uses: readonly ClusterUse[]): readonly Hit[] {
   }
   return [...groups.values()]
     .filter((group) => group.length >= CLUSTER_MIN_USES)
-    .flatMap((group) => {
-      const judgement = clusterJudgement(group);
-      return group.map((use) => hitOf(use.place, { category: "repeated-cluster", where: "cluster", detail: use.label }, judgement));
-    });
+    .flatMap((group) =>
+      [group.filter(isBox), group.filter((use) => use.elem !== null && !isBox(use)), group.filter((use) => use.elem === null)]
+        .filter((part) => part.length > 0)
+        .flatMap((part) => {
+          const judgement = partJudgement(part, group);
+          return part.map((use) => hitOf(use.place, { category: "repeated-cluster", where: "cluster", detail: use.label }, judgement));
+        }),
+    );
 }
 
 /** Every class-token, cluster and raw-container hit in the sources; clusters are counted across all of them. */
@@ -343,12 +387,12 @@ export function classHits(sources: readonly Source[], context: ClassContext): re
   const uses: ClusterUse[] = [];
   for (const source of sources) {
     for (const classString of source.sf === null ? [] : classStringsOf(source.path, source.sf, context.referenced)) {
-      const use: ClassUse = { source, line: classString.line, tokens: classString.tokens, elem: classString.elem };
+      const use: ClassUse = { source, line: classString.line, tokens: classString.tokens, elem: classString.elem, guarded: classString.conditional };
       const layout = rawLayoutHit(use);
       hits.push(...tokenHits(use, context), ...(layout === null ? [] : [layout]));
       if (use.tokens.length >= CLUSTER_TOKENS) {
         const key = clusterKey(use.tokens.join(" "));
-        uses.push({ key, label: key.slice(0, CLUSTER_LABEL_MAX), place: placeOf(source, use.line), door: use.elem?.door ?? null });
+        uses.push({ key, label: key.slice(0, CLUSTER_LABEL_MAX), place: placeOf(source, use.line), door: use.elem?.door ?? null, elem: use.elem });
       }
     }
   }

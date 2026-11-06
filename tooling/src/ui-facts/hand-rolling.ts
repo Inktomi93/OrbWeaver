@@ -10,7 +10,7 @@ import { KINDS } from "./sites.ts";
 import type { Source } from "./source.ts";
 import { elementsOf } from "./source.ts";
 import type { ValueTokens } from "./tokens.ts";
-import type { DeclaredVariants } from "./variants.ts";
+import type { ComponentTables } from "./variant-tables.ts";
 
 /** Site kinds that are a hand-built pattern a primitive owns: a raw element, or a drawing the icon set draws. */
 const PATTERN_KINDS: ReadonlySet<string> = new Set(
@@ -28,7 +28,7 @@ export interface CensusInputs {
   /** The A and B sites the audit read, after exceptions. */
   readonly sites: readonly Site[];
   readonly tokens: ValueTokens;
-  readonly declared: DeclaredVariants;
+  readonly components: ComponentTables;
   readonly referenced: ReadonlySet<string>;
 }
 
@@ -64,6 +64,6 @@ export function buildHandRolling(inputs: CensusInputs): readonly Hit[] {
   const parts = authored.map((source) => sourceHits(source, inputs));
   const constants = parts.flatMap((part) => part.constants);
   const code = authored.filter((source) => source.kind !== "css");
-  const classes = classHits(code, { tokens: inputs.tokens, declared: inputs.declared, referenced: inputs.referenced });
+  const classes = classHits(code, { tokens: inputs.tokens, components: inputs.components, referenced: inputs.referenced });
   return [...parts.flatMap((part) => part.hits), ...constantHits(constants, inputs.tokens), ...classes, ...patternHits(inputs.sites)].toSorted(byPlace);
 }

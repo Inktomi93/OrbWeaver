@@ -13,7 +13,7 @@ const MAX_HOPS = 3;
 const DOOR_EXPORT = /^\.\/([^/]+)$/u;
 
 /** door name to its directory under packages/ui/src, from the package exports map. */
-function doorDirs(root: string): ReadonlyMap<string, string> {
+export function doorDirs(root: string): ReadonlyMap<string, string> {
   const pkg = JSON.parse(readFileSync(join(root, "packages/ui/package.json"), "utf8")) as { readonly exports: Readonly<Record<string, unknown>> };
   const map = new Map<string, string>();
   for (const [key, target] of Object.entries(pkg.exports)) {
@@ -28,7 +28,7 @@ function doorDirs(root: string): ReadonlyMap<string, string> {
 /** Arm name to the class tokens its `tv` value writes. */
 export type ArmClasses = ReadonlyMap<string, readonly string[]>;
 
-interface ValueList {
+export interface ValueList {
   readonly values: readonly string[];
   /** A spread or an expression the syntax could not open: the list may be short. */
   readonly unread: boolean;
@@ -38,7 +38,7 @@ interface ValueList {
 const NO_ARMS: ArmClasses = new Map();
 
 /** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
-type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
+export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
 
 function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expression])[] {
   return sf.statements
@@ -54,7 +54,7 @@ function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expre
     );
 }
 
-function scaleIndex(sources: readonly Source[]): ScaleIndex {
+export function scaleIndex(sources: readonly Source[]): ScaleIndex {
   const index = new Map<string, ts.ObjectLiteralExpression | null>();
   for (const source of sources) {
     for (const [name, init] of source.layer === "ui" && source.sf !== null ? exportedConsts(source.sf) : []) {
@@ -125,9 +125,11 @@ function mergeArms(left: ArmClasses, right: ArmClasses): ArmClasses {
   return merged;
 }
 
-function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+/** The axes the `variants` objects under `root` declare, with their arms. */
+export function axesIn(root: ts.Node, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+  const sf = root.getSourceFile();
   const axes = new Map<string, ValueList>();
-  visit(sf, (node) => {
+  visit(root, (node) => {
     if (!(ts.isPropertyAssignment(node) && node.name.getText(sf) === "variants" && ts.isObjectLiteralExpression(node.initializer))) {
       return;
     }
@@ -152,8 +154,6 @@ function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, Value
 export interface DeclaredVariants {
   /** Door to axis to the values its `tv` calls declare. */
   readonly axes: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
-  /** Door to axis to each arm's class tokens: the strings the arm's `tv` value writes. */
-  readonly arms: ReadonlyMap<string, ReadonlyMap<string, ArmClasses>>;
   /** A door whose components render another door's `core.tsx`, to that door: their attributes write the owner's axes. */
   readonly carriers: ReadonlyMap<string, string>;
   /** `door.axis` of every declared axis whose values the syntax could not fully read: its census is a lower bound. */
@@ -164,20 +164,18 @@ function doorAxes(
   door: string,
   files: readonly Source[],
   index: ScaleIndex,
-): { readonly axes: ReadonlyMap<string, readonly string[]>; readonly arms: ReadonlyMap<string, ArmClasses>; readonly unread: readonly string[] } {
+): { readonly axes: ReadonlyMap<string, readonly string[]>; readonly unread: readonly string[] } {
   const merged = new Map<string, string[]>();
-  const arms = new Map<string, ArmClasses>();
   const unread: string[] = [];
   for (const source of files) {
     for (const [axis, list] of source.sf === null ? [] : axesIn(source.sf, index)) {
       merged.set(axis, [...new Set([...(merged.get(axis) ?? []), ...list.values])]);
-      arms.set(axis, mergeArms(arms.get(axis) ?? NO_ARMS, list.arms));
       if (list.unread) {
         unread.push(`${door}.${axis}`);
       }
     }
   }
-  return { axes: merged, arms, unread };
+  return { axes: merged, unread };
 }
 
 const CORE_IMPORT = /^\.\.\/([^/]+)\/core\.tsx$/u;
@@ -212,7 +210,6 @@ function coreCarriers(sources: readonly Source[], dirs: ReadonlyMap<string, stri
 export function declaredVariants(root: string, sources: readonly Source[]): DeclaredVariants {
   const index = scaleIndex(sources);
   const axes = new Map<string, ReadonlyMap<string, readonly string[]>>();
-  const arms = new Map<string, ReadonlyMap<string, ArmClasses>>();
   const unread = new Set<string>();
   const dirs = doorDirs(root);
   for (const [door, dir] of dirs) {
@@ -220,13 +217,12 @@ export function declaredVariants(root: string, sources: readonly Source[]): Decl
     const read = doorAxes(door, files, index);
     if (read.axes.size > 0) {
       axes.set(door, read.axes);
-      arms.set(door, read.arms);
     }
     for (const entry of read.unread) {
       unread.add(entry);
     }
   }
-  return { axes, arms, carriers: coreCarriers(sources, dirs), unread: [...unread] };
+  return { axes, carriers: coreCarriers(sources, dirs), unread: [...unread] };
 }
 
 interface Resolution {

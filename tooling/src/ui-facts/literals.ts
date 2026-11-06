@@ -12,7 +12,7 @@ export const VALUE_KINDS = ["length", "measure", "duration", "opacity", "z", "we
 export type ValueKind = (typeof VALUE_KINDS)[number];
 
 /** Kinds that are CSS structure or have no token family: they are classified, never matched. */
-const STRUCTURAL_KINDS = ["zero", "relative", "angle", "derived", "mechanism", "gradient"] as const;
+const STRUCTURAL_KINDS = ["zero", "relative", "angle", "derived", "mechanism", "gradient", "floor"] as const;
 type StructuralKind = (typeof STRUCTURAL_KINDS)[number];
 
 export type LitKind = ValueKind | StructuralKind;
@@ -71,7 +71,9 @@ function dimensionLit(amount: number, unit: string, text: string): Lit {
   }
   const ms = TIME_UNIT_MS[lower];
   if (ms !== undefined) {
-    return lit("duration", `${round(amount * ms)}ms`, text);
+    const millis = round(amount * ms);
+    // Under a millisecond is not an animation time: it is the shortest value that still fires the transition events.
+    return lit(millis < 1 ? "floor" : "duration", `${millis}ms`, text);
   }
   if (lower === "ch") {
     return lit("measure", `${round(amount)}ch`, text);

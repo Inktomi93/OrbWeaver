@@ -27,6 +27,9 @@ export const KEEP_REASONS = {
   "css-mechanism": "a transform, clip, mask or track formula is the CSS mechanism itself; no token family prices it",
   "runtime-value": "a runtime value or measurement, not a design value (ui-and-client.md: a style prop holds a runtime value only)",
   "token-utility": "a utility the theme already spells with a token, such as the px step",
+  "motion-floor": "a duration under a millisecond is the reduced-motion floor: the shortest value that still fires transition events",
+  "feature-probe": "an @supports test names a property and a value to ask the browser, not to paint",
+  sentinel: "a value chosen to be told apart from every real one, to detect a rejected assignment; no token family prices it",
   "query-condition":
     "a container query condition cannot read a custom property and no generated variant spells it; query conditions are structural literals (client-architecture-lockdown.md 4.4)",
   "single-constant": "one timing or measurement constant with no repeat and no token that holds it; it is a runtime threshold",
@@ -73,6 +76,9 @@ export const QUERY_PROPERTY = "@query";
 
 /** The placeholder for a container condition. */
 export const CONTAINER_PROPERTY = "@container";
+
+/** The placeholder for a declaration inside an `@supports` test. */
+export const SUPPORTS_PROPERTY = "@supports";
 
 const ALL_LENGTH_SPACES: readonly ValueNamespace[] = [
   "spacing",
@@ -126,18 +132,22 @@ const STRUCTURAL_KEEP: Readonly<Record<string, KeepCode>> = {
   angle: "angle-or-fraction",
   derived: "derived-colour",
   mechanism: "css-mechanism",
+  floor: "motion-floor",
 };
 
 const MATCHES_SHOWN = 2;
 
 /** The verdict for one literal: a token that holds it, a token that should, or a structural value that stays. */
 export function judgeLit(found: Lit, property: string | null, tokens: ValueTokens): Judgement {
+  if (property === CONTAINER_PROPERTY) {
+    return keepJudgement("query-condition", found.text);
+  }
+  if (property === SUPPORTS_PROPERTY) {
+    return keepJudgement("feature-probe", found.text);
+  }
   const code = STRUCTURAL_KEEP[found.kind];
   if (code !== undefined) {
     return keepJudgement(code, found.text);
-  }
-  if (property === CONTAINER_PROPERTY) {
-    return keepJudgement("query-condition", found.text);
   }
   if (found.kind === "gradient") {
     return {

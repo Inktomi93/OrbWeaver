@@ -24,19 +24,33 @@ const THEME = [
 const UI_PACKAGE = JSON.stringify({
   exports: { "./layout": "./src/layout/index.ts", "./text": "./src/primitives/text/index.ts", "./button": "./src/primitives/button/index.ts" },
 });
-// The arms are what the census reads: a class is a recipe move only when an arm writes it.
+// The census reads each component's own `tv()` table and the axes it forwards: a class is a recipe move only when an arm writes it.
+// Stack declares and forwards align; Row declares align but forwards only gap and justify; Grid declares neither.
 const LAYOUT_VARIANTS = [
   "const PADDING = { row: 'p-row' } as const;",
+  "const GAP = { row: 'gap-row', field: 'gap-field' } as const;",
   "export const stackVariants = tv({",
-  "  variants: {",
-  "    gap: { row: 'gap-row', field: 'gap-field' },",
-  "    align: { start: 'items-start', center: 'items-center' },",
-  "    padding: PADDING,",
-  "  },",
+  "  variants: { gap: GAP, align: { start: 'items-start', center: 'items-center' }, padding: PADDING },",
   "});",
+  "export const rowVariants = tv({",
+  "  variants: { gap: GAP, justify: { end: 'justify-end' }, align: { start: 'items-start' } },",
+  "});",
+  "export const gridVariants = tv({ variants: { gap: GAP, cols: { two: 'grid-cols-2' } } });",
+].join("\n");
+const LAYOUT_COMPONENTS = [
+  "export function Stack({ gap, align, padding, className }) {",
+  "  return <div className={stackVariants({ gap, align, padding, className })} />;",
+  "}",
+  "export function Row({ gap, justify, className }) {",
+  "  return <div className={rowVariants({ gap, justify, className })} />;",
+  "}",
+  "export function Grid({ gap, cols, className }) {",
+  "  return <div className={gridVariants({ gap, cols, className })} />;",
+  "}",
 ].join("\n");
 const TEXT_VARIANTS =
   "export const textVariants = tv({ variants: { lines: { 2: 'line-clamp-2 whitespace-normal' }, tone: { muted: 'text-muted-foreground' } } });";
+const TEXT_COMPONENT = "export function Text({ lines, tone, className }) {\n  return <p className={textVariants({ lines, tone, className })} />;\n}";
 const EXCEPTIONS = JSON.stringify({ entries: [] });
 const FEATURE = "packages/client/src/features/probe";
 
@@ -45,7 +59,9 @@ function plant(root: string, files: Readonly<Record<string, string>>): void {
   plantFile(root, "packages/ui/package.json", UI_PACKAGE);
   plantFile(root, "packages/ui/src/styles/theme.css", THEME);
   plantFile(root, "packages/ui/src/layout/variants.ts", LAYOUT_VARIANTS);
+  plantFile(root, "packages/ui/src/layout/components.tsx", LAYOUT_COMPONENTS);
   plantFile(root, "packages/ui/src/primitives/text/variants.ts", TEXT_VARIANTS);
+  plantFile(root, "packages/ui/src/primitives/text/text.tsx", TEXT_COMPONENT);
   for (const [path, text] of Object.entries(files)) {
     plantFile(root, `${FEATURE}/${path}`, text);
   }
@@ -84,6 +100,12 @@ test("a sheet literal equal to a token is a token-literal naming it, and a struc
       "  .a { margin: 0; inline-size: 100%; }",
       "}",
       ".b { transform: translateX(8px); }",
+      "@supports (backdrop-filter: blur(1px)) {",
+      "  .c { margin: 0; }",
+      "}",
+      "@media (prefers-reduced-motion: reduce) {",
+      "  .d { animation-duration: 0.01ms; }",
+      "}",
       "",
     ].join("\n"),
   });
@@ -101,6 +123,9 @@ test("a sheet literal equal to a token is a token-literal naming it, and a struc
   expect(named(hits, "background-color: oklch(from var(--surface) l c h/0.4)")?.keep).toBe("derived-colour");
   // A container condition cannot read a custom property, so it stays.
   expect(named(hits, "@container 20rem")?.keep).toBe("query-condition");
+  // A feature test asks the browser; the reduced-motion floor is the shortest duration that still fires events.
+  expect(named(hits, "backdrop-filter: blur(1px)")?.keep).toBe("feature-probe");
+  expect(named(hits, "animation-duration: 0.01ms")?.keep).toBe("motion-floor");
   // Zero, a percentage and a transform are CSS structure: classified keep, each with its reason.
   expect([named(hits, "margin: 0")?.keep, named(hits, "inline-size: 100%")?.keep, named(hits, "transform: translateX(8px)")?.keep]).toEqual([
     "zero-sentinel",
@@ -118,6 +143,7 @@ test("a literal no token holds is a raw value asking for a new token, with the n
       'export const PICK = "#abcdef";',
       'export const ANCHOR = "#review";',
       'export const NOTE = "wait 5 seconds";',
+      'export const FILL_SENTINELS = ["#010203", "#030201"] as const;',
     ].join("\n"),
   });
   const { hits } = census(root);
@@ -127,20 +153,24 @@ test("a literal no token holds is a raw value asking for a new token, with the n
   expect(brief(named(hits, "opacity: 0.5"))).toEqual(["raw-value", "token", "new token: opacity 0.5"]);
   expect(brief(named(hits, '"20.5rem"'))).toEqual(["raw-value", "token", "new token: length 328px"]);
   expect(brief(named(hits, '"#abcdef"'))).toEqual(["raw-value", "token", "new token: colour #abcdef"]);
+  // A sentinel is told apart from every real value on purpose; it is not a colour to tokenize.
+  expect(named(hits, '"#010203"')?.keep).toBe("sentinel");
   // A URL fragment and a sentence are not values.
   expect(named(hits, '"#review"')).toBeUndefined();
   expect(named(hits, '"wait 5 seconds"')).toBeUndefined();
 });
 
-test("a class an arm of the primitive's axis writes is a recipe move; a class no arm writes is a new arm or no axis", ({ scratch }) => {
+test("a class an arm of the element's own component writes is a recipe move; a class no arm writes is a new arm or no axis", ({ scratch }) => {
   const root = plantDir(scratch, "class-utilities");
   plant(root, {
     "components/uses.tsx": [
-      'import { Stack } from "@orb/ui/layout";',
+      'import { Grid, Row, Stack } from "@orb/ui/layout";',
       'import { Text } from "@orb/ui/text";',
       "export const A = () => (",
       "  <>",
       '    <Stack className="gap-row items-center flex px-row gap-section @cq-20:items-center" />',
+      '    <Row className="justify-end items-start" />',
+      '    <Grid className="items-center" />',
       '    <Text className="truncate line-clamp-2">x</Text>',
       '    <Stack className="w-[18px] grid-cols-[minmax(0,1fr)_auto] opacity-100 py-px" />',
       "  </>",
@@ -149,13 +179,19 @@ test("a class an arm of the primitive's axis writes is a recipe move; a class no
   });
   const { hits } = census(root);
   const classes = hits.filter((hit) => hit.category === "class-utility");
-  expect(brief(named(classes, "gap-row"))).toEqual(["class-utility", "recipe", "layout.gap"]);
-  expect(named(classes, "gap-row")?.match).toBe("layout.gap.row");
-  expect(brief(named(classes, "items-center"))).toEqual(["class-utility", "recipe", "layout.align"]);
+  // The owner names the element's own component, not the door family: Stack, Row and Grid are three tables.
+  expect(brief(named(classes, "gap-row"))).toEqual(["class-utility", "recipe", "stack.gap"]);
+  expect(named(classes, "gap-row")?.match).toBe("stack.gap.row");
+  expect(brief(named(classes, "justify-end"))).toEqual(["class-utility", "recipe", "row.justify"]);
+  expect(named(classes, "justify-end")?.match).toBe("row.justify.end");
+  // Row declares align but forwards only gap and justify, and Grid declares no align: neither takes the prop, so neither is a recipe move.
+  expect(classes.filter((hit) => hit.detail === "items-center")).toHaveLength(1);
+  expect(named(classes, "items-start")).toBeUndefined();
+  expect(brief(named(classes, "items-center"))).toEqual(["class-utility", "recipe", "stack.align"]);
   // The gap axis declares row and field; section is a valid spacing token with no arm. px is the padding family, but the arm writes p-row only.
-  expect(brief(named(classes, "gap-section"))).toEqual(["class-utility", "decide", "new arm: layout.gap"]);
-  expect(brief(named(classes, "px-row"))).toEqual(["class-utility", "decide", "new arm: layout.padding"]);
-  expect(brief(named(classes, "@cq-20:items-center"))).toEqual(["class-utility", "decide", "new arm: layout.align, conditional"]);
+  expect(brief(named(classes, "gap-section"))).toEqual(["class-utility", "decide", "new arm: stack.gap"]);
+  expect(brief(named(classes, "px-row"))).toEqual(["class-utility", "decide", "new arm: stack.padding"]);
+  expect(brief(named(classes, "@cq-20:items-center"))).toEqual(["class-utility", "decide", "new arm: stack.align, conditional"]);
   // The lines axis exists, but its one arm writes a clamp and a reservation: truncate is a real repeat with no axis behind it.
   expect(brief(named(classes, "truncate"))).toEqual(["class-utility", "decide", "no axis: truncate on text"]);
   expect(named(classes, "line-clamp-2")).toBeUndefined();
@@ -167,6 +203,51 @@ test("a class an arm of the primitive's axis writes is a recipe move; a class no
     "zero-sentinel",
     "token-utility",
   ]);
+});
+
+test("a recipe class under a ternary, `&&` or a variant is marked conditional, since a codemod must skip it", ({ scratch }) => {
+  const root = plantDir(scratch, "conditional-classes");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      "export const A = ({ weld, open }: { weld: boolean; open: boolean }) => (",
+      "  <>",
+      '    <Stack className={weld ? "items-start" : undefined} />',
+      '    <Stack className={cn("base", open && "gap-row")} />',
+      '    <Stack className="items-center" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  const classes = census(root).hits.filter((hit) => hit.category === "class-utility");
+  expect(brief(named(classes, "items-start"))).toEqual(["class-utility", "recipe", "stack.align, conditional"]);
+  expect(brief(named(classes, "gap-row"))).toEqual(["class-utility", "recipe", "stack.gap, conditional"]);
+  expect(brief(named(classes, "items-center"))).toEqual(["class-utility", "recipe", "stack.align"]);
+});
+
+test("a default arm, an arm key and a compared string are not class text", ({ scratch }) => {
+  const root = plantDir(scratch, "recipe-labels");
+  plant(root, {
+    "components/pick.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      'export const A = ({ tone }: { tone: string }) => <Stack className={cn(tone === "border" && "p-row")} />;',
+    ].join("\n"),
+  });
+  plantFile(
+    root,
+    "packages/ui/src/primitives/separator/variants.ts",
+    [
+      "export const separatorVariants = tv({",
+      '  variants: { tone: { border: "", "border-2": "", primary: "bg-tone-edge" } },',
+      '  compoundVariants: [{ tone: "border", class: "p-row" }],',
+      '  defaultVariants: { tone: "border" },',
+      "});",
+    ].join("\n"),
+  );
+  const classes = census(root).hits.filter((hit) => hit.category === "class-utility");
+  // `border` and `border-2` are an arm key, a default, a condition and a comparison here, never a utility the file writes.
+  expect(classes.filter((hit) => hit.detail.startsWith("border"))).toEqual([]);
+  expect(classes.some((hit) => hit.detail === "p-row")).toBe(true);
 });
 
 test("a style prop carries a design value only when it writes a literal; a computed value is a runtime value", ({ scratch }) => {
@@ -207,6 +288,35 @@ test("a class set written three times is a repeated cluster, and twice is not", 
   expect(clusters).toHaveLength(3);
   expect(new Set(clusters.map((hit) => hit.owner))).toEqual(new Set(["composite TruncatingBox: flex-1 min-inline-0 truncate"]));
   expect(new Set(clusters.map((hit) => hit.verdict))).toEqual(new Set(["primitive"]));
+});
+
+test("a cluster owner fits its element: a layout composite is offered to layout boxes only", ({ scratch }) => {
+  const root = plantDir(scratch, "cluster-elements");
+  const trio = "flex-1 min-inline-0 truncate";
+  plant(root, {
+    "components/boxes.tsx": `export const A = () => (<><span className="${trio}" /><span className="${trio}" /><span className="${trio}" /></>);`,
+    "components/others.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'import { Text } from "@orb/ui/text";',
+      `export const B = () => (<><Text className="${trio}" /><Button className="${trio}" /></>);`,
+      `export const FIT_CLASS = "${trio}";`,
+    ].join("\n"),
+  });
+  const clusters = census(root).hits.filter((hit) => hit.category === "repeated-cluster");
+  const decided = (match: (owner: string) => boolean): readonly string[] =>
+    clusters.filter((hit) => hit.verdict === "decide" && match(hit.owner)).map((hit) => hit.owner);
+  expect(clusters).toHaveLength(6);
+  // The three spans are layout boxes, so the composite stands for them.
+  expect(clusters.filter((hit) => hit.verdict === "primitive").map((hit) => hit.owner)).toEqual([
+    "composite TruncatingBox: flex-1 min-inline-0 truncate",
+    "composite TruncatingBox: flex-1 min-inline-0 truncate",
+    "composite TruncatingBox: flex-1 min-inline-0 truncate",
+  ]);
+  // A Text or a Button is not a box, and a bare constant names no element.
+  expect(decided((owner) => !owner.includes("constant"))).toEqual(
+    Array.from({ length: 2 }, () => "decide: flex-1 min-inline-0 truncate on Text, Button, no composite fits"),
+  );
+  expect(decided((owner) => owner.includes("constant"))).toEqual(["decide: flex-1 min-inline-0 truncate on a class constant, no composite fits"]);
 });
 
 test("a raw element a primitive owns is hand-built, and a plain wrapper is not", ({ scratch }) => {
@@ -274,7 +384,7 @@ test("the report is sorted and grouped by owner with counts per category and per
   expect(first.markdown).toContain("### Hits per category");
   expect(first.markdown).toContain("| token-literal | 1 | 1 | 0 | 0 | 0 | 0 |");
   expect(first.markdown).toContain("| probe | 3 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |");
-  expect(first.markdown).toContain("#### layout.gap (1)");
+  expect(first.markdown).toContain("#### stack.gap (1)");
   expect(first.markdown).not.toContain("## The split: bypass or gap");
 });
 
