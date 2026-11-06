@@ -10,9 +10,11 @@ import { useRef, useState } from "react";
 export function MessageListScrollportStory({
   scrollMode = "follow",
   initialCount = 0,
+  roving = false,
 }: {
   readonly scrollMode?: ScrollMode;
   readonly initialCount?: number;
+  readonly roving?: boolean;
 }): ReactElement {
   const [count, setCount] = useState(initialCount);
   const [tailHeight, setTailHeight] = useState(60);
@@ -30,6 +32,7 @@ export function MessageListScrollportStory({
           ariaLabel="Scrollport lifecycle"
           ref={handle}
           scrollMode={scrollMode}
+          rowNavigation={roving ? "roving" : "none"}
           className="flex-1"
           items={items}
           getItemKey={(item): number => item}
