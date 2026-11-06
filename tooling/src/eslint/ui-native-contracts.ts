@@ -318,6 +318,19 @@ function readableSpread(native: Native, expression: ts.Expression, hops: number)
   return ts.isIdentifier(node) && constOfObject(native, node, hops);
 }
 
+// A type with a string index signature, or `any`, can carry every key, so it can write any axis the element has.
+function carriesAnyKey(native: Native, type: ts.Type): boolean {
+  return type.flags === ts.TypeFlags.Any || native.checker.getIndexInfosOfType(type).some((info) => info.keyType.flags === ts.TypeFlags.String);
+}
+
+function carriedAxes(native: Native, spread: ts.Type, axes: ReadonlySet<string>): readonly string[] {
+  const parts = members(spread);
+  if (parts.some((part) => carriesAnyKey(native, part))) {
+    return [...axes];
+  }
+  return [...new Set(parts.flatMap((part) => part.getProperties().map((property) => property.name)))].filter((name) => axes.has(name));
+}
+
 /**
  * A spread on an element whose props have variant axes either is a literal the census reads or carries no axis. The
  * census counts what an unreadable spread writes as nothing, so this rule is what makes its zero-use verdicts exact.
@@ -334,8 +347,10 @@ export const opaqueVariantSpreadRule: OrbRule = {
           return;
         }
         const axes = variantAxes(native, props, spread);
-        const names = members(native.checker.getTypeAtLocation(spread.expression)).flatMap((member) => member.getProperties().map((property) => property.name));
-        const carried = [...new Set(names)].filter((name) => axes.has(name));
+        if (axes.size === 0) {
+          return;
+        }
+        const carried = carriedAxes(native, native.checker.getTypeAtLocation(spread.expression), axes);
         if (carried.length > 0) {
           context.report({
             node,

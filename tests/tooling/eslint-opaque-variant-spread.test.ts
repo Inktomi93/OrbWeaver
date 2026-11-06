@@ -74,6 +74,16 @@ test.for([
     "a const whose initializer is a call",
     'declare function look(): { readonly variant: "ghost" };\nexport const Probe = (): ReactElement => <Button {...look()}>x</Button>;',
   ],
+  ["a string index signature", "export const Probe = (bag: Readonly<Record<string, string>>): ReactElement => <Button {...bag}>x</Button>;"],
+  [
+    "an index signature beside named keys",
+    "export const Probe = (bag: { readonly id: string; readonly [key: string]: string }): ReactElement => <Button {...bag}>x</Button>;",
+  ],
+  [
+    "a union with an index-signature arm",
+    "export const Probe = (bag: Readonly<Record<string, string>> | { readonly id: string }): ReactElement => <Button {...bag}>x</Button>;",
+  ],
+  ["a spread typed any", "export const Probe = (bag: any): ReactElement => <Button {...bag}>x</Button>;"],
 ] as const)("flags %s", async ([, body]) => {
   const found = await findings(body);
   expect(found).toHaveLength(1);
@@ -92,6 +102,8 @@ test.for([
     'export const Probe = (extra: Pick<ComponentProps<typeof Button>, "disabled">): ReactElement => <Button {...extra}>x</Button>;',
   ],
   ["a raw element, which has no axes", 'export const Probe = (rest: ComponentProps<"span">): ReactElement => <span {...rest}>x</span>;'],
+  ["an index signature spread on a raw element", "export const Probe = (bag: Readonly<Record<string, string>>): ReactElement => <span {...bag}>x</span>;"],
+  ["a number index signature", "export const Probe = (bag: readonly string[]): ReactElement => <Button {...bag}>x</Button>;"],
 ] as const)("passes %s", async ([, body]) => {
   expect(await findings(body)).toEqual([]);
 });

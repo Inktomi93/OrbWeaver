@@ -46,10 +46,6 @@ export interface RelationManagerSectionProps<TId extends string> {
   readonly onAdd: (item: RelationManagerItem<TId>) => void;
 }
 
-function subtitleProp(item: RelationManagerItem): Record<string, string> {
-  return item.subtitle === undefined ? {} : { subtitle: item.subtitle };
-}
-
 /**
  * The one relation-manager section — a titled list of related entities (each removable) plus an
  * add-picker Dialog listing what's left to attach. All writes are the caller's immediate mutations.
@@ -77,7 +73,7 @@ export function RelationManagerSection<TId extends string>({
             <ListRow
               key={item.id}
               title={item.title}
-              {...subtitleProp(item)}
+              {...(item.subtitle === undefined ? {} : { subtitle: item.subtitle })}
               actions={
                 <Button aria-label={`${removeLabel} ${item.title}`} variant="ghost" onClick={(): void => onRemove(item)}>
                   {removeLabel}
@@ -100,7 +96,7 @@ export function RelationManagerSection<TId extends string>({
                   <ListRow
                     key={item.id}
                     title={item.title}
-                    {...subtitleProp(item)}
+                    {...(item.subtitle === undefined ? {} : { subtitle: item.subtitle })}
                     actions={
                       <Button aria-label={`${addLabel} ${item.title}`} variant="ghost" onClick={(): void => onAdd(item)}>
                         {addLabel}

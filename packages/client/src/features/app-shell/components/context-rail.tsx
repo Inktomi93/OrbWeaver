@@ -305,8 +305,7 @@ function ContextTabBadge({ count, dot }: { readonly count: number; readonly dot:
   return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} /> : null;
 }
 
-/** One cell: glyph + caption, ALWAYS both — `layout="stacked"`, the primitive's OWN arm for a cell
- *  whose height follows its content. The caption is the accessible name AND visible; `title` is NOT the
+/** One cell: glyph + caption, ALWAYS both, in a cell whose height follows its content. The caption is the accessible name AND visible; `title` is NOT the
  *  caption's understudy (the word is on screen and `aria-label` carries the full name when it truncates).
  *
  *  ACTIVE: the ember fill + foreground ink + the 2px primary bar on the bottom edge (the mock's `.cell.on`).

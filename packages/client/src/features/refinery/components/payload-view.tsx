@@ -202,8 +202,8 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
  *  SIZE AND ANATOMY (side-eye 2026-08-09 P1-13). The numeral was `voice="datum"` — 13px mono, the same
  *  step as every other value on the surface — for the ONE number the whole run exists to produce, and
  *  the null arm returned `null` for the meter, collapsing the card's anatomy against this file's own
- *  "empty values are LOAD-BEARING designed states, never collapses" header. Now: a display-size numeral
- *  (`size="display"`, the rare hero moment the type scale reserves), and the Meter shape ALWAYS renders
+ *  "empty values are LOAD-BEARING designed states, never collapses" header. Now: the `hero` voice
+ *  (the rare hero moment the type scale reserves), and the Meter shape ALWAYS renders
  *  — at `min` with no value, which is the honest drawing of "this has not been scored yet" and keeps
  *  the card the same height before and after a run (so a settling score never shifts the pane). */
 function HeroGauge({

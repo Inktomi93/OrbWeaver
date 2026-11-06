@@ -216,7 +216,7 @@ function TemplatesTab({ form }: { readonly form: AppForm }): ReactElement {
   return (
     // KICKER, not a 17px sans heading (side-eye F-22): Transforms and Data were the only views still
     // speaking the form-tier heading voice, so they read as a different product from the deck and the rack
-    // beside them. `gloss` (not `size="micro"`) is the four-voice grammar's own explainer step (§2).
+    // beside them. `gloss` is the four-voice grammar's own explainer step (§2).
     <Section kicker="Inline reasoning parsing">
       <Text voice="gloss">
         A fallback that splits an inline reasoning block out of the reply when the model has no native reasoning channel. Native reasoning is always preferred.

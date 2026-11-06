@@ -54,10 +54,8 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
             the section it used to hold. The rationale + the single-instance argument live at the constant. */}
         {/* THE BAND'S NAME IS THE SURFACE'S DISPLAY SLOT (#1136, side-eye 2026-09-02 F9 — and the Config
             drive's F24, which is the SAME defect because it is the same file: seven sections' list bands
-            resolve their title here). It used to be `size="micro" transform="caps" tone="muted"`, i.e. the
-            10.5px caps KICKER — so the pane's own `<h2>` was SMALLER than the body text under it and the
-            largest type anywhere on a rail surface was 16px. `flat-type-hierarchy` fired in every arm of
-            every appearance preset with "10.5px, 13px, 15px, 16px (ratio 1.5:1)".
+            resolve their title here). A 10.5px caps KICKER would make the pane's own `<h2>` SMALLER than the body text under it and leave
+            the largest type anywhere on a rail surface at 16px, which `flat-type-hierarchy` reds.
             THE STEP IS FORCED, NOT CHOSEN: the rule's floor is max/min >= 2.0 and the min on these surfaces
             is the 10.5px kicker, so nothing below 21px clears it — `title` (16) and `headline` (20) both
             still fail. `display` (24) is the one ramp step that does, which is also what the rule's own

@@ -62,9 +62,9 @@ export const textVariants = tv({
       // the refinery's whole reason-for-being at 13px, the same step as every field label beside it (the
       // review's words: "13px mono ... one change fixes hierarchy, type scale, accent budget").
       //
-      // A feature CANNOT express this without a voice: `size="display"` is an @orb/ui-internal axis the
-      // density gate's A3 arm reds at any feature call site, by design. So the choice is a voice or a
-      // gate exemption, and a exemption for "this number is important" would be the first of many.
+      // A feature CANNOT express this without a voice: the display step is not a `size` arm, and the density
+      // gate's A3 arm reds a feature's own size choice, by design. So the choice is a voice or a
+      // gate exemption, and an exemption for "this number is important" would be the first of many.
       // `tabular-nums` is load-bearing, not polish: these numerals COUNT UP on settle, and proportional
       // digits make the figure jitter horizontally while it ticks.
       hero: "font-mono text-display leading-display font-semibold tracking-normal text-foreground tabular-nums",
@@ -132,13 +132,10 @@ export const textVariants = tv({
       // THE MONO READOUT AT THE CODE STEP (added 2026-08-23, owner ruling on #573). An id, a hash, a byte
       // count, a raw payload — machine text a human reads but does not compare in a column. `datum` is the
       // voice for a value you DO compare (label step, tabular, foreground); this is its receded twin at the
-      // dedicated `code` step, which is the one type step no voice reached at all: `size="code"` is an
-      // @orb/ui-internal axis the A3 arm reds at a feature call site, so a mono readout in a feature had no
-      // legal spelling.
+      // dedicated `code` step, which is not a `size` arm: a mono readout in a feature is spelled with a voice.
       //
       // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here
-      // (a hash is not a column of numbers). Resolves the same step the `size="code" ink="muted"` pair
-      // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
+      // (a hash is not a column of numbers). A call site that wants column digits adds `className="tabular-nums"`.
       datumMono: "font-mono text-code leading-label-relaxed font-normal tracking-normal text-muted-foreground",
       // MACHINE TEXT YOU READ OR COPY: an id, a hash, a key, an address. Geist Mono at the
       // code step in the foreground ink. Its nearest neighbour is `datumMono`, the same face and step receded to the
