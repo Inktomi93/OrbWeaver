@@ -20,17 +20,23 @@ const VERB_USAGE = {
   ],
   item: [
     "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
-    "       [--what <text>] [--why <text>] [--done <text>]      (the title is positional, not --title)",
-    "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
+    "       [--what <text>] [--why <text>] [--done <text>] [--commit]      (the title is positional, not --title)",
+    "  item --from <file.json> [--commit]  a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
     "                                      what, why, done), written all-or-nothing",
   ],
   status: ["  status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason> (status parked, a plan)]"],
   set: [
     "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
-    "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
+    "       [--plan s] [--reviewed x] [--evidence sha] [--commit]      (--<field> - or --<field> none clears a field)",
   ],
+  edit: ["  edit <id> [--what <text>] [--why <text>] [--done <text>] [--commit]      replace those sections of one item"],
+  show: ["  show <id…>                          print each item's file under a path header, in the order given"],
   remove: ["  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)"],
-  land: ["  land <id…> --evidence <sha>         landing deletes the item and commits the record", "  land --merged [--head-merge]"],
+  land: [
+    "  land <id…> --evidence <sha>         landing deletes the item and commits the record",
+    "  land <id…> --stage                  the same without the commit: stages the written paths, prints the record and a Closes: line",
+    "  land --merged [--head-merge]",
+  ],
   index: ["  index                               regenerate the generated indexes"],
   review: ["  review <path|glob…>                 mark docs reviewed today"],
   due: ["  due [glob…]                         list docs whose cited code changed since their review"],
@@ -156,19 +162,23 @@ function parseNew(args: readonly string[]): DocCommand {
 }
 
 const FROM_FLAG = "--from";
+/** The flag that commits a board write; it takes no value, so it is never in a value-flag list. */
+const COMMIT_FLAG = "--commit";
+const STAGE_FLAG = "--stage";
 const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane", "--blocked", ...contentFlagNames(ITEM_CONTENT_FLAGS), FROM_FLAG];
 
 /** `item --from <file>` stands alone: every field of every item lives in the file. */
 function parseItemBatch(args: readonly string[]): DocCommand {
-  const from = requiredFlag(args, FROM_FLAG);
-  if (args.length !== 2) {
-    throw new UsageError(`item ${FROM_FLAG} takes no title and no other flag — every field lives in the file\n${USAGE}`);
+  const rest = args.filter((token) => token !== COMMIT_FLAG);
+  const from = requiredFlag(rest, FROM_FLAG);
+  if (rest.length !== 2) {
+    throw new UsageError(`item ${FROM_FLAG} takes no title and no other flag but ${COMMIT_FLAG} — every field lives in the file\n${USAGE}`);
   }
-  return { kind: "item-batch", from };
+  return { kind: "item-batch", from, commit: args.includes(COMMIT_FLAG) };
 }
 
 function parseItem(args: readonly string[]): DocCommand {
-  refuseUnknownFlags(args, ITEM_FLAGS, "item", (flag) =>
+  refuseUnknownFlags(args, [...ITEM_FLAGS, COMMIT_FLAG], "item", (flag) =>
     flag === "--title" ? `the title is positional: pnpm doc item "${args[args.indexOf(flag) + 1] ?? "<title>"}" --kind …` : null,
   );
   if (args.includes(FROM_FLAG)) {
@@ -194,7 +204,29 @@ function parseItem(args: readonly string[]): DocCommand {
       blocked: flagValue(args, "--blocked"),
       content: parseContent(args, ITEM_CONTENT_FLAGS),
     },
+    commit: args.includes(COMMIT_FLAG),
   };
+}
+
+/** `edit <id>` rewrites the body of the sections it is given, so at least one section flag is required. */
+function parseEdit(args: readonly string[]): DocCommand {
+  const sectionFlags = contentFlagNames(ITEM_CONTENT_FLAGS);
+  refuseUnknownFlags(args, [...sectionFlags, COMMIT_FLAG], "edit");
+  const tokens = positionals(args, sectionFlags);
+  const [id] = ids(tokens, "edit");
+  const sections = parseContent(args, ITEM_CONTENT_FLAGS);
+  if (tokens.length !== 1 || id === undefined) {
+    throw new UsageError(`edit takes exactly one item id\n${usageFor("edit")}`);
+  }
+  if (Object.keys(sections).length === 0) {
+    throw new UsageError(`edit names at least one section to replace: ${sectionFlags.join(" ")}\n${usageFor("edit")}`);
+  }
+  return { kind: "edit", id, sections, commit: args.includes(COMMIT_FLAG) };
+}
+
+function parseShow(args: readonly string[]): DocCommand {
+  refuseUnknownFlags(args, [], "show");
+  return { kind: "show", ids: ids(args, "show") };
 }
 
 type PatchKey = Exclude<keyof ItemPatch, "state" | "kind" | "title">;
@@ -239,7 +271,7 @@ function parseIdentity(args: readonly string[], idCount: number): Pick<ItemPatch
 
 /** The state is optional so a field-only edit (`set 12 --kind work`) needs no state. */
 function parseSet(args: readonly string[]): DocCommand {
-  refuseUnknownFlags(args, SET_FLAGS, "set", (flag) =>
+  refuseUnknownFlags(args, [...SET_FLAGS, COMMIT_FLAG], "set", (flag) =>
     flag === "--state" || flag === "--status"
       ? `the state is positional: pnpm doc set ${[...positionals(args, [...SET_FLAGS, flag]), args[args.indexOf(flag) + 1] ?? "<state>"].join(" ")}`
       : null,
@@ -255,13 +287,20 @@ function parseSet(args: readonly string[]): DocCommand {
   if (Object.keys(patch).length === 0) {
     throw new UsageError(`set names a state or at least one field\n${USAGE}`);
   }
-  return { kind: "set", ids: idList, patch };
+  const commit = args.includes(COMMIT_FLAG);
+  if (commit && patch.title !== undefined) {
+    throw new UsageError(
+      `set --title cannot take ${COMMIT_FLAG}: a retitle rewrites references in files outside the board, and the commit would carry a sibling's edits in them — retitle, then commit by hand\n${usageFor("set")}`,
+    );
+  }
+  return { kind: "set", ids: idList, patch, commit };
 }
 
-/** `--head-merge` selects the post-commit range (`HEAD^1..HEAD`, only right when HEAD is itself a merge
- *  commit); its absence keeps the post-merge range (`ORIG_HEAD..HEAD`). The two hooks pick the flag by
- *  which one fired them, never by HEAD's shape — a fast-forward onto a branch whose tip is a merge commit
- *  still fires post-merge, and `HEAD^1..HEAD` there would drop every id on the first-parent side. */
+/** `--head-merge` selects the range `HEAD^1..HEAD`, only right when HEAD is itself a merge commit; its
+ *  absence keeps `ORIG_HEAD..HEAD`. The caller picks the flag by which merge just ended, never by HEAD's
+ *  shape — a fast-forward onto a branch whose tip is a merge commit is still a plain merge, and
+ *  `HEAD^1..HEAD` there would drop every id on the first-parent side. `--stage` is the landing without a
+ *  commit; it takes ids and no evidence. */
 function parseLand(args: readonly string[]): DocCommand {
   if (args[0] === "--merged") {
     const rest = args.slice(1);
@@ -270,8 +309,14 @@ function parseLand(args: readonly string[]): DocCommand {
     }
     return { kind: "land-merged", headMerge: rest[0] === "--head-merge" };
   }
-  refuseUnknownFlags(args, ["--evidence"], "land");
+  refuseUnknownFlags(args, ["--evidence", STAGE_FLAG], "land");
   const tokens = positionals(args, ["--evidence"]);
+  if (args.includes(STAGE_FLAG)) {
+    if (args.includes("--evidence")) {
+      throw new UsageError(`land ${STAGE_FLAG} stages the landing for your own commit and takes no --evidence — name one or the other\n${usageFor("land")}`);
+    }
+    return { kind: "land-stage", ids: ids(tokens, "land") };
+  }
   const sha = tokens.find((token) => !ID_RE.test(token));
   if (sha !== undefined && !args.includes("--evidence")) {
     throw new UsageError(
@@ -366,6 +411,8 @@ const VERBS: Readonly<Record<UsageVerb, Parser>> = {
   item: parseItem,
   status: parseStatus,
   set: parseSet,
+  edit: parseEdit,
+  show: parseShow,
   remove: parseRemove,
   land: parseLand,
   review: (tail) => parseListVerb("review", tail),

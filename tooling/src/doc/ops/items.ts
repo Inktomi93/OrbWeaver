@@ -1,36 +1,110 @@
-// The work-item verbs: mint (`item`, `item --from`), transition and edit (`set`); landing is
-// `ops/land.ts`. Every verb takes a list, validates only the FINAL shape of each item, writes the item
-// files as whole-block rewrites and regenerates the indexes once. A refusal writes nothing — a batch is
-// all-or-nothing so a half-landed list can never be mistaken for a landed one. Every write is judged by
-// the docs check itself (shape, sections, caps, writing rules, references) before the first byte lands:
-// a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
+// The work-item verbs: mint (`item`, `item --from`), transition (`set`), rewrite a section (`edit`) and
+// read (`show`); landing is `ops/land.ts`. Every write verb takes a list, validates only the FINAL shape
+// of each item, writes the item files as whole-block rewrites and regenerates the indexes once. A refusal
+// writes nothing — a batch is all-or-nothing so a half-landed list can never be mistaken for a landed one.
+// Every write is judged by the docs check itself (shape, sections, caps, writing rules, references) before
+// the first byte lands: a mint through `pendingDocProblems`, an edit through `introducedDocProblems`.
+// `runWrite` is the `--commit` step: it commits a verb's writes plus every other uncommitted change under
+// docs/work/ and the generated files they feed, so a run of `set`s ends in one commit.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import type { DocEdit, GovernedDoc, ItemPatch, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
+import type { DocEdit, GovernedDoc, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, SectionContent, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
+import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
-import { applyPatch, nextItemId, parseItemBatch } from "../lib/items.ts";
-import { folderOf, numberedName, referencePatterns, slugify } from "../lib/names.ts";
-import { itemTemplate } from "../lib/templates.ts";
+import { applyPatch, commitRefusal, isItemPath, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
+import { basenameOf, folderOf, numberedName, parseNumberedName, referencePatterns, slugify } from "../lib/names.ts";
+import { ITEM_SECTIONS, itemTemplate } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
-import { formattedDoc, governedPaths, highestHistoricId, readDoc, rewriteTextFiles, root, today, writeDoc } from "./tree.ts";
+import {
+  changedPaths,
+  commitPaths,
+  formattedDoc,
+  governedPaths,
+  highestHistoricId,
+  mergeInProgress,
+  readDoc,
+  rewriteTextFiles,
+  root,
+  stagedWorkDeletions,
+  TOOL_TRAILER,
+  today,
+  uncommittedBoardPaths,
+  uncommittedDocSources,
+  writeDoc,
+} from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 
 /** The outcome every write verb reports: what it wrote, or why it wrote nothing. A landing verb also
- *  names what it SKIPPED (an item already done), which is neither a write nor a refusal. */
+ *  names what it SKIPPED (an item already done), which is neither a write nor a refusal. A `--commit`
+ *  verb names the commit it made. */
 export interface WriteOutcome {
   readonly written: readonly string[];
   readonly refusals: readonly string[];
   readonly skipped?: readonly string[];
+  readonly committed?: string;
 }
 
 export function loadItems(repoRoot = root): readonly WorkItem[] {
   return allItems(governedPaths(repoRoot).map((path) => readDoc(path, repoRoot)));
+}
+
+/** The ids of the item files among `paths`, ascending and unique. */
+function itemIdsOf(paths: readonly string[]): readonly number[] {
+  const ids = paths.flatMap((path) => {
+    const name = isItemPath(path) ? parseNumberedName(basenameOf(path)) : null;
+    return name === null ? [] : [name.id];
+  });
+  return [...new Set(ids)].toSorted((left, right) => left - right);
+}
+
+/** What makes a board commit unsafe, checked BEFORE the verb writes anything: a merge waiting for its commit
+ *  (a plumbing commit would drop its second parent), a staged deletion (it would commit with no record and
+ *  no `Closes:` line), and an uncommitted hand-owned doc (the swept indexes describe it, so a commit without
+ *  it fails the docs check at HEAD). */
+function commitBlockers(repoRoot: string): readonly string[] {
+  if (mergeInProgress(repoRoot)) {
+    return ["--commit cannot run while a merge waits for its commit (MERGE_HEAD exists) — commit the merge first"];
+  }
+  const staged = stagedWorkDeletions(repoRoot);
+  if (staged.length > 0) {
+    return [`--commit would commit the staged deletion of ${staged.join(", ")} with no landing record and no Closes: line — commit it first`];
+  }
+  const sources = uncommittedDocSources(repoRoot);
+  return sources.length === 0 ? [] : [`--commit needs these docs committed first, because the generated indexes describe them: ${sources.join(", ")}`];
+}
+
+/** `--commit`: commit what the verb wrote plus every other uncommitted change under docs/work/ and the
+ *  generated indexes and task lists they feed, so a run of `set`s ends in one commit that passes the docs
+ *  check. `commitPaths` builds the commit from HEAD plus exactly these paths, so any other staged or
+ *  unstaged file stays out. A refused write commits nothing, and a write that changed nothing makes no
+ *  commit and says so. */
+function commitWork(outcome: WriteOutcome, repoRoot: string): WriteOutcome {
+  if (outcome.refusals.length > 0) {
+    return outcome;
+  }
+  const paths = [...new Set([...outcome.written, ...uncommittedBoardPaths(repoRoot)])];
+  if (changedPaths(paths, repoRoot).length === 0) {
+    return { written: outcome.written, refusals: [], skipped: ["nothing to commit — the write changed nothing"] };
+  }
+  const message = workCommitMessage(itemIdsOf(paths), TOOL_TRAILER);
+  const commit = commitPaths(paths, message, repoRoot);
+  return commit.ok ? { written: paths, refusals: [], committed: commit.sha } : { written: paths, refusals: [commitRefusal("work", commit.reason, message)] };
+}
+
+/** Run a write verb, committing its result when the caller asked. With `commit`, the blockers refuse
+ *  before `write` runs, so a refusal leaves the tree untouched. */
+export function runWrite(commit: boolean, repoRoot: string, write: () => WriteOutcome): WriteOutcome {
+  if (!commit) {
+    return write();
+  }
+  const blockers = commitBlockers(repoRoot);
+  return blockers.length > 0 ? { written: [], refusals: blockers } : commitWork(write(), repoRoot);
 }
 
 function planExists(slug: string, repoRoot: string): boolean {
@@ -186,4 +260,94 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
     }
   }
   return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [] };
+}
+
+/** The section list of an item file, in order. */
+function headingList(source: string): string {
+  return structuralHeadings(splitDocument(source).body).join(" | ");
+}
+
+/** `source` with each given section body replaced, or the refusals: an item whose required sections do not
+ *  all parse, or a text carrying a `#` or `##` heading. */
+function replaceSections(
+  path: string,
+  source: string,
+  sections: SectionContent<ItemSectionFlag>,
+): { readonly source: string } | { readonly refusals: readonly string[] } {
+  const found = sectionsOf(splitDocument(source).body);
+  const missing = ITEM_SECTIONS.filter((section) => !found.includes(section.name));
+  if (missing.length > 0) {
+    return { refusals: missing.map((section) => `${path}: has no ## ${section.name} section — every item carries one; restore it by hand`) };
+  }
+  let next = source;
+  const refusals: string[] = [];
+  for (const section of ITEM_SECTIONS) {
+    const text = section.flag === null ? undefined : sections[section.flag];
+    if (text === undefined) {
+      continue;
+    }
+    const headings = structuralHeadings(text);
+    if (headings.length > 0) {
+      refusals.push(`${path}: the ${section.name} text carries a heading line (${headings.join(", ")}) — a section body holds none; fence it or drop it`);
+      continue;
+    }
+    next = withSectionText(next, section.name, text) ?? next;
+  }
+  return refusals.length > 0 ? { refusals } : { source: next };
+}
+
+/** Replace the body of the named sections of ONE item and judge the result like a `set`. The title, the
+ *  fields except `updated` and the other sections keep their text; the final format pass may still
+ *  normalise a sibling section that was not canonical. Every required section must parse first, so an unclosed
+ *  fence that hides a sibling cannot delete it. The `#` and `##` headings must come out as they went in, read
+ *  after the format pass so an indented or setext heading counts: new text with a heading, or text that opens a
+ *  fence it never closes, refuses, because `introducedDocProblems` only subtracts findings the item already has and
+ *  would let such an edit through on an item that is already red. */
+export function editItem(id: number, sections: SectionContent<ItemSectionFlag>, repoRoot = root, date = today()): WriteOutcome {
+  const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
+  if (item === undefined) {
+    return { written: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };
+  }
+  const original = readDoc(item.path, repoRoot).source;
+  const replaced = replaceSections(item.path, original, sections);
+  if ("refusals" in replaced) {
+    return { written: [], refusals: replaced.refusals };
+  }
+  const edit: DocEdit = { from: item.path, doc: { path: item.path, source: formattedDoc(withFields(replaced.source, { updated: date })) } };
+  if (headingList(edit.doc.source) !== headingList(original)) {
+    return {
+      written: [],
+      refusals: [
+        `${item.path}: the edit would change its sections from [${headingList(original)}] to [${headingList(edit.doc.source)}] — check the text for an unclosed code fence`,
+      ],
+    };
+  }
+  const problems = introducedDocProblems([edit], repoRoot);
+  if (problems.length > 0) {
+    return { written: [], refusals: problems };
+  }
+  writeDoc(edit.doc.path, edit.doc.source, repoRoot);
+  return { written: [item.path, ...regenerateIndexes(repoRoot)], refusals: [] };
+}
+
+/** What `show` found: the item files by id in the order given, and a refusal per id with no item. */
+export interface ShownItems {
+  readonly shown: readonly GovernedDoc[];
+  readonly refusals: readonly string[];
+}
+
+/** Read items by id. Read-only; an unknown id refuses by name and the others still come back. */
+export function showItems(ids: readonly number[], repoRoot = root): ShownItems {
+  const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
+  const shown: GovernedDoc[] = [];
+  const refusals: string[] = [];
+  for (const id of new Set(ids)) {
+    const item = byId.get(id);
+    if (item === undefined) {
+      refusals.push(`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`);
+    } else {
+      shown.push(readDoc(item.path, repoRoot));
+    }
+  }
+  return { shown, refusals };
 }

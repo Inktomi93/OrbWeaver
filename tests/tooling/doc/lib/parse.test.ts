@@ -21,6 +21,7 @@ test("the minting verbs", () => {
   expect(parseDocCommand(["item", "Fix", "the", "thing", "--kind", "bug", "--priority", "P1", "--lane", "cb-x"])).toEqual({
     kind: "item",
     input: { title: "Fix the thing", kind: "bug", priority: "P1", area: null, plan: null, lane: "cb-x", blocked: null, content: {} },
+    commit: false,
   });
   expect(
     parseDocCommand(["item", "Wait", "--kind", "work", "--blocked", "on 3", "--what", "The change.", "--why", "The symptom.", "--done", "The bar."]),
@@ -36,8 +37,9 @@ test("the minting verbs", () => {
       blocked: "on 3",
       content: { what: "The change.", why: "The symptom.", done: "The bar." },
     },
+    commit: false,
   });
-  expect(parseDocCommand(["item", "--from", "items.json"])).toEqual({ kind: "item-batch", from: "items.json" });
+  expect(parseDocCommand(["item", "--from", "items.json"])).toEqual({ kind: "item-batch", from: "items.json", commit: false });
 });
 
 test("set takes a leading run of ids, the state last, and only the flags it was given", () => {
@@ -45,6 +47,7 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     kind: "set",
     ids: [12, 14],
     patch: { state: "blocked", blocked: "on 1", priority: null },
+    commit: false,
   });
   expect(parseDocCommand(["land", "3", "--evidence", "abc"])).toEqual({ kind: "land", ids: [3], evidence: "abc" });
   expect(parseDocCommand(["land", "--merged"])).toEqual({ kind: "land-merged", headMerge: false });
@@ -74,14 +77,24 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     blocked: "wake path x",
   });
   expect(parseDocCommand(["new", "law", "review-rules", "--title", "Review rules"])).toEqual({ kind: "new-law", slug: "review-rules", title: "Review rules" });
-  expect(parseDocCommand(["set", "3", "--kind", "work", "--plan", "none"])).toEqual({ kind: "set", ids: [3], patch: { kind: "work", plan: null } });
-  expect(parseDocCommand(["set", "3", "open", "--title", "A new title"])).toEqual({ kind: "set", ids: [3], patch: { state: "open", title: "A new title" } });
+  expect(parseDocCommand(["set", "3", "--kind", "work", "--plan", "none"])).toEqual({
+    kind: "set",
+    ids: [3],
+    patch: { kind: "work", plan: null },
+    commit: false,
+  });
+  expect(parseDocCommand(["set", "3", "open", "--title", "A new title"])).toEqual({
+    kind: "set",
+    ids: [3],
+    patch: { state: "open", title: "A new title" },
+    commit: false,
+  });
   expect(parseDocCommand(["remove", "3", "docs/adr/0001-a.md"])).toEqual({ kind: "remove", targets: ["3", "docs/adr/0001-a.md"] });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
 });
 
-const VERBS = ["new", "item", "status", "set", "remove", "land", "index", "review", "due", "overview", "drift", "format"];
+const VERBS = ["new", "item", "status", "set", "edit", "show", "remove", "land", "index", "review", "due", "overview", "drift", "format"];
 
 test("<verb> --help and -h are help for that verb alone; a bare doc, help, --help and -h are the full usage", () => {
   for (const verb of VERBS) {
@@ -97,6 +110,46 @@ test("<verb> --help and -h are help for that verb alone; a bare doc, help, --hel
   }
   for (const argv of [[], ["help"], ["--help"], ["-h"]]) {
     expect(parseDocCommand(argv)).toEqual({ kind: "help", text: USAGE });
+  }
+});
+
+test("--commit rides on set, item and item --from in any position and changes nothing else; land --stage is its own command", () => {
+  expect(parseDocCommand(["set", "1", "--commit", "2", "3", "doing", "--lane", "b"])).toEqual({
+    kind: "set",
+    ids: [1, 2, 3],
+    patch: { state: "doing", lane: "b" },
+    commit: true,
+  });
+  expect(parseDocCommand(["item", "--commit", "Fix", "it", "--kind", "bug"])).toMatchObject({
+    kind: "item",
+    input: { title: "Fix it", kind: "bug" },
+    commit: true,
+  });
+  expect(parseDocCommand(["item", "--from", "items.json", "--commit"])).toEqual({ kind: "item-batch", from: "items.json", commit: true });
+  expect(parseDocCommand(["land", "12", "14", "--stage"])).toEqual({ kind: "land-stage", ids: [12, 14] });
+  expect(parseDocCommand(["land", "--stage", "3"])).toEqual({ kind: "land-stage", ids: [3] });
+});
+
+test("edit takes one id and the section flags it replaces; show takes a run of ids", () => {
+  expect(parseDocCommand(["edit", "12", "--why", "A new reason.", "--done", "The bar.", "--commit"])).toEqual({
+    kind: "edit",
+    id: 12,
+    sections: { why: "A new reason.", done: "The bar." },
+    commit: true,
+  });
+  expect(parseDocCommand(["edit", "--what", "x", "5"])).toEqual({ kind: "edit", id: 5, sections: { what: "x" }, commit: false });
+  expect(parseDocCommand(["show", "3", "1", "2"])).toEqual({ kind: "show", ids: [3, 1, 2] });
+  for (const argv of [
+    ["edit", "5"],
+    ["edit", "--what", "x"],
+    ["edit", "1", "2", "--what", "x"],
+    ["edit", "one", "--what", "x"],
+    ["edit", "5", "--lane", "x"],
+    ["show"],
+    ["show", "one"],
+    ["show", "1", "--commit"],
+  ]) {
+    expect(() => parseDocCommand(argv)).toThrow(UsageError);
   }
 });
 
@@ -153,6 +206,18 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["remove", "3", "--force"],
     ["land", "--merged", "--bogus"],
     ["land", "--merged", "--head-merge", "extra"],
+    ["land", "--merged", "--stage"],
+    ["land", "3", "--stage", "--evidence", "abc1234"],
+    ["land", "3", "--evidence", "abc1234", "--stage"],
+    ["land", "--stage"],
+    ["land", "abc1234", "--stage"],
+    ["land", "3"],
+    ["set", "1", "--commit"],
+    ["set", "1", "doing", "--title", "A new title", "--commit"],
+    ["set", "1", "doing", "--lane", "--commit"],
+    ["item", "--from", "items.json", "--commit", "--kind", "work"],
+    ["item", "Title", "--kind", "work", "--commit", "--bogus"],
+    ["land", "3", "--evidence", "abc1234", "--commit"],
     ["archive", "p"],
     ["new", "law", "Not A Slug"],
     ["new", "law", "x", "--context", "an ADR flag"],

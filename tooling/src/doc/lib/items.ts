@@ -1,7 +1,7 @@
 // Work items as data: parse a `docs/work/NNNN-<slug>.md` file into a `WorkItem`, judge a state's final
 // shape, and apply a transition patch. Any transition is legal — only the resulting shape is checked —
 // which is what lets the orchestrator batch `set 12 14 17 done` without walking a lifecycle. Also the
-// `item --from` batch file's schema.
+// `item --from` batch file's schema and the messages a landing and a `--commit` board write commit with.
 import { z } from "zod";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
 import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
@@ -214,28 +214,65 @@ export function parseItemBatch(json: unknown): { readonly items: readonly NewIte
   };
 }
 
-/** One landed item as its landing commit records it: the file is deleted, so this is the record. */
+/** One landed item as its landing commit records it: the file is deleted, so this is the record. A staged
+ *  landing has no evidence yet, so `evidence` is null and its block omits the line. */
 export interface LandingRecord {
   readonly id: number;
   readonly title: string;
   readonly what: string;
-  readonly evidence: string;
+  readonly evidence: string | null;
 }
 
-const MAX_HEADER = 200;
+/** What `land --stage` hands the caller for its own commit message: the records and the trailer line. */
+export interface StagedLanding {
+  readonly record: string;
+  readonly closes: string;
+}
 
-/** The landing commit message: one block per item with its title, evidence and What text. Every body line
- *  is indented, so no line of an item's prose can read as a `Closes:` or `Co-Authored-By:` trailer. */
+/** The longest commit header the commit-message contract accepts. */
+export const MAX_HEADER = 200;
+
+/** A work-commit header naming `ids`, or their count when the list would pass the commit-message cap. */
+function workHeader(verb: string, ids: readonly number[]): string {
+  const full = `chore(work): ${verb} ${ids.join(", ")}`;
+  return full.length > MAX_HEADER ? `chore(work): ${verb} ${String(ids.length)} items` : full;
+}
+
+/** One block per item with its title, evidence (when it has one) and What text. Every body line is
+ *  indented, so no line of an item's prose can read as a `Closes:` or `Co-Authored-By:` trailer. */
+function landingBlocks(records: readonly LandingRecord[]): string {
+  return records
+    .map((record) =>
+      [
+        `${padId(record.id)} ${record.title}`,
+        ...(record.evidence === null ? [] : [`  evidence: ${record.evidence}`]),
+        ...record.what.split(/\r?\n/u).map((line) => (line.trim() === "" ? "" : `  ${line.trimEnd()}`)),
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
+
+/** The landing commit message: the header, the item blocks and the trailer. */
 export function landingMessage(records: readonly LandingRecord[], trailer: string): string {
-  const ids = records.map((record) => String(record.id)).join(", ");
-  const full = `chore(work): land ${ids}`;
-  const header = full.length > MAX_HEADER ? `chore(work): land ${String(records.length)} items` : full;
-  const blocks = records.map((record) =>
-    [
-      `${padId(record.id)} ${record.title}`,
-      `  evidence: ${record.evidence}`,
-      ...record.what.split(/\r?\n/u).map((line) => (line.trim() === "" ? "" : `  ${line.trimEnd()}`)),
-    ].join("\n"),
+  const header = workHeader(
+    "land",
+    records.map((record) => record.id),
   );
-  return `${header}\n\n${blocks.join("\n\n")}\n\n${trailer}`;
+  return `${header}\n\n${landingBlocks(records)}\n\n${trailer}`;
+}
+
+/** The pieces a caller pastes into its own commit message when the landing is staged, not committed. */
+export function stagedLanding(records: readonly LandingRecord[]): StagedLanding {
+  return { record: landingBlocks(records), closes: `Closes: ${records.map((record) => String(record.id)).join(", ")}` };
+}
+
+/** The message of the commit `--commit` makes on a board write: the item ids it carries and the trailer. */
+export function workCommitMessage(ids: readonly number[], trailer: string): string {
+  return `${workHeader("update", ids)}\n\n${trailer}`;
+}
+
+/** The refusal for a commit git would not make: the files stay written, so the message is given for the
+ *  by-hand commit. */
+export function commitRefusal(what: string, reason: string, message: string): string {
+  return `the ${what} commit failed — ${reason}. The files are written; commit them by hand with this message:\n${message}`;
 }

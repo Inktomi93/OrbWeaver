@@ -13,10 +13,19 @@ export interface Frontmatter {
   readonly errors: readonly string[];
 }
 
-/** One tracked markdown file under a tree the tool governs, with its bytes. */
-/** How a landing commit ended: the new `HEAD`, or git's own words. */
-export type CommitOutcome = { readonly ok: true; readonly sha: string } | { readonly ok: false; readonly reason: string };
+/** A git step that failed, in git's own words. */
+export interface GitFailure {
+  readonly ok: false;
+  readonly reason: string;
+}
 
+/** How a commit ended: the new `HEAD`, or git's own words. */
+export type CommitOutcome = { readonly ok: true; readonly sha: string } | GitFailure;
+
+/** How staging paths in the checkout's real index ended. */
+export type StageOutcome = { readonly ok: true } | GitFailure;
+
+/** One tracked markdown file under a tree the tool governs, with its bytes. */
 export interface GovernedDoc {
   readonly path: string;
   readonly source: string;
@@ -173,8 +182,8 @@ export type DocCommand =
   | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<AdrSectionFlag> }
   | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
   | { readonly kind: "new-law"; readonly slug: string; readonly title: string | null }
-  | { readonly kind: "item"; readonly input: NewItemInput }
-  | { readonly kind: "item-batch"; readonly from: string }
+  | { readonly kind: "item"; readonly input: NewItemInput; readonly commit: boolean }
+  | { readonly kind: "item-batch"; readonly from: string; readonly commit: boolean }
   | {
       readonly kind: "status";
       readonly status: string;
@@ -184,8 +193,11 @@ export type DocCommand =
       readonly blocked: string | null;
     }
   | { readonly kind: "remove"; readonly targets: readonly string[] }
-  | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch }
+  | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch; readonly commit: boolean }
+  | { readonly kind: "edit"; readonly id: number; readonly sections: SectionContent<ItemSectionFlag>; readonly commit: boolean }
+  | { readonly kind: "show"; readonly ids: readonly number[] }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
+  | { readonly kind: "land-stage"; readonly ids: readonly number[] }
   | { readonly kind: "land-merged"; readonly headMerge: boolean }
   | { readonly kind: "index" }
   | { readonly kind: "review"; readonly patterns: readonly string[] }

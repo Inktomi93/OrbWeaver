@@ -10,8 +10,9 @@
 #   trailer  at least one `Co-Authored-By: Name <local@domain>` (every commit in history carries one; the
 #            addresses are noreply@anthropic.com / noreply@openai.com / codex@openai.com) and every trailer
 #            well-formed: no spaces or angle-bracket junk in the address (the Qwen lane emits `<qwen-lane @local>`)
-#   closes   an OPTIONAL `Closes: 12, 14` trailer names the work items (docs/work/) this commit lands; the
-#            post-merge hook on main reads it (`pnpm doc land --merged`). Well-formed = comma-separated ids.
+#   closes   an OPTIONAL `Closes: 12, 14` trailer names the work items (docs/work/) this commit lands;
+#            `pnpm doc land --merged` and `pnpm doc drift` read it (no git hook runs them: lefthook.yml has no
+#            post-merge or post-commit entry). Well-formed = comma-separated ids.
 # Git-generated messages (merge, revert, fixup!, squash!) are exempt. ORB_HUMAN_COMMIT=1 waives the
 # trailer rule only — for a hand-typed owner commit, never for a lane. --range waives it for GitHub bot authors.
 set -uo pipefail

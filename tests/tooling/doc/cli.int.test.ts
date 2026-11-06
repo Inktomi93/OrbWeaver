@@ -1,6 +1,9 @@
 // The doc cli's exit contract through the REAL binary: misuse is 3, a refusal is 1 with nothing written,
 // the read verbs are 0 on the real tree.
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { REPO_ROOT } from "../../../tooling/src/floor/artifacts/artifacts.ts";
 
 test("misuse exits 3 and prints the usage", async ({ runCli }) => {
   const res = await runCli("doc", ["frobnicate"]);
@@ -20,6 +23,17 @@ test("item --from a file that does not exist is misuse and writes nothing", asyn
   await expect(res).toExitWith(3);
   expect(res.stderr).toContain("no such file");
   expect(res.stdout).toBe("");
+});
+
+test("show prints a real item's file under its path header, refuses an unknown id by name with exit 1, and writes nothing", async ({ runCli }) => {
+  const [file] = readdirSync(join(REPO_ROOT, "docs/work")).filter((name) => /^\d{4}-.*\.md$/u.test(name));
+  expect(file, "the worktree carries at least one work item").toBeDefined();
+  const id = String(Number(file?.slice(0, 4)));
+  const res = await runCli("doc", ["show", id, "999999"]);
+  await expect(res).toExitWith(1);
+  expect(res.stdout).toContain(`==> docs/work/${file} <==\n---\n`);
+  expect(res.stderr).toContain("999999");
+  expect(res.stderr).not.toContain("NOTHING WRITTEN");
 });
 
 test("<verb> --help and -h exit 0 through the real binary, even on a verb that takes no flags", async ({ runCli }) => {
