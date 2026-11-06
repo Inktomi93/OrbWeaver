@@ -19,7 +19,7 @@ A sample of the scan shows clear false reports, so the contract and inference ju
 
 ## Done when
 
-A planted field that only reaches each boundary is not reported, a truly dead field still is, and the contract and inference tables are regenerated from the fixed scan.
+A planted field that only reaches each boundary is not reported, a truly dead field still is, each row is sorted dead, forgotten or ask by four tests (reader history, hand authorship, used siblings, and a promise in a setting, copy, law prose or parity claim), and the contract and inference tables are regenerated from the fixed scan.
 
 ## Evidence
 
