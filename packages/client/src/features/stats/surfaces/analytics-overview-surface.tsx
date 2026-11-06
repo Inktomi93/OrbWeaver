@@ -240,7 +240,7 @@ function OverviewBody(): ReactElement {
             <Text voice="gloss">
               {timeLib.formatMonthYear(momentum.prev.start)} → {timeLib.formatMonthYear(momentum.latest.start)}
             </Text>
-            <Row gap="section" className="flex-wrap items-start">
+            <Row gap="section" className="flex-wrap" align="start">
               <MomentumColumn label="Rising" rows={rising} sign={1} valueMax={momentumScale} />
               <MomentumColumn label="Falling" rows={falling} sign={-1} valueMax={momentumScale} />
             </Row>

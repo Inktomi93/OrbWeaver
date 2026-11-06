@@ -75,7 +75,7 @@ function RampDiagram(): ReactElement {
 function GlowDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="background" shape="row" padding="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
-      <Row gap="row" className="p-row block-full inline-full">
+      <Row gap="row" className="block-full inline-full" padding="row">
         <ThemePreviewPane className="flex-1 block-3/4" padding="none" fill="sidebar" lifted={true} shape="inset" />
         <ThemePreviewPane className="flex-2 block-3/4" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
       </Row>

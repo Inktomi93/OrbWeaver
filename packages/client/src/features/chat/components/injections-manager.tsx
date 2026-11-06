@@ -297,7 +297,7 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
             <Card padding="none" key={index}>
               {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
-              <Row align="center" className="p-block min-block-(--size-control-sm)" gap="field" justify="between">
+              <Row align="center" className="min-block-(--size-control-sm)" padding="block" gap="field" justify="between">
                 <Skeleton className="basis-1/3 block-(--leading-label)" />
                 <Skeleton className="flex-1 block-(--leading-label) min-inline-0" />
               </Row>

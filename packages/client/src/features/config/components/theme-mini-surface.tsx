@@ -72,7 +72,7 @@ function MiniRoom(): ReactElement {
         </Row>
       </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
-      <Row align="center" className="gap-tight min-inline-0">
+      <Row align="center" className="min-inline-0" gap="tight">
         <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="muted" shape="pill" />
         <Swatch className="shrink-0 block-(--size-dot-lg) inline-(--size-dot-lg)" fill="primary" shape="pill" />
       </Row>

@@ -290,7 +290,7 @@ function FieldsResultsRead({
 function NoMatches({ label, query, lexical }: { readonly label: string; readonly query: string; readonly lexical: boolean }): ReactElement {
   const headline = lexical ? `Nothing in your ${label.toLowerCase()} matched “${query}”.` : CORPUS_NO_RESULT_TEXT;
   return (
-    <Stack align="center" className="p-block" gap="field">
+    <Stack align="center" padding="block" gap="field">
       <Icon icon={Search} size="lg" />
       <Text>{headline}</Text>
       <Text voice="gloss">

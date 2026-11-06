@@ -159,7 +159,7 @@ function BrowseRows({
   }
   if (collection.items.length === 0) {
     return distilled ? (
-      <Stack align="center" className="p-block" gap="field">
+      <Stack align="center" padding="block" gap="field">
         <Icon icon={Library} size="lg" />
         <Text>No characters match — loosen the filters.</Text>
       </Stack>
