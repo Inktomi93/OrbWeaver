@@ -26,6 +26,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 5 | Page templates | the page-template tier |
 | 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
+| 6a | The type-law composites that change judged surfaces, because acceptance scores them | 1769, 1775, 1776, 1777 |
 | 7 | Comparative acceptance | [1392](../../work/1392-complete-cross-surface-composition-acceptance.md), then [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews [0908](../../work/0908-side-eye-the-persona-switcher-room-block-and.md) and [0909](../../work/0909-side-eye-the-plugin-column-overlay-and-phone.md) run inside them |
 | 7a | Open findings and small builds in a family land, or close with the capture that shows them gone, before acceptance scores that family | 0910, 0621, 0927, [0341](../../work/0341-resolve-rpg-rest-position-and-target-audit-findings.md) |
 | 8 | Integrated verification | [1396](../../work/1396-complete-integrated-consistency-verification.md) |
