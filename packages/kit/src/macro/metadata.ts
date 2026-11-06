@@ -53,24 +53,21 @@ function checkArity(metadata: MacroMetadata, count: number, contentArgs: number)
   const out: MacroArgViolation[] = [];
   const required = metadata.args.filter((a) => !a.optional).length;
   if (count < required) {
-    out.push({ kind: "missing-required", macro: metadata.name, message: `{{${metadata.name}}} expects at least ${required} argument(s), got ${count}` });
+    out.push({ kind: "missing-required", message: `{{${metadata.name}}} expects at least ${required} argument(s), got ${count}` });
     return out;
   }
   if (metadata.variadic) {
-    // The LIST spec bounds a variadic macro's TOTAL arg count; the content slot is exempt.
+    // The LIST spec bounds a variadic macro's TOTAL arg count from below; the content slot is exempt.
     const min = metadata.list?.min;
-    const max = metadata.list?.max;
     const counted = count - contentArgs;
     if (min !== undefined && counted < min) {
-      out.push({ kind: "list-bounds", macro: metadata.name, message: `{{${metadata.name}}} expects at least ${min} argument(s), got ${counted}` });
-    } else if (max !== undefined && counted > max) {
-      out.push({ kind: "list-bounds", macro: metadata.name, message: `{{${metadata.name}}} takes at most ${max} argument(s), got ${counted}` });
+      out.push({ kind: "list-bounds", message: `{{${metadata.name}}} expects at least ${min} argument(s), got ${counted}` });
     }
     return out;
   }
   const max = metadata.args.length + contentArgs;
   if (count > max) {
-    out.push({ kind: "too-many-args", macro: metadata.name, message: `{{${metadata.name}}} takes at most ${metadata.args.length} argument(s), got ${count}` });
+    out.push({ kind: "too-many-args", message: `{{${metadata.name}}} takes at most ${metadata.args.length} argument(s), got ${count}` });
   }
   return out;
 }
@@ -94,7 +91,6 @@ export function checkMacroArgs(metadata: MacroMetadata, args: readonly string[],
     if (!coercesTo(value, def.type)) {
       out.push({
         kind: "bad-type",
-        macro: metadata.name,
         argIndex: i,
         argName: def.name,
         message: `{{${metadata.name}}} arg #${i + 1} (${def.name}) expects ${def.type}, got "${value}"`,

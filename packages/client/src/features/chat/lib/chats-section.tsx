@@ -137,7 +137,6 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       </ChatListAnchor>
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
-    listSearch: "required",
     useListHeader: useChatListHeader,
     // How the SHELL reads "is a room open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: chatSectionSelection,

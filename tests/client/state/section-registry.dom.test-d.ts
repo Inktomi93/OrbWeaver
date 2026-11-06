@@ -2,7 +2,7 @@ import type { SectionDefinition } from "@orb/client/state";
 import { expectTypeOf, test } from "vitest";
 
 declare const base: Pick<SectionDefinition, "id" | "rail" | "panelDefaults" | "placeholder" | "contentInset" | "useSelectionTitle">;
-declare const list: Required<Pick<SectionDefinition, "list" | "useListHeader" | "listSearch" | "selection">>;
+declare const list: Required<Pick<SectionDefinition, "list" | "useListHeader" | "selection">>;
 
 test("planned section content cannot carry a list, a header or a rendered context", () => {
   const planned: SectionDefinition = { ...base, content: { planned: "Tracked delivery" }, context: { kind: "none" } };

@@ -64,7 +64,6 @@ export function makeCharactersSection(
       </CharacterLibraryAnchor>
     ),
     // …so the band has ONE mode too: `CHARACTERS` + the create primary.
-    listSearch: "required",
     useListHeader: useCharactersListHeader,
     // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: characterSectionSelection,

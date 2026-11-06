@@ -169,7 +169,7 @@ const FOREIGN_PLANE_GLOSS = "From your active preset.";
  *  {@link withUserMacros} does not ask its callers for one: an id threaded through four components to be
  *  dropped here is ceremony, and on the game console the preset's id is not even knowable (the names-only
  *  view). Attribution has ONE display home and it is the macro browser, which composes its own registry. */
-const COMPOSITION_ONLY_SOURCE: MacroSourceRef = { kind: "preset", id: "" };
+const COMPOSITION_ONLY_SOURCE: MacroSourceRef = { kind: "preset" };
 
 /** Keyed by the DEFS array's identity (a form's `userMacros`), then by the rest of the composition — the
  *  memo `<MacroTextarea>`'s identity-keyed fuzzy index needs to pay off: a fresh array every render would

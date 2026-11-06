@@ -343,7 +343,7 @@ async function compileRuntime({
     return { diagnostics: [{ file: sourcePath, line: 1, column: 1, message: `${FRAME_SCRIPT_MARKER} requires authored frame.ts` }] };
   }
   return {
-    artifact: { runtime, sourcePath, outputPath: outputFor(sourcePath, outputDirectory), bytes: new TextEncoder().encode(output) },
+    artifact: { runtime, outputPath: outputFor(sourcePath, outputDirectory), bytes: new TextEncoder().encode(output) },
     diagnostics: [],
   };
 }

@@ -246,13 +246,11 @@ export type UpstreamProbes = { readonly [C in ReleaseChannel]: () => Promise<Ups
 export const updateCheckSchema = z.discriminatedUnion("status", [
   z.strictObject({
     status: z.enum(UPDATE_CHECK_STATUSES).exclude(["unknown"]),
-    local: z.string().min(1),
     remote: upstreamSchema,
     reason: z.null(),
   }),
   z.strictObject({
     status: z.literal("unknown"),
-    local: z.string().min(1),
     remote: upstreamSchema.nullable(),
     reason: z.string().min(1),
   }),
@@ -267,19 +265,19 @@ export type UpdateCheck = z.infer<typeof updateCheckSchema>;
  *  be current is worse than saying so. */
 export function compareToMainHead(local: string, remote: UpstreamOf<"main"> | null, failure: string | null): UpdateCheck {
   if (remote === null) {
-    return { status: "unknown", local, remote: null, reason: failure ?? "the upstream head could not be read" };
+    return { status: "unknown", remote: null, reason: failure ?? "the upstream head could not be read" };
   }
   if (local === UNKNOWN_COMMIT) {
-    return { status: "unknown", local, remote, reason: "this build carries no commit, so it cannot be compared to upstream" };
+    return { status: "unknown", remote, reason: "this build carries no commit, so it cannot be compared to upstream" };
   }
-  return { status: local === remote.commit ? "up-to-date" : "behind", local, remote, reason: null };
+  return { status: local === remote.commit ? "up-to-date" : "behind", remote, reason: null };
 }
 
 /** The `stable` verdict. A newer latest release is `behind`; an equal one is `up-to-date`, and so is an
  *  OLDER one, because a stable build ahead of the latest release has nothing newer to take. */
 export function compareToLatestRelease(local: string, remote: UpstreamOf<"stable"> | null, failure: string | null): UpdateCheck {
   if (remote === null) {
-    return { status: "unknown", local, remote: null, reason: failure ?? "the latest release could not be read" };
+    return { status: "unknown", remote: null, reason: failure ?? "the latest release could not be read" };
   }
-  return { status: compareSemver(remote.version, local) > 0 ? "behind" : "up-to-date", local, remote, reason: null };
+  return { status: compareSemver(remote.version, local) > 0 ? "behind" : "up-to-date", remote, reason: null };
 }

@@ -80,14 +80,12 @@ export const MACRO_ARG_TYPES = ["string", "number", "boolean"] as const;
 export type MacroArgType = (typeof MACRO_ARG_TYPES)[number];
 
 /** Where a non-builtin macro came from — the macro browser names it. Absent on a metadata record ⇒ a builtin.
- *  `id` is the owning preset id / game chat id / plugin slug as a string (kit stays below the branded-id homes).
  *  `plugin` joined at U6: a plugin macro is authored by neither a preset nor a game, and
  *  labelling it as either would tell a person to edit a surface that does not contain it. */
 export const MACRO_SOURCE_KINDS = ["preset", "game", "plugin"] as const;
 export type MacroSourceKind = (typeof MACRO_SOURCE_KINDS)[number];
 export interface MacroSourceRef {
   readonly kind: MacroSourceKind;
-  readonly id: string;
 }
 
 /** One positional argument of a macro. `optional` + `default` drive the arity check and the browser copy.
@@ -105,12 +103,10 @@ export interface MacroArgDef {
   readonly description?: string | undefined;
 }
 
-/** Bounds on a variadic macro's TOTAL arg count (the LIST spec — `{{pick}}` declares min 1 so a
- *  pick-of-nothing is an authoring diagnostic). Only meaningful with `variadic: true`; either bound may
- *  be absent (unbounded on that side). */
+/** The lower bound on a variadic macro's TOTAL arg count (the LIST spec — `{{pick}}` declares min 1 so a
+ *  pick-of-nothing is an authoring diagnostic). Only meaningful with `variadic: true`; absent ⇒ unbounded. */
 export interface MacroListSpec {
   readonly min?: number;
-  readonly max?: number;
 }
 
 // ── typed arg-violation classing ─────────────────────────────────────────────────────────────────
@@ -125,7 +121,6 @@ const MACRO_ARG_VIOLATION_KINDS = ["missing-required", "too-many-args", "list-bo
 type MacroArgViolationKind = (typeof MACRO_ARG_VIOLATION_KINDS)[number];
 
 interface MacroArgViolationBase {
-  readonly macro: string;
   readonly message: string;
 }
 
@@ -142,7 +137,6 @@ export interface MacroMetadata {
   readonly description: string; // one sentence; the autocomplete/browser copy
   readonly category: MacroCategory;
   readonly args: readonly MacroArgDef[];
-  readonly returnType: "string"; // macros always render string; field exists for browser display of intent
   readonly aliases: readonly string[]; // alternate registered spellings of the same macro
   /** Accepts an unbounded tail of args (`{{random::a::b::c}}`, `{{pick}}`) — suppresses the too-many
    *  arity diagnostic and validates the tail against the last arg def. */

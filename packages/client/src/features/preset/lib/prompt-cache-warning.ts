@@ -5,7 +5,6 @@
 
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, macroTextInvalidatesCache, registerUserMacros } from "@orb/kit/macro";
 import { isTemplatedMarkerSection } from "./assembly-model.ts";
@@ -47,7 +46,7 @@ function entersCachedSystemPrefix(section: PromptSection): boolean {
 }
 
 /** Enabled per-turn sections placed in the cached prefix, in rack order. */
-export function cacheInvalidatingSections(config: PromptConfig, presetId: PresetId): readonly PromptSection[] {
+export function cacheInvalidatingSections(config: PromptConfig): readonly PromptSection[] {
   const pivotIndex = config.sections.findIndex((section) => section.type === "marker" && section.marker === "chat_history");
   if (pivotIndex <= 0) {
     return [];
@@ -61,6 +60,6 @@ export function cacheInvalidatingSections(config: PromptConfig, presetId: Preset
       registry.register(metadata.name, handler, { ...options, metadata, analysis: { ...options.analysis, cacheDependent: false } });
     }
   }
-  registerUserMacros(registry, config.userMacros, { source: { kind: "preset", id: presetId } });
+  registerUserMacros(registry, config.userMacros, { source: { kind: "preset" } });
   return config.sections.slice(0, pivotIndex).filter((section) => section.enabled && entersCachedSystemPrefix(section) && changesPerTurn(section, registry));
 }

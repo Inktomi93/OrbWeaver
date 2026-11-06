@@ -12,10 +12,9 @@ import { isPlainObject } from "@orb/kit/guards";
 const CONSTRAINT_KINDS = ["unique", "foreign-key", "check", "not-null", "primary-key", "unknown"] as const;
 type ConstraintKind = (typeof CONSTRAINT_KINDS)[number];
 
-/** A classified constraint failure: the kind + the raw code/message that identified it. */
+/** A classified constraint failure. */
 export interface ConstraintViolation {
   readonly kind: ConstraintKind;
-  readonly detail: string;
   /** The driver's zero-based batch statement, absent for standalone or unreported failures. */
   readonly statementIndex?: number;
 }
@@ -97,7 +96,7 @@ function classifyLevel(value: unknown): ConstraintViolation | undefined {
     return;
   }
   const kind = classify(read.code, read.message);
-  return kind === undefined ? undefined : { kind, detail: read.code !== "" ? read.code : read.message };
+  return kind === undefined ? undefined : { kind };
 }
 
 /** Walk `err` and every `.cause` under it, outermost first. The `seen` set is the whole termination
