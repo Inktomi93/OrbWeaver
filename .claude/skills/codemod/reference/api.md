@@ -85,6 +85,24 @@ Positions are UTF-8 byte offsets. An empty `insertedText` deletes. Build edits f
 
 Use `importBindingOf` to prove what a name is. It handles an alias, and it returns `null` for a local name that shadows an import. Read `pnpm codemod ai docs jssg-utils-instructions` for the rest.
 
+## Workflow steps
+
+A workflow can run a whole migration: plan, rewrite, format and check. Order the nodes with `depends_on`.
+
+| Field or step | Use |
+| - | - |
+| `run:` | a host shell step; it runs in the directory that called the CLI, and `$CODEMOD_PATH` is the codemod directory |
+| `js-ast-grep:` | a JSSG step; add `semantic_analysis: workspace` for cross-file bindings |
+| `ast-grep:` | a YAML rule step, for a rule that needs no code |
+| `if:` | gate a step on `params.x`, `state.x` or `matrix.x` |
+| `depends_on:` | run this node after the named nodes |
+| `strategy:`, `shard:` | fan a node out; shards and commit checkpoints target Campaign runs, so a local run here does not need them |
+| `ai:` | hand a step to a coding agent; do not use it, because a rewrite here stays deterministic |
+
+`--dry-run` skips every `run:` step. Run the plan step by hand before a dry run that reads its output.
+
+`jssg run --max-threads <n>` limits parallel files on a shared box. `--report` opens a web report of a run.
+
 ## Commands
 
 | Command | Use |
