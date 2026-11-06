@@ -11,11 +11,11 @@ plan: type-law
 
 ## What
 
-Type the format-named z.string fields with zod format types after the stored data is checked, trial z.codec on one stored JSON column, and try strict-void-return.
+Type the ten format-named z.string fields in packages/contracts/src (url, uri, email, baseUrl, sourceUrl and provenanceUrl in diagnostics/client-error, theme/background, providers, settings/appearance, plugin/frame, plugin/view, character, inference/connection and chat/card-frame) with zod format types after the stored rows are checked, trial z.codec on one stored JSON column, and try strict-void-return. Id-named fields are already branded, so they are out of scope.
 
 ## Why
 
-A field named for a format, such as an id, a url or an email, is validated as an arbitrary string, so a malformed value passes the schema.
+A field named for a format is validated as an arbitrary string, so a malformed value passes the schema. Seven fields already use zod format types, which shows the pattern works; ten still use a bare string. Neither z.codec nor strict-void-return appears anywhere in the repository yet.
 
 ## Done when
 

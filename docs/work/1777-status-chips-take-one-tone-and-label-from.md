@@ -15,11 +15,11 @@ Make a status chip take its tone and label from a typed verdict or status union,
 
 ## Why
 
-packages/client/src/features/refinery/lib/verdict.ts keys its tone and word maps by plain strings and falls back to neutral or the raw spelling. A new member or a stray wire word reaches a chip with no compile error.
+packages/client/src/features/refinery/lib/verdict.ts keys VERDICT_TONE and VERDICT_WORD by plain strings and falls back to neutral or the raw spelling. The tuple already exists as REFINERY_VERDICTS in packages/contracts/src/refinery/core.ts, and the sessions-roster row types latestVerdict from it, so the maps can be keyed by RefineryVerdict. A new member or a stray wire word reaches a chip with no compile error.
 
 ## Done when
 
-The verdict and status maps are keyed by a tuple-backed union and checked for totality. Adding a member without a tone and a word fails the typecheck, and no chip receives a bare string.
+VERDICT_TONE and VERDICT_WORD are Records keyed by RefineryVerdict, and verdictToneOf and verdictWordOf take a RefineryVerdict. Adding a member without a tone and a word fails the typecheck, and no chip receives a bare string. The other status chips are listed in the Evidence with the union each one uses.
 
 ## Evidence
 

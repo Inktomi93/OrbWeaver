@@ -135,6 +135,7 @@ without a path are in that folder.
 | Providers, backends, a model source | `Tier-3b-Providers.md`, `packages/server/src/domain/connection/` |
 | Config, settings, serialization | `Spine-Config-and-Serialization.md` |
 | Embeddings, search, discovery, memory, stats | `Knowledge-Cluster.md` |
+| Any test | `Spine-Testing.md`, `tests/support/README.md` |
 | A client feature surface | the header of `UI-Architecture-and-Layout.md` (its reading order), `client-architecture-lockdown.md` |
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |

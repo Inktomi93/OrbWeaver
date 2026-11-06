@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Add a purpose flag in tokens.json and read the census scope table from it. Give tick, threshold and bob constants a home or a coded keep. Move or keep the class moves that sit behind a spread. Register shadow tokens in class-merge so shadow-card evicts shadow-none. Decide the owner for no axis max-inline rows, which point at the Container size axis.
+Add a purpose flag in tokens.json and read the census scope table from it. Move or keep the class moves that sit behind a spread. Register shadow tokens in class-merge so shadow-card evicts shadow-none.
 
 ## Why
 
