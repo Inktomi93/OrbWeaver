@@ -2,6 +2,7 @@
 import type { TokenFact } from "./classes.ts";
 import { baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
+import { coveredJudgement, declaredAxis, uncoveredJudgement } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -77,25 +78,6 @@ const placeOf = (source: Source, line: number): Place => ({ path: source.path, l
 const namesIn = (tokens: ValueTokens, space: ValueNamespace): ReadonlySet<string> =>
   new Set(tokens.all.filter((token) => token.space === space).map((token) => token.name.slice(`--${space}-`.length)));
 
-/** The recipe axis of the element's door that owns a family, as `door.axis`; null when the element is not a primitive or no candidate axis is declared. */
-function axisOf(elem: Elem | null, candidates: readonly string[], declared: DeclaredVariants): string | null {
-  if (elem?.kind !== "ui" || elem.door === null) {
-    return null;
-  }
-  const door = declared.carriers.get(elem.door) ?? elem.door;
-  const axes = declared.axes.get(door);
-  const axis = candidates.find((candidate) => axes?.has(candidate) === true);
-  return axis === undefined ? null : `${door}.${axis}`;
-}
-
-const recipeJudgement = (owner: string, written: string): Judgement => ({
-  verdict: "recipe",
-  match: owner,
-  owner,
-  reason: `${owner} is a declared axis of this primitive; confirm its values cover ${written}`,
-  keep: null,
-});
-
 function propertyOf(base: string): string | null {
   const prefix = base.includes("-[") ? base.slice(0, base.indexOf("-[")) : base;
   return PREFIX_PROPERTY.find(([pattern]) => pattern.test(prefix))?.[1] ?? null;
@@ -165,19 +147,36 @@ function opacityJudgement(token: string, percent: number, tokens: ValueTokens): 
   return percent === 0 || percent === PERCENT ? keepJudgement("zero-sentinel", token) : judgeLit(lit("opacity", String(percent / PERCENT)), "opacity", tokens);
 }
 
-const FIXED: Readonly<Record<string, Judgement>> = {
-  "tw-alpha": {
-    verdict: "token",
+// The intent colours, whose hand-mixed alpha the tone roles replace (D336); a neutral role at alpha has no named step.
+const INTENT_COLOUR = /^(?:primary|destructive|warning|success|info)(?:-foreground)?$/u;
+const ALPHA_UTILITY = /^(?:bg|text|border|ring|fill|stroke|from|via|to)-(.+)\/\d+$/u;
+
+function alphaJudgement(token: string): Judgement {
+  const colour = ALPHA_UTILITY.exec(baseOf(token).base)?.[1] ?? token;
+  if (INTENT_COLOUR.test(colour)) {
+    return {
+      verdict: "token",
+      match: null,
+      owner: "opaque tone role",
+      reason: `${token} mixes an intent colour by hand; a tone role (tint, edge, text-on-tint) owns it (D336)`,
+      keep: null,
+    };
+  }
+  return {
+    verdict: "decide",
     match: null,
-    owner: "opaque tone role",
-    reason: "an alpha modifier on a colour is an opaque tone role (tint, edge, text-on-tint)",
+    owner: "decide: alpha on a neutral colour has no named step",
+    reason: `${token} mixes alpha into ${colour}; tone roles resolve under a [data-tone] element, and no role names this step`,
     keep: null,
-  },
+  };
+}
+
+const FIXED: Readonly<Record<string, Judgement>> = {
   "tw-important": {
-    verdict: "recipe",
+    verdict: "decide",
     match: null,
-    owner: "variant in @orb/ui",
-    reason: "an important modifier fights a primitive; a variant owns the need",
+    owner: "decide: an important modifier needs a variant",
+    reason: "an important modifier fights a primitive; no variant owns the need yet",
     keep: null,
   },
   "tw-viewport-variant": {
@@ -191,17 +190,20 @@ const FIXED: Readonly<Record<string, Judgement>> = {
   "tw-clip": { verdict: "decide", match: null, owner: "decide: clip-path has no owner", reason: "no token or primitive owns clip paths", keep: null },
 };
 
-/** The verdict for a class token the audit flags; the recipe axis wins over a token when the element's primitive declares one. */
+/** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
 function flaggedJudgement(token: string, fact: TokenFact, elem: Elem | null, context: ClassContext): Judgement {
-  const axis = axisOf(elem, AXES_BY_KIND[fact.kind] ?? [], context.declared);
-  if (axis !== null) {
-    return recipeJudgement(axis, token);
+  const axis = declaredAxis(elem, AXES_BY_KIND[fact.kind] ?? [], context.declared);
+  const covered = axis === null ? null : coveredJudgement(axis, token);
+  if (covered !== null) {
+    return covered;
   }
   const fixed = FIXED[fact.kind];
   if (fixed !== undefined) {
     return fixed;
   }
   switch (fact.kind) {
+    case "tw-alpha":
+      return alphaJudgement(token);
     case "tw-arbitrary":
       return arbitraryJudgement(baseOf(token).base, fact, context.tokens);
     case "tw-color-literal":
@@ -222,15 +224,22 @@ function ownerJudgement(token: string, fact: TokenFact): Judgement {
   return { verdict: "token", match: null, owner, reason: `${token} is hand-written; ${owner} owns it`, keep: null };
 }
 
-/** A valid token utility that a recipe prop on the element's primitive owns. */
+interface Candidate {
+  readonly axes: readonly string[];
+  /** The utility family the axis's arms write, or null for a utility with no suffix. */
+  readonly pattern: RegExp | null;
+}
+
+/** A valid token utility on a primitive that declares the family's axis: an arm owns it, a new arm would, or no axis does. */
 function ownedJudgement(token: string, elem: Elem | null, context: ClassContext): Judgement | null {
   const base = baseOf(token).base;
   const bare = BARE_AXES[base];
-  const candidates = bare === undefined ? OWNED_FAMILIES.filter((family) => ownsSuffix(family, base, context.tokens)).map((family) => family.axes) : [bare];
-  for (const axes of candidates) {
-    const axis = axisOf(elem, axes, context.declared);
+  const candidates: readonly Candidate[] =
+    bare === undefined ? OWNED_FAMILIES.filter((family) => ownsSuffix(family, base, context.tokens)) : [{ axes: bare, pattern: null }];
+  for (const { axes, pattern } of candidates) {
+    const axis = declaredAxis(elem, axes, context.declared);
     if (axis !== null) {
-      return recipeJudgement(axis, token);
+      return coveredJudgement(axis, token) ?? uncoveredJudgement(axis, token, pattern);
     }
   }
   return null;

@@ -2,7 +2,7 @@
 import type { Atrule, CssNode, Declaration } from "@eslint/css-tree";
 import { parse, walk } from "@eslint/css-tree";
 import type { Hit } from "./hand-model.ts";
-import { hitOf, judgeLit, QUERY_PROPERTY } from "./hand-model.ts";
+import { CONTAINER_PROPERTY, hitOf, judgeLit, QUERY_PROPERTY } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
 import { conditionLits, litsOf, parseValue, written } from "./literals.ts";
 import type { Source } from "./source.ts";
@@ -23,7 +23,8 @@ interface Written {
 
 function conditionWrites(node: Atrule, prelude: CssNode): readonly Written[] {
   const line = node.loc?.start.line ?? 1;
-  return conditionLits(prelude).map((found) => ({ line, where: "query", detail: `@${node.name} ${found.text}`, found, property: QUERY_PROPERTY }));
+  const property = node.name.toLowerCase() === "container" ? CONTAINER_PROPERTY : QUERY_PROPERTY;
+  return conditionLits(prelude).map((found) => ({ line, where: "query", detail: `@${node.name} ${found.text}`, found, property }));
 }
 
 function declarationWrites(node: Declaration): readonly Written[] {

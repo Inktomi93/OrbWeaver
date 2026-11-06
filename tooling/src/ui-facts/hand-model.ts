@@ -1,4 +1,5 @@
 // The hand-rolling census vocabulary: one hit per hand-written thing, the verdict it earns and the owner that would retire it.
+import { generalTokens, scopeOf } from "./hand-scope.ts";
 import type { Lit, ValueKind } from "./literals.ts";
 import type { Layer } from "./source.ts";
 import type { ValueNamespace, ValueTokens } from "./tokens.ts";
@@ -26,6 +27,8 @@ export const KEEP_REASONS = {
   "css-mechanism": "a transform, clip, mask or track formula is the CSS mechanism itself; no token family prices it",
   "runtime-value": "a runtime value or measurement, not a design value (ui-and-client.md: a style prop holds a runtime value only)",
   "token-utility": "a utility the theme already spells with a token, such as the px step",
+  "query-condition":
+    "a container query condition cannot read a custom property and no generated variant spells it; query conditions are structural literals (client-architecture-lockdown.md 4.4)",
   "single-constant": "one timing or measurement constant with no repeat and no token that holds it; it is a runtime threshold",
 } as const;
 export type KeepCode = keyof typeof KEEP_REASONS;
@@ -68,15 +71,16 @@ export const keepJudgement = (code: KeepCode, detail?: string): Judgement => ({
 /** A property written in a stylesheet or a style prop, or the placeholder for a media or container condition. */
 export const QUERY_PROPERTY = "@query";
 
+/** The placeholder for a container condition. */
+export const CONTAINER_PROPERTY = "@container";
+
 const ALL_LENGTH_SPACES: readonly ValueNamespace[] = [
   "spacing",
   "size",
   "radius",
   "width",
   "height",
-  "container",
   "dimension",
-  "breakpoint",
   "border-width",
   "stroke-width",
   "text",
@@ -86,18 +90,18 @@ const ALL_LENGTH_SPACES: readonly ValueNamespace[] = [
 
 const LENGTH_SPACES: readonly (readonly [RegExp, readonly ValueNamespace[]])[] = [
   [/^(?:padding|margin|gap|row-gap|column-gap|inset|top|right|bottom|left|scroll-padding|scroll-margin)(?:-.+)?$/u, ["spacing", "size", "dimension"]],
-  [/^(?:min-|max-)?(?:width|height|inline-size|block-size)$|^flex-basis$|^size$/u, ["size", "width", "height", "container", "dimension", "spacing"]],
+  [/^(?:min-|max-)?(?:width|height|inline-size|block-size)$|^flex-basis$|^size$/u, ["size", "width", "height", "dimension", "spacing"]],
   [/radius$/u, ["radius"]],
   [/^(?:border(?:-.+)?-width|outline-width|outline-offset)$/u, ["border-width", "dimension"]],
   [/^font-size$/u, ["text"]],
   [/^line-height$/u, ["leading"]],
   [/^stroke-width$/u, ["stroke-width"]],
   [/^(?:backdrop-)?filter$/u, ["blur"]],
-  [new RegExp(`^${QUERY_PROPERTY}$`, "u"), ["container", "breakpoint", "width", "dimension"]],
+  [new RegExp(`^${QUERY_PROPERTY}$`, "u"), ["breakpoint", "width", "dimension"]],
 ];
 
 const FIXED_SPACES: Readonly<Partial<Record<ValueKind, readonly ValueNamespace[]>>> = {
-  measure: ["reading", "width", "container"],
+  measure: ["reading", "width"],
   duration: ["motion"],
   opacity: ["opacity"],
   z: ["z"],
@@ -132,6 +136,9 @@ export function judgeLit(found: Lit, property: string | null, tokens: ValueToken
   if (code !== undefined) {
     return keepJudgement(code, found.text);
   }
+  if (property === CONTAINER_PROPERTY) {
+    return keepJudgement("query-condition", found.text);
+  }
   if (found.kind === "gradient") {
     return {
       verdict: "decide",
@@ -143,12 +150,23 @@ export function judgeLit(found: Lit, property: string | null, tokens: ValueToken
   }
   const kind = found.kind as ValueKind;
   const spaces = spacesFor(kind, property);
-  const names = tokensHolding(tokens, found, spaces);
+  const general = generalTokens(tokens);
+  const names = tokensHolding(general, found, spaces);
   const first = names[0];
   if (first !== undefined) {
     return { verdict: "token", match: names.slice(0, MATCHES_SHOWN).join(" or "), owner: first, reason: `${first} holds ${found.text}`, keep: null };
   }
-  const near = nearestToken(tokens, found, spaces);
+  const scoped = tokensHolding(tokens, found, spaces)[0];
+  if (scoped !== undefined) {
+    return {
+      verdict: "decide",
+      match: null,
+      owner: `decide: ${kind} ${found.canon}, only a purpose token holds it`,
+      reason: `${scoped} holds ${found.text} but is scoped to ${scopeOf(scoped) ?? "one purpose"}; a site with another purpose needs its own step`,
+      keep: null,
+    };
+  }
+  const near = nearestToken(general, found, spaces);
   return {
     verdict: "token",
     match: null,

@@ -24,8 +24,19 @@ const THEME = [
 const UI_PACKAGE = JSON.stringify({
   exports: { "./layout": "./src/layout/index.ts", "./text": "./src/primitives/text/index.ts", "./button": "./src/primitives/button/index.ts" },
 });
-const LAYOUT_VARIANTS = 'export const stackVariants = tv({ variants: { gap: { row: "", field: "" }, align: { start: "", center: "" } } });';
-const TEXT_VARIANTS = 'export const textVariants = tv({ variants: { lines: { one: "", two: "" }, tone: { muted: "" } } });';
+// The arms are what the census reads: a class is a recipe move only when an arm writes it.
+const LAYOUT_VARIANTS = [
+  "const PADDING = { row: 'p-row' } as const;",
+  "export const stackVariants = tv({",
+  "  variants: {",
+  "    gap: { row: 'gap-row', field: 'gap-field' },",
+  "    align: { start: 'items-start', center: 'items-center' },",
+  "    padding: PADDING,",
+  "  },",
+  "});",
+].join("\n");
+const TEXT_VARIANTS =
+  "export const textVariants = tv({ variants: { lines: { 2: 'line-clamp-2 whitespace-normal' }, tone: { muted: 'text-muted-foreground' } } });";
 const EXCEPTIONS = JSON.stringify({ entries: [] });
 const FEATURE = "packages/client/src/features/probe";
 
@@ -79,13 +90,17 @@ test("a sheet literal equal to a token is a token-literal naming it, and a struc
   const { hits } = census(root);
   expect(brief(named(hits, "transition-duration: 130ms"))).toEqual(["token-literal", "token", "--motion-fast"]);
   expect(brief(named(hits, "z-index: 50"))).toEqual(["token-literal", "token", "--z-modal"]);
-  expect(brief(named(hits, "opacity: 0.6"))).toEqual(["token-literal", "token", "--opacity-receded"]);
+  // A token scoped to one purpose is not the owner of an equal value: 0.6 is "a receded element", and 1px is a control root's border arithmetic.
+  expect(brief(named(hits, "opacity: 0.6"))).toEqual(["raw-value", "decide", "decide: opacity 0.6, only a purpose token holds it"]);
+  expect(named(hits, "opacity: 0.6")?.reason).toContain("--opacity-receded");
   expect(brief(named(hits, "padding-block: 24px"))).toEqual(["token-literal", "token", "--spacing-section"]);
-  expect(brief(named(hits, "border-width: 1px"))).toEqual(["token-literal", "token", "--border-width-control"]);
+  expect(brief(named(hits, "border-width: 1px"))).toEqual(["raw-value", "decide", "decide: length 1px, only a purpose token holds it"]);
+  expect(named(hits, "border-width: 1px")?.reason).toContain("--border-width-control");
   expect(brief(named(hits, "color: oklch(0.72 0.175 52)"))).toEqual(["token-literal", "token", "--color-primary"]);
   // A colour derived from a token is composition, so it stays.
   expect(named(hits, "background-color: oklch(from var(--surface) l c h/0.4)")?.keep).toBe("derived-colour");
-  expect(brief(named(hits, "@container 20rem"))).toEqual(["token-literal", "token", "--container-cq-20"]);
+  // A container condition cannot read a custom property, so it stays.
+  expect(named(hits, "@container 20rem")?.keep).toBe("query-condition");
   // Zero, a percentage and a transform are CSS structure: classified keep, each with its reason.
   expect([named(hits, "margin: 0")?.keep, named(hits, "inline-size: 100%")?.keep, named(hits, "transform: translateX(8px)")?.keep]).toEqual([
     "zero-sentinel",
@@ -117,7 +132,7 @@ test("a literal no token holds is a raw value asking for a new token, with the n
   expect(named(hits, '"wait 5 seconds"')).toBeUndefined();
 });
 
-test("a class utility on a primitive that declares its axis is a recipe candidate, and a token-shaped utility with no owner stays quiet", ({ scratch }) => {
+test("a class an arm of the primitive's axis writes is a recipe move; a class no arm writes is a new arm or no axis", ({ scratch }) => {
   const root = plantDir(scratch, "class-utilities");
   plant(root, {
     "components/uses.tsx": [
@@ -125,8 +140,8 @@ test("a class utility on a primitive that declares its axis is a recipe candidat
       'import { Text } from "@orb/ui/text";',
       "export const A = () => (",
       "  <>",
-      '    <Stack className="gap-row items-center flex" />',
-      '    <Text className="truncate">x</Text>',
+      '    <Stack className="gap-row items-center flex px-row gap-section @cq-20:items-center" />',
+      '    <Text className="truncate line-clamp-2">x</Text>',
       '    <Stack className="w-[18px] grid-cols-[minmax(0,1fr)_auto] opacity-100 py-px" />',
       "  </>",
       ");",
@@ -135,8 +150,15 @@ test("a class utility on a primitive that declares its axis is a recipe candidat
   const { hits } = census(root);
   const classes = hits.filter((hit) => hit.category === "class-utility");
   expect(brief(named(classes, "gap-row"))).toEqual(["class-utility", "recipe", "layout.gap"]);
+  expect(named(classes, "gap-row")?.match).toBe("layout.gap.row");
   expect(brief(named(classes, "items-center"))).toEqual(["class-utility", "recipe", "layout.align"]);
-  expect(brief(named(classes, "truncate"))).toEqual(["class-utility", "recipe", "text.lines"]);
+  // The gap axis declares row and field; section is a valid spacing token with no arm. px is the padding family, but the arm writes p-row only.
+  expect(brief(named(classes, "gap-section"))).toEqual(["class-utility", "decide", "new arm: layout.gap"]);
+  expect(brief(named(classes, "px-row"))).toEqual(["class-utility", "decide", "new arm: layout.padding"]);
+  expect(brief(named(classes, "@cq-20:items-center"))).toEqual(["class-utility", "decide", "new arm: layout.align, conditional"]);
+  // The lines axis exists, but its one arm writes a clamp and a reservation: truncate is a real repeat with no axis behind it.
+  expect(brief(named(classes, "truncate"))).toEqual(["class-utility", "decide", "no axis: truncate on text"]);
+  expect(named(classes, "line-clamp-2")).toBeUndefined();
   expect(brief(named(classes, "w-[18px]"))).toEqual(["class-utility", "token", "new token: length 18px"]);
   // `flex` has no axis; a track formula, a visibility sentinel and the theme's px step are not hand-rolled values.
   expect(named(classes, "flex")).toBeUndefined();
