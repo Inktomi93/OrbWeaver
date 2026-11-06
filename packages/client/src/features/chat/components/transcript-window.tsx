@@ -120,7 +120,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
     available: pages.hasPreviousPage || pages.data.pages.length > 1,
     hasEarlier: pages.hasPreviousPage,
     busy: pages.isFetching,
-    failed: pages.isError,
+    failed: pages.isFetchPreviousPageError,
     loaded: pages.data.pages.length > 1 ? merged.messages.length : null,
     // Only a failed refresh of the loaded pages retries by refetching; the next press after anything else is the next page.
     onLoad: (): void => void (pages.isError && !pages.isFetchPreviousPageError ? pages.refetch() : pages.fetchPreviousPage()).catch(globalThis.reportError),
