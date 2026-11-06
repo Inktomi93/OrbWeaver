@@ -224,7 +224,6 @@ None.
 - [0872](0872-find-what-answered-an-api-batch-with-an.md) P3 Find what answered an API batch with an HTML page in production (owner)
 - [1814](1814-build-the-read-only-report-that-chooses-what.md) P3 Build the read-only report that chooses what to test, per the restoration-register plan's selection section `restoration-register` (wake gone docs/plans/type-law/design.md)
 - [1839](1839-check-the-owner-s-rooms-for-malformed-standalone.md) P3 Check the owner's rooms for malformed standalone variable deltas left before the parse fix (owner)
-- [1846](1846-the-in-list-pager-shifts-a-prepend-by.md) P3 The in-list pager shifts a prepend by 63px at 390x844 in document style: name the cause and give the pager one home `cross-surface-consistency` (owner)
 
 ## Done
 
