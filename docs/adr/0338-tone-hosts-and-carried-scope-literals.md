@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-01
+updated: 2026-11-05
 ---
 
 # Tone washes mix over a host surface, and a carried scope emits literal tone colours
@@ -14,7 +14,7 @@ updated: 2026-11-01
 
 Hosts. `H` is the surface under the wash, `var(--tone-host, var(--color-background))`. The hosts are `TONE_HOSTS` in `@orb/kit/theme-derivation`: `background`, `surface-raised`, `card`, `popover` and one host per message bubble role, `user-bubble`, `ai-bubble` and `system-bubble`. Each has a generated `tone-host-<host>` utility that sets `--tone-host` to that surface's colour on the element that paints it. A surface primitive wears the utility beside its fill: Card's `surface` variant, the `GROUND` fills, `POPUP_SURFACE`, `MODAL_SURFACE`, `MESSAGE_BUBBLE_GROUND` and each primitive that paints a card or popover fill around content. A bubble's seed fills differ from the ramp's, so each role is its own host. A bubble paints no selected, hovered or active fill, so its page inks are not judged over a tint there; every other floor and the separation are. A carried scope judges a bubble at the ramp member the base token binds it to (`user-bubble` to secondary, `ai-bubble` to card, `system-bubble` to muted); a scope that picks a bubble fill is not judged on the pick. A box that paints a tint, such as a soft Card, sets no host, so its own wash mixes over the surface behind it. Unset, `--tone-host` is the guaranteed-invalid value and the wash mixes over the page. Every seed palette block and every scope that paints its own background reset it to `initial`, so a nested palette never mixes over an outer palette's card.
 
-Every floor is judged with `H` on each of `TONE_HOSTS`, and on each host a tint's `foreground` page ink is that host's own ink: `card-foreground` on a card, `popover-foreground` on a popover. On a seed palette, a colored tone's tints also sit at least `TONE_TINT_SEPARATION` off each host.
+A floor may name a carried host outside `TONE_HOSTS`: `tone-text` floors `sidebar`, which has no wash utility. Every floor is judged with `H` on each of `TONE_HOSTS`, and on each host a tint's `foreground` page ink is that host's own ink: `card-foreground` on a card, `popover-foreground` on a popover. On a seed palette, a colored tone's tints also sit at least `TONE_TINT_SEPARATION` off each host.
 
 Carried scopes. A carried scope emits each colored tone's `text`, `text-on-tint`, `tint` and `tint-active` as literal colours, `--tone-<tone>-<role>`. The `[data-tone]` block reads the literal before its mix, `var(--tone-<tone>-<role>, color-mix(...))`, the concrete-colour channel the chart ramp already uses. The root and every seed palette block declare each literal `initial`, the guaranteed-invalid value, and each knob at its default, so a seed palette paints its own mixes, even nested inside a carried scope. The clamp solves each literal's lightness on the tone's own hue:
 

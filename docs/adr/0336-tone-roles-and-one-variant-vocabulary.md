@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-10-30
+updated: 2026-11-05
 ---
 
 # Intent colors derive tone roles, and primitives share one tone, variant and size vocabulary
@@ -34,7 +34,7 @@ The mix space is OKLab, because OKLCH interpolates hue toward the background's h
 
 Scope. `tokens.build.ts` emits one `[data-tone="<tone>"]` block per tone that declares each `--color-tone-<role>` with its formula. The role resolves on the stamped element, so it follows the nearest ThemeScope or seed palette. A role is never a `:root` variable, because a root formula freezes to the root palette. The mix amounts are percentage tokens, `--tone-mix-<role>`. `--color-tone-*` is registered in `@theme reference`, which mints the `*-tone-*` utilities and serves no root variable. A primitive that reads a tone utility stamps `data-tone` on its root, `neutral` by default. The stamp overrides the variant-axis stamp; a displaced axis value moves to `data-variant`.
 
-Contrast. Foreground on `solid`, `solid-hover` and `solid-active` clears 4.5:1. `text` clears 4.5:1 on `background`, `surface-raised` and `card`, the hosts `--color-foreground` covers under D202. `text-on-tint` clears 4.5:1 on `tint` and `tint-active`. A tint or an edge never carries meaning alone, so neither has a floor as a mark; a mark that does, such as a meter fill or a status box's border, paints `solid`. A colored tone's tints carry the page inks instead: `foreground` and `muted-foreground` clear 4.5:1 on `tint` and `tint-active`, because a selected row, an active tab and a compare panel keep their title and meta inks on a tint. Each tint recipe names them as its `pageInks`. The neutral tone's tints are the ramp's `muted` and `accent`, whose ink is `accent-foreground`, so a call site that keeps a page ink on a neutral tint paints `text-on-tint` instead. So does a hovered interactive Card: `card-foreground` is solved for the card alone. [D338](0338-tone-hosts-and-carried-scope-literals.md) sets the hosts each floor is judged on. The token build fails a shipped palette under a floor or a separation.
+Contrast. Foreground on `solid`, `solid-hover` and `solid-active` clears 4.5:1. `text` clears 4.5:1 on `background`, `surface-raised`, `card`, `popover` and `sidebar`, the hosts `--color-foreground` covers under D202. `text-on-tint` clears 4.5:1 on `tint` and `tint-active`. A tint or an edge never carries meaning alone, so neither has a floor as a mark; a mark that does, such as a meter fill or a status box's border, paints `solid`. A colored tone's tints carry the page inks instead: `foreground` and `muted-foreground` clear 4.5:1 on `tint` and `tint-active`, because a selected row, an active tab and a compare panel keep their title and meta inks on a tint. Each tint recipe names them as its `pageInks`. The neutral tone's tints are the ramp's `muted` and `accent`, whose ink is `accent-foreground`, so a call site that keeps a page ink on a neutral tint paints `text-on-tint` instead. So does a hovered interactive Card: `card-foreground` is solved for the card alone. [D338](0338-tone-hosts-and-carried-scope-literals.md) sets the hosts each floor is judged on. The token build fails a shipped palette under a floor or a separation.
 
 Vocabulary. Every primitive spells color as `tone`, fill style as `variant` and control scale as `size`.
 

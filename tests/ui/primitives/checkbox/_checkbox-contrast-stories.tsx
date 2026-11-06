@@ -8,7 +8,7 @@ import type { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
-const HOSTS = ["background", "card", "popover"] as const;
+const HOSTS = ["background", "card", "popover", "sidebar"] as const;
 
 function Carriers({ host }: { readonly host: string }): ReactElement {
   return (

@@ -24,9 +24,9 @@ import {
   surfacePolarity,
   THEME_DERIVATION,
 } from "@orb/kit/theme-derivation";
-import { TOKENS } from "#tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
 import type { ParsedOklch } from "./color-parse.ts";
-import { serializeOpaqueOklch } from "./color-parse.ts";
+import { serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { THEME_OVERRIDE_COLOR_VARS } from "./emit-vars.ts";
 
 /** A carried background's resolved pixel and its neutral inks, solved once and read by every derivation over it. */
@@ -78,6 +78,14 @@ function inputSurfaceOn(surface: string, wash: number): string {
  */
 function fieldFillOn(surface: string, wash: number, base: Oklch): string {
   return surfacePolarity(base) === "dark" ? inputSurfaceOn(surface, wash) : TOKENS["color.field-fill"].value;
+}
+/** The fill a light carried palette's text field paints: the light arm {@link fieldFillOn} restates, which a form-control edge is judged on. */
+function lightFieldFill(): { readonly ink: Oklch; readonly alpha: number } {
+  const fill = toOklch(TOKEN_POLARITY_ARMS["color.field-fill"].light);
+  if (fill === null) {
+    throw new Error("the generated field-fill light arm is not a parseable color");
+  }
+  return { ink: fill, alpha: fill.alpha };
 }
 /** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;
@@ -217,7 +225,7 @@ interface CarriedEdge {
   readonly card: Oklch;
 }
 
-/** The form-control edge a carried palette solves over its own panels and the `bg-input` fill on each (`solveInputBorder` states the bounds). */
+/** The form-control edge a carried palette solves over its own panels and each fill its controls paint on them (`solveInputBorder` states the bounds). */
 function carriedEdgeOn({ pixel: base, inks }: CarriedPalette): CarriedEdge {
   const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
   const surfaces = carriedSurfaces(opaqueBase, rampDeltas(opaqueBase));
@@ -226,8 +234,11 @@ function carriedEdgeOn({ pixel: base, inks }: CarriedPalette): CarriedEdge {
     inkLightness: inks.foreground,
     grounds: {
       panels: [opaqueBase, ...Object.values(surfaces)],
-      fillInk: { l: inks.muted.inputWash, c: 0, h: base.h },
-      fillAlpha: INPUT_ALPHA,
+      fills: [
+        { ink: { l: inks.muted.inputWash, c: 0, h: base.h }, alpha: INPUT_ALPHA },
+        // A dark palette's text field paints this same wash (`fieldFillOn`).
+        ...(surfacePolarity(opaqueBase) === "dark" ? [] : [lightFieldFill()]),
+      ],
     },
   });
   return { ...solve, card: surfaces.card };
@@ -294,12 +305,12 @@ export function surfaceVarsOn(background: string, carried: CarriedPalette | null
   // The accent ink covers muted too: they are the neutral tone's two tints, and its text-on-tint is this ink (D336).
   vars["--color-accent-foreground"] = foregroundAt(origin, carried.inks.accentForeground);
   vars["--color-foreground"] = foregroundAt(origin, carried.inks.foreground);
-  vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
-  vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
+  vars["--color-card-foreground"] = foregroundAt(origin, carried.inks.cardForeground);
+  vars["--color-popover-foreground"] = foregroundAt(origin, carried.inks.popoverForeground);
   // List rows wear this ink on the page as well as on the rail.
   vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightnessForSurfaces([opaqueBase, surfaces.sidebar]));
   vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
-  vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
+  vars["--color-secondary-foreground"] = foregroundAt(origin, carried.inks.secondaryForeground);
   const mutedPair = carried.inks.muted;
   vars["--color-muted-foreground"] = foregroundAt(origin, mutedPair.lightness);
   vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);

@@ -623,7 +623,7 @@ export const TONE_ROLE_RECIPES = {
   "solid": {"colored":"base","neutral":{"bind":"foreground","pageInks":[]},"floor":[],"pageInks":[]},
   "solid-hover": {"colored":{"mix":"hover","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-hover","toward":"background"},"pageInks":[]},"floor":[],"pageInks":[]},
   "solid-active": {"colored":{"mix":"active","toward":"away"},"neutral":{"bind":"foreground","step":{"mix":"neutral-active","toward":"background"},"pageInks":[]},"floor":[],"pageInks":[]},
-  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground","pageInks":[]},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"}],"pageInks":[]},
+  "text": {"colored":{"mix":"text","toward":"foreground"},"neutral":{"bind":"foreground","pageInks":[]},"floor":[{"host":"background"},{"host":"surface-raised"},{"host":"card"},{"host":"popover"},{"host":"sidebar"}],"pageInks":[]},
   "text-on-tint": {"colored":{"mix":"text-on-tint","toward":"foreground"},"neutral":{"bind":"accent-foreground","pageInks":[]},"floor":[{"role":"tint"},{"role":"tint-active"}],"pageInks":[]},
   "tint": {"colored":{"mix":"tint","toward":"host"},"neutral":{"bind":"muted","pageInks":["muted-foreground"]},"floor":[],"pageInks":["foreground","muted-foreground"]},
   "tint-active": {"colored":{"mix":"tint-active","toward":"host"},"neutral":{"bind":"accent","pageInks":["muted-foreground"]},"floor":[],"pageInks":["foreground","muted-foreground"]},

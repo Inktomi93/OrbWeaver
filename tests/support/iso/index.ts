@@ -26,7 +26,7 @@ export type { SurfaceProviderEvidence } from "./surface-data.ts";
 export { parseSurfaceProviderEvidence, SURFACE_DATA_MODES } from "./surface-data.ts";
 export type { SurfacePass } from "./surface-pass.ts";
 export { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "./surface-pass.ts";
-export { ACCEPTED_BASES } from "./theme-bases.ts";
+export { ACCEPTED_BASES, CROSSOVER_BASES, TYPED_CROSSOVER_BASES } from "./theme-bases.ts";
 export { EDGE_FALLBACK_SCOPE, TONE_FALLBACK_SCOPE } from "./theme-fallback-cases.ts";
 export type { ControlledTimers } from "./timers.ts";
 export { createControlledTimers, createQuietTimers } from "./timers.ts";

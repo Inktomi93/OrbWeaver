@@ -427,7 +427,7 @@ describe("D336 tone role controls", () => {
 
   test("a role operand that is not a carried host, a tone-mix knob or a role is refused", () => {
     const host = mutate(vault(), "base", (base) => {
-      role(base, "tone-tint")["$value"] = "{color.sidebar}";
+      role(base, "tone-tint")["$value"] = "{color.sidebar-accent}";
     });
     expect(codes(host)).toContain("tone.operand");
     const knob = mutate(vault(), "base", (base) => {
@@ -476,6 +476,20 @@ for (const { knob, percent, miss } of [
     writeFileSync(tokens, planted.base);
     await expect(generateArtifacts(ui)).rejects.toThrow(/D336 tone floors missed on a shipped palette/);
     await expect(generateArtifacts(ui)).rejects.toThrow(miss);
+  });
+}
+
+for (const host of ["popover", "sidebar"] as const) {
+  test(`a ${host} lifted to where a tone's text cannot read on it fails the token build`, async ({ importStagingDir }) => {
+    const root = join(importStagingDir, "repository");
+    const ui = join(root, "packages/ui");
+    cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+    await expect(generateArtifacts(ui)).resolves.toBeDefined();
+    const planted = mutate(readTokenContractTexts(ui, root), "base", (base) => {
+      descend(descend(base, "color"), host)["$value"] = { colorSpace: "oklch", components: [0.6, 0.007, 60] };
+    });
+    writeFileSync(join(ui, "src/tokens/tokens.json"), planted.base);
+    await expect(generateArtifacts(ui)).rejects.toThrow(new RegExp(`tone-text on ${host}`, "u"));
   });
 }
 
