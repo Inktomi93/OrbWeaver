@@ -107,6 +107,16 @@ export function handRollingLines(facts: UiFacts, inScope: (section: string) => b
     ...rankingLines(hits, limit),
     ...decisionLines(hits, limit),
     ...keepLines(hits),
+    ...(facts.staleScopes.length === 0
+      ? []
+      : [
+          "### Token scope rows with no token",
+          "",
+          "Each row of `SCOPED` in `hand-scope.ts` here matches no token in the theme.",
+          "",
+          ...facts.staleScopes.map((row) => `- \`${row}\``),
+          "",
+        ]),
     "### What the census cannot see",
     "",
     ...HAND_ROLLING_CANNOT_SEE.map((line) => `- ${line}`),

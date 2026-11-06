@@ -18,6 +18,7 @@ import { isExcepted } from "./exceptions.ts";
 import { factsOf } from "./file-facts.ts";
 import type { Hit } from "./hand-model.ts";
 import { buildHandRolling } from "./hand-rolling.ts";
+import { staleScopes } from "./hand-scope.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
 import type { ShapeGroup } from "./shapes.ts";
@@ -53,6 +54,8 @@ export interface UiFacts {
   readonly composition: Composition;
   /** Every hand-written design value, class, style, pattern and constant, with the owner that would retire it. */
   readonly handRolling: readonly Hit[];
+  /** Rows of the token scope table that no token in the theme matches. */
+  readonly staleScopes: readonly string[];
   readonly sections: readonly string[];
 }
 
@@ -112,6 +115,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     adoption: adoptionBySection(files),
     composition,
     handRolling: buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced }),
+    staleScopes: staleScopes(tokens),
     sections,
   };
 }

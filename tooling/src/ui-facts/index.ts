@@ -8,10 +8,14 @@ import { analyse } from "./analysis.ts";
 import { loadExceptions } from "./exceptions.ts";
 import type { Hit } from "./hand-model.ts";
 import { HAND_ROLLING_PART } from "./hand-model.ts";
-import { isMigratableOwner, planOwner, proveOwner, readPlan, readSkips, writePlan } from "./migration.ts";
+import type { MigrationPlan } from "./migration.ts";
+import { isDeclaredOwner, isMigratableOwner, planOwner, proveOwner, rankedRows, readPlan, readSkips, writePlan } from "./migration.ts";
 import { renderReport } from "./report.ts";
 import { loadSources } from "./source.ts";
+import type { ComponentTables } from "./variant-tables.ts";
 import { componentTables } from "./variant-tables.ts";
+
+export { sidecarsOf } from "./migration.ts";
 
 const OUT_DIR = "reports/ui-facts";
 const FLAGS = ["--only", "--out", "--root", "--plan", "--prove", "--map"] as const;
@@ -77,14 +81,36 @@ export function runUiFacts(argv: readonly string[]): number {
   return args.migration === null ? EXIT.clean : runMigration(args.root, args.migration, facts.handRolling);
 }
 
+/** A plan of nothing is clean only for a real owner with no rows left; any other empty plan names what stopped it and fails. */
+function emptyPlanExit(owner: string, plan: MigrationPlan, hits: readonly Hit[], tables: ComponentTables): number {
+  const ranked = rankedRows(hits, owner);
+  if (ranked.length === 0 && isDeclaredOwner(owner, tables)) {
+    process.stdout.write(`ui-facts: ${owner} has no rows left to migrate\n`);
+    return EXIT.clean;
+  }
+  if (ranked.length === 0) {
+    process.stdout.write(`ui-facts: no component forwards an axis named ${owner}, and the census ranks no row under it\n`);
+    return EXIT.violations;
+  }
+  process.stdout.write(`ui-facts: the census ranks ${ranked.length} rows under ${owner} and the plan can move none of them\n`);
+  for (const { path, line, token, reason } of plan.review) {
+    process.stdout.write(`  review: ${path}:${line} ${token}: ${reason}\n`);
+  }
+  for (const { path, line, detail, owner: rowOwner } of ranked.filter((hit) => hit.owner !== owner)) {
+    process.stdout.write(`  ${rowOwner}: ${path}:${line} ${detail}\n`);
+  }
+  return EXIT.violations;
+}
+
 /** Write the plan for one owner, or prove it against the census that was just rerun. */
 function runMigration(root: string, { mode, owner, map }: NonNullable<Args["migration"]>, hits: readonly Hit[]): number {
   if (mode === "plan") {
-    const plan = planOwner(hits, componentTables(root, loadSources(root)), owner);
+    const tables = componentTables(root, loadSources(root));
+    const plan = planOwner(hits, tables, owner);
     writePlan(root, map, plan);
     const files = new Set(plan.sites.map((site) => site.path)).size;
     process.stdout.write(`ui-facts: planned ${owner}: ${plan.sites.length} sites in ${files} files, ${plan.review.length} for review, wrote ${map}\n`);
-    return EXIT.clean;
+    return plan.sites.length === 0 ? emptyPlanExit(owner, plan, hits, tables) : EXIT.clean;
   }
   const skips = readSkips(root, map);
   const proof = proveOwner(readPlan(root, map), hits, skips);

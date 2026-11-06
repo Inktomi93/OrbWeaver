@@ -33,8 +33,21 @@ export const KEEP_REASONS = {
   "query-condition":
     "a container query condition cannot read a custom property and no generated variant spells it; query conditions are structural literals (client-architecture-lockdown.md 4.4)",
   "single-constant": "one timing or measurement constant with no repeat and no token that holds it; it is a runtime threshold",
+  "keyframe-waypoint": "a keyframe waypoint is an animation value, not a meaning, so it stays a literal (the opacity group in tokens.json)",
+  "one-sided-clearance": "padding on one inline edge clears a neighbouring mark; a recipe owns both edges, and no axis names a side",
+  "coincident-number": "constants that share a number and name different things; each stays with its own meaning",
 } as const;
 export type KeepCode = keyof typeof KEEP_REASONS;
+
+/** Where a class sits in its `className`, so a plan can prove what moving it would change. */
+export interface ClassPlace {
+  /** The string is a plain literal, the one node the rewrite edits; a template piece is not. */
+  readonly plain: boolean;
+  /** Every other class the attribute writes, whatever guards it. */
+  readonly peers: readonly string[];
+  /** An expression before this class can carry a class that would land after the prop once it moves. */
+  readonly opaqueBefore: boolean;
+}
 
 /** The primitive a class hit is written on, as its import names it: what a rewrite must prove before it moves the class. */
 export interface ElementRef {
@@ -42,6 +55,9 @@ export interface ElementRef {
   readonly name: string;
   /** The class is written on a carrier that renders this component, not on the component itself. */
   readonly carried: boolean;
+  readonly place: ClassPlace;
+  /** The element's other attributes: the value as written, or null for a value the syntax cannot read. */
+  readonly props: Readonly<Record<string, string | null>>;
 }
 
 export interface Hit {
@@ -89,6 +105,9 @@ export const CONTAINER_PROPERTY = "@container";
 
 /** The placeholder for a declaration inside an `@supports` test. */
 export const SUPPORTS_PROPERTY = "@supports";
+
+/** The placeholder for an `opacity` inside a `@keyframes` block. */
+export const KEYFRAME_PROPERTY = "@keyframes";
 
 const ALL_LENGTH_SPACES: readonly ValueNamespace[] = [
   "spacing",
@@ -158,6 +177,9 @@ export function judgeLit(found: Lit, property: string | null, tokens: ValueToken
   const code = STRUCTURAL_KEEP[found.kind];
   if (code !== undefined) {
     return keepJudgement(code, found.text);
+  }
+  if (property === KEYFRAME_PROPERTY) {
+    return keepJudgement("keyframe-waypoint", found.text);
   }
   if (found.kind === "gradient") {
     return {

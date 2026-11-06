@@ -1,8 +1,8 @@
 // Hand-written class tokens: utilities a recipe prop or token already owns, Tailwind arbitrary values, repeated clusters and raw layout containers.
 import type { TokenFact } from "./classes.ts";
-import { baseOf, classifyToken, classStringsOf } from "./classes.ts";
+import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import { coveredJudgement, declaredAxis, elementRefOf, uncoveredJudgement, undeclaredJudgement } from "./hand-arms.ts";
+import { coveredJudgement, elementRefOf, newArmJudgement, undeclaredJudgement, writingAxis } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -10,7 +10,7 @@ import { lit, valueStringLits } from "./literals.ts";
 import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
 import { KINDS } from "./sites.ts";
 import type { Elem, Source } from "./source.ts";
-import type { ValueNamespace, ValueTokens } from "./tokens.ts";
+import type { ValueTokens } from "./tokens.ts";
 import type { ComponentTables } from "./variant-tables.ts";
 
 const CLUSTER_MIN_USES = 3;
@@ -30,42 +30,12 @@ const PREFIX_PROPERTY: readonly (readonly [RegExp, string])[] = [
   [/^leading$/u, "line-height"],
 ];
 
-/** Recipe axes that own a class family, by the axis names the doors declare. */
-const AXES_BY_KIND: Readonly<Record<string, readonly string[]>> = {
-  "tw-radius": ["shape", "rounded", "corners"],
-  "tw-shadow": ["elevated", "shadow", "glow"],
-  "tw-border": ["edge", "divider"],
-  "tw-opacity": ["receded"],
-};
-
-interface Family {
-  readonly pattern: RegExp;
-  /** Token namespaces whose names complete the utility, or none for a utility with no token. */
-  readonly spaces: readonly ValueNamespace[];
-  readonly axes: readonly string[];
-}
-
-// A utility that is valid today and that a recipe prop on a primitive owns. The suffix is checked against the theme's token names.
-const OWNED_FAMILIES: readonly Family[] = [
-  { pattern: /^(?:gap|gap-x|gap-y|space-x|space-y)-(.+)$/u, spaces: ["spacing"], axes: ["gap"] },
-  { pattern: /^p[xytrblse]?-(.+)$/u, spaces: ["spacing"], axes: ["padding"] },
-  { pattern: /^items-(.+)$/u, spaces: [], axes: ["align"] },
-  { pattern: /^justify-(.+)$/u, spaces: [], axes: ["justify"] },
-  { pattern: /^text-(.+)$/u, spaces: ["text"], axes: ["size", "step", "titleStep"] },
-  { pattern: /^text-(.+)$/u, spaces: ["color"], axes: ["tone", "ink"] },
-  { pattern: /^bg-(.+)$/u, spaces: ["color"], axes: ["tone", "ground", "variant", "fill"] },
-  { pattern: /^font-(.+)$/u, spaces: ["font-weight"], axes: ["weight"] },
-  { pattern: /^rounded-(.+)$/u, spaces: ["radius"], axes: ["shape", "rounded", "corners"] },
-  { pattern: /^shadow-(.+)$/u, spaces: ["shadow"], axes: ["elevated", "shadow", "glow"] },
-  { pattern: /^opacity-(.+)$/u, spaces: ["opacity"], axes: ["receded"] },
-];
-// Utilities with no suffix.
-const BARE_AXES: Readonly<Record<string, readonly string[]>> = {
-  italic: ["italic"],
-  truncate: ["lines"],
-  uppercase: ["caps", "voice"],
-  "tabular-nums": ["numeric"],
-};
+// The step every bare `border`, `border-s`, `divide-*` and `ring` compiles to, when the theme declares it.
+const DEFAULT_EDGE_TOKEN = "--border-width-default";
+// Padding on one inline edge. A recipe arm that writes the class still wins; this names the hits no arm owns.
+const ONE_SIDED_INLINE = /^p[se]-/u;
+// Zero is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it.
+const ZERO_STEP = /-0$/u;
 
 export interface ClassContext {
   readonly tokens: ValueTokens;
@@ -74,9 +44,6 @@ export interface ClassContext {
 }
 
 const placeOf = (source: Source, line: number): Place => ({ path: source.path, line, section: source.section, layer: source.layer });
-
-const namesIn = (tokens: ValueTokens, space: ValueNamespace): ReadonlySet<string> =>
-  new Set(tokens.all.filter((token) => token.space === space).map((token) => token.name.slice(`--${space}-`.length)));
 
 function propertyOf(base: string): string | null {
   const prefix = base.includes("-[") ? base.slice(0, base.indexOf("-[")) : base;
@@ -127,9 +94,8 @@ function numericJudgement(token: string, fact: TokenFact, tokens: ValueTokens): 
   const digits = /-(\d+)$/u.exec(base)?.[1];
   const amount = digits === undefined ? null : Number(digits);
   switch (fact.kind) {
-    // A bare `border` or `ring` is the default width, one pixel.
     case "tw-border":
-      return amount === 0 ? keepJudgement("zero-sentinel", token) : judgeLit(lit("length", `${amount ?? 1}px`), "border-width", tokens);
+      return borderJudgement(token, amount, tokens);
     case "tw-z":
       return amount === null ? null : zJudgement(token, token.slice(token.lastIndexOf(":") + 1).startsWith("-") ? -amount : amount, tokens);
     case "tw-opacity":
@@ -137,6 +103,14 @@ function numericJudgement(token: string, fact: TokenFact, tokens: ValueTokens): 
     default:
       return null;
   }
+}
+
+/** A bare edge reads the theme's default step when there is one, so there is nothing to move; with none it is the stock one pixel. */
+function borderJudgement(token: string, amount: number | null, tokens: ValueTokens): Judgement {
+  if (amount === 0 || (amount === null && tokens.all.some((held) => held.name === DEFAULT_EDGE_TOKEN))) {
+    return keepJudgement(amount === 0 ? "zero-sentinel" : "token-utility", token);
+  }
+  return judgeLit(lit("length", `${amount ?? 1}px`), "border-width", tokens);
 }
 
 function zJudgement(token: string, amount: number, tokens: ValueTokens): Judgement {
@@ -149,7 +123,6 @@ function opacityJudgement(token: string, percent: number, tokens: ValueTokens): 
 
 // The intent colours, whose hand-mixed alpha the tone roles replace (D336); a neutral role at alpha has no named step.
 const INTENT_COLOUR = /^(?:primary|destructive|warning|success|info)(?:-foreground)?$/u;
-const ALPHA_UTILITY = /^(?:bg|text|border|ring|fill|stroke|from|via|to)-(.+)\/\d+$/u;
 
 function alphaJudgement(token: string): Judgement {
   const colour = ALPHA_UTILITY.exec(baseOf(token).base)?.[1] ?? token;
@@ -192,10 +165,9 @@ const FIXED: Readonly<Record<string, Judgement>> = {
 
 /** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
 function flaggedJudgement({ token, elem, guarded }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
-  const axis = declaredAxis(elem, AXES_BY_KIND[fact.kind] ?? [], context.components);
-  const covered = axis === null ? null : coveredJudgement(axis, token, guarded);
-  if (covered !== null) {
-    return covered;
+  const axis = writingAxis(elem, token, context.components);
+  if (axis !== null) {
+    return coveredJudgement(axis, token, guarded);
   }
   const fixed = FIXED[fact.kind];
   if (fixed !== undefined) {
@@ -231,36 +203,20 @@ interface UsedToken {
   readonly guarded: boolean;
 }
 
-interface Candidate {
-  readonly axes: readonly string[];
-  /** The utility family the axis's arms write, or null for a utility with no suffix. */
-  readonly pattern: RegExp | null;
-}
-
-/** A valid token utility on a primitive of a door that has the family's axis: an arm owns it, a new arm would, or no axis does. */
+/** A valid utility on a primitive: an arm of its own table writes it, a new arm would, or another component of the door owns the family. */
 function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassContext): Judgement | null {
-  const base = baseOf(token).base;
-  const bare = BARE_AXES[base];
-  const candidates: readonly Candidate[] =
-    bare === undefined ? OWNED_FAMILIES.filter((family) => ownsSuffix(family, base, context.tokens)) : [{ axes: bare, pattern: null }];
-  for (const { axes, pattern } of candidates) {
-    const axis = declaredAxis(elem, axes, context.components);
-    if (axis !== null) {
-      return coveredJudgement(axis, token, guarded) ?? uncoveredJudgement(axis, token, pattern, guarded);
-    }
+  const axis = writingAxis(elem, token, context.components);
+  if (axis !== null) {
+    return coveredJudgement(axis, token, guarded);
   }
-  return undeclaredJudgement(
-    elem,
-    token,
-    candidates.flatMap((candidate) => candidate.axes),
-    context.components,
-  );
-}
-
-/** The family's pattern matches and its suffix names a token in the family's namespaces. */
-function ownsSuffix(family: Family, base: string, tokens: ValueTokens): boolean {
-  const suffix = family.pattern.exec(base)?.[1];
-  return suffix !== undefined && (family.spaces.length === 0 || family.spaces.some((space) => namesIn(tokens, space).has(suffix)));
+  const { base } = baseOf(token);
+  if (ZERO_STEP.test(base)) {
+    return null;
+  }
+  if (elem?.kind === "ui" && ONE_SIDED_INLINE.test(base)) {
+    return keepJudgement("one-sided-clearance", token);
+  }
+  return newArmJudgement(elem, token, guarded, context.components) ?? undeclaredJudgement(elem, token, context.components);
 }
 
 const LAYOUT_OWNER: readonly (readonly [string, string])[] = [
@@ -296,6 +252,9 @@ interface ClassUse {
   readonly tokens: readonly string[];
   readonly elem: Elem | null;
   readonly guarded: boolean;
+  readonly plain: boolean;
+  readonly rootTokens: readonly string[];
+  readonly opaqueBefore: boolean;
 }
 
 function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
@@ -309,14 +268,16 @@ function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
       );
 }
 
-function tokenHits({ source, line, tokens, elem, guarded }: ClassUse, context: ClassContext): readonly Hit[] {
+function tokenHits({ source, line, tokens, elem, guarded, plain, rootTokens, opaqueBefore }: ClassUse, context: ClassContext): readonly Hit[] {
   const out: Hit[] = [];
   for (const token of tokens) {
     const fact = classifyToken(token);
     const used: UsedToken = { token, elem, guarded };
     const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
-      out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, elementRefOf(elem)));
+      const peers = rootTokens.filter((written) => written !== token);
+      const element = elementRefOf(elem, { plain, peers, opaqueBefore });
+      out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, element));
     }
   }
   return out;
@@ -392,7 +353,7 @@ export function classHits(sources: readonly Source[], context: ClassContext): re
   const uses: ClusterUse[] = [];
   for (const source of sources) {
     for (const classString of source.sf === null ? [] : classStringsOf(source.path, source.sf, context.referenced)) {
-      const use: ClassUse = { source, line: classString.line, tokens: classString.tokens, elem: classString.elem, guarded: classString.conditional };
+      const use: ClassUse = { ...classString, source, guarded: classString.conditional };
       const layout = rawLayoutHit(use);
       hits.push(...tokenHits(use, context), ...(layout === null ? [] : [layout]));
       if (use.tokens.length >= CLUSTER_TOKENS) {

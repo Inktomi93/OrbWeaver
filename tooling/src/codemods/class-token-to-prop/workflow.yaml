@@ -14,7 +14,7 @@ params:
       default: "reports/migration/plan.json"
     apply:
       name: "Apply"
-      description: "`yes` rewrites, formats, proves the owner against a census rerun and typechecks; any other value previews the rewrite only"
+      description: "`yes` rewrites, formats, proves the owner against a census rerun and typechecks; any other value previews the rewrite only. `pnpm migrate-owner --apply` sets it and restores the planned files if a step fails"
       type: string
       default: "no"
 nodes:

@@ -2,7 +2,9 @@
 // the sites it must leave for review, and the proof that a rerun of the census closed them. A report: it moves nothing itself.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { kebab } from "./hand-arms.ts";
 import type { Hit } from "./hand-model.ts";
+import { moveRefusal } from "./move-proof.ts";
 import { doorOf } from "./source.ts";
 import type { ComponentTables } from "./variant-tables.ts";
 
@@ -52,19 +54,34 @@ export interface Proof {
 const propOf = (owner: string): string => owner.slice(owner.indexOf(".") + 1);
 
 const OWNER_PATTERN = /^[a-z][a-z0-9-]*\.[A-Za-z][A-Za-z0-9]*$/u;
-// An arm key that is a plain word is a string prop value. A number or a boolean is a typed prop, which the syntax cannot confirm.
+// An arm key that is a plain word is a string prop value. A `true` arm is a boolean prop, written as a JSX expression. A number is a
+// typed prop, which the syntax cannot confirm, and a `false` arm is the prop's absence.
 const STRING_ARM = /^[A-Za-z][A-Za-z0-9-]*$/u;
-const NOT_STRING_ARMS: ReadonlySet<string> = new Set(["true", "false", "null", "undefined"]);
+const TRUE_ARM = "true";
+const NOT_STRING_ARMS: ReadonlySet<string> = new Set(["false", "null", "undefined"]);
+
+const propValueOf = (arm: string): string => (arm === TRUE_ARM ? `{${arm}}` : arm);
 
 export function isMigratableOwner(owner: string): boolean {
   return OWNER_PATTERN.test(owner);
 }
 
+/** The owner names a forwarded axis of a component. */
+export function isDeclaredOwner(owner: string, tables: ComponentTables): boolean {
+  return [...tables.values()].some((components) =>
+    [...components].some(([name, recipe]) => owner === `${kebab(name)}.${propOf(owner)}` && recipe.axes.has(propOf(owner))),
+  );
+}
+
+/** The rows the census ranks under an owner, plain or conditional: a plan with no site among them moved nothing it was asked to. */
+export const rankedRows = (hits: readonly Hit[], owner: string): readonly Hit[] =>
+  hits.filter((hit) => hit.category === "class-utility" && (hit.owner === owner || hit.owner === `${owner}, conditional`));
+
 /**
  * The sidecar paths of a plan, next to its map. The codemod derives the skip folder from the same name, so a rename here
  * breaks the proof: `tooling/src/codemods/class-token-to-prop/scripts/codemod.ts` repeats this rule.
  */
-function sidecarsOf(map: string): { readonly files: string; readonly programs: string; readonly skips: string } {
+export function sidecarsOf(map: string): { readonly files: string; readonly programs: string; readonly skips: string } {
   const base = map.replace(/\.json$/u, "");
   return { files: `${base}.files`, programs: `${base}.programs`, skips: `${base}.skips` };
 }
@@ -77,24 +94,26 @@ function refusal(hit: Hit, owner: string, tables: ComponentTables): string | nul
   if (element.carried) {
     return `the class is written on a carrier that renders ${element.name}`;
   }
-  const door = doorOf(element.source);
+  if (!element.place.plain) {
+    return "the class sits in a template literal, which the rewrite does not edit";
+  }
+  const recipe = tables.get(doorOf(element.source) ?? "")?.get(element.name);
   const arm = hit.match?.slice(owner.length + 1);
-  const axis = tables
-    .get(door ?? "")
-    ?.get(element.name)
-    ?.get(propOf(owner));
-  if (arm === undefined || axis === undefined) {
+  const axis = recipe?.axes.get(propOf(owner));
+  if (arm === undefined || axis === undefined || recipe === undefined) {
     return `no arm of ${owner} is read from ${element.name}`;
   }
-  if (!STRING_ARM.test(arm) || NOT_STRING_ARMS.has(arm)) {
+  if (arm !== TRUE_ARM && (!STRING_ARM.test(arm) || NOT_STRING_ARMS.has(arm))) {
     return `arm "${arm}" is not a plain string prop value`;
   }
-  const writing = axis.get(arm) ?? [];
+  const writing = axis.get(arm)?.tokens ?? [];
   if (writing.length !== 1 || writing[0] !== hit.detail) {
     return `arm "${arm}" writes ${writing.join(" ")}, which is not exactly ${hit.detail}`;
   }
-  const sameClass = [...axis].filter(([, written]) => written.includes(hit.detail)).map(([name]) => name);
-  return sameClass.length === 1 ? null : `arms ${sameClass.join(", ")} all write ${hit.detail}`;
+  const sameClass = [...axis].filter(([, written]) => written.tokens.includes(hit.detail)).map(([name]) => name);
+  return sameClass.length === 1
+    ? moveRefusal({ token: hit.detail, axis: propOf(owner), arm }, element, recipe)
+    : `arms ${sameClass.join(", ")} all write ${hit.detail}`;
 }
 
 /** Plan one owner: recipe rows with that exact owner. A `, conditional` owner is a different group and never mechanical. */
@@ -121,7 +140,7 @@ export function planOwner(hits: readonly Hit[], tables: ComponentTables, owner: 
       attribute: "className",
       token: hit.detail,
       prop: propOf(owner),
-      value: hit.match.slice(owner.length + 1),
+      value: propValueOf(hit.match.slice(owner.length + 1)),
     });
   }
   return { owner, sites, review };

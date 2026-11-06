@@ -19,6 +19,8 @@ const SPACING_UTILITY = /^(?:p[xytrbsel]?|m[xytrbsel]?|gap(?:-[xy])?|space-[xy]|
 const PALETTE =
   /^(?:bg|text|border|ring|fill|stroke|outline|decoration|from|via|to)-(?:white|black|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)\b/u;
 const VIEWPORT_VARIANT = /^(?:max-)?(?:sm|md|lg|xl|2xl):/u;
+/** A colour utility at an alpha, by number or by a named `--opacity-*` step; the group is the colour. */
+export const ALPHA_UTILITY = /^(?:bg|text|border|ring|fill|stroke|from|via|to)-([^\s/]+)\/[^\s/]+$/u;
 
 /** The part of a token after its last top-level variant colon, with the important marks and a negative sign removed. */
 export function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
@@ -82,7 +84,7 @@ const SIMPLE: readonly (readonly [RegExp, string])[] = [
   [/^shadow(?:-(?:xs|sm|md|lg|xl|2xl|inner|none))?$/u, "tw-shadow"],
   [/^(?:border(?:-[xytrbse])?(?:-\d+)?|ring(?:-\d+)?|outline-\d+)$/u, "tw-border"],
   [/^opacity-\d+$/u, "tw-opacity"],
-  [/^(?:bg|text|border|ring|fill|stroke|from|via|to)-[^\s/]+\/\d+$/u, "tw-alpha"],
+  [ALPHA_UTILITY, "tw-alpha"],
   [/^z-(?:\d+|auto)$/u, "tw-z"],
   [/^(?:bg-(?:gradient|linear|radial|conic)|from-|via-|to-)/u, "tw-gradient"],
   [/^(?:translate-[xyz]|rotate|scale(?:-[xy])?|skew-[xy])-(?:\d+(?:\/\d+)?|px|full)$/u, "tw-transform"],
@@ -117,8 +119,14 @@ export interface ClassString {
   readonly line: number;
   readonly tokens: readonly string[];
   readonly elem: Elem | null;
-  /** The string is applied only when something else holds: a branch of a ternary, the right side of `&&`, `||` or `??`, or a class-object key. */
+  /** The string is applied only when something else holds: a branch of a ternary, the right side of `&&`, `||` or `??`, a class-object key, a value of a lookup map, or an argument of a helper. */
   readonly conditional: boolean;
+  /** The string is a plain literal; a template piece is not. */
+  readonly plain: boolean;
+  /** Every class the same root writes, this string's included. */
+  readonly rootTokens: readonly string[];
+  /** The root reads an expression before this string. */
+  readonly opaqueBefore: boolean;
 }
 
 const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
@@ -186,17 +194,46 @@ function isConditional(node: ts.Node, root: ts.Node): boolean {
     if (ts.isBinaryExpression(parent) && GUARDING.has(parent.operatorToken.kind) && parent.right === child) {
       return true;
     }
-    // A `cn({ "p-row": isRow })` key is a class applied when its value holds.
-    if (ts.isPropertyAssignment(parent) && parent.name === child && !isRecipeRoot(root)) {
+    // A `cn({ "p-row": isRow })` key is a class applied when its value holds; a value of `{ open: "p-row" }[state]` is a class the lookup picks.
+    if (ts.isPropertyAssignment(parent) && !isRecipeRoot(root)) {
+      return true;
+    }
+    // A helper other than a class joiner decides what happens to its arguments.
+    if (ts.isCallExpression(parent) && parent.expression !== child && !classCallee(parent)) {
       return true;
     }
   }
   return false;
 }
 
+/** The node decides whether a class applies, rather than being one: the left of `&&`, `||` or `??`, or a ternary's condition. */
+function isGuard(node: ts.Node, root: ts.Node): boolean {
+  for (let child = node; child !== root; child = child.parent) {
+    const parent = child.parent;
+    if (
+      (ts.isConditionalExpression(parent) && parent.condition === child) ||
+      (ts.isBinaryExpression(parent) && GUARDING.has(parent.operatorToken.kind) && parent.left === child)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** An expression before the piece can hold a class the syntax cannot read. A guard's own read and a call's name do not write one. */
+function readsBefore(piece: ts.Node, root: ts.Node): boolean {
+  let found = false;
+  visit(root, (node) => {
+    const callee = ts.isCallExpression(node.parent) && node.parent.expression === node;
+    found ||= ts.isIdentifier(node) && !callee && node.getEnd() <= piece.getStart() && !isGuard(node, root);
+  });
+  return found;
+}
+
 interface ClassPiece {
   readonly node: ts.Node;
   readonly conditional: boolean;
+  readonly opaqueBefore: boolean;
 }
 
 function piecesIn(root: ts.Node): readonly ClassPiece[] {
@@ -209,7 +246,7 @@ function piecesIn(root: ts.Node): readonly ClassPiece[] {
       ts.isTemplateMiddle(inner) ||
       ts.isTemplateTail(inner);
     if (text && !isLabel(inner, root)) {
-      found.push({ node: inner, conditional: isConditional(inner, root) });
+      found.push({ node: inner, conditional: isConditional(inner, root), opaqueBefore: readsBefore(inner, root) });
     }
   });
   return found;
@@ -224,6 +261,11 @@ function literalText(node: ts.Node): string {
     ? node.text
     : "";
 }
+
+const tokensOf = (node: ts.Node): readonly string[] =>
+  literalText(node)
+    .split(/\s+/u)
+    .filter((token) => token !== "");
 
 const declaredName = (node: ts.Node): string | null => (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) ? node.name.text : null);
 
@@ -318,13 +360,11 @@ export function referencedClassConstants(sources: readonly Source[]): ReadonlySe
 export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null): void => {
-    const tokens = literalText(node)
-      .split(/\s+/u)
-      .filter((token) => token !== "");
+  const emit = ({ node, conditional, opaqueBefore }: ClassPiece, elem: Elem | null, rootTokens: readonly string[]): void => {
+    const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
-      out.push({ path, line: lineOf(sf, node), tokens, elem, conditional });
+      out.push({ path, line: lineOf(sf, node), tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaqueBefore });
     }
   };
   const byOpening = new Map<ts.Node, Elem>();
@@ -338,8 +378,10 @@ export function classStringsOf(path: string, sf: ts.SourceFile, referenced: Read
     }
     // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
     const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
-    for (const piece of piecesIn(root)) {
-      emit(piece, elem);
+    const pieces = piecesIn(root);
+    const rootTokens = pieces.flatMap((piece) => tokensOf(piece.node));
+    for (const piece of pieces) {
+      emit(piece, elem, rootTokens);
     }
   });
   return out;

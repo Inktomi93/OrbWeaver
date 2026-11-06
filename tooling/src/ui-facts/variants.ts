@@ -25,8 +25,15 @@ export function doorDirs(root: string): ReadonlyMap<string, string> {
   return map;
 }
 
-/** Arm name to the class tokens its `tv` value writes. */
-export type ArmClasses = ReadonlyMap<string, readonly string[]>;
+export interface Arm {
+  /** The class tokens its `tv` value writes, across every slot. */
+  readonly tokens: readonly string[];
+  /** The slots a slot-keyed value writes; empty for a plain class string, which lands on the element itself. */
+  readonly slots: readonly string[];
+}
+
+/** Arm name to what its `tv` value writes. */
+export type ArmClasses = ReadonlyMap<string, Arm>;
 
 export interface ValueList {
   readonly values: readonly string[];
@@ -36,6 +43,7 @@ export interface ValueList {
 }
 
 const NO_ARMS: ArmClasses = new Map();
+const NO_WRITE: Arm = { tokens: [], slots: [] };
 
 /** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
 export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
@@ -86,7 +94,7 @@ function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): t
 const isKeyOf = (node: ts.Node): boolean => (ts.isPropertyAssignment(node.parent) || ts.isPropertyAccessExpression(node.parent)) && node.parent.name === node;
 
 /** The class tokens an arm's expression writes: every string in it, and the strings of a const it names (this file, else a unique ui export). */
-function classTokensOf(expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] {
+export function classTokensOf(expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] {
   const tokens: string[] = [];
   visit(expression, (node) => {
     if (isKeyOf(node)) {
@@ -102,6 +110,13 @@ function classTokensOf(expression: ts.Node, index: ScaleIndex, hops: number): re
   return tokens.filter((token) => token !== "");
 }
 
+/** What one arm writes: its class tokens, and the slots when its value is a slot-keyed object, directly or through a const. */
+function armOf(expression: ts.Expression, index: ScaleIndex): Arm {
+  const object = objectOf(expression, index, 0);
+  const slots = object?.properties.flatMap((property) => (ts.isSpreadAssignment(property) ? [] : [property.name.getText()])) ?? [];
+  return { tokens: classTokensOf(expression, index, 0), slots };
+}
+
 function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: number): ValueList {
   const sf = object.getSourceFile();
   const parts = object.properties.map((property): ValueList => {
@@ -110,17 +125,18 @@ function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: num
       return inner === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(inner, index, hops + 1);
     }
     const arm = property.name.getText(sf).replace(/^["']|["']$/gu, "");
-    const written = ts.isPropertyAssignment(property) ? classTokensOf(property.initializer, index, 0) : [];
+    const written = ts.isPropertyAssignment(property) ? armOf(property.initializer, index) : NO_WRITE;
     return { values: [arm], unread: ts.isMethodDeclaration(property), arms: new Map([[arm, written]]) };
   });
   return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread), arms: new Map(parts.flatMap((part) => [...part.arms])) };
 }
 
-/** The arms of two reads of one axis, each arm's tokens joined. */
+/** The arms of two reads of one axis, each arm's tokens and slots joined. */
 function mergeArms(left: ArmClasses, right: ArmClasses): ArmClasses {
-  const merged = new Map<string, string[]>();
-  for (const [arm, tokens] of [...left, ...right]) {
-    merged.set(arm, [...new Set([...(merged.get(arm) ?? []), ...tokens])]);
+  const merged = new Map<string, Arm>();
+  for (const [name, arm] of [...left, ...right]) {
+    const before = merged.get(name) ?? NO_WRITE;
+    merged.set(name, { tokens: [...new Set([...before.tokens, ...arm.tokens])], slots: [...new Set([...before.slots, ...arm.slots])] });
   }
   return merged;
 }

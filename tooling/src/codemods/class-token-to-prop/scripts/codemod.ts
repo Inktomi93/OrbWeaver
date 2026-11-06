@@ -44,6 +44,10 @@ const CODE_SEPARATOR = ": ";
 const JSX_ATTRIBUTE: RuleConfig<TSX> = { rule: { kind: "jsx_attribute" } };
 const STRING: RuleConfig<TSX> = { rule: { kind: "string" } };
 const SITE_KEYS = ["path", "source", "name", "attribute", "token", "prop", "value"] as const;
+const CLASS_JOINERS: ReadonlySet<string> = new Set(["cn", "cx", "clsx"]);
+const TRANSPARENT_PARENTS: ReadonlySet<string> = new Set(["jsx_expression", "parenthesized_expression", "arguments"]);
+const LOOKUP_PARENTS: ReadonlySet<string> = new Set(["subscript_expression", "member_expression", "object", "pair"]);
+const CONDITIONAL_REFUSAL: Refusal = { code: "conditional", detail: "the class sits under a condition the prop would lose" };
 
 const moved = useMetricAtom("class-token-to-prop.moved");
 const skipped = useMetricAtom("class-token-to-prop.skipped");
@@ -140,21 +144,42 @@ function carriesPlannedToken(node: SgNode<TSX>, sites: readonly Site[]): boolean
   return literals.some((literal) => tokensOf(literal).some((token) => sites.some((site) => site.token === token)));
 }
 
-/** A literal under `&&`, `||`, `??`, or a ternary whose other arm carries no planned token, is state the prop would lose. */
-function guardedByCondition(literal: SgNode<TSX>, attribute: SgNode<TSX>, sites: readonly Site[]): boolean {
+const isClassJoin = (call: SgNode<TSX>): boolean => CLASS_JOINERS.has(call.field("function")?.text() ?? "");
+
+/**
+ * Why a literal's place stops it moving, or null. The walk admits only the paths where the string is written unconditionally into the
+ * class list: a JSX expression, parentheses, an argument of a class joiner, and a ternary whose arms both carry a planned token.
+ * Anything else, a lookup, a helper or a shape not named here, could hand the string to something the prop would not reach.
+ */
+function placeRefusal(literal: SgNode<TSX>, attribute: SgNode<TSX>, sites: readonly Site[]): Refusal | null {
   for (let node = literal.parent(); node !== null && node.id() !== attribute.id(); node = node.parent()) {
-    if (node.kind() === "binary_expression") {
-      return true;
-    }
-    if (node.kind() === "ternary_expression") {
-      const arms = [node.field("consequence"), node.field("alternative")];
-      if (!arms.every((arm) => arm !== null && carriesPlannedToken(arm, sites))) {
-        return true;
-      }
+    const refusal = stepRefusal(node, sites);
+    if (refusal !== null) {
+      return refusal;
     }
   }
-  return false;
+  return null;
 }
+
+function stepRefusal(node: SgNode<TSX>, sites: readonly Site[]): Refusal | null {
+  const kind = node.kind();
+  if (kind === "binary_expression") {
+    return CONDITIONAL_REFUSAL;
+  }
+  if (kind === "ternary_expression") {
+    return [node.field("consequence"), node.field("alternative")].every((arm) => arm !== null && carriesPlannedToken(arm, sites)) ? null : CONDITIONAL_REFUSAL;
+  }
+  if (kind === "call_expression") {
+    return isClassJoin(node) ? null : { code: "helper", detail: `${node.field("function")?.text() ?? "a call"} decides what the string becomes` };
+  }
+  if (LOOKUP_PARENTS.has(kind)) {
+    return { code: "lookup", detail: "the string is one value of a lookup, so the prop would apply it in every state" };
+  }
+  return TRANSPARENT_PARENTS.has(kind) ? null : { code: "shape", detail: `the string sits under ${kind}` };
+}
+
+/** A `{...x}` on the element can carry a `className` or the prop, and which one wins depends on where it sits. */
+const carriesSpread = (attribute: SgNode<TSX>): boolean => (attribute.parent()?.children() ?? []).some((child) => child.kind() === "jsx_expression");
 
 /** The detail of why an element is not the planned component, or null when its import proves it is. */
 function unproven(attribute: SgNode<TSX>, site: Site): string | null {
@@ -227,14 +252,21 @@ function rewriteAttribute(attribute: SgNode<TSX>, claimed: readonly Site[]): Out
   };
 }
 
-/** Why the hit sites of one attribute stay: a conflict between their props, a condition around a literal, or a prop the element has. */
+/** Why the hit sites of one attribute stay: a conflict between their props, the place of a literal, a spread, or a prop the element has. */
 function refuse({ attribute, literals, rewrites, proven }: AttributeRewrite, hit: readonly Site[]): Refusal | null {
   const props = propsToAdd(hit);
   if (props === undefined) {
     return { code: "conflict", detail: "two planned tokens want different values for one prop" };
   }
-  if (literals.some((literal, index) => (rewrites[index]?.hit.length ?? 0) > 0 && guardedByCondition(literal, attribute, proven))) {
-    return { code: "conditional", detail: "the class sits under a condition the prop would lose" };
+  const placed = literals.flatMap((literal, index) => {
+    const refusal = (rewrites[index]?.hit.length ?? 0) > 0 ? placeRefusal(literal, attribute, proven) : null;
+    return refusal === null ? [] : [refusal];
+  });
+  if (placed[0] !== undefined) {
+    return placed[0];
+  }
+  if (carriesSpread(attribute)) {
+    return { code: "spread", detail: "a spread on the element can carry className or the prop" };
   }
   const existing = siblingAttributeNames(attribute);
   const present = [...props.keys()].find((prop) => existing.has(prop));

@@ -1,0 +1,36 @@
+{
+  "class-token-to-prop.moved": [
+    {
+      "cardinality": {
+        "prop": "justify"
+      },
+      "count": 1
+    }
+  ],
+  "class-token-to-prop.skipped": [
+    {
+      "cardinality": {
+        "reason": "helper"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "reason": "lookup"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "reason": "shape"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "reason": "spread"
+      },
+      "count": 2
+    }
+  ]
+}
