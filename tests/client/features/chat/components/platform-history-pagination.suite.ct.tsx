@@ -24,6 +24,8 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const EXTRA_ROWS = 115;
+// The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
+const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
 const ARRIVALS = 55;
 type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
 
@@ -222,7 +224,7 @@ for (const regime of [
         .toBeLessThanOrEqual(1);
       holdReads = false;
       refresh.release();
-      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator("[aria-busy]")).toHaveAttribute("aria-busy", "false");
+      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
       await expect(canonical).toContainText("Edited oldest history witness");
       await expect(deleted).toHaveCount(0);
       await jump.click();
@@ -239,7 +241,7 @@ for (const regime of [
         await expect(page.getByRole("listitem").filter({ has: page.locator(`[data-message-id="${arrival.id}"]`) })).toBeFocused();
       }
       await earlier.click();
-      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator("[aria-busy]")).toHaveAttribute("aria-busy", "false");
+      await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
       await expect(earlier).toBeDisabled();
       const firstArrival = arrivals[0] ?? last;
       await page

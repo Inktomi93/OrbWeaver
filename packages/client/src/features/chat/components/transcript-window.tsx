@@ -51,28 +51,43 @@ interface HistoryPagerState {
   readonly hasEarlier: boolean;
   readonly busy: boolean;
   readonly failed: boolean;
+  /** The rows paged in so far, or null before the first older page. */
+  readonly loaded: number | null;
   readonly onLoad: () => void;
-  readonly onRetry: () => void;
 }
 
-function HistoryPager({ available, hasEarlier, busy, failed, onLoad, onRetry }: HistoryPagerState): ReactNode {
+function HistoryPager({ available, hasEarlier, busy, failed, loaded, onLoad }: HistoryPagerState): ReactNode {
   const description = useId();
   if (!(available || failed)) {
     return null;
   }
   return (
-    <Stack className="print:hidden" gap="field">
-      {available ? (
-        <Row gap="field" align="center">
-          <Button aria-describedby={description} variant="ghost" size="sm" disabled={!hasEarlier || busy} onClick={onLoad}>
-            {EARLIER_MESSAGES_LABEL}
-          </Button>
-          <Text id={description} className="sr-only" role="status">
-            {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
-          </Text>
-        </Row>
+    // A failure keeps the pager in view, because a reader anywhere in the transcript pressed it or is owed the news.
+    <Stack className="print:hidden" data-keep-in-view={failed ? "" : undefined} plate="island">
+      {failed ? (
+        <Text className="px-field py-row" tone="destructive" role="alert" voice="label">
+          Couldn't load earlier messages. Try again.
+        </Text>
       ) : null}
-      {failed ? <QueryErrorState label="conversation history" onRetry={onRetry} /> : null}
+      <Row gap="field" align="center">
+        {/* Focusable at every state, so paging on with the keyboard never drops focus onto the page. */}
+        <Button
+          aria-describedby={description}
+          disabled={!(hasEarlier || failed)}
+          focusRing="inset"
+          focusableWhenDisabled={true}
+          loading={busy}
+          size="sm"
+          variant="ghost"
+          onClick={onLoad}
+        >
+          {EARLIER_MESSAGES_LABEL}
+        </Button>
+        <Text id={description} className="sr-only" role="status">
+          {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
+          {loaded === null ? "" : ` ${String(loaded)} messages loaded.`}
+        </Text>
+      </Row>
     </Stack>
   );
 }
@@ -100,24 +115,21 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
       void fetchNextPage().catch(globalThis.reportError);
     }
   }, [bridging, hasNextPage, isFetching, fetchNextPage]);
+  const merged = mergePages([...pages.data.pages, tail]);
   const pager: HistoryPagerState = {
     available: pages.hasPreviousPage || pages.data.pages.length > 1,
     hasEarlier: pages.hasPreviousPage,
     busy: pages.isFetching,
     failed: pages.isError,
-    onLoad: (): void => void pages.fetchPreviousPage().catch(globalThis.reportError),
-    onRetry: (): void => void pages.refetch().catch(globalThis.reportError),
+    loaded: pages.data.pages.length > 1 ? merged.messages.length : null,
+    // Only a failed refresh of the loaded pages retries by refetching; the next press after anything else is the next page.
+    onLoad: (): void => void (pages.isError && !pages.isFetchPreviousPageError ? pages.refetch() : pages.fetchPreviousPage()).catch(globalThis.reportError),
   };
   return (
     <Stack className="block-full min-block-0" gap="field" aria-busy={bridging || pages.isFetching}>
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
-      {props.render(
-        mergePages([...pages.data.pages, tail]),
-        null,
-        { earlier: pages.hasPreviousPage, later: false, settling: bridging },
-        <HistoryPager {...pager} />,
-      )}
+      {props.render(merged, null, { earlier: pages.hasPreviousPage, later: false, settling: bridging }, <HistoryPager {...pager} />)}
     </Stack>
   );
 }

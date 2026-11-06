@@ -325,6 +325,8 @@ forEachNonEmpty(KEYBOARD_VIEWPORTS, "KEYBOARD_VIEWPORTS", (viewport) => {
       await expect(earlier).toBeInViewport({ ratio: 1 });
       expect(await settledReadingRow(list)).toBe(parked);
       await expect(earlier).toBeInViewport({ ratio: 1 });
+      // Only the control stays in view: the member strip rides with the oldest row.
+      await expect(list.getByTestId(testId("chatCharacterBar"))).not.toBeInViewport();
     });
 
     test("at the latest row stays there when Earlier messages takes focus, and pressing it keeps the row they were reading", async ({ mount, page }) => {

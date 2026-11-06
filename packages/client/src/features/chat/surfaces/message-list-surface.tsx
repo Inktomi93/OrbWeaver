@@ -151,12 +151,8 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
                 messagesPage={messagesPage}
                 window={window}
                 edges={edges}
-                leading={
-                  <>
-                    {leading}
-                    {history}
-                  </>
-                }
+                leading={leading}
+                history={history}
               />
             )}
           />
@@ -186,11 +182,13 @@ function ChatThread({
   window,
   edges,
   leading,
+  history,
 }: ChatThreadProps & {
   readonly messagesPage: CanonPage;
   readonly window: AnchoredPage | null;
   readonly edges: TranscriptEdges;
   readonly leading: ReactNode;
+  readonly history: ReactNode;
 }): ReactElement {
   const trpc = useTRPC();
   const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
@@ -416,6 +414,7 @@ function ChatThread({
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
+        {history}
         <EmptyThread />
       </Stack>
     );
@@ -443,6 +442,7 @@ function ChatThread({
           }}
           rowNavigation="roving"
           leading={leading}
+          leadingAction={history}
           scrollContainerRef={jump.scrollContainerRef}
           followTail={window === null}
           scrollMode={behaviorPrefs.streamScrollMode}

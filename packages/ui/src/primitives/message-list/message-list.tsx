@@ -21,6 +21,13 @@ const OVERSCAN = 2;
  *  the same slot, so a stylesheet that picks a copy by this slot reads one shape. */
 export const MESSAGE_LIST_LEADING_SLOT = "message-list-leading";
 
+// The leading action pins while it holds keyboard focus, or while its content asks to stay in view. The fill covers the
+// rows under it on a plain background; over a wallpaper the action's own plate does.
+const LEADING_ACTION_PIN = [
+  "has-[:focus-visible,[data-keep-in-view]]:sticky has-[:focus-visible,[data-keep-in-view]]:inset-bs-0 has-[:focus-visible,[data-keep-in-view]]:z-(--z-overlay)",
+  "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:bg-background has-[:focus-visible,[data-keep-in-view]]:rounded-card",
+];
+
 // 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
 const SCROLL_END_THRESHOLD_PX = 80;
 
@@ -84,11 +91,15 @@ export interface MessageListProps<T> {
   readonly rowNavigation?: MessageListRowNavigation;
   readonly renderItem: (item: T, index: number) => ReactNode;
   /**
-   * Chrome that scrolls with the rows, above the first one (a history pager). It is part of the scroll content, so
-   * it leaves with the oldest rows and comes back with them, and it is not a row: no position, no roving stop. A keyboard
-   * reader can still tab to it from anywhere in the list: it pins over the rows while it holds focus, and the rows stay put.
+   * Chrome that scrolls with the rows, above the first one. It is part of the scroll content, so it leaves with the
+   * oldest rows and comes back with them, and it is not a row: no position, no roving stop.
    */
   readonly leading?: ReactNode;
+  /**
+   * A control below `leading` (a history pager) that scrolls the same way but stays reachable from any row: it pins over
+   * the rows, at its own size, while it holds keyboard focus or contains a `data-keep-in-view` element, and the rows stay put.
+   */
+  readonly leadingAction?: ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
   readonly className?: string;
   /** Escape hatch to the real scroll DOM node, e.g. for an external scroll-restoration hook. */
@@ -114,6 +125,7 @@ export function MessageList<T>({
   rowNavigation = "none",
   renderItem,
   leading,
+  leadingAction,
   className,
   scrollContainerRef,
   ref,
@@ -140,7 +152,8 @@ export function MessageList<T>({
     return undefined;
   }, [scrollContainerRef]);
   const [leadingNode, setLeadingNode] = useState<HTMLDivElement | null>(null);
-  // The leading chrome's content height, without its top inset. The inset and the `scrollMargin` that counts it apply only
+  const [leadingActionNode, setLeadingActionNode] = useState<HTMLDivElement | null>(null);
+  // The height of the leading chrome and its action, without the top inset. The inset and the `scrollMargin` that counts it apply only
   // while there is chrome to show: a caller's chrome can be all `display: none`, and an empty header must shift nothing.
   // virtual-core takes it as `scrollMargin`, so every offset it computes (ends, reveals, pins, a prepend's anchor) counts it.
   const [leadingPx, setLeadingPx] = useState(0);
@@ -159,7 +172,8 @@ export function MessageList<T>({
       return undefined;
     }
     const measure = (): void => {
-      const next = Math.round(leadingNode.getBoundingClientRect().height - Number.parseFloat(getComputedStyle(leadingNode).paddingBlockStart));
+      const chrome = leadingNode.getBoundingClientRect().height - Number.parseFloat(getComputedStyle(leadingNode).paddingBlockStart);
+      const next = Math.round(chrome + (leadingActionNode?.getBoundingClientRect().height ?? 0));
       // The chrome changes height when the caller's regime flips (a text-size change, a rotation), and rows re-measure in
       // the same pass; together they lose the reader's row, so the row read before the change is held through it.
       if (next !== leadingPxRef.current) {
@@ -171,8 +185,11 @@ export function MessageList<T>({
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(leadingNode);
+    if (leadingActionNode !== null) {
+      observer.observe(leadingActionNode);
+    }
     return (): void => observer.disconnect();
-  }, [leadingNode]);
+  }, [leadingNode, leadingActionNode]);
   const reducedMotion = usePrefersReducedMotion();
   // Follow-the-tail intent, moved ONLY by an external scroll (never by virtual-core's own drift).
   const stickToBottomRef = useRef(true);
@@ -338,7 +355,8 @@ export function MessageList<T>({
     holdReadingRowRef.current = (): void => {
       const el = scrollRef.current;
       const row = readingRowRef.current;
-      if (el === null || row === null || stickToBottomRef.current) {
+      // A reader at the chrome is reading it: chrome that grows there pushes the rows down and stays on screen.
+      if (el === null || row === null || stickToBottomRef.current || el.scrollTop < leadingPxRef.current) {
         return;
       }
       cancelHoldRef.current();
@@ -368,11 +386,11 @@ export function MessageList<T>({
     holdingRef.current = false;
   }, []);
 
-  // Tabbing to the leading chrome scrolls it into view, which would throw the reader to the oldest loaded row. The chrome
+  // Tabbing to the leading action scrolls it into view, which would throw the reader to the oldest loaded row. The action
   // pins while it holds focus, so the rows go back where they were. A pointer press is left alone: the reader is at the
-  // chrome already, and a held position would fight the prepend that press may start.
+  // action already, and a held position would fight the prepend that press may start.
   useEffect((): (() => void) | undefined => {
-    if (leadingNode === null) {
+    if (leadingActionNode === null) {
       return undefined;
     }
     let frame = 0;
@@ -391,12 +409,12 @@ export function MessageList<T>({
         setFollowing(following);
       });
     };
-    leadingNode.addEventListener("focusin", onFocusIn);
+    leadingActionNode.addEventListener("focusin", onFocusIn);
     return (): void => {
       cancelAnimationFrame(frame);
-      leadingNode.removeEventListener("focusin", onFocusIn);
+      leadingActionNode.removeEventListener("focusin", onFocusIn);
     };
-  }, [leadingNode, setFollowing, stopHold]);
+  }, [leadingActionNode, setFollowing, stopHold]);
 
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
@@ -524,16 +542,22 @@ export function MessageList<T>({
       className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
-      {leading === undefined ? null : (
+      {leading === undefined && leadingAction === undefined ? null : (
         // In flow above the row viewport, so it scrolls with the rows; its top inset is the rows' own block breathing.
         // Paper says what the transcript leaves out on its own, so none of this chrome prints.
         <div
           ref={setLeadingNode}
-          className="has-focus-visible:sticky has-focus-visible:inset-bs-0 has-focus-visible:z-(--z-overlay) has-focus-visible:bg-background print:hidden"
+          className="print:hidden"
           data-slot={MESSAGE_LIST_LEADING_SLOT}
           style={{ paddingBlockStart: leadingPx > 0 ? leadingInsetPx : 0 }}
         >
           {leading}
+        </div>
+      )}
+      {leadingAction === undefined ? null : (
+        // A sibling of the chrome, never inside it: a sticky box cannot leave its parent, and the chrome ends with the oldest row.
+        <div ref={setLeadingActionNode} className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}>
+          {leadingAction}
         </div>
       )}
       {/* A real list inside the log: semantic rows make the virtual position metadata valid. WHAT ANNOUNCES — why `log` not `feed`/`grid`, why only the tail is live: ./announce.ts. */}
