@@ -3,6 +3,7 @@ name: opus-builder
 description: Implementation in orbweaver where the design is the risk: architecture forks, long or cross-cutting refactors, migrations, wide coupled changes and ambiguous bugs. Give goal, constraints, done-criteria and the reason. Security work goes to security-builder.
 model: opus
 effort: medium
+autoCompactWindow: 500000
 permissionMode: acceptEdits
 color: blue
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*

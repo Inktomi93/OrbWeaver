@@ -75,13 +75,11 @@ Finish an active plan before opening new work. File a finding; it never jumps th
 
 ## Lane cap
 
-Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
+Owner ruling: run at most three agents beside the main session, at any model tier. Every agent counts, `code-reviewer` included. Raise the cap only on an explicit owner ruling, written here.
 
-Owner ruling: at most six Sonnet lanes (`fixer`, `builder`, `bulk-editor`) plus three Opus agents at once. Every Opus agent counts toward the cap: `opus-builder`, `security-builder` and `ux-reviewer` alike. `code-reviewer` runs outside the cap.
+Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the cap above for Codex. Schedule compiler and broad application runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 
-Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and broad application runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
-
-Owner ruling for Claude primary on Codex assignments: run at most four peer lanes. This peer limit replaces the model-specific cap above. Codex owns integration, independent review and shared-host scheduling. The peer does not dispatch forge or stickler.
+Owner ruling for Claude primary on Codex assignments: the cap above applies to peer lanes. Codex owns integration, independent review and shared-host scheduling.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start broad compiler or application runs minutes apart to limit shared-host load.
