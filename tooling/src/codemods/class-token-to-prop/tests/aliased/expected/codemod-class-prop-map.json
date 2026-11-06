@@ -1,0 +1,7 @@
+{
+  "owner": "fixture",
+  "sites": [
+    { "path": "a.tsx", "line": 2, "column": 32, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 3, "column": 31, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" }
+  ]
+}

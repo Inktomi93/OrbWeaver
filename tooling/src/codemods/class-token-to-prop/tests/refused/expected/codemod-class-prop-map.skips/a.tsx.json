@@ -1,0 +1,32 @@
+[
+  {
+    "path": "a.tsx",
+    "line": 2,
+    "token": "justify-end",
+    "reason": "spread: a spread on the element can carry className or the prop"
+  },
+  {
+    "path": "a.tsx",
+    "line": 3,
+    "token": "justify-end",
+    "reason": "spread: a spread on the element can carry className or the prop"
+  },
+  {
+    "path": "a.tsx",
+    "line": 4,
+    "token": "justify-end",
+    "reason": "lookup: the string is one value of a lookup, so the prop would apply it in every state"
+  },
+  {
+    "path": "a.tsx",
+    "line": 5,
+    "token": "justify-end",
+    "reason": "helper: pick decides what the string becomes"
+  },
+  {
+    "path": "a.tsx",
+    "line": 6,
+    "token": "justify-end",
+    "reason": "shape: the string sits under array"
+  }
+]

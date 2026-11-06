@@ -1,0 +1,10 @@
+{
+  "owner": "fixture",
+  "sites": [
+    { "path": "a.tsx", "line": 6, "column": 26, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 8, "column": 32, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 9, "column": 34, "source": "@orb/ui/layout", "name": "Gap", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 10, "column": 33, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 11, "column": 34, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" }
+  ]
+}

@@ -13,7 +13,7 @@ const MAX_HOPS = 3;
 const DOOR_EXPORT = /^\.\/([^/]+)$/u;
 
 /** door name to its directory under packages/ui/src, from the package exports map. */
-function doorDirs(root: string): ReadonlyMap<string, string> {
+export function doorDirs(root: string): ReadonlyMap<string, string> {
   const pkg = JSON.parse(readFileSync(join(root, "packages/ui/package.json"), "utf8")) as { readonly exports: Readonly<Record<string, unknown>> };
   const map = new Map<string, string>();
   for (const [key, target] of Object.entries(pkg.exports)) {
@@ -25,14 +25,30 @@ function doorDirs(root: string): ReadonlyMap<string, string> {
   return map;
 }
 
-interface ValueList {
-  readonly values: readonly string[];
-  /** A spread or an expression the syntax could not open: the list may be short. */
+export interface Arm {
+  /** The class tokens its `tv` value writes, across every slot. */
+  readonly tokens: readonly string[];
+  /** The slots a slot-keyed value writes; empty for a plain class string, which lands on the element itself. */
+  readonly slots: readonly string[];
+  /** The value holds an expression the reader could not open, so `tokens` may be short. */
   readonly unread: boolean;
 }
 
+/** Arm name to what its `tv` value writes. */
+export type ArmClasses = ReadonlyMap<string, Arm>;
+
+export interface ValueList {
+  readonly values: readonly string[];
+  /** A spread or an expression the syntax could not open: the list may be short. */
+  readonly unread: boolean;
+  readonly arms: ArmClasses;
+}
+
+const NO_ARMS: ArmClasses = new Map();
+const NO_WRITE: Arm = { tokens: [], slots: [], unread: false };
+
 /** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
-type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
+export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
 
 function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expression])[] {
   return sf.statements
@@ -48,7 +64,7 @@ function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expre
     );
 }
 
-function scaleIndex(sources: readonly Source[]): ScaleIndex {
+export function scaleIndex(sources: readonly Source[]): ScaleIndex {
   const index = new Map<string, ts.ObjectLiteralExpression | null>();
   for (const source of sources) {
     for (const [name, init] of source.layer === "ui" && source.sf !== null ? exportedConsts(source.sf) : []) {
@@ -77,21 +93,80 @@ function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): t
   return first === undefined ? null : objectOf(first, index, hops + 1);
 }
 
+const isKeyOf = (node: ts.Node): boolean => (ts.isPropertyAssignment(node.parent) || ts.isPropertyAccessExpression(node.parent)) && node.parent.name === node;
+
+interface ClassRead {
+  readonly tokens: readonly string[];
+  /** A name the read could not resolve: it writes classes nobody here can see. */
+  readonly unread: boolean;
+}
+
+function readName(node: ts.Identifier, index: ScaleIndex, hops: number): ClassRead {
+  const target = hops < MAX_HOPS ? (constInitializer(node.getSourceFile(), node.text) ?? index.get(node.text)) : null;
+  return target === undefined || target === null ? { tokens: [], unread: true } : readClasses(target, index, hops + 1);
+}
+
+/** The class tokens an expression writes: every string in it, and the strings of a const it names (this file, else a unique ui export). */
+export function readClasses(expression: ts.Node, index: ScaleIndex, hops: number): ClassRead {
+  const tokens: string[] = [];
+  let unread = false;
+  visit(expression, (node) => {
+    if (isKeyOf(node)) {
+      return;
+    }
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      tokens.push(...node.text.split(/\s+/u));
+    } else if (ts.isIdentifier(node) && node.text !== "undefined") {
+      const read = readName(node, index, hops);
+      tokens.push(...read.tokens);
+      unread ||= read.unread;
+    }
+  });
+  return { tokens: tokens.filter((token) => token !== ""), unread };
+}
+
+export const classTokensOf = (expression: ts.Node, index: ScaleIndex, hops: number): readonly string[] => readClasses(expression, index, hops).tokens;
+
+/** What one arm writes: its class tokens, and the slots when its value is a slot-keyed object, directly or through a const. */
+function armOf(expression: ts.Expression, index: ScaleIndex): Arm {
+  const object = objectOf(expression, index, 0);
+  const slots = object?.properties.flatMap((property) => (ts.isSpreadAssignment(property) ? [] : [property.name.getText()])) ?? [];
+  return { ...readClasses(expression, index, 0), slots };
+}
+
 function keysOf(object: ts.ObjectLiteralExpression, index: ScaleIndex, hops: number): ValueList {
   const sf = object.getSourceFile();
   const parts = object.properties.map((property): ValueList => {
     if (ts.isSpreadAssignment(property)) {
       const inner = hops < MAX_HOPS ? objectOf(property.expression, index, hops + 1) : null;
-      return inner === null ? { values: [], unread: true } : keysOf(inner, index, hops + 1);
+      return inner === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(inner, index, hops + 1);
     }
-    return { values: [property.name.getText(sf).replace(/^["']|["']$/gu, "")], unread: ts.isMethodDeclaration(property) };
+    const arm = property.name.getText(sf).replace(/^["']|["']$/gu, "");
+    const written = ts.isPropertyAssignment(property) ? armOf(property.initializer, index) : { ...NO_WRITE, unread: true };
+    return { values: [arm], unread: ts.isMethodDeclaration(property), arms: new Map([[arm, written]]) };
   });
-  return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread) };
+  return { values: parts.flatMap((part) => part.values), unread: parts.some((part) => part.unread), arms: new Map(parts.flatMap((part) => [...part.arms])) };
 }
 
-function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+/** The arms of two reads of one axis, each arm's tokens and slots joined. */
+function mergeArms(left: ArmClasses, right: ArmClasses): ArmClasses {
+  const merged = new Map<string, Arm>();
+  for (const [name, arm] of [...left, ...right]) {
+    const before = merged.get(name) ?? NO_WRITE;
+    merged.set(name, {
+      tokens: [...new Set([...before.tokens, ...arm.tokens])],
+      slots: [...new Set([...before.slots, ...arm.slots])],
+      unread: before.unread || arm.unread,
+    });
+  }
+  return merged;
+}
+
+/** The axes the `variants` objects under `root` declare, with their arms. */
+export function axesIn(root: ts.Node, index: ScaleIndex): ReadonlyMap<string, ValueList> {
+  const sf = root.getSourceFile();
   const axes = new Map<string, ValueList>();
-  visit(sf, (node) => {
+  visit(root, (node) => {
     if (!(ts.isPropertyAssignment(node) && node.name.getText(sf) === "variants" && ts.isObjectLiteralExpression(node.initializer))) {
       return;
     }
@@ -101,9 +176,13 @@ function axesIn(sf: ts.SourceFile, index: ScaleIndex): ReadonlyMap<string, Value
       }
       const name = axis.name.getText(sf);
       const object = objectOf(axis.initializer, index, 0);
-      const read: ValueList = object === null ? { values: [], unread: true } : keysOf(object, index, 0);
+      const read: ValueList = object === null ? { values: [], unread: true, arms: NO_ARMS } : keysOf(object, index, 0);
       const before = axes.get(name);
-      axes.set(name, { values: [...(before?.values ?? []), ...read.values], unread: read.unread || before?.unread === true });
+      axes.set(name, {
+        values: [...(before?.values ?? []), ...read.values],
+        unread: read.unread || before?.unread === true,
+        arms: mergeArms(before?.arms ?? NO_ARMS, read.arms),
+      });
     }
   });
   return axes;

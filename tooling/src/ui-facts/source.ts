@@ -69,6 +69,10 @@ export interface Elem {
   readonly kind: ElementKind;
   /** The `@orb/ui/<door>` the tag came from, when it is a ui element. */
   readonly door: string | null;
+  /** The module specifier and exported name the tag was imported under, so an aliased import still names its component; null for a tag no import binds. */
+  readonly imported: ImportedName | null;
+  /** The tag was read from an `of` attribute: the attributes are written on the carrier, not on this component. */
+  readonly carried: boolean;
   readonly line: number;
   readonly opening: ts.JsxOpeningLikeElement;
   readonly element: ts.JsxElement | ts.JsxSelfClosingElement;
@@ -78,8 +82,14 @@ export interface Elem {
   readonly spreads: readonly ts.Expression[];
 }
 
-function importsOf(sf: ts.SourceFile): ReadonlyMap<string, string> {
-  const map = new Map<string, string>();
+interface ImportedName {
+  readonly source: string;
+  /** The exported name; `default` for a default import. */
+  readonly name: string;
+}
+
+function importsOf(sf: ts.SourceFile): ReadonlyMap<string, ImportedName> {
+  const map = new Map<string, ImportedName>();
   for (const statement of sf.statements) {
     if (!(ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier))) {
       continue;
@@ -87,37 +97,44 @@ function importsOf(sf: ts.SourceFile): ReadonlyMap<string, string> {
     const from = statement.moduleSpecifier.text;
     const clause = statement.importClause;
     if (clause?.name !== undefined) {
-      map.set(clause.name.text, from);
+      map.set(clause.name.text, { source: from, name: "default" });
     }
     const bindings = clause?.namedBindings;
     if (bindings !== undefined && ts.isNamedImports(bindings)) {
       for (const specifier of bindings.elements) {
-        map.set(specifier.name.text, from);
+        map.set(specifier.name.text, { source: from, name: (specifier.propertyName ?? specifier.name).text });
       }
     }
   }
   return map;
 }
 
-function doorOf(from: string): string | null {
+export function doorOf(from: string): string | null {
   const match = /^@orb\/ui\/([^/]+)/u.exec(from);
   return match?.[1] ?? null;
 }
 
-function kindOf(tag: string, imports: ReadonlyMap<string, string>): { readonly kind: ElementKind; readonly door: string | null } {
+interface TagKind {
+  readonly kind: ElementKind;
+  readonly door: string | null;
+  readonly imported: ImportedName | null;
+}
+
+function kindOf(tag: string, imports: ReadonlyMap<string, ImportedName>): TagKind {
   const root = tag.split(".")[0] ?? tag;
   if (/^[a-z]/u.test(root)) {
-    return { kind: "raw", door: null };
+    return { kind: "raw", door: null, imported: null };
   }
-  const from = imports.get(root);
-  if (from === undefined) {
-    return { kind: "local", door: null };
+  const imported = imports.get(root);
+  if (imported === undefined) {
+    return { kind: "local", door: null, imported: null };
   }
-  const door = doorOf(from);
+  const door = doorOf(imported.source);
   if (door !== null) {
-    return { kind: "ui", door };
+    return { kind: "ui", door, imported };
   }
-  return from === "#components" || /\/components\//u.test(from) ? { kind: "composite", door: null } : { kind: "local", door: null };
+  const composite = imported.source === "#components" || /\/components\//u.test(imported.source);
+  return { kind: composite ? "composite" : "local", door: null, imported };
 }
 
 /** A `<Track of={Stack}>` renders the element named by its `of` attribute with the remaining attributes, so that element is the one written to. */
@@ -143,8 +160,19 @@ export function elementsOf(sf: ts.SourceFile): readonly Elem[] {
         spreads.push(attribute.expression);
       }
     }
-    const tag = carrierOf(attrs) ?? opening.tagName.getText(sf);
-    out.push({ tag, ...kindOf(tag, imports), line: lineOf(sf, opening), opening, element: node, attrs, hasSpread: spreads.length > 0, spreads });
+    const carried = carrierOf(attrs);
+    const tag = carried ?? opening.tagName.getText(sf);
+    out.push({
+      tag,
+      ...kindOf(tag, imports),
+      carried: carried !== undefined,
+      line: lineOf(sf, opening),
+      opening,
+      element: node,
+      attrs,
+      hasSpread: spreads.length > 0,
+      spreads,
+    });
   });
   return out;
 }

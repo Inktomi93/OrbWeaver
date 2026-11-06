@@ -25,9 +25,9 @@ const INTRINSIC_KIND: Readonly<Record<string, string>> = {
   h6: "raw-heading",
 };
 
-const CLUSTER_TOKENS = 3;
+export const CLUSTER_TOKENS = 3;
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);
-const CONTAINER_TAGS = new Set(["div", "span", "li", "p", "section", "article", "header", "footer", "main", "nav", "aside"]);
+export const CONTAINER_TAGS = new Set(["div", "span", "li", "p", "section", "article", "header", "footer", "main", "nav", "aside"]);
 // The icon set draws its own glyphs; these directories are where an svg is the work.
 const SVG_HOMES = /^packages\/ui\/src\/(?:primitives\/icons|art|charts|markdown)\//u;
 

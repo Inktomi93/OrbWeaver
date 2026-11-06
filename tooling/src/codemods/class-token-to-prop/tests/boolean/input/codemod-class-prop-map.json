@@ -1,3 +1,7 @@
 {
-  "rules": [{ "element": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" }]
+  "owner": "fixture",
+  "sites": [
+    { "path": "a.tsx", "line": 2, "column": 33, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" },
+    { "path": "a.tsx", "line": 3, "column": 30, "source": "@orb/ui/layout", "name": "Stack", "attribute": "className", "token": "outline-none", "prop": "focusTarget", "value": "{true}" }
+  ]
 }

@@ -1,0 +1,16 @@
+{
+  "class-token-to-prop.moved": [
+    {
+      "cardinality": {
+        "prop": "padding"
+      },
+      "count": 4
+    },
+    {
+      "cardinality": {
+        "prop": "width"
+      },
+      "count": 2
+    }
+  ]
+}

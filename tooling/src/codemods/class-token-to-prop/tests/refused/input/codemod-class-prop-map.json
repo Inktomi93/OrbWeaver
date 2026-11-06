@@ -1,0 +1,11 @@
+{
+  "owner": "fixture",
+  "sites": [
+    { "path": "a.tsx", "line": 2, "column": 46, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 3, "column": 34, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 4, "column": 39, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 5, "column": 36, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 6, "column": 30, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" },
+    { "path": "a.tsx", "line": 7, "column": 34, "source": "@orb/ui/layout", "name": "Row", "attribute": "className", "token": "justify-end", "prop": "justify", "value": "end" }
+  ]
+}

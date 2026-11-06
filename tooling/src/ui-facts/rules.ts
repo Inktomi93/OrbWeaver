@@ -134,6 +134,29 @@ export const NOT_LINTABLE: readonly NotLintable[] = [
   },
 ];
 
+export const HAND_ROLLING_CANNOT_SEE: readonly string[] = [
+  "Stylesheets are read with the css-tree AST and code with the TypeScript parser. A value assembled across statements, a template with substitutions and a number passed to a prop other than `style` are not read.",
+  'A string is read only when the whole string is one CSS value (`"20rem"`) or one media condition. A value inside a longer string, or a number in a data table, is not a hit.',
+  "A constant is found by a unit word at the end of its name (`_MS`, `Px`, `_REM`, `_SEC`) or by a numeric delay to `setTimeout`, `setInterval`, `debounce` or `throttle`. A number named any other way, or a delay given to another hook, is not seen.",
+  "A timing constant matches a motion token only when its name carries an animation word; an equal number alone is a coincidence. A px or rem constant stays a keep unless several repeat it.",
+  "Repeated constants group by value and by the word before the unit, not by meaning. Two constants with one word can name different concepts.",
+  "A class utility is a recipe move only when the element's own `@orb/ui` component applies a `tv()` table whose arm writes that exact class, and forwards the axis under its own name. The component is read from its own file; a component that renders another door's core, or applies its table through a helper the syntax cannot follow, has no entry and gets no verdict. An arm is read as the string literals in its `tv()` value, through a same-file const or a unique ui export, so a class an arm builds with a call or a template substitution is not seen. A slot-keyed arm names its slots in the reason.",
+  "Every axis of the element's table is searched for a class, so an axis needs no entry in the census. Two classes are one utility family when the merger from `@orb/ui/lib` makes each evict the other. A class no arm writes is `new arm` when an axis writes its family, `no axis` when only another component of the door does, and is not reported otherwise. A utility the merger does not group, such as `shadow-card`, has no family. A class under a variant, a ternary, `&&`, `||` or `??`, a value of a lookup map or an argument of a helper other than `cn` is marked conditional, since an arm is one unconditional class.",
+  "A token is offered as an owner by value only when it is a general scale step or role. The purpose-scoped tokens (`SCOPED` in `hand-scope.ts`, from the token descriptions) are reported as a `decide` with the scoped token named. A family row scopes a new step in that family; a token minted in any other family is general until a row names it. A row that matches no token is printed in the report.",
+  "A `ps-*` or `pe-*` class on a primitive is a keep unless an arm writes it. The repeated constants in `COINCIDENT_CONSTANTS` are keeps, read one by one; a group that gains a member is a repeat again.",
+  "A container query condition in a stylesheet is a keep: it cannot read a custom property. A media condition is still priced against the breakpoint tokens.",
+  "An alpha on an intent colour is a tone-role move (D336); an alpha on a neutral colour is a `decide`. A neutral tone's roles may own some of those steps; the census cannot tell which.",
+  "A `className` on a composite or a local component is not read for an owner, and a `*ClassName` prop styles a part, not the element. Nothing is read through a spread.",
+  "Tailwind numeric steps are priced at 4px a step; the theme resets that scale, so a raw `p-5` may not generate a rule at all.",
+  "A style value is a design value only when it is a literal or a branch of a conditional, `??` or `||` over literals. Any other expression reads as a runtime value, including a user colour that should have been a token.",
+  "A repeated cluster is the same sorted set of three or more class tokens written three or more times, judged once per kind of element that wears it: a composite is offered to raw containers and layout primitives only. A class constant names no element, so its uses are a decision. A near-duplicate set is not matched.",
+  "A string under a `tv()` call is class text except an arm key, a default arm, a compound condition and a string compared with `===`. A sentinel is found by the word `sentinel` in the name of the constant that holds it, and a feature probe by sitting in an `@supports` test.",
+  "A colour equals a token only by identical normalised text. A hex or `rgb()` is never equal to an `oklch()` token, so it reads as a new token.",
+  "A component is found by the name its import exports, so an aliased import reads its own table.",
+  "A migration plan (`--plan`) lists a recipe row only when `move-proof.ts` proves the move renders the same: the arm writes exactly that class, on the element, with no compound, default or `data-*` attribute riding on the prop, and nothing that renders after the axis's slot conflicts with the class. Conflict is the merger's word. A class an arm builds at runtime and a class in a caller's `className` behind a spread are not seen; the codemod skips a spread, a lookup and a helper call. The typecheck after the rewrite proves the prop exists.",
+  "CSS selector context and the cascade are not read, and a value that only the cascade produces is not seen. Generated files are skipped by their header.",
+];
+
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
   "Class strings assembled across statements are not read. A constant is read when it is named *Class or *Classes, or when a className, *ClassName, cn or tv in its own file or a relative importer reads it; an import through an alias is not followed.",

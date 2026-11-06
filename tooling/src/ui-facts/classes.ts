@@ -1,6 +1,8 @@
 // Tailwind class tokens: which hand-rolled kind a token is, and every class string a source file writes.
 import { posix } from "node:path";
 import ts from "typescript";
+import type { ClassExpression } from "./class-expression.ts";
+import { classesIn, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Elem, Source } from "./source.ts";
 import { constInitializers, elementsOf, lineOf, visit } from "./source.ts";
 import type { TokenNamespace } from "./tokens.ts";
@@ -19,9 +21,11 @@ const SPACING_UTILITY = /^(?:p[xytrbsel]?|m[xytrbsel]?|gap(?:-[xy])?|space-[xy]|
 const PALETTE =
   /^(?:bg|text|border|ring|fill|stroke|outline|decoration|from|via|to)-(?:white|black|slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)\b/u;
 const VIEWPORT_VARIANT = /^(?:max-)?(?:sm|md|lg|xl|2xl):/u;
+/** A colour utility at an alpha, by number or by a named `--opacity-*` step; the group is the colour. */
+export const ALPHA_UTILITY = /^(?:bg|text|border|ring|fill|stroke|from|via|to)-([^\s/]+)\/[^\s/]+$/u;
 
 /** The part of a token after its last top-level variant colon, with the important marks and a negative sign removed. */
-function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
+export function baseOf(token: string): { readonly base: string; readonly variants: string; readonly important: boolean } {
   let depth = 0;
   let cut = -1;
   for (let index = 0; index < token.length; index += 1) {
@@ -82,7 +86,7 @@ const SIMPLE: readonly (readonly [RegExp, string])[] = [
   [/^shadow(?:-(?:xs|sm|md|lg|xl|2xl|inner|none))?$/u, "tw-shadow"],
   [/^(?:border(?:-[xytrbse])?(?:-\d+)?|ring(?:-\d+)?|outline-\d+)$/u, "tw-border"],
   [/^opacity-\d+$/u, "tw-opacity"],
-  [/^(?:bg|text|border|ring|fill|stroke|from|via|to)-[^\s/]+\/\d+$/u, "tw-alpha"],
+  [ALPHA_UTILITY, "tw-alpha"],
   [/^z-(?:\d+|auto)$/u, "tw-z"],
   [/^(?:bg-(?:gradient|linear|radial|conic)|from-|via-|to-)/u, "tw-gradient"],
   [/^(?:translate-[xyz]|rotate|scale(?:-[xy])?|skew-[xy])-(?:\d+(?:\/\d+)?|px|full)$/u, "tw-transform"],
@@ -117,28 +121,114 @@ export interface ClassString {
   readonly line: number;
   readonly tokens: readonly string[];
   readonly elem: Elem | null;
+  /** The string is applied only when something else holds: a branch of a ternary, the right side of `&&`, `||` or `??`, a class-object key, a value of a lookup map, or an argument of a helper. */
+  readonly conditional: boolean;
+  /** The string is a plain literal; a template piece is not. */
+  readonly plain: boolean;
+  /** Every class the same root writes, this string's included. */
+  readonly rootTokens: readonly string[];
+  /** The first expression of the root the class reader could not open, or null when every class is known. */
+  readonly opaque: string | null;
+  /** The column, from 0, the string starts at: two elements on one line are two sites. */
+  readonly column: number;
 }
 
-function stringsIn(node: ts.Node): readonly ts.Node[] {
-  const found: ts.Node[] = [];
-  visit(node, (inner) => {
-    if (
+const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
+const RECIPE_CALLEES = new Set(["tv", "cva"]);
+
+function classCallee(node: ts.Node): boolean {
+  return ts.isCallExpression(node) && ts.isIdentifier(node.expression) && CLASS_CALLEES.has(node.expression.text);
+}
+
+const EQUALITY: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsEqualsToken,
+  ts.SyntaxKind.EqualsEqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsEqualsToken,
+]);
+const GUARDING: ReadonlySet<ts.SyntaxKind> = new Set([ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken]);
+// Inside a `tv()` config these hold conditions and defaults, never classes; only a `class` or `className` property of a compound entry does.
+const RECIPE_STATE = new Set(["defaultVariants", "compoundVariants", "compoundSlots"]);
+const RECIPE_CLASS = new Set(["class", "className"]);
+
+const propertyName = (node: ts.Node): string | null =>
+  ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) ? node.name.text : null;
+
+/** The properties between a string and the root that encloses it, nearest first. */
+function enclosingProperties(node: ts.Node, root: ts.Node): readonly string[] {
+  const names: string[] = [];
+  for (let parent = node.parent; !ts.isSourceFile(parent) && parent !== root.parent; parent = parent.parent) {
+    const name = propertyName(parent);
+    if (name !== null) {
+      names.push(name);
+    }
+  }
+  return names;
+}
+
+const isRecipeRoot = (root: ts.Node): boolean => ts.isCallExpression(root) && ts.isIdentifier(root.expression) && RECIPE_CALLEES.has(root.expression.text);
+
+/** A string that names a variant arm, sets a default arm or is compared with a value is not class text. */
+function isLabel(node: ts.Node, root: ts.Node): boolean {
+  const parent = node.parent;
+  if (ts.isBinaryExpression(parent) && EQUALITY.has(parent.operatorToken.kind)) {
+    return true;
+  }
+  if (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) {
+    return true;
+  }
+  if (!isRecipeRoot(root)) {
+    return false;
+  }
+  if (ts.isPropertyAssignment(parent) && parent.name === node) {
+    return true;
+  }
+  const names = enclosingProperties(node, root);
+  const [nearest] = names;
+  return names.includes("defaultVariants") || (names.some((name) => RECIPE_STATE.has(name)) && !RECIPE_CLASS.has(nearest ?? ""));
+}
+
+/** The string is applied only when something else holds. */
+function isConditional(node: ts.Node, root: ts.Node): boolean {
+  for (let child = node; child !== root; child = child.parent) {
+    const parent = child.parent;
+    if (ts.isConditionalExpression(parent) && parent.condition !== child) {
+      return true;
+    }
+    if (ts.isBinaryExpression(parent) && GUARDING.has(parent.operatorToken.kind) && parent.right === child) {
+      return true;
+    }
+    // A `cn({ "p-row": isRow })` key is a class applied when its value holds; a value of `{ open: "p-row" }[state]` is a class the lookup picks.
+    if (ts.isPropertyAssignment(parent) && !isRecipeRoot(root)) {
+      return true;
+    }
+    // A helper other than a class joiner decides what happens to its arguments.
+    if (ts.isCallExpression(parent) && parent.expression !== child && !classCallee(parent)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+interface ClassPiece {
+  readonly node: ts.Node;
+  readonly conditional: boolean;
+}
+
+function piecesIn(root: ts.Node): readonly ClassPiece[] {
+  const found: ClassPiece[] = [];
+  visit(root, (inner) => {
+    const text =
       ts.isStringLiteral(inner) ||
       ts.isNoSubstitutionTemplateLiteral(inner) ||
       ts.isTemplateHead(inner) ||
       ts.isTemplateMiddle(inner) ||
-      ts.isTemplateTail(inner)
-    ) {
-      found.push(inner);
+      ts.isTemplateTail(inner);
+    if (text && !isLabel(inner, root)) {
+      found.push({ node: inner, conditional: isConditional(inner, root) });
     }
   });
   return found;
-}
-
-const CLASS_CALLEES = new Set(["cn", "cx", "tv", "cva", "clsx"]);
-
-function classCallee(node: ts.Node): boolean {
-  return ts.isCallExpression(node) && ts.isIdentifier(node.expression) && CLASS_CALLEES.has(node.expression.text);
 }
 
 const CLASS_CONSTANT = /(?:CLASS|CLASSES|Class|Classes)$/u;
@@ -150,6 +240,11 @@ function literalText(node: ts.Node): string {
     ? node.text
     : "";
 }
+
+const tokensOf = (node: ts.Node): readonly string[] =>
+  literalText(node)
+    .split(/\s+/u)
+    .filter((token) => token !== "");
 
 const declaredName = (node: ts.Node): string | null => (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) ? node.name.text : null);
 
@@ -240,17 +335,24 @@ export function referencedClassConstants(sources: readonly Source[]): ReadonlySe
   return found;
 }
 
+/** What a `className` value writes. */
+export function attributeClasses(value: ts.Node): ClassExpression {
+  const expression = ts.isJsxExpression(value) ? value.expression : value;
+  return expression !== undefined && (ts.isExpression(expression) || ts.isStringLiteral(expression))
+    ? readClassExpression(expression)
+    : { kind: "opaque", text: value.getText() };
+}
+
 /** Every class string a file writes: class attributes, `cn`/`tv` calls, `*Class` constants and the constants a class context reads. */
 export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = (node: ts.Node, elem: Elem | null): void => {
-    const tokens = literalText(node)
-      .split(/\s+/u)
-      .filter((token) => token !== "");
+  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], opaque: string | null): void => {
+    const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
-      out.push({ path, line: lineOf(sf, node), tokens, elem });
+      const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
+      out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaque });
     }
   };
   const byOpening = new Map<ts.Node, Elem>();
@@ -264,8 +366,11 @@ export function classStringsOf(path: string, sf: ts.SourceFile, referenced: Read
     }
     // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
     const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
-    for (const piece of stringsIn(root)) {
-      emit(piece, elem);
+    const pieces = piecesIn(root);
+    const read = elem === null ? null : attributeClasses(root);
+    const rootTokens = [...new Set([...pieces.flatMap((piece) => tokensOf(piece.node)), ...(read === null ? [] : classesIn(read))])];
+    for (const piece of pieces) {
+      emit(piece, elem, rootTokens, read === null ? null : opaqueIn(read));
     }
   });
   return out;

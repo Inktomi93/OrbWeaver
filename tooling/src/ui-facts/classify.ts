@@ -80,7 +80,7 @@ const PAINT_WORDS: readonly (readonly [RegExp, string])[] = [
 ];
 
 /** A proposed composite name from the cluster's layout and dominant paint; a proposal for a reviewer, not a decision. */
-function proposeName(cluster: string): string {
+export function proposeName(cluster: string): string {
   const tokens = cluster.split(/\s+/u);
   const has = (word: string): boolean => tokens.some((token) => token === word || token.endsWith(`:${word}`));
   let layout = "Box";
