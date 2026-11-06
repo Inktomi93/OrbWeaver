@@ -11,15 +11,15 @@ plan: cross-surface-consistency
 
 ## What
 
-Stack's padding axes sit before artDecoration, so a padding prop keeps the art pane's ps and pe reservation while a padding class evicts it. ReadingBox writes PLATE_INSET and PAGE_INSET as classes, so a portrait's reservation is dropped and text can run into the art. The reservation is correct design and wins: move ReadingBox to padding props. Give the name row's reach and its px-field one owner, so no class order decides the padding. Remove the rule's skip for these sites.
+ReadingBox serves flat and document, which paint no art, yet it accepts artDecoration, so the recipe holds states no chat style reaches and PLATE_INSET and PAGE_INSET stay as classes. Remove artDecoration from ReadingBox's props so the case cannot compile, and move its insets to padding props. Only echo's bubble box takes a portrait; check its reservation still clears the text. Give the name row's reach and tide's px-field one owner, so no class order decides the padding. Remove the rule's skip for these sites.
 
 ## Why
 
-A padding prop and a padding class render differently on the same element, and the rule skips them. Keeping a wrong render because moving it changes pixels is the problem this initiative exists to fix.
+A padding prop and a padding class render differently on the same element only for states that cannot occur, and the rule skips real sites because of them. Keeping a class because moving it changes pixels is the problem this initiative exists to fix.
 
 ## Done when
 
-With a portrait set, a CT shows reading text clear of the art pane in every chat style, the name row keeps its reach and inset through one owner, no class order comment remains, and the rule refuses these classes with no skip.
+ReadingBox takes no artDecoration and writes no inset class, echo's text clears its art pane in a CT on both sides, the name row keeps its reach and inset through one owner, no class order comment remains, and the rule refuses these classes with no skip.
 
 ## Evidence
 
