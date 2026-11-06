@@ -7,7 +7,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { ContextDefinition, ListPaneHeaderView, ListSearchPolicy } from "#lib";
+import type { ContextDefinition, ListPaneHeaderView } from "#lib";
 import type { PanelMode, PanelName, PhoneLanding } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 
@@ -98,7 +98,6 @@ interface SectionWithList {
   readonly list: () => ReactNode;
   /** The shell renders the identity from data, so a section cannot substitute its own band anatomy. */
   readonly useListHeader: () => ListPaneHeaderView;
-  readonly listSearch: ListSearchPolicy;
   readonly selection: SectionSelection;
   /** The phone's existing list door names its destination when the section has a more precise noun. */
   readonly listDoorLabel?: {
@@ -111,7 +110,6 @@ interface SectionWithoutList {
   readonly listDoorLabel?: never;
   readonly list?: never;
   readonly useListHeader?: never;
-  readonly listSearch?: never;
   readonly selection?: never;
 }
 

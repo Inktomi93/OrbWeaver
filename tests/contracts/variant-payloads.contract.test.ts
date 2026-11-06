@@ -69,14 +69,14 @@ test("command enum declarations retain their options and native default checks",
 test("known update verdicts require upstream identity and unknown verdicts require their reason", () => {
   const remote = { channel: "main", commit: "upstream", short: "upstream", committedAt: null };
   for (const value of [
-    { status: "behind", local: "local", remote, reason: null },
-    { status: "up-to-date", local: "upstream", remote, reason: null },
-    { status: "unknown", local: "unknown", remote, reason: "no local commit" },
-    { status: "unknown", local: "local", remote: null, reason: "offline" },
+    { status: "behind", remote, reason: null },
+    { status: "up-to-date", remote, reason: null },
+    { status: "unknown", remote, reason: "no local commit" },
+    { status: "unknown", remote: null, reason: "offline" },
   ]) {
     expect(updateCheckSchema.parse(value)).toEqual(value);
   }
-  expect(updateCheckSchema.safeParse({ status: "behind", local: "local", remote: null, reason: null }).success).toBe(false);
-  expect(updateCheckSchema.safeParse({ status: "unknown", local: "local", remote, reason: null }).success).toBe(false);
-  expect(updateCheckSchema.safeParse({ status: "up-to-date", local: "local", remote, reason: "offline" }).success).toBe(false);
+  expect(updateCheckSchema.safeParse({ status: "behind", remote: null, reason: null }).success).toBe(false);
+  expect(updateCheckSchema.safeParse({ status: "unknown", remote, reason: null }).success).toBe(false);
+  expect(updateCheckSchema.safeParse({ status: "up-to-date", remote, reason: "offline" }).success).toBe(false);
 });

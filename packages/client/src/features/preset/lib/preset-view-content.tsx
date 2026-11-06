@@ -64,7 +64,7 @@ export function viewContent(id: PresetEditorView["id"], props: ViewContentProps)
       return (
         <Stack gap="section">
           <VariablesTab form={form} />
-          <UserMacrosTab form={form} presetId={presetId} />
+          <UserMacrosTab form={form} />
         </Stack>
       );
     case "transforms":

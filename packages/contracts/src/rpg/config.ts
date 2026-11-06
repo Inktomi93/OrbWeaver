@@ -266,7 +266,7 @@ export const rpgGameConfigSchema = z
     // GAME-authored user macros (owner ruling #20) — the game half of the two-home
     // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
     // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
-    // `{kind:"game", id:<chatId>}` by the macro-feed threading (kit `registerUserMacros`).
+    // `{kind:"game"}` by the macro-feed threading (kit `registerUserMacros`).
     userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
     // NO `prose` FIELD (owner ruling 2026-08-08, "we are putting everything in presets"). The steering-reminder
     // teach/heading OVERRIDES live in the PRESET's `promptConfig.prose` and are authored in the Templates tab;

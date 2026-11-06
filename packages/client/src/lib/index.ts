@@ -152,7 +152,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
-export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
+export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
 export type { MessageRenderContext } from "./message-render.ts";

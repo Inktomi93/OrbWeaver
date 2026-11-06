@@ -197,7 +197,6 @@ function PromptTab({
               <AssemblyToolbar form={form} onAdd={onAdd} />
               <AssemblyRack
                 form={form}
-                presetId={presetId}
                 onAddChatHistory={onAddChatHistory}
                 onDrillSection={onDrillSection}
                 onSelectSection={onSelectSection}

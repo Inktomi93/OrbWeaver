@@ -33,7 +33,6 @@ function extension(metadata: Partial<MacroMetadata> = {}): RegisteredExtension {
           { name: "count", type: "number", optional: false },
           { name: "loud", type: "boolean", optional: true },
         ],
-        returnType: "string",
         aliases: [],
         variadic: false,
         ...metadata,
@@ -113,13 +112,12 @@ test("optional defaults and per-macro strictness reach the evaluator under a len
   ]);
 });
 
-test("variadic list bounds enforce both ends and validate the tail type", () => {
-  const { render, calls } = extension({ args: [{ name: "option", type: "number", optional: true }], variadic: true, list: { min: 2, max: 3 } });
+test("a variadic list enforces its minimum and validates the tail type", () => {
+  const { render, calls } = extension({ args: [{ name: "option", type: "number", optional: true }], variadic: true, list: { min: 2 } });
   expect(render("{{typed::1::2}}", { strictArgs: true })).toEqual({ output: "1|2", diagnostics: [] });
   expect(render("{{typed::1::2::3}}", { strictArgs: true })).toEqual({ output: "1|2|3", diagnostics: [] });
   for (const { call, output, code } of [
     { call: "{{typed::1}}", output: "1", code: "bad-arity" },
-    { call: "{{typed::1::2::3::4}}", output: "1|2|3|4", code: "bad-arity" },
     { call: "{{typed::1::2::soon}}", output: "1|2|soon", code: "bad-arg-type" },
   ]) {
     const strict = render(call, { strictArgs: true });
@@ -129,7 +127,7 @@ test("variadic list bounds enforce both ends and validate the tail type", () => 
     expect(lenient.output).toBe(output);
     expect(lenient.diagnostics).toMatchObject([{ severity: "warning", code }]);
   }
-  expect(calls).toEqual([["1", "2"], ["1", "2", "3"], ["1"], ["1", "2", "3", "4"], ["1", "2", "soon"]]);
+  expect(calls).toEqual([["1", "2"], ["1", "2", "3"], ["1"], ["1", "2", "soon"]]);
 });
 
 test("scoped blocks exempt their body slot but still enforce explicit arity", () => {

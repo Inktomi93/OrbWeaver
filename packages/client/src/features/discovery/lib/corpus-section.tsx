@@ -71,7 +71,6 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
       description: "Search, read, understand and label your whole library in one place.",
     },
     list: () => <CorpusWorkspaceList modes={modes} />,
-    listSearch: "required",
     useListHeader: (): ListPaneHeaderView => useCorpusWorkspaceListHeader(modes),
     // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
     selection: corpusSectionSelection,

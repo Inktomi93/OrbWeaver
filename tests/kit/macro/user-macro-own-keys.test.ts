@@ -5,7 +5,7 @@ import { createDefaultRegistry, processMacros, registerUserMacros, resolveUserMa
 import { expect, test } from "@orb/testkit/node";
 
 const INHERITED_NAMES = ["constructor", "toString"] as const;
-const SOURCE = { kind: "preset", id: "preset_test" } as const;
+const SOURCE = { kind: "preset" } as const;
 const OPTIONS = { char: "C", user: "U", persona: "P", scenario: "S", env: {} };
 const POOL = [
   { label: "Reunion", value: "reunion" },

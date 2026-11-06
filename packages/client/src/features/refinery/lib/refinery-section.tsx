@@ -96,7 +96,6 @@ export const refinerySection: SectionDefinition = {
       <RefineryListSurface />
     </RefineryListAnchor>
   ),
-  listSearch: "required",
   useListHeader: useRefineryListHeader,
   selection: refinerySectionSelection,
   useSelectionTitle: useRefinerySelectionTitle,

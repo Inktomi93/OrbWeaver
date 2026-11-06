@@ -40,7 +40,6 @@ export const extensionsSection: SectionDefinition = {
   list: () => <ExtensionsSwitcherSurface />,
   // The LIST chrome-band content (#1190): "Extensions" title + a live page count. Browse-shaped, no create
   // action — a page is registered by a plugin, not made from this band (see the header's own note).
-  listSearch: "required",
   useListHeader: useExtensionsListHeader,
   // How the SHELL reads "is a page open?" — the mobile ONE-SHELL rule's input and its back affordance.
   selection: pluginPageSectionSelection,
