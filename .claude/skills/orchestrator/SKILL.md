@@ -149,7 +149,7 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 | Read items | `pnpm doc show <id…>` |
 | See the board | `pnpm doc overview [--status open\|doing\|blocked[,…]] [--area <a>]` |
 | See what needs action | `pnpm doc drift` |
-| Mint one item | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x \| --blocked <reason>] [--what <t>] [--why <t>] [--done <t>] [--commit]` |
+| Mint one item | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x \| --blocked <reason>] [--what <t>] [--why <t>] [--done <t>] [--evidence <t>] [--commit]` |
 | Mint a batch | `pnpm doc item --from <file.json> [--commit]`; a JSON array with keys `title`, `kind`, `priority`, `area`, `plan`, `lane`, `blocked`, `what`, `why`, `done` |
 | Change state or fields | `pnpm doc set <id…> [open\|doing\|blocked] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha] [--commit]` |
 | Clear a field | `--<field> -` or `--<field> none` |

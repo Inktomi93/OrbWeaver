@@ -59,7 +59,10 @@ export type Blocker =
 export const ITEM_SECTION_FLAGS = ["what", "why", "done"] as const;
 export const ADR_SECTION_FLAGS = ["context", "decision", "consequences", "alternatives"] as const;
 export const PLAN_SECTION_FLAGS = ["goal", "shape", "rejected", "coupled", "test-plan"] as const;
+/** `edit` also replaces Evidence, which a mint never carries: it is filled once the work has landed. */
+export const ITEM_EDIT_FLAGS = [...ITEM_SECTION_FLAGS, "evidence"] as const;
 export type ItemSectionFlag = (typeof ITEM_SECTION_FLAGS)[number];
+export type ItemEditFlag = (typeof ITEM_EDIT_FLAGS)[number];
 export type AdrSectionFlag = (typeof ADR_SECTION_FLAGS)[number];
 export type PlanSectionFlag = (typeof PLAN_SECTION_FLAGS)[number];
 
@@ -194,7 +197,7 @@ export type DocCommand =
     }
   | { readonly kind: "remove"; readonly targets: readonly string[] }
   | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch; readonly commit: boolean }
-  | { readonly kind: "edit"; readonly id: number; readonly sections: SectionContent<ItemSectionFlag>; readonly commit: boolean }
+  | { readonly kind: "edit"; readonly id: number; readonly sections: SectionContent<ItemEditFlag>; readonly commit: boolean }
   | { readonly kind: "show"; readonly ids: readonly number[] }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
   | { readonly kind: "land-stage"; readonly ids: readonly number[] }
