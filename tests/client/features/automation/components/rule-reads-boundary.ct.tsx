@@ -8,7 +8,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -31,31 +31,6 @@ const READS = [
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
-type Held = ReturnType<typeof holdServed>;
-
-/** The first request is held, then it fails until the test calls `recover()`. */
-function heldThenFailing(): {
-  readonly hold: Held;
-  readonly intercept: () => Held | ReturnType<typeof trpcError> | undefined;
-  readonly recover: () => void;
-} {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    intercept: (): Held | ReturnType<typeof trpcError> | undefined => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-    recover: (): void => {
-      failing = false;
-    },
-  };
-}
 
 /** Rewrite the owner's first library rule to carry one action, and serve the editor's reads with the given overrides. */
 interface RuleScenario {

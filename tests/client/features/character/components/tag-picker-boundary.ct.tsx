@@ -4,7 +4,7 @@
 
 import { createTagSchema } from "@orb/contracts/tag";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -14,27 +14,6 @@ import type { CharacterTagsRowStory } from "./_tag-row-stories.tsx";
 
 const ROW_STORY = "tests/client/features/character/components/_tag-row-stories/CharacterTagsRowStory";
 const SHELL_READS = ["sessions.me", "settings.getUserSettings"] as const;
-
-type Held = ReturnType<typeof holdServed>;
-
-function heldThenFailing(): { readonly hold: Held; readonly intercept: () => Held | ReturnType<typeof trpcError> | undefined; readonly recover: () => void } {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    intercept: (): Held | ReturnType<typeof trpcError> | undefined => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-    recover: (): void => {
-      failing = false;
-    },
-  };
-}
 
 test("the tag picker field stays typeable in one dialog while the library is held and failed, and Retry brings the create-or-attach line", async ({
   mount,

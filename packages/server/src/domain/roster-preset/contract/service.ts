@@ -14,8 +14,7 @@ import type {
   RulePresetKnobValues,
   SetRuleEnabledOp,
 } from "@orb/contracts/automation";
-import type { AddCharacterToChatOp, PresentCharacterSeat, SetGroupConfigOp, SetSeatKnobsOp } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { AddCharacterToChatOp, PresentCharacterSeat, RequireHostOp, SetGroupConfigOp, SetSeatKnobsOp } from "@orb/contracts/chat";
 import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -67,7 +66,7 @@ export interface RosterPresetChatOps {
   readonly addCharacterToChat: AddCharacterToChatOp;
   readonly setGroupConfig: SetGroupConfigOp;
   readonly setSeatKnobs: SetSeatKnobsOp;
-  readonly requireHost: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly requireHost: RequireHostOp;
   readonly listPresentCharacterSeats: (chatId: ChatId) => Promise<readonly PresentCharacterSeat[]>;
 }
 

@@ -24,7 +24,7 @@ import type { LocalLightBackend } from "./local-light.ts";
 import type { ProviderRegistry } from "./registry.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./resolve.ts";
 import type { EmbeddingExecution } from "./roles.ts";
-import type { CatalogDraft, RoleClientsFor } from "./runtime.ts";
+import type { BindRoleClients, CatalogDraft } from "./runtime.ts";
 import type { ResolveArgs, ResolveOutcome } from "./task-resolution.ts";
 
 export interface CapabilityRead extends SynthesizedCapability {
@@ -67,7 +67,7 @@ export interface InferenceRuntime {
     readonly chat: (intent: UserIntent, capability: GenerationCapability) => ResolvedChatKnobs;
     readonly embed: (opts: EmbedOptions, capability: EmbeddingCapability) => ResolvedEmbedKnobs;
   };
-  readonly roleClientsFor: RoleClientsFor;
+  readonly roleClientsFor: BindRoleClients;
   readonly catalogs: {
     /** What a provider can list, for a connection being authored or a saved row read through the same draft
      *  (`catalog/listing.ts` owns the strategy arms). A failed or empty list is `listed: false` with its reason —

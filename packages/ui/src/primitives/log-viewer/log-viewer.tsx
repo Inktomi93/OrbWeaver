@@ -8,10 +8,10 @@ import { MessageList } from "#primitives/message-list";
 import { LENGTH_BASE_PX } from "#tokens";
 import { logViewerVariants } from "./variants.ts";
 
-const LOG_LEVELS = ["info", "warn", "error"] as const;
-export type LogLevel = (typeof LOG_LEVELS)[number];
+const LOG_LINE_LEVELS = ["info", "warn", "error"] as const;
+export type LogLineLevel = (typeof LOG_LINE_LEVELS)[number];
 
-const LEVEL_GLYPH: Record<LogLevel, typeof Info> = {
+const LEVEL_GLYPH: Record<LogLineLevel, typeof Info> = {
   info: Info,
   warn: TriangleAlert,
   error: CircleAlert,
@@ -19,7 +19,7 @@ const LEVEL_GLYPH: Record<LogLevel, typeof Info> = {
 
 // The glyph doubles as the accessible name for the level (Icon's `label` prop) — a second,
 // non-visual signal alongside the intent-token color for the "never color alone" contract.
-const LEVEL_LABEL: Record<LogLevel, string> = {
+const LEVEL_LABEL: Record<LogLineLevel, string> = {
   info: "Info",
   warn: "Warning",
   error: "Error",
@@ -29,13 +29,13 @@ const LEVEL_LABEL: Record<LogLevel, string> = {
  * A single log line: a plain string (unleveled, the common case) or `{ text, level }` for the
  * leveled treatment. Arrays may freely mix both forms.
  */
-export type LogLine = string | { readonly text: string; readonly level?: LogLevel };
+export type LogLine = string | { readonly text: string; readonly level?: LogLineLevel };
 
 function textOf(line: LogLine): string {
   return typeof line === "string" ? line : line.text;
 }
 
-function levelOf(line: LogLine): LogLevel | undefined {
+function levelOf(line: LogLine): LogLineLevel | undefined {
   return typeof line === "string" ? undefined : line.level;
 }
 

@@ -4,7 +4,16 @@
 // member may not make says so as the typed refusal it is.
 
 import type { ChatId } from "@orb/kit/ids";
-import { holdServed, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  heldThenFailing,
+  holdServed,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  SHELL_MOUNT_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -38,32 +47,10 @@ async function setup(
   return { host, chatId: room.id, presetId: preset.id };
 }
 
-/** The first request is held and then failed by the test; later requests fail until `recover()`, then the server answers. */
-type Verdict = ReturnType<typeof holdServed> | ReturnType<typeof trpcError> | undefined;
-
-function failThenRecover(): { readonly hold: ReturnType<typeof holdServed>; readonly recover: () => void; readonly intercept: () => Verdict } {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    recover: (): void => {
-      failing = false;
-    },
-    intercept: (): Verdict => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-  };
-}
-
 test("a held used-by read shows the loading state, a failed one the error block, and Retry shows the binding", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["preset.listUsage"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "data", chatId: null });
   const usage = page.locator('[data-slot="preset-usage"]');
@@ -80,7 +67,7 @@ test("a held used-by read shows the loading state, a failed one the error block,
 test("the open preset's own read failing shows the readout error block, and Retry shows the panel", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["preset.get"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "data", chatId: null });
   await read.hold.requested;
@@ -95,7 +82,7 @@ test("the open preset's own read failing shows the readout error block, and Retr
 test("the active-preset readout holds, fails and retries through the same boundary", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["preset.list"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId: null, view: "data", chatId: null });
   await read.hold.requested;
@@ -113,7 +100,7 @@ test("Transforms keeps its pipeline while the attached scripts are held, says it
 }) => {
   await using root = await createCorpusHarness();
   const { host, presetId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["regex.listForPreset"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "transforms", chatId: null });
   const stages = page.locator("[data-pipeline-step]");
@@ -133,7 +120,7 @@ test("Transforms keeps its pipeline while the attached scripts are held, says it
 test("Prompt keeps its estimates while pricing is held, a host-only refusal is said as one, and any other failure offers Retry", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId, chatId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewAssembly"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
   await read.hold.requested;
@@ -151,7 +138,7 @@ test("Prompt keeps its estimates while pricing is held, a host-only refusal is s
 test("Prompt keeps the assembled preview open and focused while the pricing lands", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId, chatId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   read.recover();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewAssembly"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
@@ -179,7 +166,7 @@ test("Prompt says a member cannot price a room they do not host, with no Retry",
 test("Actions holds, fails and retries the resolved preview, and says the host-only refusal as one", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const { host, presetId, chatId } = await setup(root, page);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewActionTemplates"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "actions", chatId });
   await read.hold.requested;

@@ -25,7 +25,7 @@ import {
   createSuggestionStore,
 } from "#domain/automation";
 import { findPluginCardData, readPluginCardData, writePluginCardData } from "#domain/character";
-import { createPluginChatAuthority, emitPictureWarnings, loadPresentHostUserId, requireWiredHost } from "#domain/chat";
+import { createPluginChatAuthority, createWiredChatGuards, emitPictureWarnings, loadPresentHostUserId } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -188,6 +188,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const { db, now, connection, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } =
     deps;
   const { service: chat } = chatCompose;
+  const chatGuards = createWiredChatGuards({ db, can });
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
   const automationRuntime = createAutomationRuntimeOps<DrivableToolSet>({
@@ -320,7 +321,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
       resolveViewerVisibility: deps.resolveViewerVisibility,
       requireHost: async (chatId, installerUserId) => {
-        await requireWiredHost({ db, can }, await deps.resolveOwnerPrincipal(installerUserId), chatId);
+        await chatGuards.requireHost(await deps.resolveOwnerPrincipal(installerUserId), chatId);
       },
       listCharacters: (chatId) => loadPluginCharacters(db, chatId),
       getVariables: automationOps.chat.readVariables,

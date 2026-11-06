@@ -25,7 +25,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
 import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
-import type { RunWorkloadFormValues, WorkloadRunScope } from "../lib/workloads-model.ts";
+import type { RunWorkloadFormValues, WorkloadRunRequestScope } from "../lib/workloads-model.ts";
 import {
   buildStartInput,
   isMaintenanceWorkloadKind,
@@ -118,7 +118,7 @@ function RunWorkloadFormBody({
       input: buildStartInput(values.kind, values),
       mode: bulkOn ? "bulk" : "singular",
       ...(target === undefined ? {} : { targetOwnerId: target }),
-    } satisfies WorkloadRunScope;
+    } satisfies WorkloadRunRequestScope;
     await paidRun.confirmThen({
       title: `Run ${WORKLOAD_KIND_LABELS[values.kind]}?`,
       confirmLabel: RUN_LABEL,

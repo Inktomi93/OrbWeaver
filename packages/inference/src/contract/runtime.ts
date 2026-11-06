@@ -130,7 +130,7 @@ export interface DetectionProbe {
 }
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
-export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
+export type BindRoleClients = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
 
 /** One catalog mirror warm: the value it now holds, or why the live fetch failed, already scrubbed of the
  *  secrets that warm dialed with. Every caller coalesced onto one warm shares this one answer, so the reason is

@@ -285,7 +285,7 @@ type RunScopeKey = (typeof RUN_SCOPE_KEYS)[number];
 
 /** The run scope the dialog both estimates and starts: `Pick` from each router input, so a key either procedure
  *  stops declaring fails tsc here instead of riding the payload into a strict refusal. */
-export type WorkloadRunScope = Pick<StartWorkloadWire, RunScopeKey> & Pick<EstimateWorkloadWire, RunScopeKey>;
+export type WorkloadRunRequestScope = Pick<StartWorkloadWire, RunScopeKey> & Pick<EstimateWorkloadWire, RunScopeKey>;
 
 /** Assemble the wire `start.input` for a kind — the params object carries only the kind's own tunable. */
 export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): StartWorkloadWire["input"] {

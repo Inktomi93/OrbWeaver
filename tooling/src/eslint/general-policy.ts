@@ -54,6 +54,7 @@ export const TYPE_SHAPE_RESTRICTIONS = [
     id: "no-inline-union-alias",
     selectors: [
       {
+        // One-off two-state aliases such as `"ok" | "error"` are not axes worth homing; flagging them would price every result type as a defect.
         selector: `TSTypeAliasDeclaration > TSUnionType[types.length>=3]:not(:has(> :not(${STRING_LITERAL_MEMBER})))`,
         message:
           "A string-union axis is declared once as an `as const` tuple and the union derived with `(typeof X)[number]`, never re-spelled as an inline alias (Spine-TypeScript-and-Patterns.md §7.5).",

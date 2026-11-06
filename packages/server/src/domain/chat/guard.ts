@@ -14,7 +14,7 @@
 // `role === 'host'` verdict lives in admin's `can()`, never here (spine #6). `can` is injected on `ChatContext`
 // (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).
 
-import type { HistoryFloorSeq } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, RequireHostOp, RequireParticipantOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -123,6 +123,17 @@ export function requireWiredParticipant(ctx: DbAssemblyInput<GuardCtx>, principa
 /** Preserve the same host kernel call after recovering the owner's actual connection. */
 export function requireWiredHost(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
   return requireHost({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId);
+}
+
+/** Bind admission-only ports without exposing the loaded membership to another domain. */
+export function createWiredChatGuards(ctx: DbAssemblyInput<GuardCtx>): {
+  readonly requireHost: RequireHostOp;
+  readonly requireParticipant: RequireParticipantOp;
+} {
+  return {
+    requireHost: (principal, chatId) => requireWiredHost(ctx, principal, chatId).then((): void => undefined),
+    requireParticipant: (principal, chatId) => requireWiredParticipant(ctx, principal, chatId).then((): void => undefined),
+  };
 }
 
 /** The slot author stays caller-supplied; conversion does not decide or cache authority. */

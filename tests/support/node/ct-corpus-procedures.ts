@@ -72,6 +72,33 @@ export function holdServed(): ServedHold {
   return hold;
 }
 
+/** A recoverable failure schedule whose successful responses still come from the server. */
+export interface HeldThenFailing {
+  readonly hold: ServedHold;
+  readonly intercept: () => ServedHold | TrpcErrorMarker | undefined;
+  readonly recover: () => void;
+}
+
+/** Hold the first request, then fail later requests until recovery lets the real server answer. */
+export function heldThenFailing(): HeldThenFailing {
+  const hold = holdServed();
+  let held = false;
+  let failing = true;
+  return {
+    hold,
+    intercept: (): ServedHold | TrpcErrorMarker | undefined => {
+      if (!held) {
+        held = true;
+        return hold;
+      }
+      return failing ? trpcError() : undefined;
+    },
+    recover: (): void => {
+      failing = false;
+    },
+  };
+}
+
 /**
  * A request the test fails or holds instead of answering at once, or `undefined` to let the server answer it. It can
  * only fail or delay: the data a request settles with always comes from the server.

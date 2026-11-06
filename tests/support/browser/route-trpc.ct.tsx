@@ -3,21 +3,12 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
-import { serveCorpusProcedures } from "@orb/testkit/ct";
+import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import { ZodError } from "zod";
 import { routeAuthConfig } from "../node/route-auth-config.ts";
-import {
-  abortProcedure,
-  isTrpcRequestFor,
-  malformedOrForwardTrpcWire,
-  readTrpcOutput,
-  routeTrpc,
-  trpcEndSubscription,
-  trpcError,
-  trpcHold,
-} from "../node/route-trpc.ts";
+import { abortProcedure, isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
 
 const ORIGIN = "http://route-trpc.test";
 const HEADING = "The subject heading still renders";
@@ -85,6 +76,54 @@ test("a declared hold keeps its complete batch pending until explicitly released
   expect(recorder.count("health")).toBe(2);
   held.release({ ok: true });
   expect(await response).toEqual([{ result: { data: { ok: true } } }, { result: { data: { ok: true } } }]);
+});
+
+test("the shared held-failure schedule keeps failing until recovery serves each actual requested preset", async ({ page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const first = await caller.preset.create({ name: "First recovered response", kind: "generation" });
+  const second = await caller.preset.create({ name: "Second recovered response", kind: "generation" });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  const read = heldThenFailing();
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.get"], read.intercept));
+  const request = (id: typeof first.id): Promise<unknown> =>
+    page.evaluate(async (presetId) => (await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id: presetId }))}`)).json(), id);
+  let settled = false;
+  const pending = request(first.id).then((response) => {
+    settled = true;
+    return response;
+  });
+  await read.hold.requested;
+  expect(settled).toBe(false);
+  read.hold.fail();
+  expect(await pending).toMatchObject({ error: { data: { code: "INTERNAL_SERVER_ERROR" } } });
+  expect(await request(second.id)).toMatchObject({ error: { data: { code: "INTERNAL_SERVER_ERROR" } } });
+  read.recover();
+  expect(await request(first.id)).toEqual({ result: { data: await caller.preset.get({ id: first.id }) } });
+  expect(await request(second.id)).toEqual({ result: { data: await caller.preset.get({ id: second.id }) } });
+});
+
+test("recovering before the first request preserves its hold and release serves the actual preset", async ({ page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const preset = await caller.preset.create({ name: "Early recovery response", kind: "generation" });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  const read = heldThenFailing();
+  read.recover();
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.get"], read.intercept));
+  let settled = false;
+  const pending = page
+    .evaluate(async (id) => (await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`)).json(), preset.id)
+    .then((response: unknown) => {
+      settled = true;
+      return response;
+    });
+  await read.hold.requested;
+  expect(settled).toBe(false);
+  read.hold.release();
+  expect(await pending).toEqual({ result: { data: await caller.preset.get({ id: preset.id }) } });
 });
 
 test("successful native response capture binds repeated batch paths to the validated input and owning output", async ({ page }) => {

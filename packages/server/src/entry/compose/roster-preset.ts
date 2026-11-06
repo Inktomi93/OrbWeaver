@@ -15,7 +15,7 @@ import type { AutomationService } from "#domain/automation";
 import { resolveChatRulePresetKnobs } from "#domain/automation";
 import { createOwnedCharacterIds } from "#domain/character";
 import type { ChatService } from "#domain/chat";
-import { loadPresentCharacterSeats, requireWiredHost } from "#domain/chat";
+import { createWiredChatGuards, loadPresentCharacterSeats } from "#domain/chat";
 import { createPersonaOwned } from "#domain/persona";
 import type { RosterPresetAssemblyContext, RosterPresetService } from "#domain/roster-preset";
 import { createRosterPresetService } from "#domain/roster-preset";
@@ -35,6 +35,7 @@ interface RosterPresetComposeInput {
 
 export function buildRosterPreset(input: RosterPresetComposeInput): RosterPresetService {
   const { db, now, audit, emitUserEvent, can, chat, automation } = input;
+  const chatGuards = createWiredChatGuards({ db, can });
   const ctx: RosterPresetAssemblyContext = {
     db,
     now,
@@ -51,9 +52,7 @@ export function buildRosterPreset(input: RosterPresetComposeInput): RosterPreset
       setGroupConfig: chat.setGroupConfig,
       // Chat's OWN guard — a stranger and a dead room collapse to the same leak-free NOT_FOUND. Runs
       // BEFORE any target-room read inside applyToChat (the roster-intersection-oracle closure).
-      requireHost: async (principal, chatId): Promise<void> => {
-        await requireWiredHost({ db, can }, principal, chatId);
-      },
+      requireHost: async (principal, chatId) => chatGuards.requireHost(principal, chatId),
       // The added-vs-alreadyPresent classification pre-read: PRESENT character seats only (leftSeq NULL
       // — a departed seat re-adds fresh, era-per-row). Runs strictly AFTER the host gate above.
       listPresentCharacterSeats: (chatId) => loadPresentCharacterSeats(db, chatId),

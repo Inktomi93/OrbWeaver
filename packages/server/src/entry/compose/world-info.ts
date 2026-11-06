@@ -21,7 +21,7 @@ import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createBulkImportChats, createReadInheritedChatBooks, requireWiredHost, requireWiredParticipant } from "#domain/chat";
+import { createBulkImportChats, createReadInheritedChatBooks, createWiredChatGuards } from "#domain/chat";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
@@ -74,6 +74,7 @@ export interface WorldInfoComposeResult {
 
 export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResult {
   const { db, now, audit, assets } = deps;
+  const chatGuards = createWiredChatGuards({ db, can });
   const resolvePrincipal = createHostPrincipalResolver(deps.sessions);
 
   const worldInfo = createWorldInfoService({
@@ -82,8 +83,8 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     newBookId: minter(ID_PREFIX.worldBook, deps.idSource),
     newEntryId: minter(ID_PREFIX.worldEntry, deps.idSource),
     audit,
-    requireChatHost: (principal, chatId) => requireWiredHost({ db, can }, principal, chatId).then((): void => undefined),
-    requireChatMember: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatHost: chatGuards.requireHost,
+    requireChatMember: chatGuards.requireParticipant,
     readInheritedChatBooks: createReadInheritedChatBooks({
       db,
       can,

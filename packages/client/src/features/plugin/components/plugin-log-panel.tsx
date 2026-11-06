@@ -2,7 +2,7 @@
 // stop" surface. Suspends on `plugin.getLog`; the caller owns the `QueryBoundary`.
 //
 // The server's `PluginLogView` (`{level, message, at}`) maps onto `@orb/ui/log-viewer`'s `LogLine`
-// (`{text, level}`) with no vocabulary in between — `PLUGIN_LOG_LEVELS` and the viewer's own `LogLevel` are
+// (`{text, level}`) with no vocabulary in between — `PLUGIN_LOG_LEVELS` and the viewer's own `LogLineLevel` are
 // the same three words, so the level rides through and the viewer paints its glyph + intent token (never
 // colour alone). The timestamp is folded into the text because the ring is a plain line panel, not a table.
 //

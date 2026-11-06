@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-04
+updated: 2026-11-05
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -179,6 +179,8 @@ typed-return / `assertNever`.
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
 Orbweaver's axes use this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). D333 retires custom duplicate-union detection; the compiler still catches missing mapped-`Record` members.
+
+One-off two-state aliases such as `"ok" | "error"` are exempt because a tuple adds noise without establishing a shared axis.
 
 **Coincident axes still get two tuples.** Two axes whose members happen to coincide (for example a
 contracts-side tuple and its `@orb/ui` counterpart) each get their own `as const` tuple; neither derives

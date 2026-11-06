@@ -4,35 +4,13 @@
 
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { createTagSchema } from "@orb/contracts/tag";
-import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
 const CHIP_STORY = "tests/client/components/_editable-tag-chip-stories/EditableTagChipStory";
 const SHELL_READS = ["sessions.me", "settings.getUserSettings"] as const;
-
-/** The first library request is held, then it fails until `recover()`. */
-type Held = ReturnType<typeof holdServed>;
-
-function heldThenFailing(): { readonly hold: Held; readonly intercept: () => Held | ReturnType<typeof trpcError> | undefined; readonly recover: () => void } {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    intercept: (): Held | ReturnType<typeof trpcError> | undefined => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-    recover: (): void => {
-      failing = false;
-    },
-  };
-}
 
 test("a held tag library read shows the loading skeleton in the chip popover, a failed one the error block, and Retry shows the editor", async ({
   mount,

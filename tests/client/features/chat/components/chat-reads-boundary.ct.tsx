@@ -3,7 +3,7 @@
 // one the shared error block, and Retry shows the settled answer. A deleted variant is the typed gone state, not the error block.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { heldThenFailing, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -11,28 +11,6 @@ import type { ChatListFacesStripStory, VariantWireViewerStory } from "./_chat-re
 
 const STORIES = "tests/client/features/chat/components/_chat-reads-boundary-stories";
 const SHELL_READS = ["sessions.me", "settings.getUserSettings", "connection.list", "connection.listBindings"] as const;
-
-type Held = ReturnType<typeof holdServed>;
-
-/** The first request is held, then it fails until `recover()`. */
-function heldThenFailing(): { readonly hold: Held; readonly intercept: () => Held | ReturnType<typeof trpcError> | undefined; readonly recover: () => void } {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    intercept: (): Held | ReturnType<typeof trpcError> | undefined => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-    recover: (): void => {
-      failing = false;
-    },
-  };
-}
 
 test("a held wire read shows the loading skeleton, a failed one the error block, and Retry shows the gone state for a deleted variant", async ({
   corpus,

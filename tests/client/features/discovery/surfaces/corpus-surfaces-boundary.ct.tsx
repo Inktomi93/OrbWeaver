@@ -5,7 +5,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { heldThenFailing, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import type { CorpusDestinationStory } from "./_corpus-destination-stories.tsx";
@@ -21,34 +21,12 @@ const CONTENT_READS = [
   "discovery.visualArchetypes",
 ] as const;
 
-type Verdict = ReturnType<typeof holdServed> | ReturnType<typeof trpcError> | undefined;
-
-/** The first request is held and then failed by the test; later requests fail until `recover()`, then the server answers. */
-function failThenRecover(): { readonly hold: ReturnType<typeof holdServed>; readonly recover: () => void; readonly intercept: () => Verdict } {
-  const hold = holdServed();
-  let held = false;
-  let failing = true;
-  return {
-    hold,
-    recover: (): void => {
-      failing = false;
-    },
-    intercept: (): Verdict => {
-      if (!held) {
-        held = true;
-        return hold;
-      }
-      return failing ? trpcError() : undefined;
-    },
-  };
-}
-
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
 
 test("a held never-played read shows the loading skeleton on its own, a failed one the error block, and Retry shows the section", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(caller, SERVED), ...serveCorpusProcedures(caller, ["discovery.unusedCharacters"], read.intercept) });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
@@ -64,7 +42,7 @@ test("a held never-played read shows the loading skeleton on its own, a failed o
 test("a failed model-usage read says so in its own block and Retry clears it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(caller, SERVED), ...serveCorpusProcedures(caller, ["discovery.modelRouting"], read.intercept) });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
@@ -79,7 +57,7 @@ test("a failed model-usage read says so in its own block and Retry clears it", a
 test("a failed keywords read says so in the explorer and Retry clears it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(caller, SERVED), ...serveCorpusProcedures(caller, ["discovery.topKeywords"], read.intercept) });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
@@ -94,7 +72,7 @@ test("a failed keywords read says so in the explorer and Retry clears it", async
 test("a failed story-theme drift read says so in its own block and Retry clears it", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, { ...serveCorpusProcedures(caller, SERVED), ...serveCorpusProcedures(caller, ["discovery.themeDrift"], read.intercept) });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
@@ -120,7 +98,7 @@ test("the dossier's similar-art strip holds, fails and retries on its own", asyn
   if (character === undefined) {
     throw new Error("The corpus has no character with a dossier");
   }
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, {
     ...serveCorpusProcedures(caller, [...SERVED, ...CONTENT_READS]),
     ...serveCorpusProcedures(caller, ["search.similarArt"], read.intercept),
@@ -142,7 +120,7 @@ test("a held pair comparison shows the loading skeleton, a failed one the error 
   if (first === undefined || second === undefined) {
     throw new Error("The corpus needs two characters to compare");
   }
-  const read = failThenRecover();
+  const read = heldThenFailing();
   await routeTrpc(page, {
     ...serveCorpusProcedures(caller, [...SERVED, ...CONTENT_READS]),
     ...serveCorpusProcedures(caller, ["discovery.compareCharacters"], read.intercept),

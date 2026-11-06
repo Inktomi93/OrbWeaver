@@ -11,7 +11,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { ChatServiceDeps } from "#domain/chat";
-import { loadPresentHostUserId, requireWiredHost, requireWiredParticipant } from "#domain/chat";
+import { createWiredChatGuards, loadPresentHostUserId } from "#domain/chat";
 import type { DatabankAssemblyContext, DatabankIngest, DatabankPortabilityAssemblyContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService, LiveEmbedSpaceDeps } from "#domain/embeddings";
@@ -75,6 +75,7 @@ export interface DatabankComposeResult {
 
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
   const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
+  const chatGuards = createWiredChatGuards({ db, can });
   const databankCtx: DatabankAssemblyContext = {
     logger: deps.logger,
     db,
@@ -136,8 +137,8 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
       });
       return { workloadId: started.id };
     },
-    ensureChatHost: (principal, chatId) => requireWiredHost({ db, can }, principal, chatId).then((): void => undefined),
-    ensureChatMember: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    ensureChatHost: chatGuards.requireHost,
+    ensureChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
     // The SHARED leak-safe reverse-room read (#276) — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"

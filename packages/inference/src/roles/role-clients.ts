@@ -12,7 +12,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
-import type { RoleClientsFor } from "../contract/runtime.ts";
+import type { BindRoleClients } from "../contract/runtime.ts";
 import type { ResolverContext } from "../contract/task-resolution.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
 import { NoConnectionError, resolveTask } from "../resolve/resolve-task.ts";
@@ -53,7 +53,7 @@ function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string
   };
 }
 
-export function createRoleClientsFor(args: { readonly ctx: ResolverContext; readonly executor: ProviderExecutor }): RoleClientsFor {
+export function createRoleClientsFor(args: { readonly ctx: ResolverContext; readonly executor: ProviderExecutor }): BindRoleClients {
   const { ctx, executor } = args;
 
   return (funder: Principal, actor?: BindingActor): RoleClientsWithSignal => {

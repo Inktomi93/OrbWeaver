@@ -24,7 +24,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { can } from "#domain/admin";
 import type { ChatServiceDeps } from "#domain/chat";
-import { createResolveRoomDisplayPolicy, requireWiredHost, requireWiredParticipant } from "#domain/chat";
+import { createResolveRoomDisplayPolicy, createWiredChatGuards } from "#domain/chat";
 import type { RegexService } from "#domain/regex";
 import {
   createExportCardScripts,
@@ -77,6 +77,7 @@ export interface RegexComposeResult {
 
 export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
   const { db, now, audit } = deps;
+  const chatGuards = createWiredChatGuards({ db, can });
   const newScriptId = minter(ID_PREFIX.regexScript, deps.idSource);
 
   const regex = createRegexService({
@@ -84,8 +85,8 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     now,
     newScriptId,
     audit,
-    requireChatHost: (principal, chatId) => requireWiredHost({ db, can }, principal, chatId).then((): void => undefined),
-    requireChatMember: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatHost: chatGuards.requireHost,
+    requireChatMember: chatGuards.requireParticipant,
     resolveRoomDisplayPolicy: createResolveRoomDisplayPolicy({ db }),
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
     // when databank and preset became its second and third consumers (#276/#279).

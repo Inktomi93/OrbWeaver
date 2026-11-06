@@ -90,6 +90,13 @@ test.for([
 
 test.for([
   {
+    id: "dialog-via-composite",
+    inside: "packages/client/src/features/chat/lib/dialog-probe.ts",
+    outside: "packages/client/src/components/dialog-probe.ts",
+    bad: `import { Dialog } from "@orb/ui/dialog";`,
+    good: `import { ConfirmDialog } from "#components";`,
+  },
+  {
     id: "config-host-no-feature-import",
     inside: "packages/client/src/features/config/surfaces/config-content-surface.tsx",
     outside: "packages/client/src/features/config/surfaces/other.tsx",

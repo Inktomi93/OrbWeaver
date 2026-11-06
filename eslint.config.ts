@@ -193,6 +193,9 @@ const PAINT_CLASSES = {
 
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
 
+// These rules inspect JSX syntax, not React.createElement calls.
+const CLIENT_JSX_SOURCE = ["packages/client/src/**/*.tsx"];
+
 const BROWSER_MOUNT_SOURCE = ["tests/**/*.tsx", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"];
 
 const REACT_TEST_SOURCE = [
@@ -1581,8 +1584,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/wire-object-declares-mode": "error" },
     },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
-    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-raw-intrinsic-paint": "error" } },
-    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/text-voice-only": "error" } },
+    { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
+    { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`).
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/client/**/*.{ts,tsx}", "tests/ui/**/*.{ts,tsx}"],
@@ -1595,7 +1598,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338,
     // and the pre-push lint stays red until the last one goes.
     {
-      files: ["packages/client/src/**/*.tsx"],
+      files: CLIENT_JSX_SOURCE,
       rules: { "orb/feature-classname-layout-only": "error", "orb/no-built-class-string": "error" },
     },
     {
@@ -1664,9 +1667,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/client/src/features/app-shell/**"],
       rules: { "orb/no-effect-on-shared-selection": "error" },
     },
-    { files: ["packages/client/src/features/**/*.tsx"], rules: { "orb/dialog-via-composite": "error" } },
+    { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/dialog-via-composite": "error" } },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
-    { files: ["packages/client/src/**/*.tsx"], rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
+    { files: CLIENT_JSX_SOURCE, rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
     { files: ["packages/client/src/features/**/surfaces/*-{list,library}-surface.tsx"], rules: { "orb/library-surface-row": "error" } },
     {
       files: ["packages/client/src/**/*.tsx"],

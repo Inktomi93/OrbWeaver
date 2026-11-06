@@ -79,9 +79,9 @@ import {
   createMemoryRecallRecorder,
   createResolveChatUserMacroDefs,
   createResolveViewerVisibility,
+  createWiredChatGuards,
   isCharacterSeated,
   loadPresentHostUserId,
-  requireWiredParticipant,
 } from "#domain/chat";
 import type { ConnectionAssemblyContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
@@ -519,11 +519,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const eventBus = resources.use(createDomainEventBus(background.supervise, newOpaqueId));
 
+  // User seeds run after composition; a premature sweep must expose the ordering defect.
+  const embedReindex = createBinding<Pick<SearchDiscoveryComposeResult, "detachEmbedReindex" | "detachStaleSpaceReindex">>(
+    "compose: embed reindex invoked before search-discovery wiring",
+  );
+
   // #2481 — the per-user half of the local-light seed (§7.2/§5.3b). The boot SWEEP covers the accounts
   // alive at boot; this op is what covers every account minted afterwards, and it is threaded into both
   // user-minting domains (sessions below, admin further down) rather than called from one of them —
   // neither may import `domain/connection`.
-  // A seed that newly binds the encoder starts that owner's embed sweeps through `embedReindex` below (late-bound:
+  // A seed that newly binds the encoder starts that owner's embed sweeps through `embedReindex` (late-bound:
   // it derefs at call time, a mint, never during compose).
   const seedUserConnections = createLocalLightUserSeed({
     logger: deps.logger,
@@ -531,7 +536,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     onEmbedSpaceBound: (ownerId) => {
-      embedReindex.detachEmbedReindex(ownerId);
+      embedReindex.read().detachEmbedReindex(ownerId);
     },
   });
   const sessions = createSessionsService({
@@ -545,14 +550,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     seedUserConnections,
     rolePolicy,
   });
-  // A connection/binding write that changes an owner's embed or imageEmbed SPACE
-  // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
-  // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
-  // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
-    detachEmbedReindex: () => undefined,
-    detachStaleSpaceReindex: () => undefined,
-  };
   // A connection write awaits the owner's target sync, and the pane's change preview asks the same move rule; both are
   // the embeddings domain's, which composes after the connection domain.
   let embedTargets: Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove"> = {
@@ -572,6 +569,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     throw new Error("compose: materializeBackground invoked before assets wiring");
   };
   const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
+  // The initial settings reload runs before search-discovery; its trigger takes that warmed value as its
+  // baseline, so boot must not treat it as an off-to-on transition or read an unbound trigger.
   let refreshAutoindex = (): void => undefined;
   const settingsDeps: SettingsServiceDeps = {
     // The root's auth snapshot decides the mode floor, so the floor and the auth seam agree on the mode.
@@ -768,7 +767,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       personaName: (caller, id) => persona.get({ principal: caller, personaId: id }),
       presetName: (userId, id) => preset.get({ userId, id }),
     }),
-    requireParticipant: (principal, chatId) => requireWiredParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    requireParticipant: createWiredChatGuards({ db, can }).requireParticipant,
     audit: (entry): Promise<void> => audit(entry, now()),
     emitUserEvent: publishUserEvent,
   };
@@ -881,7 +880,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloads,
   } = searchDiscovery;
   // Bind the embed-space sweep enqueue now that `workloads` exists.
-  embedReindex = searchDiscovery;
+  embedReindex.bind(searchDiscovery);
   countOwnedVectors = searchDiscovery.embeddings.countOwnedVectors;
   embedTargets = searchDiscovery.embeddings;
   await searchDiscovery.embeddings.purgeDisallowedImages();
@@ -1589,10 +1588,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     signupInvites: chatCompose.signupInvites,
     seedUserConnections,
     detachEmbedReindex: (scope): void => {
-      embedReindex.detachEmbedReindex(scope);
+      embedReindex.read().detachEmbedReindex(scope);
     },
     detachStaleSpaceReindex: (): void => {
-      embedReindex.detachStaleSpaceReindex();
+      embedReindex.read().detachStaleSpaceReindex();
     },
     wireCaptureOn,
   };
