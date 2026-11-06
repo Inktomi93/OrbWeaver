@@ -220,7 +220,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           // stack, which keeps every lane's full width at the phone/3-pane mount instead of crushing the
           // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
           // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)
-          <Row align="start" className="@max-cq-64:flex-col @max-cq-64:items-stretch" gap="block">
+          <Row align="start" gap="block" stackBelow="cq-64" stretchBelow="cq-64">
             <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
               <PayloadLane
                 arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}

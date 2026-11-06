@@ -77,7 +77,7 @@ function RosterRow(props: {
   const counts = rosterCountsSuffix(roster);
   return (
     <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
-      <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
+      <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
         <Stack gap="tight" className="flex-1 min-inline-0">
           <Row align="center" gap="field">
             <Text voice="label" className="flex-1 min-inline-0" truncate={true}>
@@ -198,7 +198,7 @@ function SaveCurrentRoster(props: {
     <Stack gap="tight">
       {/* Its own container: below `@cq-28` the name and the Save button stack, so the input keeps its width. */}
       <Stack container={true}>
-        <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
+        <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
           <Input
             aria-label="New roster name"
             placeholder="Name this roster…"

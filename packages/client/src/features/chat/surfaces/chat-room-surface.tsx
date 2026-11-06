@@ -175,7 +175,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                  *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
                  *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
                  *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
-                 *  `@max-cq-32:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
+                 *  `stackBelow` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
                  *  different thing on each arm (the axis-disagreement family):
                  *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
                  *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
@@ -205,7 +205,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   <Row
                     gap="block"
                     align="stretch"
-                    className="relative overflow-x-clip block-full min-block-(--height-room-thread-min) @max-cq-32:flex-col"
+                    className="relative overflow-x-clip block-full min-block-(--height-room-thread-min)"
+                    stackBelow="cq-32"
                     data-slot="chat-room-flank-row"
                     ref={flankRowRef}
                   >

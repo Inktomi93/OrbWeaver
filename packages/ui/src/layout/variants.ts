@@ -70,6 +70,25 @@ const JUSTIFY = {
   between: "justify-between",
 } as const;
 
+// A row that gives up its width below a container step (`--container-cq-<rem>`, so the pane decides, never the viewport) turns into a
+// column (`stackBelow`), whose children take the full width (`stretchBelow`), and its trailing cluster lines up at the end (`endBelow`).
+// Each key names a step of the container scale and each arm writes one class as a whole literal, so Tailwind's scanner sees it.
+const STACK_BELOW = {
+  "cq-28": "@max-cq-28:flex-col",
+  "cq-32": "@max-cq-32:flex-col",
+  "cq-64": "@max-cq-64:flex-col",
+} as const;
+const STRETCH_BELOW = {
+  "cq-28": "@max-cq-28:items-stretch",
+  "cq-32": "@max-cq-32:items-stretch",
+  "cq-64": "@max-cq-64:items-stretch",
+} as const;
+const END_BELOW = {
+  "cq-28": "@max-cq-28:justify-end",
+  "cq-32": "@max-cq-32:justify-end",
+  "cq-64": "@max-cq-64:justify-end",
+} as const;
+
 // The coarse floors a layout box owns: its own block size (a row of text-height values whose hit areas must fit
 // inside it), or the pitch between tiled control cells. Declared after `gap` in each recipe so the coarse gap wins.
 const TOUCH_FLOOR = { block: TOUCH_FLOOR_AT_COARSE.block, gap: TOUCH_FLOOR_AT_COARSE.gap } as const;
@@ -211,6 +230,9 @@ export const rowVariants = tv({
     gap: GAP,
     align: ALIGN,
     justify: JUSTIFY,
+    stackBelow: STACK_BELOW,
+    stretchBelow: STRETCH_BELOW,
+    endBelow: END_BELOW,
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,

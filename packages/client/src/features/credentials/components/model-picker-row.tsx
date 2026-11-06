@@ -11,7 +11,7 @@ import { formatContextLength, formatPromptPrice, hasTools, hasVision } from "../
 export function ModelPickerRow({ entry, picked, current }: { readonly entry: PickerEntry; readonly picked: boolean; readonly current: boolean }): ReactElement {
   return (
     <Container className="flex-1 min-inline-0">
-      <Row align="start" className="@max-cq-32:flex-col" gap="row">
+      <Row align="start" gap="row" stackBelow="cq-32">
         <Stack className="flex-1 min-inline-0 @max-cq-32:inline-full" gap="field">
           <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit">
             {entry.label}
