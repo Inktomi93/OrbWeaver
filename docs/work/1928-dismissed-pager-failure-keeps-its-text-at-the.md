@@ -19,7 +19,7 @@ The word promises the line goes away.
 
 ## Done when
 
-The owner has ruled, and the control does what its name says.
+A dismissed failure leaves the pager entirely, at home and in the pinned box. Owner ruling: Dismiss removes the line.
 
 ## Evidence
 
