@@ -204,3 +204,5 @@ export function summaryCaption(summary: ImportSummary): string {
   }
   return parts.join(" · ");
 }
+
+export const IMPORT_PREVIEW_RETRY_NAME = "Try again";

@@ -15,7 +15,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/workloads-failure-copy.ts";
+import { IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/portability-model.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 // The preview over the real composed server: a picked SillyTavern folder really uploads as a dry run, the workload
