@@ -488,10 +488,11 @@
       background-image: url("/grain.svg");
       border-radius: inherit;
     }
-    /* The card's positioning context and stacking scope for its grain carrier. */
+    /* The card's positioning context for its grain carrier. No `isolation`: the soft-light blend must see what the
+     * card is painted over, and an isolated group would blend with nothing on a translucent card. The carrier's
+     * `z-index` orders against the card's own children within the portal surface that hosts the card. */
     [data-slot="card-root"] {
       position: relative;
-      isolation: isolate;
     }
     /* The shell already paints the grain over its cards; a portalled card owns its own carrier. */
     .shell-grid [data-slot="card-root"]::after {
