@@ -247,7 +247,7 @@ A list-bearing section declares its selection seam and `useListHeader` data hook
 Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
 The shell applies `--spacing-section` as the CONTENT inline inset. Where the shell main is under 20rem wide, an inset region takes `--spacing-block` instead, so a control row of its own width fits. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
 Every LIST pane is a `#components` `ListPage`, the one home for list search. A section declares no search policy. `ListPage` requires its `search` prop, `orb/page-template-shapes` refuses `ListSearch` in a feature, and `tests/client/features/app-shell/surfaces/section-roster-census.ct.tsx` asserts every rendered roster has a search box.
-Type tests reject omitted band and inset declarations.
+The `SectionWithList` type requires `selection` and `useListHeader` with `list`, so `tsc` rejects a list with no band. `tests/client/state/section-registry.dom.test-d.ts` rejects an omitted inset declaration.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 
 - One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; Ownership follows the definition location, not the section name.

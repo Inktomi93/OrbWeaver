@@ -8,10 +8,11 @@ import { vi } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import type { ListeningPortsRead } from "../../../../tooling/src/floor/host/platform.ts";
-import { listeningPids } from "../../../../tooling/src/floor/host/platform.ts";
+import { listeningPids, processCompletion } from "../../../../tooling/src/floor/host/platform.ts";
 import { killPidGroup } from "../../../../tooling/src/floor/process/proc.ts";
 import { doDevDown, stackContext } from "../../../../tooling/src/stack/index.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { plantSplitGroup } from "../../_split-group.ts";
 import { PLANTED_PORTS } from "../_dev-verbs.ts";
 
 // Where the listener's script lives, relative to the checkout the teardown is aimed at. The mirror carries the
@@ -142,21 +143,55 @@ test("a holder replaced during the TERM grace is refused the KILL, left standing
   }
 });
 
-test("a holder that exited on TERM does not spare a group member still holding the port from the KILL", async ({ scratch }) => {
-  const { child, context } = await plantStubbornListener(scratch);
-  const exited = once(child, "exit");
+// A real group on a real port: the leader (the port's named owner) exits on TERM, so by the KILL the holder pid is gone
+// and only a group member still holds the port. The grace is long enough for the leader to exit and be reaped.
+const SPLIT_STOP = { pollMs: 40, termGraceMs: 120, killGraceMs: 80 } as const;
+
+function splitContext(scratch: string, checkout: string, port: number): ReturnType<typeof stackContext> {
+  return stackContext(
+    checkout,
+    Object.fromEntries([
+      ["PORT", String(port)],
+      ["VITE_PORT", String(port === PLANTED_PORTS.vite ? PLANTED_PORTS.server : PLANTED_PORTS.vite)],
+      ["STACK_RUN_DIR", join(scratch, "private-record")],
+    ]),
+    null,
+  );
+}
+
+test("a holder that exited on TERM leaves its group member to the KILL", { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
+  const group = await plantSplitGroup(scratch, "member-holds-port");
   try {
-    // Read 1 pins the holder and read 2 guards its TERM; the holder is gone from the third on, while the listener the
-    // test planted in its group keeps the port.
-    let reads = 0;
-    const incarnationOf = (): { readonly kind: "live"; readonly identity: string } | { readonly kind: "gone" } =>
-      ++reads <= 2 ? { kind: "live", identity: "original" } : { kind: "gone" };
-    const outcome = await doDevDown(context, {}, { readPorts: () => listeningPids(), incarnationOf, timing: FAST_STOP });
-    expect(outcome).toBe(EXIT.clean);
-    await exited;
-    expect(child.signalCode).toBe("SIGKILL");
+    const context = splitContext(scratch, group.checkout, group.port);
+    const { value, output } = await capturingOutput(() => doDevDown(context, {}, { readPorts: () => listeningPids(), timing: SPLIT_STOP }));
+    expect(output, "a gone holder of this checkout is not called foreign").not.toContain("not this checkout's");
+    expect(value).toBe(EXIT.clean);
+    await expect.poll(() => processCompletion(group.leaderPid), { timeout: scaledBudget(5000) }).toEqual({ kind: "gone" });
   } finally {
-    killPidGroup(child.pid, "SIGKILL");
+    group.dispose();
+  }
+});
+
+test("a group seen empty is not signalled again while something outside it holds the port", { timeout: scaledBudget(30_000) }, async ({ scratch }) => {
+  const group = await plantSplitGroup(scratch, "outsider-holds-port");
+  try {
+    const context = splitContext(scratch, group.checkout, group.port);
+    const sent: string[] = [];
+    const signal = (target: number, kind: NodeJS.Signals | 0): boolean => {
+      if (kind !== 0) {
+        sent.push(`${String(target)} ${kind}`);
+      }
+      return process.kill(target, kind);
+    };
+    const { value, output } = await capturingOutput(() =>
+      doDevDown(context, {}, { readPorts: () => listeningPids(), timing: SPLIT_STOP, process: { signal } }),
+    );
+    expect(value).toBe(EXIT.violations);
+    expect(sent, "TERM reached the group once; the emptied group id never got a KILL").toEqual([`-${String(group.groupId)} SIGTERM`]);
+    expect(output).toContain("left its group empty");
+    expect(processCompletion(group.outsiderPid ?? 0).kind, "the outsider was not touched").toBe("live");
+  } finally {
+    group.dispose();
   }
 });
 

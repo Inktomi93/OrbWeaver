@@ -8,9 +8,9 @@ import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
 import { listeningPids, processCompletion, processGroupId, processInfo } from "../../floor/host/platform.ts";
-import { pidReplaced } from "../../floor/process/incarnation.ts";
+import { pinnedGroupStop } from "../../floor/process/incarnation.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
-import { captureProcessGroup, killPidGroup, observeProcessGroup } from "../../floor/process/proc.ts";
+import { captureProcessGroup, observeProcessGroup } from "../../floor/process/proc.ts";
 import type { StopTiming } from "../../floor/process/stop-escalation.ts";
 import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../floor/process/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
@@ -140,14 +140,13 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
   }
 }
 
-/** Stop a port holder this checkout owns through its group; a holder with no group is signalled alone. */
-function signalHolder(pid: number, signal: NodeJS.Signals): void {
+/** The group a holder this checkout owns is stopped through, pinned while the holder is alive; a holder with no group is signalled alone. */
+function holderGroup(pid: number, deps: DevPortDeps): Pick<ProcessGroup, "signal" | "alive"> {
   const pgid = processGroupId(pid);
   if (pgid === null) {
-    signalPid(pid, signal);
-    return;
+    return { signal: (kind) => signalPid(pid, kind), alive: () => pidIsAlive(pid) };
   }
-  killPidGroup(pgid, signal);
+  return captureProcessGroup(pgid, deps.process);
 }
 
 interface PortHolder {
@@ -155,8 +154,11 @@ interface PortHolder {
   readonly pid: number;
   readonly cmdline: string | null;
   /** The pid held this checkout's port when the stop began, but a later signal found a different process there. */
-  readonly replaced?: true;
+  readonly refusal?: StopRefusal;
 }
+
+/** Why a stop stopped signalling a holder this checkout owned: its pid is another process now, or its group emptied while the port stayed held. */
+type StopRefusal = "replaced" | "emptied";
 
 type PortSweep =
   | {
@@ -168,7 +170,10 @@ type PortSweep =
   | { readonly kind: "unreadable"; readonly reason: string };
 
 /** How a wait for one port ended; `unreadable` wins over the wait, because a silent table is not a free port. */
-type PortWait = { readonly kind: "free" } | { readonly kind: "held"; readonly replaced?: true } | { readonly kind: "unreadable"; readonly reason: string };
+type PortWait =
+  | { readonly kind: "free" }
+  | { readonly kind: "held"; readonly refusal?: StopRefusal }
+  | { readonly kind: "unreadable"; readonly reason: string };
 
 /** One port's end state after the sweep looked at it. */
 type PortOutcome =
@@ -204,8 +209,9 @@ function waitOutcome(watch: ReturnType<typeof portWatch>, freed: boolean): PortW
   return freed ? { kind: "free" } : { kind: "held" };
 }
 
-/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. Each signal reaches only the
- *  incarnation `pinned` recorded before its ownership was judged, so a pid reused during the grace is spared. */
+/** TERM a holder this checkout owns, wait, escalate to KILL, wait again. The holder's group is pinned before the
+ *  first signal and polled with the port: a holder that exits on TERM leaves its members to the KILL, while a
+ *  group seen empty, or a holder pid that `pinned` no longer matches, is never signalled again. */
 async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnType<typeof portWatch>, deps: DevPortDeps): Promise<PortWait> {
   if ((deps.process?.platform ?? process.platform) === "win32") {
     const tree = captureProcessGroup(pid, deps.process);
@@ -220,22 +226,23 @@ async function stopHolder(pid: number, pinned: ProcessCompletion, watch: ReturnT
       }),
     );
   }
-  const incarnationOf = deps.incarnationOf ?? processCompletion;
-  let refusals = 0;
+  const stop = pinnedGroupStop(holderGroup(pid, deps), { pid, pinned, read: deps.incarnationOf ?? processCompletion, subject: `pid ${String(pid)}` });
+  let refusal: StopRefusal | undefined;
   const signal = (kind: NodeJS.Signals): void => {
-    if (pidReplaced(pid, pinned, incarnationOf, `pid ${String(pid)}`)) {
-      refusals += 1;
-    } else {
-      signalHolder(pid, kind);
-    }
+    const sent = stop.signal(kind);
+    refusal = sent === "sent" ? refusal : sent;
   };
-  const wait = waitOutcome(watch, await escalateStop({ signal, gone: watch.free, ...(deps.timing === undefined ? {} : { timing: deps.timing }) }));
-  return wait.kind === "held" && refusals > 0 ? { kind: "held", replaced: true } : wait;
+  const gone = (): boolean => {
+    stop.occupied();
+    return watch.free();
+  };
+  const wait = waitOutcome(watch, await escalateStop({ signal, gone, ...(deps.timing === undefined ? {} : { timing: deps.timing }) }));
+  return wait.kind === "held" && refusal !== undefined ? { kind: "held", refusal } : wait;
 }
 
 function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
   if (wait.kind === "held") {
-    return { kind: "held", holder: wait.replaced === true ? { ...holder, replaced: true } : holder };
+    return { kind: "held", holder: wait.refusal === undefined ? holder : { ...holder, refusal: wait.refusal } };
   }
   return wait.kind === "free" ? { kind: "freed" } : wait;
 }
@@ -286,6 +293,18 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps, pri
   }
   log(`:${String(port)} is still held by pid ${String(pid)} from this checkout; stopping its group`);
   return outcomeOf(await stopHolder(pid, pinned, watch, deps), holder);
+}
+
+const REFUSAL_REASON: Record<StopRefusal, string> = {
+  replaced: "is no longer that process; its group was not signalled again; check what holds the port",
+  emptied: "left its group empty while something outside it still holds the port; the group was not signalled again; check what holds the port",
+};
+
+function refusedMessage(holder: PortHolder): string {
+  if (holder.refusal !== undefined) {
+    return `REFUSED :${String(holder.port)} — pid ${String(holder.pid)} held it for this checkout when the stop began, but ${REFUSAL_REASON[holder.refusal]}`;
+  }
+  return `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`;
 }
 
 /** The ports after the record: a holder whose command line names this checkout is stopped through its
@@ -360,11 +379,7 @@ export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: bool
   }
   if (sweep.refused.length > 0) {
     for (const holder of sweep.refused) {
-      log(
-        holder.replaced === true
-          ? `REFUSED :${String(holder.port)} — pid ${String(holder.pid)} held it for this checkout when the stop began, but is no longer that process; its group was not signalled again; check what holds the port`
-          : `REFUSED :${String(holder.port)} — held by pid ${String(holder.pid)} (${holder.cmdline ?? "command line unreadable"}), not this checkout's; stop it yourself`,
-      );
+      log(refusedMessage(holder));
     }
     result(`status=port-conflict ${sweep.refused.map((holder) => `port=${String(holder.port)} pid=${String(holder.pid)}`).join(" ")}`);
     return EXIT.violations;

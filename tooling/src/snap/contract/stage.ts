@@ -13,6 +13,7 @@
 // row was written — a row whose ports disagree with `stageBandPorts(row.band)` is evidence of a registry
 // edit, not something to silently paper over.
 import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
+import type { ProcessGroup } from "../../floor/process/proc-contract.ts";
 import type { ServedState } from "../../stack/index.ts";
 
 export interface StagePorts {
@@ -25,14 +26,14 @@ export interface StagePorts {
 export type StageStopVerdict = { readonly kind: "stopped" } | { readonly kind: "unconfirmed"; readonly reason: string };
 
 /** What a stage stop reads and does to the box, injected so a test drives a survivor without real processes or
- *  real time. `groupOf` names the target a signal goes to (a pgid, or the pid on win32); `wait` blocks. */
+ *  real time. `captureGroup` pins the holder's group before any signal; `wait` blocks. */
 export interface StageStopDeps {
   readonly readPorts: () => ListeningPortsRead;
   readonly isStageRooted: (pid: number) => boolean;
   /** A holder's incarnation, read before it is judged and again before every signal to its group. */
   readonly incarnationOf: (pid: number) => ProcessCompletion;
-  readonly groupOf: (pid: number) => number | null;
-  readonly signalGroup: (target: number, signal: NodeJS.Signals) => void;
+  /** The holder's group (win32: its captured tree), retained while the holder is alive so a signal after the holder exits still reaches the same group. Null when it cannot be named. */
+  readonly captureGroup: (pid: number) => Pick<ProcessGroup, "signal" | "alive"> | null;
   readonly wait: (ms: number) => void;
   /** Run a staged tree's launcher verb in `cwd`, with `env` layered over the ambient environment. */
   readonly runLauncher: (spawn: StageLauncherSpawn, opts: { readonly cwd: string; readonly env: Readonly<Record<string, string>> }) => void;

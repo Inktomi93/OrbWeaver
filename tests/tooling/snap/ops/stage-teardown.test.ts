@@ -8,6 +8,8 @@ import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { ListeningPortsRead, PortOwner, ProcessCompletion } from "../../../../tooling/src/floor/host/platform.ts";
 import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
+import { observeProcessGroup } from "../../../../tooling/src/floor/process/proc.ts";
+import type { RunNicedSyncResult } from "../../../../tooling/src/floor/process/proc-contract.ts";
 import type { StageBandView, StageStopDeps } from "../../../../tooling/src/snap/contract/stage.ts";
 import { reapStrandedBand, stopStage, tearDownRowlessBand } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { STACK_CLI_REL, stackPorts } from "../../../../tooling/src/stack/index.ts";
@@ -24,10 +26,12 @@ const FREE = table(new Map());
 const HELD_BY_STAGE = table(new Map([[PORTS.server, { kind: "pid", pid: STAGE_PID }]]));
 
 /** Deps that answer `reads` in order (the last one repeats), treat `STAGE_PID` as stage-rooted in group
- *  `STAGE_GROUP`, and record every signal and wait instead of acting. */
+ *  `STAGE_GROUP`, and record every signal and wait instead of acting. The group has members until `groupAlive` says
+ *  otherwise. */
 function planted(
   reads: readonly ListeningPortsRead[],
   incarnationOf: (signals: readonly string[]) => ProcessCompletion = () => ({ kind: "live", identity: "original" }),
+  groupAlive: (signals: readonly string[]) => boolean = () => true,
 ): { readonly deps: StageStopDeps; readonly signals: string[]; readonly waits: number[] } {
   const signals: string[] = [];
   const waits: number[] = [];
@@ -40,10 +44,15 @@ function planted(
       return read;
     },
     isStageRooted: (pid) => pid === STAGE_PID,
-    groupOf: (pid) => (pid === STAGE_PID ? STAGE_GROUP : null),
-    signalGroup: (target, signal) => {
-      signals.push(`${String(target)} ${signal}`);
-    },
+    captureGroup: (pid) =>
+      pid === STAGE_PID
+        ? {
+            alive: () => groupAlive(signals),
+            signal: (kind) => {
+              signals.push(`${String(STAGE_GROUP)} ${kind}`);
+            },
+          }
+        : null,
     wait: (ms) => {
       waits.push(ms);
     },
@@ -125,6 +134,22 @@ test("a holder that exited on TERM does not spare its group from the KILL while 
   expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`, `${String(STAGE_GROUP)} SIGKILL`]);
 });
 
+test("a group seen empty is never signalled again, even while the port stays held", ({ scratch }) => {
+  // The group empties after the TERM and the port stays held by something outside it: the KILL would go to an id
+  // that may belong to a new group.
+  const run = planted([HELD_BY_STAGE], undefined, (signals) => signals.length === 0);
+  expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({
+    kind: "unconfirmed",
+    reason: expect.stringContaining("process group of pid 4242 emptied"),
+  });
+  expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+  // Once seen empty it stays empty: a group that reads occupied again is a recycled id, not ours.
+  let reads = 0;
+  const recycled = planted([HELD_BY_STAGE], undefined, () => ++reads !== 3);
+  expect(stopStage(noStage(scratch), PORTS, recycled.deps).kind).toBe("unconfirmed");
+  expect(recycled.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+});
+
 test("a holder whose identity cannot be read is never signalled", ({ scratch }) => {
   const unreadable = planted([HELD_BY_STAGE], () => ({ kind: "unknown" }));
   expect(stopStage(noStage(scratch), PORTS, unreadable.deps)).toEqual({
@@ -136,6 +161,32 @@ test("a holder whose identity cannot be read is never signalled", ({ scratch }) 
   const vanishing = planted([HELD_BY_STAGE], (signals) => (signals.length === 0 ? { kind: "live", identity: "original" } : { kind: "unknown" }));
   expect(() => stopStage(noStage(scratch), PORTS, vanishing.deps)).toThrow("identity unavailable");
   expect(vanishing.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+});
+
+// The win32 tree is read through PowerShell and ended with taskkill; these drive the real retained-tree controller
+// with the rows that tool documents. The planted holder is the root, with one child that survives the first kill.
+test("a win32 stop keeps signalling the captured tree after its root exited, and confirms once the child is gone", ({ scratch }) => {
+  let rows = [
+    { pid: STAGE_PID, ppid: 1, identity: "100" },
+    { pid: STAGE_PID + 1, ppid: STAGE_PID, identity: "101" },
+  ];
+  const taskkills: string[] = [];
+  const run = (command: string, args: readonly string[]): RunNicedSyncResult => {
+    if (command === "taskkill") {
+      taskkills.push(args.join(" "));
+      rows = taskkills.length === 1 ? rows.filter((row) => row.pid !== STAGE_PID) : [];
+      return { status: 0, stdout: "", stderr: "" };
+    }
+    return { status: 0, stdout: JSON.stringify(rows), stderr: "" };
+  };
+  const planted_ = planted([HELD_BY_STAGE], () => (taskkills.length === 0 ? { kind: "live", identity: "original" } : { kind: "gone" }));
+  const deps: StageStopDeps = {
+    ...planted_.deps,
+    readPorts: () => (rows.length > 0 ? HELD_BY_STAGE : FREE),
+    captureGroup: (pid) => observeProcessGroup(pid, { platform: "win32", run }),
+  };
+  expect(stopStage(noStage(scratch), PORTS, deps)).toEqual({ kind: "stopped" });
+  expect(taskkills).toEqual([`/PID ${String(STAGE_PID)} /PID ${String(STAGE_PID + 1)} /F`, `/PID ${String(STAGE_PID + 1)} /F`]);
 });
 
 // ── the launcher stop: the staged stack must sweep the band's ports, never the dev stack's ───────────────

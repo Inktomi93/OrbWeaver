@@ -55,10 +55,9 @@ export {
   pluginAuthorSupportDrift,
 } from "./support-model.ts";
 
-const { main: MAIN_RUNTIME, ui: UI_RUNTIME, frame: FRAME_RUNTIME } = PLUGIN_AUTHOR_SUPPORT.runtimes;
-const MAIN_SOURCE = MAIN_RUNTIME.sourceEntry;
-const UI_SOURCE = UI_RUNTIME.sourceEntry;
-const FRAME_SOURCE = FRAME_RUNTIME.sourceEntry;
+function sourceEntry(world: keyof typeof PLUGIN_AUTHOR_SUPPORT.runtimes): string {
+  return PLUGIN_AUTHOR_SUPPORT.runtimes[world].sourceEntry;
+}
 
 const QUICKJS_FORBIDDEN_GLOBALS = new Set([
   "Date",
@@ -285,7 +284,7 @@ interface FrameCompilation {
 }
 
 async function compileFrame(sdkDirectory: string, sourceDirectory: string, observer?: PluginAuthorCompilerObserver): Promise<FrameCompilation> {
-  const sourcePath = join(sourceDirectory, FRAME_SOURCE);
+  const sourcePath = join(sourceDirectory, sourceEntry("frame"));
   const sourceText = await readOptionalText(sourcePath);
   if (sourceText === undefined) {
     return { sourceText: undefined, emittedText: undefined, diagnostics: [] };
@@ -304,7 +303,12 @@ function embedFrame(sourcePath: string, sourceText: string, emittedFrame: string
   const markerCount = sourceText.split(FRAME_SCRIPT_MARKER).length - 1;
   if (markerCount !== 1) {
     return {
-      diagnostic: { file: sourcePath, line: 1, column: 1, message: `frame source requires exactly one ${FRAME_SCRIPT_MARKER} marker in ${MAIN_SOURCE}` },
+      diagnostic: {
+        file: sourcePath,
+        line: 1,
+        column: 1,
+        message: `frame source requires exactly one ${FRAME_SCRIPT_MARKER} marker in ${sourceEntry("main")}`,
+      },
     };
   }
   return { text: emitScript(sourceText.replace(FRAME_SCRIPT_MARKER, templateLiteralBody(emittedFrame)), sourcePath, "main") };
@@ -327,11 +331,11 @@ async function compileRuntime({
   frame,
   observer,
 }: RuntimeCompilation): Promise<{ readonly artifact?: PluginAuthorArtifact; readonly diagnostics: readonly PluginAuthorDiagnostic[] }> {
-  const sourcePath = join(sourceDirectory, PLUGIN_AUTHOR_SUPPORT.runtimes[runtime].sourceEntry);
+  const sourcePath = join(sourceDirectory, sourceEntry(runtime));
   const sourceText = await readOptionalText(sourcePath);
   if (sourceText === undefined) {
     return {
-      diagnostics: runtime === "main" ? [{ file: sourcePath, line: 1, column: 1, message: `${MAIN_SOURCE} is required` }] : [],
+      diagnostics: runtime === "main" ? [{ file: sourcePath, line: 1, column: 1, message: `${sourceEntry("main")} is required` }] : [],
     };
   }
   const compiled = await compileSource(sdkDirectory, sourcePath, runtime, observer);
@@ -346,7 +350,7 @@ async function compileRuntime({
     }
     output = embedded.text;
   } else if (runtime === "main" && frame.sourceText === undefined && sourceText.includes(FRAME_SCRIPT_MARKER)) {
-    return { diagnostics: [{ file: sourcePath, line: 1, column: 1, message: `${FRAME_SCRIPT_MARKER} requires authored ${FRAME_SOURCE}` }] };
+    return { diagnostics: [{ file: sourcePath, line: 1, column: 1, message: `${FRAME_SCRIPT_MARKER} requires authored ${sourceEntry("frame")}` }] };
   }
   return {
     artifact: { runtime, outputPath: outputFor(sourcePath, outputDirectory), bytes: new TextEncoder().encode(output) },
@@ -367,13 +371,18 @@ async function legacyOutputDiagnostics(sourceDirectory: string): Promise<readonl
     });
   }
   if (await fileExists(framePath)) {
-    diagnostics.push({ file: framePath, line: 1, column: 1, message: `frame.js is not a runtime entry; ${FRAME_SOURCE} must be embedded into main.js` });
+    diagnostics.push({
+      file: framePath,
+      line: 1,
+      column: 1,
+      message: `frame.js is not a runtime entry; ${sourceEntry("frame")} must be embedded into main.js`,
+    });
   }
   return diagnostics;
 }
 
 async function obsoleteUiOutput(sourceDirectory: string, outputDirectory: string): Promise<readonly string[]> {
-  if ((await fileExists(join(sourceDirectory, UI_SOURCE))) || !(await fileExists(join(outputDirectory, "ui.js")))) {
+  if ((await fileExists(join(sourceDirectory, sourceEntry("ui")))) || !(await fileExists(join(outputDirectory, "ui.js")))) {
     return [];
   }
   return [join(outputDirectory, "ui.js")];
@@ -397,10 +406,10 @@ export async function compilePluginDirectory(project: PluginAuthorProject): Prom
     ),
   );
   const diagnostics = [...(await legacyOutputDiagnostics(sourceDirectory)), ...frame.diagnostics, ...runtimeResults.flatMap((result) => result.diagnostics)];
-  const missingUiSource = !(await fileExists(join(sourceDirectory, UI_SOURCE)));
+  const missingUiSource = !(await fileExists(join(sourceDirectory, sourceEntry("ui"))));
   const sourceUiOutput = join(sourceDirectory, "ui.js");
   if (missingUiSource && (await fileExists(sourceUiOutput))) {
-    diagnostics.push({ file: sourceUiOutput, line: 1, column: 1, message: `ui.js exists without authored ${UI_SOURCE}` });
+    diagnostics.push({ file: sourceUiOutput, line: 1, column: 1, message: `ui.js exists without authored ${sourceEntry("ui")}` });
   }
   return {
     artifacts: diagnostics.length === 0 ? runtimeResults.flatMap((result) => (result.artifact === undefined ? [] : [result.artifact])) : [],
