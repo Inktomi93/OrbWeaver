@@ -96,7 +96,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // the two cannot share one, the label keeps its intrinsic width (no `truncate`), and the datum
           // keeps `shrink-0` so a measurement never breaks mid-number. At every width both facts are whole;
           // what varies is how many lines the row spends, which is the honest thing to trade.
-          <Stack className="py-field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
+          <Stack paddingBlock="field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
             <Row align="center" className="flex-wrap" gap="row" justify="between">
               <Row className="min-inline-0" gap="field">
                 <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />

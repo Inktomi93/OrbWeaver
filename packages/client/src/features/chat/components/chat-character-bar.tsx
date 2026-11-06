@@ -110,7 +110,9 @@ function CharacterBarStrip({
     <Row
       gap="field"
       align="center"
-      className="flex-wrap px-block py-row"
+      className="flex-wrap"
+      paddingBlock="row"
+      paddingInline="block"
       plate="band"
       data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}

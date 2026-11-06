@@ -38,7 +38,7 @@ export function renderSingleBubble(args: {
     return (
       <MessageBox {...args.facts} shape="bare" positioned={false} artDecoration={artDecoration}>
         <WhisperBand band={headerBand} view={args.artView} onFailedChange={args.onArtFailed} />
-        <Stack gap="row" className="px-block py-row">
+        <Stack gap="row" paddingBlock="row" paddingInline="block">
           {args.header}
           {args.content}
           {args.footer}
@@ -68,7 +68,7 @@ export function renderSingleBubble(args: {
       {args.mirrored ? null : args.weldedAvatar}
       {/* The column stretches the card's height and the foot takes its end, so the swipe group sits in the card's
           bottom corner beside a tall portrait instead of floating under a short reply. */}
-      <Stack gap="row" className="flex-1 self-stretch px-block py-row min-inline-0">
+      <Stack gap="row" className="flex-1 self-stretch min-inline-0" paddingBlock="row" paddingInline="block">
         {args.header}
         {args.content}
         {args.footer === null ? null : <Stack className="mbs-auto">{args.footer}</Stack>}

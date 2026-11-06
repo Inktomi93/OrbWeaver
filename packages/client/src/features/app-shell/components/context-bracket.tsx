@@ -123,7 +123,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
         ) : null}
       </Row>
       {hasBand ? (
-        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0 px-block py-row">
+        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0" paddingBlock="row" paddingInline="block">
           {band}
         </Stack>
       ) : null}

@@ -35,7 +35,7 @@ import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 export function DefRow({ slot, children }: { readonly slot: string; readonly children: ReactNode }): ReactElement {
   return (
     <Card ownSlot={slot} padding="none">
-      <Stack className="px-block py-row" gap="field" rows="control">
+      <Stack paddingBlock="row" paddingInline="block" gap="field" rows="control">
         {children}
       </Stack>
     </Card>

@@ -204,7 +204,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     // where its last line does. (Measured pre-fix: clientHeight 25 = one 13.125px line +
                     // pb-block; the report's "display: flow-root defeats the clamp" reading was wrong —
                     // `flow-root` is just Chrome's computed serialization of a blockified `-webkit-box`.)
-                    <Stack className="px-block pbe-block">
+                    <Stack className="pbe-block" paddingInline="block">
                       <Text voice="gloss" className="line-clamp-1">
                         {values.content}
                       </Text>
@@ -214,7 +214,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
               )}
             </form.Subscribe>
             <CollapsiblePanel>
-              <Stack gap="field" className="px-block pbe-block">
+              <Stack gap="field" className="pbe-block" paddingInline="block">
                 <form.AppField name="position">
                   {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
                 </form.AppField>
@@ -302,7 +302,7 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
                 <Skeleton className="flex-1 block-(--leading-label) min-inline-0" />
               </Row>
               {/* The one-line content excerpt. */}
-              <Row className="px-block pbe-block">
+              <Row className="pbe-block" paddingInline="block">
                 <Skeleton className="flex-1 block-(--leading-label)" />
               </Row>
             </Card>

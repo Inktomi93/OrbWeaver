@@ -47,7 +47,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}
         {dragActive ? (
           <Card tone="primary" variant="outline" dashed={true} ownSlot="composer-drop-affordance" padding="none">
-            <Row gap="field" align="center" justify="center" className="py-field">
+            <Row gap="field" align="center" justify="center" paddingBlock="field">
               <Icon icon={ImagePlus} size="sm" />
               <Text voice="gloss">{DROP_AFFORDANCE}</Text>
             </Row>

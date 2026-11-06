@@ -292,7 +292,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
-          <Stack className="px-block pbe-block" gap="field">
+          <Stack className="pbe-block" paddingInline="block" gap="field">
             <Row align="center" className="flex-wrap" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (

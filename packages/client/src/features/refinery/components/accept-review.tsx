@@ -168,7 +168,8 @@ function QueueRow({
   return (
     <Row
       align="center"
-      className="flex-wrap py-field"
+      className="flex-wrap"
+      paddingBlock="field"
       data-queue-state={state}
       divider={first ? undefined : "top"}
       data-testid={testId("refineryQueueRow")}

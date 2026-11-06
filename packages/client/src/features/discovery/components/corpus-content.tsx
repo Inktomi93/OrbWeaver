@@ -11,7 +11,7 @@ export function CorpusContent(): ReactElement {
   const destination = useSelectedCorpusDestination();
   return (
     <Container className="block-full min-block-0">
-      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="corpus-content">
+      <Stack className="relative overflow-y-auto overscroll-contain block-full min-block-0" paddingBlock="section" data-slot="corpus-content">
         {destination === null ? <CorpusHomeSurface /> : <CorpusArtifactSurface key={corpusDestinationIdentity(destination)} destination={destination} />}
       </Stack>
     </Container>
