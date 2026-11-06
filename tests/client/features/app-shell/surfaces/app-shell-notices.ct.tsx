@@ -205,7 +205,11 @@ test.describe("with an open sheet and keyboard", () => {
     // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
     // retried by scrolling the page, which moves every box this test then measures.
     await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
-    await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
+    // Document-timeline animations only: a scroll-driven animation (the rail's scroll fades) reads "running" for as long
+    // as its scroller exists and moves nothing.
+    await page.waitForFunction(() =>
+      document.getAnimations().every((animation) => animation.playState !== "running" || !(animation.timeline instanceof DocumentTimeline)),
+    );
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
