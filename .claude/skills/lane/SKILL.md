@@ -203,7 +203,7 @@ Name your lane, state your default, and keep working. Send nothing else.
 
 ## Report
 
-- Write the full report to `reports/lanes/<YYYY-MM-DD>-<slug>.md` under the main checkout: every command and its result, decisions, what you refused and what you deferred. It is gitignored and survives your worktree.
+- Write the full report to `reports/lanes/<YYYY-MM-DD>-<slug>.md` inside your worktree: every command and its result, decisions, what you refused and what you deferred. It is gitignored, so the orchestrator copies it to main before the sweep.
 - Your final message is a return card of 15 lines or fewer. Pass the path, never the report's contents:
   - Outcome: one line, then each acceptance item with met or not met.
   - Commits: the shas.
