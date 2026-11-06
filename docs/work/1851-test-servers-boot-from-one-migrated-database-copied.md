@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-02
+updated: 2026-11-06
 priority: P2
 area: tests
 plan: test-foundation
@@ -15,7 +15,7 @@ Each test server boot copies one already-migrated database made once per run, in
 
 ## Why
 
-CI's component test job takes about 39 minutes. Its log shows 1,549 server boots across 2,286 tests, each running every migration from scratch. Local Node and CT runs pay the same cost.
+CI's component test job takes about 39 minutes. Its log shows 1,549 server boots across the job, each running every migration from scratch. Local Node and CT runs pay the same cost.
 
 ## Done when
 
