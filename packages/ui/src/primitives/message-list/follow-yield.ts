@@ -36,8 +36,9 @@ const SCROLL_KEYS: ReadonlySet<string> = new Set(["ArrowUp", "ArrowDown", "PageU
  */
 export function attachUserScrollInput(el: HTMLElement, onInput: () => void): () => void {
   const onKey = (event: KeyboardEvent): void => {
+    // A row walk cancels its key and writes the axis itself: the yield would drop that write.
     // Space presses a focused button instead of scrolling, and that press can start a prepend whose anchor must land.
-    if (SCROLL_KEYS.has(event.key) && !(event.key === " " && event.target instanceof HTMLButtonElement)) {
+    if (!event.defaultPrevented && SCROLL_KEYS.has(event.key) && !(event.key === " " && event.target instanceof HTMLButtonElement)) {
       onInput();
     }
   };

@@ -86,6 +86,20 @@ export const WALKER_OBSCURED_REACH = `
       el.scrollIntoView(true);
     }
   }
+  // A scroll ancestor that clips the subject's centre: the pixel there belongs to whatever sits outside
+  // the scroller's box, but a real tap scrolls the scroller first and reaches the subject. The reveal is
+  // owed before the verdict, because a non-null answer there would read as a collision.
+  function centreClippedByScroller(el, x, y) {
+    for (var cp = el.parentElement; cp !== null && cp !== document.documentElement; cp = cp.parentElement) {
+      var cs = getComputedStyle(cp);
+      var scrollsY = (cs.overflowY === "auto" || cs.overflowY === "scroll") && cp.scrollHeight > cp.clientHeight;
+      var scrollsX = (cs.overflowX === "auto" || cs.overflowX === "scroll") && cp.scrollWidth > cp.clientWidth;
+      if (!scrollsY && !scrollsX) continue;
+      var cr = cp.getBoundingClientRect();
+      if (x < cr.left || x >= cr.right || y < cr.top || y >= cr.bottom) return true;
+    }
+    return false;
+  }
   // ASK ONE CANDIDATE'S CENTRE WHERE IT CURRENTLY SITS, and return either the compositor's answer or the
   // NAMED reason it could not be asked. Extracted from the loop below so the reveal can be retried
   // against the identical question rather than against a second, subtly different copy of it.
@@ -145,7 +159,7 @@ export const WALKER_OBSCURED_REACH = `
     // poison a whole matrix cell even though one ordinary scroll made the question answerable. ONE
     // reveal, EITHER unaskable reason — see askObscuredCentre's header for the fold lottery this closes.
     var obAsk = askObscuredCentre(obel);
-    if (obAsk.reason === "centre-outside-frame" || obAsk.reason === "hit-test-null") {
+    if (obAsk.reason === "centre-outside-frame" || obAsk.reason === "hit-test-null" || centreClippedByScroller(obel, obAsk.cx, obAsk.cy)) {
       recenterObscuredCandidate(obel);
       obAsk = askObscuredCentre(obel);
       if (obAsk.reason !== "centre-outside-frame" && obAsk.reason !== "hit-test-null") obscuredRecentred += 1;

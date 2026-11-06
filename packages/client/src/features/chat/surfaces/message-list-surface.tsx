@@ -414,7 +414,9 @@ function ChatThread({
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
-        {history}
+        <Track of={Stack} track="chat">
+          {history}
+        </Track>
         <EmptyThread />
       </Stack>
     );

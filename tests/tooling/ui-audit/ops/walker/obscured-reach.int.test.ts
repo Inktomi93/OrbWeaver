@@ -145,6 +145,42 @@ test("obscured census recentres a partially visible subject before judging its c
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 1, withheld: { unaskable: 0 } });
 });
 
+/** A short scroller whose third button overflows its box and sits over the next sibling's pixels. A tap
+ *  scrolls the scroller and reaches the button, so that is not a collision. */
+const scrollerWith = (extra: string): string => `<div style="position:relative">
+  <div data-slot="rail" style="height:100px;width:200px;overflow-y:auto">
+    <button data-slot="first" style="display:block;width:160px;height:60px">First</button>
+    <button data-slot="second" style="display:block;width:160px;height:60px">Second</button>
+    <button data-slot="third" style="display:block;width:160px;height:60px">Third</button>
+    ${extra}
+  </div>
+  <div data-slot="footer" style="height:100px;width:200px"><button data-slot="footer-action" style="display:block;width:160px;height:90px">Footer</button></div>
+</div>`;
+
+test("a target clipped by a scroll ancestor is reachable by scrolling, not obscured", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "obscured-scroll-clipped.html"), relationalDocument(scrollerWith("")));
+  const result = await runCli("snap", ["--file", join(scratch, "obscured-scroll-clipped.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+
+  expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([]);
+});
+
+test("a target still covered after the scroller reveals it reports", async ({ runCli, scratch }) => {
+  const cover = '<button data-slot="cover" style="position:absolute;left:0;top:120px;width:160px;height:60px">Cover</button>';
+  await writeFile(
+    join(scratch, "obscured-scroll-covered.html"),
+    relationalDocument(scrollerWith(cover).replace("overflow-y:auto", "overflow-y:auto;position:relative")),
+  );
+  const result = await runCli("snap", ["--file", join(scratch, "obscured-scroll-covered.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+
+  expect(report.findings.filter(({ rule }) => rule === "obscured-target")).not.toEqual([]);
+});
+
 test("obscured census keeps a null compositor answer withheld after the centre is in frame", async ({ runCli, scratch }) => {
   await writeFile(
     join(scratch, "obscured-hit-test-null.html"),

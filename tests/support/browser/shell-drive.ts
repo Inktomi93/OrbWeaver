@@ -43,6 +43,34 @@ export async function settledBox(locator: Locator): Promise<{ x: number; y: numb
   throw new Error(`the box never settled: last ${JSON.stringify(previous)}`);
 }
 
+/** The message at a transcript's top edge once two reads a painted frame apart agree, read from the row boxes, so it says
+ *  what the reader is on whatever the list recorded. */
+export async function settledReadingRow(list: Locator): Promise<{ readonly id: string | undefined; readonly offset: number }> {
+  const read = (): Promise<{ readonly id: string | undefined; readonly offset: number }> =>
+    list.evaluate((node) => {
+      const edge = node.getBoundingClientRect().top;
+      const row = [...node.querySelectorAll<HTMLElement>('[data-slot="message-row"]')]
+        .map((candidate) => ({
+          id: candidate.dataset["messageId"],
+          top: candidate.getBoundingClientRect().top,
+          bottom: candidate.getBoundingClientRect().bottom,
+        }))
+        .filter(({ bottom }) => bottom > edge)
+        .toSorted((a, b) => a.top - b.top)[0];
+      return { id: row?.id, offset: Math.round((row?.top ?? Number.NaN) - edge) };
+    });
+  let previous = await read();
+  for (let frame = 0; frame < SETTLE_FRAMES; frame += 1) {
+    await list.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    const current = await read();
+    if (current.id === previous.id && current.offset === previous.offset) {
+      return current;
+    }
+    previous = current;
+  }
+  throw new Error(`the reading row never settled: last ${JSON.stringify(previous)}`);
+}
+
 /**
  * Drag and drop a synthetic transfer onto `target` and report whether the drop's default was cancelled, which is
  * what stops the browser navigating the tab to a dropped file. The probe listens on window after the shell's own guard.

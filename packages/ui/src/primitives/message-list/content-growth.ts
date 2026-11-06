@@ -39,7 +39,7 @@
 //     between it and the reader. `useTailRepin` has no "did it actually grow?" comparison: any run of the
 //     effect whose guards pass calls `scrollToEnd`, and the effect runs on setup as well as on every
 //     `contentHeightPx` change. The guard chain is therefore load-bearing rather than defensive — follow
-//     intent (`stickToBottomRef`, moved only by a real external scroll), a measured list
+//     intent (`stickToBottomRef`, moved only by an external scroll or a row walk), a measured list
 //     (`contentHeightPx > 0`, which is also the "nothing to pin to yet" gate) and a laid-out scroller
 //     (`clientHeight > 0`). A reader who has scrolled away is protected by the ref alone.
 
@@ -57,7 +57,7 @@ type MessageListVirtualizer = Virtualizer<HTMLDivElement, HTMLLIElement>;
  * between an effect setup and a scroll the reader did not ask for.
  *
  * - `tailFollowActive` — off entirely under `pin-prompt` (the pin owns placement) and under `followTail: false`.
- * - `sticking` — the reader's own follow intent, moved only by an external scroll.
+ * - `sticking` — the reader's own follow intent, moved only by an external scroll or a row walk.
  * - `contentHeightPx > 0` — the list has been measured; before that there is no end to pin to.
  * - `clientHeightPx > 0` — the scroller has a box; scrolling an unlaid-out element is a no-op that also
  *   records a programmatic write, which the external-scroll detector would then have to un-learn.

@@ -448,6 +448,7 @@ export const OWNER_CSS_SLOTS = [
   "message-edit-textarea",
   "message-footer",
   "message-list-leading",
+  "message-list-leading-action",
   "message-list-row",
   "message-list-scroll",
   "message-list-viewport",

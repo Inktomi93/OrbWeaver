@@ -162,6 +162,7 @@ export const WALKER_RESOLVE = `
   // viewport-anchored, so it backs EVERY element that resolves through it, in view or not; an absolutely
   // positioned one is document-anchored and only matters where it geometrically intersects.
   var OPAQUE_MIN_ALPHA = 0.999;
+  var REPLACED_ART_SELECTOR = "img, video, canvas, picture";
   var paintLayerCensus = null;
   function paintLayers() {
     if (paintLayerCensus !== null) return paintLayerCensus;
@@ -174,7 +175,9 @@ export const WALKER_RESOLVE = `
       if (!fixed && ls.position !== "absolute") continue;
       if ((lel.textContent || "").trim() !== "") continue;
       var lbg = parseRgb(ls.backgroundColor);
-      var painted = (ls.backgroundImage && ls.backgroundImage !== "none") || (lbg !== null && lbg.a > 0);
+      // A replaced element (img, video, canvas, picture) paints art with no CSS background, whether it is the
+      // layer or sits inside it, and a plate over it composites against the pixels, not the body base.
+      var painted = (ls.backgroundImage && ls.backgroundImage !== "none") || (lbg !== null && lbg.a > 0) || lel.matches(REPLACED_ART_SELECTOR) || lel.querySelector(REPLACED_ART_SELECTOR) !== null;
       if (!painted || !isVisible(lel)) continue;
       paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect() });
     }
