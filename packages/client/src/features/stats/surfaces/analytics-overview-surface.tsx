@@ -33,6 +33,7 @@ import { setActiveSection, useSectionListMode } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
+import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -108,7 +109,8 @@ function OverviewBody(): ReactElement {
     return <EmptyStateNoData />;
   }
 
-  const rhythm = rhythmOf(localTimeline(timeline, timeLib.calendarPosition).days);
+  const local = localTimeline(timeline, timeLib.calendarPosition);
+  const rhythm = rhythmOf(local.days);
   const momentum = localMomentum(momentumBuckets, timeLib.calendarPosition);
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
@@ -180,6 +182,11 @@ function OverviewBody(): ReactElement {
         </Stack>
       </Section>
 
+      {local.approx ? (
+        <Text voice="gloss" role="note">
+          {APPROX_DATES_NOTE}
+        </Text>
+      ) : null}
       <RhythmFigures rhythm={rhythm} />
 
       <Section heading="Tokens and cost">

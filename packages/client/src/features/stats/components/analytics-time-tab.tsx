@@ -15,6 +15,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
+import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
 import {
   activityHeatmapMatrix,
   dailyTokenBuckets,
@@ -56,6 +57,11 @@ function TimeBody(): ReactElement {
   return (
     <Stack gap="section">
       <LibraryScopeNotice reason="Activity over time is rolled up across every character, with no per-character breakdown to narrow to." />
+      {timeline.approx ? (
+        <Text voice="gloss" role="note">
+          {APPROX_DATES_NOTE}
+        </Text>
+      ) : null}
 
       {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print
           raw digits while the stat rows printed "1.2M" — one surface, two number vocabularies (P2f). */}
