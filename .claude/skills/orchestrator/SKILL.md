@@ -131,7 +131,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Assign verification ownership in the brief. Reuse completed lane checks under the `lane` skill's completion policy.
 - Call work done after its applicable checks. CI is the verdict (D317). Use the native pre-push checks when the owner pushes; run affected runtime checks before that ("The barrier").
 - Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
-- Run `code-reviewer` once per batch or branch, never once per item. One pass covers every item in it.
+- Run `code-reviewer` over the biggest coherent chunk: a merge train or a whole plan step, never one lane or one item. Hold finished lanes for that pass.
 - Always review server logic, data, migrations and security changes.
 - Review a fix batch once when it shows red-then-green tests and a passing typecheck.
 - Skip review for docs and mechanical edits that pass the floor.
@@ -139,6 +139,47 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Treat scout findings as input. Check the important ones before you act on them.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
 - To sweep finished lanes for dropped follow-ups, read each lane's last message in full. A keyword search misses other wording.
+
+## Work board
+
+Run these from main. Every id list takes many ids; never loop one id per call. Every write formats its files.
+
+| Job | Command |
+| - | - |
+| Read items | `pnpm doc show <id…>` |
+| See the board | `pnpm doc overview [--status open\|doing\|blocked[,…]] [--area <a>]` |
+| See what needs action | `pnpm doc drift` |
+| Mint one item | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x \| --blocked <reason>] [--what <t>] [--why <t>] [--done <t>] [--commit]` |
+| Mint a batch | `pnpm doc item --from <file.json> [--commit]`; a JSON array with keys `title`, `kind`, `priority`, `area`, `plan`, `lane`, `blocked`, `what`, `why`, `done` |
+| Change state or fields | `pnpm doc set <id…> [open\|doing\|blocked] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha] [--commit]` |
+| Clear a field | `--<field> -` or `--<field> none` |
+| Change an item's text | `pnpm doc edit <id> [--what <t>] [--why <t>] [--done <t>] [--commit]` |
+| Land with the work | `pnpm doc land <id…> --stage`, then your own `git commit` |
+| Land after the work | `pnpm doc land <id…> --evidence <sha>` |
+| Land from `Closes:` trailers | `pnpm doc land --merged [--head-merge]` |
+| Delete uncited docs | `pnpm doc remove <id\|path…>` |
+| Mint an ADR | `pnpm doc new adr <slug> [--title <t>] [--context <t>] [--decision <t>] [--consequences <t>] [--alternatives <t>]` |
+| Mint a plan | `pnpm doc new plan <slug> [--title <t>] [--goal <t>] [--shape <t>] [--rejected <t>] [--coupled <t>] [--test-plan <t>]` |
+| Mint a law doc | `pnpm doc new law <slug> [--title <t>]` |
+| Change a doc's status | `pnpm doc status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason>]` |
+| Mark docs reviewed | `pnpm doc review <path\|glob…>` |
+| List stale docs | `pnpm doc due [glob…]` |
+| Regenerate indexes | `pnpm doc index` |
+| Format docs | `pnpm doc format <--check\|--write> [file…]` |
+
+- `--blocked` takes `owner`, `on <id>`, `wake path <repo path>` or `wake gone <repo path>`.
+- `--lane` takes the exact branch name.
+- Item text refuses dates, counts, issue numbers and banned words. `.claude/rules/writing.md` owns the list.
+- A landing refuses while a doc cites the item. Fix the citer first.
+- `--commit` also commits every other uncommitted change under `docs/work/`, plus generated indexes.
+- `--commit` refuses during a merge, with a staged landing, or with an uncommitted doc outside `docs/work/`. Commit that first.
+- `set --title` cannot take `--commit`, because a retitle rewrites files outside the docs.
+
+Spend one commit per batch:
+
+1. Start: `pnpm doc set 1 2 doing --lane a; pnpm doc set 3 doing --lane b --commit`.
+2. Land on main: finish the work, run `pnpm doc land <id…> --stage`, stage the work by pathspec, and commit. Paste the printed record and `Closes:` line into the message.
+3. Land a lane: run `git merge --no-ff --no-commit <branch>`, then `pnpm doc land <id…> --stage`, then commit.
 
 ## Merge trains
 
