@@ -9,6 +9,7 @@
 // homes write the same `UserMacroSpec` — one anatomy, two mounts.
 
 import { userMacroSchema } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -25,10 +26,12 @@ type AppForm = AppFormInstance<PresetEditorValues>;
 
 export interface UserMacrosTabProps {
   readonly form: AppForm;
+  /** The owning preset id — the browser's source attribution (`preset:<id>`). */
+  readonly presetId: PresetId;
 }
 
 /** The Macros tab — the user-macro list + editor Dialog, and the macro browser disclosure. */
-export function UserMacrosTab({ form }: UserMacrosTabProps): ReactElement {
+export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElement {
   const [editId, setEditId] = useState<string | null>(null);
 
   const onAdd = (): void => {
@@ -94,7 +97,7 @@ export function UserMacrosTab({ form }: UserMacrosTabProps): ReactElement {
               <Text voice="label">Macro browser</Text>
             </CollapsibleTrigger>
             <CollapsiblePanel>
-              <MacroBrowser userMacros={values.userMacros} />
+              <MacroBrowser userMacros={values.userMacros} presetId={presetId} />
             </CollapsiblePanel>
           </Collapsible>
         </Stack>

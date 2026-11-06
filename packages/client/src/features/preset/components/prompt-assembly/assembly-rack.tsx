@@ -14,6 +14,7 @@
 // nesting): rows are `ListRow`-skinned, hairline-separated, no border boxes.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
@@ -37,6 +38,7 @@ type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 export interface AssemblyRackProps {
   readonly form: AssemblyForm;
+  readonly presetId: PresetId;
   readonly selectedSectionId: string | null;
   /** SELECT (a row's name click) — the CONTEXT readout echoes; this is the INSPECT act. */
   readonly onSelectSection: (sectionId: string) => void;
@@ -62,6 +64,7 @@ function sectionName(section: PromptSection): string {
 
 export function AssemblyRack({
   form,
+  presetId,
   selectedSectionId,
   onSelectSection,
   onDrillSection,
@@ -75,7 +78,7 @@ export function AssemblyRack({
         const sections = config.sections;
         const zones = deriveZones(sections);
         const duplicateSet = new Set(zones.duplicatePivotIndexes);
-        const cacheBusters = cacheInvalidatingSections(config);
+        const cacheBusters = cacheInvalidatingSections(config, presetId);
 
         const onReorder = (orderedKeys: SortableItemKey[]): void => {
           const before = sections.map((s) => s.id as SortableItemKey);
