@@ -209,6 +209,7 @@
   .shell-panel-edge {
     position: absolute;
     inset-block-start: env(safe-area-inset-top);
+    /* One step over the panels' overlay step, so the edge control stays reachable above the pane it opens and closes. */
     z-index: calc(var(--z-overlay) + 1);
     display: flex;
     align-items: center;

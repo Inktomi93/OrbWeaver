@@ -31,6 +31,8 @@
 }
 @utility orb-gradient-ring-masked {
   border-color: transparent;
+  /* The foot is the sheen at the host's `--ring-foot` alpha: a relative colour is the only way to set an alpha from a
+   * variable, and the fallback is that knob's one default, for a carrier that sets no weight (the CTA). */
   background: linear-gradient(180deg, var(--pigment-gradient-ring-head), oklch(from var(--color-sheen) l c h / var(--ring-foot, 0.04))) border-box;
   mask-image: linear-gradient(black 0 0), linear-gradient(black 0 0);
   /* stylelint-disable-next-line orb/browser-support-css -- every carrier applies this utility inside its own `@supports (mask-clip: padding-box)` */
@@ -182,9 +184,11 @@
     background: none;
     border-color: var(--color-border);
   }
-  /* The ring's positioning context; Base UI's button is not positioned by default. */
+  /* The ring's positioning context and stacking scope: Base UI's button is not positioned by default, and the ring's
+   * `z-index` orders only this button's own layers, never a neighbour's. */
   [data-slot="button"][data-cta] {
     position: relative;
+    isolation: isolate;
   }
 
   /* The active tab's ring at a lower weight. `TabsIndicator` is opt-in and most tab lists render none, so this is
@@ -415,6 +419,10 @@
 
   /* The hover spotlight follows the pointer position media-grid.tsx writes into `--orb-media-x` and `--orb-media-y`; fine pointer only. */
   @variant pointer-fine {
+    /* The spotlight's `z-index` orders only the cell's own layers. */
+    [data-slot="media-grid-cell"] {
+      isolation: isolate;
+    }
     [data-slot="media-grid-cell"]::before {
       content: "";
       position: absolute;

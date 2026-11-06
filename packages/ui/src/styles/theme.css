@@ -319,6 +319,7 @@
   --motion-fast: 130ms;
   --motion-base: 220ms;
   --motion-layout: 360ms;
+  --motion-swap-deadline: 150ms;
   --motion-shimmer: 1300ms;
   --motion-breathe: 3000ms;
   --motion-precip: 1100ms;
@@ -350,7 +351,7 @@
   --dimension-composer-field-min: 12ch;
   --dimension-shell-title-floor: 6ch;
   --dimension-shell-notice-cap: min(14rem, 30dvh);
-  --shadow-shell-over-art: 0 1px 3px var(--color-backdrop);
+  --shadow-shell-over-art: 0 1px 3px light-dark(transparent, var(--color-backdrop));
   --shadow-prose: 0 1px 2px oklch(from var(--color-backdrop) l c h / 0.45), 0 0 6px oklch(from var(--color-backdrop) l c h / 0.25);
   --text-shadow-wordmark: 0 0 2px var(--color-backdrop), 0 0 4px var(--color-backdrop), 0 1px 2px var(--color-backdrop);
   --shadow-glow: 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);

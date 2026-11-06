@@ -11,6 +11,7 @@
 // arm while claiming to measure the plain one. Both arms are stages of their own.
 
 import { GlyphButton } from "@orb/ui/glyph-button";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 /** The BOX-CARRIED regression stage: a plain, undersized, non-pseudo button ALONE in a huge, STATIC
@@ -80,10 +81,10 @@ export function TouchFloorPreFixCtaGlyphStory(): ReactElement {
     <div style={{ padding: 120, position: "static", width: 400 }}>
       {/* Inline styles cannot express a pseudo-element, and the whole shape under test IS the pseudo. */}
       <style>
-        {".cbxh-prefix{position:relative;display:inline-flex;width:var(--size-glyph-sm);height:var(--size-glyph-sm);padding:0;border:0;background:var(--color-primary)}" +
-          ".cbxh-prefix::after{content:'';position:absolute;top:50%;left:50%;width:var(--size-touch-target);height:var(--size-touch-target);translate:-50% -50%}" +
-          ".cbxh-prefix::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;border:1px solid transparent;border-radius:inherit;" +
-          "background:linear-gradient(transparent,transparent) padding-box,linear-gradient(180deg,oklch(from var(--color-ring) l c h / 0.55),oklch(from var(--color-sheen) l c h / 0.04)) border-box}"}
+        {`.cbxh-prefix{position:relative;display:inline-flex;width:var(${TOKENS["size.glyph-sm"].cssVar});height:var(${TOKENS["size.glyph-sm"].cssVar});padding:0;border:0;background:var(${TOKENS["color.primary"].cssVar})}` +
+          `.cbxh-prefix::after{content:'';position:absolute;top:50%;left:50%;width:var(${TOKENS["size.touch-target"].cssVar});height:var(${TOKENS["size.touch-target"].cssVar});translate:-50% -50%}` +
+          `.cbxh-prefix::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;border:var(${TOKENS["border-width.control"].cssVar}) solid transparent;border-radius:inherit;` +
+          `background:linear-gradient(transparent,transparent) padding-box,linear-gradient(180deg,oklch(from var(${TOKENS["color.ring"].cssVar}) l c h / 0.55),oklch(from var(${TOKENS["color.sheen"].cssVar}) l c h / 0.04)) border-box}`}
       </style>
       <div style={{ marginInlineStart: 48 }}>
         <button aria-label="Regenerate" className="cbxh-prefix" data-testid="pre-fix-cta-glyph" type="button" />
