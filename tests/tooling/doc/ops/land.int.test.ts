@@ -1,5 +1,6 @@
 // The landing door from inside git's own merge hook: `land --merged` runs while `MERGE_HEAD` still
 // exists, which is the state a porcelain pathspec commit refuses, and a refused landing names git's reason.
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -11,6 +12,7 @@ import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { REPO_ROOT } from "../../../../tooling/src/floor/artifacts/artifacts.ts";
 import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
 /** Every case spawns a dozen git children; under a merge train that is seconds, not the runner default. */
@@ -31,7 +33,7 @@ async function repoWithItem(plantedTree: (files: Readonly<Record<string, string>
   git(root, "init", "-q", "-b", "main");
   configureFixtureGitIdentity(root);
   commitAll(root, "chore: base");
-  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem(written({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   commitAll(root, "chore(work): items");
   return root;
 }
@@ -101,7 +103,7 @@ test("a mint after a landing never reuses the landed id — the next id is one p
   const landed = landItems([1], git(root, "rev-parse", "HEAD"), root, TODAY);
   expect(landed.refusals).toEqual([]);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
-  const minted = newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  const minted = newItem(written({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
   expect(minted.refusals).toEqual([]);
   expect(minted.written[0]).toBe("docs/work/0002-b.md");
 });

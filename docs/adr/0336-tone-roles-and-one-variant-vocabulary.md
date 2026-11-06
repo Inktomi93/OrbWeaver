@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-05
+updated: 2026-11-06
 ---
 
 # Intent colors derive tone roles, and primitives share one tone, variant and size vocabulary
@@ -48,13 +48,13 @@ Vocabulary. Every primitive spells color as `tone`, fill style as `variant` and 
 
 This amends D62 P5. A bordered secondary action is `variant="outline" tone="neutral"`. `outline` is a variant of every pressable primitive. `ghost` inherits its host ink unless the call site names an `ink`. It also amends the primitive axis table in [UI-Density-Law](../law/UI-Density-Law.md) §4.3 for these primitives.
 
-Constraint. `RESTRICTED_CLASSES` in `eslint.config.ts` refuses an opacity modifier on an intent or tone color in any class string. An ESLint rule refuses `color-mix()` or relative color naming an intent or tone color in TypeScript. A Stylelint `orb/` rule refuses the same in authored sheets. Generated CSS and the generators that emit it are exempt. A pigment recipe that uses an intent hue for art moves into `orb.pigments` in tokens.json, emitted on a `[data-pigment]` block its art root stamps. Neutral glass mixes over appearance channels stay under D144.
+Constraint. `RESTRICTED_CLASSES` in `eslint.config.ts` refuses an opacity modifier on an intent, tone or neutral color in any class string. A neutral step is an opaque role or color token (`selection-quiet`, the neutral tone's roles) or an element opacity step. ESLint in TypeScript and a Stylelint `orb/` rule in authored sheets refuse `color-mix()` or relative color naming an intent or tone color. Generated CSS and its generators are exempt. A pigment recipe that uses an intent hue for art moves into `orb.pigments` in tokens.json, emitted on a `[data-pigment]` block its art root stamps. A neutral mix with no role or opacity step, such as the elevation swatches, takes the same home. Neutral glass mixes over appearance channels stay under D144.
 
 Homes: `packages/ui/src/tokens/tokens.json` (the tone tuple, role recipes and mix tokens), `packages/ui/tokens.build.ts` and `packages/ui/tokens.tones.ts` (the scoped blocks and the build contrast and separation check), `packages/ui/src/lib/control-size.ts` (the scale), each primitive's `variants.ts` (the subset).
 
 ## Consequences
 
-A custom theme gets correct tints and inks with no new user field. A new tone is one tuple member and its base token pair. Every literal call site of the renamed axes moves in one step per primitive.
+A custom theme gets correct tints and inks with no new user field. A new tone is one tuple member and its base token pair.
 
 ## Alternatives rejected
 
@@ -66,4 +66,4 @@ A custom theme gets correct tints and inks with no new user field. A new tone is
 - A `secondary` tone: its soft fill is the neutral tone's tint.
 - An `xl` control step: no control uses it.
 - A scoped feature stylesheet keyed by a feature attribute: lockdown §4.1 closes the CSS homes to features.
-- Renaming the per-component shadow utilities: no measured defect, and D200 already derives them from ingredients.
+- Renaming the per-component shadow utilities: no measured defect; D200 derives them.

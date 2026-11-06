@@ -1,25 +1,25 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-01
+updated: 2026-11-06
 priority: P2
-plan: unwired-code
 area: server
+plan: unwired-code
 ---
 
 # A tree import cancelled while queued removes its staged tree
 
 ## What
 
-The change, in a sentence.
+Free the staged tree of a tree import that is cancelled while it is queued.
 
 ## Why
 
-The symptom or the ruling behind it.
+A row cancelled while queued never reaches the run's cleanup, so its staged upload stays on disk until the next boot sweep.
 
 ## Done when
 
-The observable bar a verifier can check.
+A test cancels a queued tree import and finds its staged directory removed before any boot sweep runs.
 
 ## Evidence
 

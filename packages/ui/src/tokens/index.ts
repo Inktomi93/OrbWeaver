@@ -238,6 +238,8 @@ export const TOKENS = {
   "opacity.dragging": { cssVar: "--opacity-dragging", value: "50%" },
   "opacity.loading": { cssVar: "--opacity-loading", value: "70%" },
   "opacity.hover": { cssVar: "--opacity-hover", value: "80%" },
+  "opacity.quiet": { cssVar: "--opacity-quiet", value: "90%" },
+  "opacity.resting": { cssVar: "--opacity-resting", value: "80%" },
   "opacity.grain": { cssVar: "--opacity-grain", value: "4%" },
   "stroke-width.icon-regular": { cssVar: "--stroke-width-icon-regular", value: "1.75px" },
   "stroke-width.icon-bold": { cssVar: "--stroke-width-icon-bold", value: "2.5px" },
@@ -246,6 +248,7 @@ export const TOKENS = {
   "border-width.control": { cssVar: "--border-width-control", value: "1px" },
   "border-width.rule": { cssVar: "--border-width-rule", value: "2px" },
   "border-width.heavy": { cssVar: "--border-width-heavy", value: "4px" },
+  "focus-ring.offset": { cssVar: "--focus-ring-offset", value: "2px" },
   "font.sans": { cssVar: "--font-sans", value: "Geist, ui-sans-serif, system-ui, sans-serif" },
   "font.mono": { cssVar: "--font-mono", value: "'Geist Mono', ui-monospace, SFMono-Regular, monospace" },
   "text.display": { cssVar: "--text-display", value: "1.5rem" },
@@ -516,6 +519,7 @@ export const LENGTH_BASE_PX = {
   "border-width.control": 1,
   "border-width.rule": 2,
   "border-width.heavy": 4,
+  "focus-ring.offset": 2,
   "text.display": 24,
   "text.headline": 20,
   "text.title": 16,
@@ -644,8 +648,9 @@ export const TONE_ROLE_RECIPES = {
 export const PIGMENTS = {
   "web-weave": { "silk-bright": "--pigment-web-weave-silk-bright", "dew": "--pigment-web-weave-dew", "spider-body": "--pigment-web-weave-spider-body", "glow": "--pigment-web-weave-glow" },
   "gradient-ring": { "head": "--pigment-gradient-ring-head" },
-  "accent-aura": { "empty-state": "--pigment-accent-aura-empty-state", "media-spotlight": "--pigment-accent-aura-media-spotlight" },
+  "accent-aura": { "empty-state": "--pigment-accent-aura-empty-state", "media-spotlight": "--pigment-accent-aura-media-spotlight", "media-hover-ring": "--pigment-accent-aura-media-hover-ring" },
   "avatar": { "1": "--pigment-avatar-1", "2": "--pigment-avatar-2", "3": "--pigment-avatar-3", "4": "--pigment-avatar-4", "5": "--pigment-avatar-5" },
+  "swatch-ladder": { "step-1": "--pigment-swatch-ladder-step-1", "step-2": "--pigment-swatch-ladder-step-2", "step-3": "--pigment-swatch-ladder-step-3" },
   "waystone": { "flash": "--pigment-waystone-flash" },
 } as const;
 export type PigmentScope = keyof typeof PIGMENTS;

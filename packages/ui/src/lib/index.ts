@@ -30,6 +30,7 @@ export {
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
   FOCUS_RING_OUTLINE,
+  FOCUS_RING_OUTLINE_INSET,
   FOCUS_RING_WITHIN,
   FOCUS_RING_WITHIN_INSET,
 } from "./focus-ring.ts";
@@ -47,7 +48,7 @@ export { mergeRefs } from "./merge-refs.ts";
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
-export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT } from "./pigment-scopes.ts";
+export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";
 export {

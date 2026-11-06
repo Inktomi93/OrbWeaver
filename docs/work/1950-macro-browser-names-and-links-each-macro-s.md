@@ -19,7 +19,7 @@ With several plugins installed, a generic label does not say where a macro lives
 
 ## Done when
 
-The browser and the completion popover name each macro's preset, game or plugin source and the browser links to its editor, plugin macros complete wherever they resolve, an unreachable source shows the name with no link, and a room member sees no private source name.
+The browser and the completion popover name each macro's preset, game or plugin source and the browser links to its editor, plugin macros complete wherever they resolve, an unreachable source shows the name with no link, and a room member sees no private source name. The assembly trace shows each turn's macros with their source and every rejected macro, read at a door by tests driving real plugin activation through a testkit helper.
 
 ## Evidence
 

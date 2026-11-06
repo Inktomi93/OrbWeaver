@@ -95,26 +95,28 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // is exactly the instrument that then filed #1170 against this control. Snap's number on this selector is
 // now the knob's painted fill against its band, and it is quotable.
 //
-// `muted-foreground/80` is the value BOUNDED FROM BOTH SIDES, which is what makes it a measurement
-// rather than a taste. CEILING: it must sit under the ON state's loudest member on every seed and both
-// pane hosts — including the `quiet` tone, whose deliberately dim checked track has only 3.69:1 to
-// spend under Light. FLOOR: WCAG 1.4.11 asks 3:1 of the visual information that identifies a control's
-// state, and the OFF knob IS that information. The alpha rides over the TRACK, so the knob composites
-// polarity-correctly on a light theme instead of needing a second hand-picked value. Measured
-// (theme/pane → OFF loudest, ON accent, ON quiet, and the read-only lock glyph against the thumb):
-//   Hearth/bg   4.563 (was 12.701) · 7.437 · 5.610 · 6.157   Hearth/card 4.137 (was 11.235) · 7.056 · 5.967 · 6.311
-//   Mocha /bg   4.415 (was 12.351) · 7.375 · 5.562 · 6.070   Mocha /card 3.824 (was 10.425) · 7.285 · 6.008 · 6.229
-//   Light /bg   3.560 (was 11.153) · 6.193 · 3.693 · 4.968   Light /card 3.651 (was 11.606) · 6.292 · 3.750 · 4.895
-// Both bounds are measured from the FRAMEBUFFER, in all three
-// seeds — computed style can see neither the compositing nor the oklch, and a polarity fix proven on
-// the dark arm alone is this tree's recorded failure family.
+// The OFF thumb is `muted-foreground` at the `resting` opacity step (80%), BOUNDED FROM BOTH SIDES, which is what
+// makes it a measurement rather than a taste. CEILING: it must sit under the ON state's loudest member on every
+// seed and both pane hosts, the `quiet` tone included: its checked track is the opaque `selection-quiet` pair, the
+// quietest ON state, and Light's is the tight one (4.77 on the page, 4.98 on a card). FLOOR: WCAG 1.4.11 asks 3:1
+// of the visual information that identifies a control's state, and the OFF knob IS that information. The step
+// rides over the TRACK, so the knob composites polarity-correctly on a light theme instead of needing a second
+// hand-picked value. An opaque `muted-foreground` knob was louder than the quiet ON state on Light (5.24 against
+// 4.77), the #1090 defect again. Measured from the framebuffer (thumb against track, track against host; the larger
+// is the member's loudness), and pinned by `tests/ui/primitives/switch/thumb-ceiling.ct.tsx` on every seed:
+//   Hearth/bg   OFF 4.58 · ON quiet 6.28 · ON accent 7.44      Hearth/card OFF 4.14 · ON quiet 6.16 · ON accent 7.06
+//   Mocha /bg   OFF 4.42 · ON quiet 6.33 · ON accent 7.38      Mocha /card OFF 3.83 · ON quiet 6.16 · ON accent 7.29
+//   Light /bg   OFF 3.54 · ON quiet 4.77 · ON accent 6.19      Light /card OFF 3.63 · ON quiet 4.98 · ON accent 6.29
+// Both bounds are measured from the FRAMEBUFFER, in all three seeds: computed style can see neither the compositing
+// nor the oklch, and a polarity fix proven on the dark arm alone is this tree's recorded failure family. The
+// read-only lock glyph sits inside the thumb and dims with it. Its ratio against the thumb was already under 3:1 on
+// Light (2.45) and a mid-grey scope (2.28) as an alpha thumb; the dim takes those to 2.16 and 1.89, and Mocha from
+// above 3 to 2.98. A glyph that holds the floor needs its own ink, not a different thumb.
 //
 // The thumb's SIZE was the one item #1090 deferred out of E3's ask ("~55% of track height") as its own
 // row; that row is #1109 above, and the measured ratios in the table are UNCHANGED by it — the knob's
 // colour tokens did not move, only its box. NOT changed here, still deliberately: the ON skin (the accent
-// track IS the ON signal and already carries it), and the `quiet` tone's `foreground/55` checked track
-// (raising it was the other way to fix quiet's Light arm; unnecessary once the OFF knob is bounded, so
-// the /70 rejection recorded below survives intact).
+// track IS the ON signal and already carries it).
 //
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned
@@ -140,9 +142,11 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square items-center justify-center rounded-full bg-muted-foreground/80 block-(--size-switch-thumb)",
+      "group relative flex aspect-square items-center justify-center rounded-full bg-muted-foreground opacity-resting block-(--size-switch-thumb)",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-(--size-switch-travel)",
+      // The resting step is element opacity, which a colour arm does not evict, so a checked thumb clears it back to opaque.
+      "data-checked:opacity-100",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon: "hidden text-background group-data-readonly:block",
@@ -154,20 +158,12 @@ export const switchVariants = tv({
         thumb: "data-checked:bg-primary-foreground",
         readOnlyIcon: "group-data-checked:text-primary",
       },
-      // MEASURED, not chosen by taste (side-eye F-08, 2026-08-02): the checked track was `--color-secondary`
-      // (L 0.255) while the UNCHECKED `bg-input` (12% white over the card) composites to ≈L 0.286 — ON was
-      // DARKER than OFF, so a rack of twelve rows signalled its state with a 10px thumb offset and nothing
-      // else (the switch CT's separation pin measures 0.017 on that pair, ~0 for the eye).
-      //
-      // `foreground/55` is the RENDERED call the review left open ("bg-foreground/70 … your call from the
-      // rendered result"): /70 painted six near-WHITE pills that out-shouted the row names they belong to —
-      // loudness traded, not fixed — while /55 still measures a ~0.4 separation, far past the pin's 0.15
-      // floor. It spends no accent either way, which is this tone's whole reason to exist; the thumb
-      // inverts to `background` so it stays visible against the now-bright track (the `accent` arm's own
-      // thumb-inversion pattern).
+      // The checked track must read brighter than the unchecked `bg-input` rail without spending the accent. It paints the opaque
+      // `selection-quiet` pair, so the track-to-thumb contrast is a fact and not a function of the ground under it; the thumb
+      // inverts to the pair's ink so it stays visible against the bright track (the `accent` arm's own thumb inversion).
       quiet: {
-        root: "data-checked:border-foreground/55 data-checked:bg-foreground/55",
-        thumb: "data-checked:bg-background",
+        root: "data-checked:border-selection-quiet data-checked:bg-selection-quiet",
+        thumb: "data-checked:bg-selection-quiet-foreground",
         readOnlyIcon: "group-data-checked:text-foreground",
       },
     },

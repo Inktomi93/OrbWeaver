@@ -1,8 +1,8 @@
-// The orchestrator's drift nag as a pure rule over resolved git facts (`ops/tree.ts` gathers them). Six
+// The orchestrator's drift nag as a pure rule over resolved git facts (`ops/tree.ts` gathers them). Seven
 // checks, each line carrying the exact fixing command; an empty result means the item and plan state and
 // the tree agree, and the SessionStart hook then prints nothing at all.
 import type { Blocker, DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
-import { parseBlocker } from "./items.ts";
+import { itemEditCommand, parseBlocker } from "./items.ts";
 
 /** A lane is its EXACT branch name: live when a worktree is on that branch
  *  or the branch is not yet merged. A substring match read every `codex/*` corpse as a live lane. */
@@ -80,9 +80,24 @@ function wokenPlans(facts: DriftFacts): readonly string[] {
     .map((plan) => `plan ${plan.slug} has a met wake condition (${plan.blocked ?? ""}) — pnpm doc status active ${plan.path}`);
 }
 
+/** An item whose What, Why or Done when is still its template prompt tells a lane nothing. */
+function templateText(facts: DriftFacts): readonly string[] {
+  return facts.templateItems.map(
+    ({ id, flags }) => `${String(id)} holds template text in ${flags.map((flag) => `--${flag}`).join(", ")} — ${itemEditCommand(id, flags)}`,
+  );
+}
+
 /** Every drift line, in check order. Empty = consistent. */
 export function driftLines(facts: DriftFacts): readonly string[] {
-  return [...staleDoing(facts), ...unlanded(facts), ...blockerDone(facts), ...woken(facts), ...finishedPlans(facts), ...wokenPlans(facts)];
+  return [
+    ...staleDoing(facts),
+    ...unlanded(facts),
+    ...blockerDone(facts),
+    ...woken(facts),
+    ...finishedPlans(facts),
+    ...wokenPlans(facts),
+    ...templateText(facts),
+  ];
 }
 
 /** The wake conditions of the parked plans, keyed by slug, resolved like the items'. */

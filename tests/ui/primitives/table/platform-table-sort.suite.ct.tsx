@@ -57,6 +57,20 @@ test("sorting one column clears the indicator on the other", async ({ mount, pag
   await expect(headerCell(page, "Name")).toHaveAttribute("aria-sort", "none");
 });
 
+test("the sorted column's icon is at full strength and every other column's icon stays receded", async ({ mount, page }) => {
+  await mount<typeof SortableTableStory>(`${STORIES}/SortableTableStory`);
+  const opacityOf = (column: string): Promise<string> =>
+    headerCell(page, column)
+      .locator("svg")
+      .evaluate((icon) => getComputedStyle(icon).opacity);
+  const idle = await opacityOf("Age");
+  expect(Number(idle), "an idle icon is receded").toBeLessThan(1);
+  await sortButton(page, "Name").click();
+  await expect(headerCell(page, "Name")).toHaveAttribute("aria-sort", "ascending");
+  expect(await opacityOf("Name"), "the sorted icon").toBe("1");
+  expect(await opacityOf("Age"), "the other icon").toBe(idle);
+});
+
 test("a column that is not sortable has no button and no aria-sort", async ({ mount, page }) => {
   await mount<typeof SortableTableStory>(`${STORIES}/SortableTableStory`);
   await expect(headerCell(page, "Key")).not.toHaveAttribute("aria-sort", /.*/u);
