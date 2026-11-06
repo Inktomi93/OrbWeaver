@@ -3,7 +3,7 @@
 // exactly what a fresh render would produce. A generated file carries `kind: index` and no `updated`
 // (its date would make every day's render differ from the committed bytes).
 import type { DocSummary, WorkItem } from "../contract/types.ts";
-import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "../contract/vocab.ts";
+import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING, PARKED } from "../contract/vocab.ts";
 import { renderFrontmatter } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
 
@@ -86,11 +86,24 @@ export function renderLawIndex(laws: readonly DocSummary[]): string {
   return `${head("Law", "mint one with `pnpm doc new law <slug>`; change the doc, never this file.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
 }
 
+/** A plan's rank: a positive whole number, or null when the text is anything else. */
+export function parseRank(text: string | undefined): number | null {
+  return text !== undefined && /^[1-9]\d*$/u.test(text) ? Number(text) : null;
+}
+
+const UNRANKED = Number.MAX_SAFE_INTEGER;
+/** Tells a reader this table is the work order. */
+const PLAN_INDEX_PREAMBLE = "This is the work order: plans are worked in rank order, active before parked, and P1 items in any plan come first.\n\n";
+
+/** The work order: active plans by rank, then parked plans by rank. A plan with no valid rank sorts last in its group. */
 export function renderPlanIndex(plans: readonly DocSummary[]): string {
+  const parkedLast = (plan: DocSummary): number => (plan.status === PARKED ? 1 : 0);
   const rows = plans
-    .toSorted((left, right) => left.path.localeCompare(right.path))
-    .map((plan) => `| [${plan.title}](${relativeTo(DOC_TOOL_TREES.plans, plan.path)}) | ${plan.status} |`);
-  return `${head("Plans", "mint one with `pnpm doc new plan <slug>`; delete a finished one with `pnpm doc remove <path>`.")}| Plan | Status |\n| - | - |\n${rows.join("\n")}\n`;
+    .toSorted(
+      (left, right) => parkedLast(left) - parkedLast(right) || (left.rank ?? UNRANKED) - (right.rank ?? UNRANKED) || left.path.localeCompare(right.path),
+    )
+    .map((plan) => `| ${plan.rank ?? ""} | [${plan.title}](${relativeTo(DOC_TOOL_TREES.plans, plan.path)}) | ${plan.status} |`);
+  return `${head("Plans", "mint one with `pnpm doc new plan <slug> --rank <n>`; delete a finished one with `pnpm doc remove <path>`.")}${PLAN_INDEX_PREAMBLE}| Rank | Plan | Status |\n| - | - | - |\n${rows.join("\n")}\n`;
 }
 
 function itemTail(item: WorkItem): string {

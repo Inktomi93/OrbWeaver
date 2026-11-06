@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Replace the rail-name string literals that remain in tests with the section label each feature exports from its section-label module.
+Replace the rail-name string literals that remain in tests with the label constant each feature exports from its `*-section-label.ts` module under packages/client/src/features.
 
 ## Why
 
@@ -19,7 +19,7 @@ A test that spells a rail name as a literal keeps passing when the product label
 
 ## Done when
 
-No test under tests spells a rail section name as a string literal. Each reads it from the feature's section-label module, and the suites that held the literals pass.
+No test under tests spells a rail section name as a locator or assertion string. Each reads the label constant from the feature module, and the suites that held the literals pass. The same word used as plain prose or a different heading stays.
 
 ## Evidence
 

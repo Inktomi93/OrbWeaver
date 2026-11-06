@@ -1,7 +1,8 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-31
+updated: 2026-11-06
+rank: 7
 ---
 
 # Find and judge every unwired and dead piece of code
@@ -15,6 +16,8 @@ Every production symbol, member, field, parameter and union member is reached by
 Ports derive from their owners so references follow the composition root. The unwired scans then report what no production path reaches, from whole exports down to fields, parameters and union members. Each finding is wired, deleted, or kept with a cited ledger reason.
 
 ### Order
+
+Fix a server bug a scan exposes before judging fields. Judge fields in bulk after that.
 
 | Step | Work | Items |
 | - | - | - |

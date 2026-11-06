@@ -15,6 +15,7 @@ A lane owns a related batch of work in its own worktree. These rules bind every 
 - Before you build a mechanism, check whether it already exists under another name.
 - Re-derive a data-binding claim from the ledger, not from memory.
 - A precise refusal is a success. A guessed implementation is not.
+- Before you write or change a test, read `docs/law/Spine-Testing.md` and `tests/support/README.md` in full, and use the testkit helpers they name.
 
 ## Survey
 

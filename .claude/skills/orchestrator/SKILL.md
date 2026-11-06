@@ -62,16 +62,7 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 
 ## Plan order
 
-Finish an active plan before opening new work. File a finding; it never jumps this order.
-
-1. P1 items in any plan.
-2. The client and ui lint drain that lands the lint branch.
-3. `cross-surface-consistency` through acceptance and integrated verification, with `surface-walk` beside it.
-4. `type-law` in its own order: server and contract steps first, client and ui steps after acceptance.
-5. `inference-flow` and `easy-sharing`.
-6. `test-foundation` and `test-enforcement`, owed proof runs first.
-7. `unwired-code`: server bugs first, then field judgments in bulk.
-8. `restoration-register` judging pass, not started: it waits until `type-law` is done in full and `unwired-code` cleanup is finished (owner, 2026-11-01).
+Finish an active plan before opening new work, and take P1 items first. `docs/plans/README.md` holds the order. A finding goes on the board; it never jumps the order.
 
 ## Lane cap
 
@@ -101,6 +92,7 @@ Re-derive the item first:
 
 - Write What, Why and Done when for an item that holds template text before you route it. `pnpm doc drift` lists these items.
 - A claim that work is unbuilt needs the same evidence as a claim that it is done.
+- A claim that something does not exist, to the owner or in a brief, needs two search methods and a check of wrappers and re-exports. Otherwise say "I did not find it" and name what you searched.
 - Before you dispatch an audit finding, check that it applies to the owner's deployment.
 - A removal needs more than "no reader": check reader history, hand authorship, used siblings and promises in copy, settings or law prose.
 - Re-derive a data-binding claim from the ledger, not from memory.
@@ -165,7 +157,7 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 | Land from `Closes:` trailers | `pnpm doc land --merged [--head-merge]` |
 | Delete uncited docs | `pnpm doc remove <id\|path…>` |
 | Mint an ADR | `pnpm doc new adr <slug> [--title <t>] [--context <t>] [--decision <t>] [--consequences <t>] [--alternatives <t>]` |
-| Mint a plan | `pnpm doc new plan <slug> [--title <t>] [--goal <t>] [--shape <t>] [--rejected <t>] [--coupled <t>] [--test-plan <t>]` |
+| Mint a plan | `pnpm doc new plan <slug> --rank <n> [--title <t>] [--goal <t>] [--shape <t>] [--rejected <t>] [--coupled <t>] [--test-plan <t>]` |
 | Mint a law doc | `pnpm doc new law <slug> [--title <t>]` |
 | Change a doc's status | `pnpm doc status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason>]` |
 | Mark docs reviewed | `pnpm doc review <path\|glob…>` |
@@ -305,6 +297,8 @@ the claude-b registry, and the worktree state. Do not load this skill again. Fol
 - Resume live lanes by SendMessage to their agent ids. Never respawn them.
 - A context sentinel carried over from before compaction is stale. Act only on a new one.
 - When a new context sentinel fires, follow its ritual. Write a `SELF` dispatch-map note in the bridge only then, or on an owner-ordered handoff.
+- The owner compacts with `/compact` and no handover step. The compaction summary carries the plan position, work order and open questions.
+- After a compaction or resume, your first message is the five-line card the onboard hook names.
 - A weekly usage sentinel means stop opening lanes and land what is in flight.
 
 ## claude-b and the bridge

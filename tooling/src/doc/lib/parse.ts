@@ -5,6 +5,7 @@ import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { DocCommand, ItemContent, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
 import { ADR_SECTION_FLAGS, ITEM_EDIT_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { ITEM_STATES } from "../contract/vocab.ts";
+import { parseRank } from "./indexes.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
 
@@ -15,7 +16,7 @@ const ID_RE = /^\d+$/u;
 const VERB_USAGE = {
   new: [
     "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
-    "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
+    "  new plan <slug> --rank <n> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
     "  new law <slug> [--title <t>]",
   ],
   item: [
@@ -139,6 +140,7 @@ function parseContent<F extends string>(args: readonly string[], flags: readonly
 const ADR_FLAGS = ADR_SECTION_FLAGS;
 const PLAN_FLAGS = PLAN_SECTION_FLAGS;
 const ITEM_CONTENT_FLAGS = ITEM_SECTION_FLAGS;
+const RANK_FLAG = "--rank";
 
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
@@ -157,8 +159,12 @@ function parseNew(args: readonly string[]): DocCommand {
     refuseUnknownFlags(rest, ["--title", ...contentFlagNames(ADR_FLAGS)], "new adr");
     return { kind: "new-adr", slug: slugArg(slug, "new"), title, content: parseContent(rest, ADR_FLAGS) };
   }
-  refuseUnknownFlags(rest, ["--title", ...contentFlagNames(PLAN_FLAGS)], "new plan");
-  return { kind: "new-plan", slug: slugArg(slug, "new"), title, content: parseContent(rest, PLAN_FLAGS) };
+  refuseUnknownFlags(rest, ["--title", RANK_FLAG, ...contentFlagNames(PLAN_FLAGS)], "new plan");
+  const rank = parseRank(requiredFlag(rest, RANK_FLAG));
+  if (rank === null) {
+    throw new UsageError(`${RANK_FLAG} takes a positive whole number\n${usageFor("new")}`);
+  }
+  return { kind: "new-plan", slug: slugArg(slug, "new"), title, rank, content: parseContent(rest, PLAN_FLAGS) };
 }
 
 const FROM_FLAG = "--from";

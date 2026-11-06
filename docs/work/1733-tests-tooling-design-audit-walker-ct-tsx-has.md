@@ -15,7 +15,7 @@ Run tests/tooling/design-audit-walker.ct.tsx from a root script that selects the
 
 ## Why
 
-The chromium project ignores tests/tooling, and test:ct runs only that project. The tooling project exists but no root script selects it, so the walker test never runs.
+The chromium project ignores tests/tooling (playwright-ct.config.ts:71) and test:ct runs only that project. The tooling project exists at line 99, but no root script selects it, and test:tools is vitest only, so the walker test never runs.
 
 ## Done when
 

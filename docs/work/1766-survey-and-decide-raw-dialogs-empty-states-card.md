@@ -15,11 +15,11 @@ Survey the client for raw dialogs, empty states, Card sites and CONTEXT panels t
 
 ## Why
 
-These four classes are where surfaces drift apart in form. A decision per class stops each review pass from re-deriving it.
+These four classes are where surfaces drift apart in form. The plan scope line (docs/plans/cross-surface-consistency/design.md, line 49) excludes CONTEXT panel bodies and dialogs from the survey, so two of the four classes are named out of scope today. The item must amend that line with its reasons or drop those two classes, and no decision for any class is written yet.
 
 ## Done when
 
-A decision for each class is written in docs/plans/cross-surface-consistency/design.md. It lists every site as convert or keep with a reason, and each convert has a board item.
+The plan scope line matches the item. A decision for each class in scope is written in docs/plans/cross-surface-consistency/design.md, lists every site as convert or keep with a reason, and each convert has a board item.
 
 ## Evidence
 

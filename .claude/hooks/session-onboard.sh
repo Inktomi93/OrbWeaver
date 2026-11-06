@@ -6,8 +6,9 @@
 #   1. the core.hooksPath repair;
 #   2. the account identity and the bridge inbox it owns;
 #   3. the first actions: the bridge plugin state, the injected skill, the notes to read;
-#   4. the worktree count and main's dirty state;
-#   5. a warning when the orchestrator's MEMORY.md nears the harness's truncation cap.
+#   4. the open P1 items and, after a compaction or resume, the first-message card;
+#   5. the worktree count and main's dirty state;
+#   6. a warning when the orchestrator's MEMORY.md nears the harness's truncation cap.
 # Keep it fast (<10s) and well under 8KB. It writes nothing except the core.hooksPath repair.
 set -uo pipefail
 # The harness pipes a JSON envelope (session_id, source, cwd, transcript_path) on stdin; a terminal run has none.
@@ -103,6 +104,19 @@ if [ -n "$SID" ] && [ -f "$SCRATCH_MAP" ]; then
 else
   echo "--- scratch dispatch map: none for this session (fresh session, or purged) — your SELF note in the bridge block is the digest"
 fi
+
+# OPEN P1s AND THE FIRST-MESSAGE CARD. A pointer to read relies on the session remembering to; these print the
+# facts instead. The owner cannot see what a fresh session read, so its first message shows it.
+echo "--- open P1 items (dispatch by the rank order in docs/plans/README.md, never by recency):"
+/usr/bin/grep -l '^priority: P1$' docs/work/[0-9]*.md 2>/dev/null | while IFS= read -r item; do
+  printf '    %s %s\n' "$(basename "$item" | cut -c1-4)" "$(/usr/bin/grep -m1 '^# ' "$item" | cut -c3-110)"
+done
+HOOK_SOURCE=$(printf '%s' "$HOOK_IN" | jq -r '.source // empty' 2>/dev/null)
+case "$HOOK_SOURCE" in
+  compact | resume)
+    echo "!!! YOUR FIRST MESSAGE TO THE OWNER is a card of five short lines, before anything else: Goal; Plan position; Live lanes; Open owner questions; Next step. Take them from the summary and your SELF note. The owner reads it to see what you know, so never skip it, and say plainly when a line is unknown."
+    ;;
+esac
 
 # POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')

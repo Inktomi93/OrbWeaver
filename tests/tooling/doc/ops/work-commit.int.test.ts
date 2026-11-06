@@ -149,7 +149,7 @@ test("edit --commit commits the edited section as one work commit", TIMEOUT, asy
 
 test("set --commit carries the plan task list an earlier set regenerated, so the docs check is clean at HEAD", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
-  newPlan({ slug: "foo", title: "Foo" }, root, TODAY);
+  newPlan({ slug: "foo", title: "Foo", rank: 1 }, root, TODAY);
   commitAll(root, "docs: plan foo");
   expect(setItems([1], { plan: "foo" }, root, TODAY).refusals).toEqual([]);
   const outcome = runWrite(true, root, () => setItems([2], { state: "doing", lane: "l" }, root, TODAY));

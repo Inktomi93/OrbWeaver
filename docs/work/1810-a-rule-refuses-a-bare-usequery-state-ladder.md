@@ -4,7 +4,6 @@ status: open
 updated: 2026-11-06
 priority: P2
 area: client
-blocked: on 1815
 plan: type-law
 ---
 
@@ -12,11 +11,11 @@ plan: type-law
 
 ## What
 
-Add a lint rule that refuses a hand-written useQuery state ladder in features outside the cited homes, once the table in item 1762 is final.
+Add a lint rule that refuses a hand-written useQuery state ladder (branching on loading, error and data by hand) in packages/client/src features outside the homes the law names (`QueryBoundary`, `useGatedQuery`, `useSuspenseQuery`).
 
 ## Why
 
-A feature that branches by hand on a query's loading, error and data states drifts from the shared handling that the other features use.
+The law line at docs/law/client-architecture-lockdown.md:44 bans a bare useQuery state ladder, but nothing enforces it: no rule in tooling/src/eslint or eslint.config.ts matches it. Items 1762 and 1815 (the table and the conversion of the remaining ladders) are landed, so the item is no longer waiting on them.
 
 ## Done when
 
@@ -24,6 +23,4 @@ The rule is on at error with no baseline, and the law line in docs/law/client-ar
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-Done when the rule is on at error with no baseline, and the law line at `docs/law/client-architecture-lockdown.md:44` names it.
+Landed blockers: 1762 in 9a487bcf60, 1815 in 59cdafb84d. The board field "blocked: on 1815" is stale.

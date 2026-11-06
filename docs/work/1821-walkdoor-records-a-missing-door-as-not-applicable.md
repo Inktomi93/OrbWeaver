@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-Make walkDoor report a missing door as a failure that names the door, not as not applicable.
+Make `walkDoor` in tests/e2e/support/surface-walker.ts fail a door whose trigger is absent, naming the door. Add an explicit optional marker on `SurfaceDoor` for a door that is legitimately absent for a subject, so only a marked door records not-applicable.
 
 ## Why
 
-A door listed in the walk table whose trigger no longer exists is recorded as not applicable, so a stale door entry passes in silence.
+walkDoor records a trigger count of zero as `not-applicable` ("The subject exposes no corresponding door") with no way to tell a stale door entry from an intended absence, so a stale entry passes in silence. SurfaceDoor today carries only id, trigger, body and exit.
 
 ## Done when
 
-A walk table entry whose trigger is absent fails the walk and names the door. A door that exists and one marked not applicable by its table row both still pass.
+A door entry whose trigger is absent fails the walk and names the door. A door that exists passes, and a door carrying the explicit absent marker records not-applicable.
 
 ## Evidence
 

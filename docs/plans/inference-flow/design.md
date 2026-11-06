@@ -1,7 +1,8 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-15
+updated: 2026-11-06
+rank: 4
 ---
 
 # Inference flow: owners, ports and callers
