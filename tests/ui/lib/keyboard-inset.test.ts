@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/node";
-import { createKeyboardInsetReader, readKeyboardInset } from "@orb/ui/lib";
+import { createKeyboardInsetReader } from "@orb/ui/lib";
 
 test("keyboard coverage uses the CSS layout height when innerHeight changes independently", () => {
   const previousViewport = Object.getOwnPropertyDescriptor(globalThis, "visualViewport");
@@ -7,7 +7,7 @@ test("keyboard coverage uses the CSS layout height when innerHeight changes inde
   Object.defineProperty(globalThis, "visualViewport", { configurable: true, value: { height: 500, offsetTop: 0, scale: 1 } });
   Object.defineProperty(globalThis, "innerHeight", { configurable: true, value: 500 });
   try {
-    expect(readKeyboardInset(800)).toBe(300);
+    expect(createKeyboardInsetReader()(800).inset).toBe(300);
   } finally {
     if (previousViewport === undefined) {
       Reflect.deleteProperty(globalThis, "visualViewport");

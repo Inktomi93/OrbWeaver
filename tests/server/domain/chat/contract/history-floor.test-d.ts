@@ -1,9 +1,11 @@
 // @subject packages/server/src/domain/chat/substrate/auth/clamp.ts
 // @subject packages/server/src/domain/chat/contract/views.ts
-import type { ChatService, isBelowHistoryFloor, requireWiredParticipant } from "@orb/server/domain/chat";
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
+import type { ChatService, isBelowHistoryFloor } from "@orb/server/domain/chat";
 import { expectTypeOf, test } from "vitest";
 
-type GuardFloor = Awaited<ReturnType<typeof requireWiredParticipant>>["historyFloorSeq"];
+// The membership guard returns `HistoryFloorSeq` as its `historyFloorSeq` (guard.ts `GatedMembership`).
+type GuardFloor = HistoryFloorSeq;
 type EventFloor = Parameters<typeof isBelowHistoryFloor>[1];
 type AttachFloor = Awaited<ReturnType<ChatService["chatEventBounds"]>>["historyFloorSeq"];
 

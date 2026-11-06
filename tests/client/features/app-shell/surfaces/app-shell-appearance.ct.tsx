@@ -1028,6 +1028,18 @@ test.describe("over a wallpaper", () => {
     // The viewer is dark, so `.shell-main` resolves its halo dark; the room is light and its text must not inherit that smoke.
     expect(await computed(page.locator(".shell-main"), "color-scheme")).toBe("dark");
     await expect.poll(() => haloAlpha(room)).toBe(0);
+    // A scope nested in a bubble (a speaker span, a themed name) stays as clear as the bubble's own text.
+    const bubbleText = page.locator('[data-slot="message-bubble"]').first();
+    await expect(bubbleText).toBeVisible();
+    expect(await bubbleText.evaluate((element) => getComputedStyle(element).textShadow)).toBe("none");
+    const nested = await bubbleText.evaluate((element) => {
+      const host = document.createElement("div");
+      host.dataset["slot"] = "theme-scope";
+      host.textContent = "nested scope";
+      element.append(host);
+      return getComputedStyle(host).textShadow;
+    });
+    expect(nested).toBe("none");
   });
 });
 

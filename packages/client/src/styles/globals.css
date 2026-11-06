@@ -113,6 +113,10 @@
   .shell-grid[data-has-bg-image] .shell-main [data-slot="theme-scope"] {
     text-shadow: var(--shadow-shell-over-art);
   }
+  /* A scope nested in a surface that already clears the halo (a bubble's speaker span, the composer) keeps it cleared. */
+  .shell-grid[data-has-bg-image] :is([data-slot="composer"], [data-slot="message-bubble"]) [data-slot="theme-scope"] {
+    text-shadow: none;
+  }
   .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main [data-slot="theme-scope"] {
     text-shadow: none;
   }

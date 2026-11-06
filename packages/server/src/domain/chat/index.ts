@@ -33,7 +33,7 @@ export type {
 export type { ChatAssemblyContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
-export { createWiredChatGuards, requireWiredAuthorOrHost, requireWiredParticipant } from "./guard.ts";
+export { createWiredChatGuards, requireWiredAuthorOrHost } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";

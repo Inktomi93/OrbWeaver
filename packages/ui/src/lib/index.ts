@@ -35,7 +35,7 @@ export {
 } from "./focus-ring.ts";
 export { GROUND, WALLPAPER_PLATE } from "./ground.ts";
 export { HOVER_CUE, HOVER_DIM, HOVER_REVEAL, HOVER_YIELD, INERT_UNTIL_HOVER } from "./hover-reveal.ts";
-export { createKeyboardInsetReader, readKeyboardInset, subscribeKeyboardInset } from "./keyboard-inset.ts";
+export { createKeyboardInsetReader, subscribeKeyboardInset } from "./keyboard-inset.ts";
 export {
   createLiveTokenStore,
   LIVE_TOKEN_ROOT_ATTRIBUTE,

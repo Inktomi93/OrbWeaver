@@ -43,6 +43,7 @@ export function RoomIslandStory(props: SeedScopeProps): ReactElement {
             style={{ borderColor: `var(${TOKENS["color.tone-edge"].cssVar})`, borderStyle: "solid", display: "block" }}
           />
           <span data-probe="input-edge" style={{ borderColor: `var(${TOKENS["color.input-border"].cssVar})`, borderStyle: "solid", display: "block" }} />
+          <span data-probe="ring" style={{ borderColor: `var(${TOKENS["color.ring"].cssVar})`, borderStyle: "solid", display: "block" }} />
           <span data-probe="muted" style={{ backgroundColor: `var(${TOKENS["color.muted"].cssVar})`, display: "block" }} />
           <span data-probe="primary" style={{ borderColor: `var(${TOKENS["color.primary"].cssVar})`, borderStyle: "solid", display: "block" }} />
           <span
