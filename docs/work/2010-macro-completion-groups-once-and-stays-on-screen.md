@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-11-07
 priority: P2
 area: ui
-lane: wt/agent-a5a6754c31412b587
+blocked: owner
 plan: cross-surface-consistency
 ---
 
