@@ -243,7 +243,9 @@ export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): rea
       seen.add(key);
     }
     const answers = world.batch(unseen.map(([, pair]) => compared(world, pair)));
-    flows.push(...answers.flatMap((answer) => answer.flows));
+    for (const flow of answers.flatMap((answer) => answer.flows)) {
+      flows.push(flow);
+    }
     pending = answers.flatMap((answer) => answer.next);
   }
   return flows;
