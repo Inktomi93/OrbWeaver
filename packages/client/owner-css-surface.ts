@@ -1086,6 +1086,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--height-home-recents-empty",
   "--height-picker-art-landscape",
   "--height-picker-art-standard",
+  "--height-picker-box",
   "--height-picker-chrome",
   "--height-picker-window",
   "--height-prose-cap",

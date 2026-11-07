@@ -74,6 +74,7 @@ function ConnectedCharactersBody({ personaId }: { readonly personaId: PersonaId 
           emptyText="No characters match."
           excludeIds={connected.map((character) => character.id)}
           label="Connect a character"
+          listSize="pickerWindow"
           onEscape={(): void => setPickerOpen(false)}
           onSelect={onPick}
           placeholder="Search characters…"

@@ -45,7 +45,7 @@ const PICKER_PAGE = 200;
 export function CorpusCompareTab(): ReactElement {
   return (
     // The bracket owns the stable viewport; the query boundary measures content without trapping scroll chaining.
-    <Stack className="relative min-block-0" data-testid={testId("corpusCompareTab")}>
+    <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusCompareTab")}>
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="line" />}

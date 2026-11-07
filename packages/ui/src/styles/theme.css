@@ -437,6 +437,7 @@
     --orb-density-comfortable-cell-fixed: 8.5rem;
     --orb-density-compact-cell-fixed: 7.5rem;
     --height-picker-window: clamp(var(--height-scroll-short), calc(100dvh - var(--height-picker-chrome)), var(--height-scroll-lg));
+    --height-picker-box: calc(var(--size-control-sm) + var(--height-picker-window) + 2 * var(--border-width-control));
     --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);

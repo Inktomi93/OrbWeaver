@@ -28,7 +28,7 @@ import { Check, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement, Ref, UIEvent } from "react";
+import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
@@ -66,7 +66,7 @@ export interface CharacterPickerProps {
   readonly isSelected?: (id: CharacterId) => boolean;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
-  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. */
+  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. `pickerWindow` also lets the picker share the room a short dialog leaves. */
   readonly listSize?: "grow" | "pickerWindow";
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
@@ -79,6 +79,8 @@ export interface CharacterPickerProps {
   readonly reserveKey?: string | undefined;
   /** The box the picker settles at, held open until this device has measured it. Needs a `reserveKey`. */
   readonly reserveBlock?: number | undefined;
+  /** A row above the picker, inside its boundary: the box the boundary remembers for this device includes it. */
+  readonly leading?: ReactNode;
   /** Escape handler (modal consumers close on Esc). */
   readonly onEscape?: () => void;
   /** Put the caret in the search field as soon as the ROWS mount. Opt-in, because the two postures differ:
@@ -99,6 +101,7 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
+      grow={props.listSize === "pickerWindow"}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
       {...(props.reserveKey === undefined ? {} : { reserveKey: props.reserveKey })}
       reserveBlock={props.reserveBlock}
@@ -121,6 +124,7 @@ function CharacterPickerBody({
   isSelected,
   rowsHeading,
   listSize,
+  leading,
   onEscape,
   autoFocusSearch = false,
   searchRef: ownerSearchRef,
@@ -190,54 +194,57 @@ function CharacterPickerBody({
   ));
 
   return (
-    <Command className="min-block-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
-      <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList {...(listSize === undefined ? ({ maxHeight: "scrollLg" } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
-        <CommandEmpty>{emptyText}</CommandEmpty>
-        {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
-      </CommandList>
-      {/* The KEYBOARD path to the tail (no button — owner ruling 2026-08-19). Inside `<Command>` so it can
+    <>
+      {leading}
+      <Command className="min-block-0" label={label} windowed={listSize === "pickerWindow"} {...(onEscape === undefined ? {} : { onEscape })}>
+        <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
+        <CommandList {...(listSize === undefined ? ({ maxHeight: "scrollLg" } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
+          <CommandEmpty>{emptyText}</CommandEmpty>
+          {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
+        </CommandList>
+        {/* The KEYBOARD path to the tail (no button — owner ruling 2026-08-19). Inside `<Command>` so it can
           read cmdk's active-item state; renders nothing. Fires the next-page load the moment the roving
           highlight reaches the last loaded row, so arrowing/Page-Down-ing to the bottom pulls more without a
           control pointer users never click. */}
-      <KeyboardTailLoader lastLoadedValue={candidates.at(-1)?.id} onReachLast={fetchMore} />
-      {/* THE FOOTER (header). Outside `CommandList` on purpose — inside it, every child is a member of a
+        <KeyboardTailLoader lastLoadedValue={candidates.at(-1)?.id} onReachLast={fetchMore} />
+        {/* THE FOOTER (header). Outside `CommandList` on purpose — inside it, every child is a member of a
           `role="listbox"`, which is what made the old paging control announce as a character. Rendered only
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
-      {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-        <Row wrap={true} divider="top" align="center" gap="row" padding="row">
-          <Text as="span" voice="gloss">
-            {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
-          </Text>
-          <Row className="min-inline-0" grow={true} gap="field" justify="end">
-            {query.isFetchNextPageError ? (
-              <>
-                <Text role="alert" voice="gloss">
-                  Couldn't load more characters.
-                </Text>
-                <Button variant="outline" onClick={fetchMore} size="sm" wrap={true}>
-                  Retry loading more characters
+        {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
+          <Row wrap={true} divider="top" align="center" gap="row" padding="row">
+            <Text as="span" voice="gloss">
+              {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
+            </Text>
+            <Row className="min-inline-0" grow={true} gap="field" justify="end">
+              {query.isFetchNextPageError ? (
+                <>
+                  <Text role="alert" voice="gloss">
+                    Couldn't load more characters.
+                  </Text>
+                  <Button variant="outline" onClick={fetchMore} size="sm" wrap={true}>
+                    Retry loading more characters
+                  </Button>
+                </>
+              ) : null}
+              {term === "" ? null : (
+                <Button
+                  variant="ghost"
+                  wrap={true}
+                  onClick={(): void => {
+                    setTerm("");
+                    searchRef.current?.focus();
+                  }}
+                  size="sm"
+                >
+                  Clear search
                 </Button>
-              </>
-            ) : null}
-            {term === "" ? null : (
-              <Button
-                variant="ghost"
-                wrap={true}
-                onClick={(): void => {
-                  setTerm("");
-                  searchRef.current?.focus();
-                }}
-                size="sm"
-              >
-                Clear search
-              </Button>
-            )}
+              )}
+            </Row>
           </Row>
-        </Row>
-      ) : null}
-    </Command>
+        ) : null}
+      </Command>
+    </>
   );
 }
 

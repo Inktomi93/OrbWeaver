@@ -20,13 +20,11 @@ export function skeletonRowCountFor(boxHeight: number, fallback: number): number
   return Math.max(1, Math.round((boxHeight - 2 * pad + gap) / (rowHeight + gap)));
 }
 
-/** The box a searchable picker settles at when its library fills the `pickerWindow` list: the search strip, the window and the
- *  command's two edges. The declared first-boot box for a picker that has not yet measured itself. */
+/** The box a searchable picker settles at when its library fills the `pickerWindow` list: the declared first-boot box for a picker that has not yet measured itself. */
 export function pickerWindowBox(): number {
-  const search = resolveCssLength(TOKENS["size.control-sm"].cssVar, LENGTH_BASE_PX["size.control-sm"]);
-  const edge = resolveCssLength(TOKENS["border-width.control"].cssVar, LENGTH_BASE_PX["border-width.control"]);
-  const window = resolveCssLength(TOKENS["height.picker-window"].cssVar, LENGTH_BASE_PX["height.scroll-lg"]);
-  return search + window + 2 * edge;
+  // Without a document the generated base dimensions stand in: a full window, the search strip and the two edges.
+  const fullBox = LENGTH_BASE_PX["size.control-sm"] + LENGTH_BASE_PX["height.scroll-lg"] + 2 * LENGTH_BASE_PX["border-width.control"];
+  return resolveCssLength(TOKENS["height.picker-box"].cssVar, fullBox);
 }
 
 /** The box `rows` `SkeletonRows shape="line"` rows occupy: the exact inverse of {@link skeletonRowCountFor}.

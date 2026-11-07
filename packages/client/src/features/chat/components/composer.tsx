@@ -320,7 +320,7 @@ export function Composer({
   };
 
   return (
-    <Stack aria-label={CHAT_COMPOSER_NAME} className="min-block-0" data-testid={testId("composer")} gap="tight" role="group">
+    <Stack aria-label={CHAT_COMPOSER_NAME} minHeight="shrinks" data-testid={testId("composer")} gap="tight" role="group">
       {/* The registered commands' invisible runner mounts — one fiber each, so a runner may use hooks.
           Zero registrants renders nothing at all. */}
       {slash.mounts}

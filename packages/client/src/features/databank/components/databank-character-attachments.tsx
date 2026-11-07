@@ -90,6 +90,7 @@ export function CharacterAttachments({
           emptyText="No unattached characters match."
           excludeIds={characters.map((character) => character.id)}
           label="Attach document to a character"
+          listSize="pickerWindow"
           onEscape={(): void => setPickerOpen(false)}
           onSelect={(characterId, name): void => {
             setPickedName(name);

@@ -20,9 +20,9 @@ export interface CorpusModes {
 export function CorpusWorkspaceList({ modes }: { readonly modes: CorpusModes }): ReactElement {
   const mode = useCorpusMode();
   return (
-    <Stack className="min-block-0" height="fill" data-corpus-mode={mode} data-slot="corpus-workspace-list" gap="block">
+    <Stack minHeight="shrinks" height="fill" data-corpus-mode={mode} data-slot="corpus-workspace-list" gap="block">
       <CorpusModeSwitch />
-      <Stack className="min-block-0" grow={true}>
+      <Stack minHeight="shrinks" grow={true}>
         {mode === "explore" ? (
           <CorpusListAnchor>
             <CorpusListSurface />
@@ -41,13 +41,13 @@ export function CorpusWorkspaceContent({ modes }: { readonly modes: CorpusModes 
   return (
     // The switch slot is the FIRST child whether or not it renders, so the mode body keeps its tree position
     // and its state when the LIST opens or closes.
-    <Stack className="min-block-0" height="fill" data-corpus-mode={mode} data-slot="corpus-workspace-content">
+    <Stack minHeight="shrinks" height="fill" data-corpus-mode={mode} data-slot="corpus-workspace-content">
       {listOffScreen ? (
         <Stack padding="block">
           <CorpusModeSwitch />
         </Stack>
       ) : null}
-      <Stack className="min-block-0" grow={true}>
+      <Stack minHeight="shrinks" grow={true}>
         {mode === "explore" ? <CorpusContent /> : modes[mode].content()}
       </Stack>
     </Stack>
