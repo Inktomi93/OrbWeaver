@@ -217,11 +217,19 @@ function markedBrowserArgs(args: readonly string[]): string[] {
   return [...args, runMarkerArg(currentRunMarker()), ...(lease === null ? [] : [runLeaseArg(lease)])];
 }
 
-async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
+type PersistentLaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
+
+/** What one owned probe launch hands Playwright: a plain browser, or a persistent profile with its context sizing. */
+export type OwnedLaunch =
+  | { readonly kind: "browser"; readonly options: LaunchOptions }
+  | { readonly kind: "persistent"; readonly profileDir: string; readonly options: PersistentLaunchOptions };
+
+/** The options `launchOwnedBrowser` launches with, built without launching anything. */
+export function ownedLaunchOptions(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): OwnedLaunch {
   const browserArgs = browserArgsWithAcceleration(opts.browserArgs);
-  const environment = markedBrowserEnv(browserArgs);
+  const launch = { headless: opts.headless, args: markedBrowserArgs(browserArgs), env: markedBrowserEnv(browserArgs) };
   if (opts.persistentProfileDir === undefined) {
-    return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: environment }) };
+    return { kind: "browser", options: launch };
   }
   // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
   // composes viewport + screen, so the launch options and environment receipt cannot disagree.
@@ -230,12 +238,15 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
     ...effectiveContextSize(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
-  const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
-    ...sizing,
-    headless: opts.headless,
-    args: markedBrowserArgs(browserArgs),
-    env: environment,
-  });
+  return { kind: "persistent", profileDir: opts.persistentProfileDir, options: { ...sizing, ...launch } };
+}
+
+async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
+  const launch = ownedLaunchOptions(opts, deviceDescriptor);
+  if (launch.kind === "browser") {
+    return { browser: await chromium.launch(launch.options) };
+  }
+  const persistentContext = await chromium.launchPersistentContext(launch.profileDir, launch.options);
   const browser = persistentContext.browser();
   if (browser === null) {
     await persistentContext.close();

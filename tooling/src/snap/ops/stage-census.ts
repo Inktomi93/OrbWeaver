@@ -89,10 +89,12 @@ export function stageBandViews(input: {
   readonly checkout: string;
   readonly targetSha: string | null;
   readonly nowMs: number;
+  /** The socket table, for a caller that must not bind the real band ports to plant a bound band. */
+  readonly bound?: ReadonlyMap<number, PortOwner>;
 }): readonly StageBandView[] {
   // An unreadable table throws (a tool error): every band would read unbound, and an unbound band with a
   // foreign row is a corpse to reclaim, so allocation would boot onto a live sibling's ports.
-  const bound = socketTableOrThrow(listeningPids());
+  const bound = input.bound ?? socketTableOrThrow(listeningPids());
   const live = liveSessionNames(input.root);
   return STAGE_BANDS.map((band) => {
     const row = input.rows.find((candidate) => candidate.band === band) ?? null;

@@ -14,6 +14,7 @@ import { createDebuggingProfile, readDebuggingEndpoint, readDebuggingPort } from
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DevToolsCascadeRuntime } from "../../floor/devtools/devtools-runtime.ts";
 import { prepareDevToolsCascadeRuntime } from "../../floor/devtools/devtools-runtime.ts";
+import type { AppliedLoadEmulation, NetworkProfileName } from "../contract/load-emulation.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
@@ -278,7 +279,7 @@ export async function launchSnapSession(opts: Args, extras: LaunchExtras = {}): 
     }
   }
   try {
-    await applyLoadEmulation(session, opts);
+    LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
     await applyVisionEmulation(session, opts);
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
@@ -301,6 +302,14 @@ export async function openSnapMatrixContext(owner: ProbeSession, opts: Args): Pr
   const profile = DEBUG_PROFILES.get(owner);
   if (profile !== undefined) {
     DEBUG_PROFILES.set(session, profile);
+  }
+  // A new context inherits none of the owner's CDP emulation, so the cell gets the run's own, before navigation.
+  try {
+    LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
+    await applyVisionEmulation(session, opts);
+  } catch (error) {
+    await context.context.close();
+    throw error;
   }
   return { context, session };
 }
@@ -366,20 +375,64 @@ async function applyVisionEmulation(session: ProbeSession, opts: Args): Promise<
   }
 }
 
-async function applyLoadEmulation(session: ProbeSession, opts: Args): Promise<void> {
-  if (opts.cpuThrottle === NO_CPU_THROTTLE && opts.network === null) {
-    return;
+/** The one CDP call the load arm makes. */
+interface LoadEmulationCdp {
+  // biome-ignore lint/style/useConsistentMethodSignatures: method syntax compares `params` bivariantly, which is what lets Playwright's generic `CDPSession.send` satisfy this.
+  send(method: string, params: object): Promise<unknown>;
+}
+
+/** The contexts the load arm sends through; a {@link ProbeSession} satisfies it, and so does a recording stand-in. */
+export interface LoadEmulationTarget<P> {
+  readonly contexts: readonly {
+    readonly context: { readonly pages: () => readonly P[]; readonly newCDPSession: (page: P) => Promise<LoadEmulationCdp> };
+  }[];
+}
+
+type LoadEmulationAsk = Pick<Args, "cpuThrottle" | "network">;
+
+function appliedLoadEmulation(cpuRate: number, network: NetworkProfileName | null): AppliedLoadEmulation {
+  return { cpuRate, network } as AppliedLoadEmulation;
+}
+
+const UNEMULATED = appliedLoadEmulation(NO_CPU_THROTTLE, null);
+const LOAD_EMULATIONS = new WeakMap<ProbeSession, AppliedLoadEmulation>();
+
+/** Which arms one page was sent. */
+async function emulatePage(cdp: LoadEmulationCdp, ask: LoadEmulationAsk): Promise<{ readonly throttled: boolean; readonly conditioned: boolean }> {
+  let throttled = false;
+  let conditioned = false;
+  if (ask.cpuThrottle !== NO_CPU_THROTTLE) {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: ask.cpuThrottle });
+    throttled = true;
   }
-  const conditions = opts.network === null ? null : NETWORK_PROFILES[opts.network];
-  for (const { context } of session.contexts) {
+  if (ask.network !== null) {
+    await cdp.send("Network.emulateNetworkConditions", { ...NETWORK_PROFILES[ask.network] });
+    conditioned = true;
+  }
+  return { throttled, conditioned };
+}
+
+/** Send the asked-for load emulation to every page and return what every page received. A send that throws
+ *  propagates as a tool error; an arm no page received reads as unemulated. */
+export async function applyLoadEmulation<P>(target: LoadEmulationTarget<P>, ask: LoadEmulationAsk): Promise<AppliedLoadEmulation> {
+  if (ask.cpuThrottle === NO_CPU_THROTTLE && ask.network === null) {
+    return UNEMULATED;
+  }
+  let pages = 0;
+  let throttled = 0;
+  let conditioned = 0;
+  for (const { context } of target.contexts) {
     for (const page of context.pages()) {
-      const cdp = await context.newCDPSession(page);
-      if (opts.cpuThrottle !== NO_CPU_THROTTLE) {
-        await cdp.send("Emulation.setCPUThrottlingRate", { rate: opts.cpuThrottle });
-      }
-      if (conditions !== null) {
-        await cdp.send("Network.emulateNetworkConditions", { ...conditions });
-      }
+      const sent = await emulatePage(await context.newCDPSession(page), ask);
+      pages += 1;
+      throttled += sent.throttled ? 1 : 0;
+      conditioned += sent.conditioned ? 1 : 0;
     }
   }
+  return appliedLoadEmulation(pages > 0 && throttled === pages ? ask.cpuThrottle : NO_CPU_THROTTLE, pages > 0 && conditioned === pages ? ask.network : null);
+}
+
+/** The load emulation this session's pages received, for the RESULT line. A session no emulation reached is unemulated. */
+export function loadEmulationFor(session: ProbeSession): AppliedLoadEmulation {
+  return LOAD_EMULATIONS.get(session) ?? UNEMULATED;
 }

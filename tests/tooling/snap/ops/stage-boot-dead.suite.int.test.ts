@@ -28,6 +28,7 @@ import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { markStageSettled, markStageUnsettled, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { stageAnswers } from "../../../../tooling/src/snap/ops/stage-probe.ts";
 import { readStageReaps } from "../../../../tooling/src/snap/ops/stage-reap-log.ts";
 import type { StageSettleDeps } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
 import { settleStageReadiness } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
@@ -45,6 +46,9 @@ const MISSED = "the stage's first navigation came back degraded";
 function probes(answers: boolean): StageSettleDeps {
   return { answers: () => answers, nowIso: () => WARMING_SINCE };
 }
+
+/** The production readiness probe over real listeners, with the warming stamp's clock scripted. */
+const LIVE_PROBES: StageSettleDeps = { answers: stageAnswers, nowIso: () => WARMING_SINCE };
 
 async function until(predicate: () => boolean): Promise<boolean> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
@@ -66,14 +70,22 @@ async function freePort(): Promise<number> {
 }
 
 /** Plant a stage: a `.cache/snap-stage/dirty` dir, and a DETACHED node process group inside it holding the
- *  row's server port. That is the shape `stopStage`'s band check must kill — the two facts it fences on are
- *  the port being held and the holder being stage-rooted. */
-async function plantStage(scratch: string): Promise<{ readonly dir: string; readonly port: number; readonly pid: number }> {
+ *  row's server port, and its vite port only when `vite` answers. That is the shape `stopStage`'s band check
+ *  must kill — the two facts it fences on are the port being held and the holder being stage-rooted. */
+async function plantStage(
+  scratch: string,
+  vite: "answers" | "closed" = "closed",
+): Promise<{ readonly dir: string; readonly port: number; readonly vitePort: number; readonly pid: number }> {
   const dir = join(scratch, ".cache", "snap-stage", "dirty");
   mkdirSync(dir, { recursive: true });
   const port = await freePort();
+  const vitePort = await freePort();
+  const listening = vite === "answers" ? [port, vitePort] : [port];
   const script = join(dir, "planted-server.cjs");
-  writeFileSync(script, `require("node:http").createServer((_q,s)=>s.end("stage")).listen(${String(port)},"127.0.0.1");\n`);
+  writeFileSync(
+    script,
+    `for (const port of ${JSON.stringify(listening)}) require("node:http").createServer((_q,s)=>s.end("stage")).listen(port,"127.0.0.1");\n`,
+  );
   const child = spawn(process.execPath, [script], { cwd: dir, detached: true, stdio: "ignore" });
   child.unref();
   const pid = child.pid;
@@ -81,17 +93,23 @@ async function plantStage(scratch: string): Promise<{ readonly dir: string; read
   expect(await until(() => !pidAlive(pid as number) || existsSync(script)), "the planted stage child started").toBe(true);
   // Give it a beat to actually bind: `stopStage`'s band check reads the LISTENING socket, not the pid.
   await sleep(500);
-  return { dir, port, pid: pid as number };
+  return { dir, port, vitePort, pid: pid as number };
 }
 
-function plantRow(input: { readonly dir: string; readonly port: number; readonly checkout: string; readonly warming?: boolean }): StageRow {
+function plantRow(input: {
+  readonly dir: string;
+  readonly port: number;
+  readonly vitePort?: number;
+  readonly checkout: string;
+  readonly warming?: boolean;
+}): StageRow {
   return {
     ...(input.warming === true ? { warming: { since: WARMING_SINCE } } : {}),
     band: 9,
     sha: "dirty",
     dir: input.dir,
     serverPort: input.port,
-    vitePort: input.port + 1,
+    vitePort: input.vitePort ?? input.port + 1,
     checkout: input.checkout,
     ownerPid: null,
     // The frozen clock, not the ambient one (test-determinism): a boot-dead row's timestamps are inputs the
@@ -149,13 +167,14 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
 test("a booted stage whose server and vite answered after the first miss is kept WARMING, not torn down", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "warming-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "warming"));
-  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "warming") });
+  const planted = await plantStage(join(scratch, "warming"), "answers");
+  const row = plantRow({ dir: planted.dir, port: planted.port, vitePort: planted.vitePort, checkout: join(scratch, "warming") });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   markStageUnsettled(MISSED);
-  settleStageReadiness(probes(true));
+  // The production probe over the planted stage's real listeners; only the clock is scripted.
+  settleStageReadiness(LIVE_PROBES);
 
   expect(pidAlive(planted.pid), "the cold optimize is still finishing; killing the stage restarts it from nothing").toBe(true);
   expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
@@ -218,21 +237,22 @@ test("another checkout bound to a warming stage cannot tear it down, miss or set
   process.kill(planted.pid, "SIGTERM");
 });
 
-test("a first miss on a stage whose vite or server did not answer is still boot-dead, with no warming kept", { timeout: CASE_BUDGET_MS }, async ({
+test("a first miss on a stage whose server answers but whose vite does not is still boot-dead, with no warming kept", { timeout: CASE_BUDGET_MS }, async ({
   scratch,
 }) => {
   const home = join(scratch, "silent-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "silent"));
-  const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "silent") });
+  const planted = await plantStage(join(scratch, "silent"), "closed");
+  const row = plantRow({ dir: planted.dir, port: planted.port, vitePort: planted.vitePort, checkout: join(scratch, "silent") });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
 
   markStageUnsettled(MISSED);
-  settleStageReadiness(probes(false));
+  settleStageReadiness(LIVE_PROBES);
 
   expect(await until(() => !pidAlive(planted.pid))).toBe(true);
   expect(readBands(home)).toStrictEqual([]);
+  expect(readStageReaps(home).map((entry) => entry.arm)).toContain("boot-dead");
 });
 
 /** A stage whose server and vite ports both answer, run outside `.cache/snap-stage` so no teardown treats it as a
@@ -264,6 +284,18 @@ async function plantAnsweringPair(scratch: string): Promise<{ readonly server: n
   }
   throw new Error("the planted pair never answered");
 }
+
+test("a stage answers only when its server and its vite both answer", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
+  const pair = await plantAnsweringPair(join(scratch, "answers"));
+  const closed = await freePort();
+  try {
+    expect(stageAnswers({ server: pair.server, vite: pair.vite }), "the positive control: both halves answer").toBe(true);
+    expect(stageAnswers({ server: closed, vite: pair.vite }), "a vite with no server is a dead stage").toBe(false);
+    expect(stageAnswers({ server: pair.server, vite: closed }), "a server with no vite is a dead stage").toBe(false);
+  } finally {
+    process.kill(pair.pid, "SIGTERM");
+  }
+});
 
 test("a warming stage is reused by the --stage-db fresh, and rebuilt by an explicit --fresh", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "resume-home");
