@@ -7,9 +7,11 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
+import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
+import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleCharacterField } from "./rule-character-field.tsx";
-import { RuleRemoveField } from "./rule-remove-field.tsx";
+import { RuleOptionalField } from "./rule-optional-field.tsx";
 
 const IMAGE_MODE_LABELS = {
   free: "Custom prompt",
@@ -31,6 +33,7 @@ export function RuleImageFields({
   readonly index: number;
   readonly chatId: ChatId | null;
 }): ReactElement {
+  const sizeFocus = useRemovalFocus();
   return (
     <Stack gap="block">
       <form.AppField name={`actions[${index}].mode`}>
@@ -42,50 +45,58 @@ export function RuleImageFields({
         )}
       </form.AppField>
       <form.AppField name={`actions[${index}].prompt`}>
-        {(field): ReactElement =>
-          field.state.value === undefined ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-              <Icon icon={ChevronRight} size="sm" />
-              Add image prompt
-            </Button>
-          ) : (
-            <Stack gap="tight">
-              <field.MacroField label="Image prompt" suggestions={[]} />
-              <RuleRemoveField name="image prompt" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-            </Stack>
-          )
-        }
+        {(field): ReactElement => (
+          <RuleOptionalField
+            name="image prompt"
+            onAdd={(): void => field.handleChange("")}
+            onRemove={(): void => field.handleChange(undefined)}
+            value={field.state.value}
+          >
+            <field.MacroField label="Image prompt" suggestions={[]} />
+          </RuleOptionalField>
+        )}
       </form.AppField>
       <form.AppField name={`actions[${index}].negative`}>
-        {(field): ReactElement =>
-          field.state.value === undefined ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-              <Icon icon={ChevronRight} size="sm" />
-              Add negative prompt
-            </Button>
-          ) : (
-            <Stack gap="tight">
-              <field.MacroField label="Negative prompt" suggestions={[]} />
-              <RuleRemoveField name="negative prompt" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-            </Stack>
-          )
-        }
+        {(field): ReactElement => (
+          <RuleOptionalField
+            name="negative prompt"
+            onAdd={(): void => field.handleChange("")}
+            onRemove={(): void => field.handleChange(undefined)}
+            value={field.state.value}
+          >
+            <field.MacroField label="Negative prompt" suggestions={[]} />
+          </RuleOptionalField>
+        )}
       </form.AppField>
       <form.AppField name={`actions[${index}].n`}>
-        {(field): ReactElement => <field.NumberField label="Image count" min={MIN_IMAGE_COUNT} max={MAX_IMAGE_COUNT} />}
+        {(field): ReactElement => (
+          <field.NumberField
+            label="Image count"
+            description="Every image that comes back is a charge, and some connections make only one."
+            min={MIN_IMAGE_COUNT}
+            max={MAX_IMAGE_COUNT}
+          />
+        )}
       </form.AppField>
       <form.AppField name={`actions[${index}].size`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(SIZE_PRESET_NAMES[0])}>
+            <Button ref={sizeFocus.target()} variant="ghost" justify="start" onClick={(): void => field.handleChange(SIZE_PRESET_NAMES[0])}>
               <Icon icon={ChevronRight} size="sm" />
               Choose image size
             </Button>
           ) : (
             <Stack gap="tight">
-              <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: value }))} />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                Use the image mode's default size
+              <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: IMAGE_SIZE_LABELS[value] }))} />
+              <Button
+                variant="ghost"
+                justify="start"
+                onClick={(): void => {
+                  sizeFocus.arm();
+                  field.handleChange(undefined);
+                }}
+              >
+                {`Use the ${IMAGE_SIZE_MODE_DEFAULT}`}
               </Button>
             </Stack>
           )

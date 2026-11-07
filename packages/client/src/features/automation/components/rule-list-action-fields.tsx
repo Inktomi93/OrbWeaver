@@ -13,6 +13,7 @@ import { useEffect, useId, useRef } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
+import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 import { RuleRemoveField } from "./rule-remove-field.tsx";
@@ -29,6 +30,7 @@ export function RuleLoreFields({
   readonly action: Extract<RuleEditorValues["actions"][number], { type: "insert_world_info_entry" }>;
   readonly chatId: ChatId | null;
 }): ReactElement {
+  const keywordFocus = useRemovalFocus();
   return (
     <Stack gap="block">
       <form.AppField name={`actions[${index}].bookId`}>
@@ -55,6 +57,7 @@ export function RuleLoreFields({
                     <>
                       <field.TextField label={`Keyword ${keyword + 1}`} />
                       <RuleRemoveField
+                        focus={keywordFocus}
                         name={`keyword ${keyword + 1}`}
                         onRemove={(): void => {
                           Promise.all([form.removeFieldValue(`actions[${index}].keys`, keyword), form.removeFieldValue(`keywordIds[${index}]`, keyword)]).catch(
@@ -69,6 +72,7 @@ export function RuleLoreFields({
               </Stack>
             ))}
             <Button
+              ref={keywordFocus.target()}
               variant="ghost"
               onClick={(): void => {
                 form.pushFieldValue(`actions[${index}].keys`, "");

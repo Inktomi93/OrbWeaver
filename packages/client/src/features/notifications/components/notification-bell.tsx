@@ -37,7 +37,7 @@ import { useInboxStream } from "../hooks/use-inbox-stream.ts";
 import { usePageFocus } from "../hooks/use-page-focus.ts";
 import { inboxRequests } from "../lib/notifications-requests.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
-import { DismissedInbox, InboxLoadMore } from "./notification-inbox-older.tsx";
+import { DismissedRows, DismissedToggle, InboxLoadMore } from "./notification-inbox-older.tsx";
 import { InboxRow } from "./notification-inbox-row.tsx";
 
 /** The `notifications.list` row shape — a private local alias (each file that needs it derives its own,
@@ -115,6 +115,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   useInboxStream({ invalidation });
   const markAllRead = useMarkAllNotificationsRead({ trpc, invalidation });
   const [open, setOpen] = useState(false);
+  const [dismissedOpen, setDismissedOpen] = useState(false);
   const [handoffDecision, setHandoffDecision] = useState<InboxItem | null>(null);
   // The nominations this session has already accepted — #1501's "the verb landed" flag, kept HERE because
   // the confirm that fires the verb outlives the row that opened it (and the row is re-created from the
@@ -239,6 +240,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // The popup's text-scaled width floor must not widen the inline phone sheet past its containing drawer.
   const inbox = (
     <Stack gap="block" minWidth={isSheet ? undefined : "popupFloor"} className={isSheet ? "min-inline-0" : undefined}>
+      <DismissedToggle open={dismissedOpen} onToggle={(): void => setDismissedOpen(!dismissedOpen)} />
       {items.length === 0 ? (
         <NoInboxRows loading={loading} readFailed={readFailed} onRetry={retry} onDone={isSheet ? (): void => closeModal() : (): void => setOpen(false)} />
       ) : (
@@ -264,7 +266,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
         ))
       )}
       <InboxLoadMore hasNextPage={hasNextPage} isFetchingNextPage={isFetchingNextPage} failed={loadMoreFailed} onLoadMore={pageFocus.loadNextPage} />
-      <DismissedInbox />
+      {dismissedOpen ? <DismissedRows /> : null}
     </Stack>
   );
 

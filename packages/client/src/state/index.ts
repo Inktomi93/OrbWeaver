@@ -203,7 +203,13 @@ export { createEntityDraftStore, type EntityDraftStore } from "./create-entity-d
 export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export {} from "./create-kinded-selection-store.ts";
 // `IngestPhase`/`INGEST_PHASES` are a `databank.list` input homed in `@orb/contracts/databank`; never re-export them here.
-export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
+export {
+  clearDatabankPhaseFilter,
+  setDatabankPhaseFilter,
+  setDatabankSearchQuery,
+  useDatabankPhaseFilter,
+  useDatabankSearchQuery,
+} from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export { rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
 // D166: room configuration belongs to committed server verbs, not a second local draft model.
@@ -314,6 +320,7 @@ export { closePresetTemplateDrill, drillPresetTemplate, useDrilledPresetTemplate
 export { selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store.ts";
 export { pushRecentModel, useRecentModels } from "./recent-models-store.ts";
 export { requestRefineryLandingFocus, useRefineryLandingFocusRequest } from "./refinery-landing-focus-store.ts";
+export { setRefinerySearchQuery, useRefinerySearchQuery } from "./refinery-search-store.ts";
 export {
   refinerySectionSelection,
   selectRefinerySession,

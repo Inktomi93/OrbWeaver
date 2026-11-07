@@ -55,6 +55,9 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
   // what it holds rather than mis-sized. 0.8 leaves room for a member's own padding without letting a
   // row whose content matches its siblings' escape on rounding.
   var CONTENT_EXPLAINS_RATIO = 0.8;
+  // The Text primitive's slot names a typesetting tool, not a row: an initial, a name and a gloss wear it side by side
+  // and owe no common height, so sharing it claims no anatomy.
+  var TEXT_PRIMITIVE_SLOT = "text";
 
   function cohortKey(el) {
     var slot = el.getAttribute("data-slot");
@@ -124,7 +127,14 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     // must not decide whether the rule can see a cohort. \`inline-block\`/\`inline-flex\` DO own a box and stay
     // judged — this is a mechanism fence on "has no box", not on the word "inline".
     var cdisplay = getComputedStyle(cel).display;
-    members.push({ el: cel, height: Math.round(crect.height), content: Math.round(tallestChild), animating: canim, inlineRun: cdisplay === "inline" });
+    members.push({
+      el: cel,
+      height: Math.round(crect.height),
+      content: Math.round(tallestChild),
+      animating: canim,
+      inlineRun: cdisplay === "inline",
+      textPrimitive: cel.getAttribute("data-slot") === TEXT_PRIMITIVE_SLOT,
+    });
   }
 
   cohortsByParent.forEach(function (byKey, parentEl) {
@@ -133,10 +143,12 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       relationalAccounting["cohort-anatomy"].candidates += 1;
       var animating = false;
       var allInline = true;
+      var allTextPrimitive = true;
       var heights = [];
       for (var mi = 0; mi < members.length; mi += 1) {
         if (members[mi].animating) animating = true;
         if (!members[mi].inlineRun) allInline = false;
+        if (!members[mi].textPrimitive) allTextPrimitive = false;
         heights.push(members[mi].height);
       }
       // EXCLUDED, not dropped (#1703): the cohort is still a candidate and still prints, so widening this
@@ -146,6 +158,10 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       // real divergence and is exactly what this rule exists to say.
       if (allInline) {
         excludeRelational(relationalAccounting["cohort-anatomy"], "inlineTextRun");
+        return;
+      }
+      if (allTextPrimitive) {
+        excludeRelational(relationalAccounting["cohort-anatomy"], "textPrimitive");
         return;
       }
       if (animating) {

@@ -6,6 +6,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import { filteredCensus } from "#lib";
 import { usePresetSearchQuery } from "#state";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
@@ -15,12 +16,7 @@ import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts
  * The lens lives in `#state` precisely because the readers have no common parent with the rows, and the
  * PREDICATE is the surface's own (`filterPresetsByName`), so they cannot drift into two answers about one list.
  *
- * …AND THE TOTAL SURVIVES THE ZERO (side-eye 2026-08-22 P3-2). That ruling SURVIVES — its input changed.
- * `ListPaneHeader` omits a `0` census on purpose ("a zero census is noise, not information"), which is true of
- * an empty library and false of a FILTERED one: there the band went from `PRESETS 5` to a bare `PRESETS`
- * exactly when the number would have said "your presets are still there, this search just missed them". The
- * readers still print what the pane SHOWS — the leading number — and the string arm carries the total beside
- * it. Every other filter is untouched: `1 of 5` would restate a total the rows already make obvious.
+ * It prints in the roster grammar every band shares (`filteredCensus`): `k of N` while the search narrows the list.
  *
  * `undefined` until the list lands, so an unread library is not reported as an empty one.
  */
@@ -31,6 +27,5 @@ export function usePresetCensus(): number | string | undefined {
   if (presets === undefined) {
     return presets;
   }
-  const shown = filterPresetsByName(presets, needle).length;
-  return shown === 0 && presets.length > 0 ? `0 of ${String(presets.length)}` : shown;
+  return filteredCensus(filterPresetsByName(presets, needle).length, presets.length, needle !== "");
 }

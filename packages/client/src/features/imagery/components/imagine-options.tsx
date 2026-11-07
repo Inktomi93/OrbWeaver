@@ -1,5 +1,6 @@
 import type { SizePresetName } from "@orb/contracts/imagery";
 import { MAX_IMAGE_COUNT, MAX_NEGATIVE_CHARS, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
+import { sentenceCase } from "@orb/kit/strings";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -8,18 +9,15 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { CappedFieldCounter } from "#forms/editor";
+import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
 
 const IMAGE_COUNTS = Array.from({ length: MAX_IMAGE_COUNT - MIN_IMAGE_COUNT + 1 }, (_, index) => String(MIN_IMAGE_COUNT + index));
 // The default sends no size, so the server keeps choosing the shape each mode's composition assumes.
 const DEFAULT_SIZE = "default";
 const SIZE_CHOICES = [DEFAULT_SIZE, ...SIZE_PRESET_NAMES] as const;
 type SizeChoice = (typeof SIZE_CHOICES)[number];
-const SIZE_LABELS: Record<SizeChoice, string> = {
-  default: "Best for mode",
-  square: "Square",
-  portrait: "Portrait",
-  landscape: "Landscape",
-};
+const SIZE_LABELS: Record<SizeChoice, string> = { default: sentenceCase(IMAGE_SIZE_MODE_DEFAULT), ...IMAGE_SIZE_LABELS };
 const NEGATIVE_ROWS = 2;
 const NEGATIVE_MAX_ROWS = 6;
 
@@ -68,14 +66,6 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
                 </Toggle>
               ))}
             </ToggleGroup>
-            {/* Mounted before it has words, so a screen reader announces the spend the moment a count above one is picked. */}
-            <Stack aria-live="polite" role="status">
-              {count > MIN_IMAGE_COUNT && hostPays !== undefined ? (
-                <Text cap="prose" data-slot="imagine-count-spend" voice="reading">
-                  Asks for {count} images. {hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.
-                </Text>
-              ) : null}
-            </Stack>
           </Stack>
           <Stack gap="field">
             <Text as="span" id={sizeLabelId} voice="label">
@@ -113,6 +103,17 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
               rows={NEGATIVE_ROWS}
               value={negative}
             />
+            <CappedFieldCounter length={negative.length} max={MAX_NEGATIVE_CHARS} />
+          </Stack>
+          {/* Last in the panel, beside the Generate it prices: a line that appears above the size and the negative would
+              move the control the finger is on. Mounted before it has words, so a screen reader announces the spend the
+              moment a count above one is picked. */}
+          <Stack aria-live="polite" role="status">
+            {count > MIN_IMAGE_COUNT && hostPays !== undefined ? (
+              <Text cap="prose" data-slot="imagine-count-spend" voice="reading">
+                Asks for {count} images. {hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.
+              </Text>
+            ) : null}
           </Stack>
         </Stack>
       </CollapsiblePanel>

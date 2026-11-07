@@ -113,6 +113,10 @@ const QUALIFIED = {
   presetsWelcome: EVERY_CELL,
   importDialog: EVERY_CELL,
   characterEditor: EVERY_CELL,
+  saveBarName: [
+    [NARROW, TEXT_200],
+    [NARROW, LAYOUT_300],
+  ],
   echoFoot: EVERY_CELL,
   // Only the wide identity renames; from 200% the desktop row has swapped to the screen name.
   renameField: [[DESKTOP, TEXT_125]],
@@ -1337,6 +1341,30 @@ for (const [viewport, scale] of QUALIFIED.characterEditor) {
       await expect.poll(() => editor.locator('[data-slot="save-bar-root"]').evaluate(overlappingParts, SUBPIXEL)).toEqual([]);
       await expect.poll(() => findings(editor)).toEqual([]);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+    });
+  });
+}
+
+for (const [viewport, scale] of QUALIFIED.saveBarName) {
+  test.describe(`character editor save bar at ${scale.name} on the ${viewport.name}`, () => {
+    test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+    test("shows the whole name beside its kind inside the bar", async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
+      const bar = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).locator('[data-slot="save-bar-root"]');
+      await expect(bar).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      const title = bar.locator('[data-slot="save-bar-title"]');
+      await expect.poll(() => title.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(SUBPIXEL);
+      await expect.poll(async () => (await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+      await expect.poll(() => bar.evaluate(overlappingParts, SUBPIXEL)).toEqual([]);
+      await expect
+        .poll(async () => {
+          const [within, kind] = await Promise.all([bar.boundingBox(), bar.locator('[data-slot="save-bar-kind"]').boundingBox()]);
+          return within !== null && kind !== null && kind.x >= within.x - SUBPIXEL && kind.x + kind.width <= within.x + within.width + SUBPIXEL;
+        })
+        .toBe(true);
     });
   });
 }

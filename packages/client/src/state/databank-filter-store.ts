@@ -29,9 +29,11 @@ import { createGatedStore } from "./create-gated-store.ts";
 
 interface DatabankFilterState {
   readonly phaseFilter: IngestPhase | null;
+  /** The search box's raw text (`""` = every document). It lives here so the chrome band's census can name the lens. */
+  readonly search: string;
 }
 
-const useDatabankFilterStore = createGatedStore<DatabankFilterState>("databank-filter", (): DatabankFilterState => ({ phaseFilter: null }));
+const useDatabankFilterStore = createGatedStore<DatabankFilterState>("databank-filter", (): DatabankFilterState => ({ phaseFilter: null, search: "" }));
 
 /** Scope the Databank LIST to one ingest phase (home's health chips, and any future triage affordance) —
  *  the LIST filters to documents deriving that phase and shows a "filtered by [phase] ✕" clear chip. */
@@ -43,6 +45,16 @@ export function setDatabankPhaseFilter(phase: IngestPhase): void {
  *  own way out). */
 export function clearDatabankPhaseFilter(): void {
   useDatabankFilterStore.setState({ phaseFilter: null }, false, "databank-filter/clear");
+}
+
+/** Write the search text (every keystroke, and the empty state's Clear). */
+export function setDatabankSearchQuery(search: string): void {
+  useDatabankFilterStore.setState({ search }, false, "databank-filter/search");
+}
+
+/** Reactive: the search text (`""` = every document). A primitive selector. */
+export function useDatabankSearchQuery(): string {
+  return useDatabankFilterStore((s) => s.search);
 }
 
 /** Reactive: the active ingest-phase scope (`null` = the whole bank). A primitive selector. */

@@ -251,6 +251,7 @@ function OverflowCount({ hidden, noun, slot }: { readonly hidden: number; readon
 
 /** The CARD stack: the newest card, its actions, its dismiss — and the count of the ones behind it. */
 function ControlCards({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
+  const bylineId = useId();
   const cards = controls.filter((control) => control.kind === "card");
   const newest = cards.at(-1);
   if (newest === undefined) {
@@ -265,7 +266,15 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
             <Tip text={`Dismiss ${newest.title}`}>
-              <GlyphButton aria-label={`Dismiss ${newest.title}`} variant="ghost" onClick={newest.dismiss} glyph="sm">
+              {/* The byline is the dismiss control's description: its name carries the plugin's free-text title, and
+                  only the byline says who installed it. */}
+              <GlyphButton
+                aria-describedby={newest.byline === undefined ? undefined : bylineId}
+                aria-label={`Dismiss ${newest.title}`}
+                variant="ghost"
+                onClick={newest.dismiss}
+                glyph="sm"
+              >
                 {/* `glyph-sm` is a 20px box that holds a 12px `xs` Icon (the token's own description) — a bare
                     lucide glyph renders at 24px and overflows it. Same call-site sizing rule as the chip's. */}
                 <Icon icon={X} size="xs" />
@@ -273,7 +282,7 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
             </Tip>
           </Row>
           {newest.byline === undefined ? null : (
-            <Text data-slot="chat-control-card-byline" voice="gloss">
+            <Text data-slot="chat-control-card-byline" id={bylineId} voice="gloss">
               {newest.byline}
             </Text>
           )}

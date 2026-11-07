@@ -9,6 +9,8 @@ export const REFINERY_SAVE_AS_COPY_NAME = "Save as copy";
 export const REFINERY_SESSION_STATE_NAME = "Session state";
 export const REFINERY_SEARCH_SESSIONS_NAME = "Search sessions by character or name";
 export const REFINERY_EDIT_SCOPE_NAME = "Edit scope";
+/** What the Hand-edit dialog says when the scope holds no field to edit. */
+export const REFINERY_HAND_EDIT_EMPTY_SCOPE = "Nothing is in scope, so there is nothing to hand-edit. Choose fields under Edit scope, then come back.";
 export const REFINERY_COMPARE_NAME = "Compare";
 export const REFINERY_HIDE_COMPARE_NAME = "Hide compare";
 

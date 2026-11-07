@@ -272,6 +272,6 @@ describe("design-audit contrast — #1078 (orb-ui audit F6): a masked foreground
       backdrop: { kind: "flat", color: { r: 40, g: 90, b: 200 } },
     });
     const rows = colorTextPopulations([grayOnChromatic]);
-    expect(rows["gray-on-color"]?.judged).toBe(1);
+    expect(rows["gray-on-color"]).toMatchObject({ judged: 1, affected: 1 });
   });
 });

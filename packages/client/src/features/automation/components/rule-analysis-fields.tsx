@@ -1,7 +1,5 @@
 import { ANALYSIS_APPLY_MODES } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -10,7 +8,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
-import { RuleRemoveField } from "./rule-remove-field.tsx";
+import { RuleOptionalField } from "./rule-optional-field.tsx";
 
 const APPLY_ITEMS = ANALYSIS_APPLY_MODES.map((value) => ({ value, label: value === "direct" ? "Apply directly" : "Ask the host first" }));
 
@@ -36,19 +34,16 @@ export function RuleAnalysisFields({
     <Stack gap="block">
       <form.AppField name={`actions[${index}].brief`}>{(field): ReactElement => <field.MacroField label="Analysis brief" suggestions={[]} />}</form.AppField>
       <form.AppField name={`actions[${index}].steer`}>
-        {(field): ReactElement =>
-          field.state.value === undefined ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-              <Icon icon={ChevronRight} size="sm" />
-              Add standing direction
-            </Button>
-          ) : (
-            <Stack gap="tight">
-              <field.MacroField label="Standing direction" suggestions={[]} />
-              <RuleRemoveField name="standing direction" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-            </Stack>
-          )
-        }
+        {(field): ReactElement => (
+          <RuleOptionalField
+            name="standing direction"
+            onAdd={(): void => field.handleChange("")}
+            onRemove={(): void => field.handleChange(undefined)}
+            value={field.state.value}
+          >
+            <field.MacroField label="Standing direction" suggestions={[]} />
+          </RuleOptionalField>
+        )}
       </form.AppField>
       <Text voice="gloss">
         Enable at least one output route. Only one route may ask for confirmation. Analysis is unavailable while this chat has an active game.

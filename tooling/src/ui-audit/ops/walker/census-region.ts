@@ -31,9 +31,10 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   var INK_SCROLL_TOLERANCE_PX = 4;
   var INK_RATIO_SCALE = 100;
 
+  // localName, because tagName is uppercased only for HTML-namespace elements and an inline svg keeps its case.
+  var DESIGNED_MEDIA_NAMES = { img: 1, svg: 1, canvas: 1, video: 1, picture: 1 };
   function hasDesignedOwnPaint(el) {
-    var tag = el.tagName;
-    if (tag === "IMG" || tag === "SVG" || tag === "CANVAS" || tag === "VIDEO" || tag === "PICTURE") return true;
+    if (DESIGNED_MEDIA_NAMES[el.localName] === 1) return true;
     if (el.matches(INTERACTIVE_SELECTOR)) return true;
     var style = getComputedStyle(el);
     var bg = parseRgb(style.backgroundColor);

@@ -4,19 +4,26 @@
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { DestructiveAction } from "#components";
+import type { RemovalFocus } from "../hooks/use-removal-focus.ts";
 
 interface RuleRemoveFieldProps {
   /** The field's lower-case name, as the control and its confirm say it. */
   readonly name: string;
   readonly value: string | null | undefined;
   readonly onRemove: () => void;
+  /** Hands focus to the control that outlives the removal. */
+  readonly focus: RemovalFocus;
 }
 
 /** The Remove control under one optional rule field. */
-export function RuleRemoveField({ name, value, onRemove }: RuleRemoveFieldProps): ReactElement {
+export function RuleRemoveField({ name, value, onRemove, focus }: RuleRemoveFieldProps): ReactElement {
+  const remove = (): void => {
+    focus.arm();
+    onRemove();
+  };
   if ((value ?? "").trim() === "") {
     return (
-      <Button variant="ghost" justify="start" onClick={onRemove}>
+      <Button variant="ghost" justify="start" onClick={remove}>
         Remove {name}
       </Button>
     );
@@ -24,7 +31,11 @@ export function RuleRemoveField({ name, value, onRemove }: RuleRemoveFieldProps)
   return (
     <DestructiveAction
       confirm={{ confirmLabel: "Remove", description: "What you wrote here leaves this rule. This can't be undone.", title: `Remove ${name}?` }}
-      onConfirm={onRemove}
+      finalFocus={focus.finalFocus}
+      onConfirm={(): void => {
+        focus.confirmed();
+        remove();
+      }}
       trigger={
         <Button variant="ghost" justify="start">
           Remove {name}

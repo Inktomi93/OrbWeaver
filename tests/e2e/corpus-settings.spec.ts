@@ -24,6 +24,7 @@ import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const BUNDLE_IMPORT_ROUTE = PORTABILITY_ROUTES.importBundle;
 const IMPORT_GROUP_NAME = /^Import /u;
+const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -76,7 +77,7 @@ async function assertNativeRestore(
   };
   page.on("response", record);
   try {
-    const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: "Import", exact: true }).click()]);
+    const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click()]);
     expect(response.status()).toBe(202);
     await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);

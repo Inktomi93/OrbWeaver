@@ -11,7 +11,7 @@
 import { useGatedQuery, useTRPC } from "#data";
 import { censusTitle } from "#lib";
 import { useSelectedDocumentId } from "#state";
-import { useDatabankCensus } from "../hooks/use-databank-census.ts";
+import { useDatabankListCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SECTION_LABEL } from "./databank-section-label.ts";
 
 export function useDatabankSelectionTitle(): string | null {
@@ -20,7 +20,7 @@ export function useDatabankSelectionTitle(): string | null {
   const { data } = useGatedQuery(documentId, (id) => trpc.databank.get.queryOptions({ id }));
   // Unconditional, above the early return: this is a hook, and the shell calls THIS hook unconditionally for
   // exactly the same reason (`section-registry.ts`, `NO_SELECTION_TITLE`).
-  const census = useDatabankCensus();
+  const census = useDatabankListCensus();
   const title = data?.name ?? "";
   // THE CENSUS IS THE NO-SELECTION ARM, gated on the SELECTION rather than on "did a name land" (#1676):
   // with a member open this screen is that member's, so an unlanded name heals to the shell's section label,

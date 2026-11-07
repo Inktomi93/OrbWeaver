@@ -1,8 +1,6 @@
 import { AUTOMATION_RULE_MAX_FIRES_PER_HOUR, automationTriggerFor, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
-import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
@@ -10,7 +8,7 @@ import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { triggerLabel } from "../lib/rule-copy.ts";
-import { RuleRemoveField } from "./rule-remove-field.tsx";
+import { RuleOptionalField } from "./rule-optional-field.tsx";
 
 /** Scope never changes through an authored update; the trigger choices reflect that scope. */
 export function RuleEditorSettings({
@@ -25,19 +23,16 @@ export function RuleEditorSettings({
     <Stack gap="block">
       <form.AppField name="name">{(field): ReactElement => <field.TextField label="Rule name" />}</form.AppField>
       <form.AppField name="description">
-        {(field): ReactElement =>
-          field.state.value === null ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-              <Icon icon={ChevronRight} size="sm" />
-              Add description
-            </Button>
-          ) : (
-            <Stack gap="tight">
-              <field.TextareaField label="Description" />
-              <RuleRemoveField name="description" onRemove={(): void => field.handleChange(null)} value={field.state.value} />
-            </Stack>
-          )
-        }
+        {(field): ReactElement => (
+          <RuleOptionalField
+            name="description"
+            onAdd={(): void => field.handleChange("")}
+            onRemove={(): void => field.handleChange(null)}
+            value={field.state.value}
+          >
+            <field.TextareaField label="Description" />
+          </RuleOptionalField>
+        )}
       </form.AppField>
       <form.Subscribe selector={(state): boolean => state.values.actions.some((action) => action.type === "transform_draft")}>
         {(transformOnly): ReactElement => (
@@ -77,26 +72,23 @@ export function RuleEditorSettings({
         )}
       </form.Subscribe>
       <form.AppField name="predicateCel">
-        {(field): ReactElement =>
-          field.state.value === null ? (
-            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-              <Icon icon={ChevronRight} size="sm" />
-              Add condition
-            </Button>
-          ) : (
-            <Stack gap="tight">
-              <field.TextareaField
-                label="Condition (CEL)"
-                description={
-                  chatId === null
-                    ? "Library rules cannot read chat, vars or choice. Global variables belong to the rule author."
-                    : "A CEL expression filters matching events. A rewrite's condition cannot read the event."
-                }
-              />
-              <RuleRemoveField name="condition" onRemove={(): void => field.handleChange(null)} value={field.state.value} />
-            </Stack>
-          )
-        }
+        {(field): ReactElement => (
+          <RuleOptionalField
+            name="condition"
+            onAdd={(): void => field.handleChange("")}
+            onRemove={(): void => field.handleChange(null)}
+            value={field.state.value}
+          >
+            <field.TextareaField
+              label="Condition (CEL)"
+              description={
+                chatId === null
+                  ? "Library rules cannot read chat, vars or choice. Global variables belong to the rule author."
+                  : "A CEL expression filters matching events. A rewrite's condition cannot read the event."
+              }
+            />
+          </RuleOptionalField>
+        )}
       </form.AppField>
       <form.AppField name="matchAutomationEvents">
         {(field): ReactElement => (

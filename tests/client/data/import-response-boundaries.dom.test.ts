@@ -53,3 +53,27 @@ test("valid workload-backed import responses still return the server's real work
   await expect(importBundle(upload())).resolves.toEqual(started);
   await expect(importTree([upload()])).resolves.toEqual(started);
 });
+
+test("aborting an upload ends the request that carries its bytes", async () => {
+  const sent: AbortSignal[] = [];
+  // The browser's fetch contract: a request that carries a signal rejects with the signal's reason once it aborts.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          const signal = init.signal;
+          if (signal === null || signal === undefined) {
+            return;
+          }
+          sent.push(signal);
+          signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+        }),
+    ),
+  );
+  const controller = new AbortController();
+  const pending = importTree([upload()], {}, null, { signal: controller.signal });
+  controller.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(sent).toEqual([controller.signal]);
+});

@@ -1,8 +1,7 @@
 // Complete-denominator control for the capped relational sample return (#984).
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -26,7 +25,7 @@ test("every capped relational census publishes the complete candidate, judged, e
   const res = await runCli("snap", ["--file", join(scratch, "relational-accounting.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({
     candidates: 14,
     judged: 14,

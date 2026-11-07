@@ -38,3 +38,42 @@ test("a walker segment refuses a single-backslash regex class and accepts the es
   const spawned = linter.verify('spawn("rm", ["target"]);', native, { filename });
   expect(spawned.map(({ ruleId }) => ruleId)).toEqual([RULE]);
 });
+
+// `tagName` is uppercase only for HTML-namespace elements, so an uppercase SVG name is a comparison that can never match.
+test("a walker segment refuses an uppercase SVG tag and accepts the lowercase name", { timeout: 120_000 }, async ({ repoRoot }) => {
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
+  const filename = join(repoRoot, WALKER_FILE);
+  const config = await resolvedConfig(eslint, filename);
+  const linter = new Linter();
+  const native = {
+    files: ["**/*.ts"],
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
+    rules: { [RULE]: config.rules[RULE] ?? "off" },
+  };
+  for (const source of [
+    'const a = `if (tag === "SVG") return true;`;',
+    "const a = `if (el.tagName === 'PATH') return true;`;",
+    "const a = `var TAGS = { SVG: 1 };`;",
+    "const a = `var TAGS = { SVG: true };`;",
+    'const a = `var TAGS = { FOREIGNOBJECT: "art" };`;',
+    "const a = `if (/^(SVG|IMG)$/.test(el.tagName)) return true;`;",
+    "const a = `if (/^(IMG|TEXT)$/.test(el.tagName)) return true;`;",
+    "const a = `if (/^ELLIPSE$/.test(tag)) return true;`;",
+    'const a = `if (tag === "LINE" || tag === "IMAGE") return true;`;',
+  ]) {
+    expect(
+      linter.verify(source, native, { filename }).map(({ ruleId }) => ruleId),
+      source,
+    ).toEqual([RULE]);
+  }
+  for (const source of [
+    'const a = `if (el.localName === "svg") return true;`;',
+    'const a = `if (el.tagName === "IMG") return true;`;',
+    "const a = `// an inline SVG paints`;",
+    "const a = `// BOUNDED BY ITS MEASURED RECT: a pseudo`;",
+    "const a = `if (/^(IMG|VIDEO)$/.test(el.tagName)) return true;`;",
+    "const a = `// TEXT: the label the census reads`;",
+  ]) {
+    expect(linter.verify(source, native, { filename }), source).toEqual([]);
+  }
+});

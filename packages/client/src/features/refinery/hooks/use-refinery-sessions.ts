@@ -30,6 +30,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc, TrpcReadError } from "#data";
 import { useGatedQuery, useTRPC } from "#data";
+import { filteredCensus } from "#lib";
+import { useRefinerySearchQuery } from "#state";
+import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
 
 type SessionList = inferOutput<Trpc["refinery"]["listSessions"]>;
 type SessionView = inferOutput<Trpc["refinery"]["getSession"]>;
@@ -52,8 +55,14 @@ export function useRefinerySessions(): UseQueryResult<SessionList, TrpcReadError
  * roster surface already fetches — so the
  * second reader costs no request. `undefined` until it lands: an unread roster is not an empty one.
  */
-export function useRefineryCensus(): number | undefined {
-  return useRefinerySessions().data?.length;
+export function useRefineryCensus(): number | string | undefined {
+  const sessions = useRefinerySessions().data;
+  const needle = refinerySearchNeedle(useRefinerySearchQuery());
+  if (sessions === undefined) {
+    return undefined;
+  }
+  const shown = sessions.filter((session) => matchesRefinerySearch(session.characterName, session.name, needle)).length;
+  return filteredCensus(shown, sessions.length, needle !== "");
 }
 
 /** The R2 read tier — ONE session's full view (the anti-drift `originalCard` anchor, selection, stageConfig,

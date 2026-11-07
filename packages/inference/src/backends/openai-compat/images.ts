@@ -199,6 +199,11 @@ async function runImagesApi(req: ImageGenerateRequest, deps: ImagesDeps, call: M
   if (images.length === 0) {
     throw new ProviderError({ kind: "server", retryable: result.isRetryable ?? true, message: `${call.label}: image generation returned no images` });
   }
+  // An endpoint may take `n` and still answer with fewer pictures; the room is told, same as a wire with no count channel.
+  const asked = req.n ?? DEFAULT_N;
+  if (images.length < asked) {
+    warnings.push({ code: "image_count_dropped", message: `${req.connection.model}: asked for ${asked} images and the endpoint returned ${images.length}` });
+  }
   return { images, model: req.connection.model, usage, warnings };
 }
 

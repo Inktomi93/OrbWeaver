@@ -14,6 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc, TrpcReadError } from "#data";
 import { useTRPC } from "#data";
+import { filteredCensus, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { useDatabankPhaseFilter, useDatabankSearchQuery } from "#state";
 
 type BankHealth = inferOutput<Trpc["databank"]["bankHealth"]>;
 
@@ -27,4 +29,25 @@ export function useDatabankBankHealth(): UseQueryResult<BankHealth, TrpcReadErro
  *  which no reader prints a count and the owner-wide sweeps stay closed (#1500). */
 export function useDatabankCensus(): number | undefined {
   return useDatabankBankHealth().data?.total;
+}
+
+/** What the band and the phone title print: the bank's size, or `k of N` while a search or a phase scope narrows the
+ *  list. The `k` is the server's own filtered total, read through the same lens the rows are (`databank.list`'s
+ *  `totalCount`), asked for one row so it fetches almost nothing. */
+export function useDatabankListCensus(): number | string | undefined {
+  const trpc = useTRPC();
+  const total = useDatabankCensus();
+  const search = useDebouncedValue(useDatabankSearchQuery().trim(), SEARCH_DEBOUNCE_MS);
+  const phase = useDatabankPhaseFilter();
+  const narrowed = search !== "" || phase !== null;
+  const { data: shown } = useQuery({
+    ...trpc.databank.list.queryOptions({ limit: 1, ...(search === "" ? {} : { search }), ...(phase === null ? {} : { phase }) }),
+    // An unnarrowed pane asks nothing extra: the bank total above is the count.
+    enabled: narrowed,
+    select: (page) => page.totalCount,
+  });
+  if (!narrowed || total === undefined || shown === undefined) {
+    return total;
+  }
+  return filteredCensus(shown, total, true);
 }

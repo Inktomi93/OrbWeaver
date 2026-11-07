@@ -1,5 +1,5 @@
 /**
- * A box a feature lays out of its parent's flow, by what it is: the one home of `position` with its insets for that box. `pinned` stays at the top of its scrollport; every
+ * A box a feature lays out of its parent's flow, by what it is: the one home of `position` with its insets for that box. `pinned` stays at the top of its scrollport and `pinnedEnd` at the foot; every
  * other arm sits in a positioned host. `fill` lies over the whole host, `topBand` across its head, `startEdge` and `endEdge` run its height at one side,
  * `flushStart` and `flushEnd` sit in a block-start corner with no inset, `lineEnd` at the inline end of its line, `startRail` a `row` step outside the
  * start edge, `footBand` across the foot a `block` step up, `cornerStart` a `tight` step in from the block-start, inline-start corner.
@@ -8,6 +8,7 @@
 export const PLACED = {
   fill: "absolute inset-0",
   pinned: "sticky inset-bs-0",
+  pinnedEnd: "sticky inset-be-0",
   topBand: "absolute inset-x-0 inset-bs-0",
   startEdge: "absolute inset-y-0 inset-s-0",
   endEdge: "absolute inset-y-0 inset-e-0",

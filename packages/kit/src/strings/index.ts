@@ -323,3 +323,8 @@ export function groupDigitRuns(text: string): string {
 export function formatSignedDelta(n: number): string {
   return n > 0 ? `+${n}` : String(n);
 }
+
+/** A lower-case machine token or message with its first letter raised, for a value the reader reads as prose. */
+export function sentenceCase(value: string): string {
+  return value === "" ? value : `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
+}

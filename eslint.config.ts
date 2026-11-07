@@ -385,6 +385,17 @@ const WALKER_LETTER_REGEX_SYNTAX = {
     "A walker segment is a template literal: write a character class with a double backslash (\\\\s, \\\\d, \\\\w), or the emitted regex matches the bare letter.",
 };
 
+// `tagName` is uppercased only for HTML-namespace elements, so a walker comparison against an uppercase SVG name never
+// matches. The source is a string to every other check, and the selector reads the page's code from the cooked text.
+// The names are the SVG elements a walker can meet in the page. Each is caught as a quoted name, an object-table key
+// and a regex alternative; prose such as "RECT: a pseudo" is not a key, because a key's value is a number, a boolean or a string.
+const SVG_UPPERCASE_TAG_NAMES =
+  "SVG|G|PATH|CIRCLE|ELLIPSE|LINE|POLYLINE|POLYGON|RECT|TEXT|TSPAN|TEXTPATH|IMAGE|USE|SYMBOL|DEFS|FOREIGNOBJECT|MASK|PATTERN|CLIPPATH|MARKER|FILTER|STOP|LINEARGRADIENT|RADIALGRADIENT";
+const WALKER_UPPERCASE_SVG_TAG_SYNTAX = {
+  selector: String.raw`TemplateElement[value.cooked=/["'](${SVG_UPPERCASE_TAG_NAMES})["']|\b(${SVG_UPPERCASE_TAG_NAMES})\s*:\s*(\d|true\b|false\b|["'])|\x2f[\^(]*([A-Z]+\|)*(${SVG_UPPERCASE_TAG_NAMES})(\|[A-Z]+)*[)$]*\x2f/]`,
+  message: "An inline SVG element reports a lowercase tagName: compare el.localName against the lowercase name.",
+};
+
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
 // environment leaks across files and the first file's value wins. Tests pass the value through the harness seam
 // (`createServerHarness` options) or the subject's own parameter instead.
@@ -1131,6 +1142,15 @@ const UNSUPPORTED_AT_FLOOR = unsupportedAtFloor(BROWSER_TARGETS);
 const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) => relative(ROOT, file));
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
+  {
+    file: "packages/client/src/components/setting-teach-row.tsx",
+    function: "SettingRow/focusControl",
+    method: "querySelector",
+    receiver: "rowRef.current",
+    selector: 'input, textarea, select, [role="combobox"], [role="switch"], [role="checkbox"], [role="slider"], [role="radio"], [role="spinbutton"]',
+    reason:
+      "A setting's value control is whatever its caller placed in the row, so Reset hands focus back to the first one by role; the row publishes no handle to it",
+  },
   {
     file: "packages/client/src/features/app-shell/components/context-bracket.tsx",
     function: "ContextBracket",
@@ -2341,7 +2361,7 @@ export default [
   },
   {
     files: ["tooling/src/ui-audit/ops/walker/**/*.ts"],
-    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX, WALKER_UPPERCASE_SVG_TAG_SYNTAX) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],

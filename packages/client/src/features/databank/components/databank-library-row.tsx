@@ -52,7 +52,7 @@ export interface DatabankLibraryRowProps {
   readonly onSelect: (id: DocumentId) => void;
   readonly onRename: (id: DocumentId) => void;
   readonly onReindex: (id: DocumentId) => void;
-  readonly onDelete: (id: DocumentId) => void;
+  readonly onDelete: (id: DocumentId) => Promise<void>;
   /** Flip the global attach — the surface owns which of the two mutations that means. */
   readonly onToggleGlobal: (id: DocumentId, next: boolean) => void;
   /** Where focus goes when this row is deleted (`useRowDeleteFocus`). */
@@ -94,7 +94,7 @@ export function DatabankLibraryRow({
       actions={{
         name: document.name,
         onRename: (): void => onRename(document.id),
-        ...rowFocus.delete(document.id, (): void => onDelete(document.id)),
+        ...rowFocus.delete(document.id, (): Promise<void> => onDelete(document.id)),
         deleteDescription: "Its indexed passages stop feeding every chat and character it reaches. This cannot be undone from here.",
         // N3 mirror parity: the kebab retains EVERY action the row offers, including the inline state
         // toggle — the inline control is a shortcut, never the only path (and on a coarse pointer the

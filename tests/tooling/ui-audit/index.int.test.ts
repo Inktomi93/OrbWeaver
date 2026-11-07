@@ -18,10 +18,9 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { nonEmpty } from "@orb/testkit/iso";
-import type { AuditRuleProof } from "@orb/testkit/node";
+import { auditReport, expectPopulation, readAuditReport } from "@orb/testkit/node";
 import { livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
-import type { ToolFixtures } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 import type { Finding } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { scaledBudget } from "../_load-budget.ts";
@@ -52,27 +51,6 @@ const REACHED_RE = /reached=[1-9]/u;
 function findingRows(stdout: string, rule: string): readonly string[] {
   const row = new RegExp(`^P[0-3]\\s+${rule}\\s`, "u");
   return stdout.split("\n").filter((line) => row.test(line));
-}
-
-function auditRuleTest(
-  proofs: readonly AuditRuleProof[],
-  title: string,
-  fn: (fixtures: Pick<ToolFixtures, "runCli" | "scratch">) => void | Promise<void>,
-): void {
-  test(title, ({ runCli, scratch }) => {
-    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
-
-/** The `report <path>` line the arm prints. The retired CLI took `--out <path>` and wrote the audit JSON
- *  exactly there; snap's `--out` names the SHOT base, and the arm files its report inside the run slot
- *  under its own producer arm so `--report … --problems` can read it without the source (#1342). One
- *  door, and it is the one an operator reads off the terminal too. */
-function auditReport(stdout: string): string {
-  const line = stdout.split("\n").find((entry) => entry.startsWith("report "));
-  expect(line, `no report line in:\n${stdout}`).toBeTypeOf("string");
-  return String(line).slice("report".length).trim();
 }
 
 function page(bodyStyle: string): string {
@@ -1213,7 +1191,7 @@ test("a label collapsed to 0px is a truncated-to-nothing finding — the text is
 });
 
 auditRuleTest(
-  [{ rule: "truncated-to-nothing", kind: "silent", reason: "the same row with a narrow neighbour keeps a visible label" }],
+  [{ rule: "truncated-to-nothing", kind: "silent", reason: "the same row with a narrow neighbour keeps a visible label", disposition: { kind: "judged" } }],
   "the same row with a narrow cluster keeps its label and mints nothing — the fence is the collapse, not the truncation",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
@@ -1222,6 +1200,7 @@ auditRuleTest(
     // The absence is only a verdict when the walk censused nodes at all.
     const census = CENSUS_RE.exec(res.stdout)?.[1];
     expect(Number(census)).toBeGreaterThan(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1258,10 +1237,20 @@ function healthyQualityNeighboursPage(): string {
 
 auditRuleTest(
   [
-    { rule: "broken-image", kind: "silent", reason: "a loaded image with natural dimensions is a real healthy neighbour" },
-    { rule: "repeated-container-text", kind: "silent", reason: "two repeated labels remain below the three-place defect floor" },
-    { rule: "clipped-overflow", kind: "silent", reason: "a padded in-flow control remains inside its clipping box" },
-    { rule: "edge-flush-cards", kind: "silent", reason: "a card with real inset gutters is not flush to its scroller" },
+    {
+      rule: "broken-image",
+      kind: "silent",
+      reason: "a loaded image with natural dimensions is a real healthy neighbour",
+      disposition: { kind: "no-population" },
+    },
+    {
+      rule: "repeated-container-text",
+      kind: "silent",
+      reason: "two repeated labels remain below the three-place defect floor",
+      disposition: { kind: "no-population" },
+    },
+    { rule: "clipped-overflow", kind: "silent", reason: "a padded in-flow control remains inside its clipping box", disposition: { kind: "no-population" } },
+    { rule: "edge-flush-cards", kind: "silent", reason: "a card with real inset gutters is not flush to its scroller", disposition: { kind: "no-population" } },
   ],
   "healthy quality candidates stay silent at their nearest legal boundaries",
   async ({ runCli, scratch }) => {
@@ -1270,6 +1259,7 @@ auditRuleTest(
     for (const rule of ["broken-image", "repeated-container-text", "clipped-overflow", "edge-flush-cards"]) {
       expect(res.stdout, `${rule} must stay silent on its real healthy candidate`).not.toContain(rule);
     }
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1322,13 +1312,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "tabindex-positive", kind: "silent", reason: "tabindex=0 keeps natural DOM order and must not fire" }],
+  [{ rule: "tabindex-positive", kind: "silent", reason: "tabindex=0 keeps natural DOM order and must not fire", disposition: { kind: "judged" } }],
   "a zero tabindex stays silent",
   async ({ runCli, scratch }) => {
     const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main><button tabindex="0">Zero</button></main></body></html>`;
     await writeFile(join(scratch, "tabindex-zero.html"), body);
     const res = await runCli("snap", ["--file", join(scratch, "tabindex-zero.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "tabindex-positive")).toHaveLength(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1346,7 +1337,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "justified-text", kind: "silent", reason: "the identical justified prose with hyphens: auto is the ratified exemption" }],
+  [
+    {
+      rule: "justified-text",
+      kind: "silent",
+      reason: "the identical justified prose with hyphens: auto is the ratified exemption",
+      disposition: { kind: "judged" },
+    },
+  ],
   "justified text WITH hyphens: auto stays silent",
   async ({ runCli, scratch }) => {
     const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
@@ -1355,6 +1353,7 @@ auditRuleTest(
     await writeFile(join(scratch, "justified-silent.html"), body);
     const res = await runCli("snap", ["--file", join(scratch, "justified-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "justified-text")).toHaveLength(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1372,7 +1371,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "all-caps-body", kind: "silent", reason: "a short uppercase label is under the 30-char floor — the micro-caps voice this rule must not convict" }],
+  [
+    {
+      rule: "all-caps-body",
+      kind: "silent",
+      reason: "a short uppercase label is under the 30-char floor — the micro-caps voice this rule must not convict",
+      disposition: { kind: "judged" },
+    },
+  ],
   "a short uppercase label stays silent",
   async ({ runCli, scratch }) => {
     const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main>
@@ -1381,6 +1387,7 @@ auditRuleTest(
     await writeFile(join(scratch, "all-caps-silent.html"), body);
     const res = await runCli("snap", ["--file", join(scratch, "all-caps-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "all-caps-body")).toHaveLength(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1393,7 +1400,7 @@ test("a clipped label with NO ellipsis and no full-value affordance is still a t
 });
 
 auditRuleTest(
-  [{ rule: "text-overflow", kind: "silent", reason: "the same clipped label paints an ellipsis affordance" }],
+  [{ rule: "text-overflow", kind: "silent", reason: "the same clipped label paints an ellipsis affordance", disposition: { kind: "no-population" } }],
   "the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
@@ -1402,6 +1409,7 @@ auditRuleTest(
     expect(res.stdout).toContain("p1=0");
     // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
     expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1433,7 +1441,7 @@ test("a badge whose own centre hit-tests to the button on top of it is an obscur
 });
 
 auditRuleTest(
-  [{ rule: "obscured-target", kind: "silent", reason: "the same badge and button side by side own their own centres" }],
+  [{ rule: "obscured-target", kind: "silent", reason: "the same badge and button side by side own their own centres", disposition: { kind: "judged" } }],
   "the same pair side by side mints nothing — the rule is the hit test, not the row",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
@@ -1441,6 +1449,7 @@ auditRuleTest(
     expect(res.stdout).not.toMatch(/^P[01]\s+obscured-target/mu);
     const census = CENSUS_RE.exec(res.stdout)?.[1];
     expect(Number(census)).toBeGreaterThan(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1506,6 +1515,7 @@ auditRuleTest(
       rule: "cohort-anatomy",
       kind: "silent",
       reason: "the same list at a uniform height is the precision neighbour — the fence is the DISAGREEMENT, not the row count",
+      disposition: { kind: "judged" },
     },
   ],
   "a uniform cohort mints nothing — and the silence is a judged zero, not a blind one",
@@ -1516,18 +1526,27 @@ auditRuleTest(
     expect(res.stdout, "the uniform cohort itself must have reached the detector").toContain(
       "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
 // A cohort just below BOTH thresholds stays silent: 24px against a 32px mode is 1.33x / 8px — inside the
 // ratio band, so the pair still reads as one family and the rule must not fire on ordinary variation.
 auditRuleTest(
-  [{ rule: "cohort-anatomy", kind: "silent", reason: "a 24px-vs-32px spread is inside the ratio band — ordinary variation, not two anatomies" }],
+  [
+    {
+      rule: "cohort-anatomy",
+      kind: "silent",
+      reason: "a 24px-vs-32px spread is inside the ratio band — ordinary variation, not two anatomies",
+      disposition: { kind: "judged" },
+    },
+  ],
   "a spread inside the ratio band is ordinary variation and mints nothing",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "narrow.html"), cohortListPage(24));
     const res = await runCli("snap", ["--file", join(scratch, "narrow.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1563,7 +1582,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "row-void", kind: "silent", reason: "the same label and control adjacent at the same row width — the fence is the DISTANCE, not the pairing" }],
+  [
+    {
+      rule: "row-void",
+      kind: "silent",
+      reason: "the same label and control adjacent at the same row width — the fence is the DISTANCE, not the pairing",
+      disposition: { kind: "judged" },
+    },
+  ],
   "the same pair sitting adjacent mints nothing — the rule is the ocean, not the row",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "bound.html"), voidRowPage(1000, "gap"));
@@ -1572,16 +1598,25 @@ auditRuleTest(
     expect(res.stdout, "the adjacent bound row itself must have reached the detector").toContain(
       "POPULATION   row-void candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
 auditRuleTest(
-  [{ rule: "row-void", kind: "silent", reason: "a narrow row's gap is ordinary spacing — the absolute floor separates a void from a layout" }],
+  [
+    {
+      rule: "row-void",
+      kind: "silent",
+      reason: "a narrow row's gap is ordinary spacing — the absolute floor separates a void from a layout",
+      disposition: { kind: "judged" },
+    },
+  ],
   "a narrow row with the same proportional spread mints nothing — a gap is only an ocean at scale",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "tight-row.html"), voidRowPage(260, "between"));
     const res = await runCli("snap", ["--file", join(scratch, "tight-row.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1630,6 +1665,7 @@ auditRuleTest(
       rule: "selection-idiom",
       kind: "silent",
       reason: "one vocabulary repeated is a house style — the fence is the COUNT of vocabularies, not the count of selected elements",
+      disposition: { kind: "judged" },
     },
   ],
   "one vocabulary repeated across the same population mints nothing",
@@ -1645,18 +1681,27 @@ auditRuleTest(
     expect(res.stdout, "the repeated cohort must have reached the detector as ONE judged population").toContain(
       "POPULATION   selection-idiom candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
 // A house style plus ONE variant is normal (a grid uses a ring, a list uses a rail). The fence sits above
 // two, so the rule reports a vocabulary sprawl rather than the existence of a second idiom.
 auditRuleTest(
-  [{ rule: "selection-idiom", kind: "silent", reason: "two vocabularies is a house style with a variant, which is the recommended end state" }],
+  [
+    {
+      rule: "selection-idiom",
+      kind: "silent",
+      reason: "two vocabularies is a house style with a variant, which is the recommended end state",
+      disposition: { kind: "judged" },
+    },
+  ],
   "two vocabularies is the recommended end state and mints nothing",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "two-idioms.html"), selectionPage([RING, RING, RAIL, RAIL]));
     const res = await runCli("snap", ["--file", join(scratch, "two-idioms.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1688,7 +1733,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "pane-ink", kind: "silent", reason: "the same region filled to its height is the precision neighbour — the fence is the VOID, not the height" }],
+  [
+    {
+      rule: "pane-ink",
+      kind: "silent",
+      reason: "the same region filled to its height is the precision neighbour — the fence is the VOID, not the height",
+      disposition: { kind: "judged" },
+    },
+  ],
   "the same region filled to its height mints nothing",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "full.html"), inkPage(820));
@@ -1697,6 +1749,7 @@ auditRuleTest(
     expect(res.stdout, "the filled pane itself must have reached the detector").toContain(
       "POPULATION   pane-ink candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1722,12 +1775,20 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "quiet-state", kind: "silent", reason: "the same pair with the weights the right way round — the fence is the inversion, not the contrast" }],
+  [
+    {
+      rule: "quiet-state",
+      kind: "silent",
+      reason: "the same pair with the weights the right way round — the fence is the inversion, not the contrast",
+      disposition: { kind: "judged" },
+    },
+  ],
   "a muted OFF beneath an accent ON mints nothing",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "quiet-off.html"), switchWeightPage("#2a2a2a", "#f0a020"));
     const res = await runCli("snap", ["--file", join(scratch, "quiet-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1767,7 +1828,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "double-empty-state", kind: "silent", reason: "ONE empty state that offers its action is the correct shape and must stay silent" }],
+  [
+    {
+      rule: "double-empty-state",
+      kind: "silent",
+      reason: "ONE empty state that offers its action is the correct shape and must stay silent",
+      disposition: { kind: "judged" },
+    },
+  ],
   "a single empty state with its action mints nothing",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "one-empty.html"), emptyStatePage(1, true));
@@ -1776,6 +1844,7 @@ auditRuleTest(
     expect(res.stdout, "the actionable empty surface itself must have reached the detector").toContain(
       "POPULATION   double-empty-state candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1819,6 +1888,7 @@ auditRuleTest(
       rule: "quiet-state",
       kind: "silent",
       reason: "a 12%-alpha OFF track composites down to a quiet fill — ignoring alpha would judge a colour nothing paints",
+      disposition: { kind: "judged" },
     },
   ],
   "a translucent OFF track is composited over its backdrop, not compared raw",
@@ -1828,6 +1898,7 @@ auditRuleTest(
     await writeFile(join(scratch, "oklch-alpha-off.html"), oklchSwitchPage("oklch(0.99 0.005 60 / 0.12)", "oklch(0.55 0.14 60)"));
     const res = await runCli("snap", ["--file", join(scratch, "oklch-alpha-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1851,6 +1922,7 @@ auditRuleTest(
       rule: "cohort-anatomy",
       kind: "silent",
       reason: "a row whose box grew because its CONTENT grew is doing its job — the fence is a mis-sized box, not a tall one",
+      disposition: { kind: "judged" },
     },
   ],
   "a row sized by its own content mints nothing — the theme-picker false positive, pinned",
@@ -1861,6 +1933,7 @@ auditRuleTest(
     expect(res.stdout, "the content-driven cohort itself must have reached the detector").toContain(
       "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -1887,7 +1960,7 @@ const BORDERLESS_FIELD = `<!doctype html>
 auditRuleTest(
   [
     { rule: "border-contrast", kind: "fires", reason: "a 1px boundary at ~1.1:1 against the surface outside it is not perceivable" },
-    { rule: "border-contrast", kind: "silent", reason: "the twin's boundary clears 1.4.11's 3:1 and is judged, not skipped" },
+    { rule: "border-contrast", kind: "silent", reason: "the twin's boundary clears 1.4.11's 3:1 and is judged, not skipped", disposition: { kind: "judged" } },
   ],
   "a declared field boundary below WCAG 1.4.11's 3:1 REDs, and the clearing twin is silent over a judged population",
   async ({ runCli, scratch }) => {
@@ -1900,17 +1973,26 @@ auditRuleTest(
     // The DENOMINATOR is what makes the silence a measurement: both fields judged, neither withheld.
     expect(res.stdout).toMatch(/POPULATION\s+border-contrast candidates=2 judged=2 affected=1/u);
     await expect(res).toExitWith(1);
+    return readAuditReport(res.stdout);
   },
 );
 
 auditRuleTest(
-  [{ rule: "border-contrast", kind: "silent", reason: "a control that declares no border made no boundary claim — a closed, printed exclusion" }],
+  [
+    {
+      rule: "border-contrast",
+      kind: "silent",
+      reason: "a control that declares no border made no boundary claim — a closed, printed exclusion",
+      disposition: { kind: "excluded", reason: "noDeclaredBorder" },
+    },
+  ],
   "a borderless control is excluded by name, never a silent pass",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "borderless.html"), BORDERLESS_FIELD);
     const res = await runCli("snap", ["--file", join(scratch, "borderless.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "border-contrast")).toEqual([]);
     expect(res.stdout).toMatch(/POPULATION\s+border-contrast candidates=1 judged=0 .*excluded\(noDeclaredBorder=1\)/u);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -2008,7 +2090,14 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "hover-contrast", kind: "silent", reason: "the nearest legitimate neighbour — the same CTA whose hover pair stays above the floor" }],
+  [
+    {
+      rule: "hover-contrast",
+      kind: "silent",
+      reason: "the nearest legitimate neighbour — the same CTA whose hover pair stays above the floor",
+      disposition: { kind: "judged" },
+    },
+  ],
   "the hover twin exits clean, and the untouched paragraph is EXCLUDED rather than counted as a pass",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "hover-passes.html"), hoverPage(".nav-links a:hover { color: #101010; background: #ffffff }"));
@@ -2025,6 +2114,7 @@ auditRuleTest(
     expect(row?.affected).toBe(0);
     expect(hoverRow(res.stdout, "pass")).toBe("ok");
     await expect(res).toExitWith(0);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -2280,6 +2370,7 @@ auditRuleTest(
       rule: "unreachable-hint",
       kind: "silent",
       reason: "the nearest legitimate neighbour — the SAME trigger with the seal's own always-mounted description resolving at rest",
+      disposition: { kind: "excluded", reason: "hasReachableDescription" },
     },
   ],
   "the same trigger whose description resolves at rest is an EXCLUSION, not a finding",
@@ -2296,6 +2387,7 @@ auditRuleTest(
     expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
     // Not a silent zero: the population is PRINTED with the reason it was judged inapplicable.
     expect(res.stdout).toContain("hasReachableDescription");
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -2305,6 +2397,7 @@ auditRuleTest(
       rule: "unreachable-hint",
       kind: "silent",
       reason: "a trigger described by two ids, one of which contains the letter s, resolves both at rest — the id list splits on whitespace, never on a letter",
+      disposition: { kind: "excluded", reason: "hasReachableDescription" },
     },
     {
       rule: "unreachable-hint",
@@ -2333,6 +2426,7 @@ auditRuleTest(
     );
     const dangling = await runCli("snap", ["--file", join(scratch, "hint-dangling-id.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(dangling.stdout, "unreachable-hint")).toHaveLength(1);
+    return readAuditReport(multi.stdout);
   },
 );
 
@@ -2374,5 +2468,6 @@ test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never coun
   const res = await runCli("snap", ["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
   expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
-  expect(res.stdout).toContain("noDescriptionWiring");
+  expectPopulation(await readAuditReport(res.stdout), "unreachable-hint", { kind: "withheld", reason: "noDescriptionWiring" });
+  expect(res.stdout).toContain("population-verdict=NO-VERDICT");
 });

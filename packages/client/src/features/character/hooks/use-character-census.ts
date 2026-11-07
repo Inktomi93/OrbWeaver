@@ -1,6 +1,7 @@
 // Shared owner-scoped census for the Characters band and phone title; no enriched page read.
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import { filteredCensus } from "#lib";
 import { useLibraryScope } from "./use-library-scope.ts";
 
 /** Counts the same archived axis and narrowed lens as the library rows. */
@@ -32,5 +33,5 @@ export function useCharacterCensus(): number | string | undefined {
     return total;
   }
   // Still settling: keep printing the honest library total rather than flashing a wrong narrowed number.
-  return scoped === undefined ? total : `${String(scoped)} of ${String(total)}`;
+  return scoped === undefined ? total : filteredCensus(scoped, total, true);
 }

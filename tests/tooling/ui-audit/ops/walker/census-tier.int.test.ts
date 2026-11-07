@@ -11,27 +11,14 @@
 // ZERO FINDINGS ON THE LIVE TREE IS THE SUCCESS CONDITION for this rule, which makes a false positive the
 // expensive failure: every trap the brief named (an opt-in that outranks the tier, a slot outside every
 // Surface, a broken var chain) gets its own SILENT proof here, not just the firing case.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { nonEmpty } from "@orb/testkit/iso";
-import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
-
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
 
 interface AuditRun {
   readonly report: RelationalPopulationReport;
@@ -41,7 +28,7 @@ interface AuditRun {
 
 interface AuditFixture {
   readonly scratch: string;
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
+  readonly runCli: ToolFixtures["runCli"];
   readonly name: string;
   readonly body: string;
 }
@@ -51,7 +38,7 @@ async function auditFixture({ scratch, runCli, name, body }: AuditFixture): Prom
   const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  return { report: JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport, code: result.code };
+  return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
 /** The tiers.css mechanism, reproduced in miniature: an "instrument" tier declaring one pair of
@@ -92,6 +79,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "the nearest legitimate neighbour: an ELEVATED card-root, whose border-radius the tier map's own opt-in outranks by design and must not be compared against the tier's default",
+      disposition: { kind: "judged" },
     },
   ],
   "an elevated card-root is judged against its own radius token instead of the tier default",
@@ -105,6 +93,7 @@ auditRuleTest(
       affected: 0,
       excluded: {},
     });
+    return report;
   },
 );
 
@@ -117,6 +106,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a card-root with no [data-surface-tier] ancestor at all — deliberately mismatched values that would have fired if judged, to prove the exclusion happens BEFORE any comparison",
+      disposition: { kind: "excluded", reason: "no-surface-tier" },
     },
   ],
   "a card-root outside every Surface keeps its own default, never judged against a tier",
@@ -133,6 +123,7 @@ auditRuleTest(
       judged: 0,
       excluded: { "no-surface-tier": 5 },
     });
+    return report;
   },
 );
 
@@ -145,6 +136,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a [data-surface-tier] host that never declares --orb-tier-island-pad/--orb-tier-island-radius at all — the custom-property chain is broken, so the instrument cannot know what the tier sanctions and must withhold rather than compare against nothing",
+      disposition: { kind: "withheld", reason: "unresolved" },
     },
   ],
   "a surface tier that never resolves its own custom properties is withheld, never judged clean",
@@ -163,6 +155,7 @@ auditRuleTest(
     });
     // A withheld candidate is a NO VERDICT run, not a pass — the runner must refuse rather than report clean.
     expect(code).toBe(2);
+    return report;
   },
 );
 
@@ -174,6 +167,7 @@ auditRuleTest(
       rule: "tier-drift",
       kind: "silent",
       reason: "a card-root inside the declared instrument tier whose padding and radius both resolve to exactly what the tier map sanctions",
+      disposition: { kind: "judged" },
     },
   ],
   "a card-root that resolves to exactly its tier's sanctioned pixel is judged clean",
@@ -183,6 +177,7 @@ auditRuleTest(
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 5, judged: 5, affected: 0 });
     expect(code).toBe(0);
+    return report;
   },
 );
 
@@ -215,6 +210,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a list-row-title whose leading token is the live tree's own `round(up, 1rem, 1px)` LENGTH shape and whose painted line-height resolves to exactly it — judged clean, never withheld as an unresolvable chain",
+      disposition: { kind: "judged" },
     },
   ],
   "a math-function leading token is resolved and judged, not withheld as unresolved",
@@ -224,6 +220,7 @@ auditRuleTest(
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, affected: 0, withheld: {} });
     expect(code).toBe(0);
+    return report;
   },
 );
 

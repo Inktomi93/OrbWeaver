@@ -1,4 +1,5 @@
-import { ROOM_PICTURES_NOTE } from "@orb/client/lib";
+import { IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
+import { MAX_NEGATIVE_CHARS } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { resolvedLength, settledBox } from "@orb/testkit/browser/spec";
@@ -52,7 +53,7 @@ test("count, size and negative chosen in the options travel on the mutation inpu
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await page.getByRole("button", { name: "More options", exact: true }).click();
   await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "3", exact: true }).click();
-  await page.getByRole("group", { name: "Image size", exact: true }).getByRole("button", { name: "Portrait", exact: true }).click();
+  await page.getByRole("group", { name: "Image size", exact: true }).getByRole("button", { name: IMAGE_SIZE_LABELS.portrait, exact: true }).click();
   await page.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("  extra fingers  ");
   await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
   await page.getByRole("button", { name: "Generate 3 images", exact: true }).click();
@@ -151,4 +152,22 @@ test.describe("on a phone", () => {
       expect(box.height).toBeGreaterThanOrEqual(floor - 1);
     }
   });
+});
+
+test("choosing a count above one moves nothing above the charge line, and the negative prompt counts toward its cap", async ({ corpus, mount, page }) => {
+  const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
+  await routeImagine(page);
+  await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
+  await page.getByRole("button", { name: "More options", exact: true }).click();
+  const size = page.getByRole("group", { name: "Image size", exact: true });
+  const before = await settledBox(size);
+  await page.getByRole("group", { name: "Number of images", exact: true }).getByRole("button", { name: "3", exact: true }).click();
+  await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
+  expect((await settledBox(size)).y).toBe(before.y);
+
+  const negative = page.getByRole("textbox", { name: "Negative prompt", exact: true });
+  await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.5));
+  await expect(page.getByText(`${MAX_NEGATIVE_CHARS * 0.5}/${MAX_NEGATIVE_CHARS}`, { exact: true })).toHaveCount(0);
+  await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.9));
+  await expect(page.getByText(`${MAX_NEGATIVE_CHARS * 0.9}/${MAX_NEGATIVE_CHARS}`, { exact: true })).toBeVisible();
 });
