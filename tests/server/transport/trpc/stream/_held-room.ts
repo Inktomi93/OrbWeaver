@@ -84,7 +84,9 @@ export interface OutsiderDevice {
   readonly attach: () => Promise<void>;
   /** Every chat frame the socket delivered ahead of a fresh barrier: a `createTag` by this account, whose `tagsChanged`
    *  rides the `user` room. The socket drains one queue in order, so the read covers everything queued before the verb
-   *  ran. A room fault rejects the read, so a dead pump cannot pass for a refusal. */
+   *  ran. Each room has its own pump into that queue, and the chat pump can lag, so a frame it queues late falls after
+   *  this read: pair it with a frame from the chat pump itself, as `takeChair` gives. A room fault rejects the read, so a
+   *  dead pump cannot pass for a refusal. */
   readonly drained: () => Promise<readonly Frame[]>;
   /** Seat this account, and read the same socket as a seated device from here on. */
   readonly takeChair: () => Promise<Device>;

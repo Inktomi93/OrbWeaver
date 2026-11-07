@@ -29,6 +29,8 @@ import {
   typesOf,
 } from "./_held-room.ts";
 
+const TURN_FRAME_TYPES: ReadonlySet<string> = new Set(["turnAccepted", "turnStarted", "delta", "turnCompleted", "turnAborted"]);
+
 // A reload, a second tab and a second device reach the server as this one attach: a fresh socket with no cursor.
 test("a device with no cursor shows the turn so far at once, then the live tail, with one copy of every token", async () => {
   await using room = await openRoom();
@@ -105,6 +107,10 @@ test("a seat that holds no chair in the room gets no frame of the turn, and read
     const content = "the row a new chair reads";
     await room.root.services.chat.commitMessage({ principal: room.host, chatId: room.chatId, content });
     await chaired.waitFor((frames) => frames.some(({ event }) => event.type === "messageCommitted" && event.view?.content === content));
+    // `drained` orders the socket's queue, and the chat pump can lag the user room behind it. This frame came down that
+    // same pump, which is first in first out, so every event before it has now been judged: a late leak is in this list.
+    expect(typesOf(chaired.frames).filter((type) => TURN_FRAME_TYPES.has(type))).toEqual([]);
+    expect(chaired.frames.flatMap(({ event }) => (event.type === "messageCommitted" ? [event.view?.content] : []))).toEqual([content]);
   } finally {
     await stranger.close();
     await witness.close();
