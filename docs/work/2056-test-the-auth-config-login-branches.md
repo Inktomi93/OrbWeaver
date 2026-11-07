@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Mutation testing found the oidc and single-user schema branches of auth-config have no test in their mirror: static mutants there survive.
+Mutation testing found the oidc and single-user schema branches of auth-config have no test in their mirror: static mutants there survive. Compare the legacy reference first: tests in the legacy source server/infra/auth/config.test.ts and contracts/identity/index.contract.test.ts may already hold these cases, and the restoration register says how to port them.
 
 ## Why
 
