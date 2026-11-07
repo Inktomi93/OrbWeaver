@@ -1,7 +1,8 @@
 // The reader's row across a change in the leading chrome's height. When a caller's regime flips (a text-size change,
 // a rotation) the chrome above the rows changes height, `scrollMargin` follows it, and every row re-measures in the same
 // pass; virtual-core keeps the row through either change alone but not through both, so the row read before the change
-// is put back at the reader's top edge each frame until the rows stop moving.
+// is put back at the reader's top edge each frame until the rows stop moving. That edge is the port's top, or the bottom
+// of a plate pinned over it: a row under the plate is not one the reader can see.
 
 import type { RefObject } from "react";
 import type { RowKey } from "./row-roving.ts";
@@ -23,9 +24,9 @@ function mountedRows(scroller: HTMLElement): readonly HTMLElement[] {
   return [...scroller.querySelectorAll<HTMLElement>(`[data-slot="${MESSAGE_LIST_ROW_SLOT}"]`)];
 }
 
-/** The row at the scroller's top edge, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
-export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows): ReadingRow | null {
-  const edge = scroller.getBoundingClientRect().top;
+/** The row at the reader's top edge, `coveredPx` below the port's, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
+export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows, coveredPx: number): ReadingRow | null {
+  const edge = scroller.getBoundingClientRect().top + coveredPx;
   const rows = mountedRows(scroller);
   let found: { readonly row: HTMLElement; readonly box: DOMRect } | null = null;
   for (const row of rows) {
@@ -60,11 +61,13 @@ interface HoldOptions {
   readonly row: ReadingRow;
   /** Read on every frame: a prepend can land during a hold, or in the commit that starts one. */
   readonly rows: RefObject<LiveRows>;
+  /** How far a pinned plate covers the top of the port; read on every frame, because the plate can arrive during a hold. */
+  readonly coveredPx: RefObject<number>;
   /** Brings an unmounted row into the window; the next frame finishes the placement. */
   readonly reveal: (index: number) => void;
-  /** True while the reader's own hand is on the axis: they win. */
+  /** True once the reader's own hand, or anything else outside the list, has the axis: they win. */
   readonly yieldTo: () => boolean;
-  readonly onWrite: (top: number) => void;
+  readonly onWrite: () => void;
   readonly onDone: () => void;
 }
 
@@ -82,7 +85,7 @@ export function rowIndexNow(row: ReadingRow, { count, keyAt }: LiveRows): number
 }
 
 /** Holds `row` at the scroller's top edge until the rows settle; returns a cancel. */
-export function holdReadingRow({ scroller, row, rows, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
+export function holdReadingRow({ scroller, row, rows, coveredPx, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
   let frame = 0;
   let still = 0;
   let handle = 0;
@@ -98,10 +101,10 @@ export function holdReadingRow({ scroller, row, rows, reveal, yieldTo, onWrite, 
       still = 0;
     } else {
       const box = target.getBoundingClientRect();
-      const drift = box.top + row.into * box.height - scroller.getBoundingClientRect().top;
+      const drift = box.top + row.into * box.height - scroller.getBoundingClientRect().top - coveredPx.current;
       if (Math.abs(drift) >= 1) {
         scroller.scrollTop += drift;
-        onWrite(scroller.scrollTop);
+        onWrite();
         still = 0;
       } else {
         still += 1;

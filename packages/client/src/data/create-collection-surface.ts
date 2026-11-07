@@ -5,6 +5,7 @@
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { pressForPage } from "./press-for-page.ts";
 import type { Trpc } from "./trpc.ts";
 
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
@@ -80,38 +81,8 @@ export interface CollectionSurface<TItem> {
   };
 }
 
-/** The slice of an infinite-query fetch result a press reads. */
-interface PressResult<TPage> {
-  readonly data?: { readonly pages: readonly TPage[] } | undefined;
-  readonly hasNextPage: boolean;
-  readonly isFetchNextPageError: boolean;
-}
-
 /** Rows-from-the-tail threshold that triggers the next-page fetch. */
 const END_APPROACH_ROWS = 12;
-
-/** An invalidate cancels an in-flight page: one attempt, one that joins the refetch, one that fetches after it. */
-const PRESS_ATTEMPTS = 3;
-
-/** Fetch the next page for a press: the pages it ended on, or `null` when it ended in neither a page nor the list's
- *  end. A cancelled page resolves like a quiet success, so this reads the page count, not only the error flag. After
- *  a cancel it waits for the refetch that cancelled it, because cancelling that too would lose the invalidate. */
-async function pressForPage<TPage>(
-  fetchNext: (options?: { readonly cancelRefetch: boolean }) => Promise<PressResult<TPage>>,
-  pagesBefore: number,
-): Promise<readonly TPage[] | null> {
-  for (let attempt = 0; attempt < PRESS_ATTEMPTS; attempt += 1) {
-    const result = await fetchNext(attempt === 0 ? undefined : { cancelRefetch: false });
-    if (result.isFetchNextPageError) {
-      return null;
-    }
-    const pages = result.data?.pages ?? [];
-    if (pages.length > pagesBefore || !result.hasNextPage) {
-      return pages;
-    }
-  }
-  return null;
-}
 
 export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
@@ -147,7 +118,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
       }
       setLoadMoreFailed(false);
       const pagesBefore = query.data?.pages.length ?? 0;
-      press.current = pressForPage(fetchNextPage, pagesBefore)
+      press.current = pressForPage(fetchNextPage, pagesBefore, "next")
         .then((pages) => {
           if (pages === null) {
             setLoadMoreFailed(true);

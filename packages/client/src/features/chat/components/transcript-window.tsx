@@ -8,11 +8,17 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
+import { pressForPage, QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
-import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_HISTORY_RETRY_NAME } from "../lib/chat-surface-names.ts";
+import {
+  CHAT_EARLIER_MESSAGES_NAME,
+  CHAT_HISTORY_DISMISS_NAME,
+  CHAT_HISTORY_FAILURE_COPY,
+  CHAT_HISTORY_RETRY_NAME,
+  CHAT_WINDOW_PRESS_FAILURE,
+} from "../lib/chat-surface-names.ts";
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
-import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, shownHistoryFailure } from "../lib/history-failures.ts";
+import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
@@ -180,6 +186,8 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
   const bridging = loadedTailSeq < liveTailSeq;
   const { fetchNextPage, hasNextPage, isFetching, refetch } = pages;
   const [failures, setFailures] = useState(() => noHistoryFailures(props.chatId));
+  // The room a press is working on: a press there joins it, and one in the next room is its own.
+  const pressing = useRef<ChatId | null>(null);
   const observed = observeHistoryFetch(failures, {
     chatId: props.chatId,
     read: readInFlight(pages),
@@ -214,8 +222,24 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
     announcement: failures.announcement,
     loaded: pages.data.pages.length > 1 ? merged.messages.length : null,
     onLoad: (): void => {
-      setFailures((state) => ({ ...state, asked: true }));
-      void pages.fetchPreviousPage().catch(globalThis.reportError);
+      const { chatId } = props;
+      setFailures(pressAsked);
+      if (pressing.current === chatId) {
+        return;
+      }
+      pressing.current = chatId;
+      pressForPage(pages.fetchPreviousPage, pages.data.pages.length, "previous")
+        .then((landed) => {
+          if (landed === null) {
+            setFailures((state) => pressLost(state, chatId));
+          }
+        })
+        .catch(globalThis.reportError)
+        .finally(() => {
+          if (pressing.current === chatId) {
+            pressing.current = null;
+          }
+        });
     },
     onRetry: (): void => {
       setFailures((state) => ({ ...state, asked: true }));
@@ -238,6 +262,7 @@ function AnchoredThread({
 }: TranscriptWindowProps & { readonly target: NonNullable<ReturnType<typeof useChatMoment>>["target"] }): ReactElement {
   const pagingDescription = useId();
   const trpc = useTRPC();
+  const [pressLostHere, setPressLostHere] = useState(false);
   const pages = useSuspenseInfiniteQuery(
     trpc.chat.getMessageWindow.infiniteQueryOptions(
       { chatId: props.chatId, target },
@@ -254,6 +279,12 @@ function AnchoredThread({
       },
     ),
   );
+  const press = (direction: "next" | "previous"): void => {
+    setPressLostHere(false);
+    pressForPage(direction === "next" ? pages.fetchNextPage : pages.fetchPreviousPage, pages.data.pages.length, direction)
+      .then((landed) => setPressLostHere(landed === null))
+      .catch(globalThis.reportError);
+  };
   const initial = pages.data.pages.find((page) => page.anchorMessageId !== null) ?? pages.data.pages[0];
   const fallback = useQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }, { enabled: initial?.anchorMessageId === null }));
   if (initial === undefined) {
@@ -293,7 +324,7 @@ function AnchoredThread({
           variant="ghost"
           size="sm"
           disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
-          onClick={(): void => void pages.fetchPreviousPage().catch(globalThis.reportError)}
+          onClick={(): void => press("previous")}
         >
           {EARLIER_MESSAGES_LABEL}
         </Button>
@@ -302,7 +333,7 @@ function AnchoredThread({
           variant="ghost"
           size="sm"
           disabled={!pages.hasNextPage || pages.isFetchingNextPage}
-          onClick={(): void => void pages.fetchNextPage().catch(globalThis.reportError)}
+          onClick={(): void => press("next")}
         >
           Later messages
         </Button>
@@ -317,6 +348,11 @@ function AnchoredThread({
         Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
       </Text>
       {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
+      {pressLostHere && !pages.isError ? (
+        <Text hiddenAt="print" role="alert" tone="destructive" voice="label">
+          {CHAT_WINDOW_PRESS_FAILURE}
+        </Text>
+      ) : null}
       {props.render(messagesPage, initial, edges, null)}
     </Stack>
   );

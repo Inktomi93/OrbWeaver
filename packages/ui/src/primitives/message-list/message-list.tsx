@@ -7,7 +7,16 @@ import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
-import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
+import type { AxisMark } from "./follow-yield.ts";
+import {
+  attachUserScrollInput,
+  movedFromOutside,
+  OWN_GLIDE_YIELD_MS,
+  PROGRAMMATIC_SCROLL_EPSILON_PX,
+  SCROLL_END_THRESHOLD_PX,
+  shouldAdjustForResizedItem,
+  USER_SCROLL_YIELD_MS,
+} from "./follow-yield.ts";
 import { composeRangeExtractor, everyRow, placeWithoutMeasure, updateEdgeFades, usePrinting } from "./list-window.ts";
 import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
@@ -26,20 +35,22 @@ const MESSAGE_LIST_LEADING_ACTION_SLOT = "message-list-leading-action";
 
 const KEEP_IN_VIEW_ATTRIBUTE = "data-keep-in-view";
 
-// The leading action pins while it holds keyboard focus, or while its content asks to stay in view. The fill covers the
-// rows under it on a plain background; over a wallpaper the action's own plate does.
+// The leading action pins while it holds keyboard focus, or while its content asks to stay in view. The fill and its edge
+// set it off from the rows under it on a plain background; over a wallpaper the action's own plate does.
 const LEADING_ACTION_PIN = [
   "has-[:focus-visible,[data-keep-in-view]]:sticky has-[:focus-visible,[data-keep-in-view]]:inset-bs-0 has-[:focus-visible,[data-keep-in-view]]:z-(--z-overlay)",
   "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:bg-background has-[:focus-visible,[data-keep-in-view]]:rounded-card",
+  "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:inset-ring not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:inset-ring-border",
 ];
 
-// The distance from the end that reads as "pinned to end"; the library's 1px default is too tight for sub-pixel rounding. The jump-to-latest pill measures with the same value.
-export const SCROLL_END_THRESHOLD_PX = 80;
-
-// Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
-const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
-
 const reachedEnd = (el: HTMLElement): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_END_THRESHOLD_PX;
+
+const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => ({
+  top: el.scrollTop,
+  rowsOnScreen: (rows?.getBoundingClientRect().top ?? 0) - el.getBoundingClientRect().top,
+  contentPx: el.scrollHeight,
+  portPx: el.clientHeight,
+});
 
 export interface MessageListHandle {
   /** Imperatively scrolls to the last item. */
@@ -170,11 +181,13 @@ export function MessageList<T>({
   // How far the pinned leading action covers the top of the port, read off the box itself (0 while it rides in flow).
   // virtual-core takes it as `scrollPaddingStart`, so a start-aligned placement (a walk, a reveal, a hold's reveal) lands below it.
   const [pinPx, setPinPx] = useState(0);
+  const pinPxRef = useRef(0);
   // The row at the reader's top edge and how far into it they are, kept from the last scroll; null while following.
   const readingRowRef = useRef<ReadingRow | null>(null);
-  // The scroller's position as of its last scroll event. Focus reads this rather than the live value because a browser may
-  // have scrolled to the focused control before its focus event fires.
-  const settledTopRef = useRef(0);
+  // Where the list last left the axis or last saw it, as of its last write or scroll event. Focus reads this rather than the
+  // live value because a browser may have scrolled to the focused control before its focus event fires.
+  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0 });
+  const totalPxRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);
   const measureLeadingRef = useRef<() => void>(() => undefined);
@@ -195,11 +208,11 @@ export function MessageList<T>({
         leadingPxRef.current = next;
       }
       setLeadingPx(next);
-      setPinPx(
+      pinPxRef.current =
         leadingActionNode !== null && getComputedStyle(leadingActionNode).position === "sticky"
           ? Math.round(leadingActionNode.getBoundingClientRect().height)
-          : 0,
-      );
+          : 0;
+      setPinPx(pinPxRef.current);
     };
     measureLeadingRef.current = measure;
     measure();
@@ -242,6 +255,27 @@ export function MessageList<T>({
   // inside virtual-core's own scroll path, which must not depend on a React commit having landed.
   const userScrollAtRef = useRef(Number.NEGATIVE_INFINITY);
   const userOwnsAxis = (): boolean => performance.now() - userScrollAtRef.current < USER_SCROLL_YIELD_MS;
+  const glideAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const gliding = (): boolean => performance.now() - glideAtRef.current < OWN_GLIDE_YIELD_MS;
+  const noteOwnWrite = useCallback((el: HTMLElement): void => {
+    programmaticTopRef.current = el.scrollTop;
+    axisMarkRef.current = axisMarkOf(el, viewportNodeRef.current);
+  }, []);
+  // Scroll events run a frame behind: a find-in-page or an anchor jump can land, and a measure after it, before its event.
+  // Every writer asks here first, or it writes over the move from a position that has gone. The reader's own input keeps
+  // its path: the yield and the scroll event.
+  const movedByOutsider = (el: HTMLElement): boolean => {
+    const now = axisMarkOf(el, viewportNodeRef.current);
+    const moved = movedFromOutside(axisMarkRef.current, now);
+    axisMarkRef.current = now;
+    return moved && !userOwnsAxis() && !gliding();
+  };
+  const cancelHoldRef = useRef<() => void>(() => undefined);
+  // Every explicit placement (a jump, a reveal, a pin) outranks a hold still in flight, and so does a move from outside.
+  const stopHold = useCallback((): void => {
+    cancelHoldRef.current();
+    holdingRef.current = false;
+  }, []);
 
   const itemAt = (index: number): T => {
     const item = items.at(index);
@@ -303,31 +337,46 @@ export function MessageList<T>({
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
     anchorTo: "end",
     followOnAppend,
-    // Force followOnAppend instant when tail-follow is on: a smooth scroll fires intermediate
-    // positions that wouldn't match `programmaticTopRef`, tripping the external-scroll detector below.
-    ...(tailFollowActive
-      ? {
-          scrollToFn: (offset: number, options: { adjustments?: number; behavior?: ScrollBehavior }) => {
-            const el = scrollRef.current;
-            if (el === null) {
-              return;
-            }
-            // THE YIELD (see USER_SCROLL_YIELD_MS): while the reader's hand is on the axis AND we still
-            // think we are following, every programmatic write is dropped — that pair IS the tug-of-war,
-            // and dropping it is what lets the wheel land and the scroll event reach the intent detector.
-            // Scoped to `stickToBottomRef` deliberately: a blanket drop also swallows the LEGITIMATE
-            // anchor adjustment a prepend needs ("load older history"), and the prepend-stability CT
-            // caught exactly that — an 800px jump. A reader who has already scrolled away is not being
-            // marched at, so nothing there needs yielding.
-            if (userOwnsAxis() && stickToBottomRef.current) {
-              return;
-            }
-            const top = offset + (options.adjustments ?? 0);
-            el.scrollTo(options.behavior === undefined ? { top } : { top, behavior: options.behavior });
-            programmaticTopRef.current = el.scrollTop;
-          },
+    // Content that shrinks can clamp the reader, and rows can land before anything reads it, so the mark takes the shrink here.
+    onChange: (instance): void => {
+      const total = instance.getTotalSize();
+      const shrunk = Math.max(totalPxRef.current - total, 0);
+      totalPxRef.current = total;
+      axisMarkRef.current = { ...axisMarkRef.current, contentPx: axisMarkRef.current.contentPx - shrunk };
+    },
+    // followOnAppend is instant while tail-follow is on: a smooth scroll fires intermediate positions
+    // that wouldn't match `programmaticTopRef`, tripping the external-scroll detector below.
+    scrollToFn: (offset, options, instance): void => {
+      const el = scrollRef.current;
+      if (el === null) {
+        return;
+      }
+      // THE YIELD (see USER_SCROLL_YIELD_MS): while the reader's hand is on the axis AND we still
+      // think we are following, every programmatic write is dropped — that pair IS the tug-of-war,
+      // and dropping it is what lets the wheel land and the scroll event reach the intent detector.
+      // Scoped to `stickToBottomRef` deliberately: a blanket drop also swallows the LEGITIMATE
+      // anchor adjustment a prepend needs ("load older history"), and the prepend-stability CT
+      // caught exactly that — an 800px jump. A reader who has already scrolled away is not being
+      // marched at, so nothing there needs yielding.
+      if (tailFollowActive && userOwnsAxis() && stickToBottomRef.current) {
+        return;
+      }
+      // Whatever this write was computed from, the reader is no longer there. A command in flight would come back next frame.
+      if (movedByOutsider(el)) {
+        stopHold();
+        instance.cancelScroll();
+        if (tailFollowActive) {
+          setFollowing(reachedEnd(el));
         }
-      : {}),
+        return;
+      }
+      const top = offset + (options.adjustments ?? 0);
+      el.scrollTo(options.behavior === undefined ? { top } : { top, behavior: options.behavior });
+      noteOwnWrite(el);
+      if (options.behavior === "smooth") {
+        glideAtRef.current = performance.now();
+      }
+    },
     scrollEndThreshold: SCROLL_END_THRESHOLD_PX,
     useCachedMeasurements: false,
     directDomUpdates: true,
@@ -386,10 +435,9 @@ export function MessageList<T>({
 
   // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
   const keyAt = (index: number): RowKey => getItemKey(itemAt(index), index);
-  const cancelHoldRef = useRef<() => void>(() => undefined);
   const liveRowsRef = useRef<LiveRows>({ count: items.length, keyAt });
   const readReadingRow = (el: HTMLElement): void => {
-    const row = readingRowOf(el, liveRowsRef.current);
+    const row = readingRowOf(el, liveRowsRef.current, pinPxRef.current);
     readingRowRef.current = row;
     // `pin-prompt` never follows, so only the position says that reader is at the end.
     if ((tailFollowActive && stickToBottomRef.current) || reachedEnd(el)) {
@@ -416,12 +464,11 @@ export function MessageList<T>({
         scroller: el,
         row,
         rows: liveRowsRef,
+        coveredPx: pinPxRef,
         reveal: (index): void => virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" }),
-        // The reader's hand, or a jump that made the list follow its tail again, ends the hold.
-        yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current,
-        onWrite: (top): void => {
-          programmaticTopRef.current = top;
-        },
+        // The reader's hand, a move from outside, or a jump that made the list follow its tail again ends the hold.
+        yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current || movedByOutsider(el),
+        onWrite: (): void => noteOwnWrite(el),
         onDone: (): void => {
           holdingRef.current = false;
           readReadingRow(el);
@@ -442,11 +489,6 @@ export function MessageList<T>({
       readReadingRow(el);
     }
   });
-  // Every explicit placement (a jump, a reveal, a pin) outranks a hold still in flight.
-  const stopHold = useCallback((): void => {
-    cancelHoldRef.current();
-    holdingRef.current = false;
-  }, []);
   const jumpToEnd = useCallback(
     (behavior: ScrollBehavior): void => {
       stopHold();
@@ -481,13 +523,13 @@ export function MessageList<T>({
       if (el === null || !(event.target instanceof Element) || !event.target.matches(":focus-visible")) {
         return;
       }
-      const top = settledTopRef.current;
+      const { top } = axisMarkRef.current;
       const following = stickToBottomRef.current;
       stopHold();
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame((): void => {
         el.scrollTop = top;
-        programmaticTopRef.current = el.scrollTop;
+        noteOwnWrite(el);
         setFollowing(following);
       });
     };
@@ -496,7 +538,7 @@ export function MessageList<T>({
       cancelAnimationFrame(frame);
       leadingActionNode.removeEventListener("focusin", onFocusIn);
     };
-  }, [leadingActionNode, setFollowing, stopHold]);
+  }, [leadingActionNode, noteOwnWrite, setFollowing, stopHold]);
 
   // Explicit scrollToEnd on mount: anchorTo/followOnAppend alone only govern post-mount behavior.
   useLayoutEffect(() => {
@@ -515,7 +557,9 @@ export function MessageList<T>({
       return;
     }
     updateEdgeFades(el);
-    settledTopRef.current = el.scrollTop;
+    if (movedByOutsider(el)) {
+      stopHold();
+    }
     // A gesture's scroll chain KEEPS the axis: every scroll event that lands while the reader still owns
     // it renews the yield, so the window means "until the scrolling their input started has stopped",
     // not "150ms of wall clock". Without this the window can expire mid-flick under load — measured as a
@@ -523,6 +567,9 @@ export function MessageList<T>({
     // cannot renew it: those writes happen with `userOwnsAxis()` already false.
     if (userOwnsAxis()) {
       userScrollAtRef.current = performance.now();
+    }
+    if (gliding()) {
+      glideAtRef.current = performance.now();
     }
     const expected = programmaticTopRef.current;
     if (tailFollowActive && (expected === null || Math.abs(el.scrollTop - expected) > PROGRAMMATIC_SCROLL_EPSILON_PX)) {
