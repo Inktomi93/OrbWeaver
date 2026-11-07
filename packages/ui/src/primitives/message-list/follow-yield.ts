@@ -27,13 +27,18 @@ export const USER_SCROLL_YIELD_MS = 150;
  */
 export const OWN_GLIDE_YIELD_MS = 500;
 
+// The distance from the end that reads as "pinned to end"; the library's 1px default is too tight for sub-pixel rounding. The jump-to-latest pill measures with the same value.
+export const SCROLL_END_THRESHOLD_PX = 80;
+
 /** Tolerance for matching the list's own last write against a position read back, through browser rounding. */
 export const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
 
-/** The scroller's position and where the rows' origin sits on screen, as the list last left or saw them. */
+/** The scroller's position, where the rows' origin sits on screen and the end's geometry, as the list last left or saw them. */
 export interface AxisMark {
   readonly top: number;
   readonly rowsOnScreen: number;
+  readonly contentPx: number;
+  readonly portPx: number;
 }
 
 /**
@@ -41,12 +46,16 @@ export interface AxisMark {
  *
  * The position alone cannot say. Scroll anchoring changes it when chrome above the rows grows, with the rows held still on
  * screen, and in a browser without anchoring the same growth moves the rows with the position unchanged: only a scroll
- * moves both.
+ * moves both. So does a clamp, when the port grows or the content shrinks under the reader, and that is no outside move: it
+ * only moves up, and leaves the reader at the end of the content as it stood at the mark or stands now, whichever is shorter.
+ * Rows can land after the clamp and before this check, so the end as it stands now is not enough, and the end it clamped to
+ * can be a chunk of a stream short of both, so "at the end" is the band the list already reads as the end.
  */
 export function movedFromOutside(mark: AxisMark, now: AxisMark): boolean {
   const scrolled = Math.abs(now.top - mark.top) > PROGRAMMATIC_SCROLL_EPSILON_PX;
   const shifted = Math.abs(now.rowsOnScreen - mark.rowsOnScreen) > PROGRAMMATIC_SCROLL_EPSILON_PX;
-  return scrolled && shifted;
+  const clamped = now.top < mark.top && now.top + now.portPx >= Math.min(mark.contentPx, now.contentPx) - SCROLL_END_THRESHOLD_PX;
+  return scrolled && shifted && !clamped;
 }
 
 /** Keys that scroll a container natively — a keyboard reader is a user scroll input like any other. */

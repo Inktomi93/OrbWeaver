@@ -14,6 +14,7 @@ const AWAY_TOP = 300;
 // Past a hold's settling frames and any re-pin a late measure schedules.
 const QUIET_FRAMES = 40;
 const END_PX = 1;
+const STREAM_FRAMES = 8;
 
 function frames(page: Page, count: number): Promise<void> {
   return page.evaluate(async (left) => {
@@ -81,6 +82,122 @@ for (const trigger of ["Append rows", "Grow tail"] as const) {
     expect(await log.evaluate((node) => node.scrollTop)).toBe(AWAY_TOP);
   });
 }
+
+/** Presses `first`, then `second` in a separate task of the same frame, as a socket frame lands behind a keyboard's resize. */
+async function pressInOneFrame(page: Page, first: string, second: string): Promise<void> {
+  const [one, two] = await Promise.all([first, second].map((name) => page.getByRole("button", { name, exact: true }).elementHandle()));
+  await page.evaluate(
+    ([a, b]) =>
+      new Promise<void>((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (): void => {
+          if (b instanceof HTMLElement) {
+            b.click();
+          }
+          resolve();
+        };
+        if (a instanceof HTMLElement) {
+          a.click();
+        }
+        channel.port2.postMessage(null);
+      }),
+    [one, two] as const,
+  );
+}
+
+/** How far from the end the reader sits once settled, and again after growth the old position cannot reach: a follower stays on both. */
+async function gapsWhileFollowing(page: Page, log: Locator): Promise<number> {
+  await frames(page, QUIET_FRAMES);
+  const settled = await fromEnd(log);
+  await page.getByRole("button", { name: "Grow tail", exact: true }).click();
+  await frames(page, QUIET_FRAMES);
+  return Math.max(settled, await fromEnd(log));
+}
+
+test("a port that grows and clamps the tail, with rows landing in the same frame, does not end tail follow", async ({ mount, page }) => {
+  const log = await mountAtTail(page, mount);
+  await pressInOneFrame(page, "Grow scrollport", "Append rows");
+  expect(await gapsWhileFollowing(page, log)).toBeLessThanOrEqual(END_PX);
+});
+
+test("a port that grows and clamps a streaming tail, with rows landing in the same frame, does not end tail follow", async ({ mount, page }) => {
+  const log = await mountAtTail(page, mount);
+  const [stream, grow, append] = await Promise.all(
+    ["Stream tail", "Grow scrollport", "Append rows"].map((name) => page.getByRole("button", { name, exact: true }).elementHandle()),
+  );
+  // In the page, so a chunk lands on every frame and the port grows between two of them, as a keyboard dismissal in a stream does.
+  await page.evaluate(
+    async ([chunk, port, rows, streamed]) => {
+      const press = (node: unknown): void => {
+        if (node instanceof HTMLElement) {
+          node.click();
+        }
+      };
+      for (let frame = 0; frame < streamed * 2; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        press(chunk);
+        if (frame === streamed) {
+          press(port);
+          await new Promise<void>((resolve) => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = (): void => {
+              press(rows);
+              resolve();
+            };
+            channel.port2.postMessage(null);
+          });
+        }
+      }
+    },
+    [stream, grow, append, STREAM_FRAMES] as const,
+  );
+  expect(await gapsWhileFollowing(page, log)).toBeLessThanOrEqual(END_PX);
+});
+
+test("a tail that collapses and clamps, with rows landing in the same frame, does not end tail follow", async ({ mount, page }) => {
+  const log = await mountAtTail(page, mount);
+  await page.getByRole("button", { name: "Grow tail", exact: true }).click();
+  await page.getByRole("button", { name: "Grow tail", exact: true }).click();
+  await expect.poll(() => fromEnd(log)).toBeLessThanOrEqual(END_PX);
+  await frames(page, 4);
+  const collapse = await page.getByRole("button", { name: "Collapse tail", exact: true }).elementHandle();
+  const append = await page.getByRole("button", { name: "Append rows", exact: true }).elementHandle();
+  // The list writes its new height from a resize observer, so the rows land in the task after that delivery.
+  await log.evaluate(
+    (node, [shrink, more]) =>
+      new Promise<void>((resolve) => {
+        const rows = node.querySelector("ol");
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (): void => {
+          if (more instanceof HTMLElement) {
+            more.click();
+          }
+          resolve();
+        };
+        let delivered = 0;
+        const seen = new ResizeObserver(() => {
+          delivered += 1;
+          if (delivered === 1 && shrink instanceof HTMLElement) {
+            shrink.click();
+          } else if (delivered === 2) {
+            seen.disconnect();
+            channel.port2.postMessage(null);
+          }
+        });
+        if (rows !== null) {
+          seen.observe(rows);
+        }
+      }),
+    [collapse, append] as const,
+  );
+  expect(await gapsWhileFollowing(page, log)).toBeLessThanOrEqual(END_PX);
+});
+
+test("a port that grows and clamps a reader with no rows landing keeps tail follow", async ({ mount, page }) => {
+  const log = await mountAtTail(page, mount);
+  await page.getByRole("button", { name: "Grow scrollport", exact: true }).click();
+  expect(await gapsWhileFollowing(page, log)).toBeLessThanOrEqual(END_PX);
+});
 
 test("a foreign scroll during a hold ends the hold", async ({ mount, page }) => {
   const log = await mountAtTail(page, mount, { chrome: true });

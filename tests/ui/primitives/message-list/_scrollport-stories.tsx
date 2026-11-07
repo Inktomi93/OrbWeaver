@@ -57,7 +57,10 @@ export function MessageListScrollportStory({
     <CtIsolation subject="MessageList" isolates="Native row measurement, scrollport observation and reader anchors need no application services.">
       <Button onClick={(): void => setCount((previous) => previous + 20)}>Append rows</Button>
       <Button onClick={(): void => setTailHeight((previous) => previous + 180)}>Grow tail</Button>
+      <Button onClick={(): void => setTailHeight((previous) => previous + 30)}>Stream tail</Button>
+      <Button onClick={(): void => setTailHeight(60)}>Collapse tail</Button>
       <Button onClick={(): void => setHeight(160)}>Shrink scrollport</Button>
+      <Button onClick={(): void => setHeight(400)}>Grow scrollport</Button>
       <Button onClick={(): void => handle.current?.pinToIndex(count - 1)}>Pin last row</Button>
       <Button onClick={(): void => setChromeHeight((previous) => previous + 80)}>Grow chrome</Button>
       <Button onClick={(): void => setLateHeight((previous) => previous + 200)}>Grow late row</Button>

@@ -15,10 +15,15 @@ interface FocusTarget {
   readonly focus: () => void;
   readonly closest?: MinimalElement["closest"];
 }
+interface MinimalEvent {
+  readonly key?: string;
+  readonly target: object | null;
+}
 interface MinimalDocument {
   readonly activeElement: MinimalElement | null;
   readonly body: MinimalElement;
   readonly querySelector: (selector: string) => FocusTarget | null;
+  readonly addEventListener: (type: string, listener: (event: MinimalEvent) => void, options: { readonly capture: boolean }) => void;
 }
 const OVERLAY_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
 // A checkbox or a button is an `input` too: nothing is typed there, so arrival moves on from it.
@@ -30,6 +35,35 @@ const TEXT_ENTRY =
 const LIST_BAND_FIRST_CONTROL =
   '[data-panel-side="list"] :is([data-slot="list-pane-back"], [data-slot="list-pane-action"] :is(button, a[href], input, select, textarea)):not(:disabled):not([inert] *):not([data-overflowed] *)';
 const browserDocument = (globalThis as { document?: MinimalDocument }).document;
+
+// The field the reader's last press came from: Enter in it, or a click on a hit that left focus in it. Arrival cannot see the
+// press, and only this tells a field that started the arrival from one the reader went on typing in. Typing clears it, and a
+// click on the field itself activates nothing.
+let pressedFrom: MinimalElement | null = null;
+browserDocument?.addEventListener(
+  "keydown",
+  ({ key }) => {
+    if (key === "Enter") {
+      pressedFrom = browserDocument.activeElement;
+    }
+  },
+  { capture: true },
+);
+browserDocument?.addEventListener(
+  "click",
+  ({ target }) => {
+    const active = browserDocument.activeElement;
+    pressedFrom = active === target ? null : active;
+  },
+  { capture: true },
+);
+browserDocument?.addEventListener(
+  "input",
+  () => {
+    pressedFrom = null;
+  },
+  { capture: true },
+);
 
 /** Focus a freshly-mounted surface — keyboard/SR focus management for when the user NAVIGATES to it.
  *
@@ -43,7 +77,7 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *
  *  A surface can arrive long after the press that opened it, behind a read or a deferred render. By then the user may be
  *  typing elsewhere, and a blur can cancel what they typed, or working in an open menu. So a text field outside the target
- *  and an overlay the target is not in keep focus; a row or button that only started the arrival does not. */
+ *  and an overlay the target is not in keep focus; a row, a button or a field that only started the arrival does not. */
 /** @param repeatOnReveal - `false` keeps a retained entity from replaying cold focus when Activity restores its effects.
  * @param enabled - `false` stands the surface DOWN — another surface owns focus for this mount by an
  *  explicit INTENT decision (the character screen's LIST projection: a selection made from the list picker
@@ -73,7 +107,7 @@ function isInside(target: object | null, node: MinimalElement | null): boolean {
 }
 
 function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean {
-  if (active.matches(TEXT_ENTRY) && !isInside(target, active)) {
+  if (active !== pressedFrom && active.matches(TEXT_ENTRY) && !isInside(target, active)) {
     return true;
   }
   // A background surface cannot take arrival focus from a surviving overlay.

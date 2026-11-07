@@ -13,6 +13,7 @@ import {
   movedFromOutside,
   OWN_GLIDE_YIELD_MS,
   PROGRAMMATIC_SCROLL_EPSILON_PX,
+  SCROLL_END_THRESHOLD_PX,
   shouldAdjustForResizedItem,
   USER_SCROLL_YIELD_MS,
 } from "./follow-yield.ts";
@@ -42,14 +43,13 @@ const LEADING_ACTION_PIN = [
   "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:inset-ring not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:inset-ring-border",
 ];
 
-// The distance from the end that reads as "pinned to end"; the library's 1px default is too tight for sub-pixel rounding. The jump-to-latest pill measures with the same value.
-export const SCROLL_END_THRESHOLD_PX = 80;
-
 const reachedEnd = (el: HTMLElement): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_END_THRESHOLD_PX;
 
 const axisMarkOf = (el: HTMLElement, rows: HTMLElement | null): AxisMark => ({
   top: el.scrollTop,
   rowsOnScreen: (rows?.getBoundingClientRect().top ?? 0) - el.getBoundingClientRect().top,
+  contentPx: el.scrollHeight,
+  portPx: el.clientHeight,
 });
 
 export interface MessageListHandle {
@@ -186,7 +186,8 @@ export function MessageList<T>({
   const readingRowRef = useRef<ReadingRow | null>(null);
   // Where the list last left the axis or last saw it, as of its last write or scroll event. Focus reads this rather than the
   // live value because a browser may have scrolled to the focused control before its focus event fires.
-  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0 });
+  const axisMarkRef = useRef<AxisMark>({ top: 0, rowsOnScreen: 0, contentPx: 0, portPx: 0 });
+  const totalPxRef = useRef(0);
   const holdingRef = useRef(false);
   const holdReadingRowRef = useRef<() => void>(() => undefined);
   const measureLeadingRef = useRef<() => void>(() => undefined);
@@ -336,6 +337,13 @@ export function MessageList<T>({
     ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
     anchorTo: "end",
     followOnAppend,
+    // Content that shrinks can clamp the reader, and rows can land before anything reads it, so the mark takes the shrink here.
+    onChange: (instance): void => {
+      const total = instance.getTotalSize();
+      const shrunk = Math.max(totalPxRef.current - total, 0);
+      totalPxRef.current = total;
+      axisMarkRef.current = { ...axisMarkRef.current, contentPx: axisMarkRef.current.contentPx - shrunk };
+    },
     // followOnAppend is instant while tail-follow is on: a smooth scroll fires intermediate positions
     // that wouldn't match `programmaticTopRef`, tripping the external-scroll detector below.
     scrollToFn: (offset, options, instance): void => {

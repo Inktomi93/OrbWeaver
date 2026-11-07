@@ -27,6 +27,7 @@ import {
   CHAT_HISTORY_FAILURE_COPY,
   CHAT_HISTORY_RETRY_NAME,
   CHAT_MESSAGE_INPUT_NAME,
+  CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -132,6 +133,7 @@ interface LiveRoomOptions {
   readonly chatId: ChatId;
   readonly chatStyle: "flat" | "document";
   readonly intercept: ListMessagesIntercept;
+  readonly windowIntercept?: Parameters<typeof serveCorpusProcedures<"chat.getMessageWindow">>[2];
 }
 
 interface LiveRoom extends AsyncDisposable {
@@ -141,7 +143,7 @@ interface LiveRoom extends AsyncDisposable {
 }
 
 /** A served room on its live socket. `settle` commits and removes a row so the bus invalidates the room's reads. */
-async function serveLiveRoom({ root, caller, corpus, page, rooms, chatId, chatStyle, intercept }: LiveRoomOptions): Promise<LiveRoom> {
+async function serveLiveRoom({ root, caller, corpus, page, rooms, chatId, chatStyle, intercept, windowIntercept }: LiveRoomOptions): Promise<LiveRoom> {
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({ chatStyle, backgroundImageKind: "none" }) });
   await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
   const auth = await root.http.request("/api/auth/config");
@@ -150,6 +152,7 @@ async function serveLiveRoom({ root, caller, corpus, page, rooms, chatId, chatSt
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "rpg.getGame", "rpg.listTurnToolCalls", "notifications.presence"]),
     ...serveCorpusProcedures(caller, ["chat.listMessages"], intercept),
+    ...serveCorpusProcedures(caller, ["chat.getMessageWindow"], windowIntercept),
     "stream.attach": ({ ref }) => (ref.channel === "chat" && rooms.some((row) => row.id === ref.chatId) ? null : trpcError({ code: "NOT_FOUND" })),
     "stream.detach": ({ ref }) => (ref.channel === "chat" && rooms.some((row) => row.id === ref.chatId) ? null : trpcError({ code: "NOT_FOUND" })),
   });
@@ -927,6 +930,48 @@ for (const regime of [
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.press);
       await expect(alert).toBeInViewport({ ratio: 1 });
       await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toBeAttached();
+    });
+    test("an anchored press every read of which an invalidation cancels says so", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, tail } = await prepareHistory(caller);
+      const target = tail.messages[0];
+      if (target === undefined) {
+        throw new Error("The room's tail is empty");
+      }
+      const reads = [holdServed(), holdServed(), holdServed()] as const;
+      await using held = new AsyncDisposableStack();
+      held.defer(() => {
+        for (const read of reads) {
+          read.release();
+        }
+      });
+      let served = 0;
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: () => undefined,
+        windowIntercept: ({ cursor }) => {
+          const read = cursor?.kind === "before" ? reads[served] : undefined;
+          served += read === undefined ? 0 : 1;
+          return read;
+        },
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, invalidator: true, moment: { kind: "message", messageId: target.id } });
+      const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeEnabled();
+      const invalidate = page.getByRole("button", { name: "Invalidate the room", exact: true });
+      await earlier.dispatchEvent("click");
+      for (const read of reads) {
+        await read.requested;
+        await invalidate.dispatchEvent("click");
+      }
+      await expect(page.getByRole("alert")).toHaveText(CHAT_WINDOW_PRESS_FAILURE);
     });
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
