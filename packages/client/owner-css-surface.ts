@@ -731,6 +731,7 @@ export const OWNER_CSS_SLOTS = [
   "slider-header",
   "slider-indicator",
   "slider-label",
+  "slider-rail-end",
   "slider-root",
   "slider-thumb",
   "slider-track",
