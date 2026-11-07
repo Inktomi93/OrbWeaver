@@ -117,6 +117,11 @@ for (const text of LARGE_TEXT) {
     const roomBox = await page.locator('[data-slot="chat-room-surface"]').boundingBox();
     expect(fieldBox?.y).toBeGreaterThanOrEqual(roomBox?.y ?? Number.NaN);
     expect((fieldBox?.y ?? Number.NaN) + (fieldBox?.height ?? Number.NaN)).toBeLessThanOrEqual(view);
+    expect(sendBox.y).toBeGreaterThanOrEqual(roomBox?.y ?? Number.NaN);
+    for (const box of [fieldBox, sendBox]) {
+      expect(box?.x).toBeGreaterThanOrEqual(roomBox?.x ?? Number.NaN);
+      expect((box?.x ?? Number.NaN) + (box?.width ?? Number.NaN)).toBeLessThanOrEqual((roomBox?.x ?? Number.NaN) + (roomBox?.width ?? Number.NaN));
+    }
     await expect(field).toBeFocused();
     for (const control of [field, send]) {
       await expect
@@ -142,6 +147,7 @@ for (const text of LARGE_TEXT) {
     await expect(topbar).toBeVisible({ visible: text.rootPx === 16 });
     await emulateSoftKeyboard(page, 0);
     await expect(topbar).toBeVisible();
+    await expect(page.locator(".shell-panel-edge:visible")).toHaveCount(edgeCount);
     await expect(field).toHaveValue(SIX_LINES);
   });
 }

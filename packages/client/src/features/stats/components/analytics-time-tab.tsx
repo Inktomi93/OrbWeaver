@@ -34,7 +34,7 @@ import { RhythmFigures } from "./rhythm-figures.tsx";
 export function AnalyticsTimeTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative min-block-0" data-testid={testId("analyticsTimeTab")}>
+    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsTimeTab")}>
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="datum" />}

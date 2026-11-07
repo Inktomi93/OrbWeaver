@@ -24,7 +24,7 @@ export function AnalyticsPersonasTab(): ReactElement {
   const drilled = useSelectedAnalyticsCharacterId();
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative min-block-0" data-testid={testId("analyticsPersonasTab")}>
+    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsPersonasTab")}>
       <QueryBoundary
         resetKeys={[drilled]}
         fallback={<SkeletonRows count={3} shape="datum" />}

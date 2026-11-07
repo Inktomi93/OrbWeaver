@@ -374,6 +374,7 @@ export const TOKENS = {
   "tracking.micro": { cssVar: "--tracking-micro", value: "0.08em" },
   "dimension.composer-field-min": { cssVar: "--dimension-composer-field-min", value: "12ch" },
   "height.picker-window": { cssVar: "--height-picker-window", value: "clamp(var(--height-scroll-short), calc(100dvh - var(--height-picker-chrome)), var(--height-scroll-lg))" },
+  "height.picker-box": { cssVar: "--height-picker-box", value: "calc(var(--size-control-sm) + var(--height-picker-window) + 2 * var(--border-width-control))" },
   "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },
   "immersive.whisper-banner-inline-cap": { cssVar: "--immersive-whisper-banner-inline-cap", value: "calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner))" },

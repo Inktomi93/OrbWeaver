@@ -65,6 +65,8 @@ export interface QueryBoundaryProps {
   readonly reserveBlock?: number | undefined;
   /** Preserve a parent-owned definite height through the reservation wrapper. */
   readonly fill?: boolean;
+  /** The wrappers share the room a flex parent leaves and give way below their content, so a bounded dialog holds the skeleton and the settled child in one box. */
+  readonly grow?: boolean;
   /**
    * Renders the error surface; `retry` resets BOTH boundaries so the refetch is real.
    * @defaultValue a generic `QueryErrorState label="this"` — pass a labeled one for a specific surface.
@@ -338,21 +340,29 @@ function ReservedFallback({
   reserveKey,
   reserveBlock,
   fill,
+  grow,
   children,
 }: {
   readonly reserveKey: string;
   readonly reserveBlock: number | undefined;
   readonly fill: boolean;
+  readonly grow: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   const measured = useSurfaceBox(reserveKey);
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
-    return <Stack height={fill ? "fill" : undefined}>{children}</Stack>;
+    return (
+      <Stack grow={grow ? "content" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "shrinks" : undefined}>
+        {children}
+      </Stack>
+    );
   }
   return (
     <Stack
       className="overflow-clip"
+      grow={grow ? "content" : undefined}
+      minHeight={grow ? "shrinks" : undefined}
       data-reserve-key={reserveKey}
       data-tile-reserved={Math.round(box)}
       // WHICH source held the box open: "this device MEASURED it" is a different claim from "the mount
@@ -370,7 +380,17 @@ function ReservedFallback({
  *  body's laid-out height, not a passive-effect read: a child that renders twice to settle (a first pass, then a
  *  layout-effect trim) would otherwise be measured on its first pass. It also refreshes the memory when a child
  *  grows in place, and `surface-box-store`'s write epsilon swallows sub-pixel churn. */
-function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: string; readonly fill: boolean; readonly children: ReactNode }): ReactElement {
+function MeasuredSettle({
+  reserveKey,
+  fill,
+  grow,
+  children,
+}: {
+  readonly reserveKey: string;
+  readonly fill: boolean;
+  readonly grow: boolean;
+  readonly children: ReactNode;
+}): ReactElement {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = bodyRef.current;
@@ -382,7 +402,7 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
     return (): void => observer.disconnect();
   }, [reserveKey]);
   return (
-    <Stack height={fill ? "fill" : undefined} ref={bodyRef}>
+    <Stack grow={grow ? "content" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "shrinks" : undefined} ref={bodyRef}>
       {children}
     </Stack>
   );
@@ -393,6 +413,7 @@ export function QueryBoundary({
   reserveKey,
   reserveBlock,
   fill = false,
+  grow = false,
   renderError = defaultRenderError,
   resetKeys,
   children,
@@ -402,7 +423,7 @@ export function QueryBoundary({
     reserveKey === undefined ? (
       fallback
     ) : (
-      <ReservedFallback fill={fill} reserveBlock={reserveBlock} reserveKey={reserveKey}>
+      <ReservedFallback fill={fill} grow={grow} reserveBlock={reserveBlock} reserveKey={reserveKey}>
         {fallback}
       </ReservedFallback>
     );
@@ -410,7 +431,7 @@ export function QueryBoundary({
     reserveKey === undefined ? (
       children
     ) : (
-      <MeasuredSettle fill={fill} reserveKey={reserveKey}>
+      <MeasuredSettle fill={fill} grow={grow} reserveKey={reserveKey}>
         {children}
       </MeasuredSettle>
     );

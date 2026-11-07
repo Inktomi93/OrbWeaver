@@ -36,13 +36,13 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       ownSlot="composer"
       {...dropTargetProps}
       data-drag-over={dragActive ? "" : undefined}
-      // Reading-surface rule (D294, UI-Theming-and-Content §12.1): the composer carries its OWN opaque card backing, never leaning on the
-      // background scrim for legibility. The interaction lift rides the opaque muted step, and the armed drop
+      // Reading-surface rule (D294, UI-Theming-and-Content §12.1): the composer carries its OWN card backing, never leaning on the
+      // background scrim for legibility. The interaction lift rides the muted step, tinted under glass, and the armed drop
       // state is louder than focus: an armed target has to announce itself while a file hovers over it.
       dropTarget={true}
       holdsField={true}
     >
-      <Stack className="min-block-0 min-inline-0" grow="content" data-slot="composer-content" gap="field">
+      <Stack className="min-inline-0" minHeight="shrinks" grow="content" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}

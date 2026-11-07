@@ -27,8 +27,9 @@
       block-size: var(--height-scroll-sm);
     }
   }
-  /* The same answer for a bracketed Context pane, at a taller step because its header and bands can fill the pane: its
-   * tab body keeps a floor and the pane body scrolls past them. */
+  /* The same answer for a bracketed Context pane, at a taller step because its header and bands can fill the pane: the
+   * pane body is the one scroller, so the tab body flows at its content's height (never under a floor) and does not scroll
+   * inside it. This is the `container.cq-24` step, the one a short dialog reads as `dialog-short` (UI-Density-Law §8.1). */
   @container shell-panel (height <= 24rem) {
     .shell-panel-body:has([data-context-bracket]) {
       overflow-x: hidden;
@@ -38,7 +39,9 @@
       min-block-size: 100%;
     }
     [data-context-bracket] > [role="region"] {
-      flex: 1 0 var(--height-scroll-sm);
+      flex: 1 0 auto;
+      min-block-size: var(--height-scroll-sm);
+      overflow: visible;
     }
   }
   /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */

@@ -55,6 +55,7 @@ export const CHAT_HISTORY_FAILURE_COPY = {
   bridge: "Couldn't load the messages between here and the latest.",
   offline: "You're offline. History will load when you're back.",
 } as const;
+export const CHAT_WINDOW_PRESS_FAILURE = "Couldn't load more messages.";
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";
