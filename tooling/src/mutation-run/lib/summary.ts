@@ -19,6 +19,9 @@ export function testedCount(counts: StatusCounts): number {
   return counts.Killed + counts.Timeout + counts.Survived + counts.NoCoverage + counts.RuntimeError;
 }
 
+export const SURVIVOR_NOTE =
+  "Only the mirrored tests ran. A survivor may die to a test elsewhere: rerun with --tests <file-or-glob...>, which replaces the mirror.";
+
 export const ZERO_KILLED_READINGS = [
   "ZERO KILLED. Two readings, and this run cannot tell them apart:",
   "  1. The tests catch nothing in this file. The survivors above are the finding.",

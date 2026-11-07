@@ -5,6 +5,7 @@ import { readConcurrencyProfile, readStageBudgets } from "../host/concurrency-pr
 import { processEnvValue } from "../process/process-env.ts";
 
 const MS_PER_MINUTE = 60_000;
+const CHECKER_SHARE = 2;
 
 /** The sandbox folder, relative to the checkout. Stryker also fences its own node_modules walk on this name. */
 export const STRYKER_TEMP_DIR = ".stryker-tmp";
@@ -63,8 +64,8 @@ export function createStrykerConfig(): PartialStrykerOptions {
     // Initial-test supervision follows the native test-process ceiling, not the whole mutant run.
     dryRunTimeoutMinutes: readStageBudgets().vitestHardCeilingMs / MS_PER_MINUTE,
     ignoreStatic: true,
-    // Each Stryker process owns exactly one Vitest worker, so the Vitest cap prices it.
-    concurrency: readConcurrencyProfile().vitestMaxWorkers,
+    // Stryker gives half of this to checkers, each holding a whole world's program: two on the client world reach the 16 GB bar.
+    concurrency: Math.ceil(readConcurrencyProfile().vitestMaxWorkers / CHECKER_SHARE),
     timeoutMS: 10_000,
     thresholds: { high: 80, low: 60, break: null },
   };

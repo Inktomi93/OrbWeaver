@@ -16,7 +16,7 @@ import { aridCensus, readStrykerMutants } from "../../mutation-arid/index.ts";
 import { homeFiles, NativeWorld, packageWorlds } from "../../unwired/index.ts";
 import type { MutationPlan } from "../lib/named-files.ts";
 import { planMutationRun } from "../lib/named-files.ts";
-import { countStatuses, exitForCounts, testedCount, ZERO_KILLED_READINGS } from "../lib/summary.ts";
+import { countStatuses, exitForCounts, SURVIVOR_NOTE, testedCount, ZERO_KILLED_READINGS } from "../lib/summary.ts";
 import { worldOf } from "../lib/world.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:mutation <file...>");
@@ -45,6 +45,9 @@ function summarize(root: string, files: readonly string[]): number {
     for (const { reason, count } of aridCensus(reportPath).byReason) {
       print(`ignored ${String(count)}: ${reason}`);
     }
+  }
+  if (counts.Survived + counts.NoCoverage > 0) {
+    print(SURVIVOR_NOTE);
   }
   const verdict = exitForCounts(counts);
   if (verdict !== EXIT.clean && tested > 0) {

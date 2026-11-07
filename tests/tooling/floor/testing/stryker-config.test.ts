@@ -13,7 +13,7 @@ test("the config mutates nothing itself and removes its sandbox on every exit", 
   expect(config.mutate).toEqual([]);
   expect(config.cleanTempDir).toBe("always");
   expect(config).not.toHaveProperty("inPlace");
-  expect(config.concurrency).toBe(readConcurrencyProfile().vitestMaxWorkers);
+  expect(config.concurrency).toBeLessThan(readConcurrencyProfile().vitestMaxWorkers);
   expect(config["vitest"]).toMatchObject({ configFile: "vitest.stryker.config.ts", pool: "forks" });
   expect(config.checkers).toEqual(["typescript"]);
 });

@@ -5,7 +5,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AridCensus, AridReason, MutantStatus, ReportMutant } from "../contract/types.ts";
 import { MUTANT_STATUSES } from "../contract/types.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm mutation:arid");
+refuseDirectInvocation(import.meta.url, "pnpm test:mutation <file...>");
 
 const IGNORED = "Ignored" satisfies MutantStatus;
 /** Stryker excludes these from the scored denominator by definition. */
