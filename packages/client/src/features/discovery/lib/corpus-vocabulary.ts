@@ -10,6 +10,7 @@
 // The VALUES DO NOT CHANGE. These are display projections at the render edge only: the label a filter
 // matches on, the key a chart groups by, and everything the server stores stay exactly the token they were.
 
+import { sentenceCase } from "@orb/kit/strings";
 import { formatCount } from "./corpus-analysis-state.ts";
 
 /**
@@ -47,19 +48,6 @@ const UNCLASSIFIED_TOKENS = new Set(["none", "unknown", "n/a", ""]);
 /** What an un-labelled group is CALLED. "Unclassified" states that the pass ran and found nothing to name;
  *  "none" reads as a family whose members share the property of being nothing. */
 const UNCLASSIFIED_LABEL = "Unclassified";
-
-/**
- * A data string in SENTENCE CASE — the display casing for a value the reader is meant to read as prose
- * (a facet chain, a cluster's headline facets).
- *
- * The alternative these replace is `voice="kicker"`, which UPPERCASES: a kicker is a section's NAME, and
- * eight of them on this surface were carrying DATA — tag chains 45-59 characters long, set in 9.5px caps
- * with .09em tracking, which is the register a label wears and the worst one a sentence can. The voice
- * moved; this is the casing that makes the lower-case token look deliberate rather than unformatted.
- */
-export function sentenceCase(value: string): string {
-  return value === "" ? value : `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
-}
 
 /** A facet/cluster label as a reader meets it: the un-classified tokens become "Unclassified", everything
  *  else is sentence-cased. The underlying value is untouched — this is the last step before the pixels. */

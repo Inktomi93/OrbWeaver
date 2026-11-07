@@ -65,13 +65,20 @@ export function Tabs({ className, topRule, fill, flush, ...rest }: TabsProps): R
 }
 
 // Seal default: arrow keys ACTIVATE as they move (Base UI defaults activateOnFocus to false).
-export function TabsList({ className, rule, fold, fill, track, ...rest }: TabsListProps): ReactElement {
+export function TabsList({ className, rule, fold, fill, track, ref, ...rest }: TabsListProps): ReactElement {
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect((): (() => void) | undefined => {
+    const node = listRef.current;
+    return node === null ? undefined : observeSelectedTabReveal(node);
+  }, []);
   return (
     <BaseTabs.List
       activateOnFocus={true}
       className={cn(tabsVariants({ listRule: rule, fold, fill }).list(), tabsListBoxVariants({ track, className }))}
       data-slot="tabs-list"
       {...rest}
+      // The internal ref also reveals the selected tab.
+      ref={mergeRefs(listRef, ref)}
     />
   );
 }
@@ -115,6 +122,23 @@ function revealHorizontalTab(tab: HTMLElement): void {
     }
     ancestor = ancestor.parentElement;
   }
+}
+
+// A tab list that opens on, or moves its selection to, a tab outside its clip shows that tab: the selected tab is the
+// reader's place, and a focus-only reveal leaves it cut off when the list mounts with the selection already made.
+function observeSelectedTabReveal(list: HTMLElement): () => void {
+  const reveal = (): void => {
+    const selected = list.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+    if (selected !== null) {
+      revealHorizontalTab(selected);
+    }
+  };
+  reveal();
+  const observer = new MutationObserver(reveal);
+  observer.observe(list, { attributes: true, attributeFilter: ["aria-selected"], subtree: true });
+  return (): void => {
+    observer.disconnect();
+  };
 }
 
 /** The indicator's resting box, as Base UI writes it onto the node's own inline style. */

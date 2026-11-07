@@ -407,6 +407,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
+  "packages/client/src/features/workloads/lib/workloads-model.ts":
+    "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS and toProgressView: the job and asset kind names the pickers print and the pure progress label rule",
+  "packages/client/src/features/workloads/lib/portability-model.ts":
+    "IMPORT_CONFIRM_NAMES, IMPORT_PREVIEW_RETRY_NAME, IMPORT_NOTHING_FOUND_NOTE and summarizeCardImport: the import review's control names, its empty-folder note and the pure summary rule",
+  "packages/client/src/features/databank/lib/scrape-form-model.ts": "SCRAPE_FAILURE: the one failure line the add-document form and its toast both say",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
     "CHAT_CONTEXT_TAB_LABELS and CHAT_CONTEXT_TABLIST_NAME: production context tab names used by navigation assertions",
@@ -774,16 +779,6 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
       "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the section heading and the labels of its two switches",
   },
-  "tests/client/features/workloads/components/rebuild-asset-index.ct.tsx": {
-    "packages/client/src/features/workloads/lib/workloads-model.ts":
-      "ASSET_KIND_ITEMS and WORKLOAD_KIND_LABELS: the job name and the asset kind names the schedule dialog's pickers print",
-  },
-  "tests/client/features/workloads/components/operator-import-picker.ct.tsx": {
-    "packages/client/src/features/workloads/lib/workloads-model.ts": "WORKLOAD_KIND_LABELS: the job names the run and schedule pickers print",
-  },
-  "tests/client/features/workloads/components/import-preview.ct.tsx": {
-    "packages/client/src/features/workloads/lib/portability-model.ts": "IMPORT_PREVIEW_RETRY_NAME: the production name of the preview's retry control",
-  },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
@@ -808,9 +803,6 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/preset/lib/template-addresses.test.ts": {
     "packages/client/src/features/preset/lib/template-rows.ts": "templateGroups, templateRowById and templateStoredText: the feature-private template model",
-  },
-  "tests/client/features/workloads/lib/import-notes.dom.test.ts": {
-    "packages/client/src/features/workloads/lib/portability-model.ts": "summarizeCardImport: the feature-private import summary",
   },
   "tests/client/features/config/lib/theme-css-warnings.test.ts": {
     "packages/client/src/features/config/lib/theme-css-warnings.ts":

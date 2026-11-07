@@ -22,6 +22,13 @@ export const SCRAPER_OPTIONS: readonly { readonly label: string; readonly value:
   value,
 }));
 
+/** What a failed fetch says, per source. The toast and the form's own line open with the same sentence, so one failure is not told in two words. */
+export const SCRAPE_FAILURE: Record<ScraperKind, string> = {
+  web: "Couldn't fetch that link.",
+  youtube: "Couldn't fetch that video.",
+  wiki: "Couldn't fetch that link.",
+};
+
 /** The server's own default (`scrapeYoutube`'s `lang` is `.default("en")`) — the caption-language control is
  *  a REVEAL, not a required field, so this value is what an untouched form sends. */
 export const DEFAULT_CAPTION_LANG = "en";

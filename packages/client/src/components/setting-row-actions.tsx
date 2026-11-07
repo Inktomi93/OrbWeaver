@@ -39,6 +39,7 @@ import { InlineAction } from "@orb/ui/inline-action";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import { useEffect, useRef } from "react";
 import { copyWithNotice, IS_DEV, rowActionsName } from "#lib";
 import type { ConfigSettingRef } from "#state";
 import { formatConfigLink } from "#state";
@@ -60,6 +61,8 @@ export interface SettingRowActionsProps {
   readonly label: string;
   /** The leaf's value seam, `null` when the leaf declares no `key`. */
   readonly binding: ConfigLeafValue | null;
+  /** Moves focus to the row's own control: the Reset button unmounts once the row is back at its default. */
+  readonly focusControl: () => void;
 }
 
 /** The action cell's shell: the reserved, rest-invisible box the section's third grid track sizes to. */
@@ -75,7 +78,7 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
 }
 
 // The development build keeps copy actions beside the row reset.
-function SettingRowDevActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
+function SettingRowDevActions({ address, label, binding, focusControl }: SettingRowActionsProps): ReactElement {
   const settingId = `${address.group}.${address.sub}.${address.setting}`;
   const settingLink = `${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`;
   return (
@@ -88,7 +91,7 @@ function SettingRowDevActions({ address, label, binding }: SettingRowActionsProp
               disabled={!binding.modified || binding.resetPending}
               icon={RotateCcw}
               label="Reset to default"
-              onClick={binding.reset}
+              onClick={(): void => binding.reset({ onReset: focusControl })}
             />
             {/* The copy verbs are a DIFFERENT KIND of act from Reset — an address you take away vs
                 a value you change — so a separator keeps them from reading as siblings. */}
@@ -109,16 +112,42 @@ function SettingRowDevActions({ address, label, binding }: SettingRowActionsProp
 }
 
 // Production exposes reset directly and preserves the action track when no reset applies.
-function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, "address">): ReactElement {
+function SettingRowResetAction({ label, binding, focusControl }: Omit<SettingRowActionsProps, "address">): ReactElement {
+  // The button leaves with the reset and returns with an Undo. It takes its focus back once it is back and enabled:
+  // the write that restores it settles after the cache has already painted the button, still disabled.
+  const button = useRef<HTMLButtonElement | null>(null);
+  const returning = useRef(false);
+  const takeFocusBack = (): void => {
+    const node = button.current;
+    if (returning.current && node !== null && !node.disabled && node.getAttribute("aria-disabled") !== "true") {
+      returning.current = false;
+      node.focus();
+    }
+  };
+  useEffect(takeFocusBack);
   if (binding === null || !binding.modified) {
     return <ActionCell />;
   }
   const name = `Reset ${label} to its default`;
+  const onUndone = (): void => {
+    returning.current = true;
+    takeFocusBack();
+  };
   return (
     <ActionCell>
       {/* No tooltip: this button is disabled while the reset is pending, and a tooltip never wraps a disabled
           control. The name says what it does. */}
-      <InlineAction aria-label={name} disabled={binding.resetPending} variant="ghost" onClick={binding.reset} step="label" type="button">
+      <InlineAction
+        aria-label={name}
+        disabled={binding.resetPending}
+        variant="ghost"
+        onClick={(): void => binding.reset({ onReset: focusControl, onUndone })}
+        ref={(node): void => {
+          button.current = node;
+        }}
+        step="label"
+        type="button"
+      >
         <Icon icon={RotateCcw} size="sm" />
       </InlineAction>
     </ActionCell>
@@ -127,6 +156,10 @@ function SettingRowResetAction({ label, binding }: Omit<SettingRowActionsProps, 
 
 /** The trailing action cell. Always renders its box (the section's third grid track reserves the width);
  *  WHICH arm is inside it is the build-time decision above. */
-export function SettingRowActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
-  return IS_DEV ? <SettingRowDevActions address={address} binding={binding} label={label} /> : <SettingRowResetAction binding={binding} label={label} />;
+export function SettingRowActions({ address, label, binding, focusControl }: SettingRowActionsProps): ReactElement {
+  return IS_DEV ? (
+    <SettingRowDevActions address={address} binding={binding} focusControl={focusControl} label={label} />
+  ) : (
+    <SettingRowResetAction binding={binding} focusControl={focusControl} label={label} />
+  );
 }

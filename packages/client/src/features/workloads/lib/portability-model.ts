@@ -5,7 +5,7 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { CardImportResult, ImportPreview } from "@orb/contracts/import";
-import { importPreviewSchema } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
@@ -206,3 +206,14 @@ export function summaryCaption(summary: ImportSummary): string {
 }
 
 export const IMPORT_PREVIEW_RETRY_NAME = "Try again";
+
+/** The preflight's confirm button, named for what it imports so no other control on the page shares its name. */
+export const IMPORT_CONFIRM_NAMES = { folder: "Import this folder", file: "Import this file", files: "Import these files" } as const;
+
+/** A dry run that found nothing a real run would write: no kind holds an item. */
+export function previewIsEmpty(preview: ImportPreview): boolean {
+  return IMPORT_PREVIEW_KINDS.every((kind) => preview.kinds[kind].total === 0);
+}
+
+/** What the preflight says when the dry run found nothing a real run would write. */
+export const IMPORT_NOTHING_FOUND_NOTE = "Nothing to import was found in this folder.";

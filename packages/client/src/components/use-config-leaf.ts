@@ -39,10 +39,17 @@ export interface ConfigLeafReading {
   readonly modified: boolean;
 }
 
+/** What the caller does once a Reset, or the Undo it offered, has landed. */
+interface ResetFollowUp {
+  readonly onReset?: () => void;
+  readonly onUndone?: () => void;
+}
+
 /** A bound leaf's value seam — the reading plus the pre-bound Reset. */
 export interface ConfigLeafValue extends ConfigLeafReading {
-  /** Write the default back through the section's own wire (one write; a list or object leaf offers Undo). */
-  readonly reset: () => void;
+  /** Write the default back through the section's own wire (one write; a list or object leaf offers Undo).
+   *  `after` runs once the write has landed, so the caller can place the focus its own control leaves behind. */
+  readonly reset: (after?: ResetFollowUp) => void;
   readonly resetPending: boolean;
 }
 
@@ -75,7 +82,7 @@ export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue
     current: bound.current,
     defaultValue: bound.defaultValue,
     modified: bound.modified,
-    reset: (): void => {
+    reset: (after: ResetFollowUp = {}): void => {
       const { section, key, current, defaultValue } = bound;
       // A list or an object holds what the host typed, so its Reset offers Undo; a scalar is one click from set again.
       const typed = typeof current === "object" && current !== null;
@@ -83,10 +90,13 @@ export function useConfigLeaf(address: ConfigSettingRef | null): ConfigLeafValue
       // that pressed Reset unmounts, and the write still lands. The factory already toasts a failure.
       const write = (value: unknown): Promise<unknown> => resetMutation.mutateAsync({ section, patch: { [key]: value } });
       const undo = (): void => {
-        write(current).catch(() => undefined);
+        write(current)
+          .then((): void => after.onUndone?.())
+          .catch(() => undefined);
       };
       write(defaultValue)
         .then((): void => {
+          after.onReset?.();
           if (typed) {
             notify.info({ title: "Reset to default", action: { label: "Undo", onClick: undo } });
           }

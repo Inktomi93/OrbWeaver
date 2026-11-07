@@ -8,6 +8,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
 import { IMPORT_PREVIEW_RETRY_NAME } from "../lib/portability-model.ts";
 
@@ -54,13 +55,13 @@ function skipGroups(skipped: ImportPreview["skipped"]): SkipGroup[] {
 }
 
 function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactElement {
+  const [namesOpen, setNamesOpen] = useState(false);
   const kinds = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
   const { skipped } = preview;
   const groups = skipGroups(skipped);
   const unlisted = skipped.total - skipped.items.length;
   return (
     <Stack gap="tight" role="group" aria-label="What this import would bring">
-      {kinds.length === 0 ? <Text voice="reading">Nothing to import was found in this folder.</Text> : null}
       {kinds.map((kind) => (
         <Text key={kind} voice="reading">
           {kindLine(kind, preview.kinds[kind])}
@@ -76,35 +77,33 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
           ))}
         </>
       )}
-      <Collapsible>
-        <CollapsibleTrigger>
-          <Text as="span" voice="gloss">
-            Show names
-          </Text>
-        </CollapsibleTrigger>
-        <CollapsiblePanel>
-          <Stack gap="tight">
-            {kinds.map((kind) => (
-              <Text key={kind} voice="gloss" wrap="anywhere">
-                {`${KIND_NOUNS[kind][1]}: ${namesLine(
-                  preview.kinds[kind].items.map((item) => item.name),
-                  preview.kinds[kind].total,
-                )}`}
-              </Text>
-            ))}
-            {groups.map(({ reason, sources }) => (
-              <Text key={reason} voice="gloss" wrap="anywhere">
-                {`Skipped, ${reason}: ${sources.join(", ")}`}
-              </Text>
-            ))}
-            {unlisted > 0 ? (
-              <Text voice="gloss" wrap="anywhere">
-                {`And ${String(unlisted)} more skipped.`}
-              </Text>
-            ) : null}
-          </Stack>
-        </CollapsiblePanel>
-      </Collapsible>
+      {kinds.length === 0 && skipped.total === 0 ? null : (
+        <Collapsible open={namesOpen} onOpenChange={setNamesOpen}>
+          <CollapsibleTrigger>{namesOpen ? "Hide names" : "Show names"}</CollapsibleTrigger>
+          <CollapsiblePanel>
+            <Stack gap="tight">
+              {kinds.map((kind) => (
+                <Text key={kind} voice="gloss" wrap="anywhere">
+                  {`${KIND_NOUNS[kind][1]}: ${namesLine(
+                    preview.kinds[kind].items.map((item) => item.name),
+                    preview.kinds[kind].total,
+                  )}`}
+                </Text>
+              ))}
+              {groups.map(({ reason, sources }) => (
+                <Text key={reason} voice="gloss" wrap="anywhere">
+                  {`Skipped, ${reason}: ${sources.join(", ")}`}
+                </Text>
+              ))}
+              {unlisted > 0 ? (
+                <Text voice="gloss" wrap="anywhere">
+                  {`And ${String(unlisted)} more skipped.`}
+                </Text>
+              ) : null}
+            </Stack>
+          </CollapsiblePanel>
+        </Collapsible>
+      )}
     </Stack>
   );
 }

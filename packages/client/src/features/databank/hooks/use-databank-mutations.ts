@@ -22,6 +22,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { trpcErrorCode } from "#lib";
+import { SCRAPE_FAILURE } from "../lib/scrape-form-model.ts";
 
 // ── producers ───────────────────────────────────────────────────────────────
 
@@ -36,21 +37,21 @@ export const useCreateDocumentFromText = createEntityMutation<inferInput<Trpc["d
 export const useScrapeWeb = createEntityMutation<inferInput<Trpc["databank"]["scrapeWeb"]>, inferOutput<Trpc["databank"]["scrapeWeb"]>>({
   options: (trpc) => trpc.databank.scrapeWeb.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't fetch that page.",
+  errorToast: SCRAPE_FAILURE.web,
 });
 
 /** Pull a YouTube caption track in as canon (`lang` is server-defaulted to "en"). */
 export const useScrapeYoutube = createEntityMutation<inferInput<Trpc["databank"]["scrapeYoutube"]>, inferOutput<Trpc["databank"]["scrapeYoutube"]>>({
   options: (trpc) => trpc.databank.scrapeYoutube.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't fetch those captions.",
+  errorToast: SCRAPE_FAILURE.youtube,
 });
 
 /** Pull a MediaWiki article extract in as canon. */
 export const useScrapeWiki = createEntityMutation<inferInput<Trpc["databank"]["scrapeWiki"]>, inferOutput<Trpc["databank"]["scrapeWiki"]>>({
   options: (trpc) => trpc.databank.scrapeWiki.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't fetch that article.",
+  errorToast: SCRAPE_FAILURE.wiki,
 });
 
 // ── CRUD ────────────────────────────────────────────────────────────────────

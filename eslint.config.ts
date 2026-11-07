@@ -1100,6 +1100,15 @@ const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
+    file: "packages/client/src/components/setting-teach-row.tsx",
+    function: "SettingRow/focusControl",
+    method: "querySelector",
+    receiver: "rowRef.current",
+    selector: 'input, textarea, select, [role="combobox"], [role="switch"], [role="checkbox"], [role="slider"], [role="radio"], [role="spinbutton"]',
+    reason:
+      "A setting's value control is whatever its caller placed in the row, so Reset hands focus back to the first one by role; the row publishes no handle to it",
+  },
+  {
     file: "packages/client/src/features/app-shell/components/context-bracket.tsx",
     function: "ContextBracket",
     method: "querySelector",

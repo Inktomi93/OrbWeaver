@@ -21,12 +21,19 @@ test("a leaf holding a list or object resets with an Undo that restores what was
   const calls = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", WRITE]));
   await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "chat-message-handling", width: 900 });
 
-  await page.getByRole("button", { name: "Reset Custom stopping strings to its default", exact: true }).click();
+  const reset = page.getByRole("button", { name: "Reset Custom stopping strings to its default", exact: true });
+  const rowId = await reset.locator("xpath=ancestor::*[@data-slot='setting-row'][1]").getAttribute("data-setting");
+  const row = page.locator(`[data-slot="setting-row"][data-setting="${rowId}"]`);
+  await reset.click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(1);
   expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual([]);
+  // The Reset button leaves with the reset, so the row's own control takes the focus it held.
+  await expect(row.locator(":focus")).toHaveCount(1);
   await page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true }).last().click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(2);
   expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual(STOPS);
+  // The Undo toast button leaves with the toast, so the returning Reset button takes the focus.
+  await expect(reset).toBeFocused();
 
   await page.getByRole("button", { name: "Reset Auto-swipe short replies to its default", exact: true }).click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(3);

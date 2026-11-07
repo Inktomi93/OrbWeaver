@@ -5,7 +5,7 @@
 // IT IS CASED FOR A READER, not left as the distiller wrote it (P3-2): the pass stores lower-case tokens
 // (`fantasy`, `melancholic`), and every consumer of this line renders it as prose beside a name. The casing
 // rule is the surface's one home (`corpus-vocabulary.ts`) so the chain and the cluster facets agree.
-import { sentenceCase } from "./corpus-vocabulary.ts";
+import { sentenceCase } from "@orb/kit/strings";
 
 export function characterFacetLine(genre: string | null, tone: string | null, setting: string | null = null): string {
   // Setting is free text, so an empty reply is as absent as a null one.

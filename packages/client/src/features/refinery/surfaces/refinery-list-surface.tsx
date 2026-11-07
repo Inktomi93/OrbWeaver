@@ -35,15 +35,24 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Input } from "@orb/ui/input";
 import type { ReactElement, RefObject } from "react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { timeLib, useFocusListArrival } from "#lib";
-import { refinerySectionSelection, requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
+import {
+  refinerySectionSelection,
+  requestRefineryLandingFocus,
+  selectRefinerySessionFromList,
+  setRefinerySearchQuery,
+  useMobileViewport,
+  useRefinerySearchQuery,
+  useSelectedRefinerySessionId,
+} from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
+import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 
 interface ResolvedRow {
@@ -97,21 +106,22 @@ function readoutSubtitleOf(row: ResolvedRow): string {
 export function RefineryListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusListArrival(surfaceRef);
-  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
-  const [search, setSearch] = useState("");
+  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
+  // state because the chrome band's census names the lens the rows are read through.
+  const search = useRefinerySearchQuery();
 
   return (
     <ListPage
       body="bounded"
       ref={surfaceRef}
-      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setSearch} placeholder="Search sessions…" value={search} />}
+      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setRefinerySearchQuery} placeholder="Search sessions…" value={search} />}
       skipTo="Skip to sessions"
     >
       <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…" resetKeys={[]}>
         <RefineryList
           listRootRef={surfaceRef}
           onClearSearch={(): void => {
-            setSearch("");
+            setRefinerySearchQuery("");
             surfaceRef.current?.focus();
           }}
           search={search}
@@ -142,7 +152,7 @@ function RefineryList({
   // screen, `resolvePanelMode`'s `listIsScreen` arm) and with a session open CONTENT shows the pipeline, so
   // in both of those the CTA is the only door and stays the anchored picker popover.
   const contentShowsPicker = selectedId === null && !isMobile;
-  const query = search.trim().toLowerCase();
+  const needle = refinerySearchNeedle(search);
 
   const resolved: ResolvedRow[] = sessions.data.map((session) => ({
     id: session.id,
@@ -160,9 +170,7 @@ function RefineryList({
   // whole organising fact was previously unsearchable, and `session.name` is null on every row. Since
   // the name rides the summary, this now matches EVERY session, including one whose card sits past the
   // page `character.list` would have returned.
-  const rows = resolved.filter(
-    (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
-  );
+  const rows = resolved.filter((r) => matchesRefinerySearch(r.characterName, r.sessionName, needle));
 
   const rowFocus = useRowDeleteFocus(
     listRootRef,

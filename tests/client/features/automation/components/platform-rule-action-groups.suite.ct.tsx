@@ -1,4 +1,4 @@
-import { ROW_DELETE_NAME } from "@orb/client/lib";
+import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT, ROW_DELETE_NAME } from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, automationTriggerFor } from "@orb/contracts/automation";
 import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
@@ -283,18 +283,60 @@ test.describe("rule editor field rows", () => {
     await add.click();
     await remove.click();
     await expect(confirm).toHaveCount(0);
-    await expect(add).toBeVisible();
+    await expect(add).toBeFocused();
 
     await add.click();
     await field.fill("extra fingers");
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
     await remove.click();
     await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    // The empty removal above opened no confirm, so it must not decide where this Cancel leaves focus.
+    await expect(remove).toBeFocused();
     await expect(field).toHaveValue("extra fingers");
     await remove.click();
     await confirm.getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(add).toBeVisible();
+    await expect(add).toBeFocused();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).not.toMatchObject({ negative: "extra fingers" });
+  });
+
+  test("a confirmed keyword removal hands focus to Add keyword", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    const book = (await caller.worldInfo.listBooks())[0];
+    if (captured === undefined || book === undefined) {
+      throw new Error("The corpus must contain an owned library rule and an owned world book");
+    }
+    await caller.automation.updateRule({
+      ...automationRuleEditableSchema.strip().parse(captured),
+      trigger: automationTriggerFor("character.updated"),
+      actions: [
+        automationActionSchema.parse({
+          type: "insert_world_info_entry",
+          bookId: book.id,
+          entryKey: "lantern",
+          keys: ["lantern", "harbour"],
+          contentTemplate: "A lantern marks the harbour.",
+        }),
+      ],
+      ruleId: captured.id,
+      timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+    });
+    const calls = await routeTrpc(page, serveCorpusProcedures(caller, [...READS, "worldInfo.listBooks"]));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    await editor.getByRole("button", { name: "Remove keyword 1", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "Remove keyword 1?", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(editor.getByRole("button", { name: "Add keyword", exact: true })).toBeFocused();
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ keys: ["harbour"] });
   });
 
   test("the image action's negative prompt and size controls drive the saved rule", async ({ mount, page }) => {
@@ -327,8 +369,14 @@ test.describe("rule editor field rows", () => {
     await editor.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("extra fingers");
     await editor.getByRole("button", { name: "Choose image size", exact: true }).click();
     await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
-    await page.getByRole("option", { name: size, exact: true }).click();
+    await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ type: "generate_image", negative: "extra fingers", size });
+    await editor.getByRole("button", { name: `Use the ${IMAGE_SIZE_MODE_DEFAULT}`, exact: true }).click();
+    await expect(editor.getByRole("button", { name: "Choose image size", exact: true })).toBeFocused();
+    await editor.getByRole("button", { name: "Choose image size", exact: true }).click();
+    await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
+    await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ size });
 
     // The count walks only inside the contract's range, so the stepper is the error message.
     const decrease = editor.getByRole("button", { name: "Decrease Image count", exact: true });

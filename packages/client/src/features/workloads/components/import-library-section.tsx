@@ -36,9 +36,9 @@ import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
-import type { ImportPreviewState } from "../hooks/use-library-import.ts";
+import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { planNotes } from "../lib/portability-model.ts";
+import { IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
@@ -53,10 +53,27 @@ const IMPORT_CONSEQUENCE = [
 ] as const;
 
 const NOTHING_TO_SEND_ID = "import-preflight-nothing-to-send";
+const EVERYTHING_LEFT_OUT_NOTE = "Every file in this folder is being left out, so there is nothing to import. The reasons are listed above.";
+
+/** Why Import is off, or null when there is something to send. */
+function nothingToSendNote(plan: TreeImportPlan | null, preview: ImportPreviewState): string | null {
+  if (plan !== null && plan.batches.length === 0 && plan.skipped.length > 0) {
+    return EVERYTHING_LEFT_OUT_NOTE;
+  }
+  return preview.status === "ready" && previewIsEmpty(preview.preview) ? IMPORT_NOTHING_FOUND_NOTE : null;
+}
 
 /** Said only when the folder's personas are listed above, so a zip or card import never points at a list that
  *  is not there. */
 const PERSONA_QUESTION_NOTE = "A persona in this SillyTavern folder that shares a name with one of yours asks you instead, above.";
+
+/** The confirm button's name for what was picked. */
+function confirmName(files: readonly File[], plan: TreeImportPlan | null): string {
+  if (plan !== null) {
+    return IMPORT_CONFIRM_NAMES.folder;
+  }
+  return files.length === 1 ? IMPORT_CONFIRM_NAMES.file : IMPORT_CONFIRM_NAMES.files;
+}
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the
  *  single file it is about to send. */
@@ -100,7 +117,7 @@ function ImportPreflight({
   readonly onCancel: () => void;
 }): ReactElement {
   const title = stagedTitle(files, plan);
-  const nothingToSend = plan !== null && plan.batches.length === 0 && plan.skipped.length > 0;
+  const nothingNote = nothingToSendNote(plan, preview);
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
     // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
@@ -111,30 +128,31 @@ function ImportPreflight({
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
         <Stack gap="tight">
           {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
-            <Text key={line} voice="reading">
+            <Text key={line} cap="prose" voice="reading">
               {line}
             </Text>
           ))}
           {plan === null
             ? null
             : planNotes(plan).map((line) => (
-                <Text key={line} voice="gloss">
+                <Text key={line} cap="prose" voice="gloss">
                   {line}
                 </Text>
               ))}
         </Stack>
-        {nothingToSend ? (
-          <Text id={NOTHING_TO_SEND_ID} voice="reading">
-            Every file in this folder is being left out, so there is nothing to import. The reasons are listed above.
+        {nothingNote === null ? null : (
+          <Text id={NOTHING_TO_SEND_ID} cap="prose" voice="reading">
+            {nothingNote}
           </Text>
-        ) : null}
-        <Row justify="start" align="center" gap="field">
+        )}
+        {/* Pinned to the foot of the pane's scroll, so Import and Cancel stay in reach however tall the review grows. */}
+        <Row justify="start" align="center" wrap={true} gap="field" ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
           <Button
             onClick={onConfirm}
-            disabled={preview.status === "reading" || nothingToSend}
-            aria-describedby={nothingToSend ? NOTHING_TO_SEND_ID : undefined}
+            disabled={preview.status === "reading" || nothingNote !== null}
+            aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
           >
-            Import
+            {confirmName(files, plan)}
           </Button>
           <Button variant="outline" onClick={onCancel}>
             {DIALOG_VERBS.cancel}
@@ -142,6 +160,38 @@ function ImportPreflight({
         </Row>
       </Stack>
     </Card>
+  );
+}
+
+/** The upload and the running import. It is the focus target once Import is pressed: the preflight that held focus is gone by then. */
+function ImportInFlight({
+  state,
+  track,
+  ref,
+}: {
+  readonly state: LibraryImport["state"];
+  readonly track: LibraryImport["track"];
+  readonly ref: Ref<HTMLDivElement>;
+}): ReactElement | null {
+  if (state.status !== "uploading" && state.status !== "running") {
+    return null;
+  }
+  const batchLabel =
+    state.status === "running" && state.batch !== null && state.batch.total > 1
+      ? `Upload ${String(state.batch.index + 1)} of ${String(state.batch.total)} — `
+      : "";
+  return (
+    <Stack aria-label="Import progress" gap="block" ref={ref} role="group" tabIndex={-1}>
+      {state.status === "uploading" ? <Text voice="reading">{`Sending ${state.filename}…`}</Text> : null}
+      {state.status === "running" ? (
+        <>
+          <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />
+          {/* `showValue` like every other live workload bar (`workload-row.tsx`): the same run, watched from
+              two panes, printed its percentage in one of them and not the other. */}
+          <Progress showValue={true} value={state.progress.pct} label={`${batchLabel}${state.progress.label ?? "Importing your library…"}`} />
+        </>
+      ) : null}
+    </Stack>
   );
 }
 
@@ -169,12 +219,16 @@ export function ImportLibrarySection(): ReactElement {
     }
   }, [stagedFiles]);
   const busy = state.status === "uploading" || state.status === "running";
+  // Confirming unmounts the preflight that held focus; the progress region takes it so it does not fall to the page.
+  const outcomeRef = useRef<HTMLDivElement>(null);
+  const uploading = state.status === "uploading";
+  useEffect(() => {
+    if (uploading) {
+      outcomeRef.current?.focus({ preventScroll: true });
+    }
+  }, [uploading]);
   const done = state.status === "done";
   const succeeded = done && state.summary.failed === 0;
-  const batchLabel =
-    state.status === "running" && state.batch !== null && state.batch.total > 1
-      ? `Upload ${String(state.batch.index + 1)} of ${String(state.batch.total)} — `
-      : "";
 
   return (
     <Stack gap="block">
@@ -243,14 +297,7 @@ export function ImportLibrarySection(): ReactElement {
           onFailed={previewTrack.onFailed}
         />
       ) : null}
-      {state.status === "running" ? (
-        <>
-          <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />
-          {/* `showValue` like every other live workload bar (`workload-row.tsx`): the same run, watched from
-              two panes, printed its percentage in one of them and not the other. */}
-          <Progress showValue={true} value={state.progress.pct} label={`${batchLabel}${state.progress.label ?? "Importing your library…"}`} />
-        </>
-      ) : null}
+      <ImportInFlight ref={outcomeRef} state={state} track={track} />
       {state.status === "error" ? (
         <Text tone="destructive" role="alert">
           {state.message}

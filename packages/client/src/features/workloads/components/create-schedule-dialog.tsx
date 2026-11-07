@@ -111,8 +111,9 @@ function ScheduleFormBody({
     save,
   });
   const kindItems = workloadKindItems(viewerIsOwner);
-  const isPending = isEdit ? update.isPending : create.isPending;
-  const hasError = (isEdit ? update.error : create.error) !== null;
+  const write = isEdit ? update : create;
+  const isPending = write.isPending;
+  const hasError = write.error !== null;
   const pendingLabel = isEdit ? "Saving…" : "Creating…";
   const idleLabel = isEdit ? "Save schedule" : "Create schedule";
   const submitLabel = isPending ? pendingLabel : idleLabel;
@@ -155,7 +156,8 @@ function ScheduleFormBody({
           }}
         </form.Subscribe>
       ) : null}
-      {hasError ? (
+      {/* While the paid-run confirm is up it is the retry surface and says the failure itself; this line speaks once it is gone. */}
+      {hasError && paidRun.dialog.pending === null ? (
         <Text role="alert" tone="destructive" voice="label">
           {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>

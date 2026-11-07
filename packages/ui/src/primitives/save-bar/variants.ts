@@ -13,8 +13,10 @@ export const saveBarVariants = tv({
     root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row tone-host-card",
     // `grow`: the identity CLAIMS the free width rather than merely being allowed to shrink into it. Below `@cq-15` it
     // takes a whole line, so the status wraps under it instead of the kind label running over the status.
-    label: "flex grow basis-full items-baseline gap-field min-inline-0 @cq-15/save-bar:basis-0",
-    title: "truncate text-body leading-body font-medium text-foreground",
+    // Under `@cq-15` the identity may wrap: the name takes whole lines and the kind label drops under it, so enlarged text
+    // never cuts the name that tells the reader what they are editing. From `@cq-15` it is one line and the name truncates.
+    label: "flex grow basis-full flex-wrap items-baseline gap-field min-inline-0 @cq-15/save-bar:basis-0 @cq-15/save-bar:flex-nowrap",
+    title: "text-body leading-body font-medium wrap-break-word text-foreground min-inline-0 @cq-15/save-bar:truncate",
     kind: `shrink-0 ${CAPTION}`,
     // THE DIAGNOSTIC SLOT, AND WHY IT IS NOT `actions` (side-eye 2026-08-18 P1-4). At 430px the character
     // editor's bar rendered `Sabin…  Character  1257 total · 1017 permanent  Saved`: the NAME — the only

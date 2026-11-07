@@ -169,18 +169,18 @@ function PresetList({
       .catch(() => notify.error("Couldn't duplicate the preset."));
   };
 
-  const onDelete = (id: PresetId): Promise<void> => {
-    if (activeId === id) {
-      setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
-    }
+  const onDelete = (id: PresetId): Promise<void> =>
     // Not a per-`mutate` callback: a second Delete on this hook drops it. The open editor reads this id, and left
-    // selected, every refetch answers 404.
-    return remove.mutateAsync({ id }).then((): void => {
+    // selected, every refetch answers 404. The active pick moves only once the row is gone, so a refused delete
+    // leaves what generates untouched.
+    remove.mutateAsync({ id }).then((): void => {
+      if (activeId === id) {
+        setDefault.mutate({ section: "seeds", patch: { defaultPresetId: null } });
+      }
       if (getSelectedPresetId() === id) {
         presetSectionSelection.clear();
       }
     });
-  };
 
   const qualifiers = rowQualifiers(
     filtered.map((preset) => ({ name: preset.name, at: preset.updatedAt })),

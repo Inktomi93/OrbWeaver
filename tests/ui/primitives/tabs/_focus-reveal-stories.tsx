@@ -12,12 +12,15 @@ export function TabsFocusRevealStory({
   manual = false,
   rtl = false,
   cancelFocus = false,
+  initial = "opening",
 }: {
   readonly width: number;
   readonly vertical?: boolean;
   readonly manual?: boolean;
   readonly rtl?: boolean;
   readonly cancelFocus?: boolean;
+  /** The tab that is selected when the list mounts. */
+  readonly initial?: "opening" | "notes" | "final";
 }): ReactElement {
   const finalRef = useRef<HTMLButtonElement>(null);
   const [focused, setFocused] = useState(0);
@@ -28,7 +31,7 @@ export function TabsFocusRevealStory({
       <Container dir={rtl ? "rtl" : "ltr"} style={{ inlineSize: width }}>
         <Stack aria-label="Scrolling workspace" className="overflow-y-auto max-block-(--height-scroll-md)" role="region">
           <Text voice="reading">{"Workspace context before the tabs. ".repeat(30)}</Text>
-          <Tabs defaultValue="opening" orientation={vertical ? "vertical" : "horizontal"}>
+          <Tabs defaultValue={initial} orientation={vertical ? "vertical" : "horizontal"}>
             <Row aria-label="Tab clip" className="overflow-x-auto py-tight min-inline-0" role="region">
               <TabsList activateOnFocus={!manual} aria-label="Review stages">
                 <TabsTab value="opening">Opening</TabsTab>

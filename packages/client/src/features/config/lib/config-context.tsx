@@ -216,7 +216,7 @@ function projectLeafValue(binding: ConfigLeafValue | null, leaf: ConfigSettingLe
     current: valueLabel(binding.current, leaf?.options, leaf?.formatValue),
     defaultValue: valueLabel(binding.defaultValue, leaf?.options, leaf?.formatValue),
     modified: binding.modified,
-    reset: binding.reset,
+    reset: (): void => binding.reset(),
   };
 }
 

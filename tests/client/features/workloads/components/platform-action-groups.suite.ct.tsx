@@ -16,6 +16,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
@@ -120,7 +121,7 @@ for (const regime of REGIMES) {
       await (await chooserPromise).setFiles({ name: "import-action-card.png", mimeType: "image/png", buffer: bytes });
       const preflight = page.getByRole("group", { name: "Import “import-action-card.png”?", exact: true });
       await expect(preflight).toBeFocused();
-      const confirm = preflight.getByRole("button", { name: "Import", exact: true });
+      const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
       const cancel = preflight.getByRole("button", { name: "Cancel", exact: true });
       await expect(confirm).toBeEnabled();
       await measureActions(confirm.locator(".."), [confirm, cancel], testInfo, "card-preflight-actions");

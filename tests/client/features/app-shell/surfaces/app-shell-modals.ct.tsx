@@ -400,6 +400,25 @@ test.describe("on the corpus owner's own settings", () => {
     expect(moreBox?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(inboxBox?.y ?? Number.NEGATIVE_INFINITY);
   });
 
+  test("scrolled rows never show above the You drawer's header", async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1024, height: 320 });
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });
+    const popup = page.locator('[data-slot="drawer-popup"]');
+    const header = popup.locator('[data-slot="dialog-header"]');
+    await expect(header).toBeVisible();
+    expect(await scrollPopupToEnd(page)).toBe(true);
+    await expect
+      .poll(async () => {
+        const top = (await popup.boundingBox())?.y ?? Number.NaN;
+        return header.evaluate((element, edge) => {
+          const box = element.getBoundingClientRect();
+          const winner = document.elementFromPoint(box.left + box.width / 2, edge);
+          return winner !== null && element.contains(winner);
+        }, top + 1);
+      })
+      .toBe(true);
+  });
+
   test("the You drawer's sticky header sits on the raised stratum and paints above its scrolled content", async ({ mount, page }) => {
     await page.setViewportSize({ width: 1024, height: 320 });
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });

@@ -26,6 +26,7 @@ import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const IMPORT_GROUP_NAME = /^Import /u;
+const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
 // Quiet-box bases; `budget` stretches them under measured contention and the allowance grows with the folder.
 const ST_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -166,7 +167,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });
     await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: settleMs });
-    await preflight.getByRole("button", { name: "Import", exact: true }).click();
+    await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click();
     await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: settleMs });
   } finally {
     page.off("response", recordResponse);
