@@ -1,7 +1,7 @@
 // Shared membership-scoped census for the Chats band and phone title; no roster enrichment.
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { filteredCensus, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useChatListCharacterFilter, useChatListMonth, useChatListSearch } from "#state";
 import { monthExclusiveUpperBound } from "../lib/chat-list-scope.ts";
 
@@ -31,5 +31,5 @@ export function useChatCensus(): number | string | undefined {
     return total;
   }
   // Still settling: keep printing the honest library total rather than flashing a wrong narrowed number.
-  return scoped === undefined ? total : `${scoped} of ${total}`;
+  return scoped === undefined ? total : filteredCensus(scoped, total, true);
 }

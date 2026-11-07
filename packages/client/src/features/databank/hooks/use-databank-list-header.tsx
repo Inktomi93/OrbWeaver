@@ -40,7 +40,7 @@ import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { RowActionsMenu } from "#components";
 import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
-import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
+import { useDatabankBankHealth, useDatabankCensus, useDatabankListCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
 import { DATABANK_MAINTENANCE_NAME } from "../lib/databank-names.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
@@ -79,7 +79,8 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   } else if (bankIsEmpty) {
     closedReason = DATABANK_SWEEPS_NEED_DOCUMENT;
   }
-  const countProp = census === undefined ? {} : { count: census };
+  const shown = useDatabankListCensus();
+  const countProp = shown === undefined ? {} : { count: shown };
 
   return {
     actions: [

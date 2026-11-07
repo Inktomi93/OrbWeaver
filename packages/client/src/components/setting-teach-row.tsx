@@ -98,16 +98,22 @@ function RowActionsCell({
   address,
   label,
   binding,
+  focusControl,
 }: {
   readonly address: ConfigSettingRef;
   readonly label: string | undefined;
   readonly binding: ConfigLeafValue | null;
+  readonly focusControl: () => void;
 }): ReactElement {
   if (label === undefined) {
     return <span aria-hidden={true} data-slot="setting-row-actions-absent" />;
   }
-  return <SettingRowActions address={address} binding={binding} label={label} />;
+  return <SettingRowActions address={address} binding={binding} focusControl={focusControl} label={label} />;
 }
+
+/** The controls a row's value lives in. The action cell and the label's `i` hold buttons only, so they never match. */
+const ROW_VALUE_CONTROLS =
+  'input, textarea, select, [role="combobox"], [role="switch"], [role="checkbox"], [role="slider"], [role="radio"], [role="spinbutton"]';
 
 /** THE MODIFIED MARK (§3.4 — the VS Code left bar, a designed mark) and its a11y twin. The bar is paint
  *  only (`aria-hidden`), vertically inset + rounded so it reads as a mark rather than a border, and
@@ -201,6 +207,7 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
   const scope = use(TeachScopeContext);
   const match = useConfigSearchMatch();
   const hoverTimer = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
   // The per-leaf value seam (§3.4 row chrome, #866): null outside a scope, without a provider, or on a
   // leaf that declares no `key` — every null means "no value chrome", never an error.
   const binding = useConfigLeaf(scope === null ? null : { group: scope.group, sub: scope.sub.id, setting: settingId });
@@ -245,7 +252,8 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
   };
   const isMatch = match !== null && match.group === group && match.sub === sub.id && match.setting === settingId;
   const modified = binding?.modified === true;
-  const actions = <RowActionsCell address={{ group, sub: sub.id, setting: settingId }} binding={binding} label={leaf?.label} />;
+  const focusControl = (): void => rowRef.current?.querySelector<HTMLElement>(ROW_VALUE_CONTROLS)?.focus();
+  const actions = <RowActionsCell address={{ group, sub: sub.id, setting: settingId }} binding={binding} focusControl={focusControl} label={leaf?.label} />;
   return (
     // The handlers are a PASSIVE observation surface — they publish which setting the pane teaches, never
     // an action; the interactive elements inside (the control, the `i`) keep their own semantics, and the
@@ -263,6 +271,7 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
       data-search-match={isMatch ? "" : undefined}
       data-setting={settingId}
       data-slot="setting-row"
+      ref={rowRef}
       onClickCapture={focusSelf}
       onFocusCapture={focusSelf}
       onPointerEnter={onPointerEnter}

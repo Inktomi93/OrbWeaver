@@ -2,8 +2,6 @@ import { AUTOMATION_VARIABLE_SCOPES, automationActionSchema } from "@orb/contrac
 import { PROMPT_TRANSFORM_POINTS } from "@orb/contracts/chat";
 import { NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -13,7 +11,7 @@ import { RuleAnalysisFields } from "./rule-analysis-fields.tsx";
 import { RuleCharacterField } from "./rule-character-field.tsx";
 import { RuleImageFields } from "./rule-image-fields.tsx";
 import { RuleLoreFields, RuleReplyFields } from "./rule-list-action-fields.tsx";
-import { RuleRemoveField } from "./rule-remove-field.tsx";
+import { RuleOptionalField } from "./rule-optional-field.tsx";
 import { RuleToolFields } from "./rule-tool-fields.tsx";
 
 const RECIPIENT_LABELS = {
@@ -67,19 +65,16 @@ export function RuleActionFields({
             <Text voice="gloss">Delete ignores the value template. Any saved template is retained if you change operations later.</Text>
           ) : (
             <form.AppField name={`actions[${index}].value`}>
-              {(field): ReactElement =>
-                field.state.value === undefined ? (
-                  <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-                    <Icon icon={ChevronRight} size="sm" />
-                    Add value template
-                  </Button>
-                ) : (
-                  <Stack gap="tight">
-                    <field.MacroField label="Value template" suggestions={[]} />
-                    <RuleRemoveField name="value template" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-                  </Stack>
-                )
-              }
+              {(field): ReactElement => (
+                <RuleOptionalField
+                  name="value template"
+                  onAdd={(): void => field.handleChange("")}
+                  onRemove={(): void => field.handleChange(undefined)}
+                  value={field.state.value}
+                >
+                  <field.MacroField label="Value template" suggestions={[]} />
+                </RuleOptionalField>
+              )}
             </form.AppField>
           )}
         </Stack>
@@ -134,19 +129,16 @@ export function RuleActionFields({
             {(field): ReactElement => <RuleCharacterField label="Speaker" value={field.state.value} onChange={field.handleChange} />}
           </form.AppField>
           <form.AppField name={`actions[${index}].guidedTemplate`}>
-            {(field): ReactElement =>
-              field.state.value === undefined ? (
-                <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-                  <Icon icon={ChevronRight} size="sm" />
-                  Add turn guidance
-                </Button>
-              ) : (
-                <Stack gap="tight">
-                  <field.MacroField label="Turn guidance" suggestions={[]} />
-                  <RuleRemoveField name="turn guidance" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-                </Stack>
-              )
-            }
+            {(field): ReactElement => (
+              <RuleOptionalField
+                name="turn guidance"
+                onAdd={(): void => field.handleChange("")}
+                onRemove={(): void => field.handleChange(undefined)}
+                value={field.state.value}
+              >
+                <field.MacroField label="Turn guidance" suggestions={[]} />
+              </RuleOptionalField>
+            )}
           </form.AppField>
           <form.AppField name={`actions[${index}].confirmFirst`}>{(field): ReactElement => <field.SwitchField label="Ask the host first" />}</form.AppField>
         </Stack>
@@ -158,19 +150,16 @@ export function RuleActionFields({
         <Stack gap="block">
           <Text voice="gloss">The model chooses from the author's backgrounds. This does not select a background directly.</Text>
           <form.AppField name={`actions[${index}].instruction`}>
-            {(field): ReactElement =>
-              field.state.value === undefined ? (
-                <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
-                  <Icon icon={ChevronRight} size="sm" />
-                  Add background guidance
-                </Button>
-              ) : (
-                <Stack gap="tight">
-                  <field.MacroField label="Background guidance" suggestions={[]} />
-                  <RuleRemoveField name="background guidance" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
-                </Stack>
-              )
-            }
+            {(field): ReactElement => (
+              <RuleOptionalField
+                name="background guidance"
+                onAdd={(): void => field.handleChange("")}
+                onRemove={(): void => field.handleChange(undefined)}
+                value={field.state.value}
+              >
+                <field.MacroField label="Background guidance" suggestions={[]} />
+              </RuleOptionalField>
+            )}
           </form.AppField>
           <form.AppField name={`actions[${index}].confirmFirst`}>{(field): ReactElement => <field.SwitchField label="Ask the host first" />}</form.AppField>
         </Stack>

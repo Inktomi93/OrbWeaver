@@ -3,6 +3,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { DATABANK_PASTE_TEXT_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { SCRAPE_FAILURE } from "#client/features/databank/lib/scrape-form-model.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 
 const STORY = "tests/client/features/databank/components/_add-document-stories/AddDocumentStory";
@@ -24,6 +25,8 @@ test("a failed link fetch is said by the form's own line, and the toast may spea
   const link = page.getByRole("textbox", { name: "Link", exact: true });
   await expect(link).toHaveAttribute("aria-invalid", "true");
   await expect(link).toHaveAccessibleDescription("Couldn't fetch that link. Check the address, then try again.");
+  // The toast beside the line opens with the same sentence, so one failure is not told in two words.
+  await expect(page.locator(TOAST)).toContainText(SCRAPE_FAILURE.web);
 });
 
 test("a link fetch that fails after the source was switched is still said, by the toast", async ({ mount, page }) => {

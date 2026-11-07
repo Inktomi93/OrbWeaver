@@ -137,6 +137,10 @@ function isZip(file: File): boolean {
   return file.name.toLowerCase().endsWith(ZIP_EXTENSION);
 }
 
+const IMPORT_FAILED_TOAST = "Import failed. Check the file and try again.";
+/** Said when the folder cannot be planned, before any file is sent: the inline line holds the reason. */
+const FOLDER_UNREADABLE_TOAST = "Couldn't read that folder.";
+
 /** The planner's view of the served caps. */
 function treeCaps(caps: ReturnType<typeof useUploadCaps>): TreeImportCaps {
   return { totalBytes: caps.importTreeTotal, fileBytes: caps.importTreeFile, files: caps.importTreeFiles };
@@ -154,6 +158,8 @@ interface FolderRun {
 
 /** A folder's dry run, one upload after another. Held in a ref for the same reason as {@link FolderRun}. */
 interface PreviewRun {
+  /** Ends the upload in flight when the preview is dropped. */
+  readonly upload: AbortController;
   readonly plan: TreeImportPlan;
   index: number;
   workloadId: WorkloadId | null;
@@ -204,8 +210,11 @@ export function useLibraryImport(): LibraryImport {
     const run = previewRun.current;
     previewRun.current = null;
     clearConflictTimer();
-    if (run !== null && run.workloadId !== null) {
-      cancelWorkload.mutate({ id: run.workloadId });
+    if (run !== null) {
+      run.upload.abort();
+      if (run.workloadId !== null) {
+        cancelWorkload.mutate({ id: run.workloadId });
+      }
     }
   };
 
@@ -221,7 +230,7 @@ export function useLibraryImport(): LibraryImport {
     setPreview(run, { status: "reading", workloadId: null, progress: NO_PROGRESS, batch: position });
     // the .catch below calls failPreview(), which leaves the staged import available and shows why. A refusal
     // for a running import is retried while this run is still the live one.
-    importTree(batch, {}, run.plan.layout, { dryRun: true })
+    importTree(batch, {}, run.plan.layout, { dryRun: true, signal: run.upload.signal })
       .then(({ workloadId }) => {
         if (previewRun.current !== run) {
           cancelWorkload.mutate({ id: workloadId });
@@ -249,7 +258,7 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     dropPreview();
-    const run: PreviewRun = { plan: state.plan, index: 0, workloadId: null, previews: [] };
+    const run: PreviewRun = { upload: new AbortController(), plan: state.plan, index: 0, workloadId: null, previews: [] };
     previewRun.current = run;
     sendPreviewBatch(run);
   };
@@ -270,12 +279,12 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  const fail = (epoch: number, message: string): void => {
+  const fail = (epoch: number, message: string, toast: string = IMPORT_FAILED_TOAST): void => {
     if (epoch !== requestEpoch.current) {
       return;
     }
     setState({ status: "error", message });
-    notify.error("Import failed. Check the file and try again.");
+    notify.error(toast);
   };
 
   const stageFiles = (files: readonly File[]): void => {
@@ -299,13 +308,13 @@ export function useLibraryImport(): LibraryImport {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
           setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices, preview: NO_PREVIEW });
           if (plan.previewable && plan.batches.length > 0) {
-            const run: PreviewRun = { plan, index: 0, workloadId: null, previews: [] };
+            const run: PreviewRun = { upload: new AbortController(), plan, index: 0, workloadId: null, previews: [] };
             previewRun.current = run;
             sendPreviewBatch(run);
           }
         }
       })
-      .catch((error: unknown) => fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error)));
+      .catch((error: unknown) => fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error), FOLDER_UNREADABLE_TOAST));
   };
   const cancel = (): void => {
     dropPreview();

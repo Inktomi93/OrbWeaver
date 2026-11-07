@@ -14,8 +14,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
-import { IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/portability-model.ts";
+import type { Page, Request } from "@playwright/test";
+import { IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE, IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/portability-model.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 // The preview over the real composed server: a picked SillyTavern folder really uploads as a dry run, the workload
@@ -140,7 +140,7 @@ for (const { name, width, appearance } of WIDTHS) {
     await (await chooserPromise).setFiles(folder);
 
     const preflight = page.getByRole("group", { name: /^Import \d+ files? from the folder you picked\?$/u });
-    const confirm = preflight.getByRole("button", { name: "Import", exact: true });
+    const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
     await expect(confirm).toBeDisabled();
     const report = preflight.getByRole("group", { name: "What this import would bring", exact: true });
     await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
@@ -149,6 +149,7 @@ for (const { name, width, appearance } of WIDTHS) {
     await expect(preflight.getByRole("radiogroup")).toHaveCount(1);
 
     await report.getByRole("button", { name: "Show names" }).click();
+    await expect(report.getByRole("button", { name: "Hide names" })).toBeVisible();
     await expect(report.getByText("Preview card", { exact: false })).toBeVisible();
     expect((await actionGroupGeometry(page.getByRole("group", { name: "Import preview host", exact: true }), [confirm])).inlineOverflow).toBeLessThanOrEqual(1);
 
@@ -257,7 +258,7 @@ test("a failed dry run says so in plain words and tone, and Try again reads the 
   await expect(failure).toBeVisible();
   await expect(failure).not.toContainText(/\d{3}|importTree|\{|Failed to fetch/u);
   await expect(failure).toHaveAttribute("data-tone", "destructive");
-  await expect(preflight.getByRole("button", { name: "Import", exact: true })).toBeEnabled();
+  await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeEnabled();
 
   await preflight.getByRole("button", { name: IMPORT_PREVIEW_RETRY_NAME, exact: true }).click();
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
@@ -297,4 +298,81 @@ test("a refused persona review says so in plain words, not the raw request error
   await pickFolder(page, folder);
   await expect(page.getByText("The server could not read this folder.", { exact: true })).toBeVisible();
   await expect(page.getByText(/reviewTreePersonas|planted failure/u)).toHaveCount(0);
+});
+
+test("Import and Cancel stay in reach at the foot of a review taller than the viewport", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await page.setViewportSize({ width: 1280, height: 360 });
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeInViewport();
+  await expect(preflight.getByRole("button", { name: "Cancel", exact: true })).toBeInViewport();
+});
+
+test("Import hands focus to the progress region", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+
+  await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true }).click();
+  await expect(page.getByRole("group", { name: "Import progress", exact: true })).toBeFocused();
+});
+
+test("a folder the dry run finds nothing in says so and leaves Import off", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await mkdir(join(folder, "characters"), { recursive: true });
+  await writeFile(join(folder, "characters", "broken.png"), "not a card");
+  await writeFile(join(folder, ST_SETTINGS_FILE), JSON.stringify({ ["power_user"]: {} }));
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  await expect(preflight.getByText(IMPORT_NOTHING_FOUND_NOTE, { exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
+  await expect(confirm).toBeDisabled();
+  await expect(confirm).toHaveAccessibleDescription(IMPORT_NOTHING_FOUND_NOTE);
+});
+
+test("Cancel while the folder's bytes are still going up ends the upload request", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  const isUpload = (request: Request): boolean => request.method() === "POST" && new URL(request.url()).pathname === PORTABILITY_ROUTES.importTree;
+  // Registered after the native route, so it answers first: the upload is held as a slow link holds it, and everything else falls through.
+  await page.route(`**${PORTABILITY_ROUTES.importTree}`, async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.fallback();
+    }
+  });
+  const sent = page.waitForRequest(isUpload);
+  const ended = page.waitForEvent("requestfailed", isUpload);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  await sent;
+  await page.getByRole("group", { name: PREFLIGHT }).getByRole("button", { name: "Cancel", exact: true }).click();
+  expect((await ended).failure()?.errorText).toMatch(/abort/iu);
 });

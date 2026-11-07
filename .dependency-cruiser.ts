@@ -777,7 +777,21 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/workloads/lib/workloads-model.ts": "WORKLOAD_KIND_LABELS: the job names the run and schedule pickers print",
   },
   "tests/client/features/workloads/components/import-preview.ct.tsx": {
-    "packages/client/src/features/workloads/lib/portability-model.ts": "IMPORT_PREVIEW_RETRY_NAME: the production name of the preview's retry control",
+    "packages/client/src/features/workloads/lib/portability-model.ts":
+      "IMPORT_PREVIEW_RETRY_NAME, IMPORT_CONFIRM_NAMES and IMPORT_NOTHING_FOUND_NOTE: the production names of the preview's retry and confirm controls and its empty-folder note",
+  },
+  "tests/client/features/workloads/components/platform-action-groups.suite.ct.tsx": {
+    "packages/client/src/features/workloads/lib/portability-model.ts":
+      "IMPORT_CONFIRM_NAMES: the production names of the import confirm buttons the suite holds to their box",
+  },
+  "tests/client/features/workloads/components/schedule-create-failure.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-model.ts": "WORKLOAD_KIND_LABELS: the job name the schedule dialog's picker prints",
+  },
+  "tests/client/features/workloads/lib/progress-view.dom.test.ts": {
+    "packages/client/src/features/workloads/lib/workloads-model.ts": "toProgressView: the feature-private progress label derivation",
+  },
+  "tests/client/features/databank/components/add-document-link-error.ct.tsx": {
+    "packages/client/src/features/databank/lib/scrape-form-model.ts": "SCRAPE_FAILURE: the one failure line the add-document form and its toast both say",
   },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":

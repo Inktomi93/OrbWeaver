@@ -36,12 +36,12 @@ export function relativePathOf(file: File): string {
  *  409 = an import is already running; 413 = too large; 401/403 = auth/CSRF) with the server's `{ error }`.
  *  A `secrets.json` is dropped here whatever the caller planned — API keys never leave the browser. `layout`
  *  is the plan's declaration for one upload of a split native folder. `dryRun` asks the same workload to report
- *  what the upload holds and write nothing. */
+ *  what the upload holds and write nothing. `signal` ends the request, and the bytes still in flight, when it aborts. */
 export async function importTree(
   files: readonly File[],
   personaCollisions: PersonaCollisionChoices = {},
   layout: TreeLayoutDeclaration | null = null,
-  { dryRun = false }: { readonly dryRun?: boolean } = {},
+  { dryRun = false, signal }: { readonly dryRun?: boolean; readonly signal?: AbortSignal } = {},
 ): Promise<ImportStarted> {
   const form = new FormData();
   for (const file of files) {
@@ -65,6 +65,7 @@ export async function importTree(
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },
+    ...(signal === undefined ? {} : { signal }),
   });
   if (!response.ok) {
     await throwHttpError("importTree", response);

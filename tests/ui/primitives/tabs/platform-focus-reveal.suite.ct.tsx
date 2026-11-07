@@ -85,6 +85,30 @@ for (const coarse of [false, true]) {
   });
 }
 
+test.describe("selected on mount", () => {
+  test.use({ viewport: { width: 960, height: 900 }, hasTouch: false, isMobile: false });
+  test("a list that mounts on an offscreen tab shows it in the clip without moving the workspace", async ({ mount, page }) => {
+    await mount<typeof TabsFocusRevealStory>(STORY, { width: 300, initial: "final" });
+    const workspace = page.getByRole("region", { name: "Scrolling workspace", exact: true });
+    const clip = page.getByRole("region", { name: "Tab clip", exact: true });
+    const last = page.getByRole("tab", { name: "Final review", exact: true });
+    await expect(last).toHaveAttribute("aria-selected", "true");
+    expect(await clip.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeGreaterThan(0);
+    await expect
+      .poll(async () => {
+        const [tabBox, clipBox] = await Promise.all([last.boundingBox(), clip.boundingBox()]);
+        if (tabBox === null || clipBox === null) {
+          throw new Error("The selected tab and its clip must render");
+        }
+        return Math.max(clipBox.x - tabBox.x, tabBox.x + tabBox.width - clipBox.x - clipBox.width);
+      })
+      .toBeLessThanOrEqual(1);
+    expect(await workspace.evaluate((node) => node.scrollTop)).toBe(0);
+    await page.getByRole("tab", { name: "Opening", exact: true }).click();
+    await expect.poll(() => clip.evaluate((node) => node.scrollLeft)).toBe(0);
+  });
+});
+
 test.describe("manual activation", () => {
   test.use({ viewport: { width: 960, height: 900 }, hasTouch: false, isMobile: false });
   test("focus reveal leaves the selected panel and its reading scroll unchanged", async ({ mount, page }) => {

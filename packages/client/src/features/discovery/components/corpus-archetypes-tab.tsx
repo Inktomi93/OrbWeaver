@@ -1,4 +1,5 @@
 // Whole-corpus archetype evidence requires distilled cards; CONTENT owns the understanding pass.
+import { sentenceCase } from "@orb/kit/strings";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
@@ -19,7 +20,7 @@ import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/c
 import { toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
-import { facetLabel, sentenceCase } from "../lib/corpus-vocabulary.ts";
+import { facetLabel } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 

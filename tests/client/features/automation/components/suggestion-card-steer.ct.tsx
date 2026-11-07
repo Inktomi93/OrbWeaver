@@ -73,7 +73,10 @@ test("a plugin turn card names its installer apart from its title and opens to t
   const title = cards.getByText(card.summary, { exact: true });
   await expect(title).toBeVisible();
   await expect(title).not.toContainText(member.handle);
-  await expect(cards.locator('[data-slot="chat-control-card-byline"]')).toContainText(member.handle);
+  const byline = cards.locator('[data-slot="chat-control-card-byline"]');
+  await expect(byline).toContainText(member.handle);
+  // The dismiss control's name carries the plugin's free-text title, so the installer is its description.
+  await expect(cards.getByRole("button", { name: `Dismiss ${card.summary}`, exact: true })).toHaveAccessibleDescription((await byline.textContent()) ?? "");
 
   const trigger = cards.locator('[data-slot="collapsible-trigger"]');
   const steer = cards.locator('[data-slot="scroll-area-viewport"] [data-slot="suggestion-steer"]');

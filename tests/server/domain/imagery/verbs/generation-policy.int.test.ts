@@ -272,6 +272,15 @@ test("the count, size and negative on chat.generateImage reach the provider requ
   await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  const warned: string[] = [];
+  using subscription = new DisposableStack();
+  subscription.defer(
+    root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+      if (event.chatId === room.chat.id && event.type === "warning") {
+        warned.push(event.code);
+      }
+    }),
+  );
   const negative = "extra fingers, watermark";
   const caller = await root.internalCallerFor(room.member.userId);
   const posted = await caller.chat.generateImage({
@@ -296,6 +305,8 @@ test("the count, size and negative on chat.generateImage reach the provider requ
   for (const asset of stored) {
     expect(posted.content).toContain(`asset:${asset.assetId}`);
   }
+  // A wire that carries the count returns what was asked for, so the room hears nothing about it.
+  expect(warned).toEqual([]);
 });
 
 test("a chat-completions image wire warns of the count and size it dropped, a default size stays quiet, and a rule-fired picture warns the same", async () => {

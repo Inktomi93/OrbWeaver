@@ -52,7 +52,7 @@ import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { DOCUMENT_UPLOAD_FORMAT_HINT } from "../lib/databank-model.ts";
 import { DATABANK_PASTE_TEXT_NAME } from "../lib/databank-names.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
-import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
+import { DEFAULT_CAPTION_LANG, SCRAPE_FAILURE, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
 /** The dialog's ingestion modes (ONE importable union from a tuple — §5.5). */
 const ADD_MODES = ["upload", "paste", "link"] as const;
@@ -327,7 +327,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // The failure is told once, by the form's own line below, so the global error toast stays quiet.
+  // The failure is told by the form's own line below and, beside it, by the mutation's toast: both open with SCRAPE_FAILURE.
   const scrapeWeb = useScrapeWeb({ trpc, invalidation });
   const scrapeYoutube = useScrapeYoutube({ trpc, invalidation });
   const scrapeWiki = useScrapeWiki({ trpc, invalidation });
@@ -405,9 +405,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         {(source): ReactElement | null =>
           runnerFailed[source] ? (
             <Text id={failureId} role="alert" tone="destructive" voice="gloss">
-              {source === "youtube"
-                ? "Couldn't fetch that video. Check the address and the caption language, then try again."
-                : "Couldn't fetch that link. Check the address, then try again."}
+              {`${SCRAPE_FAILURE[source]} ${source === "youtube" ? "Check the address and the caption language, then try again." : "Check the address, then try again."}`}
             </Text>
           ) : null
         }

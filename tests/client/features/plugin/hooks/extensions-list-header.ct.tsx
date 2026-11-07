@@ -36,11 +36,11 @@ test("the band counts the registered pages, not every plugin surface", async ({ 
   await expect(component.getByRole("heading", { level: 2 }).getByText("2", { exact: true })).toBeVisible();
 });
 
-test("a filter that matches nothing keeps the library total beside its zero", async ({ mount, page }) => {
+test("a filter names the library total beside what it shows, a zero included", async ({ mount, page }) => {
   await routeTwoPages(page);
   const component = await mount<typeof ExtensionsListHeaderStory>(STORY, { query: "deck" });
   const heading = component.getByRole("heading", { level: 2 });
-  await expect(heading.getByText("1", { exact: true })).toBeVisible();
+  await expect(heading.getByText("1 of 2", { exact: true })).toBeVisible();
 
   await component.update({ query: "no page has this name" });
   await expect(heading.getByText("0 of 2", { exact: true })).toBeVisible();

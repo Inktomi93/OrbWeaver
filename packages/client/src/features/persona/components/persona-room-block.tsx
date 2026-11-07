@@ -14,6 +14,7 @@ import { useId } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, notify } from "#lib";
+import { personaWithPlayer } from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -31,7 +32,7 @@ function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id
 function memberPins(chat: ChatDetail): readonly { readonly personaId: PersonaId; readonly label: string }[] {
   return chat.participants.flatMap((p) =>
     p.kind === "human" && p.userId !== chat.viewerUserId && p.activePersonaId !== null
-      ? [{ personaId: p.activePersonaId, label: `${personaLabel(chat, [], p.activePersonaId)} (${p.displayName})` }]
+      ? [{ personaId: p.activePersonaId, label: personaWithPlayer(personaLabel(chat, [], p.activePersonaId), p.displayName) }]
       : [],
   );
 }
@@ -61,7 +62,7 @@ function anchorLine(chat: ChatDetail, personas: readonly PersonaListItem[]): str
     return `Card sees you as ${name}`;
   }
   const owner = chat.participants.find((p) => p.kind === "human" && p.activePersonaId === chat.anchorPersonaId);
-  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${name} (${owner.displayName})`;
+  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${personaWithPlayer(name, owner.displayName)}`;
 }
 
 export interface PersonaRoomBlockProps {

@@ -46,7 +46,16 @@ import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } fro
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
-import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
+import {
+  clearDatabankPhaseFilter,
+  clearDocumentSelection,
+  openModal,
+  selectDocumentFromList,
+  setDatabankSearchQuery,
+  useDatabankPhaseFilter,
+  useDatabankSearchQuery,
+  useSelectedDocumentId,
+} from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { ReExtractBanner } from "../components/re-extract-banner.tsx";
@@ -122,8 +131,9 @@ const useDatabankCollection = createCollectionSurface({
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusListArrival(surfaceRef);
-  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight.
-  const [query, setQuery] = useState("");
+  // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
+  // state because the chrome band's census names the lens the rows are read through.
+  const query = useDatabankSearchQuery();
   const phaseFilter = useDatabankPhaseFilter();
 
   return (
@@ -139,11 +149,11 @@ export function DatabankLibrarySurface(): ReactElement {
         </>
       }
       ref={surfaceRef}
-      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setQuery} placeholder="Search documents…" value={query} />}
+      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setDatabankSearchQuery} placeholder="Search documents…" value={query} />}
       skipTo="Skip to documents"
     >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…" resetKeys={[query, phaseFilter]}>
-        <DatabankList listRootRef={surfaceRef} onClearSearch={(): void => setQuery("")} phaseFilter={phaseFilter} query={query} />
+        <DatabankList listRootRef={surfaceRef} onClearSearch={(): void => setDatabankSearchQuery("")} phaseFilter={phaseFilter} query={query} />
       </LibrarySurfaceShell>
     </ListPage>
   );
@@ -196,14 +206,16 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
     }
   };
 
-  const onDelete = (id: DocumentId): void => {
-    // The open document is the one being deleted ⇒ CONTENT falls back to the welcome instead of rendering
-    // a detail for a row the next list read will not contain.
-    if (selectedId === id) {
-      clearDocumentSelection();
-    }
-    remove.mutate({ id });
-  };
+  // Returns the write's promise so the row's confirm holds until the delete lands: a failed delete keeps
+  // the dialog (and focus) where it was instead of closing first.
+  const onDelete = (id: DocumentId): Promise<void> =>
+    remove.mutateAsync({ id }).then((): void => {
+      // The open document is the one being deleted ⇒ CONTENT falls back to the welcome instead of rendering
+      // a detail for a row the next list read will not contain.
+      if (selectedId === id) {
+        clearDocumentSelection();
+      }
+    });
 
   const rowFocus = useRowDeleteFocus(
     listRootRef,

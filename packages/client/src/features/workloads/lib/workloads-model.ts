@@ -14,6 +14,7 @@ import {
   WORKLOAD_KINDS,
   WORKLOAD_LANES,
 } from "@orb/contracts/workloads";
+import { sentenceCase } from "@orb/kit/strings";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -330,11 +331,18 @@ export function buildStartInput(kind: WireWorkloadKind, values: WorkloadRunValue
 
 const PERCENT_SCALE = 100;
 
+/** The label a progress snapshot reads as. The runner writes its messages as lower-case log lines, and every surface reads them as a label. */
+function progressLabel(message: string | undefined, counts: { readonly current: number; readonly total: number } | null): string | null {
+  if (message !== undefined) {
+    return sentenceCase(message);
+  }
+  return counts === null ? null : `${counts.current} of ${counts.total}`;
+}
+
 /** Derive a progress view from a workload `progress` SSE event — explicit `pct` wins, else current/total derive one, else indeterminate. */
 export function toProgressView(fields: Pick<WorkloadProgress, "pct" | "current" | "total" | "message">): WorkloadProgressView {
   const { pct, current, total, message } = fields;
   const haveCounts = current !== undefined && total !== undefined;
   const derivedPct = pct ?? (haveCounts && total > 0 ? Math.round((current / total) * PERCENT_SCALE) : null);
-  const label = message ?? (haveCounts ? `${current} of ${total}` : null);
-  return { pct: derivedPct, label };
+  return { pct: derivedPct, label: progressLabel(message, haveCounts ? { current, total } : null) };
 }

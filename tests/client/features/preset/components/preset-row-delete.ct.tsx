@@ -1,6 +1,6 @@
 import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -71,4 +71,33 @@ test("a held row Delete keeps its confirm open, then closes the editor on that i
   await expect(editor).toHaveCount(0);
   await deleteRow(page, otherPreset.name);
   await expect(page.getByRole("button", { name: otherPreset.name, exact: true })).toHaveCount(0);
+});
+
+test("a refused row Delete keeps its confirm, the active pick and the trigger; a landed one hands focus to a neighbour", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const active = await caller.preset.create({ name: "Disposable active preset", kind: "generation" });
+  await caller.preset.create({ name: "Disposable neighbour preset", kind: "generation" });
+  await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: active.id } });
+  let refusing = true;
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, READS),
+    ...serveCorpusProcedures(caller, ["preset.remove"], () => (refusing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined)),
+  });
+  await mount<typeof PresetActionGroupsStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}), subject: "section" });
+  const row = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: active.name, exact: true }) });
+  const confirm = page.getByRole("alertdialog");
+
+  await deleteRow(page, active.name);
+  await expect(confirm.getByRole("alert")).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(row.locator('button[aria-haspopup="menu"]')).toBeFocused();
+  expect((await caller.settings.getUserSettings()).config.seeds.defaultPresetId).toBe(active.id);
+
+  refusing = false;
+  await deleteRow(page, active.name);
+  await expect(page.getByRole("button", { name: active.name, exact: true })).toHaveCount(0);
+  await expect(page.locator('[data-slot="list-row-root"]').locator(":focus")).toHaveCount(1);
+  await expect.poll(async () => (await caller.settings.getUserSettings()).config.seeds.defaultPresetId).toBeNull();
 });

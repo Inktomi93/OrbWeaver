@@ -15,6 +15,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { ManualTarget } from "../lib/manual-targets.ts";
+import { REFINERY_HAND_EDIT_EMPTY_SCOPE } from "../lib/refinery-names.ts";
 import { slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ManualRewriteDialogProps {
@@ -93,6 +94,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
           Your edit lands as a rewrite round, not a card write — analyze can judge it against the original, and nothing touches the card until you apply.
           Untouched fields stay out of the round.
         </Text>
+        {targets.length === 0 ? <Text voice="gloss">{REFINERY_HAND_EDIT_EMPTY_SCOPE}</Text> : null}
         {targets.map((target) => {
           const draft = draftOf(target);
           return (

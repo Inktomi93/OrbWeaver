@@ -492,3 +492,21 @@ test("the dismissed list takes the same press: an invalidate cannot drop its pag
   await expect.poll(() => older.count()).toBeGreaterThan(PAGE_SIZE);
   hold.release();
 });
+
+test("Show dismissed sits above the rows, in reach with every page loaded", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const { rpc } = await seededInbox(root, reader.userId);
+  await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  const toggle = page.getByRole("button", { name: "Show dismissed", exact: true });
+  const first = page.locator(ROW).first();
+  await expect(first).toBeVisible();
+  const [toggleBox, firstBox] = [await toggle.boundingBox(), await first.boundingBox()];
+  expect(toggleBox?.y).toBeLessThan(firstBox?.y ?? Number.NEGATIVE_INFINITY);
+});

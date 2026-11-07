@@ -7,3 +7,8 @@ export const PERSONA_NAME_REQUIRED = "Name can't be empty.";
 export function nowDefaultNotice(name: string): string {
   return `${name} is now your default.`;
 }
+
+/** A persona named with the player behind its seat. A seat named like its persona says the name once. */
+export function personaWithPlayer(persona: string, player: string): string {
+  return persona === player ? persona : `${persona} (${player})`;
+}
