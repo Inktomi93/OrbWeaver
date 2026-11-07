@@ -7,6 +7,10 @@ import type { LoadTransformersKernel, LocalLightKernelModule } from "@orb/infere
 
 let nativeKernel: Awaited<ReturnType<LoadTransformersKernel>> | undefined;
 const HUB_REFUSAL = new URL(import.meta.url).searchParams.has("hub-refusal");
+const LATE_ENCODER = new URL(import.meta.url).searchParams.has("late-encoder");
+// Under `late-encoder` the refused Hub read of a head file opens the encoder's load, so the head fails first by
+// construction rather than by a race.
+const headRefused = Promise.withResolvers<void>();
 
 /** The URL parameter and channel messages a case uses to hold the kernel inside synchronous execution. */
 export const KERNEL_HOLD = { parameter: "hold-channel", ready: "ready", blocked: "blocked" } as const;
@@ -49,6 +53,7 @@ async function record(event: object): Promise<void> {
 export const fetch: LocalLightKernelModule["fetch"] = async (input): Promise<never> => {
   const url = input instanceof Request ? input.url : String(input);
   await record({ edge: "hub-fetch", url });
+  headRefused.resolve();
   throw new Error("reference kernel: unscripted Hub execution refused");
 };
 
@@ -79,6 +84,10 @@ export const loadTransformers: LocalLightKernelModule["loadTransformers"] = asyn
       await record({ edge: "model-forward", rows, width, nativeTensor: hidden instanceof kernel.Tensor });
       return { ["last_hidden_state"]: hidden };
     }
+
+    override dispose(): ReturnType<InstanceType<typeof kernel.PreTrainedModel>["dispose"]> {
+      return record({ edge: "model-dispose" }).then(() => super.dispose());
+    }
   }
   class PhysicalAutoModel extends kernel.AutoModel {
     static override async from_pretrained(
@@ -88,6 +97,13 @@ export const loadTransformers: LocalLightKernelModule["loadTransformers"] = asyn
       if (HUB_REFUSAL) {
         await kernel.AutoConfig.from_pretrained(modelId, options);
         throw new Error("reference Hub refusal unexpectedly returned a config");
+      }
+      if (LATE_ENCODER) {
+        await headRefused.promise;
+        // The refusal rejects in microtasks; a macrotask puts the encoder's completion after all of them.
+        await new Promise<void>((resolve) => {
+          setImmediate(resolve);
+        });
       }
       const model = new ReferenceEncoder(new kernel.PretrainedConfig({ ["model_type"]: "custom", ["hidden_size"]: 3 }), {}, {});
       await record({
