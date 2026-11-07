@@ -9,14 +9,8 @@
 // from snap: the measurement that decided #819 cost 14 chrome-devtools MCP calls against a ~8 budget.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriveBudgets, NetworkConditions, NetworkProfileName } from "../contract/load-emulation.ts";
-import {
-  NAV_TIMEOUT_MS,
-  STAGE_NAV_TIMEOUT_MS,
-  STAGE_READY_TIMEOUT_MS,
-  THROTTLED_NAV_TIMEOUT_MS,
-  THROTTLED_READY_TIMEOUT_MS,
-  WAIT_SELECTOR_TIMEOUT_MS,
-} from "./budgets.ts";
+import type { SnapCeilings } from "./budgets.ts";
+import { SNAP_CEILINGS_MS } from "./budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -91,9 +85,12 @@ export function throttleResultValue(cpuRate: number, network: NetworkProfileName
  *
  *  A cold `--isolated` stage keeps its own (wider) nav budget — the two causes are independent, so the
  *  wider of the two applies rather than one overwriting the other. */
-export function driveBudgets(opts: { readonly isolated: boolean; readonly cpuRate: number; readonly network: NetworkProfileName | null }): DriveBudgets {
+export function driveBudgets(
+  opts: { readonly isolated: boolean; readonly cpuRate: number; readonly network: NetworkProfileName | null },
+  ceilings: Pick<SnapCeilings, "nav" | "waitSelector" | "stageNav" | "stageReady" | "throttledNav" | "throttledReady"> = SNAP_CEILINGS_MS,
+): DriveBudgets {
   const throttled = opts.network !== null || opts.cpuRate > NO_CPU_THROTTLE;
-  const nav = Math.max(opts.isolated ? STAGE_NAV_TIMEOUT_MS : NAV_TIMEOUT_MS, throttled ? THROTTLED_NAV_TIMEOUT_MS : 0);
-  const ready = Math.max(opts.isolated ? STAGE_READY_TIMEOUT_MS : WAIT_SELECTOR_TIMEOUT_MS, throttled ? THROTTLED_READY_TIMEOUT_MS : 0);
+  const nav = Math.max(opts.isolated ? ceilings.stageNav : ceilings.nav, throttled ? ceilings.throttledNav : 0);
+  const ready = Math.max(opts.isolated ? ceilings.stageReady : ceilings.waitSelector, throttled ? ceilings.throttledReady : 0);
   return { nav, ready };
 }

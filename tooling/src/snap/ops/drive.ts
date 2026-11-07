@@ -8,7 +8,7 @@ import { awaitDevClientReady } from "#dev";
 import { settle } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, DriveFailure } from "../contract/types.ts";
-import { COLD_START_READY_TIMEOUT_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
+import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS } from "../lib/budgets.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
 import { scrubPrivateText } from "../lib/private-values.ts";
 import { markStageSettled, markStageUnsettled } from "../lib/stage-run-binding.ts";
@@ -93,7 +93,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   const budgets = driveBudgets({ isolated: opts.isolated, cpuRate: opts.cpuThrottle, network: opts.network });
   const navTimeout = budgets.nav;
   const resp = opts.coldStart
-    ? await awaitDevClientReady(page, url, Date.now() + COLD_START_READY_TIMEOUT_MS)
+    ? await awaitDevClientReady(page, url, Date.now() + SNAP_CEILINGS_MS.coldStartReady)
     : await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
   let navError: string | null = null;
   if (!resp) {
@@ -129,7 +129,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
     // page got to) — but the STRUCTURED row is minted here, where the selector that never appeared is
     // still in hand, so the end card names the argv to correct instead of a `nav/wait threw:` prose blob.
     try {
-      await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+      await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.waitSelector });
     } catch (error) {
       failures?.push(waitDriveFailure(opts.waitSelector, scrubPrivateText(errorMessage(error))));
       throw error;
@@ -144,7 +144,7 @@ export async function settlePage(page: Page, opts: Args): Promise<void> {
     // content lands via deferred queries, instead of guessing a timeout.
     // bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.
     // biome-ignore lint/suspicious/noPlaywrightNetworkidle: explicit opt-in (--idle) with a hard bound — settling on network-quiet IS the flag's contract.
-    await page.waitForLoadState("networkidle", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {
+    await page.waitForLoadState("networkidle", { timeout: SNAP_CEILINGS_MS.networkIdle }).catch(() => {
       /* bounded — a chatty stream must never block the shot */
     });
   }

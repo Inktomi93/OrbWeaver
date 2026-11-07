@@ -6,7 +6,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget, loadKillError } from "../../floor/host/load-budget.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SnapAction } from "../contract/types.ts";
-import { STEP_BASE_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
+import { SNAP_BASES_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -101,7 +101,7 @@ export function sessionTapeBaseMs(actions: readonly SnapAction[]): number {
     if (entry.type === "eval") {
       return total;
     }
-    const own = entry.type === "step" && entry.action.kind === "pause" ? entry.action.ms : STEP_BASE_MS;
+    const own = entry.type === "step" && entry.action.kind === "pause" ? entry.action.ms : SNAP_BASES_MS.step;
     return total + own + STEP_SETTLE_MS;
   }, 0);
 }

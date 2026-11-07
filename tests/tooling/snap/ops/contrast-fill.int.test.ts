@@ -128,16 +128,9 @@ test("a fill subject with no surround left to sample gets NO VERDICT, and it FAI
     const [full] = await captureContrastEvidence(page, ["#full"], false, VIEWPORT);
     expect(full?.outcome.failed).toBe(true);
     expect(full?.evidence).toMatchObject({ method: null, ratio: null, passed: null, sampled: 0 });
-    // THE CLASS is pinned, not the reason string (#1758): a `Page.captureScreenshot` protocol error under
-    // contention is an INSTRUMENT fault (status "instrument-error", ops/contrast-fill.ts retries once and
-    // still failed) — a DIFFERENT, honest no-verdict reason from this fixture's real DOMAIN refusal
-    // (status "refused", no surround to sample). Both are legitimate "I could not produce a verdict"
-    // outcomes; only the domain class's exact wording is asserted, on the quiet-box happy path.
+    // Only the status class is pinned here: a capture fault under contention is an honest instrument error
+    // (the capture retries once). The refusal wording is pinned in tests/tooling/snap/ops/contrast-fill.test.ts.
     expect(["refused", "instrument-error"]).toContain(full?.evidence.status);
-    const domainReceipt =
-      full?.evidence.status !== "refused" ||
-      (full.outcome.line.includes("NO VERDICT (fill-only, undecodable)") && full.outcome.line.includes("no surround to measure against"));
-    expect(domainReceipt, `a domain refusal must name the surround reason — ${full?.outcome.line}`).toBe(true);
   } finally {
     await browser.close();
   }

@@ -1,57 +1,31 @@
-// The pure half of snap's load-emulation vocabulary (tooling/src/snap/lib/throttle.ts): the profile
-// resolver, the RESULT-line spelling, and — the reason this file exists — the DRIVE BUDGETS a declared
-// load arm is judged against (#836).
-//
-// THE LIE THIS PINS. `--network slow-4g` deliberately makes bytes arrive at 180 KB/s behind 562ms of
-// added latency, and the drive still held that run to the un-throttled 10s readiness ceiling. Measured
-// 2026-08-30 against a PROD build served off-band: `app never signalled data-app-ready` on every network
-// run, which reads as an app defect and is really the instrument refusing the arm it advertises. The
-// budgets now follow the arm, so a network receipt is reachable at all — and the dev-build limit that
-// remains (447 requests, `page.goto` past 90s) is a real finding about the unbundled dev graph rather
-// than a 10s stopwatch.
+// The pure half of snap's load-emulation vocabulary (tooling/src/snap/lib/throttle.ts): the profile resolver, the
+// RESULT-line spelling, and the drive budgets a declared load arm is judged against.
 
 import { expect, test } from "@orb/testkit/tooling";
-import {
-  NAV_TIMEOUT_MS,
-  STAGE_NAV_TIMEOUT_MS,
-  STAGE_READY_TIMEOUT_MS,
-  THROTTLED_NAV_TIMEOUT_MS,
-  THROTTLED_READY_TIMEOUT_MS,
-  WAIT_SELECTOR_TIMEOUT_MS,
-} from "../../../../tooling/src/snap/lib/budgets.ts";
+import { SNAP_CEILINGS_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { driveBudgets, NETWORK_PROFILES, parseNetworkProfile, throttleResultValue } from "../../../../tooling/src/snap/lib/throttle.ts";
 
-// #1283: these four ceilings are `budget(<X>_BASE_MS)` (#1266) — a LOAD-SCALED reading of the box, not
-// the fixed literal this file used to assert. Comparing against the SAME live constants `driveBudgets`
-// itself composes from keeps the "which ceiling wins" claim exact on a loaded box instead of pinning a
-// number that only holds when this test happens to run quiet.
+// Every ceiling distinct, and the stage and throttled pairs ordered opposite ways, so each budget names the one
+// ceiling that produced it. The shipped stage and throttled bases are equal, which hides which side won.
+const CEILINGS = { nav: 1, waitSelector: 2, stageNav: 30, stageReady: 7, throttledNav: 20, throttledReady: 9 } as const;
 
-test("#836: an un-throttled live-base drive keeps the tight budgets", () => {
-  expect(driveBudgets({ isolated: false, cpuRate: 1, network: null })).toEqual({ nav: NAV_TIMEOUT_MS, ready: WAIT_SELECTOR_TIMEOUT_MS });
+test("an un-throttled live-base drive keeps the tight budgets", () => {
+  expect(driveBudgets({ isolated: false, cpuRate: 1, network: null }, CEILINGS)).toEqual({ nav: CEILINGS.nav, ready: CEILINGS.waitSelector });
+  // With no ceilings passed, the drive reads the ones this process loaded.
+  expect(driveBudgets({ isolated: false, cpuRate: 1, network: null })).toEqual({ nav: SNAP_CEILINGS_MS.nav, ready: SNAP_CEILINGS_MS.waitSelector });
 });
 
-test("#836: a declared load arm widens BOTH budgets — either axis alone is enough", () => {
-  // The network arm is the one that could not settle at all; the CPU arm is the same class of claim
-  // (a 4x-throttled boot is deliberately slower) and must not be left holding the tight ceiling.
-  expect(driveBudgets({ isolated: false, cpuRate: 1, network: "slow-4g" }), "a network profile widens the drive").toEqual({
-    nav: THROTTLED_NAV_TIMEOUT_MS,
-    ready: THROTTLED_READY_TIMEOUT_MS,
-  });
-  expect(driveBudgets({ isolated: false, cpuRate: 4, network: null }), "a CPU rate above 1x widens the drive").toEqual({
-    nav: THROTTLED_NAV_TIMEOUT_MS,
-    ready: THROTTLED_READY_TIMEOUT_MS,
-  });
+test("a declared load arm widens both budgets, and either axis alone is enough", () => {
+  // A throttled boot is deliberately slower, so holding it to the tight ceiling refuses the arm it asked for.
+  const throttled = { nav: CEILINGS.throttledNav, ready: CEILINGS.throttledReady };
+  expect(driveBudgets({ isolated: false, cpuRate: 1, network: "slow-4g" }, CEILINGS), "a network profile widens the drive").toEqual(throttled);
+  expect(driveBudgets({ isolated: false, cpuRate: 4, network: null }, CEILINGS), "a CPU rate above 1x widens the drive").toEqual(throttled);
 });
 
-test("#836: the stage's cold-vite budget and the load arm are independent causes — the WIDER one wins", () => {
-  // A cold stage already needed the stage ceiling. Widening for a throttle must never NARROW it back —
-  // and on this box the two bases (90s/60s stage, 90s/60s throttled) are equal, so this also pins that a
-  // tie does not silently prefer the wrong cause.
-  expect(driveBudgets({ isolated: true, cpuRate: 1, network: null })).toEqual({ nav: STAGE_NAV_TIMEOUT_MS, ready: STAGE_READY_TIMEOUT_MS });
-  expect(driveBudgets({ isolated: true, cpuRate: 4, network: "slow-3g" })).toEqual({
-    nav: Math.max(STAGE_NAV_TIMEOUT_MS, THROTTLED_NAV_TIMEOUT_MS),
-    ready: Math.max(STAGE_READY_TIMEOUT_MS, THROTTLED_READY_TIMEOUT_MS),
-  });
+test("the stage's cold-vite budget and the load arm are independent causes, and the wider one wins on each axis", () => {
+  expect(driveBudgets({ isolated: true, cpuRate: 1, network: null }, CEILINGS)).toEqual({ nav: CEILINGS.stageNav, ready: CEILINGS.stageReady });
+  // Stage wins nav and the throttle wins ready, so preferring either cause outright fails one axis.
+  expect(driveBudgets({ isolated: true, cpuRate: 4, network: "slow-3g" }, CEILINGS)).toEqual({ nav: CEILINGS.stageNav, ready: CEILINGS.throttledReady });
 });
 
 test("the network vocabulary resolves DevTools' own names, aliases and refusals", () => {
