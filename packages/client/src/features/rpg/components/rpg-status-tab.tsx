@@ -213,7 +213,7 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
                 <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
                   {actor.name.slice(0, 1).toUpperCase()}
                 </Avatar>
-                <Text as="span" voice="label" className="truncate">
+                <Text as="span" voice="label" truncate={true}>
                   {actor.name}
                 </Text>
                 <Icon icon={ChevronRight} size="xs" ink="muted" className="shrink-0" />

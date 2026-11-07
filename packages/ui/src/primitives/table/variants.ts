@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { CAPTION, FIELD_ROW, FOCUS_RING, tv } from "#lib";
 
 // The table skin — a hand-rolled data-grid (NO @tanstack/react-table: v8's useReactTable returns
 // an interior-mutable instance the React Compiler can only tolerate behind "use no memo", which
@@ -23,8 +23,8 @@ export const tableVariants = tv({
     td: "px-row py-block text-body leading-body text-foreground",
     emptyCell: "py-section text-center",
     pager: "flex flex-wrap items-center justify-between gap-row border-bs border-border px-row py-block",
-    pagerInfo: "text-label leading-label text-muted-foreground",
-    pagerButtons: "flex items-center gap-field",
+    pagerInfo: CAPTION,
+    pagerButtons: FIELD_ROW,
   },
   variants: {
     align: {

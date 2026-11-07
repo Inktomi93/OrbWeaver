@@ -65,11 +65,20 @@ export function PluginSurfaceShell({
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
-      <Stack className="block-full min-block-0" data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
+      <Stack className="min-block-0" fill={true} data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}
-        <Row align="center" className="shrink-0 px-block py-field" data-testid={testId("pluginPageAttribution")} divider="bottom" gap="field" ground="faint">
+        <Row
+          align="center"
+          className="shrink-0"
+          paddingBlock="field"
+          paddingInline="block"
+          data-testid={testId("pluginPageAttribution")}
+          divider="bottom"
+          gap="field"
+          ground="faint"
+        >
           <Icon icon={Blocks} size="sm" />
           <Text voice="label">{pluginName}</Text>
           {showTitle ? (
@@ -90,7 +99,7 @@ export function PluginSurfaceShell({
             its own, so every `position:absolute` descendant a plugin's rendered tree carries — starting with
             the `sr-only` text house primitives ship — would escape to the nearest positioned ancestor and
             scroll away from the thing it names. */}
-        <Stack aria-label={regionName} className="relative grow overflow-y-auto overscroll-contain p-block min-block-0" gap="block" role="group">
+        <Stack aria-label={regionName} scroll="y" className="grow" padding="block" gap="block" role="group">
           {children}
         </Stack>
       </Stack>
@@ -116,12 +125,12 @@ export function PluginSurfaceShell({
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
-              <Stack className="flex-1 text-start min-inline-0" gap="tight">
-                <Text className="truncate" voice="label">
+              <Stack className="text-start min-inline-0" grow={true} gap="tight">
+                <Text truncate={true} voice="label">
                   {pluginName}
                 </Text>
                 {showTitle ? (
-                  <Text className="truncate" voice="gloss">
+                  <Text truncate={true} voice="gloss">
                     {title}
                   </Text>
                 ) : null}

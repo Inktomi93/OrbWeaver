@@ -93,21 +93,21 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
   return (
     // Identity parts and verbs wrap independently so a long Back label cannot consume the member heading.
     <Row align="center" className="flex-wrap min-inline-0" data-slot="config-drill-header" gap="field" justify="between">
-      <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+      <Row align="center" className="flex-wrap min-inline-0" cap="fit" gap="field">
         <Button className="shrink-0 wrap-anywhere max-inline-full" variant="ghost" onClick={back.onClick} size="sm" wrap={true} type="button">
           <Icon icon={ArrowLeft} size="sm" />
           {back.label}
         </Button>
         {/* The title's preferred floor wraps it before collapse; truncation bounds a longer name on its own line. */}
         {title === undefined ? null : (
-          <Heading className="flex-1 basis-(--width-title-floor) truncate max-inline-full min-inline-0" level={2}>
+          <Heading className="max-inline-full" floor="title" truncate="fill" level={2}>
             {title}
           </Heading>
         )}
         {meta}
       </Row>
       {actions === undefined ? null : (
-        <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+        <Row align="center" className="flex-wrap min-inline-0" cap="fit" gap="field">
           {actions}
         </Row>
       )}

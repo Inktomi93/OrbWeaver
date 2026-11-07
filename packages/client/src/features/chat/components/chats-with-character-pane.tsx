@@ -31,7 +31,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -45,9 +45,6 @@ type ChatListItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 const SKELETON_ROW_COUNT = 4;
 /** Row-height guess for the virtualizer; every row re-measures itself after mount. */
 const ESTIMATED_ROW_PX = 44;
-/** The chats pane's damper — one home would be a shared constant with one other reader, which §13.0's bar
- *  does not clear; the VALUE agreeing is what matters and both headers say why. */
-const SEARCH_DEBOUNCE_MS = 250;
 /** Above this many loaded rows the pane grows a search field. Below it, a search box would be chrome over a
  *  list you can already read (§3.5) — but once a search is RUNNING the field stays regardless of how far it
  *  narrows the list, or the control would vanish under the user mid-query. */
@@ -112,7 +109,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
     // INSTRUMENT tier (UI-Density-Law.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
-      <Stack className="block-full min-block-0" gap="row">
+      <Stack className="min-block-0" fill={true} gap="row">
         {items.length > SEARCH_THRESHOLD || query !== "" ? (
           <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
         ) : null}
@@ -130,7 +127,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         ) : (
           // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at
           // mount otherwise) — `h-full` inside this `min-h-0 flex-1` column is where that bound comes from.
-          <Stack aria-label={`Chats with ${characterName}`} className="flex-1 min-block-0" role="list">
+          <Stack aria-label={`Chats with ${characterName}`} className="min-block-0" grow={true} role="list">
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList

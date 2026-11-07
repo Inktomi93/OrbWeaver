@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // FOUR DIMENSIONS, THREE TOKENS AND ONE DERIVED KNOB, ALL POINTER-CONDITIONAL (#1109, owner ruling
 // 2026-09-02; the knob became derived at #1684, owner ruling 2026-09-06 — the paragraph below the #424
@@ -109,9 +109,9 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 //   Light /bg   OFF 3.54 · ON quiet 4.77 · ON accent 6.19      Light /card OFF 3.63 · ON quiet 4.98 · ON accent 6.29
 // Both bounds are measured from the FRAMEBUFFER, in all three seeds: computed style can see neither the compositing
 // nor the oklch, and a polarity fix proven on the dark arm alone is this tree's recorded failure family. The
-// read-only lock glyph sits inside the thumb and dims with it. Its ratio against the thumb was already under 3:1 on
-// Light (2.45) and a mid-grey scope (2.28) as an alpha thumb; the dim takes those to 2.16 and 1.89, and Mocha from
-// above 3 to 2.98. A glyph that holds the floor needs its own ink, not a different thumb.
+// read-only lock glyph sits inside the thumb and dims with it; its painted colour holds 3:1 against the thumb fill on
+// every seed and state (`tests/ui/primitives/switch/lock-glyph.ct.tsx`, read from the glyph's own pixels). `pixelContrast`
+// reads the glyph's box ring as its backdrop, and the strokes reach that ring, so it reports the pair lower than it is.
 //
 // The thumb's SIZE was the one item #1090 deferred out of E3's ask ("~55% of track height") as its own
 // row; that row is #1109 above, and the measured ratios in the table are UNCHANGED by it — the knob's
@@ -132,7 +132,7 @@ export const switchVariants = tv({
         relative inline-flex shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-input-border bg-input
         px-(--size-switch-inset) py-0 block-(--size-switch-track-height) inline-(--size-switch-track)
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       "outline-none",
       FOCUS_RING,
       DISABLED_STATE,

@@ -61,7 +61,7 @@ export function AnalyticsListSurface(): ReactElement {
       filters={
         <ToggleGroup
           aria-label="Sort characters"
-          className="grid grid-cols-2 inline-full"
+          fill={true}
           data-testid={testId("analyticsLeaderboardSort")}
           value={[sort]}
           onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
@@ -96,7 +96,7 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
   // The bounded height is this wrapper's — `VirtualList` throws at mount on an unbounded scroll element — and
   // it is also the roving container (the Arrow-key contract over the windowed row bodies).
   return (
-    <Stack ref={rowsRef} className="flex-1 min-block-0">
+    <Stack ref={rowsRef} className="min-block-0" grow={true}>
       <QueryBoundary
         resetKeys={[deferredSort, trimmed]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
@@ -165,7 +165,7 @@ function LeaderboardBody({
             subtitle={`${formatCompactNoun(row.assistantTurns, "reply", "replies")} · ${formatDurationMs(row.totalGenTimeMs)}`}
             title={names[row.characterId] ?? row.name}
             trailing={
-              <Text voice="datumMono" className="whitespace-nowrap">
+              <Text voice="datumMono" whitespace="nowrap">
                 {formatTokens(row.tokensOut, row.tokensOutProvenance)}
               </Text>
             }

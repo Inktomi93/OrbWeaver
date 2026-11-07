@@ -17,10 +17,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useCharacterSearch, useFavoritesOnly, useFiltersOpen, useShowArchived, useTagFilter } from "#state";
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
-import { CHARACTER_SEARCH_DEBOUNCE_MS, effectiveTagFilter, knownTagIds, tagVocabulary } from "../lib/character-library-lens.ts";
+import { effectiveTagFilter, knownTagIds, tagVocabulary } from "../lib/character-library-lens.ts";
 import { useLibraryLens } from "./use-library-lens.ts";
 
 export type LibraryScopeArgs = Pick<
@@ -54,7 +54,7 @@ export function useLibraryScope(): LibraryScope {
   const showArchived = useShowArchived();
   const tagFilter = useTagFilter();
   const filtersOpen = useFiltersOpen();
-  const search = useDebouncedValue(useCharacterSearch().trim(), CHARACTER_SEARCH_DEBOUNCE_MS);
+  const search = useDebouncedValue(useCharacterSearch().trim(), SEARCH_DEBOUNCE_MS);
   // …AND IT WAITS FOR A REASON TO EXIST (#502): 551 rows used to land on the section's cold ENTRY to paint
   // chips that are behind a closed disclosure on first visit. There are exactly two reasons to read it —
   // the disclosure is OPEN (the chips are on screen), or a PERSISTED tag filter exists, because then this

@@ -94,7 +94,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
-    <Stack gap="section" className="relative overflow-y-auto overscroll-contain min-block-0" data-slot="character-overview">
+    <Stack gap="section" scroll="y" data-slot="character-overview">
       {/* THE INSTRUCTION LEADS THE PANE (side-eye 2026-09-02 nit 27, #1139). This line explains what the pane
           DOES — pick a field over there, read it here — and it sat BELOW Origin, Activity and Tags, i.e.
           after everything it introduces, where a reader who needed it had already scrolled past the answer.
@@ -211,7 +211,7 @@ function nameGloss(names: readonly string[]): string {
 function Kicker({ children }: { readonly children: string }): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Text voice="kicker" className="truncate">
+      <Text voice="kicker" truncate={true}>
         {children}
       </Text>
       <Separator className="flex-1" />
@@ -253,7 +253,7 @@ function OverviewRow({
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is a tabular figure and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="truncate min-inline-0" ink="muted" id={labelId}>
+        <Text voice="label" truncate={true} ink="muted" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0 max-inline-full">
@@ -261,7 +261,7 @@ function OverviewRow({
         </Text>
       </Row>
       {gloss === undefined ? null : (
-        <Text voice="gloss" className="wrap-break-word min-inline-0">
+        <Text voice="gloss" className="min-inline-0" wrap="word">
           {gloss}
         </Text>
       )}

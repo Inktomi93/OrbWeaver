@@ -122,7 +122,8 @@ function ActionsFrame({
       reveal={reveal}
       ground="readingBand"
       cardCorners="all"
-      className={cn("relative z-(--z-raised)", className) ?? ""}
+      layer="raised"
+      className={cn("relative", className) ?? ""}
     />
   ) : (
     <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} className={className ?? ""} />

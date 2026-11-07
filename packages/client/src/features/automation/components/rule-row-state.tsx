@@ -22,7 +22,7 @@ function StateNotice({ badge, slot, line }: { readonly badge: string; readonly s
       <Badge tone="destructive" size="sm">
         {badge}
       </Badge>
-      <Text className="flex-1 min-inline-0" data-slot={slot} voice="gloss">
+      <Text className="min-inline-0" grow={true} data-slot={slot} voice="gloss">
         {line}
       </Text>
     </Row>

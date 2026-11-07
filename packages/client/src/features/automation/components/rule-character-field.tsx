@@ -33,7 +33,7 @@ export function RuleCharacterField({
                 {label}: {value}
               </Text>
               <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
-              <Button variant="ghost" className="justify-start" onClick={retry}>
+              <Button variant="ghost" justify="start" onClick={retry}>
                 Retry
               </Button>
             </Stack>
@@ -42,12 +42,12 @@ export function RuleCharacterField({
           <SelectedCharacterName characterId={value} label={label} />
         </QueryBoundary>
       )}
-      <Button variant="ghost" className="justify-start" onClick={(): void => setOpen(!open)}>
+      <Button variant="ghost" justify="start" onClick={(): void => setOpen(!open)}>
         <Icon icon={ChevronRight} size="sm" />
         {open ? "Close character picker" : `Choose ${label.toLowerCase()}`}
       </Button>
       {value === undefined ? null : (
-        <Button variant="ghost" className="justify-start" onClick={(): void => onChange(undefined)}>
+        <Button variant="ghost" justify="start" onClick={(): void => onChange(undefined)}>
           Use automatic {label.toLowerCase()}
         </Button>
       )}

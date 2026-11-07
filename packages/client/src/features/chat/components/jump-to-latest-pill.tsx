@@ -30,7 +30,9 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
     <Row
       justify="center"
       aria-hidden={visible ? undefined : true}
-      className="pointer-events-none absolute inset-x-0 inset-be-block z-(--z-overlay)"
+      className="absolute inset-x-0 inset-be-block"
+      passThrough={true}
+      layer="overlay"
       data-slot="jump-to-latest"
     >
       <FloatingChip className="flex items-center inline-fit max-inline-full" presence={visible ? "shown" : "hidden"}>

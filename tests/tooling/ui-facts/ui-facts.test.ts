@@ -1,6 +1,7 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse, isClassified } from "../../../tooling/src/ui-facts/analysis.ts";
 import { parseExceptions } from "../../../tooling/src/ui-facts/exceptions.ts";
+import { plantTheme } from "./_theme.ts";
 
 const THEME = ":root {\n  --spacing-section: round(up, 1.5rem, 1px);\n  --size-icon-sm: round(up, 1rem, 1px);\n}\n";
 const UI_PACKAGE = JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts" } });
@@ -8,7 +9,7 @@ const BUTTON_VARIANTS = 'export const buttonVariants = tv({ variants: { size: { 
 
 function plantClient(root: string, files: Readonly<Record<string, string>>): void {
   plantFile(root, "packages/ui/package.json", UI_PACKAGE);
-  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantTheme(root, THEME);
   plantFile(root, "packages/ui/src/primitives/button/variants.ts", BUTTON_VARIANTS);
   for (const [path, text] of Object.entries(files)) {
     plantFile(root, `packages/client/src/features/probe/${path}`, text);

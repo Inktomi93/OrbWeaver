@@ -89,7 +89,7 @@ export function RuleEditorActions({
                     {index > 0 ? <Separator /> : null}
                     <Row gap="field" align="center">
                       {grip}
-                      <Text className="flex-1 min-inline-0">
+                      <Text className="min-inline-0" grow={true}>
                         {index + 1}. {armTitle(action.type)}
                       </Text>
                       <Button

@@ -1,4 +1,15 @@
-import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, FOCUS_RING, FOCUS_RING_ON_POPOVER, tv } from "#lib";
+import {
+  CAPTION,
+  COLOR_MOTION,
+  CONTROL_BLOCK,
+  CONTROL_INLINE,
+  DISABLED_STATE,
+  FIELD_STACK,
+  FOCUS_RING,
+  FOCUS_RING_ON_POPOVER,
+  INLINE_FIELD_ROW,
+  tv,
+} from "#lib";
 
 // The color-field skin: `swatch` is the plain chip (shared by the display-only ColorSwatch and the
 // editable ColorField's trigger), `swatchTrigger` adds the button affordance (focus ring, disabled,
@@ -6,15 +17,15 @@ import { CONTROL_BLOCK, CONTROL_INLINE, DISABLED_STATE, FOCUS_RING, FOCUS_RING_O
 // entry rides the existing `Field`/`Input` primitives (no bespoke text-input skin needed here).
 export const colorFieldVariants = tv({
   slots: {
-    root: "inline-flex items-center gap-field",
+    root: INLINE_FIELD_ROW,
     // `data-unset` is the display swatch's NO-COLOUR state: outlined and unfilled, so it never reads as a
     // picked colour (the input fill could pass for a dark grey).
     swatch:
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
-    hexText: "text-label leading-label text-muted-foreground",
+    hexText: CAPTION,
     swatchTrigger: [
       "inline-flex shrink-0 items-center justify-center rounded-control border border-border p-0",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       "outline-none",
       FOCUS_RING,
       `cursor-pointer ${DISABLED_STATE}`,
@@ -27,7 +38,7 @@ export const colorFieldVariants = tv({
         data-success:ring-offset-background
       `,
     ],
-    popupBody: "flex flex-col gap-field",
+    popupBody: FIELD_STACK,
     // The native swatch is the FIRST tab stop inside the popup and it had no house focus state at all
     // (side-eye 2026-08-08 P1, WCAG 2.4.7): a keyboard user entering the popover got the UA's own outline,
     // which on a near-black popup surface is a ~#101010 hairline against #0b0b0b — invisible. `outline-none`

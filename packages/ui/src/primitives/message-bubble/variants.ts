@@ -11,6 +11,8 @@ export const messageBubbleVariants = tv({
     shape: { island: "rounded-base p-block", bubble: MESSAGE_BUBBLE_BOX },
     // The box delegates its inset to its own content (a welded portrait, a pinned band).
     padding: { tier: "", none: "p-0" },
+    // How the transcript's card lays out its content: `weld` seats the body beside its portrait, `stack` runs it down the card.
+    flow: { stack: "flex flex-col", weld: "flex flex-row items-start" },
     // The whole box at the receded step, fill and ink together.
     receded: { true: RECEDED, false: "" },
     artDecoration: ART_DECORATION,

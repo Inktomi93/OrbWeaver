@@ -199,10 +199,10 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         anchor="top"
         size="lg"
         popupProps={{ initialFocus: popupRef, ref: popupRef }}
-        titleProps={{ className: "min-inline-0 truncate", ref: headingRef, tabIndex: -1 }}
+        titleProps={{ className: "truncate", ref: headingRef, tabIndex: -1 }}
         bodyContainer={true}
         headerActions={
-          <Row align="center" className="shrink-0 flex-wrap max-inline-full" gap="row">
+          <Row align="center" className="shrink-0 flex-wrap" cap="fit" gap="row">
             {galleryEmpty && scope === "everywhere" ? null : (
               <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
                 <Icon icon={ImagePlus} size="sm" />

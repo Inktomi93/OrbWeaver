@@ -147,7 +147,7 @@ function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly i
             {choice > 0 ? <Separator /> : null}
             <Row gap="field" align="center">
               {grip}
-              <Text className="flex-1 min-inline-0" voice="label">
+              <Text className="min-inline-0" grow={true} voice="label">
                 Reply {choice + 1}
               </Text>
               <Button

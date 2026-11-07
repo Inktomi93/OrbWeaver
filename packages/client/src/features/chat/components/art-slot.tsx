@@ -109,14 +109,16 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
 export function FallbackLetter({
   initials,
   className,
+  height,
   scale = "portrait",
 }: {
   readonly initials: string;
   readonly className: string;
+  readonly height?: "bandHead";
   readonly scale?: ComponentProps<typeof Text>["artScale"];
 }): ReactElement {
   return (
-    <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
+    <Stack align="center" aria-hidden="true" className={className} container="size" height={height} justify="center">
       <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
         {initials}
       </Text>
@@ -155,15 +157,13 @@ export function WhisperBand({
       featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens
       // it to 55% and keeps it at least a minimum tall. The image rests dimmed and a tap target brightens under the pointer.
-      className="
-        relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
-        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
-      "
+      className="relative ms-auto"
+      artPane="banner"
       ref={attach}
       style={style}
     >
       {band.image === undefined || failed ? (
-        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} scale="banner" />
+        <FallbackLetter className="absolute inset-x-0 inset-bs-0" height="bandHead" initials={band.fallback} scale="banner" />
       ) : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
@@ -191,11 +191,8 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
-      className={cn(
-        "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
-        tappable ? undefined : "pointer-events-none",
-        art.side === "left" ? "inset-s-0" : "inset-e-0",
-      )}
+      passThrough={!tappable}
+      className={cn("absolute inset-bs-0", art.side === "left" ? "inset-s-0" : "inset-e-0")}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}

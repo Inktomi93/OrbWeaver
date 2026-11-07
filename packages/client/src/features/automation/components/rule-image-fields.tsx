@@ -43,14 +43,14 @@ export function RuleImageFields({
       <form.AppField name={`actions[${index}].prompt`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Add image prompt
             </Button>
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Image prompt" suggestions={[]} />
-              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
                 Remove image prompt
               </Button>
             </Stack>
@@ -60,14 +60,14 @@ export function RuleImageFields({
       <form.AppField name={`actions[${index}].negative`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange("")}>
+            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange("")}>
               <Icon icon={ChevronRight} size="sm" />
               Add negative prompt
             </Button>
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Negative prompt" suggestions={[]} />
-              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
                 Remove negative prompt
               </Button>
             </Stack>
@@ -80,14 +80,14 @@ export function RuleImageFields({
       <form.AppField name={`actions[${index}].size`}>
         {(field): ReactElement =>
           field.state.value === undefined ? (
-            <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(SIZE_PRESET_NAMES[0])}>
+            <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(SIZE_PRESET_NAMES[0])}>
               <Icon icon={ChevronRight} size="sm" />
               Choose image size
             </Button>
           ) : (
             <Stack gap="tight">
               <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: value }))} />
-              <Button variant="ghost" className="justify-start" onClick={(): void => field.handleChange(undefined)}>
+              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
                 Use the image mode's default size
               </Button>
             </Stack>

@@ -89,7 +89,7 @@ function ModelsBody(): ReactElement {
                     {...(modelName === model.model ? {} : { fullTitle: model.model })}
                     subtitle={`${model.provider ?? "unknown"} · ${formatCompactNoun(model.generations, "generation", "generations")} · ${model.charactersUsedWith === 1 ? "1 character" : `${model.charactersUsedWith} characters`}`}
                     actions={
-                      <Text voice="datumMono" className="whitespace-nowrap">
+                      <Text voice="datumMono" whitespace="nowrap">
                         {formatTokens(model.tokensOut, model.tokensOutProvenance)} · {formatUsd(model.costUsd)}
                       </Text>
                     }

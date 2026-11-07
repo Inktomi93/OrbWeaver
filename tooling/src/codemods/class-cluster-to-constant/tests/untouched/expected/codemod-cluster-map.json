@@ -1,0 +1,5 @@
+{
+  "from": "#lib",
+  "skip": ["lib/slots.ts"],
+  "clusters": [{ "name": "FIELD_STACK", "classes": ["flex", "flex-col", "gap-field"], "file": "slots.ts" }]
+}

@@ -268,7 +268,7 @@ function GreetingActions({
     // pushed to negative x when the four children overflow a ~320-414px width (side-eye V3 P0).
     <Stack gap="field" data-slot="character-greeting-actions">
       <GreetingAttributeRow form={form} index={index} greetingCount={greetingCount} />
-      <Row gap="field" align="center" className="flex-wrap justify-end">
+      <Row gap="field" align="center" className="flex-wrap" justify="end">
         {editing && index > 0 ? (
           <Button
             type="button"

@@ -1,7 +1,7 @@
 // Whether moving one class off `className` onto a recipe prop renders the same; the rule and its proof are on `moveRefusal`.
 import { conflicts, survives } from "./class-conflict.ts";
 import type { ElementRef } from "./hand-model.ts";
-import type { ComponentRecipe } from "./variant-tables.ts";
+import type { ComponentRecipe, Compound } from "./variant-tables.ts";
 import type { Arm, ArmClasses } from "./variants.ts";
 
 const ROOT_SLOT = "root";
@@ -17,17 +17,37 @@ interface Move {
 const restingArm = (axis: string, arms: ArmClasses, recipe: ComponentRecipe): string | undefined =>
   recipe.defaults.get(axis) ?? (arms.has(FALSE_ARM) ? FALSE_ARM : undefined);
 
-/** The arms one later axis can take on this element: the door's own choice, a literal prop's arm, every arm for any other value, else its resting arm. */
-function armsTaken(axis: string, arms: ArmClasses, element: ElementRef, recipe: ComponentRecipe): readonly Arm[] {
-  const every = [...arms.values()];
+/** The arm names one axis can take on this element: the door's own choice, a literal prop's arm, every arm for any other value, else its resting arm. */
+function armNamesTaken(axis: string, arms: ArmClasses, element: ElementRef, recipe: ComponentRecipe): readonly string[] {
   const choice = recipe.chosen.get(axis);
   const named = choice === undefined ? element.props[axis] : choice;
   if (named === undefined) {
-    return [arms.get(restingArm(axis, arms, recipe) ?? "")].flatMap((resting) => resting ?? []);
+    return [restingArm(axis, arms, recipe) ?? ""].filter((resting) => arms.has(resting));
   }
-  const arm = named === null ? undefined : arms.get(named);
-  return arm === undefined ? every : [arm];
+  return named !== null && arms.has(named) ? [named] : [...arms.keys()];
 }
+
+const armsTaken = (axis: string, arms: ArmClasses, element: ElementRef, recipe: ComponentRecipe): readonly Arm[] =>
+  armNamesTaken(axis, arms, element, recipe).flatMap((name) => arms.get(name) ?? []);
+
+/** A condition on a prop the site leaves unset: `tailwind-variants` can read the absent prop as `false`, so only a `false` condition may hold. */
+function conditionHolds(
+  [axis, values]: readonly [string, readonly string[] | null],
+  element: ElementRef,
+  recipe: ComponentRecipe,
+  moved: Move | null,
+): boolean {
+  const arms = recipe.declared.get(axis);
+  if (values === null || arms === undefined) {
+    return true;
+  }
+  const taken = moved?.axis === axis ? [moved.arm] : armNamesTaken(axis, arms, element, recipe);
+  return taken.length === 0 ? values.includes(FALSE_ARM) : taken.some((name) => values.includes(name));
+}
+
+/** The compound can fire on this element, with the move made when one is named: a condition the syntax cannot read holds. */
+const canFire = (compound: Compound, element: ElementRef, recipe: ComponentRecipe, moved: Move | null): boolean =>
+  [...compound.conditions].every((condition) => conditionHolds(condition, element, recipe, moved));
 
 const laterAxes = (axis: string, recipe: ComponentRecipe): readonly (readonly [string, ArmClasses])[] =>
   [...recipe.declared].slice([...recipe.declared.keys()].indexOf(axis) + 1);
@@ -37,12 +57,13 @@ function laterClasses(axis: string, element: ElementRef, recipe: ComponentRecipe
   return [
     ["the class string", element.place.peers],
     ["the door", recipe.doorClasses.get(axis) ?? []],
-    ["a compound variant", recipe.compounds.flatMap((compound) => compound.tokens)],
+    ["a compound variant", recipe.compounds.filter((compound) => canFire(compound, element, recipe, null)).flatMap((compound) => compound.tokens)],
     ...laterAxes(axis, recipe).map(([name, arms]) => [`the ${name} axis`, armsTaken(name, arms, element, recipe).flatMap((arm) => arm.tokens)] as const),
   ];
 }
 
-function armRefusal({ token, axis, arm }: Move, written: Arm, recipe: ComponentRecipe): string | null {
+function armRefusal(move: Move, written: Arm, element: ElementRef, recipe: ComponentRecipe): string | null {
+  const { token, axis, arm } = move;
   if (written.unread) {
     return `arm "${arm}" holds a name the reader cannot resolve, so it can write more than ${token}`;
   }
@@ -52,7 +73,9 @@ function armRefusal({ token, axis, arm }: Move, written: Arm, recipe: ComponentR
   if (recipe.sideReads.has(axis)) {
     return `the door reads ${axis} beyond the recipe, so the prop does more than write ${token}`;
   }
-  if (recipe.compoundsUnread || recipe.compounds.some((compound) => compound.reads.includes(axis))) {
+  const reacts = (compound: Compound): boolean =>
+    compound.conditions.has(axis) && (canFire(compound, element, recipe, null) || canFire(compound, element, recipe, move));
+  if (recipe.compoundsUnread || recipe.compounds.some(reacts)) {
     return `a compound variant reacts to ${axis} or could not be read`;
   }
   const arms = recipe.declared.get(axis);
@@ -89,7 +112,8 @@ function orderRefusal({ token, axis }: Move, element: ElementRef, recipe: Compon
  * that survive. Say T moves from the end to the slot of axis X. If T conflicts with nothing that renders after X's slot, T survives in
  * both positions, the later classes keep their fate because T touches none of them, and the earlier classes face the same survivors plus
  * T. The class set is unchanged, and class order does not reach the cascade. So a move is proved when no later class conflicts with T, and
- * the arm does exactly what the class did: one class, on the element, with no default arm, compound or attribute riding along.
+ * the arm does exactly what the class did: one class, on the element, with no default arm, compound or attribute riding along. A compound
+ * counts only when its conditions can hold on this element's props, the moved arm included.
  */
 export function moveRefusal(move: Move, element: ElementRef, recipe: ComponentRecipe): string | null {
   const written = recipe.axes.get(move.axis)?.get(move.arm);
@@ -100,5 +124,5 @@ export function moveRefusal(move: Move, element: ElementRef, recipe: ComponentRe
   if (door !== undefined) {
     return door;
   }
-  return armRefusal(move, written, recipe) ?? orderRefusal(move, element, recipe);
+  return armRefusal(move, written, element, recipe) ?? orderRefusal(move, element, recipe);
 }

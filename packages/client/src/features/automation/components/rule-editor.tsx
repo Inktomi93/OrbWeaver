@@ -84,7 +84,7 @@ export function RuleEditor({
       <RuleForm entityId={identity} serverValues={serverValues} save={saveRemembered}>
         {(session): ReactElement => (
           <Stack gap="section">
-            <Row gap="field" align="center" className="justify-between">
+            <Row gap="field" align="center" justify="between">
               <Heading level={4}>{chatId === null ? "Library-wide rule" : "Chat rule"}</Heading>
               <Button variant="ghost" onClick={onClose}>
                 Close editor

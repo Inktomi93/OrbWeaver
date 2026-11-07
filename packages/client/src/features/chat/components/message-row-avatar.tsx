@@ -99,7 +99,7 @@ export function renderRowAvatar(args: {
 
 // The portrait and its message number stick together as the row scrolls, at the portrait's own width, so the number wraps
 // beneath it instead of widening the column.
-const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0 inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
+const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0";
 
 /** A welded portrait with the message number centred under it when the skin seats the number there (`RowSkin.numberPlacement`)
  *  and the reader shows it; the metadata row then leaves the number out. */
@@ -116,7 +116,7 @@ export function placePortraitNumber(args: {
   }
   return {
     welded: (
-      <Stack align="center" gap="field" className={PORTRAIT_COLUMN}>
+      <Stack align="center" gap="field" className={PORTRAIT_COLUMN} width="ripplePortrait">
         {portrait}
         <MessageNumber label={number} />
       </Stack>
