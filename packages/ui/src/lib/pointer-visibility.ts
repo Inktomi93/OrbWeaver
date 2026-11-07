@@ -12,6 +12,7 @@ export const HIDDEN_AT = {
   always: "hidden",
   empty: "empty:hidden",
   print: "print:hidden",
+  unlessPrint: "hidden print:block",
   dialogStacked: "dialog-stacked:hidden",
   unlessDialogStacked: "hidden dialog-stacked:flex",
   "cq-20": "@cq-20:hidden",

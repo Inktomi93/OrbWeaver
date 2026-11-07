@@ -54,7 +54,7 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
   useLoginColorScheme();
   return (
     <Stack height="viewport" scroll="y" data-testid={testId("loginPage")} ground="background">
-      <Layer className="shrink-0 min-block-full">
+      <Layer className="shrink-0" minHeight="full">
         <LoginWeaveBackdrop />
         <Stack align="center" justify="start" padding="section">
           {/* relative: the content column paints above the positioned web canvas. */}

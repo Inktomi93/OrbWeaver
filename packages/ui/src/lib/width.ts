@@ -17,6 +17,7 @@ export const WIDTH = {
   ripplePortrait: "inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)",
   lane: "@max-cq-64:inline-full @cq-64:inline-(--width-lane)",
   flankFit: "inline-(--dimension-room-flank-fit)",
+  numberInline: "inline-(--width-number-inline)",
 } as const;
 
 /** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
@@ -48,7 +49,10 @@ export const HEIGHT = {
 /** The least block size a box holds, by what must fit in it: the control it seats, a scroll region's floor, or a named surface. */
 export const MIN_HEIGHT = {
   viewport: "min-block-dvh",
+  full: "min-block-full",
   control: "min-block-(--size-control-sm)",
+  nameRow: "min-block-(--size-name-row-min)",
+  firstTile: "group-first/tile:min-block-(--size-control-sm)",
   controlMd: "min-block-(--size-control-md)",
   scrollSm: "min-block-(--height-scroll-sm)",
   scrollMd: "min-block-(--height-scroll-md)",

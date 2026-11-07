@@ -63,8 +63,8 @@ export function FlankColumn({
       width={flank.panelMode ? "sidebarSm" : undefined}
       scroll={flank.panelMode ? "y" : undefined}
       layer={overlaid ? "raised" : undefined}
+      hiddenAt="empty"
       className={cn(
-        "empty:hidden",
         flank.panelMode
           ? cn("min-block-0", !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0")
           : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2",

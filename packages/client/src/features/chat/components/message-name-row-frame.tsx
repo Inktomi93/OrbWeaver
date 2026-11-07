@@ -216,13 +216,14 @@ function FrameRow({
       reverse={flip}
       wrap={true}
       push={chip && !pinned ? "inlineEnd" : undefined}
+      minHeight={reserve ? "nameRow" : undefined}
       className={cn(
         reachTrain && "self-stretch",
         overlayClass,
         // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
         // It is unconditional across ghost, editing and sticky arms. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.
-        reserve && "box-content min-block-(--size-name-row-min)",
+        reserve && "box-content",
       )}
     >
       {children}

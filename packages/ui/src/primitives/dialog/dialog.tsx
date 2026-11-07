@@ -24,7 +24,7 @@ export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDialog.Trigger {...props} />;
 }
 
-export interface DialogPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof dialogVariants> {
+export interface DialogPopupProps extends Omit<BasePopupProps, "className">, Omit<VariantProps<typeof dialogVariants>, "footerPush" | "headerWrap"> {
   className?: string;
   /** Defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];

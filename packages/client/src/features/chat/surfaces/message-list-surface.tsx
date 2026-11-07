@@ -467,7 +467,7 @@ function ChatThread({
 /** Paper has no Earlier messages button, so a transcript that is only part of the room says so on the page. */
 function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactElement | null {
   return edges.earlier || edges.later ? (
-    <Text className="hidden print:block" voice="gloss">
+    <Text hiddenAt="unlessPrint" voice="gloss">
       {CHAT_PRINT_COVERAGE}
     </Text>
   ) : null;

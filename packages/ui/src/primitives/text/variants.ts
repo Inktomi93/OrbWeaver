@@ -204,7 +204,12 @@ export const textVariants = tv({
     textAlign: TEXT_ALIGN,
     inset: RUN_INSET,
     // A run that holds a glyph or a chip beside its words, at an atom gap.
-    cluster: { plain: "inline-flex items-center", tight: "inline-flex items-center gap-tight", field: "inline-flex items-center gap-field" },
+    cluster: {
+      plain: "inline-flex items-center",
+      tight: "inline-flex items-center gap-tight",
+      field: "inline-flex items-center gap-field",
+      line: "flex gap-field",
+    },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).
     wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },

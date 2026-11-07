@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { layerVariants } from "./variants.ts";
 
 /**
@@ -16,6 +17,6 @@ import { layerVariants } from "./variants.ts";
  * Usage: `<Layer className="shrink-0"><Row …/><Row …/></Layer>` — never `className="grid"` + a call-site
  * `[grid-area:…]` in feature code (structural layout goes through the layout kit).
  */
-export function Layer({ className, ...props }: ComponentProps<"div">): ReactElement {
-  return <div {...props} className={layerVariants({ className })} />;
+export function Layer({ className, minHeight, ...props }: ComponentProps<"div"> & VariantProps<typeof layerVariants>): ReactElement {
+  return <div {...props} className={layerVariants({ minHeight, className })} />;
 }

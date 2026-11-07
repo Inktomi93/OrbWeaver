@@ -469,6 +469,7 @@ export const cornerVariants = tv({
 // would be an arbitrary property in a file features read from.
 export const layerVariants = tv({
   base: "grid grid-cols-1 grid-rows-1 *:col-start-1 *:row-start-1",
+  variants: { minHeight: MIN_HEIGHT },
 });
 
 // No external `py` — a Section pads its own content but leaves between-section spacing to the

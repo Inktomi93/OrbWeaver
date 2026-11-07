@@ -7,6 +7,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
+import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const STAND_IN_HOST_PX = 300;
@@ -21,7 +22,7 @@ export function OwnerAxesStory(): ReactElement {
       <Text data-probe="text-cap-prose" cap="prose">
         {LONG_LINE}
       </Text>
-      <Text data-probe="ref-prose" style={{ maxInlineSize: "var(--reading-measure-prose)" }}>
+      <Text data-probe="ref-prose" style={{ maxInlineSize: `var(${TOKENS["reading.measure-prose"].cssVar})` }}>
         {LONG_LINE}
       </Text>
       <div style={{ inlineSize: STAND_IN_HOST_PX }}>

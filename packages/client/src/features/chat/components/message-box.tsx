@@ -20,7 +20,6 @@ function cornersFor(set: RowSkin["corners"], role: MessageRole): "card" | "speec
   return set;
 }
 
-const PAGE_LAST_ROW_FLOOR = "min-block-(--immersive-document-last-row-min-height)";
 const ECHO_CARD_FLOOR = "min-block-(--immersive-echo-min-height)";
 
 export function MessageBox(props: MessageBoxProps): ReactElement {
@@ -97,7 +96,8 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
       paddingInlineEndNarrow={boxInset?.paddingInlineEndNarrow}
       width="full"
       readingFlow={readingFlowOf(weld, overlayPage)}
-      className={cn(floor ? PAGE_LAST_ROW_FLOOR : undefined, positioned && "relative")}
+      minHeight={floor ? "pageLastRow" : undefined}
+      className={positioned ? "relative" : undefined}
     >
       {children}
     </Stack>

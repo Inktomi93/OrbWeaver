@@ -242,7 +242,8 @@ function TagFilterChipButton({
             edit();
           }}
           aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-          className="max-inline-full min-inline-0"
+          cap="fit"
+          className="min-inline-0"
           data-tag-filter-state={state}
           variant="outline"
           onClick={(): void => onCycle(tag.id)}

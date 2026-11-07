@@ -238,7 +238,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
   // The popup's text-scaled width floor must not widen the inline phone sheet past its containing drawer.
   const inbox = (
-    <Stack gap="block" className={isSheet ? "min-inline-0" : "min-inline-(--width-popup-floor)"}>
+    <Stack gap="block" minWidth={isSheet ? undefined : "popupFloor"} className={isSheet ? "min-inline-0" : undefined}>
       {items.length === 0 ? (
         <NoInboxRows loading={loading} readFailed={readFailed} onRetry={retry} onDone={isSheet ? (): void => closeModal() : (): void => setOpen(false)} />
       ) : (
