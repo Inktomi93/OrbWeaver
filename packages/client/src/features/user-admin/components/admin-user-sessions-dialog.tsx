@@ -10,8 +10,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog, DismissDialog } from "#components";
+import { DestructiveAction, DismissDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -25,7 +24,6 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   const sessions = useQuery(trpc.admin.listSessions.queryOptions({ userId: props.userId }));
   const revokeOne = useRevokeSession({ trpc, invalidation });
   const revokeAll = useRevokeUserSessions({ trpc, invalidation });
-  const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
 
   const rows = sessions.data ?? [];
   const activeCount = rows.filter((s) => s.revokedAt === null).length;
@@ -45,9 +43,20 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         <Text voice="label" ink="muted">
           {activeCount} active{rows.length > activeCount ? ` / ${rows.length} total` : ""}
         </Text>
-        <Button tone="destructive" size="sm" disabled={activeCount === 0 || mutating} onClick={(): void => setConfirmRevokeAll(true)}>
-          Revoke all
-        </Button>
+        <DestructiveAction
+          confirm={{
+            confirmLabel: "Revoke all",
+            description: `Every live session for ${props.handle} is revoked — their next request from any device is signed out.`,
+            title: "Revoke all sessions?",
+          }}
+          forceRender={true}
+          onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
+          trigger={
+            <Button tone="destructive" size="sm" disabled={activeCount === 0 || mutating}>
+              Revoke all
+            </Button>
+          }
+        />
       </Row>
 
       <QueryInlineStates
@@ -87,16 +96,6 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
           );
         })}
       </Stack>
-
-      <ConfirmDialog
-        confirmLabel="Revoke all"
-        description={`Every live session for ${props.handle} is revoked — their next request from any device is signed out.`}
-        forceRender={true}
-        onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
-        onOpenChange={setConfirmRevokeAll}
-        open={confirmRevokeAll}
-        title="Revoke all sessions?"
-      />
     </DismissDialog>
   );
 }

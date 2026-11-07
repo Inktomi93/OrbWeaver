@@ -26,7 +26,7 @@ import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, Tip } from "#components";
+import { DestructiveAction, Tip } from "#components";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
 import { ItemLockPin, ItemName, ItemProseLine, ItemQuantity } from "./rpg-pack-fields.tsx";
@@ -211,10 +211,12 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
       <ItemProseLine item={item} value={item.location} field="location" placeholder="where it's kept…" edit={edit} />
       <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" edit={edit} />
       <Row gap="field" justify="end">
-        <ConfirmDialog
-          title={`Drop "${item.name}"?`}
-          description="The item leaves the pack for good. The chronicle keeps whatever already happened in the story."
-          confirmLabel="Drop"
+        <DestructiveAction
+          confirm={{
+            title: `Drop "${item.name}"?`,
+            description: "The item leaves the pack for good. The chronicle keeps whatever already happened in the story.",
+            confirmLabel: "Drop",
+          }}
           onConfirm={(): void => edit.onRemoveItem(item.id)}
           trigger={
             <Button aria-label={`Drop item: ${item.name}`} variant="ghost" size="sm">
@@ -248,10 +250,12 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
           <ItemProseLine item={item} value={item.description} field="description" placeholder="what it is…" {...(edit === undefined ? {} : { edit })} />
         </Stack>
         {edit === undefined ? null : (
-          <ConfirmDialog
-            title={`Drop "${item.name}"?`}
-            description="The item leaves the pack for good. The chronicle keeps whatever already happened in the story."
-            confirmLabel="Drop"
+          <DestructiveAction
+            confirm={{
+              title: `Drop "${item.name}"?`,
+              description: "The item leaves the pack for good. The chronicle keeps whatever already happened in the story.",
+              confirmLabel: "Drop",
+            }}
             onConfirm={(): void => edit.onRemoveItem(item.id)}
             trigger={
               <GlyphButton aria-label={`Drop item: ${item.name}`} variant="ghost" glyph="sm">

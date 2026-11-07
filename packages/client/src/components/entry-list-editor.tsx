@@ -94,6 +94,14 @@ export function EntryListEditor<TItem>({
                 <Row align="center" gap="field">
                   {/* NAMED BY THE ROW IT KILLS: six rows each offering an unqualified "Remove" gave a
                       screen-reader user six identical buttons for six different scripts. */}
+                  <Button
+                    aria-label={removeActionName(getTitle(item, index))}
+                    onClick={(): void => setRemoval({ items, index, invalidated: false })}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Remove
+                  </Button>
                   <ConfirmDialog
                     open={removal.items === items && removal.index === index}
                     onOpenChange={(open): void => setRemoval({ items, index: open ? index : null, invalidated: false })}
@@ -103,11 +111,6 @@ export function EntryListEditor<TItem>({
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}
                     title={`Remove “${getTitle(item, index)}”?`}
-                    trigger={
-                      <Button aria-label={removeActionName(getTitle(item, index))} variant="ghost" size="sm">
-                        Remove
-                      </Button>
-                    }
                   />
                 </Row>
               }

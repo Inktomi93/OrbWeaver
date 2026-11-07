@@ -75,11 +75,14 @@ test.for([
 });
 
 test.for([
-  ["a ConfirmDialog trigger", '<ConfirmDialog title="t" trigger={<Button>Delete</Button>} />'],
+  ["a controlled ConfirmDialog", '<><Button>Delete</Button><ConfirmDialog title="t" open={open} onOpenChange={setOpen} /></>'],
+  ["a DestructiveAction trigger", "<DestructiveAction confirm={copy} trigger={<Button>Delete</Button>} />"],
   ["an Undo action", "<><Button>Remove</Button>{notify({ action: { label: 'Undo' } })}</>"],
   ["an inline Keep step", "<Row><Button>Keep</Button><Button>Dismiss</Button></Row>"],
   ["an inline Cancel step", "<Row><Button>Cancel</Button><Button>Delete</Button></Row>"],
   ["an inline Cancel step by shared verb", "<Row><Button>{DIALOG_VERBS.cancel}</Button><Button>Delete</Button></Row>"],
+  ["an inline Cancel step in a dialog close", "<Row><DialogClose render={<Button>Cancel</Button>} /><Button>Delete</Button></Row>"],
+  ["an inline verb step in a dialog close", "<Row><AlertDialogClose render={<Button>{DIALOG_VERBS.cancel}</Button>} /><Button>Delete</Button></Row>"],
   ["an editing dialog", "<><FormDialog title='t' dismissLabel='Close' /><Button>Remove</Button></>"],
   ["a search clear", "<Button>Clear search</Button>"],
   ["a non-destructive verb", "<Button>Save</Button>"],

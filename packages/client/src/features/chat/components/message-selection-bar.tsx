@@ -20,8 +20,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { DestructiveAction } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { exitSelectionMode, readSelectedMessageIds, useSelectedCount, useSelectionActive } from "#state";
 import { useDeleteMessages } from "../hooks/use-message-mutations.ts";
@@ -37,7 +36,6 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const remove = useDeleteMessages({ trpc, invalidation });
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!active) {
     return null;
@@ -53,16 +51,18 @@ export function MessageSelectionBar({ chatId }: MessageSelectionBarProps): React
 
   return (
     <SelectionBar count={count} onClear={exitSelectionMode}>
-      <Button tone="destructive" size="sm" disabled={count === 0} loading={remove.isPending} onClick={(): void => setDeleteOpen(true)}>
-        Delete
-      </Button>
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={`Delete ${count} selected message(s)?`}
-        description="This permanently removes them for everyone. This can't be undone."
-        confirmLabel="Delete"
+      <DestructiveAction
+        confirm={{
+          confirmLabel: "Delete",
+          description: "This permanently removes them for everyone. This can't be undone.",
+          title: `Delete ${count} selected message(s)?`,
+        }}
         onConfirm={confirmDelete}
+        trigger={
+          <Button tone="destructive" size="sm" disabled={count === 0} loading={remove.isPending}>
+            Delete
+          </Button>
+        }
       />
     </SelectionBar>
   );

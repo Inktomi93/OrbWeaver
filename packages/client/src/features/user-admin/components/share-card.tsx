@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { StatusVocabulary } from "#components";
-import { ConfirmDialog, QueryBoundary, StatusChip, useFirstBootBox } from "#components";
+import { ConfirmDialog, DestructiveAction, QueryBoundary, StatusChip, useFirstBootBox } from "#components";
 import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -382,10 +382,12 @@ function SignEveryoneOut(): ReactElement {
   const nobody = members.length === 0;
   return (
     <>
-      <ConfirmDialog
-        title="Sign everyone out?"
-        description={`Every session of the ${String(members.length)} other ${members.length === 1 ? "account" : "accounts"} ends on every device, and their open tabs disconnect. They can sign in again. Your own session stays.`}
-        confirmLabel="Sign everyone out"
+      <DestructiveAction
+        confirm={{
+          title: "Sign everyone out?",
+          description: `Every session of the ${String(members.length)} other ${members.length === 1 ? "account" : "accounts"} ends on every device, and their open tabs disconnect. They can sign in again. Your own session stays.`,
+          confirmLabel: "Sign everyone out",
+        }}
         onConfirm={(): Promise<void> => Promise.all(members.map((member) => revoke.mutateAsync({ userId: member.id }))).then(() => undefined)}
         trigger={
           <Button type="button" variant="outline" size="sm" disabled={nobody} focusableWhenDisabled={true} aria-describedby={nobody ? describedId : undefined}>

@@ -27,7 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, QueryBoundary, useFirstBootBox } from "#components";
+import { DestructiveAction, QueryBoundary, useFirstBootBox } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
@@ -181,11 +181,9 @@ function ScheduleRow({
           {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
               of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
               user N identical buttons and no way to tell which row they are about to destroy. */}
-          <ConfirmDialog
-            confirmLabel="Delete schedule"
-            description="The schedule is removed and stops running."
+          <DestructiveAction
+            confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete the ${kindLabel} schedule?` }}
             onConfirm={onDelete}
-            title={`Delete the ${kindLabel} schedule?`}
             trigger={
               <Button variant="ghost" size="sm" aria-label={`Delete ${kindLabel} schedule`}>
                 Delete

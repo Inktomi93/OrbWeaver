@@ -146,7 +146,7 @@ function dialogMember(facts: FileFacts, dialog: Elem): Member {
 
 const DESTRUCTIVE_WORD = /^(?:Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b/iu;
 const NOT_A_VERB_ON_DATA = /\b(?:search|filters?)\b/iu;
-const CONFIRMS = new Set(["ConfirmDialog", "AlertDialog"]);
+const CONFIRMS = new Set(["ConfirmDialog", "DestructiveAction", "AlertDialog"]);
 const ACTION_TAGS = new Set(["Button", "GlyphButton", "InlineAction", "MenuItem"]);
 // The same evidence `orb/destructive-needs-confirm` reads: an Undo, a Keep or Cancel step beside the control, a Cancel-able dialog,
 // and the files the owner exempted (`DESTRUCTIVE_EXEMPT`).
@@ -171,6 +171,7 @@ function destructiveMembers(facts: FileFacts): readonly Member[] {
       hasAny(
         facts,
         "ConfirmDialog",
+        "DestructiveAction",
         "AlertDialog",
         "RowActionsMenu",
         "ModelRunConfirmDialog",
@@ -216,7 +217,10 @@ function contextTab(facts: FileFacts): Member {
   return member(facts, "file", {
     tabs: cell(tabs.length === 0 ? "none" : tabs.join("+"), firstLine(facts, ...tabs)),
     inlineMutations: cell(mutations.length === 0 ? "none" : "defined in the component file", 1),
-    confirm: cell(hasAny(facts, "ConfirmDialog", "AlertDialog") ? "ConfirmDialog" : "none", firstLine(facts, "ConfirmDialog")),
+    confirm: cell(
+      hasAny(facts, "ConfirmDialog", "DestructiveAction", "AlertDialog") ? "ConfirmDialog" : "none",
+      firstLine(facts, "ConfirmDialog", "DestructiveAction"),
+    ),
     ...focusAndEmpty(facts),
   });
 }

@@ -25,7 +25,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
@@ -98,11 +98,9 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         </Stack>
         <Row className="shrink-0" endBelow="cq-32" gap="field">
           {row.overridden ? (
-            <ConfirmDialog
-              confirmLabel="Reset"
-              description="Your override is removed."
+            <DestructiveAction
+              confirm={{ confirmLabel: "Reset", description: "Your override is removed.", title: `Reset ${row.name}?` }}
               onConfirm={(): void => onReset(row)}
-              title={`Reset ${row.name}?`}
               trigger={
                 <Button aria-label={`Reset ${row.name}`} disabled={busy} variant="ghost" size="sm">
                   Reset

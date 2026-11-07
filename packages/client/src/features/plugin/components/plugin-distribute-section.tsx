@@ -27,7 +27,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { DestructiveAction, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -199,15 +199,17 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
                 title={row.name}
                 subtitle={`${row.slug} · ${row.version}`}
                 actions={
-                  <ConfirmDialog
-                    confirmLabel="Stop giving it out"
-                    description={`This removes ${row.name} ${row.version} from every account that still has the distributed version and stops adding it to new accounts. Copies people updated themselves stay installed.`}
+                  <DestructiveAction
+                    confirm={{
+                      confirmLabel: "Stop giving it out",
+                      description: `This removes ${row.name} ${row.version} from every account that still has the distributed version and stops adding it to new accounts. Copies people updated themselves stay installed.`,
+                      title: `Stop giving out "${row.name}" to every account?`,
+                    }}
                     onConfirm={(): Promise<void> =>
                       withdraw.mutateAsync({ slug: row.slug }).then((result): void => {
                         notify.success(withdrawSentence(result, row.name));
                       })
                     }
-                    title={`Stop giving out "${row.name}" to every account?`}
                     trigger={
                       <Button variant="outline" size="sm">
                         Stop giving it out

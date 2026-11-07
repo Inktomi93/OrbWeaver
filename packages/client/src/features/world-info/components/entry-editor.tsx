@@ -32,7 +32,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, EditorPage } from "#components";
+import { DestructiveAction, EditorPage } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
@@ -262,10 +262,9 @@ function InertActivationList({ metadata }: { readonly metadata: EntryView["metad
  *  surface. `() => void` accepted an async handler anyway, so the type contradicted the behaviour. */
 function DeleteEntryAction({ title, onDelete }: { readonly title: string; readonly onDelete: () => void | Promise<void> }): ReactElement {
   return (
-    <ConfirmDialog
-      confirmLabel="Delete"
+    <DestructiveAction
+      confirm={{ confirmLabel: "Delete", title: `Delete "${title}"?` }}
       onConfirm={onDelete}
-      title={`Delete "${title}"?`}
       trigger={
         <Button variant="ghost" size="sm" aria-label={`Delete ${title}`}>
           <Icon icon={Trash} size="sm" />

@@ -60,8 +60,6 @@ interface ConfirmDialogBaseProps {
    * reason and its own button as the retry. `mutateAsync`, not `mutate`, is what produces that promise.
    */
   readonly onConfirm: () => void | Promise<void>;
-  /** Uncontrolled: the caller's own trigger element (ConfirmDialog owns the open state). Omit to run controlled (below). */
-  readonly trigger?: ReactElement;
   /** Disables the confirm button (e.g. a pending mutation). */
   readonly confirmDisabled?: boolean;
   /** Shows the confirm button's busy state (e.g. `mutation.isPending`). */
@@ -72,9 +70,28 @@ interface ConfirmDialogBaseProps {
   readonly finalFocus?: ConfirmFinalFocus;
 }
 
-/** Controlled callers own both state and changes; uncontrolled callers supply neither. */
-export type ConfirmDialogProps = ConfirmDialogBaseProps &
-  ({ readonly open: boolean; readonly onOpenChange: (open: boolean) => void } | { readonly open?: never; readonly onOpenChange?: never });
+/** A confirm another surface opens: a menu item, an icon action, a row. The caller owns the state and its changes. */
+export interface ConfirmDialogProps extends ConfirmDialogBaseProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+/** What the confirm says: the question, the verb that answers it, and whatever else the decision needs. */
+interface DestructiveConfirmCopy extends Pick<ConfirmDialogBaseProps, "description" | "body" | "cancelLabel" | "confirmTone"> {
+  readonly title: ReactNode;
+  readonly confirmLabel: string;
+}
+
+export interface DestructiveActionProps
+  extends Pick<ConfirmDialogBaseProps, "onConfirm" | "confirmDisabled" | "confirmLoading" | "forceRender" | "finalFocus"> {
+  /** The control that opens the confirm. */
+  readonly trigger: ReactElement;
+  readonly confirm: DestructiveConfirmCopy;
+}
+
+// The two public entries meet here: a trigger means the surface holds the open state, `open` means the caller does.
+type ConfirmSurfaceProps = ConfirmDialogBaseProps &
+  ({ readonly trigger: ReactElement; readonly open?: never; readonly onOpenChange?: never } | (ConfirmDialogProps & { readonly trigger?: never }));
 
 /**
  * Does this `onConfirm` return value name work that is still in flight?
@@ -93,17 +110,8 @@ function isSettle(value: void | Promise<void>): value is Promise<void> {
   return typeof (value as { then?: unknown } | undefined)?.then === "function";
 }
 
-/**
- * The one confirm/destructive dialog — bundles Root/Trigger-or-controlled/Popup/Title/Description/
- * Actions so the anatomy can't drift (message-actions-row.tsx already dropped the Stack/Description
- * siblings once — the rollup audit's drift evidence). Run uncontrolled via `trigger` (renders the given
- * element as the trigger) or controlled via `open`/`onOpenChange` (caller owns a separate trigger, e.g. a
- * menu item or icon action).
- *
- * Usage (uncontrolled): `<ConfirmDialog title="Delete this persona?" description={...} trigger={<Button variant="ghost">Delete</Button>} onConfirm={onDelete} />`
- * Usage (controlled): `<ConfirmDialog title="Delete this chat?" description={...} open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={confirmDelete} />`
- */
-export function ConfirmDialog({
+// The one confirm anatomy, so the two public entries below cannot drift.
+function ConfirmSurface({
   title,
   description,
   body,
@@ -118,7 +126,7 @@ export function ConfirmDialog({
   confirmLoading = false,
   forceRender,
   finalFocus,
-}: ConfirmDialogProps): ReactElement {
+}: ConfirmSurfaceProps): ReactElement {
   // The dialog owns its open state in BOTH entry shapes, because a close that must wait for an outcome
   // cannot be Base UI's to make (#1563). Controlled callers are unaffected: `open` still wins, and every
   // transition — theirs, the trigger's, Cancel's, ours — goes out through their `onOpenChange`.
@@ -187,4 +195,14 @@ export function ConfirmDialog({
       </AlertDialogPopup>
     </AlertDialog>
   );
+}
+
+/** The confirm for a state another surface opens. A control a person presses directly is a {@link DestructiveAction}. */
+export function ConfirmDialog(props: ConfirmDialogProps): ReactElement {
+  return <ConfirmSurface {...props} />;
+}
+
+/** A control and its confirm as one element, so a destructive control with nothing to say to the reader fails to compile. */
+export function DestructiveAction({ trigger, confirm, ...action }: DestructiveActionProps): ReactElement {
+  return <ConfirmSurface {...confirm} {...action} trigger={trigger} />;
 }

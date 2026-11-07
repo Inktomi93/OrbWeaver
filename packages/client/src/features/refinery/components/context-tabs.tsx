@@ -22,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ContextTabBody, QueryBoundary } from "#components";
+import { ContextTabBody, DestructiveAction, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
@@ -352,12 +352,14 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {refineryCompareToggleName(compareId === snapshot.id)}
                 </Button>
-                <ConfirmDialog
-                  confirmLabel={DIALOG_VERBS.restore}
-                  confirmTone="primary"
-                  description="This replaces the live card with this version. The current card is snapshotted first, so you can undo it."
+                <DestructiveAction
+                  confirm={{
+                    confirmLabel: DIALOG_VERBS.restore,
+                    confirmTone: "primary",
+                    description: "This replaces the live card with this version. The current card is snapshotted first, so you can undo it.",
+                    title: "Restore this snapshot?",
+                  }}
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
-                  title="Restore this snapshot?"
                   trigger={
                     <Button variant="ghost" size="sm">
                       {DIALOG_VERBS.restore}

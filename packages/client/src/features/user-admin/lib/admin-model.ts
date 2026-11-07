@@ -34,18 +34,11 @@ export const ROLE_ITEMS: SelectItems = [
   { value: "admin", label: "Admin" },
 ];
 
-/** Role → chip label (the per-row role badge copy). */
-export const ROLE_LABELS: Record<UserRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  user: "User",
-};
-
 /** The per-row role chip. */
 export const ROLE_STATUS: StatusVocabulary<UserRole> = {
-  owner: { label: ROLE_LABELS.owner, tone: "primary" },
-  admin: { label: ROLE_LABELS.admin, tone: "info" },
-  user: { label: ROLE_LABELS.user, tone: "neutral" },
+  owner: { label: "Owner", tone: "primary" },
+  admin: { label: "Admin", tone: "info" },
+  user: { label: "User", tone: "neutral" },
 };
 
 // The Admin pane's ACCESSIBLE-NAME builders. Every per-row control here repeats the row's handle (or the

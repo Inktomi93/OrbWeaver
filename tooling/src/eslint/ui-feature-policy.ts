@@ -42,11 +42,14 @@ const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Cl
 const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
 // Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
 const CONFIRM_IN_FILE =
-  "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|FormDialogPopup|DismissDialog|ContentDialog|FlowDialog)$/]";
+  "JSXOpeningElement[name.name=/^(ConfirmDialog|DestructiveAction|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|FormDialogPopup|DismissDialog|ContentDialog|FlowDialog)$/]";
 const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
 // An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
-// The Cancel word is either literal text or the shared `DIALOG_VERBS.cancel`.
-const KEEP_BESIDE = String.raw`:matches(JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/]), JSXElement:has(> JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']))`;
+// The Cancel word is literal text or the shared `DIALOG_VERBS.cancel`, on the button or inside a dialog close's `render`.
+const CANCEL_WORD = String.raw`JSXText[value=/^\s*(Cancel|Keep)\s*$/]`;
+const CANCEL_VERB = "JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']";
+const DIALOG_CLOSE = "JSXElement[openingElement.name.name=/^(Alert)?DialogClose$/]";
+const KEEP_BESIDE = `:matches(JSXElement:has(> ${CANCEL_WORD}), JSXElement:has(> ${CANCEL_VERB}), ${DIALOG_CLOSE}:has(${CANCEL_WORD}), ${DIALOG_CLOSE}:has(${CANCEL_VERB}))`;
 const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
 const DESTRUCTIVE_MESSAGE =
   "A control that destroys data needs a ConfirmDialog or an undo (docs/law/client-architecture-state-and-gates.md §14). Wrap it in a ConfirmDialog trigger, or offer Undo.";
@@ -62,11 +65,7 @@ export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reas
   { path: "packages/client/src/features/chat/components/injections-manager.tsx", reason: "injection rows are re-added in one step" },
   { path: "packages/client/src/features/chat/components/room-overrides-form.tsx", reason: "clears a field of the override form being edited" },
   { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin is one click to undo: re-pin" },
-  { path: "packages/client/src/features/persona/components/persona-editor.tsx", reason: "asks the caller to delete; the caller owns the confirm" },
-  { path: "packages/client/src/features/character/components/greeting-studio.tsx", reason: "discards a generated preview that was never saved" },
-  { path: "packages/client/src/features/refinery/components/accept-review.tsx", reason: "discards a rewrite that was never applied" },
   { path: "packages/client/src/features/refinery/components/apply-outcome.tsx", reason: "discards a refused rewrite that was never applied" },
-  { path: "packages/client/src/features/preset/components/staleness-row.tsx", reason: "Clear removes stored values the model ignores, so they are inert" },
   {
     path: "packages/client/src/features/config/components/config-teacher.tsx",
     reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast",

@@ -11,8 +11,8 @@ type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 const POPUP_LOOK = ["size", "anchor", "keepMounted", "forceRender", "focusTarget", "spaced", "clearsClose", "stickyHeader"] as const;
 type PopupLook = (typeof POPUP_LOOK)[number];
 
-/** The way out, drawn by the composite so a caller's header or footer cannot lose it; touch has no Escape. */
-export type ContentDismiss =
+// The way out, drawn by the composite so a caller's header or footer cannot lose it; touch has no Escape.
+type ContentDismiss =
   | {
       readonly at: "header";
       /** The close glyph the shell's own modals wear, not the verb. @defaultValue false */
