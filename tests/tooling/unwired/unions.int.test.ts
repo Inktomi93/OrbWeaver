@@ -178,3 +178,105 @@ test("the unions scan reads a slot's tuple from its declaration, so derived slot
   ]);
   expect(report.disagreements).toEqual([]);
 });
+
+// Slots whose type is not an annotation on the tuple, copied from the real tree. A construction through one of them
+// builds the member, so the scan must not call it unbuilt: a schema-inferred property (`z.infer` of a `z.object`
+// written from `z.enum(TUPLE)`), and a generated table whose `satisfies` type is generic over the tuples.
+const SCHEMA_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  // A library, outside the production sources, as zod is in the real tree.
+  "packages/a/lib/zod.ts": [
+    "export interface ZodType<T> { readonly output?: T; optional(): ZodType<T | undefined>; nullable(): ZodType<T | null> }",
+    "const schema = <T>(): ZodType<T> => ({ optional: () => schema<T | undefined>(), nullable: () => schema<T | null>() });",
+    "type Out<S> = { [K in keyof S]: S[K] extends ZodType<infer V> ? V : never };",
+    "export const z = {",
+    "  enum: <const T extends readonly [string, ...string[]]>(_values: T): ZodType<T[number]> => schema<T[number]>(),",
+    "  array: <T>(_item: ZodType<T>): ZodType<T[]> => schema<T[]>(),",
+    "  object: <S extends Record<string, ZodType<unknown>>>(_shape: S): ZodType<Out<S>> => schema<Out<S>>(),",
+    "};",
+    "export declare namespace z {",
+    "  type infer<T> = T extends ZodType<infer V> ? V : never;",
+    "}",
+  ].join("\n"),
+  "packages/a/src/capability.ts": [
+    'import { z } from "../lib/zod.ts";',
+    'export const OFF_MODES = ["disabled", "between-tools"] as const;',
+    'export const STAGES = ["penalties", "dry", "xtc"] as const;',
+    "const offModeSchema = z.enum(OFF_MODES);",
+    "const stageSchema = z.enum(STAGES);",
+    "export const entrySchema = z.object({ offMode: offModeSchema.optional(), order: z.array(stageSchema).optional() });",
+    "export type Entry = z.infer<typeof entrySchema>;",
+  ].join("\n"),
+  "packages/a/src/curated.ts": [
+    'import type { Entry } from "./capability.ts";',
+    'export const ENTRY: Entry = { offMode: "between-tools", order: ["penalties", "dry"] };',
+  ].join("\n"),
+  // An interface slot typed through an indexed access on an inferred schema type, and a return type spelled the same way.
+  "packages/a/src/probes.ts": [
+    'import { z } from "../lib/zod.ts";',
+    'const SERVERS = ["alpha", "beta"] as const;',
+    'const PROVENANCES = ["fresh", "request"] as const;',
+    "const detectedSchema = z.object({ server: z.enum(SERVERS).nullable() });",
+    "export type Detected = z.infer<typeof detectedSchema>;",
+    'export interface Probe { readonly server: NonNullable<Detected["server"]> }',
+    'export const PROBES = [{ server: "alpha" }] as const satisfies readonly Probe[];',
+    "const policySchema = z.object({ provenance: z.enum(PROVENANCES) });",
+    "export type Policy = z.infer<typeof policySchema>;",
+    'export const provenanceOf = (): Policy["provenance"] => "fresh";',
+    // An unannotated constant carries its text to the slot it is read into; one that is only compared, or read into an
+    // unrelated slot, builds nothing.
+    'const MODES = ["quick", "deep"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "const takeMode = (mode: Mode): Mode => mode;",
+    'const SWEEP = "quick";',
+    "export const swept = takeMode(SWEEP);",
+    'const LABEL = "deep";',
+    "export const label: string = LABEL;",
+    'const GHOST = "tooled";',
+    "export const isGhost = (cause: string): boolean => cause === GHOST;",
+    // The slot is a member read off an interface, and off one arm of a union of interfaces.
+    'const CAUSES = ["denied", "unsupported", "tooled"] as const;',
+    "type Cause = (typeof CAUSES)[number];",
+    'interface Deny { readonly kind: "deny"; readonly cause: Cause }',
+    'interface Other { readonly kind: "other"; readonly note: string }',
+    "type Outcome = Deny | Other;",
+    'export const deny = (cause: Deny["cause"]): Deny => ({ kind: "deny", cause });',
+    'export const refused = deny("denied");',
+    'export const causeOf = (): Extract<Outcome, { kind: "deny" }>["cause"] => "unsupported";',
+  ].join("\n"),
+  "packages/a/src/tones.ts": [
+    'export const ROLES = ["solid", "solid-hover", "tint"] as const;',
+    "export type Role = (typeof ROLES)[number];",
+    'export const HOSTS = ["background", "card"] as const;',
+    "export type Host = (typeof HOSTS)[number];",
+    "interface Floor<R extends string, H extends string> { readonly role?: R; readonly host?: H }",
+    "type Recipes<R extends string, H extends string> = Readonly<Record<R, { readonly floor: readonly Floor<R, H>[] }>>;",
+    "export const RECIPES = {",
+    '  "solid": { floor: [] },',
+    '  "solid-hover": { floor: [{ role: "solid" }] },',
+    '  "tint": { floor: [{ host: "card" }] },',
+    "} as const satisfies Recipes<Role, Host>;",
+  ].join("\n"),
+};
+
+test("the unions scan reads a schema-inferred slot and a generic generated table through to the tuples they are written from", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(SCHEMA_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  // between-tools, penalties and dry are built through the schema; ROLES.solid and HOSTS.card through the table; alpha
+  // and fresh through an indexed access on an inferred type; denied and unsupported through one on an interface.
+  expect(found).toEqual([
+    "CAUSES.tooled",
+    "HOSTS.background",
+    "MODES.deep",
+    "OFF_MODES.disabled",
+    "PROVENANCES.request",
+    "ROLES.solid-hover",
+    "ROLES.tint",
+    "SERVERS.beta",
+    "STAGES.xtc",
+  ]);
+  expect(report.disagreements).toEqual([]);
+});

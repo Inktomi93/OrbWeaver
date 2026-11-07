@@ -31,7 +31,7 @@ import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins } from "./union-origins.ts";
-import { settled, slotOrigins } from "./union-origins.ts";
+import { isNamedConstant, settled, slotOrigins } from "./union-origins.ts";
 import { isProduction } from "./worlds.ts";
 
 const UNION_KINDS = ["unbuilt", "parsed"] as const;
@@ -236,7 +236,12 @@ function literalSites(world: NativeWorld, sources: Sources, local: readonly Tupl
     ...keys.map(({ node, literal }) => isRecordKey(world, literal, node.text)),
   ]);
   const found: Omit<LiteralSite, "origins">[] = [
-    ...values.map(({ node, site, role }, index) => ({ site, text: node.text, role, holds: holds[index] === true })),
+    ...values.map(({ node, site, role }, index) => ({
+      site,
+      text: node.text,
+      role,
+      holds: holds[index] === true || (role === "construct" && isNamedConstant(sources, site)),
+    })),
     ...keys.map(({ node, site }, index) => ({ site, text: node.text, role: "record-key" as const, holds: holds[values.length + index] === true })),
   ];
   // Only a slot that holds the text can build or name a member, so only those are asked which tuples they derive from.
@@ -278,7 +283,7 @@ function builtByService(world: ServiceWorld, sources: Sources, texts: ReadonlySe
     if (ts.isStringLiteral(node) && texts.has(node.text)) {
       const site = world.siteOf(node);
       const constructs = !own.has(siteKey(site)) && literalRoleAt(sources.get(site.file), site.position) === "construct";
-      if (constructs && serviceHolds(world, node)) {
+      if (constructs && (serviceHolds(world, node) || isNamedConstant(sources, site))) {
         built.push({ text: node.text, origins: settled(slotOrigins(oracle, sources, site, "construct")) });
       }
     }
