@@ -2,26 +2,64 @@
 // shrinks it) cut down by every clipping ancestor. Measured, not rendered state, so it runs off a ref.
 import { subscribeKeyboardInset } from "#lib";
 
-/** The list's own attribute for "seated above the field"; `variants.ts` keys the flipped arm off it. */
+/** The list's own attributes for "seated above the field" and "seated inside the band"; `variants.ts` keys its arms off them. */
 export const LIST_ABOVE_ATTRIBUTE = "data-above";
+export const LIST_INSIDE_ATTRIBUTE = "data-inside";
 
 interface Band {
   readonly top: number;
   readonly bottom: number;
 }
 
-export interface ListPlacement {
-  readonly above: boolean;
-  /** The block size the chosen side can hold, so the list scrolls inside it. */
-  readonly room: number;
+/** What the list asks of the room around the field. */
+interface ListSize {
+  /** The block size the list wants unclamped. */
+  readonly wanted: number;
+  /** The margin it keeps from the field. */
+  readonly gap: number;
+  /** The least it needs to be usable: its chrome plus the first row. */
+  readonly row: number;
 }
 
-/** Below the field unless that is short and the side above holds more. */
-export function placeList(field: Band, bounds: Band, wanted: number, gap: number): ListPlacement {
+export interface ListPlacement {
+  readonly side: "below" | "above" | "inside";
+  /** The block size the chosen side can hold, so the list scrolls inside it. */
+  readonly room: number;
+  /** Inside the band only: the list's top edge, measured from the field's top edge. */
+  readonly offset: number;
+}
+
+/**
+ * Below the field unless that is short and the side above holds more. A field taller than the band leaves neither
+ * side a row, so the list lies over the field at the band's bottom edge, which is where a keyboard stops it.
+ */
+export function placeList(field: Band, bounds: Band, size: ListSize): ListPlacement {
+  const { wanted, gap, row } = size;
   const below = bounds.bottom - field.bottom - gap;
   const above = field.top - bounds.top - gap;
+  if (Math.max(below, above) < row) {
+    const room = Math.max(0, Math.min(wanted, bounds.bottom - bounds.top - 2 * gap));
+    return { side: "inside", room, offset: bounds.bottom - gap - room - field.top };
+  }
   const goesAbove = below < wanted && above > below;
-  return { above: goesAbove, room: Math.max(0, goesAbove ? above : below) };
+  return { side: goesAbove ? "above" : "below", room: goesAbove ? above : below, offset: 0 };
+}
+
+/** The block size the list needs to be usable: its own chrome, a leading group header and the first option. */
+function firstRowExtent(list: HTMLElement): number {
+  const style = getComputedStyle(list);
+  let extent =
+    Number.parseFloat(style.paddingBlockStart) +
+    Number.parseFloat(style.paddingBlockEnd) +
+    Number.parseFloat(style.borderBlockStartWidth) +
+    Number.parseFloat(style.borderBlockEndWidth);
+  for (const child of list.children) {
+    extent += child.getBoundingClientRect().height;
+    if (child.getAttribute("role") === "option") {
+      break;
+    }
+  }
+  return extent;
 }
 
 function clipsBlock(overflowY: string): boolean {
@@ -50,8 +88,14 @@ function seat(list: HTMLElement, field: HTMLElement): void {
   const wanted = list.offsetHeight;
   const fieldBox = field.getBoundingClientRect();
   const gap = Number.parseFloat(getComputedStyle(list).marginBlockStart);
-  const { above, room } = placeList(fieldBox, visibleBounds(field), wanted, gap);
-  list.toggleAttribute(LIST_ABOVE_ATTRIBUTE, above);
+  const { side, room, offset } = placeList(fieldBox, visibleBounds(field), { wanted, gap, row: firstRowExtent(list) });
+  list.toggleAttribute(LIST_ABOVE_ATTRIBUTE, side === "above");
+  list.toggleAttribute(LIST_INSIDE_ATTRIBUTE, side === "inside");
+  if (side === "inside") {
+    list.style.setProperty("inset-block-start", `${offset}px`);
+  } else {
+    list.style.removeProperty("inset-block-start");
+  }
   list.style.setProperty("max-block-size", `min(var(--height-scroll-md), ${room}px)`);
   list.scrollTop = scrolled;
 }

@@ -1,6 +1,6 @@
 import { rpgDiceComposerMediaSurface, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ResolvedContextTabs } from "@orb/client/lib";
-import { selectChat, useContextTab, useSectionRegistry } from "@orb/client/state";
+import { selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { CtClientProviders, CtShellRoom } from "@orb/testkit/browser";
@@ -30,26 +30,6 @@ export function RpgContextTabStory({ chatId, tab }: { readonly chatId: ChatId; r
     <CtClientProviders>
       <Suspense>
         <ChatsContextTab chatId={chatId} tab={tab} />
-      </Suspense>
-    </CtClientProviders>
-  );
-}
-
-function isRpgTabId(candidate: string | null): candidate is RpgTabId {
-  return RPG_TAB_IDS.some((id) => id === candidate);
-}
-
-function FollowedTab({ chatId, from }: { readonly chatId: ChatId; readonly from: RpgTabId }): ReactNode {
-  const requested = useContextTab();
-  return <ChatsContextTab chatId={chatId} tab={isRpgTabId(requested) ? requested : from} />;
-}
-
-/** The room's context tab that follows the shell's requested tab, as the context host does, so a door in one tab lands in the next. */
-export function RpgFollowedTabStory({ chatId, from }: { readonly chatId: ChatId; readonly from: RpgTabId }): ReactElement {
-  return (
-    <CtClientProviders>
-      <Suspense>
-        <FollowedTab chatId={chatId} from={from} />
       </Suspense>
     </CtClientProviders>
   );

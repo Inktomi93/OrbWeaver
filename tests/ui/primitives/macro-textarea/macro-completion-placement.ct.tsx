@@ -10,6 +10,8 @@ const STORY = "tests/ui/primitives/macro-textarea/_macro-completion-placement-st
 // Tall enough that the room under a field at the top is shorter than the list's own height.
 const KEYBOARD_PX = 440;
 const LOW_KEYBOARD_PX = 240;
+// Enough lines to run the field past the viewport, which is what a long description does on a phone.
+const LONG_FIELD_LINES = 40;
 
 test.use({ viewport: { width: 430, height: 740 }, hasTouch: true, isMobile: true });
 
@@ -75,6 +77,16 @@ test("a list already open flips above its field when the keyboard rises over the
   await emulateSoftKeyboard(page, LOW_KEYBOARD_PX);
   await expect.poll(async () => (await boxOf(list)).bottom <= (await boxOf(field)).top).toBe(true);
   await expectOnScreen(list, await visibleBottom(page));
+});
+
+test("a field grown taller than the room a keyboard leaves seats its list inside the visible band", async ({ mount, page }) => {
+  const { field, list } = await openList(await mount<typeof MacroCompletionPlacementStory>(STORY, { sits: "start", lines: LONG_FIELD_LINES }));
+  await emulateSoftKeyboard(page, KEYBOARD_PX);
+  const band = await visibleBottom(page);
+  expect((await boxOf(field)).bottom).toBeGreaterThan(band);
+  await expect.poll(async () => (await boxOf(list)).bottom <= band).toBe(true);
+  await expectOnScreen(list, band);
+  await expect(list.getByRole("option").first()).toBeInViewport({ ratio: 1 });
 });
 
 test("a clamped list scrolls the highlighted option into view", async ({ mount, page }) => {

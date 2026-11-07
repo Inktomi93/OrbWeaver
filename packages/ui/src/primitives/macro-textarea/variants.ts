@@ -3,7 +3,8 @@ import { MIN_HEIGHT, tv } from "#lib";
 // The macro-textarea skin. The textarea rides the shared textarea skin (composed via
 // `#primitives/textarea`, not reimplemented) with a monospace override so `{{macro}}` markers
 // align; the suggestion popover is a plain absolutely-positioned panel anchored to the wrapper (seated below
-// or above it by `macro-textarea-placement.ts`, which sets `data-above`) —
+// or above it by `macro-textarea-placement.ts`, which sets `data-above`, or over a field taller than the visible band,
+// where it sets `data-inside` and the list's top edge) —
 // NOT a Base UI Portal/Positioner overlay, because this is a hand-rolled combobox on the SAME
 // textarea (ui-package-design §12: Base UI Autocomplete is whole-input-only and cannot anchor a
 // mid-text `{{…` trigger; cmdk was rejected for the focus-jump it'd force). `data-highlighted`
@@ -32,6 +33,7 @@ export const macroTextareaVariants = tv({
         absolute inset-s-0 inset-e-0 inset-bs-full z-(--z-overlay) mbs-field overflow-y-auto overscroll-contain rounded-card border border-border bg-popover
         py-field font-sans shadow-overlay max-block-(--height-scroll-md) tone-host-popover
         data-above:inset-bs-auto data-above:inset-be-full data-above:mbs-0 data-above:mbe-field
+        data-inside:mbs-0
       `,
     ],
     groupLabel: "px-block py-field text-label leading-label font-semibold tracking-caps text-muted-foreground uppercase",
