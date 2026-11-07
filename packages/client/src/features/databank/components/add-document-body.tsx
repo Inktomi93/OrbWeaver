@@ -266,7 +266,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       </DialogFooter>
     </Stack>
@@ -311,7 +311,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
       <Field label="Text">
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={!canCreate} loading={create.isPending} onClick={onSubmit} type="button">
           Add
@@ -412,7 +412,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
           ) : null
         }
       </form.Subscribe>
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (

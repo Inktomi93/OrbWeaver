@@ -51,6 +51,25 @@ test("paddingBlockEnd pads the block-end edge alone, at the ramp step", async ({
   expect(await padding("row-pad-end")).toEqual(["0px", tight[1]]);
 });
 
+test("push sends the free space of the line to the side it names", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const edges = (name: string): Promise<{ readonly right: number; readonly bottom: number }> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element) => {
+      const { right, bottom } = element.getBoundingClientRect();
+      return { right, bottom };
+    });
+  expect((await edges("text-push-end")).right).toBe((await edges("push-host")).right);
+  expect((await edges("row-push-foot")).bottom).toBe((await edges("push-column")).bottom);
+});
+
+test("InlineToken leads keeps a field step before the words and a plain token keeps none", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const marginEnd = (name: string): Promise<string> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element) => getComputedStyle(element).marginInlineEnd);
+  expect(await marginEnd("token-plain")).toBe("0px");
+  expect(await marginEnd("token-leads")).not.toBe("0px");
+});
+
 test.describe("cap", () => {
   test("Text stops at the prose measure, in its own font", async ({ mount }) => {
     const component = await mount<typeof OwnerAxesStory>(STORY);

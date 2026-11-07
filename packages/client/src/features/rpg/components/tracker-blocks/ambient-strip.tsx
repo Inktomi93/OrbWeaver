@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, MapPin, X } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -146,25 +146,27 @@ function AmbientVocabPicker({
           like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
-        <Row divider="top" className="mbs-field" floor="line" paddingBlockStart="field">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            width="full"
-            justify="start"
-            aria-label={`Clear ${fieldLabel.toLowerCase()}`}
-            onClick={(): void => {
-              onPick(null);
-              setOpen(false);
-            }}
-          >
-            <Icon icon={X} size="xs" />
-            <Text as="span" ink="muted" voice="label">
-              {`Clear ${fieldLabel.toLowerCase()}`}
-            </Text>
-          </Button>
-        </Row>
+        <Stack floor="line" paddingBlockStart="field">
+          <Row divider="top" paddingBlockStart="field">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              width="full"
+              justify="start"
+              aria-label={`Clear ${fieldLabel.toLowerCase()}`}
+              onClick={(): void => {
+                onPick(null);
+                setOpen(false);
+              }}
+            >
+              <Icon icon={X} size="xs" />
+              <Text as="span" ink="muted" voice="label">
+                {`Clear ${fieldLabel.toLowerCase()}`}
+              </Text>
+            </Button>
+          </Row>
+        </Stack>
       )}
     </Row>
   );

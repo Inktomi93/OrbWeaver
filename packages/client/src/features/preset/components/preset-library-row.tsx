@@ -138,7 +138,7 @@ export function PresetLibraryRow({
         ? {}
         : {
             subtitleLead: (
-              <InlineToken className="me-field" tone="warning">
+              <InlineToken leads={true} tone="warning">
                 <Icon icon={TriangleAlert} size="xs" />
                 {PRESET_UNREADABLE_ROW_MARKER[unreadableConfigCause(preset.configUnreadable)]}
               </InlineToken>

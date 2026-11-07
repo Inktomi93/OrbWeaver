@@ -70,7 +70,6 @@ const ANCHORED_COLUMN = "min-inline-0";
 // A train's column hugs its widest pill, so the speaker row above it and the pager under it share the train's edges;
 // the skin's `columnMeasure` caps it. A mirrored train packs to the trailing edge, beside its own chip.
 const TRAIN_COLUMN = "min-inline-0";
-const MIRRORED_TRAIN_COLUMN = "min-inline-0 ms-auto";
 
 /** The content column for this skin's placement. A MIRRORED row packs its content to the column's trailing edge, so a
  *  phone-capped bubble sits flush against its chip and the cap's gap falls on the far side. */
@@ -107,7 +106,8 @@ export function MessageContentColumn({
       columnMeasure={skin.columnMeasure}
       align={align}
       cap="fit"
-      className={mirrored ? MIRRORED_TRAIN_COLUMN : TRAIN_COLUMN}
+      push={mirrored ? "inlineEnd" : undefined}
+      className={TRAIN_COLUMN}
     />
   );
 }

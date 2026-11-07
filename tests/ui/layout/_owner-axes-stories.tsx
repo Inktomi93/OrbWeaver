@@ -1,6 +1,7 @@
 import { CtIsolation } from "@orb/testkit/browser";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
+import { InlineToken } from "@orb/ui/inline-token";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
@@ -54,6 +55,24 @@ export function OwnerAxesStory(): ReactElement {
       <Row data-probe="row-pad-end" paddingBlockEnd="tight" />
       <Stack data-probe="ref-pad-section" paddingBlock="section" />
       <Row data-probe="ref-pad-tight" paddingBlock="tight" />
+      <Row data-probe="push-host" style={{ inlineSize: WRAP_HOST_PX * 2 }}>
+        <Text as="span">a</Text>
+        <Text as="span" data-probe="text-push-end" push="inlineEnd">
+          b
+        </Text>
+      </Row>
+      <Stack data-probe="push-column" style={{ blockSize: WRAP_HOST_PX * 2 }}>
+        <Text>a</Text>
+        <Row data-probe="row-push-foot" push="blockEnd">
+          b
+        </Row>
+      </Stack>
+      <Text>
+        <InlineToken data-probe="token-leads" leads={true}>
+          a
+        </InlineToken>
+        <InlineToken data-probe="token-plain">b</InlineToken>
+      </Text>
       <Heading data-probe="heading-cap-reading" level={2} cap="reading">
         {LONG_LINE}
       </Heading>

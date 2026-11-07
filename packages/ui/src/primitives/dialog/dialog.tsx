@@ -74,6 +74,8 @@ export function DialogClose(props: BaseCloseProps): ReactElement {
 
 export interface DialogFooterProps extends Omit<ComponentProps<"div">, "className"> {
   className?: string;
+  /** The foot sets at the end of a body taller than its content. */
+  push?: "blockEnd";
 }
 
 /**
@@ -82,8 +84,8 @@ export interface DialogFooterProps extends Omit<ComponentProps<"div">, "classNam
  * dialog's Cancel/Confirm/Done row composes this rather than a Row.
  */
 export function DialogFooter(props: DialogFooterProps): ReactElement {
-  const { className, ...rest } = props;
-  return <div className={slots.footer({ className })} data-slot="dialog-footer" {...rest} />;
+  const { className, push, ...rest } = props;
+  return <div className={dialogVariants({ footerPush: push }).footer({ className })} data-slot="dialog-footer" {...rest} />;
 }
 
 export interface DialogHeaderProps extends ComponentProps<"header"> {

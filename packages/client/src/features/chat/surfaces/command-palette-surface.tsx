@@ -250,7 +250,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
               <Text as="span" className="sr-only">
                 {BADGE_SEPARATOR}
               </Text>
-              <Text as="span" className="ms-auto" voice="gloss">
+              <Text as="span" push="inlineEnd" voice="gloss">
                 {row.badge}
               </Text>
             </>

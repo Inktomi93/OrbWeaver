@@ -15,6 +15,7 @@ import {
   HIDDEN_AT,
   HOVER_REVEAL,
   INKS,
+  PUSH,
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
@@ -97,6 +98,7 @@ export const buttonVariants = tv({
     stretch: { row: "flex-1 justify-start min-inline-0", line: `px-field text-start ${WIDTH.full}` },
     // The button's own inline size, where the parent's width is the whole line.
     width: { full: WIDTH.full },
+    push: PUSH,
     // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
     // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by
     // stylesheet order.

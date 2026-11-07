@@ -11,3 +11,9 @@ export const FLOOR = {
 
 /** Children that run out of room take a second line instead of squeezing: always, or only below a container step. */
 export const WRAP = { true: "flex-wrap", false: "", "cq-20": "@max-cq-20:flex-wrap" } as const;
+
+/**
+ * Where a flex child sends the free space of its line: to its inline start (`inlineEnd`: the child sets at the line's end), its inline end, its block
+ * start, or both block sides. An auto margin is alignment, not a spacing step, so no feature picks a length.
+ */
+export const PUSH = { inlineEnd: "ms-auto", inlineStart: "me-auto", blockEnd: "mbs-auto", blockCentre: "my-auto" } as const;

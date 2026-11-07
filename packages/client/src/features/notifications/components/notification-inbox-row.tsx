@@ -210,7 +210,11 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             (the `IndicatorDot`), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
-        {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
+        {item.actionable ? (
+          <Row paddingBlockStart="field">
+            <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+          </Row>
+        ) : null}
         <Stack gap="tight" className="min-inline-0">
           <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} wrap="anywhere">
             {rowCopy(item.payload, disabledPluginName)}

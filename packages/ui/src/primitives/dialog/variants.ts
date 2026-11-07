@@ -1,4 +1,4 @@
-import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, TITLE_STEP, tv, WRAP } from "#lib";
+import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_STEP, tv, WRAP } from "#lib";
 
 // Wide data pickers use a field inset to retain narrow-screen reading width; lg keeps its usual modal gutter.
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
@@ -40,7 +40,9 @@ export const dialogVariants = tv({
     focusTarget: { true: { title: "outline-none" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
-    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" } },
+    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) mbe-block bg-card" } },
+    // The foot sets at the end of a tall body: only the block-end arm has a caller, so it is the only arm.
+    footerPush: { blockEnd: { footer: PUSH.blockEnd } },
     // A title and actions that run out of room take a second line.
     headerWrap: { true: { header: WRAP.true } },
     size: {

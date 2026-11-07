@@ -247,31 +247,26 @@ export function ContextHeaderTabs({
         <TabsIndicator />
       </TabsList>
       {overflow.start || overflow.end ? (
-        <Menu>
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={`All ${ariaLabel} tabs`}
-                data-slot="context-tab-overflow-trigger"
-                variant="ghost"
-                square={true}
-                type="button"
-                className="me-field shrink-0"
-              >
-                <Icon icon={Ellipsis} size="sm" />
-              </Button>
-            }
-          />
-          <MenuPopup align="end">
-            <MenuRadioGroup value={activeTab ?? ""}>
-              {tabs.map((tab) => (
-                <MenuRadioItem key={tab.id} value={tab.id} closeOnClick={true} onClick={(): void => onSelect(tab.id)}>
-                  {tab.label}
-                </MenuRadioItem>
-              ))}
-            </MenuRadioGroup>
-          </MenuPopup>
-        </Menu>
+        <Row className="shrink-0" paddingInlineEnd="field">
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button aria-label={`All ${ariaLabel} tabs`} data-slot="context-tab-overflow-trigger" variant="ghost" square={true} type="button">
+                  <Icon icon={Ellipsis} size="sm" />
+                </Button>
+              }
+            />
+            <MenuPopup align="end">
+              <MenuRadioGroup value={activeTab ?? ""}>
+                {tabs.map((tab) => (
+                  <MenuRadioItem key={tab.id} value={tab.id} closeOnClick={true} onClick={(): void => onSelect(tab.id)}>
+                    {tab.label}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuPopup>
+          </Menu>
+        </Row>
       ) : null}
       <OverflowMarks overflow={overflow} fill="sidebar" />
     </Row>

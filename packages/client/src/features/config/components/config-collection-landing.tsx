@@ -349,12 +349,13 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
             <Text as="span" voice="kicker">
               {insight.label}
             </Text>
-            <CountText className="shrink-0 whitespace-nowrap">{insight.value}</CountText>
+            <CountText>{insight.value}</CountText>
           </Row>
           {insight.open === undefined ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
-              className="ms-auto wrap-anywhere max-inline-full"
+              className="wrap-anywhere max-inline-full"
+              push="inlineEnd"
               variant="ghost"
               onClick={insight.open.run}
               size="sm"

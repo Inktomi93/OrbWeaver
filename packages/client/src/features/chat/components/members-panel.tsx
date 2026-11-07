@@ -206,7 +206,7 @@ function SectionHeader({
         {kicker}
       </Text>
       {action === undefined ? null : (
-        <Row align="center" className="ms-auto" data-slot="members-section-doors">
+        <Row align="center" push="inlineEnd" data-slot="members-section-doors">
           {action}
         </Row>
       )}

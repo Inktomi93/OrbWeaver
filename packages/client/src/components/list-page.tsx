@@ -77,7 +77,7 @@ export function ListPage({
           </Row>
           {/* The aside wraps as one cluster at the row's end, so the search keeps its floor and a control never strands alone. */}
           {searchAside === undefined ? null : (
-            <Row align="center" className="ms-auto shrink-0" gap="field">
+            <Row align="center" className="shrink-0" push="inlineEnd" gap="field">
               {searchAside}
             </Row>
           )}

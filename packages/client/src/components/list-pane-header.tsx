@@ -107,7 +107,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
             // now that nothing in this cluster uppercases.
             // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
             // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <CountText className="shrink-0">{count}</CountText>
+            <CountText>{count}</CountText>
           )}
         </Heading>
       </Row>

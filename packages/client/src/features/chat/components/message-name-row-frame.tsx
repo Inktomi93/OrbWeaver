@@ -215,9 +215,9 @@ function FrameRow({
       width={chip && !pinned ? "fit" : undefined}
       reverse={flip}
       wrap={true}
+      push={chip && !pinned ? "inlineEnd" : undefined}
       className={cn(
         reachTrain && "self-stretch",
-        chip && !pinned && "ms-auto",
         overlayClass,
         // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.

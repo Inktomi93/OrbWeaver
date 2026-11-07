@@ -67,7 +67,7 @@ export function renderSingleBubble(args: {
       <Stack gap="row" className="self-stretch min-inline-0" grow={true} paddingBlock="row" paddingInline="block">
         {args.header}
         {args.content}
-        {args.footer === null ? null : <Stack className="mbs-auto">{args.footer}</Stack>}
+        {args.footer === null ? null : <Stack push="blockEnd">{args.footer}</Stack>}
       </Stack>
       {args.mirrored ? args.weldedAvatar : null}
     </MessageBox>

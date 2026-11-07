@@ -208,7 +208,7 @@ export function HomeHearthRoom({
               inert. It is a HINT now: the muted credit register, lifting to full ink with the card's own
               hover, and the arrow nudges with it. The arrow itself is `aria-hidden` so the island's
               accessible name stays the verb phrase and not a glyph name. */}
-          <Text as="span" className="ms-auto shrink-0" hoverCue="lift" ink="muted" voice="credit">
+          <Text as="span" className="shrink-0" push="inlineEnd" hoverCue="lift" ink="muted" voice="credit">
             Resume <TrailingArrow nudge={true} />
           </Text>
         </Row>

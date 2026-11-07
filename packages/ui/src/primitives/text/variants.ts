@@ -1,4 +1,4 @@
-import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
+import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, PUSH, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -197,6 +197,7 @@ export const textVariants = tv({
     // shrink below its content stays the caller's.
     grow: GROW,
     floor: FLOOR,
+    push: PUSH,
     // The widest the run grows: `prose` is a paragraph's measure, capped on the paragraph and never on the page.
     cap: CAP,
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when

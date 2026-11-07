@@ -8,6 +8,8 @@ export interface EmptyStateProps {
   /** Optional muted glyph slot. Superseded by `decoration` when both set. */
   icon?: ReactNode;
   title: ReactNode;
+  /** Centres in a column only while it fits. */
+  push?: "blockCentre";
   /** Promotes a teaching statement one ratified step when it is the surface's focal message. */
   titleStep?: "default" | "focal";
   /**
@@ -41,8 +43,9 @@ export function EmptyState({
   description,
   action,
   className,
+  push,
 }: EmptyStateProps): ReactElement {
-  const slots = emptyStateVariants({ titleStep, measure });
+  const slots = emptyStateVariants({ titleStep, measure, push });
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
     head = (

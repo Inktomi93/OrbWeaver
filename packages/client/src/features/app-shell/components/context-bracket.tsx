@@ -110,17 +110,18 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           </Row>
         )}
         {hasDismiss ? (
-          <Button
-            aria-label={dismissLabel ?? "Close panel"}
-            data-slot="context-bracket-dismiss"
-            variant="ghost"
-            onClick={onDismiss}
-            square={true}
-            type="button"
-            className="me-field shrink-0"
-          >
-            <Icon icon={X} size="sm" />
-          </Button>
+          <Row className="shrink-0" paddingInlineEnd="field">
+            <Button
+              aria-label={dismissLabel ?? "Close panel"}
+              data-slot="context-bracket-dismiss"
+              variant="ghost"
+              onClick={onDismiss}
+              square={true}
+              type="button"
+            >
+              <Icon icon={X} size="sm" />
+            </Button>
+          </Row>
         ) : null}
       </Row>
       {hasBand ? (

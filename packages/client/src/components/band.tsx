@@ -181,7 +181,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
         {label}
       </Text>
       {count === undefined ? null : (
-        <CountText {...(censusAlign === "trailing" ? { className: "ms-auto" } : {})} data-slot="band-census">
+        <CountText push={censusAlign === "trailing" ? "inlineEnd" : undefined} data-slot="band-census">
           {count}
         </CountText>
       )}

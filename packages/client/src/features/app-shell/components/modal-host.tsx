@@ -108,7 +108,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup container={container} finalFocus={resolveDrawerFinalFocus}>
           {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <DialogHeader className="mbe-block" sticky={true}>
+          <DialogHeader sticky={true}>
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
               render={

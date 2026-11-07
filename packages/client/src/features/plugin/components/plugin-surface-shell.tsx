@@ -91,7 +91,7 @@ export function PluginSurfaceShell({
           ) : null}
           {/* The KICKER names the CLASS, not the instance: "this is a plugin", which is the sentence a
               faked settings screen most needs contradicted. */}
-          <Text className="ms-auto" voice="kicker">
+          <Text push="inlineEnd" voice="kicker">
             Plugin
           </Text>
         </Row>
@@ -161,7 +161,7 @@ export function PluginSurfaceShell({
               </Text>
             </>
           ) : null}
-          {action === undefined ? null : <Row className="ms-auto">{action}</Row>}
+          {action === undefined ? null : <Row push="inlineEnd">{action}</Row>}
         </Row>
         <Stack aria-label={regionName} gap="block" role="group">
           {children}

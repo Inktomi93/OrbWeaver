@@ -95,7 +95,7 @@ export function PresetLibraryWelcome(): ReactElement {
       {/* action={null}: the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState
         action={null}
-        className="my-auto"
+        push="blockCentre"
         description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
         icon={<Icon icon={SlidersHorizontal} size="lg" />}
         measure="wide"

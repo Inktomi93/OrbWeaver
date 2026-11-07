@@ -316,14 +316,14 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
               is switched off should not have to read an icon's pressed state to find it. */}
           {visible ? null : (
             <>
-              <InlineToken className="me-field" tone="warning">
+              <InlineToken leads={true} tone="warning">
                 Hidden
               </InlineToken>{" "}
             </>
           )}
           {chips.map((chip) => (
             <Fragment key={chip}>
-              <InlineToken className="me-field">{chip}</InlineToken>{" "}
+              <InlineToken leads={true}>{chip}</InlineToken>{" "}
             </Fragment>
           ))}
         </>
