@@ -82,9 +82,19 @@ test("every judgement that names a home answers the lint with the census's own r
   expect(ownerOf("layout", "Row", "@cq-32:flex-row", ["flex-col"])).toMatchObject({ axis: "mirror of: row.stackBelow" });
 });
 
-test("a class the tables give no home is the census's row, not the lint's, and a coded keep is neither", () => {
+test("a class only a foreign door chooses, or one against the base, is the lint's row too", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("text", "Text", "justify-center", [])).toMatchObject({ axis: "no axis: justify-center on text", prop: null });
+  expect(ownerOf("button", "Button", "gap-row", [])).toMatchObject({ axis: "against base: button writes gap-field", prop: null });
+});
+
+test("a coded keep and a mechanism the plain-layout rule admits are nobody's row, under a variant too; a class with a step is no mechanism", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", "relative", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "contain-inline-size", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "@cq-32:shrink-0", [])).toBeNull();
+  expect(ownerOf("layout", "Stack", "empty:absolute", [])).toBeNull();
+  expect(ownerOf("layout", "Stack", "inset-bs-row", [])).toMatchObject({ prop: null });
 });
 
 test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", () => {

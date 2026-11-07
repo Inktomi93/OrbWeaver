@@ -5,7 +5,7 @@ import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
 import type { Wearer } from "./hand-arms.ts";
-import { coveredJudgement, elementRefOf, homelessRow, kebab, ownerRow, wearerOf, writingAxis } from "./hand-arms.ts";
+import { coveredJudgement, elementRefOf, kebab, ownerRow, wearerOf, writingAxis } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -208,9 +208,7 @@ interface UsedToken {
 /** A valid utility on a primitive: an arm of its own table writes it, its door's tables name an owner, or the tables show it has no home here. */
 function wornJudgement(wearer: Wearer | null, { token, guarded, siblings }: UsedToken, context: ClassContext): Judgement | null {
   const axis = writingAxis(wearer, token, siblings, context.components);
-  return axis === null
-    ? (ownerRow(wearer, { token, guarded, siblings }, context.components) ?? homelessRow(wearer, token, context.components))
-    : coveredJudgement(axis, token, guarded, siblings);
+  return axis === null ? ownerRow(wearer, { token, guarded, siblings }, context.components) : coveredJudgement(axis, token, guarded, siblings);
 }
 
 /** A class written on a client component that hands its `className` on: judged on the primitive it lands on, and no move is proved through the wrapper. */

@@ -384,7 +384,7 @@ function plantBoxes(root: string, doors: Readonly<Record<string, string>>, uses:
 
 const SCROLL_DOOR = { one: "scroll: { y: 'overflow-y-auto overscroll-contain sticky' }" };
 
-test("a class of an arm is part of that arm when it tells the arm from its siblings, alone or worn with another", ({ scratch }) => {
+test("a mechanism the plain-layout rule admits earns no part row, though an arm writes it", ({ scratch }) => {
   const root = plantDir(scratch, "part-worn");
   plantBoxes(
     root,
@@ -392,19 +392,18 @@ test("a class of an arm is part of that arm when it tells the arm from its sibli
     'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="overscroll-contain sticky" />;\nexport const B = () => <Box className="overflow-y-auto" />;',
   );
   const rows = census(root).hits.filter((hit) => hit.owner === "part of: box.scroll.y");
-  expect(rows.map((hit) => hit.detail).toSorted(compare)).toEqual(["overflow-y-auto", "overscroll-contain", "sticky"]);
-  expect(rows.every((hit) => hit.verdict === "decide")).toBe(true);
+  expect(rows).toEqual([]);
 });
 
 test("a class every arm of an axis repeats names the axis and no arm, and the class that tells an arm apart is part of that arm", ({ scratch }) => {
   const root = plantDir(scratch, "part-rides");
   plantBoxes(
     root,
-    { one: "corner: { start: 'absolute inset-s-row', end: 'absolute inset-e-row' }" },
-    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="absolute" />;\nexport const B = () => <Box className="inset-s-row" />;',
+    { one: "corner: { start: 'font-bold inset-s-row', end: 'font-bold inset-e-row' }" },
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="font-bold" />;\nexport const B = () => <Box className="inset-s-row" />;',
   );
   const hits = census(root).hits;
-  expect(named(hits, "absolute")?.owner).toBe("rides on: box.corner");
+  expect(named(hits, "font-bold")?.owner).toBe("rides on: box.corner");
   expect(named(hits, "inset-s-row")?.owner).toBe("part of: box.corner.start");
 });
 
@@ -578,9 +577,7 @@ test("a family only another door chooses is a row on any primitive of any door, 
   const { hits, markdown } = census(root);
   expect(named(hits, "p-block")).toMatchObject({ verdict: "decide", owner: "no axis: p-block on text" });
   expect(markdown).toContain("These rows do not cover 3 class uses on `@orb/ui` elements, 2 distinct classes");
-  expect(markdown).toContain("| min-inline-0 | 2 | 1 |");
-  expect(markdown).toContain("| Text | 3 | 2 |");
-  expect(markdown).toContain("| shrink-0 on Text | 1 | 1 |");
+  expect(markdown).toContain("The rule admits 3 uses. 0 uses are open");
 });
 
 test("a class in a spread object is read on the element, and a guard around the object marks it conditional", ({ scratch }) => {

@@ -206,8 +206,13 @@ test.for([
   ["a reversed column on a Row", `${PRIMITIVES}export const T = (<Row className="flex-col-reverse" />);\n`, "no step of it"],
   ["a row direction on a Stack", `${PRIMITIVES}export const T = (<Stack className="flex-row" />);\n`, '`readingFlow="weld"`'],
   ["part of a pinned arm, its bleed", `${PRIMITIVES}export const T = (<Row className="-mbs-row" />);\n`, "is part of row.pinned.header"],
-  ["part of a pinned arm, its position", `${PRIMITIVES}export const T = (<Row className="sticky" />);\n`, "is what row.pinned rides on"],
   ["a class beside a ramp, under its step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col-reverse" />);\n`, "no step of it"],
+  [
+    "a family only another door chooses",
+    'import { Text } from "@orb/ui/text";\nexport const T = (<Text className="justify-center" />);\n',
+    "no axis of text chooses",
+  ],
+  ["a class against the base", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="gap-row" />);\n', "overrides the gap-field"],
   ["a control inset on a Button", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="px-field" />);\n', '`inset="control"`'],
   [
     "part of the stacked box, its direction",
@@ -266,7 +271,7 @@ test.for([
     `${PRIMITIVES}const Pass = ({ className }) => <Row className="min-inline-0" title={className} />;\nexport const T = (<Pass className="justify-end" />);\n`,
   ],
   ["a containing block", `${PRIMITIVES}export const T = (<Stack className="relative" />);\n`],
-  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Row className="contain-inline-size" />);\n`],
+  ["a mechanism the plain-layout rule admits", `${PRIMITIVES}export const T = (<Row className="contain-inline-size" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });

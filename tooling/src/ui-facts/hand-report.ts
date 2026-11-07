@@ -4,6 +4,7 @@ import type { NoRowUse } from "./hand-classes.ts";
 import type { Category, Hit, KeepCode, Verdict } from "./hand-model.ts";
 import { CATEGORIES, KEEP_REASONS, VERDICTS } from "./hand-model.ts";
 import { groupBy, table } from "./markdown.ts";
+import { PLAIN_LAYOUT, PLAIN_LAYOUT_RULE, plainLayout } from "./plain-layout.ts";
 import { HAND_ROLLING_CANNOT_SEE } from "./rules.ts";
 
 const TOP = 30;
@@ -79,8 +80,10 @@ function keepLines(hits: readonly Hit[]): string[] {
 }
 
 /** What the rows do not cover: class uses on primitives no judgement claims, by class and by component, so a clean row count cannot read as a clean tree. */
-function noRowLines(noRow: readonly NoRowUse[], limit: number): string[] {
+function noRowLines(all: readonly NoRowUse[], limit: number): string[] {
   const sum = (rows: readonly NoRowUse[]): number => rows.reduce((total, row) => total + row.uses, 0);
+  const noRow = all.filter((row) => !plainLayout(row.token));
+  const admitted = all.filter((row) => plainLayout(row.token));
   const byUses = (key: (row: NoRowUse) => string): readonly (readonly [string, number, number])[] =>
     [...groupBy(noRow, key)]
       .map(([name, rows]) => [name, sum(rows), rows.length] as const)
@@ -89,7 +92,11 @@ function noRowLines(noRow: readonly NoRowUse[], limit: number): string[] {
   return [
     "### Class uses with no row",
     "",
-    "The rule allows layout that no axis owns, so these can be sound. No row means no table claims the class, and nothing here has been judged.",
+    PLAIN_LAYOUT_RULE,
+    "",
+    ...PLAIN_LAYOUT.map(({ pattern, why }) => `- \`${pattern.source}\`: ${why}.`),
+    "",
+    `The rule admits ${sum(admitted)} uses. ${sum(noRow)} uses are open: no table claims the class and the rule does not admit it.`,
     "",
     ...table(
       ["class", "uses", "components"],
@@ -130,7 +137,7 @@ export function handRollingLines(facts: UiFacts, inScope: (section: string) => b
     "## Hand-rolling census",
     "",
     `${hits.length} hits across the client and ui sources: ${count(hits, actionable)} to move (token, recipe, primitive or decide), ${count(hits, (hit) => !actionable(hit))} that stay.`,
-    `These rows do not cover ${noRow.reduce((total, row) => total + row.uses, 0)} class uses on \`@orb/ui\` elements, ${new Set(noRow.map((row) => row.token)).size} distinct classes that no table claims, nor anything under "What the census cannot see". A count of keeps says nothing about those.`,
+    `These rows do not cover ${noRow.reduce((total, row) => total + row.uses, 0)} class uses on \`@orb/ui\` elements, ${new Set(noRow.map((row) => row.token)).size} distinct classes that no table claims and the plain-layout rule mostly admits (below), nor anything under "What the census cannot see". A count of keeps says nothing about those.`,
     "Each hit names the token, recipe prop or primitive that owns it, or the one it asks for. Command: `pnpm ui-facts --only=hand-rolling` lists every hit.",
     "",
     ...categoryLines(hits),

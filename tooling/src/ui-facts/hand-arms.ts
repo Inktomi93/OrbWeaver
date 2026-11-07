@@ -5,6 +5,7 @@ import { sameFamily } from "./class-conflict.ts";
 import { baseOf } from "./classes.ts";
 import type { ClassPlace, ElementRef, Judgement } from "./hand-model.ts";
 import { keepJudgement } from "./hand-model.ts";
+import { plainLayout } from "./plain-layout.ts";
 import type { Elem } from "./source.ts";
 import { attrString } from "./source.ts";
 import type { ComponentRecipe, ComponentTables } from "./variant-tables.ts";
@@ -410,28 +411,37 @@ function ownDoorJudgement(wearer: Wearer | null, token: string, components: Comp
 }
 
 /**
- * The verdict for every class a door's table can name an owner for: what the lint refuses and the first thing the census reports. A class no arm
- * writes is a new arm, the mirror of one, beside a ramp, part of an arm, against the base, or its door's sibling's. Null when the tables name nothing.
+ * The verdict for every class a door's table can name an owner for: what the lint refuses and the census reports. A class no arm writes is a new arm,
+ * the mirror of one, beside a ramp, part of an arm, against the base, its door's sibling's, or another door's. Null for a mechanism the plain-layout
+ * rule admits, or when no table chooses its family.
  */
 export function ownerRow(wearer: Wearer | null, { token, guarded, siblings }: WrittenClass, components: ComponentTables): Judgement | null {
-  return ZERO_STEP.test(baseOf(token).base)
+  if (ZERO_STEP.test(baseOf(token).base)) {
+    return null;
+  }
+  const chosen =
+    mirrorJudgement(wearer, token, siblings, components) ?? newArmJudgement(wearer, token, guarded, components) ?? besideJudgement(wearer, token, components);
+  if (chosen !== null) {
+    return chosen;
+  }
+  if (baseOf(token).base === CONTAINING_BLOCK) {
+    return keepJudgement("containing-block", token);
+  }
+  return plainLayout(token)
     ? null
-    : (mirrorJudgement(wearer, token, siblings, components) ??
-        newArmJudgement(wearer, token, guarded, components) ??
-        besideJudgement(wearer, token, components) ??
-        (baseOf(token).base === CONTAINING_BLOCK ? keepJudgement("containing-block", token) : null) ??
-        partArmJudgement(wearer, token, siblings, components) ??
+    : (partArmJudgement(wearer, token, siblings, components) ??
         ridesJudgement(wearer, token, components) ??
         siblingBaseJudgement(wearer, token, components) ??
         sideInsetJudgement(wearer, token) ??
-        ownDoorJudgement(wearer, token, components));
+        ownDoorJudgement(wearer, token, components) ??
+        homelessRow(wearer, token, components));
 }
 
 /**
- * The verdict for a class the tables show has no home here: it fights the component's base, or only another door's axes choose its family. The census
- * shows the row and the lint stays out of it, because the tables name nothing to send the caller to.
+ * The verdict for a class the tables show has no home here: it fights the component's base, or only another door's axes choose its family. The primitive
+ * wants an axis for it, or the caller wants a box around it.
  */
-export function homelessRow(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
+function homelessRow(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
   const { base } = baseOf(token);
   if (wearer === null || ZERO_STEP.test(base)) {
     return null;
