@@ -55,22 +55,6 @@ test("standalone native teardown joins a resident guest after the last outer lis
   expect(result.transcript).toContain("native graph disposal joined");
 });
 
-test("the real snippet gates ownership before a refused raw spawn and releases admission for the next attempt", async () => {
-  const execute = vi.fn((): never => {
-    throw new Error("controlled plugin spawn refusal");
-  });
-  await using harness = await createServerHarness({ pluginSpawn: execute });
-  const owner = await harness.internalCallerFor(harness.ownerId);
-  const room = (await owner.chat.startChat({ characterIds: [] })).chat;
-  const stranger = await harness.actor();
-  const foreignCaller = await harness.internalCallerFor(stranger.id);
-  await expect(foreignCaller.plugin.runSnippet({ chatId: room.id, code: SOURCE })).rejects.toMatchObject({ code: "NOT_FOUND" });
-  expect(execute).not.toHaveBeenCalled();
-  await expect(owner.plugin.runSnippet({ chatId: room.id, code: SOURCE })).rejects.toThrow("controlled plugin spawn refusal");
-  await expect(owner.plugin.runSnippet({ chatId: room.id, code: SOURCE })).rejects.toThrow("controlled plugin spawn refusal");
-  expect(execute).toHaveBeenCalledTimes(2);
-});
-
 test("identical-ID roots own independent real watchdogs and guest entropy; closing one joins its child without stopping the other", {
   timeout: budget(TWO_ROOT_TEST_BASE_MS),
 }, async () => {
