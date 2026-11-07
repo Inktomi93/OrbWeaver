@@ -148,7 +148,7 @@ function RunWorkloadFormBody({
             if (isMaintenanceWorkloadKind(kind)) {
               return <MaintenanceKindNote verb="Runs" />;
             }
-            return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk ? (
+            return isRunnableWorkloadKind(kind) ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
                   <field.SwitchField label="Bulk mode" description="Owner only. Runs across every user's data instead of just yours." />

@@ -10,7 +10,7 @@ import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KI
 
 /** Whether a kind may be scheduled to recur in bulk. A schedule carries no `targetOwnerId`, so a bulk create-kind (bulkRequiresTarget) is not bulk-schedulable. */
 export function workloadKindBulkSchedulable(kind: string): boolean {
-  return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk && !WORKLOAD_KIND_MODES[kind].bulkRequiresTarget;
+  return isRunnableWorkloadKind(kind) && !WORKLOAD_KIND_MODES[kind].bulkRequiresTarget;
 }
 
 /** Resolve the wire `mode` for a schedule create/edit — mirrors the run dialog's mode logic. */
