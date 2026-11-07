@@ -32,6 +32,7 @@ import type {
 import type { PluginToolHandle } from "@orb/contracts/tool-use";
 import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, DocumentId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
+import type { SerialLanes } from "@orb/kit/serial-lanes";
 
 /** Per-plugin serialization for durable rows, guest state, registrations, and provider contributions. */
 
@@ -537,6 +538,9 @@ export interface PluginBelts {
   /** The `search.query` hourly query-embedding ceiling, keyed to the installed plugin whose grant may
    *  spend the installer's hosted embedding credential. */
   readonly searchQuery: PluginRateFloor;
+  /** One lane per (plugin, book), so the lore entry ceiling's count and write are one step. Process-local, like
+   *  every lane: a second app process would still race. */
+  readonly loreWrites: SerialLanes;
 }
 
 export interface NotifyFloor {

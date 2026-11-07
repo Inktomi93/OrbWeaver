@@ -1,11 +1,10 @@
 import type { Dirent } from "node:fs";
-import { readdir as readdirFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
-import type { ImportFsPort } from "@orb/contracts/import";
-import { errnoCode } from "#primitives/errno";
-import { readStorageFileNoFollow } from "./stage-dir.ts";
+import type { ImportDirectory, ImportFsPort } from "@orb/contracts/import";
+import type { HeldDirectory } from "./held-dir.ts";
+import { heldFileSize, holdChild, holdTree, listHeld, readHeldFile } from "./held-dir.ts";
 
-type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];
+type FsEntry = Awaited<ReturnType<ImportDirectory["list"]>>[number];
 
 function direntKind(e: Dirent): FsEntry["kind"] {
   if (e.isFile()) {
@@ -14,36 +13,24 @@ function direntKind(e: Dirent): FsEntry["kind"] {
   return e.isDirectory() ? "directory" : "other";
 }
 
-/** The fs codes that mean "this profile carries no such plane": the dir is not there (`ENOENT`), or the name
- *  is occupied by a FILE (`ENOTDIR`) — both are ABSENT, which is the port's documented `[]`. Every other code
- *  (`EACCES`, `EIO`, `ELOOP`, `EMFILE`, …) is an INFRASTRUCTURE fault: folding those into the same empty
- *  listing made an unreadable `characters/` read as "this profile has no characters" and imported a truncated
- *  profile while reporting success (#1469). */
-const ABSENT_DIR_CODES: ReadonlySet<string> = new Set(["ENOENT", "ENOTDIR"]);
+function importDirectory(held: HeldDirectory | null, path: string): ImportDirectory | null {
+  if (held === null) {
+    return null;
+  }
+  return {
+    path,
+    list: async (): Promise<readonly FsEntry[]> => (await listHeld(held)).map((e): FsEntry => ({ name: e.name, kind: direntKind(e) })),
+    openDirectory: async (name): Promise<ImportDirectory | null> => importDirectory(await holdChild(held, name), join(path, name)),
+    readFile: (name): Promise<Uint8Array> => readHeldFile(held, name),
+    stat: async (name): Promise<{ readonly size: number }> => ({ size: await heldFileSize(held, name) }),
+    [Symbol.asyncDispose]: () => held[Symbol.asyncDispose](),
+  };
+}
 
-/** The real node:fs `ImportFsPort` for the staged profile snapshot. `readdir` resolves `[]` for an ABSENT dir
- *  (the port contract — a profile may carry only one subdir) and REJECTS on an infrastructure fault. */
+/** The real node:fs `ImportFsPort` for a profile tree. Each directory it opens is held, so reads stay bound to it. */
 export function createNodeFsImportPort(): ImportFsPort {
   return {
-    readdir: async (dir): Promise<readonly FsEntry[]> => {
-      // The catch is NARROWED to the two ABSENT
-      // codes and RE-THROWS everything else — an infra fault leaves as a rejection, which the collector
-      // wraps as `ImportInfraFailureError`. Ends if the port stops distinguishing absent from broken.
-      try {
-        const ents = await readdirFs(dir, { withFileTypes: true });
-        return ents.map((e): FsEntry => ({ name: e.name, kind: direntKind(e) }));
-      } catch (error) {
-        if (!ABSENT_DIR_CODES.has(errnoCode(error) ?? "")) {
-          throw error;
-        }
-        return [];
-      }
-    },
-    readFile: readStorageFileNoFollow,
-    stat: async (path): Promise<{ readonly size: number }> => {
-      const s = await statFs(path);
-      return { size: s.size };
-    },
+    openTree: async (root): Promise<ImportDirectory | null> => importDirectory(await holdTree(root), root),
     join: (...parts): string => join(...parts),
   };
 }

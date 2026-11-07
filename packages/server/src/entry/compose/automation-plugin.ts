@@ -7,6 +7,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { Clock, ScheduleOp, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
@@ -301,6 +302,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
     searchQuery: createPluginRateFloor(now, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
+    loreWrites: createSerialLanes(),
   };
   const pluginSurfaceState = createPluginSurfaceStateStore(deps.logger);
   // Private pubsub has no domain/chat event sink.
