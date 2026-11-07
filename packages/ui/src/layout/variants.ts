@@ -544,6 +544,8 @@ export const sectionVariants = tv({
         kickerRow: "me-field shrink-0",
       },
     },
+    // Trailing content that outgrows the band takes a second line rather than crushing the rule.
+    trails: { true: { kickerRow: "flex-wrap" } },
   },
   defaultVariants: { kickerLayout: "stacked" },
 });
