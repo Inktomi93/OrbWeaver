@@ -33,7 +33,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
@@ -75,7 +75,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
   };
 
   return (
-    <FormDialog
+    <DismissDialog
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
       description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
@@ -90,7 +90,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
       {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody attachedIds={attachedIds} failure={failure} isOwned={attach.isPending} onAttach={attachBook} />
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

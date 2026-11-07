@@ -1,34 +1,41 @@
-// Client-shared form/prompt shell; @orb/ui stays parts-only. FORM children own a paired sticky footer; PROMPT owns a native form and footer.
-// FormSubmitButton is for explicit commits: Cancel abandons pre-submit input, never rolls back or cancels a submitted write.
-// Autosaving editors use Close/Done/Back instead; every dialog retains a visible exit.
+// The explicit-commit dialog family: a dialog that commits owns one footer, Cancel and a required submit, so a form with no way
+// out or no commit fails to compile. Cancel abandons pre-submit input, never a submitted write. A dialog with nothing to commit
+// is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D70 sanctions.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
-import { Corner, DialogBody, Stack } from "@orb/ui/layout";
+import { Corner, DialogBody, Row, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { DIALOG_VERBS, testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
 type TestKey = Parameters<typeof testId>[0];
 
-// The optional PROMPT-mode footer: a Cancel/Confirm Row below `children` (the single control).
 interface FormDialogSubmit {
-  /** The confirm button's label (e.g. "Apply" / "Create" / "Save"). */
+  /** The submit button's label (e.g. "Apply" / "Create" / "Save"). */
   readonly label: string;
-  /** Fires on confirm click (the caller closes the dialog itself; Cancel closes via DialogClose). */
+  /** Fires on the button and on Enter; the caller closes the dialog itself. Never fires while `disabled` or `loading`. */
   readonly onSubmit: () => void;
-  /** Disables the confirm button (e.g. an empty required field or a pending mutation). @defaultValue false */
+  /** Disables the submit button (e.g. an empty required field or a pending mutation). @defaultValue false */
   readonly disabled?: boolean;
-  /** Shows the confirm button's busy state. @defaultValue false */
+  /** Shows the submit button's busy state. @defaultValue false */
   readonly loading?: boolean;
+  /** A registered test-id key for the submit button. */
+  readonly testKey?: TestKey;
 }
 
-export interface FormDialogProps {
+export interface FormDialogRootProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** Native completion seam for a forward-navigation dismissal, after the modal finishes closing. */
+  readonly onOpenChangeComplete?: ComponentProps<typeof Dialog>["onOpenChangeComplete"];
+  readonly children: ReactNode;
+}
+
+interface DialogFrameProps {
   readonly title: ReactNode;
   /** Land focus on the title: a body filled by one tall control would otherwise open scrolled past the heading. */
   readonly arriveOnTitle?: boolean;
@@ -40,132 +47,206 @@ export interface FormDialogProps {
   readonly size?: DialogPopupProps["size"];
   /** Native block-axis placement; changing-height forms can pin their heading at the viewport gutter. */
   readonly anchor?: DialogPopupProps["anchor"];
-  /** Native completion seam for a forward-navigation dismissal, after the modal finishes closing. */
-  readonly onOpenChangeComplete?: ComponentProps<typeof Dialog>["onOpenChangeComplete"];
-  /** The dialog body — a form body (with its own FormSubmitButton) or, in PROMPT mode, the single control. */
-  readonly children: ReactNode;
-  /** PROMPT-mode footer — renders a Cancel/Confirm Row below `children`. Omit for a form-body dialog. */
-  readonly submit?: FormDialogSubmit;
   /**
-   * The DISMISS-ONLY footer: one `DialogClose` button, for a dialog whose body IS its whole act and which
-   * therefore has no confirm to pair a Cancel with.
-   *
-   * EVERY DIALOG OWES A VISIBLE EXIT (side-eye 2026-08-30 rail-characters P2, #842). The card-import dialog
-   * shipped with ZERO buttons — a heading, four paragraphs and a file input — on desktop AND on a 430px
-   * coarse arm. `Escape` dismissed it, and a touch device has no Escape; backdrop dismissal was not
-   * verifiable with synthetic pointers and so cannot be the only exit either. Its sibling `New character`
-   * dialog ends in `Cancel | Create`, which is the house shape this restores. Ignored when `submit` is
-   * given (that footer already carries a Cancel).
-   */
-  readonly dismissLabel?: string;
-  /**
-   * A close glyph in the title row's corner, the frame the shell's own modals wear. The add and import dialogs
-   * set it so they share one frame with "Add a document". It follows the body in tab order, so the dialog still
-   * opens on its first real control rather than on the glyph.
+   * A close glyph in the title row's corner, the frame the shell's own modals wear. It follows the body in tab order, so the
+   * dialog still opens on its first real control rather than on the glyph.
    * @defaultValue false
    */
   readonly closeButton?: boolean;
   /** Where focus goes on close. Give one when the dialog can open with no trigger focused (a request from another
    *  section), or its close drops focus on the page body. */
   readonly finalFocus?: DialogPopupProps["finalFocus"];
+  readonly children: ReactNode;
 }
 
+export interface FormDialogPopupProps extends DialogFrameProps {
+  readonly submit: FormDialogSubmit;
+  /** Controls that act on the form without committing it, led into the footer before Cancel. */
+  readonly footerLead?: ReactNode;
+}
+
+export type FormDialogProps = Omit<FormDialogRootProps, "children"> & FormDialogPopupProps;
+
+/** The ways out of a dialog with nothing to commit: a footer verb, a corner glyph or both. Touch has no Escape, so one is required. */
+type DismissPath =
+  | {
+      /** The footer's one `DialogClose`. */
+      readonly dismissLabel: string;
+      /** The verb is the dialog's main act, as Done is on an autosaving editor. @defaultValue false */
+      readonly dismissPrimary?: boolean;
+    }
+  | { readonly closeButton: true; readonly dismissLabel?: never; readonly dismissPrimary?: never };
+
+export type DismissDialogProps = Omit<FormDialogRootProps, "children"> & DialogFrameProps & DismissPath;
+
+export type RequiredFormDialogProps = Omit<DialogFrameProps, "closeButton"> & Pick<FormDialogPopupProps, "submit">;
+
 /**
- * The one form/prompt dialog shell — Dialog → popup (optional test-id + size) → Title + Description +
- * body, with an optional PROMPT-mode Cancel/Confirm footer. Form-body dialogs put their submit inside
- * `children` (FormSubmitButton); single-control prompts pass `submit`.
+ * The dialog root for a body that holds its own form state. Base UI unmounts a closed popup, so a body inside it is fresh on
+ * every open; a body that renders `FormDialogPopup` sits above the popup, so this root gives it the same lifetime, from the
+ * open through the end of the close motion.
  */
-export function FormDialog({
-  open,
-  onOpenChange,
-  onOpenChangeComplete,
+export function FormDialogRoot({ open, onOpenChange, onOpenChangeComplete, children }: FormDialogRootProps): ReactElement {
+  const [held, setHeld] = useState(open);
+  if (open && !held) {
+    setHeld(true);
+  }
+  return (
+    <Dialog
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={(next): void => {
+        if (!next) {
+          setHeld(false);
+        }
+        onOpenChangeComplete?.(next);
+      }}
+      open={open}
+    >
+      {open || held ? children : null}
+    </Dialog>
+  );
+}
+
+function DialogFrame({
   title,
   description,
   testKey,
   size,
   anchor,
-  children,
-  submit,
-  dismissLabel,
+  arriveOnTitle = false,
   closeButton = false,
   finalFocus,
-  arriveOnTitle = false,
-}: FormDialogProps): ReactElement {
+  titleId,
+  children,
+}: DialogFrameProps & { readonly titleId?: string }): ReactElement {
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const promptFormId = useId();
+  return (
+    <DialogPopup
+      {...(size === undefined ? {} : { size })}
+      {...(anchor === undefined ? {} : { anchor })}
+      {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
+      {...(finalFocus === undefined ? {} : { finalFocus })}
+      {...(arriveOnTitle ? { initialFocus: titleRef } : {})}
+    >
+      {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
+          stays visible on a phone. */}
+      <DialogBody grow={true} gap="block">
+        <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
+          {title}
+        </DialogTitle>
+        {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
+        {children}
+      </DialogBody>
+      {closeButton ? (
+        <Corner>
+          <DialogClose
+            render={
+              <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
+                <Icon icon={X} size="sm" />
+              </Button>
+            }
+          />
+        </Corner>
+      ) : null}
+    </DialogPopup>
+  );
+}
+
+function SubmitButton({ submit, formId }: { readonly submit: FormDialogSubmit; readonly formId: string }): ReactElement {
+  return (
+    <Button
+      {...(submit.testKey === undefined ? {} : { "data-testid": testId(submit.testKey) })}
+      disabled={submit.disabled ?? false}
+      form={formId}
+      tone="primary"
+      loading={submit.loading ?? false}
+      type="submit"
+    >
+      {submit.label}
+    </Button>
+  );
+}
+
+/** The popup of a dialog that commits: its body is a form, and its footer is Cancel and the submit. */
+export function FormDialogPopup({ submit, footerLead, children, ...frame }: FormDialogPopupProps): ReactElement {
+  const formId = useId();
+  const titleId = useId();
+  const cancel = <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />;
+  return (
+    <DialogFrame {...frame} titleId={titleId}>
+      <PromptBody formId={formId} submit={submit} titleId={titleId}>
+        {children}
+      </PromptBody>
+      {footerLead === undefined ? (
+        <DialogFooter>
+          {cancel}
+          <SubmitButton formId={formId} submit={submit} />
+        </DialogFooter>
+      ) : (
+        <DialogFooter>
+          {footerLead}
+          <Row grow={true} gap="row" justify="end">
+            {cancel}
+            <SubmitButton formId={formId} submit={submit} />
+          </Row>
+        </DialogFooter>
+      )}
+    </DialogFrame>
+  );
+}
+
+/** The whole commit dialog, for a caller that holds the form state. A body that holds it renders {@link FormDialogPopup} under {@link FormDialogRoot}. */
+export function FormDialog({ open, onOpenChange, onOpenChangeComplete, ...popup }: FormDialogProps): ReactElement {
+  return (
+    <FormDialogRoot onOpenChange={onOpenChange} open={open} {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}>
+      <FormDialogPopup {...popup} />
+    </FormDialogRoot>
+  );
+}
+
+/** A dialog with nothing to commit: its body is its whole act, or its stages own their commits, and the frame owns the way out. */
+export function DismissDialog({
+  open,
+  onOpenChange,
+  onOpenChangeComplete,
+  dismissLabel,
+  dismissPrimary = false,
+  children,
+  ...frame
+}: DismissDialogProps): ReactElement {
+  return (
+    <FormDialogRoot onOpenChange={onOpenChange} open={open} {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}>
+      <DialogFrame {...frame}>
+        {children}
+        {dismissLabel === undefined ? null : (
+          <DialogFooter>
+            <DialogClose render={<Button {...(dismissPrimary ? {} : { variant: "ghost" as const })}>{dismissLabel}</Button>} />
+          </DialogFooter>
+        )}
+      </DialogFrame>
+    </FormDialogRoot>
+  );
+}
+
+/** The forced ask: always open, its submit the only way out, so it takes no open state and draws no Cancel. */
+export function RequiredFormDialog({ submit, children, ...frame }: RequiredFormDialogProps): ReactElement {
+  const formId = useId();
   const titleId = useId();
   return (
-    <Dialog onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete} open={open}>
-      <DialogPopup
-        {...(size === undefined ? {} : { size })}
-        {...(anchor === undefined ? {} : { anchor })}
-        {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
-        {...(finalFocus === undefined ? {} : { finalFocus })}
-        {...(arriveOnTitle ? { initialFocus: titleRef } : {})}
-      >
-        {/* The popup clamps to the viewport, so a tall body scrolls inside this Stack while the sticky footer
-            stays visible on a phone. */}
-        <DialogBody grow={true} gap="block">
-          <DialogTitle clearsClose={closeButton} focusTarget={arriveOnTitle} id={titleId} {...(arriveOnTitle ? { ref: titleRef, tabIndex: -1 } : {})}>
-            {title}
-          </DialogTitle>
-          {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
-          {submit === undefined ? (
-            children
-          ) : (
-            <PromptBody formId={promptFormId} submit={submit} titleId={titleId}>
-              {children}
-            </PromptBody>
-          )}
-          <OwnedFooter dismissLabel={dismissLabel} formId={promptFormId} submit={submit} />
-        </DialogBody>
-        {closeButton ? (
-          <Corner>
-            <DialogClose
-              render={
-                <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
-                  <Icon icon={X} size="sm" />
-                </Button>
-              }
-            />
-          </Corner>
-        ) : null}
-      </DialogPopup>
+    <Dialog open={true}>
+      <DialogFrame {...frame} titleId={titleId}>
+        <PromptBody formId={formId} submit={submit} titleId={titleId}>
+          {children}
+        </PromptBody>
+        <DialogFooter>
+          <SubmitButton formId={formId} submit={submit} />
+        </DialogFooter>
+      </DialogFrame>
     </Dialog>
   );
 }
 
-/** The footer this composite owns: PROMPT's Cancel/Confirm, else the dismiss-only button, else nothing. */
-function OwnedFooter({
-  submit,
-  dismissLabel,
-  formId,
-}: {
-  readonly submit: FormDialogSubmit | undefined;
-  readonly dismissLabel: string | undefined;
-  readonly formId: string;
-}): ReactElement | null {
-  if (submit !== undefined) {
-    return (
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={submit.disabled ?? false} form={formId} tone="primary" loading={submit.loading ?? false} type="submit">
-          {submit.label}
-        </Button>
-      </DialogFooter>
-    );
-  }
-  if (dismissLabel === undefined) {
-    return null;
-  }
-  return (
-    <DialogFooter>
-      <DialogClose render={<Button variant="ghost">{dismissLabel}</Button>} />
-    </DialogFooter>
-  );
-}
-
-/** The PROMPT body's `<form>` — the single control, submitted by Enter.
+/** The body's `<form>`, submitted by Enter.
  *
  *  A bare `<form>` intrinsic is the point: implicit submission is a BROWSER behaviour keyed on a real form
  *  owning a real `type="submit"` button, and no amount of `onKeyDown` on the control reproduces it for
@@ -199,25 +280,5 @@ function PromptBody({
     >
       <Stack gap="block">{children}</Stack>
     </form>
-  );
-}
-
-export interface FormSubmitButtonProps {
-  /** A registered test-id key for the submit button. */
-  readonly testKey: TestKey;
-  readonly disabled: boolean;
-  readonly label: string;
-  readonly onSubmit: () => void;
-}
-
-/** The paired dismissal and primary submit footer for a FORM-body dialog. */
-export function FormSubmitButton({ testKey, disabled, label, onSubmit }: FormSubmitButtonProps): ReactElement {
-  return (
-    <DialogFooter>
-      <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-      <Button data-testid={testId(testKey)} disabled={disabled} onClick={onSubmit}>
-        {label}
-      </Button>
-    </DialogFooter>
   );
 }

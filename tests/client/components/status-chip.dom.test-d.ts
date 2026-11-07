@@ -19,5 +19,6 @@ test("a member paints; a stray word, a bare string or an unmapped member does no
   const partial: StatusVocabulary<Phase> = { up: { label: "Up", tone: "success" } };
   // @ts-expect-error a status tone is one of the pill's tones
   const offTone: StatusVocabulary<"up"> = { up: { label: "Up", tone: "accent" } };
-  expectTypeOf(partial).toEqualTypeOf(offTone as unknown as StatusVocabulary<Phase>);
+  expectTypeOf(partial).toEqualTypeOf<StatusVocabulary<Phase>>();
+  expectTypeOf(offTone).toEqualTypeOf<StatusVocabulary<"up">>();
 });

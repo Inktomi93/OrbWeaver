@@ -9,11 +9,10 @@ import { externalIdSchema } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useLinkSsoIdentity } from "../hooks/use-admin-mutations.ts";
@@ -22,19 +21,13 @@ import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 /** The dialog shell — the body mounts fresh per open (Base UI unmounts closed popups). */
 export function AdminLinkSsoDialog(props: AdminUserDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Stamp this account's stable SSO subject (the IdP's sub/uid — never an email) so their first single sign-on lands on this same account instead of a new one."
-      onOpenChange={props.onOpenChange}
-      open={props.open}
-      testKey="adminLinkSsoDialog"
-      title={`Link SSO identity — ${props.handle}`}
-    >
-      <LinkSsoBody userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
-    </FormDialog>
+    <FormDialogRoot onOpenChange={props.onOpenChange} open={props.open}>
+      <LinkSsoBody handle={props.handle} userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
+    </FormDialogRoot>
   );
 }
 
-function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
+function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const link = useLinkSsoIdentity({ trpc, invalidation });
@@ -58,7 +51,17 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
   };
 
   return (
-    <Stack gap="block">
+    <FormDialogPopup
+      description="Stamp this account's stable SSO subject (the IdP's sub/uid — never an email) so their first single sign-on lands on this same account instead of a new one."
+      submit={{
+        label: link.isPending ? "Linking…" : "Link identity",
+        disabled: link.isPending || trimmed.length === 0,
+        testKey: "adminLinkSsoSubmit",
+        onSubmit: (): void => void submit().catch(globalThis.reportError),
+      }}
+      testKey="adminLinkSsoDialog"
+      title={`Link SSO identity — ${handle}`}
+    >
       <Field label="Stable SSO subject" description="The IdP's stable id for this user (e.g. authentik sub/uid). Not an email.">
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
@@ -67,12 +70,6 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
           Couldn't link that identity — the subject may already be linked to another account, or this row is already bound.
         </Text>
       ) : null}
-      <FormSubmitButton
-        disabled={link.isPending || trimmed.length === 0}
-        label={link.isPending ? "Linking…" : "Link identity"}
-        onSubmit={(): void => void submit().catch(globalThis.reportError)}
-        testKey="adminLinkSsoSubmit"
-      />
-    </Stack>
+    </FormDialogPopup>
   );
 }

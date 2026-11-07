@@ -9,11 +9,10 @@ import { MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations.ts";
@@ -22,19 +21,13 @@ import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 /** The dialog shell — the body mounts fresh per open (Base UI unmounts closed popups). */
 export function AdminResetPasswordDialog(props: AdminUserDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Sets a new local password and revokes every live session — they'll need to sign in again on all devices."
-      onOpenChange={props.onOpenChange}
-      open={props.open}
-      testKey="adminResetPasswordDialog"
-      title={`Reset password — ${props.handle}`}
-    >
-      <ResetPasswordBody userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
-    </FormDialog>
+    <FormDialogRoot onOpenChange={props.onOpenChange} open={props.open}>
+      <ResetPasswordBody handle={props.handle} userId={props.userId} onDone={(): void => props.onOpenChange(false)} />
+    </FormDialogRoot>
   );
 }
 
-function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readonly onDone: () => void }): ReactElement {
+function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string; readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const resetPassword = useResetPassword({ trpc, invalidation });
@@ -57,7 +50,17 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
   };
 
   return (
-    <Stack gap="block">
+    <FormDialogPopup
+      description="Sets a new local password and revokes every live session — they'll need to sign in again on all devices."
+      submit={{
+        label: resetPassword.isPending ? "Resetting…" : "Reset password",
+        disabled: resetPassword.isPending,
+        testKey: "adminResetPasswordSubmit",
+        onSubmit: (): void => void submit().catch(globalThis.reportError),
+      }}
+      testKey="adminResetPasswordDialog"
+      title={`Reset password — ${handle}`}
+    >
       <Field label="New password" description={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
         <Input
           autoComplete="new-password"
@@ -79,12 +82,6 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
           Couldn't reset the password — try again.
         </Text>
       ) : null}
-      <FormSubmitButton
-        disabled={resetPassword.isPending}
-        label={resetPassword.isPending ? "Resetting…" : "Reset password"}
-        onSubmit={(): void => void submit().catch(globalThis.reportError)}
-        testKey="adminResetPasswordSubmit"
-      />
-    </Stack>
+    </FormDialogPopup>
   );
 }

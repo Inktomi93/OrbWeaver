@@ -19,7 +19,7 @@ export { EntryListEditor } from "./entry-list-editor.tsx";
 export type { FaceStripItem } from "./face-strip.tsx";
 export { FaceStrip } from "./face-strip.tsx";
 export { FlowDialog } from "./flow-dialog.tsx";
-export { FormDialog, FormSubmitButton } from "./form-dialog.tsx";
+export { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot, RequiredFormDialog } from "./form-dialog.tsx";
 export { ImportedChatsMemoryOffer } from "./imported-chats-memory-offer.tsx";
 export type { LibraryRowActions } from "./library-row.tsx";
 export { LibraryRow } from "./library-row.tsx";

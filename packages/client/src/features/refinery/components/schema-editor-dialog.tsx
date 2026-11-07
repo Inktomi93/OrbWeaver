@@ -28,7 +28,6 @@ import type { RefineryForgeArm, RefinerySchemaStage, RefinerySchemaSummary } fro
 import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
 import type { RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -331,7 +330,22 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   };
 
   return (
-    <FormDialog onOpenChange={(next): void => (next ? onOpenChange(true) : requestClose())} open={open} size="lg" title={dialogTitleOf(editing, stage)}>
+    <FormDialog
+      footerLead={editing === null ? undefined : <DeleteSchemaAction onDeleted={(): void => onOpenChange(false)} schema={editing} />}
+      onOpenChange={(next): void => (next ? onOpenChange(true) : requestClose())}
+      open={open}
+      size="lg"
+      submit={{
+        label: DIALOG_VERBS.save,
+        disabled: busy || schema === null || !nameFilled,
+        onSubmit: (): void => {
+          if (schema !== null) {
+            saveDraft(nameRef.current?.value.trim() ?? "", schema, { editing, description, stage, create, update, onSaved, onOpenChange });
+          }
+        },
+      }}
+      title={dialogTitleOf(editing, stage)}
+    >
       <Stack gap="row">
         <Text voice="gloss">
           Two ways in, both first-class. Describe what you want in plain English and the designer builds it — the model answers into a fixed grammar, so it
@@ -388,23 +402,6 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             ref={nameRef}
           />
         </Field>
-        <DialogFooter>
-          {editing === null ? null : <DeleteSchemaAction onDeleted={(): void => onOpenChange(false)} schema={editing} />}
-          {/* THE VISIBLE WAY OUT (#81 P1). Escape and the backdrop were the only exits this dialog had, and
-              both are invisible: a reader looking at the longest authoring surface in the app could not
-              SEE how to leave it without saving. It rides `requestClose`, so Cancel and Escape are one
-              behaviour rather than two that drift. */}
-          <Button variant="ghost" onClick={requestClose} size="sm" type="button">
-            {DIALOG_VERBS.cancel}
-          </Button>
-          <Button
-            disabled={busy || schema === null || !nameFilled}
-            onClick={(): void => saveDraft(nameRef.current?.value.trim() ?? "", schema, { editing, description, stage, create, update, onSaved, onOpenChange })}
-            size="sm"
-          >
-            Save
-          </Button>
-        </DialogFooter>
         {/* The guard. `forceRender` because it nests inside an open Dialog, which Base UI would otherwise
             let suppress this backdrop (the ConfirmDialog prop exists for exactly this). Both arms are named
             for what they DO — "Keep editing" / "Discard draft" — never Cancel/Confirm over a destructive

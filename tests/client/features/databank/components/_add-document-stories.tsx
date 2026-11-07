@@ -1,4 +1,4 @@
-import { FormDialog } from "@orb/client/components";
+import { DismissDialog } from "@orb/client/components";
 import { useModalRegistry } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement, ReactNode } from "react";
@@ -15,9 +15,9 @@ function AddDocumentModalBody(): ReactNode {
 export function AddDocumentStory(): ReactElement {
   return (
     <CtClientProviders>
-      <FormDialog onOpenChange={(): void => undefined} open={true} title="Add a document">
+      <DismissDialog closeButton={true} onOpenChange={(): void => undefined} open={true} title="Add a document">
         <AddDocumentModalBody />
-      </FormDialog>
+      </DismissDialog>
     </CtClientProviders>
   );
 }

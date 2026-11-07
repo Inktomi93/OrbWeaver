@@ -5,9 +5,7 @@
 // (the cleared arm — "they can fill it therefore they can empty it").
 
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
-import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -15,6 +13,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import type { ManualTarget } from "../lib/manual-targets.ts";
 import { slotLabelOf } from "../lib/render-plan.ts";
 
@@ -82,7 +81,13 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
   });
 
   return (
-    <FormDialog onOpenChange={onOpenChange} open={open} size="lg" title="Hand-edit the scoped fields">
+    <FormDialog
+      onOpenChange={onOpenChange}
+      open={open}
+      size="lg"
+      submit={{ label: DIALOG_VERBS.save, disabled: saving || entries.length === 0, onSubmit: (): void => onSubmit(entries) }}
+      title="Hand-edit the scoped fields"
+    >
       <Stack gap="row">
         <Text voice="gloss">
           Your edit lands as a rewrite round, not a card write — analyze can judge it against the original, and nothing touches the card until you apply.
@@ -110,19 +115,6 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
             </Stack>
           );
         })}
-        <DialogFooter>
-          <Text voice="gloss">{entries.length === 0 ? "No changes yet." : `${entries.length} field${entries.length === 1 ? "" : "s"} changed.`}</Text>
-          <DialogClose
-            render={
-              <Button variant="ghost" size="sm">
-                Cancel
-              </Button>
-            }
-          />
-          <Button disabled={saving || entries.length === 0} onClick={(): void => onSubmit(entries)} size="sm">
-            Save
-          </Button>
-        </DialogFooter>
       </Stack>
     </FormDialog>
   );

@@ -6,13 +6,11 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { DialogClose } from "@orb/ui/dialog";
 import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, ViewerDialog } from "#components";
-import { DIALOG_VERBS } from "#lib";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
 interface GalleryLightboxImage {
@@ -97,15 +95,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       title={image === null ? "Image" : image.name}
       size="xlFit"
       popupProps={{ initialFocus: closeRef, finalFocus, ref: setPopup }}
-      headerActions={
-        <DialogClose
-          render={
-            <Button className="shrink-0" variant="ghost" ref={closeRef} size="sm">
-              {DIALOG_VERBS.close}
-            </Button>
-          }
-        />
-      }
+      dismiss={{ at: "header", control: closeRef }}
       open={image !== null}
       onOpenChange={(next): void => {
         if (!next) {

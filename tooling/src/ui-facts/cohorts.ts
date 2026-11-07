@@ -74,14 +74,23 @@ function listPane(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Mem
 
 // ── dialogs ──────────────────────────────────────────────────────────────────────────────────────
 
-const DIALOG_TAGS = new Set(["FormDialog", "ContentDialog", "ViewerDialog", "PickerDialog", "FlowDialog", "ConfirmDialog", "Dialog", "AlertDialog"]);
+const DIALOG_TAGS = new Set([
+  "FormDialog",
+  "FormDialogPopup",
+  "DismissDialog",
+  "RequiredFormDialog",
+  "ContentDialog",
+  "ViewerDialog",
+  "PickerDialog",
+  "FlowDialog",
+  "ConfirmDialog",
+  "Dialog",
+  "AlertDialog",
+]);
 const DISMISS_WORDS = new Set(["Cancel", "Close", "Done", "Back", "Dismiss", "Discard", "Keep editing"]);
 
 function fileDismiss(facts: FileFacts): string | null {
-  if (hasAny(facts, "FormSubmitButton")) {
-    return "Cancel (FormSubmitButton)";
-  }
-  if (hasAny(facts, "DialogClose", "AlertDialogClose", "ContentDialogClose")) {
+  if (hasAny(facts, "DialogClose", "AlertDialogClose")) {
     return "DialogClose";
   }
   return buttonWithText(facts, DISMISS_WORDS) ? "Button in body" : null;
@@ -90,17 +99,17 @@ function fileDismiss(facts: FileFacts): string | null {
 function dismissOf(facts: FileFacts, dialog: Elem): string {
   const built = new Map([
     ["ConfirmDialog", "Cancel (built in)"],
+    ["FormDialog", "Cancel (built in)"],
+    ["FormDialogPopup", "Cancel (built in)"],
+    ["RequiredFormDialog", "none (forced ask)"],
     ["ViewerDialog", "Close (built in)"],
     ["PickerDialog", "Close (built in)"],
   ]);
   const own = built.get(dialog.tag);
-  if (own !== undefined && !dialog.attrs.has("headerActions")) {
+  if (own !== undefined) {
     return own;
   }
-  if (dialog.attrs.has("submit")) {
-    return "Cancel (submit footer)";
-  }
-  for (const prop of ["dismissLabel", "closeButton", "footer", "headerActions"]) {
+  for (const prop of ["dismissLabel", "closeButton", "dismiss"]) {
     if (dialog.attrs.has(prop)) {
       return prop;
     }
@@ -119,9 +128,7 @@ function submitLabelOf(facts: FileFacts, dialog: Elem): string {
   if (dialog.tag === "ConfirmDialog") {
     return confirm ?? "Confirm";
   }
-  const button = facts.elems.find((elem) => elem.tag === "FormSubmitButton");
-  const label = attrString(button?.attrs.get("label"));
-  return label ?? (submit === undefined ? "none" : "dynamic");
+  return submit === undefined ? "none" : "dynamic";
 }
 
 function dialogMember(facts: FileFacts, dialog: Elem): Member {
@@ -161,7 +168,18 @@ function destructiveMembers(facts: FileFacts): readonly Member[] {
     }
     const guarded =
       insideTag(elem, CONFIRMS) ||
-      hasAny(facts, "ConfirmDialog", "AlertDialog", "RowActionsMenu", "ModelRunConfirmDialog", "FormDialog", "ContentDialog", "FlowDialog") ||
+      hasAny(
+        facts,
+        "ConfirmDialog",
+        "AlertDialog",
+        "RowActionsMenu",
+        "ModelRunConfirmDialog",
+        "FormDialog",
+        "FormDialogPopup",
+        "DismissDialog",
+        "ContentDialog",
+        "FlowDialog",
+      ) ||
       sf.text.includes('label: "Undo"') ||
       buttonWithText(facts, INLINE_CONFIRM_WORDS) ||
       EXEMPT_PATHS.some((pattern) => pattern.test(facts.source.path));
@@ -215,12 +233,12 @@ function editor(facts: FileFacts): Member {
   let submit = "none";
   if (hasAny(facts, "SaveBar")) {
     submit = "SaveBar";
-  } else if (hasAny(facts, "FormSubmitButton")) {
-    submit = "FormSubmitButton";
+  } else if (hasAny(facts, "FormDialog", "FormDialogPopup")) {
+    submit = "FormDialog";
   }
   return member(facts, "file", {
     template: cell(template, page?.line ?? 1),
-    save: cell(submit, firstLine(facts, "SaveBar", "FormSubmitButton")),
+    save: cell(submit, firstLine(facts, "SaveBar", "FormDialog", "FormDialogPopup")),
     ...focusAndEmpty(facts),
   });
 }

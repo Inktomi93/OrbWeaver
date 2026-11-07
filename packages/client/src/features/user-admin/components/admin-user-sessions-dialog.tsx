@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, FormDialog } from "#components";
+import { ConfirmDialog, DismissDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -32,7 +32,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   const mutating = revokeOne.isPending || revokeAll.isPending;
 
   return (
-    <FormDialog
+    <DismissDialog
       description="Revoking a session signs that device out on its next request."
       dismissLabel="Close"
       onOpenChange={props.onOpenChange}
@@ -97,6 +97,6 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         open={confirmRevokeAll}
         title="Revoke all sessions?"
       />
-    </FormDialog>
+    </DismissDialog>
   );
 }

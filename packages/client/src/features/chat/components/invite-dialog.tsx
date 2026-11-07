@@ -1,4 +1,4 @@
-// The invite mint dialog (#2350 — migrated to `FormDialog` DISMISS mode). Two modes: share link
+// The invite mint dialog (#2350 — migrated to `DismissDialog` DISMISS mode). Two modes: share link
 // (untargeted, the raw token returns exactly once and is rendered with a copy button, never re-derivable)
 // and invite by handle (targeted, delivered as a notification; an unknown handle renders its refusal
 // inline, never silently degraded to a share link). Below the mint form: the outstanding-invites list,
@@ -21,7 +21,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import type { StatusVocabulary } from "#components";
-import { FormDialog, QueryBoundary, StatusChip } from "#components";
+import { DismissDialog, QueryBoundary, StatusChip } from "#components";
 import type { Trpc } from "#data";
 import {
   fetchLiveShare,
@@ -53,7 +53,7 @@ export interface InviteDialogProps {
 
 export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteDialogProps): ReactElement {
   return (
-    <FormDialog
+    <DismissDialog
       open={open}
       onOpenChange={onOpenChange}
       {...(finalFocus === undefined ? {} : { finalFocus })}
@@ -73,7 +73,7 @@ export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteD
         <Separator />
         <OutstandingInvites chatId={chatId} />
       </Stack>
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

@@ -56,7 +56,7 @@ function dismissWords(elems: readonly Elem[]): readonly string[] {
       found.add(word);
     }
     // These composites print a Cancel of their own.
-    if (elem.tag === "FormSubmitButton" || (elem.tag === "FormDialog" && elem.attrs.has("submit"))) {
+    if (elem.tag === "FormDialog" || elem.tag === "FormDialogPopup") {
       found.add("Cancel");
     }
   }
@@ -67,8 +67,8 @@ function submitOf(facts: FileFacts): string {
   if (facts.tags.has("SaveBar")) {
     return "SaveBar";
   }
-  if (facts.tags.has("FormSubmitButton")) {
-    return "FormSubmitButton";
+  if (facts.tags.has("FormDialog") || facts.tags.has("FormDialogPopup")) {
+    return "FormDialog";
   }
   return facts.elems.some((elem) => attrString(elem.attrs.get("type")) === "submit") ? "submit button" : "none";
 }
@@ -82,7 +82,7 @@ function fitOf(mode: string, words: readonly string[]): string {
 
 function memberOf(facts: FileFacts, mode: string): Member {
   const words = dismissWords(facts.elems);
-  const line = firstLine(facts, "FormSubmitButton", "SaveBar", "FormDialog");
+  const line = firstLine(facts, "SaveBar", "FormDialog", "FormDialogPopup");
   return {
     path: facts.source.path,
     section: facts.source.section,

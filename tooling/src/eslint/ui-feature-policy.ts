@@ -41,7 +41,8 @@ const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|ma
 const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b(?![^]*\b(search|filters?)\b)/i`;
 const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
 // Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
-const CONFIRM_IN_FILE = "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|ContentDialog|FlowDialog)$/]";
+const CONFIRM_IN_FILE =
+  "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|FormDialogPopup|DismissDialog|ContentDialog|FlowDialog)$/]";
 const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
 // An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
 // The Cancel word is either literal text or the shared `DIALOG_VERBS.cancel`.
@@ -234,25 +235,6 @@ export const UI_FEATURE_RESTRICTIONS = [
         // An `<a>` with no href is an anchor TARGET, not a control.
         selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='a']:has(> JSXAttribute[name.name='href'])",
         message: "A raw `<a href>` in a feature (D62) — use the @orb/ui Link primitive.",
-      },
-    ],
-  },
-  {
-    // The dialogs that build their own footer. ConfirmDialog, ViewerDialog and PickerDialog carry a built-in dismiss.
-    id: "dialog-needs-dismiss",
-    selectors: [
-      {
-        selector: [
-          "JSXElement[openingElement.name.name=/^(FormDialog|ContentDialog|FlowDialog)$/][openingElement.selfClosing=false]",
-          // A dialog that mounts a `...Body` component hands it the footer; that file is read as a whole by `pnpm ui-facts`.
-          ":not(:has(JSXOpeningElement[name.name=/Body$/]))",
-          ":not(:has(JSXOpeningElement[name.name=/^(FormSubmitButton|DialogClose|AlertDialogClose|ContentDialogClose)$/]))",
-          ":not(:has(JSXOpeningElement > JSXAttribute[name.name=/^(submit|dismissLabel|closeButton|footer|headerActions)$/]))",
-          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXText[value=/^\\s*(Cancel|Close|Done|Back|Dismiss|Discard|Keep editing)\\s*$/]))",
-          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXExpressionContainer > MemberExpression[object.name='DIALOG_VERBS'][property.name=/^(cancel|close|done)$/]))",
-        ].join(""),
-        message:
-          "A dialog needs a dismiss path: a `dismissLabel`, a `submit` footer (it carries Cancel), a `FormSubmitButton`, a `DialogClose`, or a Cancel or Close button.",
       },
     ],
   },

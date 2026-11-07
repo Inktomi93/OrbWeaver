@@ -1773,12 +1773,6 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/mutation-factory-in-hooks-file": "error" },
     },
     {
-      files: ["packages/client/src/**/*.tsx"],
-      // The first-run persona ask is the forced dialog D70 sanctions (docs/adr/0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md): it has no dismiss by design.
-      ignores: ["packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx"],
-      rules: { "orb/dialog-needs-dismiss": "error" },
-    },
-    {
       files: ["packages/client/src/features/**/*.tsx"],
       ignores: ["packages/client/src/features/app-shell/surfaces/app-shell.tsx"],
       rules: { "orb/no-raw-interactive-intrinsics": "error" },

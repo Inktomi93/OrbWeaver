@@ -34,29 +34,6 @@ async function findings(rule: string, source: string, path = FEATURE): Promise<r
   return found.filter(({ ruleId }) => ruleId === rule);
 }
 
-const DISMISS = "orb/dialog-needs-dismiss";
-
-test.for([
-  ["a form dialog with no close, cancel or submit", '<FormDialog title="A" open={true} onOpenChange={f}><Field /></FormDialog>'],
-  ["a content dialog with only a confirm button", '<ContentDialog title="A" open={true} onOpenChange={f}><Button>Save</Button></ContentDialog>'],
-] as const)("%s is a finding", async ([, jsx]) => {
-  expect(await findings(DISMISS, `export const A = () => ${jsx};`)).toHaveLength(1);
-});
-
-test.for([
-  ["a dismissLabel", '<FormDialog title="A" dismissLabel="Close"><Field /></FormDialog>'],
-  ["a submit footer", '<FormDialog title="A" submit={s}><Field /></FormDialog>'],
-  ["a FormSubmitButton", '<FormDialog title="A"><FormSubmitButton label="Save" /></FormDialog>'],
-  ["a DialogClose", '<ContentDialog title="A"><DialogClose render={<Button>Later</Button>} /></ContentDialog>'],
-  ["a Cancel button", '<ContentDialog title="A"><Button>Cancel</Button></ContentDialog>'],
-  ["a Cancel button by shared verb", '<FormDialog title="A"><Button>{DIALOG_VERBS.cancel}</Button></FormDialog>'],
-  ["forwarded props", "<ContentDialog {...props} />"],
-  ["a mounted Body component that owns the footer", '<FormDialog title="A"><EditorBody onDone={f} /></FormDialog>'],
-  ["a built-in dismiss", '<ConfirmDialog title="A" />'],
-] as const)("%s is a dismiss path", async ([, jsx]) => {
-  expect(await findings(DISMISS, `export const A = () => ${jsx};`)).toEqual([]);
-});
-
 const FACTORY = "orb/mutation-factory-in-hooks-file";
 const FACTORY_CALL = "export const useA = createEntityMutation({ options: (trpc) => trpc.a.mutationOptions() });";
 

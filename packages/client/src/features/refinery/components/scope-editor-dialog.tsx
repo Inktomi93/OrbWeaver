@@ -30,13 +30,13 @@ import type { RefinableField, RefineryScorePayload, RefinerySelection, RefineryS
 import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
+import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ScopeEditorDialogProps {
@@ -172,9 +172,9 @@ function GreetingsScopeRow({
 
 export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, onSave }: ScopeEditorDialogProps): ReactElement {
   return (
-    <FormDialog onOpenChange={onOpenChange} open={open} size="md" title="Scope">
-      {open ? <ScopeEditorBody card={card} onOpenChange={onOpenChange} onSave={onSave} score={score} selection={selection} /> : null}
-    </FormDialog>
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
+      <ScopeEditorBody card={card} onOpenChange={onOpenChange} onSave={onSave} score={score} selection={selection} />
+    </FormDialogRoot>
   );
 }
 
@@ -214,82 +214,78 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
   }
 
   return (
-    <Stack gap="row">
-      <Text voice="gloss">
-        Only what you select is sent to the model — and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it does
-        not retro-fit an old rewrite.
-      </Text>
-      {REFINABLE_FIELDS.map((field) => {
-        const on = fields.includes(field);
-        if (field === "greetings") {
-          return (
-            <GreetingsScopeRow
-              card={card}
-              greetingIndexes={greetingIndexes}
-              key={field}
-              on={on}
-              onToggleField={(): void => toggleField(field)}
-              onToggleGreeting={toggleGreeting}
-            />
-          );
-        }
-        const text = fieldTextOf(card, field);
-        const depthless = field === "depthPrompt" && card.depthPrompt === null;
-        return (
-          <ScopeCheckRow
-            checked={on && !depthless}
-            disabled={depthless}
-            gloss={fieldGlossOf(depthless, text)}
-            key={field}
-            name={scopeChipLabelOf(field, undefined)}
-            onToggle={(): void => toggleField(field)}
-          />
-        );
-      })}
-      <DialogFooter>
-        <Button
-          variant="ghost"
-          onClick={(): void => {
-            const populated = populatedSelection(card);
-            setFields(populated.fields);
-            setGreetingIndexes(undefined);
-            // "Reset" is an explicit statement about the greeting axis too: every slot, back in scope.
-            setGreetingsTouched(true);
-          }}
-          size="sm"
-        >
-          Reset to populated
-        </Button>
-        {score !== null ? (
-          <Button variant="ghost" onClick={selectUnderBar} size="sm">
-            Select what scored under {LOW_SCORE_BAR}
-          </Button>
-        ) : null}
-        <Row grow={true} gap="row" justify="end">
-          <DialogClose
-            render={
-              <Button variant="ghost" size="sm">
-                Cancel
-              </Button>
-            }
-          />
+    <FormDialogPopup
+      footerLead={
+        <>
           <Button
+            variant="ghost"
             onClick={(): void => {
-              // The delta (header): `fields` always; the greeting axis only when addressed, and then
-              // `null` for "every greeting" — absence on the wire means KEEP, which is not what a user
-              // who just checked every slot is saying.
-              onSave({
-                fields: [...fields],
-                ...(greetingsTouched ? { greetingIndexes: greetingIndexes === undefined ? null : [...greetingIndexes] } : {}),
-              });
-              onOpenChange(false);
+              const populated = populatedSelection(card);
+              setFields(populated.fields);
+              setGreetingIndexes(undefined);
+              // "Reset" is an explicit statement about the greeting axis too: every slot, back in scope.
+              setGreetingsTouched(true);
             }}
             size="sm"
           >
-            Save
+            Reset to populated
           </Button>
-        </Row>
-      </DialogFooter>
-    </Stack>
+          {score !== null ? (
+            <Button variant="ghost" onClick={selectUnderBar} size="sm">
+              Select what scored under {LOW_SCORE_BAR}
+            </Button>
+          ) : null}
+        </>
+      }
+      size="md"
+      submit={{
+        label: DIALOG_VERBS.save,
+        onSubmit: (): void => {
+          // The delta (header): `fields` always; the greeting axis only when addressed, and then
+          // `null` for "every greeting" — absence on the wire means KEEP, which is not what a user
+          // who just checked every slot is saying.
+          onSave({
+            fields: [...fields],
+            ...(greetingsTouched ? { greetingIndexes: greetingIndexes === undefined ? null : [...greetingIndexes] } : {}),
+          });
+          onOpenChange(false);
+        },
+      }}
+      title="Scope"
+    >
+      <Stack gap="row">
+        <Text voice="gloss">
+          Only what you select is sent to the model — and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it
+          does not retro-fit an old rewrite.
+        </Text>
+        {REFINABLE_FIELDS.map((field) => {
+          const on = fields.includes(field);
+          if (field === "greetings") {
+            return (
+              <GreetingsScopeRow
+                card={card}
+                greetingIndexes={greetingIndexes}
+                key={field}
+                on={on}
+                onToggleField={(): void => toggleField(field)}
+                onToggleGreeting={toggleGreeting}
+              />
+            );
+          }
+          const text = fieldTextOf(card, field);
+          const depthless = field === "depthPrompt" && card.depthPrompt === null;
+          return (
+            <ScopeCheckRow
+              checked={on && !depthless}
+              disabled={depthless}
+              gloss={fieldGlossOf(depthless, text)}
+              key={field}
+              name={scopeChipLabelOf(field, undefined)}
+              onToggle={(): void => toggleField(field)}
+            />
+          );
+        })}
+      </Stack>
+    </FormDialogPopup>
   );
 }
