@@ -30,6 +30,13 @@ import { NameRowFrame } from "./message-name-row-frame.tsx";
 // at the end for a mirrored row.
 const STAMP_STACK = "@max-cq-28:flex-nowrap @max-cq-28:gap-0";
 
+function stampAlignment(stackStamp: boolean, mirrored: boolean): "end-cq-28" | "stretch-cq-28" | undefined {
+  if (!stackStamp) {
+    return undefined;
+  }
+  return mirrored ? "end-cq-28" : "stretch-cq-28";
+}
+
 /** The live turn always names its speaker on a line of its own. */
 const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
 const GHOST_UNNAMED_SHAPE: HeaderShape = { identity: false, ownLine: true };
@@ -95,8 +102,7 @@ function renderRowIdentity(args: {
       gap="field"
       align="center"
       stackBelow={stackStamp ? "cq-28" : undefined}
-      stretchBelow={stackStamp && !mirrored ? "cq-28" : undefined}
-      alignEndBelow={stackStamp && mirrored ? "cq-28" : undefined}
+      alignBelow={stampAlignment(stackStamp, mirrored)}
       reverse={mirrored}
       className={cn("flex-wrap min-inline-0", stackStamp && STAMP_STACK)}
     >

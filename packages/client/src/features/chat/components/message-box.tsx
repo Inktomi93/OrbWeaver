@@ -4,6 +4,7 @@
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { Stack } from "@orb/ui/layout";
+import { READING_INSET } from "@orb/ui/lib";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
@@ -60,13 +61,6 @@ function readingInk(box: RowSkin["box"], role: MessageRole): "prose" | "muted" |
   return role === "system" ? "muted" : undefined;
 }
 
-// The inset a reading box lays on its column. The plate is inset a section from its gutter, and its end edge a block on a phone. The page is
-// inset the gutter, with no block-end inset so the next page runs on, and a tight step on a phone.
-const READING_INSET = {
-  plate: { paddingInline: "section", paddingBlock: "row", paddingBlockStart: undefined, paddingInlineNarrow: undefined, paddingInlineEndNarrow: "block" },
-  page: { paddingInline: "gutter", paddingBlock: undefined, paddingBlockStart: "row", paddingInlineNarrow: "tight", paddingInlineEndNarrow: undefined },
-} as const;
-
 function readingFlowOf(weld: boolean, overlayPage: boolean): "weld" | "page" | undefined {
   if (weld) {
     return "weld";
@@ -81,7 +75,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
   const floor = page && lastRowFloor;
   const overlayPage = page && !lastRowFloor;
   const weld = shape === "weld";
-  const boxInset = inset ? READING_INSET[box] : undefined;
+  const boxInset = inset ? READING_INSET[box].inset : undefined;
   return (
     <Stack
       data-slot={MESSAGE_BUBBLE_SLOT}

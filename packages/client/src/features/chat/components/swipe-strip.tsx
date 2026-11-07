@@ -52,7 +52,7 @@ function FootRow({
   ...props
 }: ComponentProps<"div"> & { readonly edge: SwipeFoot["edge"] } & Pick<ComponentProps<typeof Row>, "align" | "justify" | "gap">): ReactElement {
   if (edge === "card") {
-    return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" reachCard="foot" className={FOOT_CARD} />;
+    return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" reach="foot" className={FOOT_CARD} />;
   }
   if (edge === "plate") {
     return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap" paddingInline="field" />;
