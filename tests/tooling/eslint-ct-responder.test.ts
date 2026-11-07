@@ -243,14 +243,9 @@ test("a yielded input is observed outside the generator", async () => {
   expect(await findings('await routeTrpc(page, { "a.list": function* (input) { yield input.id; return ["x"]; } });')).toEqual([]);
 });
 
-// The rule's two refusals, a fixed answer and a fabricated refusal, told apart by the clause each message opens with.
-const FIXED = "fixed";
-const REFUSED = "refused";
-const OPENINGS = [
-  ["A fixed responder", FIXED],
-  ["An unconditional trpcError", REFUSED],
-] as const;
-const refusalOf = (message: string): string => OPENINGS.find(([opening]) => message.startsWith(opening))?.[1] ?? message;
+// The rule's two refusals by message id: a fixed answer, and a refusal the server never sent.
+const FIXED = "fixedResponder";
+const REFUSED = "fabricatedRefusal";
 
 test.for([
   [
@@ -291,7 +286,7 @@ test.for([
   ["each fixed route of one map", `await routeTrpc(page, { "a.list": () => [], "a.ping": () => trpcError() });`, [FIXED, REFUSED]],
 ] as const)("native responder wall refuses: %s", async ([, body, verdicts]) => {
   expect(
-    (await findings(body)).filter(({ ruleId }) => ruleId === RULE).map(({ message }) => refusalOf(message)),
+    (await findings(body)).filter(({ ruleId }) => ruleId === RULE).map(({ messageId }) => messageId),
     body,
   ).toEqual(verdicts);
 });

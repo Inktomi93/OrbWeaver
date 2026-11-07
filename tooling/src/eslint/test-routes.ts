@@ -339,7 +339,7 @@ function isTypedRouteMap(context: OrbRuleContext, native: Native, object: TSESTr
 }
 
 export const ctResponderReadsInputRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
+  meta: { type: "problem", schema: [], messages: { fixedResponder: FIXED_MESSAGE, fabricatedRefusal: ERROR_MESSAGE } },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
     const env: Env = { context, native, sourceFile: native.esTreeNodeToTSNodeMap.get(context.sourceCode.ast).getSourceFile() };
@@ -352,9 +352,9 @@ export const ctResponderReadsInputRule: OrbRule = {
       judged.add(property);
       const verdict = verdictOf(env, property.value);
       if (verdict === VERDICT.error) {
-        context.report({ node: property.value, message: ERROR_MESSAGE });
+        context.report({ node: property.value, messageId: "fabricatedRefusal" });
       } else if (verdict === VERDICT.fixed && !inputIsVoid(native, env.sourceFile, path)) {
-        context.report({ node: property.value, message: FIXED_MESSAGE });
+        context.report({ node: property.value, messageId: "fixedResponder" });
       }
     };
 

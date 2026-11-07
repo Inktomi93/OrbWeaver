@@ -339,7 +339,8 @@ test("the production config registers derived-port-member as an error on server 
   }
   const source = `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\nexport const deps: { sessions: Port } = { sessions };`;
   const planted = await plantedTree({ ...OWNERS, [SITE]: source });
-  expect(lint(planted, SITE, source, registered).map(({ message }) => message)).toEqual([
-    expect.stringContaining("Port.create hand-restates SessionsService.create"),
-  ]);
+  // The source rule's own finding on the plant is the expected value, so the registered rule must judge it the same.
+  const expected = lint(planted, SITE, source, derivedPortMemberRule);
+  expect(expected).toHaveLength(1);
+  expect(lint(planted, SITE, source, registered)).toEqual(expected);
 });
