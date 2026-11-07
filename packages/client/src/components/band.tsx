@@ -1,4 +1,4 @@
-// Band — the client-shared BAND anatomy: one ghost `size="band"` control that NAMES a region, optionally
+// Band — the client-shared BAND anatomy: one ghost `BandButton` control that NAMES a region, optionally
 // discloses it, and optionally states its census. The ONE home for the shape three surfaces were drawing
 // by hand (#1723).
 //
@@ -16,7 +16,7 @@
 // this module is the enforcer, and the two consumers' CTs measure the same box against the same token.
 //
 // ── WHAT IS SEALED, AND WHY EACH PIECE ───────────────────────────────────────────────────────────────
-//  · The CHASSIS: a ghost Button at `size="band"` (the sm height with the tight joints and inset),
+//  · The CHASSIS: a ghost `BandButton` (the sm height with the tight joints and inset),
 //    `width="full"` (never `flex-1` — #978 F1 above; every band's parent is a vertical `Stack`, and the axis
 //    is the whole bug), `min-w-0` so the label can truncate, `justify-start`. The padding is the RATIFIED
 //    value: §3.1's delta list is exhaustive and padding is not on it, so the preset copy's `px-field` was
@@ -66,8 +66,8 @@
 // as one token) is a fact about the caller's OWN marks, and a band that guessed a name would be a second,
 // invisible home for the copy.
 
+import { BandButton } from "@orb/ui/band-button";
 import type { ButtonBaseProps } from "@orb/ui/button";
-import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { cn } from "@orb/ui/lib";
@@ -148,13 +148,12 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
     // `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the glyph column is
     // identical on all thirteen settings bands and all four collection bands and entering a library cannot shift its own
     // label by 2px (the `ListRow` reservation, for the same reason).
-    <Button
+    <BandButton
       className={cn("min-inline-0", className) ?? ""}
       justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}
       variant="ghost"
-      size="band"
       width="full"
       ink={ink}
       type="button"
@@ -186,6 +185,6 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
         </CountText>
       )}
       {marks}
-    </Button>
+    </BandButton>
   );
 }

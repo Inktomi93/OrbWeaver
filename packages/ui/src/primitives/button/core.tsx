@@ -14,7 +14,7 @@ import { BUTTON_DEFAULT_TONE, buttonTone, buttonVariants } from "./variants.ts";
 type ButtonRecipe = VariantProps<typeof buttonVariants>;
 
 /** The family's shared axes: every recipe axis but Button's own scale box. */
-export interface ButtonCoreProps extends BaseButtonProps, Omit<ButtonRecipe, "size" | "square" | "wrap"> {
+export interface ButtonCoreProps extends BaseButtonProps, Omit<ButtonRecipe, "size" | "square" | "wrap" | "stacked"> {
   className?: string;
   /** Busy state: sets `aria-busy` and disables the button (a state, not a variant). */
   loading?: boolean;
@@ -31,11 +31,22 @@ export type ButtonPaint = (
 ) &
   ToneInkSelection;
 
+/** `stretch` owns the label's start and, for `line`, the full width, so a caller names neither beside it. */
+export type ButtonStretch = { stretch?: undefined } | { stretch: "row"; justify?: undefined } | { stretch: "line"; justify?: undefined; width?: undefined };
+
 interface ButtonCoreInput extends ButtonCoreProps {
   /** Button's scale box; a named component passes none. */
-  readonly scale?: Pick<ButtonRecipe, "size" | "square" | "wrap"> | undefined;
+  readonly scale?: Pick<ButtonRecipe, "size" | "square" | "wrap" | "stacked"> | undefined;
   /** A named component's own box: its recipe's classes and axis stamp, merged after the shared recipe. */
   readonly box?: VariantStampProps | undefined;
+}
+
+/** A stretched button sets its label at the start, and a whole list line takes the full width: the arm owns both, so `justify` and `width` are the caller's only without it. */
+function placed(stretch: ButtonRecipe["stretch"], justify: ButtonRecipe["justify"], width: ButtonRecipe["width"]): Pick<ButtonRecipe, "justify" | "width"> {
+  if (stretch === undefined) {
+    return { justify, width };
+  }
+  return { justify: "start", width: stretch === "line" ? "full" : width };
 }
 
 export function ButtonCore(props: ButtonCoreInput): ReactElement {
@@ -59,8 +70,8 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
     quietDisabled,
     focusRing,
     stretch,
-    width,
-    justify,
+    width: calledWidth,
+    justify: calledJustify,
     loading = false,
     disabled = false,
     focusableWhenDisabled,
@@ -73,6 +84,7 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
   // The selection rail keys its paint on `data-selected`, so the row's tone follows the same attribute.
   const selected = "data-selected" in props && props["data-selected"] !== undefined;
   const resolvedFocal = focal ?? (variant === "solid" && resolvedTone === "primary");
+  const { justify, width } = placed(stretch, calledJustify, calledWidth);
   // The className, the axis stamp and the D336 tone scope, from ONE selection object; the box lands after the shared
   // recipe and before the caller's class.
   const stamp = variantProps(
@@ -85,6 +97,7 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
       size: scale?.size,
       square: scale?.square,
       wrap: scale?.wrap,
+      stacked: scale?.stacked,
       shape,
       cardCorners,
       selection,

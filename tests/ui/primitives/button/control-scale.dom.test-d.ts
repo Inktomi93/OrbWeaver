@@ -29,14 +29,31 @@ test("square and wrap reshape a scale step only, and never together", () => {
   expectTypeOf<{ size: "glyph-lg"; square: true; "aria-label": "x" }>().not.toExtend<ButtonProps>();
 });
 
-test("the band and stacked boxes are their own steps, so neither reshapes into a square or a wrap", () => {
+test("stacked reshapes a scale step like wrap, and no box combines with another", () => {
+  createElement(Button, { size: "sm", stacked: true }, "x");
+  createElement(Button, { stacked: false }, "x");
+  // @ts-expect-error the band is BandButton's box, not a Button size
   createElement(Button, { size: "band" }, "x");
-  createElement(Button, { size: "stacked", wrap: false }, "x");
-  // @ts-expect-error a square is a reshape of a scale step, and the band is not one
-  createElement(Button, { size: "band", square: true, "aria-label": "x" });
-  // @ts-expect-error a wrap is a reshape of a scale step, and the stacked box already grows with its content
-  createElement(Button, { size: "stacked", wrap: true }, "x");
-  expectTypeOf<{ size: "band"; wrap: true }>().not.toExtend<ButtonProps>();
+  // @ts-expect-error stacked is a reshape of a scale step, not a size
+  createElement(Button, { size: "stacked" }, "x");
+  // @ts-expect-error a square cannot be stacked
+  createElement(Button, { square: true, stacked: true, "aria-label": "x" });
+  // @ts-expect-error a wrap cannot be stacked
+  createElement(Button, { wrap: true, stacked: true }, "x");
+  expectTypeOf<{ stacked: true; wrap: true }>().not.toExtend<ButtonProps>();
+});
+
+test("stretch owns the label's start and, for a line, the width, and a square takes none", () => {
+  createElement(Button, { stretch: "row" }, "x");
+  createElement(Button, { stretch: "line" }, "x");
+  createElement(Button, { justify: "start", width: "full" }, "x");
+  // @ts-expect-error stretch already sets the label at the start
+  createElement(Button, { stretch: "row", justify: "start" }, "x");
+  // @ts-expect-error a whole line already takes the full width
+  createElement(Button, { stretch: "line", width: "full" }, "x");
+  // @ts-expect-error a square is its step's width, not a share of the row
+  createElement(Button, { square: true, stretch: "row", "aria-label": "x" });
+  expectTypeOf<{ square: true; stretch: "line"; "aria-label": "x" }>().not.toExtend<ButtonProps>();
 });
 
 test("a square is icon-only, so it carries its own name", () => {
