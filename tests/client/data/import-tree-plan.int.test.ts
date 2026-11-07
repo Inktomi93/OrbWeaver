@@ -20,7 +20,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds, FIXTURE_ID_CURSOR, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -318,9 +318,9 @@ test("a file no framed upload can carry is skipped with its reason instead of se
   // The per-file cap is a different refusal: the same file under a smaller per-file cap names its own reason.
   const overFileCap = await planServedTreeImport([small, whole], { ...served, fileBytes: UNIT }, []);
   const [fileCapSkip] = skippedByReason(overFileCap.skipped);
-  expect(fileCapSkip?.reason).not.toBe("");
-  expect(skip?.reason).not.toBe("");
-  expect(skip?.reason).not.toBe(fileCapSkip?.reason);
+  expect(present(fileCapSkip).reason).not.toBe("");
+  expect(present(skip).reason).not.toBe("");
+  expect(present(skip).reason).not.toBe(present(fileCapSkip).reason);
   expect(plan.batches.flat()).not.toContain(whole);
   expect(plan.files).toBe(1);
 });

@@ -358,7 +358,8 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
         failure: null,
       },
     });
-    expect(concurrency.every((row) => /^\S+ \(pid \d+, started \d{4}-\d{2}-\d{2}T\S+Z\)$/u.test(row))).toBe(true);
+    // Other runs on the machine may or may not be live, so the list can be empty; each row it holds must be well formed.
+    expect(concurrency.filter((row) => !/^\S+ \(pid \d+, started \d{4}-\d{2}-\d{2}T\S+Z\)$/u.test(row))).toEqual([]);
     expect(concurrency.some((row) => row.startsWith(`${exportIndex.identity.runId} (`))).toBe(false);
 
     // A live sibling run is real provenance, not flake noise. Plant one through the production slot door

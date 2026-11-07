@@ -6,6 +6,7 @@
 // Owner ruling pinned here too: this detector is not built to fire on today's tree — a clean run is the
 // SUCCESS condition, never a failure, and the threshold is never loosened to manufacture a finding.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import type { AuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
@@ -34,7 +35,7 @@ function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
 // not a describe-nested test.
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();
   });
 }

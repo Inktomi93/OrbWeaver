@@ -5,8 +5,10 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node";
+import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
-import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
+import type { WireOf } from "../scenario-physical.ts";
+import { openingOf, openingText, textRoom, wireOf } from "../scenario-physical.ts";
 
 test("saved custom stopping strings reach the actual native stop set on a declared stop-capable endpoint", async () => {
   await using h = await textRoom(["The response ends here."]);
@@ -24,22 +26,28 @@ test("saved custom stopping strings reach the actual native stop set on a declar
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { customStoppingStrings: ["<END>", "\nUser:"] } });
-  expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" })).aborted).toBe(false);
-  expect(await wireBodies(h)).toMatchObject([{ stop: ["<END>", "\nUser:"] }]);
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" }));
+  expect(outcome.aborted).toBe(false);
+  expect(bodies).toMatchObject([{ stop: ["<END>", "\nUser:"] }]);
 });
+
+type DraftParams = Omit<Parameters<ChatRoot["root"]["services"]["chat"]["impersonateStream"]>[0], "principal" | "chatId">;
+
+/** Drain one impersonation draft and return its text with the requests it sent. */
+async function drainDraft(h: ChatRoot, params: DraftParams = {}): Promise<WireOf<string>> {
+  return await wireOf(h, async () => {
+    let text = "";
+    for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId, ...params })) {
+      text += delta;
+    }
+    return text;
+  });
+}
 
 test("a public guided impersonation substitutes the chosen third-person perspective and steering input on the native wire", async () => {
   await using h = await textRoom(["A drafted next line."]);
-  let drafted = "";
-  for await (const { delta } of h.root.services.chat.impersonateStream({
-    principal: h.owner,
-    chatId: h.chatId,
-    guided: { action: "impersonate", input: "ask about the ruins", person: "third" },
-  })) {
-    drafted += delta;
-  }
-  expect(drafted).toBe("A drafted next line.");
-  const inputs = await wireBodies(h);
+  const { outcome: draft, bodies: inputs } = await drainDraft(h, { guided: { action: "impersonate", input: "ask about the ruins", person: "third" } });
+  expect(draft).toBe("A drafted next line.");
   expect(inputs).toHaveLength(1);
   expect(JSON.stringify(inputs)).toContain("third-person perspective");
   expect(JSON.stringify(inputs)).toContain("ask about the ruins");
@@ -77,20 +85,14 @@ test.for([
   });
   await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
   await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { customStoppingStrings: scene.custom } });
-  let text = "";
-  let aborted = false;
-  if (scene.draft) {
-    for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
-      text += delta;
-    }
-  } else {
-    const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
-    aborted = outcome.aborted;
-    text = outcome.messages.find(({ role }) => role === "assistant")?.content ?? "";
-  }
-  expect(aborted).toBe(false);
-  expect(text).toBe("A complete answer.");
-  const inputs = await wireBodies(h);
+  const { outcome, bodies: inputs } = scene.draft
+    ? await wireOf(h, async () => ({ aborted: false, text: (await drainDraft(h)).outcome }))
+    : await wireOf(h, async () => {
+        const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
+        return { aborted: sent.aborted, text: sent.messages.find(({ role }) => role === "assistant")?.content ?? "" };
+      });
+  expect(outcome.aborted).toBe(false);
+  expect(outcome.text).toBe("A complete answer.");
   expect(inputs).toHaveLength(scene.replies);
   for (const input of inputs) {
     if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -106,14 +108,15 @@ test.for([
   { title: "an unsteered public send has no guided response template on the native wire", guided: false },
 ])("$title", async (scene) => {
   await using h = await textRoom(["A complete answer."]);
-  const outcome = await h.root.services.chat.send({
-    principal: h.owner,
-    chatId: h.chatId,
-    content: "hi",
-    ...(scene.guided ? { guided: { action: "response", input: "be dramatic" } } : {}),
-  });
+  const { outcome, bodies: inputs } = await wireOf(h, () =>
+    h.root.services.chat.send({
+      principal: h.owner,
+      chatId: h.chatId,
+      content: "hi",
+      ...(scene.guided ? { guided: { action: "response", input: "be dramatic" } } : {}),
+    }),
+  );
   expect(outcome.aborted).toBe(false);
-  const inputs = await wireBodies(h);
   expect(inputs).toHaveLength(1);
   const wire = JSON.stringify(inputs);
   expect(wire.includes("special consideration")).toBe(scene.guided);
@@ -122,16 +125,8 @@ test.for([
 
 test("a public impersonation with no selected person uses the actual first-person default on the native wire", async () => {
   await using h = await textRoom(["A drafted next line."]);
-  let drafted = "";
-  for await (const { delta } of h.root.services.chat.impersonateStream({
-    principal: h.owner,
-    chatId: h.chatId,
-    guided: { action: "impersonate", input: "ask about the ruins" },
-  })) {
-    drafted += delta;
-  }
-  expect(drafted).toBe("A drafted next line.");
-  const inputs = await wireBodies(h);
+  const { outcome: draft, bodies: inputs } = await drainDraft(h, { guided: { action: "impersonate", input: "ask about the ruins" } });
+  expect(draft).toBe("A drafted next line.");
   expect(inputs).toHaveLength(1);
   expect(JSON.stringify(inputs)).toContain("first-person perspective");
   expect(JSON.stringify(inputs)).toContain("ask about the ruins");
@@ -141,12 +136,8 @@ test("an unsteered public draft uses the actual active persona and resolves ever
   await using h = await textRoom(["A drafted next line."]);
   const persona = await h.caller.persona.create({ input: createPersonaSchema.parse({ name: "Alex", description: "The current speaking voice." }) });
   await h.caller.persona.setActivePersona({ chatId: h.chatId, personaId: persona.id });
-  let drafted = "";
-  for await (const { delta } of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
-    drafted += delta;
-  }
-  expect(drafted).toBe("A drafted next line.");
-  const inputs = await wireBodies(h);
+  const { outcome: draft, bodies: inputs } = await drainDraft(h);
+  expect(draft).toBe("A drafted next line.");
   expect(inputs).toHaveLength(1);
   const wire = JSON.stringify(inputs);
   expect(wire).toContain("AS Alex (not Aria)");
@@ -171,18 +162,19 @@ test.for([
   if (character === undefined) {
     throw new Error("the response-nudge room created no character");
   }
-  const outcome = await h.root.services.chat.generate({
-    principal: h.owner,
-    chatId: h.chatId,
-    speakerCharacterId: character.id,
-    ...(scene.afterAssistant ? { afterAssistant: true } : {}),
-  });
+  const { outcome, bodies } = await wireOf(h, () =>
+    h.root.services.chat.generate({
+      principal: h.owner,
+      chatId: h.chatId,
+      speakerCharacterId: character.id,
+      ...(scene.afterAssistant ? { afterAssistant: true } : {}),
+    }),
+  );
   expect(outcome.messages).toHaveLength(1);
   expect(outcome.messages[0]?.content).toBe("The next answer.");
-  const bodies = await wireBodies(h);
   expect(bodies).toHaveLength(1);
   const body = bodies[0];
-  if (body === undefined || body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
+  if (body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
     throw new Error("the actual native response input has no messages");
   }
   const lastUser = body["messages"].findLast((row) => row !== null && typeof row === "object" && !Array.isArray(row) && row["role"] === "user");
@@ -235,10 +227,12 @@ test.for([
           ],
         }),
   });
-  if (scene.kind === "send") {
-    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" });
-  } else {
-    const prior = (await readRoomCanon(h.root, h.owner, h.chatId)).findLast(({ role }) => role === "assistant");
+  const prior = (await readRoomCanon(h.root, h.owner, h.chatId)).findLast(({ role }) => role === "assistant");
+  const { bodies: inputs } = await wireOf(h, async () => {
+    if (scene.kind === "send") {
+      await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hi" });
+      return;
+    }
     if (prior === undefined) {
       throw new Error("the trigger-gate transcript wrote no prior reply");
     }
@@ -247,8 +241,7 @@ test.for([
     } else {
       await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: prior.id });
     }
-  }
-  const inputs = await wireBodies(h);
+  });
   expect(inputs).toHaveLength(1);
   // The send room is born empty, so its opening row is the live send; the others open on the seeded line. A trigger
   // section may append to the tail user row, so the opening is matched as a prefix.

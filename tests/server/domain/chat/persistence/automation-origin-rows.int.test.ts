@@ -5,6 +5,7 @@
 
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { automationFires, chatGenerationObservations, messages, messageVariants } from "@orb/db";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { SECRET_BOX_TEST_KEY, seedCorpusConnections } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -52,8 +53,10 @@ test("a real host-authored cascade stamps each bounded automation depth, records
     .innerJoin(messageVariants, eq(messages.selectedVariantId, messageVariants.id))
     .where(eq(messages.chatId, h.chatId));
   expect(generations).toHaveLength(AUTOMATION_DEPTH_HARD_CAP);
-  expect(generations.every(({ variant }) => variant.connectionId === connectionId && variant.connectionAttributionProvenance === "recorded")).toBe(true);
-  expect(generations.every(({ variant }) => (variant.metadata?.usageLegs?.length ?? 0) > 0)).toBe(true);
+  expect(nonEmpty(generations).every(({ variant }) => variant.connectionId === connectionId && variant.connectionAttributionProvenance === "recorded")).toBe(
+    true,
+  );
+  expect(nonEmpty(generations).every(({ variant }) => (variant.metadata?.usageLegs?.length ?? 0) > 0)).toBe(true);
   expect(h.requests.filter(({ method }) => method === "POST").map(({ headers }) => headers.get("authorization"))).toEqual(
     Array.from({ length: AUTOMATION_DEPTH_HARD_CAP }, () => `Bearer ${OWNER_KEY}`),
   );

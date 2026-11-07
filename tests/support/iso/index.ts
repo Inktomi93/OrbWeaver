@@ -17,7 +17,7 @@ export { createSeededIds, FIXTURE_ID_CURSOR } from "./ids.ts";
 export { makeCapability, makeGenerationCapability } from "./inference-capability.ts";
 export { DEFAULT_EMBED_MODEL, testModelId, testProviderId } from "./inference-identities.ts";
 export { PUBLIC_PEER_ADDRESS } from "./network.ts";
-export { forEachNonEmpty } from "./non-empty.ts";
+export { forEachNonEmpty, nonEmpty, present } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";
 export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
 export { makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";

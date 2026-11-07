@@ -4,6 +4,7 @@ import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state
 import { presetIdInputSchema } from "@orb/contracts/preset";
 import { auditSurface, formatFormIdentityFindings } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
@@ -93,7 +94,7 @@ test.describe("submitted form keys", () => {
     await expect(page.getByRole("textbox", { name: "Email", exact: true })).toBeVisible();
     const keys = await submittedKeys(page);
     expect(new Set(keys).size).toBe(3);
-    expect(keys.every((key) => key !== "")).toBe(true);
+    expect(nonEmpty(keys).every((key) => key !== "")).toBe(true);
   });
 });
 

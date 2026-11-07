@@ -11,6 +11,7 @@
 // a 32px row. The paired control arm is the reason the widening is not a blanket: two genuine neighbouring
 // buttons must still measure as sub-targets.
 
+import { present } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
@@ -855,7 +856,9 @@ test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never j
 
   expect(census?.withheld["pseudoBoxUnmeasurable"], `an underivable pseudo box fails loud. census=${JSON.stringify(census)}`).toBe(1);
   expect(
-    samples.promotedLayerOffsets?.map((p) => p.selector).join(" | "),
+    present(samples.promotedLayerOffsets)
+      .map((p) => p.selector)
+      .join(" | "),
     "and it is NOT in the judged set — a landing measured off the wrong box is the other half of the lie",
   ).not.toContain("pseudo-inflow");
   // #987's settlement identity still closes over the widened census.

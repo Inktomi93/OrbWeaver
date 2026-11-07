@@ -3,6 +3,7 @@ import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { chatDocuments, chatRegexScripts } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { withheldTable } from "@orb/testkit/node/composed";
 import { onTestFinished, vi } from "vitest";
@@ -76,7 +77,7 @@ test("global document reach credits a present member rather than only the host, 
   await otherCaller.databank.rename({ id: document.document.id, name: "present" });
   expect(new Set(frames.map((frame) => frame.event.chatId))).toEqual(new Set([hostRoom.id, ownRoom.id]));
   expect(frames).toHaveLength(2);
-  expect(frames.every((frame) => frame.seq === null && frame.event.type === "roomEntityChanged" && frame.event.entity === "databank")).toBe(true);
+  expect(nonEmpty(frames).every((frame) => frame.seq === null && frame.event.type === "roomEntityChanged" && frame.event.entity === "databank")).toBe(true);
   await memberRequest.invites.selfLeave({ chatId: hostRoom.id });
   frames.length = 0;
   await otherCaller.databank.rename({ id: document.document.id, name: "departed" });

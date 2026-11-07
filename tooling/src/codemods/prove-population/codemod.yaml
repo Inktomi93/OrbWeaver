@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "prove-population"
+version: "0.1.0"
+description: "Make a test check prove its population: wrap an expect-ed every receiver in nonEmpty, and narrow each optional link of a negated expect with present."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

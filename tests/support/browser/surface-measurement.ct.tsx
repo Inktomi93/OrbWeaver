@@ -23,6 +23,7 @@ import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acce
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type { SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
@@ -286,7 +287,7 @@ test("CSS token hygiene retains dead and empty findings, a healthy twin, and unr
   await attachNativeFile(info, info, "css-token-incomplete", { body: JSON.stringify(incomplete, null, 2), contentType: "application/json" });
   expect(incomplete.unreadable).toHaveLength(1);
   expect(incomplete.unreadable[0]?.href).toBe(stylesheet);
-  expect(incomplete.unreadable[0]?.error).not.toBe("");
+  expect(present(incomplete.unreadable[0]).error).not.toBe("");
   expect(incomplete.readableSheets).toBeLessThan(incomplete.sheets);
 });
 

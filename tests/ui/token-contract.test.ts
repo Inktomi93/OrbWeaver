@@ -2,6 +2,7 @@
 import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import { generateArtifacts } from "@orb/ui/tokens-build";
@@ -171,7 +172,7 @@ test("the real vault is conformant and preserves the exact generated target surf
     mocha: countTokens(JSON.parse(texts.mocha)),
   };
   expect(result.diagnostics).toEqual([]);
-  expect(Object.values(constituents).every((count) => count > 0)).toBe(true);
+  expect(nonEmpty(Object.values(constituents)).every((count) => count > 0)).toBe(true);
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([

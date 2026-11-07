@@ -1,6 +1,7 @@
 // Real settings verbs keep the user's latch plane separate and retain owner governance on certificate writes.
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { createSettingsComposedOps } from "@orb/server/domain/settings";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
@@ -23,6 +24,6 @@ test("onboarding retains the original Principal, another user stays unseeded, an
   expect(await ops.readSeededPluginVersions(actor)).toEqual({ showcase: "1.2.3" });
   expect(await ops.isExamplePluginSeeded(neighbor)).toBe(false);
   expect(await ops.isDistributedPluginApplied(neighbor)).toBe(false);
-  expect(write.mock.calls.every(([args]) => args.principal === actor)).toBe(true);
+  expect(nonEmpty(write.mock.calls).every(([args]) => args.principal === actor)).toBe(true);
   await expect(ops.saveCertificateSetting(actor, ops.certificateSetting())).rejects.toBeInstanceOf(DomainForbiddenError);
 });

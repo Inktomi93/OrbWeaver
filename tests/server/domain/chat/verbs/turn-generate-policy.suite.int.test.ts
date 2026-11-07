@@ -3,9 +3,10 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
+import { openingOf, openingText, textRoom, wireOf } from "../scenario-physical.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
 import { priorExchange } from "./turn-generate-policy.fixtures.ts";
 
@@ -24,16 +25,15 @@ test("speakerless list generation skips the actual last speaker and commits only
   if (aria === undefined || bryn === undefined) {
     throw new Error("the public generation fixture created no two-seat roster");
   }
-  const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId }));
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
   const canon = await readRoomCanon(h.root, h.owner, h.chatId);
   const prior = canon[1];
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: bryn.id, content: "Bryn answers.", seq: (prior?.seq ?? 0) + 1 });
-  expect(outcome.messages[0]?.id).not.toBe(prior?.id);
+  expect(present(outcome.messages[0]).id).not.toBe(present(prior).id);
   expect(canon.map(({ role }) => role)).toEqual(["user", "assistant", "assistant"]);
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, bryn.id]);
-  const bodies = await wireBodies(h);
   expect(bodies).toHaveLength(1);
   expect(openingText(bodies[0])).toBe(openingOf("hello"));
 });
@@ -80,7 +80,7 @@ test.for([
     }
     await h.root.services.chat.setSeatKnobs({ principal: h.owner, chatId: h.chatId, participantId: seat.id, patch: { disabled: true } });
   }
-  const outcome = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId }));
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages).toHaveLength(1);
   const canon = await readRoomCanon(h.root, h.owner, h.chatId);
@@ -91,7 +91,6 @@ test.for([
     seq: (canon[1]?.seq ?? 0) + 1,
   });
   expect(canon.map(({ characterId }) => characterId)).toEqual([null, aria.id, selected.id]);
-  const bodies = await wireBodies(h);
   expect(bodies).toHaveLength(1);
   expect(openingText(bodies[0])).toBe(openingOf("hello"));
 });

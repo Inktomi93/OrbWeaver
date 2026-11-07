@@ -4,6 +4,7 @@
 // @subject packages/inference/src/index.ts
 
 import { CONNECTION_OP_CODES, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
@@ -40,7 +41,7 @@ test("owned invalid shapes and malformed bytes refuse before a read-derived upda
       message: "The stored connection could not be read. The existing row is untouched.",
       cause: { code: "stored_config_unreadable", detail: undefined },
     });
-    expect(refusal?.cause).not.toHaveProperty("cause");
+    expect(present(refusal).cause).not.toHaveProperty("cause");
     expect(JSON.stringify(refusal)).not.toContain(STORED_CANARY);
   }
   await ownerCaller.connection.remove({ connectionId: row.id });

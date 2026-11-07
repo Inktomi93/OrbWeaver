@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { TOKEN_ARTIFACT_PATHS } from "@orb/ui/token-contract";
 import { TOKENS } from "@orb/ui/tokens";
@@ -228,13 +229,13 @@ test("generated namespace resets reject stock scales without changing supported 
 
   expect(current.candidatesToCss(OFF_TOKEN).map((css) => css !== null)).toEqual(OFF_TOKEN.map(() => false));
   // The named conditions compile as variants where the stock breakpoints no longer do.
-  expect(current.candidatesToCss(CONDITION_VARIANTS).every((css) => css !== null)).toBe(true);
+  expect(nonEmpty(current.candidatesToCss(CONDITION_VARIANTS)).every((css) => css !== null)).toBe(true);
   const supported = current.candidatesToCss(SUPPORTED);
-  expect(supported.every((css) => css !== null)).toBe(true);
+  expect(nonEmpty(supported).every((css) => css !== null)).toBe(true);
   expect(supported).toEqual(baseline.candidatesToCss(SUPPORTED));
   // shadow-3xl is already absent from the installed stock theme, unlike the reset-dependent candidates.
   const stockCandidates = OFF_TOKEN.filter((candidate) => candidate !== "shadow-3xl");
-  expect(baseline.candidatesToCss(stockCandidates).every((css) => css !== null)).toBe(true);
+  expect(nonEmpty(baseline.candidatesToCss(stockCandidates)).every((css) => css !== null)).toBe(true);
 });
 
 test("generated numeric lengths include unsnapped typography and chart dimensions without parsing CSS at consumers", async () => {
@@ -279,9 +280,9 @@ test("effective UI/client native rules reject stock classes in real class carrie
         source,
       ).toEqual([]);
       expect(
-        messages.every(({ ruleId }) => ruleId === rule),
+        messages.filter(({ ruleId }) => ruleId !== rule),
         source,
-      ).toBe(true);
+      ).toEqual([]);
       return messages.map(({ message }) => message);
     };
     const lint = (source: string): readonly string[] => lintWith(RULE, source);
@@ -315,7 +316,7 @@ test("effective UI/client native rules reject stock classes in real class carrie
         const messages = lint(source);
         expect(messages, `${path}: ${source}`).toHaveLength(carrier.split("CLASS").length - 1);
         expect(
-          messages.every((message) => message.includes(candidate)),
+          nonEmpty(messages).every((message) => message.includes(candidate)),
           source,
         ).toBe(true);
       }

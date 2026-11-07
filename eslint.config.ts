@@ -414,8 +414,30 @@ const TEST_ENVIRONMENT_RESTRICTIONS = [
   },
 ];
 
+// A check true of nothing reads like a check that ran: a negative on a field of a row that was never found compares
+// `undefined`, and `every` holds on an empty list. Both narrow through `@orb/testkit/iso` first.
+// An `every` on an optional receiver parses as a ChainExpression around the call, so the second rule names both forms.
+const UNPROVEN_EVERY = "[callee.property.name='every']:not([callee.object.callee.name='nonEmpty'])";
+const EMPTY_POPULATION_RESTRICTIONS = [
+  {
+    selector: "MemberExpression[property.name='not'] > CallExpression.object[callee.name='expect'][arguments.0.type='ChainExpression']",
+    message:
+      "A negative check on an optional chain passes when the chain is missing. Narrow the value first: present(row).field, or nonEmpty(rows)[0], from @orb/testkit/iso.",
+  },
+  {
+    selector: `CallExpression[callee.name='expect'] > CallExpression.arguments:first-child${UNPROVEN_EVERY}, CallExpression[callee.name='expect'] > ChainExpression.arguments:first-child > CallExpression.expression${UNPROVEN_EVERY}`,
+    message: "`every` holds on an empty list. Prove the population first: expect(nonEmpty(rows).every(...)), with nonEmpty from @orb/testkit/iso.",
+  },
+];
+
 // A later block that sets `no-restricted-syntax` replaces this list, so every test class composes it instead of restating a part.
-const TEST_SYNTAX = [INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS, ...OWNED_DB_RESTRICTIONS];
+const TEST_SYNTAX = [
+  INTERNAL_MODULE_MOCK_RESTRICTION,
+  EXTERNAL_MODULE_MOCK_RESTRICTION,
+  ...TEST_ENVIRONMENT_RESTRICTIONS,
+  ...OWNED_DB_RESTRICTIONS,
+  ...EMPTY_POPULATION_RESTRICTIONS,
+];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
 // `playwright/no-wait-for-timeout` judges one method, so a timer inside `page.evaluate` passes it. `test.setTimeout` is the case budget.
@@ -2302,7 +2324,7 @@ export default [
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
-    rules: { "no-restricted-syntax": restrictedSyntax(FILESYSTEM_MODULE_MOCK_RESTRICTION, ...OWNED_DB_RESTRICTIONS) },
+    rules: { "no-restricted-syntax": restrictedSyntax(FILESYSTEM_MODULE_MOCK_RESTRICTION, ...OWNED_DB_RESTRICTIONS, ...EMPTY_POPULATION_RESTRICTIONS) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],

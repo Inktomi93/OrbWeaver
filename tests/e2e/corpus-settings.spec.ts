@@ -10,6 +10,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
+import { nonEmpty } from "@orb/testkit/iso";
 import { prepareBackupFolder } from "@orb/testkit/node/composed";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
@@ -78,7 +79,7 @@ async function assertNativeRestore(
     const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: "Import", exact: true }).click()]);
     expect(response.status()).toBe(202);
     await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: restore.settleMs });
-    expect(statuses.every((status) => status === 202)).toBe(true);
+    expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);
     // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
     const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
     expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);

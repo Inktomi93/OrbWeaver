@@ -15,6 +15,7 @@ import {
   TREE_DRY_RUN_VALUE,
 } from "@orb/contracts/import";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { Files } from "./_st-tree-door.ts";
@@ -49,7 +50,7 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   expect(names(preview, "personas")).toEqual(["Bob"]);
   expect(names(preview, "worlds")).toEqual(["Eldoria"]);
   expect(preview.skipped.items.map((item) => item.source)).toEqual(expect.arrayContaining(["broken.png", "movingUI/"]));
-  expect(preview.skipped.items.every((item) => item.reason.length > 0)).toBe(true);
+  expect(nonEmpty(preview.skipped.items).every((item) => item.reason.length > 0)).toBe(true);
   expect(await tableContents(root)).toEqual(before);
   expect(await storedBlobs(root)).toEqual(blobsBefore);
   expect(await readdir(root.importStagingDir, { recursive: true })).not.toContainEqual(expect.stringContaining("characters"));
@@ -192,11 +193,11 @@ test("a skip's reason is one short line per kind of skip, carrying no field name
     "reasoning/format.json": "{}",
   });
 
-  const reasonOf = (source: string): string | undefined => preview.skipped.items.find((item) => item.source === source)?.reason;
+  const reasonOf = (source: string): string => present(preview.skipped.items.find((item) => item.source === source)).reason;
   expect(reasonOf("themes/one.json")).toBe(reasonOf("themes/two.json"));
   expect(reasonOf("world_info_settings")).toBe(reasonOf("extension_settings"));
   expect(reasonOf("user/")).toBe(reasonOf("reasoning/"));
-  const reasons = preview.skipped.items.map((item) => item.reason);
+  const reasons = nonEmpty(preview.skipped.items.map((item) => item.reason));
   expect(reasons.filter((reason) => reason.includes("`") || /[a-z]_[a-z]/u.test(reason))).toEqual([]);
   expect(Math.max(...reasons.map((reason) => reason.length))).toBeLessThan(IMPORT_PREVIEW_TEXT_MAX);
 });

@@ -1,6 +1,7 @@
 // @subject tests/support/node/corpus-search.ts
 import type { CorpusSource } from "@orb/contracts/search";
 import { assertReferentialIntegrity } from "@orb/db";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
@@ -34,10 +35,10 @@ function assertRoutedArms(
   ) {
     throw new Error("native routed search lost a required result arm");
   }
-  expect(entities.hits.every((hit) => result.canonical.cards.some((row) => row.characterId === hit.characterId))).toBe(true);
-  expect(characters.hits.every((hit) => hit.name.length > 0)).toBe(true);
+  expect(nonEmpty(entities.hits).every((hit) => result.canonical.cards.some((row) => row.characterId === hit.characterId))).toBe(true);
+  expect(nonEmpty(characters.hits).every((hit) => hit.name.length > 0)).toBe(true);
   expect(characters.hits.some((hit) => hit.genre === "science-fiction")).toBe(true);
-  expect(discover.hits.every((hit) => hit.name.length > 0 && hit.segments.length > 0)).toBe(true);
+  expect(nonEmpty(discover.hits).every((hit) => hit.name.length > 0 && hit.segments.length > 0)).toBe(true);
   expect(discover.standaloneSegments.some((hit) => hit.chatId === result.group.standalone.chat.id)).toBe(true);
   for (const hit of discover.standaloneSegments) {
     assertNativeSource(hit.source, result);
@@ -76,7 +77,7 @@ function assertRoutedArms(
     });
   }
   for (const output of result.reads.outputs.filter((row) => row.over === "images")) {
-    expect(output.hits.every((hit) => hit.characterId !== null && hit.characterName !== null)).toBe(true);
+    expect(nonEmpty(output.hits).every((hit) => hit.characterId !== null && hit.characterName !== null)).toBe(true);
     for (const [index, asset] of images.assets.entries()) {
       expect(output.hits.find((hit) => hit.assetId === asset.id)).toMatchObject({ hash: asset.hash, characterId: images.cards[index]?.id });
     }
@@ -161,12 +162,12 @@ test("native search exposes all seven routed arms and five output families with 
   }
   expect(result.foreignSeed).toEqual([]);
   expect(result.foreign.map((output) => output.hits)).toEqual([[]]);
-  expect(result.scoped.every((output) => output.hits.length > 0)).toBe(true);
+  expect(nonEmpty(result.scoped).every((output) => output.hits.length > 0)).toBe(true);
   const chatRead = result.scoped[0];
   if (chatRead?.over !== "digests") {
     throw new Error("native chat scope did not return its digest arm");
   }
-  expect(chatRead.hits.every((hit) => hit.blockKey.chatId === result.group.room.chat.id)).toBe(true);
+  expect(nonEmpty(chatRead.hits).every((hit) => hit.blockKey.chatId === result.group.room.chat.id)).toBe(true);
   expect(result.refusals).toMatchObject([
     { cause: { code: "lens_required" } },
     { cause: { code: "scope_unsupported" } },

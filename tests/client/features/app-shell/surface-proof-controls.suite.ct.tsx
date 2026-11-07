@@ -2,6 +2,7 @@
 import { auditSurface, settledBox } from "@orb/testkit/browser/spec";
 import { holdServed } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { modalScenario, sectionScenario } from "./_surface-scenarios.ts";
@@ -83,7 +84,7 @@ for (const input of [
     const caller = await root.internalCallerFor(root.ownerId);
     const all = await caller.character.list({ limit: 100 });
     expect(all.items.length).toBeGreaterThan(input.limit);
-    expect(all.items.every((character) => !character.starred)).toBe(true);
+    expect(nonEmpty(all.items).every((character) => !character.starred)).toBe(true);
     await routeSurfaceReads(page, corpus, root);
     await mount<typeof SectionShellStory>(STORY, { section: "home" });
     const expected = await caller.character.list(input);

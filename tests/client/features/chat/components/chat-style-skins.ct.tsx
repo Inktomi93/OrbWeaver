@@ -7,6 +7,7 @@ import type { ChatId, MessageId, ThemeId } from "@orb/kit/ids";
 import { beginReading, resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { nonEmpty } from "@orb/testkit/iso";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -368,7 +369,7 @@ test("echo's text clears its art pane on the start side and the end side", async
     rows.push({ side, gap: side === "left" ? text.start - art.end : art.start - text.end });
   }
   expect(rows.map(({ side }) => side).toSorted()).toEqual(["left", "right"]);
-  expect(rows.every(({ gap }) => gap >= 0)).toBe(true);
+  expect(nonEmpty(rows).every(({ gap }) => gap >= 0)).toBe(true);
 });
 
 // Owner CSS that restyles how an art hook's image fills its box: none of these is the art slot's own value.

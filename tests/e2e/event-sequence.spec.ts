@@ -5,7 +5,7 @@ import type { streamAttachInputSchema } from "@orb/contracts/stream";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds, FIXTURE_ID_CURSOR, nonEmpty } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openChatByTitle, renameOpenChat } from "./support/chat-room.ts";
@@ -174,7 +174,7 @@ test.describe("order-of-operations", () => {
         }
         const socketRequests = timeline.filter((entry) => entry.phase.startsWith("→ ") && entry.procedure === CONNECT);
         expect(socketRequests.length).toBeGreaterThanOrEqual(1);
-        expect(socketRequests.every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
+        expect(nonEmpty(socketRequests).every((entry) => entry.phase === POST_REQUEST && entry.batchSize === 1)).toBe(true);
         // StrictMode can cancel a start, but only one socket may successfully open.
         expect(timeline.filter((entry) => entry.phase === OK_RESPONSE && entry.procedure === CONNECT)).toHaveLength(1);
       }).toPass({ timeout: WAIT_UI_MS });

@@ -6,6 +6,7 @@
 
 import { characterTags, tags, userSeedLedger } from "@orb/db";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
@@ -34,7 +35,7 @@ test("a recorded deleted card stays deleted across a cold seed; its real tag row
     .where(eq(characterTags.characterId, card.characterId));
   expect(attached.map((row) => row.name).toSorted()).toEqual(authored?.tags.toSorted());
   expect(attached.length).toBeGreaterThan(0);
-  expect(attached.every((row) => row.source === "card" && row.status === "pending" && row.ownerId === user.id)).toBe(true);
+  expect(nonEmpty(attached).every((row) => row.source === "card" && row.status === "pending" && row.ownerId === user.id)).toBe(true);
   await services.character.remove({ principal: actor, characterId: card.characterId });
   // A restarted server on the same database is the cold seed: its seeder has settled no pass in this process.
   await using restarted = await createServerHarness({ db, ownerId: harness.ownerId, clock, ids: harness.ids });

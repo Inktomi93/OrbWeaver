@@ -8,6 +8,7 @@ import type { PluginMacroView } from "@orb/contracts/plugin";
 import { userMacroSchema } from "@orb/contracts/preset";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 const ids = createIdSource();
@@ -68,7 +69,7 @@ test("the suggestions array survives a re-render, so the textarea's identity-key
 test("a surface with no macro in scope shares one builtin suggestions array", () => {
   const none = macroCatalog(presetPlane([]));
   expect(macroCatalog({ source: { kind: "game", id: chatId }, current: true, defs: [] }).suggestions === none.suggestions).toBe(true);
-  expect(none.suggestions.every((row) => row.source === undefined)).toBe(true);
+  expect(nonEmpty(none.suggestions).every((row) => row.source === undefined)).toBe(true);
 });
 
 test("plugin macros follow the lead builtins, so sixteen of them never push {{char}} out of the first popover", () => {

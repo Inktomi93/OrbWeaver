@@ -4,7 +4,7 @@
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty, nonEmpty } from "@orb/testkit/iso";
 import { LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
@@ -181,25 +181,25 @@ for (const viewport of [WIDTHS[0], WIDTHS[1]]) {
       await seedShellState(page, { activeSection: "chats" });
       await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
       await expect(page.locator(`[data-slot="message-row"] ${BUBBLE}`).first()).toBeVisible();
-      const rows = await page.locator('[data-slot="message-row"]').evaluateAll((nodes) =>
-        nodes.flatMap((row) => {
+      // Every character row is judged: a row that lost its chip reports it instead of dropping out of the census.
+      const rows = await page.locator('[data-slot="message-row"][data-kind="character"]').evaluateAll((nodes) =>
+        nodes.map((row) => {
           const card = row.querySelector('[data-slot="message-bubble"]')?.getBoundingClientRect();
           const chip = row.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
           // The chip leads the header's identity: it centres on the name and timestamp beside it, which a phone stacks.
           const name = row.querySelector('[data-slot="avatar-root"]')?.nextElementSibling?.getBoundingClientRect();
           if (card === undefined || chip === undefined || name === undefined) {
-            return [];
+            return { seated: false, inside: false, offLine: Number.POSITIVE_INFINITY };
           }
-          return [
-            {
-              inside: chip.left >= card.left && chip.right <= card.right && chip.top >= card.top && chip.bottom <= card.bottom,
-              offLine: Math.abs(chip.top + chip.height / 2 - (name.top + name.height / 2)),
-            },
-          ];
+          return {
+            seated: true,
+            inside: chip.left >= card.left && chip.right <= card.right && chip.top >= card.top && chip.bottom <= card.bottom,
+            offLine: Math.abs(chip.top + chip.height / 2 - (name.top + name.height / 2)),
+          };
         }),
       );
-      expect(rows.length, "no row carries a chip").toBeGreaterThan(0);
-      for (const row of rows) {
+      for (const row of nonEmpty(rows)) {
+        expect(row.seated, "a character row carries no chip, card or name").toBe(true);
         expect(row.inside).toBe(true);
         expect(row.offLine).toBeLessThanOrEqual(FEW_PX);
       }

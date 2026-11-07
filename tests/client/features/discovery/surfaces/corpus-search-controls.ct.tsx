@@ -4,6 +4,7 @@
 import { modelIdSchema } from "@orb/contracts/inference";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -95,7 +96,7 @@ test("switching rerank on makes the next search carry rerank and shows it was re
   });
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital ledger", targetId: "characters" });
   await expect.poll(() => asked.length).toBeGreaterThan(0);
-  expect(asked.every((value) => value !== true)).toBe(true);
+  expect(nonEmpty(asked).every((value) => value !== true)).toBe(true);
   const rerankSwitch = component.getByRole("switch");
   await expect(rerankSwitch).toBeEnabled();
   await rerankSwitch.click();
@@ -113,11 +114,13 @@ test("without a Rerank model the switch is off and says why", async ({ mount, pa
     ...serveCorpusProcedures(caller, SERVED),
     ...serveCorpusProcedures(caller, ["search.search"], recordRerank(asked)),
   });
-  const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital ledger", targetId: "characters" });
+  // The stored ask is on, so only the missing Rerank model keeps it off the wire.
+  const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital ledger", targetId: "characters", rerank: true });
   const rerankSwitch = component.getByRole("switch");
   await expect(rerankSwitch).toBeDisabled();
   await expect(rerankSwitch).toHaveAccessibleDescription(/Rerank model/u);
-  expect(asked.every((value) => value !== true)).toBe(true);
+  await expect.poll(() => asked.length).toBeGreaterThan(0);
+  expect(nonEmpty(asked).every((value) => value !== true)).toBe(true);
 });
 
 interface SentSearch {
@@ -150,7 +153,7 @@ test("typing with rerank on settles to one reranked search, not one per keystrok
   await expect.poll(() => sent.at(-1)?.query).toBe(text);
   await expect(component.getByText("How search works")).toBeVisible();
   const reranked = sent.filter((search) => search.rerank === true);
-  expect(sent.every((search) => search.rerank === true)).toBe(true);
+  expect(nonEmpty(sent).every((search) => search.rerank === true)).toBe(true);
   expect(reranked.length).toBeLessThanOrEqual(2);
 });
 

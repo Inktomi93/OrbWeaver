@@ -13,7 +13,7 @@ import { auditSurface, formatDensityFindings, settledBox } from "@orb/testkit/br
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusWire } from "@orb/testkit/iso";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
@@ -134,6 +134,7 @@ test.describe("scaled new-chat footer", () => {
           }
           return {
             text: action.textContent,
+            inkRects: ink.length,
             left: box.left,
             right: box.right,
             height: box.height,
@@ -147,6 +148,8 @@ test.describe("scaled new-chat footer", () => {
       await testInfo.attach(`footer-${width}`, { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry).toHaveLength(2);
       for (const action of geometry) {
+        // With no painted text the ink bounds are Infinity and -Infinity, which pass both bounds below.
+        expect(action.inkRects, action.text).toBeGreaterThan(0);
         expect.soft(action.inkLeft, action.text).toBeGreaterThanOrEqual(action.left - 1);
         expect.soft(action.inkRight, action.text).toBeLessThanOrEqual(action.right + 1);
         expect.soft(action.left).toBeGreaterThanOrEqual(action.floorLeft - 1);
@@ -187,7 +190,7 @@ function imageSubject(chatId: ChatId): ImageSubject {
 }
 
 test("the seeded modal list names modals the registry holds", () => {
-  expect(SEEDED_MODALS.every((modal) => MODAL_SLOT_IDS.includes(modal))).toBe(true);
+  expect(nonEmpty(SEEDED_MODALS).every((modal) => MODAL_SLOT_IDS.includes(modal))).toBe(true);
 });
 
 test("the imagine modal reads clean on a seeded prompt", async ({ corpus, mount, page }) => {

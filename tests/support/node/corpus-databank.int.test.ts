@@ -4,6 +4,7 @@
 import { documents, workloads } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusDatabank } from "./corpus-databank.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -47,7 +48,7 @@ test("native databank output suppliers retain envelope, canon, consent and workl
   expect(views.page.totalCount).toBe(2);
   expect(result.nextPage?.items).toHaveLength(1);
   expect(result.nextPage?.totalCount).toBe(views.page.totalCount);
-  expect(result.nextPage?.items[0]?.id).not.toBe(views.page.items[0]?.id);
+  expect(present(present(result.nextPage).items[0]).id).not.toBe(present(views.page.items[0]).id);
   expect(views.health).toMatchObject({ total: 2, passages: views.health.chunks, byPhase: { ready: 2, empty: 0, indexing: 0, embedding: 0, stalled: 0 } });
   expect(views.globalIds).toEqual([created.row.id]);
   expect(views.attachments).toMatchObject({
@@ -62,7 +63,7 @@ test("native databank output suppliers retain envelope, canon, consent and workl
   expect(memberViews.page.totalCount).toBe(2);
   expect(memberViews.globalIds).toEqual([memberGlobal.row.id]);
   expect(memberViews.active.some((view) => view.id === hidden.row.id)).toBe(false);
-  expect(memberViews.active.every((view) => !view.hidden)).toBe(true);
+  expect(nonEmpty(memberViews.active).every((view) => !view.hidden)).toBe(true);
   expect(JSON.stringify(memberViews.active)).not.toContain(hidden.row.name);
   expect(result.departedAttachments).toEqual({ global: true, chats: [], characters: [{ id: result.character.id, name: result.character.name }] });
   expect(result.handedRoom.participants.some((seat) => seat.characterId === result.character.id)).toBe(false);

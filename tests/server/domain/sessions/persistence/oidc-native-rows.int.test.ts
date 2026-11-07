@@ -18,7 +18,7 @@ import { oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
 import { toError } from "@orb/kit/error-message";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
 import { configureOidc, createServerHarness, freshDb, freshHeldDb } from "@orb/testkit/node/composed";
@@ -64,7 +64,7 @@ test("the native configured flow provisions a real account/session and spends it
   const transactions = await root.db.select().from(oidcTransactions);
   expect(transactions).toHaveLength(1);
   expect(transactions[0]?.state).toBe(login.callback.searchParams.get("state"));
-  expect(transactions[0]?.codeVerifier).not.toBe("");
+  expect(present(transactions[0]).codeVerifier).not.toBe("");
   const result = await finishOidcLogin(root, login);
   expect(result.headers.get("location")).toBe("/");
   const cookie = cookieHeader(result);
@@ -72,7 +72,7 @@ test("the native configured flow provisions a real account/session and spends it
   expect(authMeSchema.parse(await me.json())).toEqual({ authenticated: true, handle: MEMBER.preferred_username, role: "user" });
   const persisted = await root.db.select().from(sessions);
   expect(persisted).toHaveLength(1);
-  expect(persisted[0]?.oidcIdTokenCiphertext).not.toBeNull();
+  expect(present(persisted[0]).oidcIdTokenCiphertext).not.toBeNull();
   expect(issuer.idTokens).toHaveLength(1);
   expect(JSON.stringify(persisted)).not.toContain(issuer.idTokens[0]);
   const noCsrf = await root.http.request("/api/auth/logout", { method: "POST", headers: { host: "localhost", cookie } });
@@ -193,7 +193,7 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   const pending = await root.db.select().from(oidcPendingSignups);
   expect(pending).toHaveLength(1);
   expect(pending[0]?.subject).toBe(MEMBER.sub);
-  expect(pending[0]?.idTokenCiphertext).not.toBeNull();
+  expect(present(pending[0]).idTokenCiphertext).not.toBeNull();
   expect(JSON.stringify(pending)).not.toContain(issuer.idTokens.at(-1));
   expect(pendingCookie).not.toContain(pending[0]?.secretHash);
   expect(await owner.admin.listUsers()).toHaveLength(1);

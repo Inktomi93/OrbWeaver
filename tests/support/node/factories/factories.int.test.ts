@@ -10,6 +10,7 @@ import { createIdSource } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createSeededIds } from "../../iso/ids.ts";
+import { present } from "../../iso/non-empty.ts";
 import { seedCorpusActors } from "../corpus-actors.ts";
 import { freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
@@ -56,7 +57,7 @@ describe("root seeds — production verbs and their canonical rows", () => {
     expect(committed.variant).toMatchObject({ messageId: committed.slot.id, content: "The first committed line." });
     const page = await root.services.chat.listMessages({ principal: owner, chatId: room.row.id });
     expect(page.messages.map(({ id, content }) => ({ id, content }))).toEqual([{ id: committed.slot.id, content: "The first committed line." }]);
-    expect((await root.db.select().from(chats).where(eq(chats.id, room.row.id)).get())?.startedAt).not.toBeNull();
+    expect(present(await root.db.select().from(chats).where(eq(chats.id, room.row.id)).get()).startedAt).not.toBeNull();
   });
 
   test("a transcript lands through the native import with seat attribution, input order and a refused duplicate", async () => {

@@ -7,6 +7,7 @@ import { parseVariantMetadata } from "@orb/contracts/chat";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { characterStatsViewSchema, latencyStatsSchema, modelStatRowSchema, ownerStatsViewSchema } from "@orb/contracts/stats";
 import { createFrozenClock } from "../iso/clock.ts";
+import { present } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -163,7 +164,7 @@ test("native selected latency and economics separate model populations, retained
     expect(characterStatsViewSchema.parse(capture.characters[index])).toMatchObject({ avgGenMs: duration, avgTtftMs: variant.ttftMs });
     expect(modelStatRowSchema.parse(capture.models.find((model) => model.model === variant.model))).toMatchObject({ avgTtftMs: variant.ttftMs });
   }
-  expect(capture.latency[0]?.avgGenMs).not.toBe(capture.latency[1]?.avgGenMs);
+  expect(present(capture.latency[0]).avgGenMs).not.toBe(present(capture.latency[1]).avgGenMs);
   expect(capture.ownerLatency.avgGenMs).toBe(((capture.latency[0]?.avgGenMs ?? 0) + (capture.latency[1]?.avgGenMs ?? 0)) / 2);
   expect(capture.ownerLatency.avgTtftMs).toBe(((capture.latency[0]?.avgTtftMs ?? 0) + (capture.latency[1]?.avgTtftMs ?? 0)) / 2);
   expect(capture.overview).toMatchObject({ avgGenMs: capture.ownerLatency.avgGenMs, avgTtftMs: capture.ownerLatency.avgTtftMs });

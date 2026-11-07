@@ -9,11 +9,12 @@ import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, readRoomCanon } from "@orb/testkit/node/composed";
 import { attachPersonaLore, invitePerson, seatPersona } from "../persona-cache-physical.ts";
-import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { textRoom, wireOf, wireText } from "../scenario-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "./turn-rpg-physical.ts";
 
 type PreviewAssembly = ChatRoot["root"]["services"]["chat"]["previewAssembly"];
@@ -42,13 +43,10 @@ async function send(h: ChatRoot, timeZone?: IanaTimeZone): Promise<void> {
   expect(outcome.aborted).toBe(false);
 }
 
-/** Every string the provider received on the room's newest request. */
-async function newestWire(h: ChatRoot): Promise<string> {
-  const body = (await wireBodies(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the room made no chat-completions request");
-  }
-  return wireText(body);
+/** Every string the provider received on the newest request the act sent. */
+async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
+  const { bodies } = await wireOf(h, act);
+  return wireText(bodies.at(-1) ?? bodies[0]);
 }
 
 function cardsOf(budget: AssemblyPreview["budget"]): AssemblyPreview["budget"]["sources"][number] | undefined {
@@ -102,9 +100,9 @@ test("the budget partitions the next turn by source, prices each seated card by 
   expect(pivot?.rows).toHaveLength(2);
   const rack = DEFAULT_PROMPT_CONFIG.sections.map(({ id }) => id);
   const priced = budget.sections.map(({ sectionId }) => sectionId);
-  expect(priced.every((id) => rack.includes(id))).toBe(true);
+  expect(nonEmpty(priced).every((id) => rack.includes(id))).toBe(true);
   expect(priced).toEqual(priced.toSorted((a, b) => rack.indexOf(a) - rack.indexOf(b)));
-  expect(budget.sections.every(({ rows }) => rows.length > 0)).toBe(true);
+  expect(nonEmpty(budget.sections).every(({ rows }) => rows.length > 0)).toBe(true);
 
   const cards = cardsOf(budget);
   expect(cards?.parts.map(({ label }) => label)).toEqual([mira.name, niko.name]);
@@ -113,8 +111,7 @@ test("the budget partitions the next turn by source, prices each seated card by 
   expect(nikoPart?.text).toContain(niko.description);
   expect(miraPart?.tokens ?? 0).toBeGreaterThan(nikoPart?.tokens ?? 0);
 
-  await send(h);
-  const wire = await newestWire(h);
+  const wire = await newestWire(h, () => send(h));
   for (const source of budget.sources.filter(({ text }) => text !== "")) {
     for (const part of source.parts) {
       expect(wire, `${source.source}: ${part.label}`).toContain(part.text);
@@ -194,8 +191,7 @@ test("a game room previews the GM preset its turn sends, and an explicit overrid
   const previewed = await previewText(h);
   expect(previewed).toContain("THE GM PRESET SPEAKS");
   expect(previewed).not.toContain("THE HOST DEFAULT SPEAKS");
-  await send(h);
-  expect(await newestWire(h)).toContain("THE GM PRESET SPEAKS");
+  expect(await newestWire(h, () => send(h))).toContain("THE GM PRESET SPEAKS");
 
   const candidate = await h.caller.preset.create({ name: "Candidate", kind: "custom", config: presetLeading("candidate-row", "THE CANDIDATE SPEAKS") });
   const overridden = (await preview(h, { presetOverride: candidate.id })).prompt.static;
@@ -221,8 +217,7 @@ test("re-pinning the anchor drops the swapped-out persona from the preview, the 
   const anchored = await previewText(h);
   expect(anchored).toContain(after);
   expect(anchored).not.toContain(before);
-  await send(h);
-  const wire = await newestWire(h);
+  const wire = await newestWire(h, () => send(h));
   expect(wire).toContain(after);
   expect(wire).not.toContain(before);
 });
@@ -236,8 +231,7 @@ test("a member's persona leaves the host's preview and the next turn when that m
 
   await h.root.services.chat.kick({ principal: h.owner, chatId: h.chatId, userId: member.userId });
   expect(await previewText(h)).not.toContain(description);
-  await send(h);
-  expect(await newestWire(h)).not.toContain(description);
+  expect(await newestWire(h, () => send(h))).not.toContain(description);
 });
 
 test("a disabled member drops out of the preview's consent set, while an enabled offline member's lore stays in", async () => {
@@ -262,10 +256,8 @@ test("a narrator room and a per-speaker room each preview the prompt their own t
   const narrated = (await preview(narrator)).prompt.static;
   const spoken = (await preview(perSpeaker)).prompt.static;
 
-  await send(narrator);
-  expect(await newestWire(narrator)).toContain(narrated);
-  await send(perSpeaker);
-  expect(await newestWire(perSpeaker)).toContain(spoken);
+  expect(await newestWire(narrator, () => send(narrator))).toContain(narrated);
+  expect(await newestWire(perSpeaker, () => send(perSpeaker))).toContain(spoken);
   // The two shapes differ, so neither containment above can pass on the other room's prompt.
   expect(narrated).not.toBe(spoken);
 });
@@ -298,8 +290,7 @@ test("the preview reads the clock in the viewer's zone, the zone the next turn r
   expect(viewer).not.toBe(utc);
   expect(await template(zone)).toBe(viewer);
   expect(await template()).toBe(utc);
-  await send(h, zone);
-  expect(clockLine(await newestWire(h))).toBe(viewer);
+  expect(clockLine(await newestWire(h, () => send(h, zone)))).toBe(viewer);
 });
 
 test("a guided steer previews through the same assembly the guided turn sends, and a plain preview carries none of it", async () => {
@@ -315,9 +306,9 @@ test("a guided steer previews through the same assembly the guided turn sends, a
   expect(plain.trace.guidedInstructionIncluded).toBe(false);
   expect(JSON.stringify(plain.prompt)).not.toContain(steer);
 
-  const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", guided });
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", guided }));
   expect(outcome.aborted).toBe(false);
-  expect(await newestWire(h)).toContain(instruction ?? "<no steered instruction>");
+  expect(wireText(bodies.at(-1) ?? bodies[0])).toContain(present(instruction));
 });
 
 test("the preview binds {{user}} to the host's own persona or the room's anchor, never a member's, as the turn does", async () => {
@@ -337,8 +328,7 @@ test("the preview binds {{user}} to the host's own persona or the room's anchor,
   const seated = await seatPersona(h, h.owner, "Hostly", "The host's own seat persona.");
   const previewed = voiceLine((await preview(h)).prompt.static);
   expect(previewed).toBe(`VOICE ${seated.name}`);
-  await send(h);
-  expect(voiceLine(await newestWire(h))).toBe(previewed);
+  expect(voiceLine(await newestWire(h, () => send(h)))).toBe(previewed);
 });
 
 test("the template readout renders the inspected preset through the room's own identity and leaves fire-time tokens unresolved", async () => {
@@ -380,8 +370,8 @@ test("a history pivot that is switched off sends no history: the preview prices 
     await using h = await textRoom(["The keeper answers."], { promptConfig: withPivot(enabled) });
     await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: earlier });
     const { budget } = await preview(h);
-    await send(h);
-    return { historyTokens: budget.sources.find(({ source }) => source === "history")?.tokens ?? 0, wire: await newestWire(h) };
+    const wire = await newestWire(h, () => send(h));
+    return { historyTokens: budget.sources.find(({ source }) => source === "history")?.tokens ?? 0, wire };
   };
 
   const on = await sentWith(true);

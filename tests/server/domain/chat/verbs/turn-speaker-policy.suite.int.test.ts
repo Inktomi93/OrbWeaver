@@ -4,7 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
-import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physical.ts";
+import { openingOf, openingText, textRoom, wireOf } from "../scenario-physical.ts";
 
 interface SpeakerCase {
   readonly title: string;
@@ -131,9 +131,12 @@ test.for(CASES)("$title", async (scene) => {
   );
   // Production numbers the canon; the turn under test appends after whatever head the room was born with.
   const priorSeq = (await readRoomCanon(h.root, h.owner, h.chatId)).at(-1)?.seq ?? 0;
-  const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: scene.content });
+  const { outcome, bodies } = await wireOf(h, async () => {
+    const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: scene.content });
+    await h.root.settleBackground();
+    return sent;
+  });
   expect(outcome.aborted).toBe(false);
-  await h.root.settleBackground();
   const canon = (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ seq }) => seq > priorSeq);
   expect(canon.map(({ seq }) => seq)).toEqual(Array.from({ length: scene.expected.length + 1 }, (_, index) => priorSeq + index + 1));
   expect(canon.filter(({ role }) => role === "assistant").map(({ characterId }) => characterId)).toEqual(
@@ -141,7 +144,6 @@ test.for(CASES)("$title", async (scene) => {
   );
   expect(canon[0]).toMatchObject({ role: "user", authorUserId: h.owner.userId });
   // A seeded room opens on its imported owner line; an empty room opens on the live send, which may carry a nudge.
-  const bodies = await wireBodies(h);
   expect(bodies).toHaveLength(scene.expected.length);
   for (const body of bodies) {
     expect(openingText(body).startsWith(openingOf(prior === undefined ? scene.content : "hello"))).toBe(true);

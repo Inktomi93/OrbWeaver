@@ -44,13 +44,42 @@ export async function textRoom(replies: readonly string[], options: Omit<ChatRoo
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
-/** The JSON bodies of the room's recorded chat-completions requests, oldest first. */
-export async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
-  return await Promise.all(
-    h.requests
+function chatBodies(requests: readonly Request[]): Promise<JsonValue[]> {
+  return Promise.all(
+    requests
       .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))
       .map(async (request) => jsonValueSchema.parse(JSON.parse(await request.clone().text()))),
   );
+}
+
+/** What one act sent the provider, with the act's own outcome. */
+export interface WireOf<T> {
+  readonly outcome: T;
+  /** The act's chat-completions bodies, oldest first. */
+  readonly bodies: readonly [JsonValue, ...JsonValue[]];
+}
+
+/** Run the act and read only the chat-completions bodies it sent. A tail of the room's whole history would hand an
+ *  act that sent nothing the previous round's body, so this throws when the act sent none. */
+export async function wireOf<T>(h: ChatRoot, act: () => Promise<T>): Promise<WireOf<T>> {
+  const mark = h.requests.length;
+  const outcome = await act();
+  const [first, ...rest] = await chatBodies(h.requests.slice(mark));
+  if (first === undefined) {
+    throw new Error("the act made no chat-completions request");
+  }
+  return { outcome, bodies: [first, ...rest] };
+}
+
+/** Run an act that must reach no provider, and throw when it sent a chat-completions request. */
+export async function quietOf<T>(h: ChatRoot, act: () => Promise<T>): Promise<T> {
+  const mark = h.requests.length;
+  const outcome = await act();
+  const sent = await chatBodies(h.requests.slice(mark));
+  if (sent.length > 0) {
+    throw new Error(`the act made ${String(sent.length)} chat-completions request(s); it must make none`);
+  }
+  return outcome;
 }
 
 function leaves(value: JsonValue): readonly string[] {

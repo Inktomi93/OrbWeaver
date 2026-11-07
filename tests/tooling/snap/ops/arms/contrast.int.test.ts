@@ -1,6 +1,7 @@
 // #953 instrument plant: the structured contrast door must distinguish one real framebuffer sample
 // from the same selector population painted over by an unrelated layer.
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../../tooling/src/snap/ops/arms/contrast.ts";
@@ -69,7 +70,7 @@ test("the label inside a disabled control is skipped as inactive, and its enable
 
     // The precision neighbour: the identical label under an ENABLED control is still measured and fails.
     const active = await captureContrastEvidence(page, ["#on"], true, VIEWPORT);
-    expect(active[0]?.outcome.line).not.toContain("SKIPPED");
+    expect(present(active[0]).outcome.line).not.toContain("SKIPPED");
     expect(active[0]?.outcome.failed).toBe(true);
   } finally {
     await browser.close();

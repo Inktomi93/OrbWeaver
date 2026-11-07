@@ -2,6 +2,7 @@
 // A launched room whose checkpoint pinned a turn snapshot keeps its current state through the migration, can
 // delete that turn afterwards, and still restores the bookmark.
 import { assertReferentialIntegrity, createDb, runMigrations } from "@orb/db";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -97,7 +98,7 @@ test("a turn-pinned checkpoint from before v0.3.0 re-pins to a bookmark: the roo
   const [checkpoint, ...others] = await room.root.services.rpg.listCheckpoints(room.params);
   expect(others).toEqual([]);
   expect(checkpoint).toMatchObject({ id: planted.checkpointId, label: LABEL });
-  expect(checkpoint?.snapshotId).not.toBe(planted.snapshotIds[0]);
+  expect(present(checkpoint).snapshotId).not.toBe(planted.snapshotIds[0]);
 
   await room.root.services.chat.deleteMessages({ ...room.params, messageIds: [bookmarked.id] });
   expect((await room.root.services.chat.listMessages(room.params)).messages.map((message) => message.id)).not.toContain(bookmarked.id);
@@ -194,7 +195,7 @@ test("a checkpoint pinned to an earlier hand edit keeps that edit as the room's 
 
   expect(await location(room)).toBe(HAND_LOCATION);
   const [checkpoint] = await room.root.services.rpg.listCheckpoints(room.params);
-  expect(checkpoint?.snapshotId).not.toBe(planted.snapshotIds[1]);
+  expect(present(checkpoint).snapshotId).not.toBe(planted.snapshotIds[1]);
   await room.root.services.rpg.restoreCheckpoint({ ...room.params, checkpointId: planted.checkpointId });
   expect(await location(room)).toBe(HAND_LOCATION);
 });

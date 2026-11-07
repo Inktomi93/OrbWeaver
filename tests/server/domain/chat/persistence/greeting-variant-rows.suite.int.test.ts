@@ -8,7 +8,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { isSeededGreetingRow } from "@orb/contracts/chat";
 import { messages, messageVariants, ownerStats } from "@orb/db";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
-import { finiteReplies } from "@orb/testkit/iso";
+import { finiteReplies, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -177,7 +177,7 @@ for (const operation of ["duplicate", "repair", "reselect"] as const) {
     } else {
       target = await root.services.chat.selectVariant({ principal, chatId, messageId: greeting.id, variantId: greeting.selectedVariantId });
     }
-    expect((await root.services.chat.listMessages({ principal, chatId })).messages.every((view) => view.role !== "user")).toBe(true);
+    expect(nonEmpty((await root.services.chat.listMessages({ principal, chatId })).messages).every((view) => view.role !== "user")).toBe(true);
     await expect(root.services.chat.setSeededGreeting({ principal, chatId, messageId: target.id, greetingIndex: 1 })).rejects.toMatchObject({
       code: CHAT_OP_CODES.notGreetingRow,
     });

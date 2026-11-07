@@ -8,3 +8,23 @@ export function forEachNonEmpty<T>(rows: readonly T[], name: string, register: (
     register(row);
   }
 }
+
+function holdsOne<T>(rows: readonly T[]): rows is readonly [T, ...T[]] {
+  return rows.length > 0;
+}
+
+/** The rows, proven to hold at least one: a check over every row is true of an empty list, so it proves nothing there. */
+export function nonEmpty<T>(rows: readonly T[]): [T, ...T[]] {
+  if (!holdsOne(rows)) {
+    throw new Error("expected at least one row, got none: a check over every row would pass on nothing");
+  }
+  return [...rows];
+}
+
+/** The value, proven present: a negative check on a missing row's field compares `undefined` and passes. */
+export function present<T>(value: T): NonNullable<T> {
+  if (value === undefined || value === null) {
+    throw new Error(`expected a value, got ${String(value)}: a check on its fields would pass on nothing`);
+  }
+  return value;
+}

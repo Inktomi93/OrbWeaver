@@ -5,6 +5,7 @@
 import { connectionBindings } from "@orb/db";
 import { castId } from "@orb/kit/ids";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { refuseWrites } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
@@ -45,7 +46,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   await app.seedUserConnections(minted);
   const repaired = await bindingsOf();
   expect(new Set(repaired.map((row) => row.task))).toEqual(new Set(["embed", "imageEmbed", "rerank"]));
-  expect(repaired.every((row) => row.actorKind === "user" && row.userId === minted)).toBe(true);
+  expect(nonEmpty(repaired).every((row) => row.actorKind === "user" && row.userId === minted)).toBe(true);
   expect(await seedLocalLightOnBoot(deps)).toBe(0);
   expect(new Set(bound)).toEqual(new Set([first.id, second.id]));
 });

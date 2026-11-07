@@ -3,6 +3,7 @@ import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contrac
 import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
@@ -212,7 +213,7 @@ for (const viewport of LANDSCAPE_PHONES) {
         await page.setViewportSize({ width: viewport.width, height });
         await expect.poll(fitsRoom, { message: `the cut rests on the last midline that fits at height ${String(height)}` }).toBe(true);
         const { straddling } = await sections.evaluate(railEdge);
-        expect(straddling.every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)).toBe(true);
+        expect(nonEmpty(straddling).every((cut) => cut.visible >= cut.height * PEEK_SHARE && cut.hidden >= cut.height * PEEK_SHARE)).toBe(true);
       }
     });
 

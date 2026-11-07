@@ -5,6 +5,7 @@ import { auditLogs, userConnections, users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test } from "./fixtures.ts";
 
 const PASSWORD = "actor-mint-password";
@@ -35,7 +36,7 @@ test("an actor is shaped by the owner's audited admin verbs and reads back throu
   ]);
   const audited = await db.select({ action: auditLogs.action, actorUserId: auditLogs.actorUserId }).from(auditLogs).where(eq(auditLogs.entityId, minted.id));
   expect(new Set(audited.map((row) => row.action))).toEqual(new Set(["admin.linkSsoIdentity", "admin.setRole", "admin.setEnabled", "admin.resetPassword"]));
-  expect(audited.every((row) => row.actorUserId === harness.ownerId)).toBe(true);
+  expect(nonEmpty(audited).every((row) => row.actorUserId === harness.ownerId)).toBe(true);
   // ensureUser seeds the new account's local-light floor; a row insert never did.
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, minted.id))).toHaveLength(2);
 });

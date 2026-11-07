@@ -15,7 +15,7 @@ import { connectDevice } from "@orb/testkit/node/composed";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
 import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
-import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { textRoom, wireOf, wireText } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
 import { turnRpgReply, turnRpgRoom, turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
@@ -34,32 +34,29 @@ async function send(h: ChatRoot): Promise<void> {
   expect(outcome.aborted).toBe(false);
 }
 
-async function newestWire(h: ChatRoot): Promise<string> {
-  const body = (await wireBodies(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the room made no chat-completions request");
-  }
-  return wireText(body);
+/** Every string of the newest request the act itself sent. */
+async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
+  const { bodies } = await wireOf(h, act);
+  return wireText(bodies.at(-1) ?? bodies[0]);
 }
 
 /** Run one turn and read the request it made; the flush it schedules settles first, so no bytes cross turns. */
 async function newestWireAfter(h: ChatRoot, turn: () => Promise<{ readonly aborted: boolean }>): Promise<string> {
-  expect((await turn()).aborted).toBe(false);
-  await h.root.settleBackground();
-  return await newestWire(h);
+  return await newestWire(h, async () => {
+    expect((await turn()).aborted).toBe(false);
+    await h.root.settleBackground();
+  });
 }
 
 test("the choices teach reaches the model inside its frame, and the frame is the host's to replace", async () => {
   const prose: ProseOverrides = { "chat.teach.choicesFrame": { text: "<<{{teach}}>>", baseVersion: 1 } };
   await using shipped = await textRoom(["ok"]);
   await shipped.root.services.chat.setOfferChoices({ principal: shipped.owner, chatId: shipped.chatId, enabled: true });
-  await send(shipped);
-  expect(occurrences(await newestWire(shipped), framed(CHOICES_TEACH))).toBe(1);
+  expect(occurrences(await newestWire(shipped, () => send(shipped)), framed(CHOICES_TEACH))).toBe(1);
 
   await using custom = await textRoom(["ok"], { promptConfig: { ...DEFAULT_PROMPT_CONFIG, prose } });
   await custom.root.services.chat.setOfferChoices({ principal: custom.owner, chatId: custom.chatId, enabled: true });
-  await send(custom);
-  const wire = await newestWire(custom);
+  const wire = await newestWire(custom, () => send(custom));
   expect(occurrences(wire, `<<${CHOICES_TEACH}>>`)).toBe(1);
   expect(wire).not.toContain(framed(CHOICES_TEACH));
 });
@@ -137,9 +134,9 @@ function replies(count: number): (() => Response)[] {
   return Array.from({ length: count }, () => (): Response => turnRpgReply("The keeper nods."));
 }
 
-/** Whether each provider request so far carried the roll note, oldest first. */
-async function rollNotes(h: ChatRoot): Promise<boolean[]> {
-  return (await wireBodies(h)).map((body) => wireText(body).includes(ROLL_NOTE));
+/** Whether each provider request the act sent carried the roll note, oldest first. */
+async function rollNotes(h: ChatRoot, act: () => Promise<unknown>): Promise<boolean[]> {
+  return (await wireOf(h, act)).bodies.map((body) => wireText(body).includes(ROLL_NOTE));
 }
 
 test("an auto-mode beat answers another character, so only the turns answering the player's stamp carry the note", async () => {
@@ -147,28 +144,34 @@ test("an auto-mode beat answers another character, so only the turns answering t
     characters: TAIL_ROSTER.slice(0, 2),
     group: { output: "per-speaker", policy: "list", allowSelfResponses: false, autoMode: true, autoModeMaxTurns: 2, autoModeDelayMs: 0 },
   });
-  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
-  await h.root.settleBackground();
+  const notes = await rollNotes(h, async () => {
+    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
+    await h.root.settleBackground();
+  });
   // The group send's two speakers both answer the player; the two chained beats answer each other.
-  expect(await rollNotes(h)).toEqual([true, true, false, false]);
+  expect(notes).toEqual([true, true, false, false]);
 });
 
 test("a generate on the stamped tail answers it; a generate on any later tail does not", async () => {
   await using h = await turnRpgRoom(replies(2));
   const params = { principal: h.owner, chatId: h.chatId };
   await h.root.services.chat.commitMessage({ ...params, content: `I leap. ${STAMP}` });
-  await h.root.services.chat.generate(params);
-  await h.root.settleBackground();
-  await h.root.services.chat.generate(params);
-  await h.root.settleBackground();
-  expect(await rollNotes(h)).toEqual([true, false]);
+  const notes = await rollNotes(h, async () => {
+    await h.root.services.chat.generate(params);
+    await h.root.settleBackground();
+    await h.root.services.chat.generate(params);
+    await h.root.settleBackground();
+  });
+  expect(notes).toEqual([true, false]);
 });
 
 test("a hidden stamped message is off the wire, so a swipe is not told its roll", async () => {
   await using h = await turnRpgRoom(replies(2));
   const params = { principal: h.owner, chatId: h.chatId };
-  await h.root.services.chat.send({ ...params, content: `I leap. ${STAMP}` });
-  await h.root.settleBackground();
+  const sent = await rollNotes(h, async () => {
+    await h.root.services.chat.send({ ...params, content: `I leap. ${STAMP}` });
+    await h.root.settleBackground();
+  });
   const { messages } = await h.root.services.chat.listMessages(params);
   const user = messages.find(({ role }) => role === "user");
   const reply = messages.findLast(({ role }) => role === "assistant");
@@ -176,9 +179,11 @@ test("a hidden stamped message is off the wire, so a swipe is not told its roll"
     throw new Error("the send wrote no rows");
   }
   await h.root.services.chat.setMessageHidden({ ...params, messageId: user.id, hidden: true });
-  await h.root.services.chat.swipe({ ...params, messageId: reply.id });
-  await h.root.settleBackground();
-  expect(await rollNotes(h)).toEqual([true, false]);
+  const swiped = await rollNotes(h, async () => {
+    await h.root.services.chat.swipe({ ...params, messageId: reply.id });
+    await h.root.settleBackground();
+  });
+  expect([...sent, ...swiped]).toEqual([true, false]);
 });
 
 test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
@@ -188,9 +193,10 @@ test("a USER_INPUT regex that strips the stamp leaves nothing for the note to an
     input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
   });
   await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
-  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
-  await h.root.settleBackground();
-  const wire = wireText((await wireBodies(h)).at(-1) ?? null);
+  const wire = await newestWire(h, async () => {
+    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: `I leap. ${STAMP}` });
+    await h.root.settleBackground();
+  });
   expect(wire).toContain("I leap.");
   expect(wire).not.toContain(STAMP);
   expect(wire).not.toContain(ROLL_NOTE);
@@ -216,12 +222,7 @@ test.for(GAME_ARMS)("$title", async (arm) => {
   await using h = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")]);
   await h.root.services.rpg.updateConfig({ principal: h.owner, chatId: h.chatId, patch: { cyoa: arm.cyoa } });
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: arm.room });
-  await send(h);
-  const body = (await wireBodies(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the game turn reached no provider");
-  }
-  const wire = wireText(body);
+  const wire = await newestWire(h, () => send(h));
   expect(occurrences(wire, CHOICES_TEACH)).toBe(arm.taught);
   expect(occurrences(wire, framed(CHOICES_TEACH))).toBe(arm.framedCount);
 });
@@ -232,8 +233,7 @@ test("a host's rewrite of the teach is the one teach on a game turn that also ha
   await using h = await turnRpgRoom([(): Response => turnRpgReply("The keeper nods.")], { promptConfig: { ...DEFAULT_PROMPT_CONFIG, prose } });
   await h.root.services.rpg.updateConfig({ principal: h.owner, chatId: h.chatId, patch: { cyoa: true } });
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
-  await send(h);
-  const wire = await newestWire(h);
+  const wire = await newestWire(h, () => send(h));
   // Both resolutions read the host's rewrite, so the containment check sees a duplicate and the room stands down.
   expect(occurrences(wire, rewrite)).toBe(1);
   expect(occurrences(wire, CHOICES_TEACH)).toBe(0);
@@ -247,8 +247,7 @@ test("a game's state block is accounted under its own budget source and reaches 
   // The wire stubs a stored card, so the block's own opening line is the needle that survives to the provider.
   const opening = state?.text.split("\n")[0] ?? "";
   expect(opening).not.toBe("");
-  await send(game);
-  const wire = await newestWire(game);
+  const wire = await newestWire(game, () => send(game));
   expect(wire).toContain(opening);
 
   await using plain = await textRoom([]);
@@ -313,12 +312,10 @@ test("two contributions that emit the identical injection reach the model once",
   await h.root.services.chat.toggleReaction({ principal: h.owner, chatId: h.chatId, variantId: said.selectedVariantId, emoji: "👍" });
 
   // Positive control: the reaction alone teaches the note once, so the doubled case below is a collision and not a miss.
-  await send(h);
-  expect(occurrences(await newestWire(h), note)).toBe(1);
+  expect(occurrences(await newestWire(h, () => send(h)), note)).toBe(1);
 
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
-  await send(h);
-  expect(occurrences(await newestWire(h), note)).toBe(1);
+  expect(occurrences(await newestWire(h, () => send(h)), note)).toBe(1);
 });
 
 test("two identical host-authored injections both reach the model; only contributions are collapsed", async () => {
@@ -327,6 +324,5 @@ test("two identical host-authored injections both reach the model; only contribu
   for (const order of [0, 1]) {
     await h.root.services.chat.setChatInjection({ principal: h.owner, chatId: h.chatId, position: "in_chat", depth: 0, role: "system", content: line, order });
   }
-  await send(h);
-  expect(occurrences(await newestWire(h), line)).toBe(2);
+  expect(occurrences(await newestWire(h, () => send(h)), line)).toBe(2);
 });

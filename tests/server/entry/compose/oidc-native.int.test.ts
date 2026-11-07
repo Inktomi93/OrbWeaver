@@ -1,4 +1,5 @@
 import { authMeSchema } from "@orb/contracts/identity";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
 import { createNativeIssuer } from "@orb/testkit/node/helpers";
@@ -76,5 +77,5 @@ test("the browser that started the flow completes it, and the spent binding is c
   expect(result.headers.get("location")).toBe("/");
   const cleared = writes(result, BINDING_COOKIE_PATTERN);
   expect(cleared.map((line) => line.split("=")[0])).toEqual(["__Host-orb_oidc_state", "orb_oidc_state_insecure"]);
-  expect(cleared.every((line) => line.includes("Max-Age=0"))).toBe(true);
+  expect(nonEmpty(cleared).every((line) => line.includes("Max-Age=0"))).toBe(true);
 });

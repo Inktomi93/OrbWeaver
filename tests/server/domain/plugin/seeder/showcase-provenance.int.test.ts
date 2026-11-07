@@ -1,4 +1,5 @@
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, requireShowcaseBundle, requireShowcaseManifest } from "@orb/testkit/node/composed";
 
@@ -23,7 +24,7 @@ test("missing bundles retry without latching while only installed versions advan
   expect(await onboarding()).toEqual({ seeded: false, versions: await shippedVersions(installedSlugs) });
   const installed = await harness.services.plugin.list({ caller });
   expect(installed.map((row) => row.slug).toSorted()).toEqual(installedSlugs.toSorted());
-  expect(installed.every((row) => row.grantedCapabilities.length === 0 && row.status === "disabled")).toBe(true);
+  expect(nonEmpty(installed).every((row) => row.grantedCapabilities.length === 0 && row.status === "disabled")).toBe(true);
   unavailable = false;
   await harness.app.examplePluginSeeder.ensureSeeded(caller);
   expect(await onboarding()).toEqual({ seeded: true, versions: await shippedVersions(SHOWCASE_PLUGIN_SLUGS) });

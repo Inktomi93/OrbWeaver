@@ -4,6 +4,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { plugins } from "@orb/db";
 import { packShowcaseBundle, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, refuseWrites, requireShowcaseBundle } from "@orb/testkit/node/composed";
@@ -34,7 +35,7 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   const rows = await services.plugin.list({ caller: actor });
   expect(rows.map((row) => row.slug).toSorted()).toEqual([...SHOWCASE_PLUGIN_SLUGS].toSorted());
   expect(rows.find((row) => row.slug === SLUG)).toMatchObject({ status: "disabled", grantedCapabilities: [], reconsentPending: true });
-  expect(rows.every((row) => row.status === "disabled" && row.grantedCapabilities.length === 0 && row.reconsentPending)).toBe(true);
+  expect(nonEmpty(rows).every((row) => row.status === "disabled" && row.grantedCapabilities.length === 0 && row.reconsentPending)).toBe(true);
   expect((await onboarding(root, actor)).examplePluginsSeeded).toBe(true);
   const inbox = await services.notifications.list({ principal: actor });
   expect(

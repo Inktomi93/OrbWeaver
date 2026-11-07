@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { nonEmpty } from "@orb/testkit/iso";
 import { captureProcessGroup } from "@orb/tooling/floor/process/proc";
 import { terminateFailedSpawn } from "../../../../tooling/src/stack/ops/prod-up.ts";
 import { expect, test } from "./prod-stop-fixtures.ts";
@@ -53,6 +54,6 @@ test("POSIX failed boot probes and escalates the complete owned group through th
     [-stop.record.pid, "SIGTERM"],
     [-stop.record.pid, "SIGKILL"],
   ]);
-  expect(signals.filter(([, signal]) => signal === 0).every(([pid]) => pid === -stop.record.pid)).toBe(true);
+  expect(nonEmpty(signals.filter(([, signal]) => signal === 0)).every(([pid]) => pid === -stop.record.pid)).toBe(true);
   expect(existsSync(stop.pidfile)).toBe(false);
 });

@@ -5,6 +5,7 @@
 import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -443,7 +444,7 @@ test("documents the reranker leaves unscored follow the scored ones in their vec
   world.answerRerank("fact-only");
   const reranked = await omniboxOrder(world, "documents", true);
   const holdsFact = (placed: Placed): boolean => placed === WANTED || placed === "elsewhere";
-  expect(reranked.slice(0, 2).every(holdsFact)).toBe(true);
+  expect(nonEmpty(reranked.slice(0, 2)).every(holdsFact)).toBe(true);
   expect(reranked.slice(2)).toEqual(vector.filter((placed) => !holdsFact(placed)));
   expect(reranked.slice(2).length).toBeGreaterThan(1);
 });

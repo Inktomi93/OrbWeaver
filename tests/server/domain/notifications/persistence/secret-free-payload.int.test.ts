@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 
 import { notifications } from "@orb/db";
+import { present } from "@orb/testkit/iso";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
@@ -23,7 +24,7 @@ describe("record — the closed union is the secret-free belt", () => {
       .from(notifications)
       .where(eq(notifications.id, view.id));
     expect(stored?.payload).toBe(JSON.stringify(actors.aliceInvite));
-    expect(stored?.payload).not.toContain(dirty.apiKey);
-    expect(stored?.payload).not.toContain(dirty.baseUrl);
+    expect(present(stored).payload).not.toContain(dirty.apiKey);
+    expect(present(stored).payload).not.toContain(dirty.baseUrl);
   });
 });

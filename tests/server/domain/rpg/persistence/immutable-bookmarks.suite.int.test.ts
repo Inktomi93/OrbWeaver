@@ -13,7 +13,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { finiteReplies } from "@orb/testkit/iso";
+import { finiteReplies, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -158,7 +158,7 @@ test("a checkpoint freezes a real folded draft across host edits and continuatio
   const [restored, ...others] = await root.db.select().from(rpgSnapshots).where(eq(rpgSnapshots.asOfMessageId, marker.id));
   expect(others).toEqual([]);
   expect(restored).toEqual({ ...bookmarked, id: restored?.id, asOfMessageId: marker.id, createdAt: root.clock.now(), kind: RPG_SNAPSHOT_KIND.hand });
-  expect(restored?.id).not.toBe(bookmarked.id);
+  expect(present(restored).id).not.toBe(bookmarked.id);
   expect((await root.services.rpg.getTrackerView(params)).ambient).toMatchObject({ location: SAVED_LOCATION, weather: { type: "clear" } });
   expect(wire.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(2);
 });

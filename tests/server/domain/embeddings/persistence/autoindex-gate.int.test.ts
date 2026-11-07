@@ -6,6 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -50,20 +51,20 @@ test("a content edit re-embeds the card under a new content hash, and a star tog
   const { id } = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "edit-hash", name: "Edit hash", description: "Before the edit." }),
   });
-  const [before] = await embeddingsOf(root, id);
+  const [before] = nonEmpty(await embeddingsOf(root, id));
   const created = embeddingCalls(physical);
-  expect(before?.contentHash).toBeDefined();
+  expect(before.contentHash).not.toBe("");
   expect(created).toBeGreaterThan(0);
 
   await caller.character.update({ characterId: id, input: { starred: true } });
-  const [starred] = await embeddingsOf(root, id);
+  const [starred] = nonEmpty(await embeddingsOf(root, id));
   expect(embeddingCalls(physical)).toBe(created);
-  expect(starred?.contentHash).toBe(before?.contentHash);
+  expect(starred.contentHash).toBe(before.contentHash);
 
   await caller.character.update({ characterId: id, input: { description: "After the edit." } });
-  const [edited] = await embeddingsOf(root, id);
+  const [edited] = nonEmpty(await embeddingsOf(root, id));
   expect(embeddingCalls(physical)).toBeGreaterThan(created);
-  expect(edited?.contentHash).not.toBe(before?.contentHash);
+  expect(edited.contentHash).not.toBe(before.contentHash);
 });
 
 test("a star toggle never backfills a card that was written unindexed, and the next content edit does", async () => {

@@ -15,6 +15,7 @@
 // this repair (step 4: a printed `excluded`, not a silent skip).
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import type { AuditRuleProof } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
@@ -41,7 +42,7 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (co
   // Vitest parses the fixture callback's first argument SYNTACTICALLY and refuses anything but an object
   // destructuring pattern, so the wrapper has to name the fixtures it forwards rather than pass a bag.
   test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn({ runCli, scratch });
   });
 }

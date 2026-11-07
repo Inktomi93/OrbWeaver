@@ -4,6 +4,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatDigests, chatParticipants, chatSegments, messages } from "@orb/db";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -99,8 +100,8 @@ test("the actual scoped digest build excludes complete blocks from before a char
   const digests = await h.root.db.select().from(chatDigests).where(eq(chatDigests.chatId, h.chatId)).orderBy(chatDigests.blockIdx);
   const own = digests.filter((row) => row.scopedCharacterId === late.id);
   expect(own.map((row) => row.blockIdx)).toEqual([2, 3]);
-  expect(own.every((row) => row.text.includes("Joined bridge"))).toBe(true);
-  expect(own.every((row) => !row.text.includes("Unwitnessed opening"))).toBe(true);
+  expect(nonEmpty(own).every((row) => row.text.includes("Joined bridge"))).toBe(true);
+  expect(nonEmpty(own).every((row) => !row.text.includes("Unwitnessed opening"))).toBe(true);
   expect(digests.filter((row) => row.scopedCharacterId === first.id && row.blockIdx === 0).map((row) => row.text)).toEqual([
     expect.stringContaining("Unwitnessed opening"),
   ]);
@@ -108,13 +109,13 @@ test("the actual scoped digest build excludes complete blocks from before a char
   const openingBlock = JSON.stringify(`${SUMMARIZE_TRANSCRIPT_MARKER}\n\nAria: Unwitnessed opening 1.\nAria: Unwitnessed opening 2.`).slice(1, -1);
   expect(summaries.some((body) => body.includes(openingBlock))).toBe(true);
   expect(summaries.some((body) => body.includes("Bryn: Joined bridge"))).toBe(true);
-  expect(summaries.every((body) => !(body.includes(first.id) || body.includes(late.id)))).toBe(true);
+  expect(nonEmpty(summaries).every((body) => !(body.includes(first.id) || body.includes(late.id)))).toBe(true);
   const segments = await h.root.db.select().from(chatSegments).where(eq(chatSegments.chatId, h.chatId)).orderBy(chatSegments.blockIdx, chatSegments.chunkIdx);
   expect(segments.length).toBeGreaterThan(0);
-  expect(segments.every((segment) => segment.text.length > 0)).toBe(true);
+  expect(nonEmpty(segments).every((segment) => segment.text.length > 0)).toBe(true);
   expect(segments.some((segment) => segment.text.includes("Aria: Unwitnessed opening"))).toBe(true);
   expect(segments.some((segment) => segment.text.includes("Bryn: Joined bridge"))).toBe(true);
-  expect(segments.every((segment) => !(segment.text.includes(first.id) || segment.text.includes(late.id)))).toBe(true);
+  expect(nonEmpty(segments).every((segment) => !(segment.text.includes(first.id) || segment.text.includes(late.id)))).toBe(true);
   const traces = h.root.observability
     .traces(100)
     .filter(
@@ -123,7 +124,7 @@ test("the actual scoped digest build excludes complete blocks from before a char
     );
   expect(traces).toHaveLength(1);
   expect(traces[0]).toMatchObject({ status: "ok", requestId: expect.stringMatching(/^memory-turn:/u) });
-  expect(traces[0]?.requestId).not.toBe(outer);
+  expect(present(traces[0]).requestId).not.toBe(outer);
   expect(traces[0]?.spans.find((span) => span.name === "memory.turnCompleted")?.parentSpanId).toBeUndefined();
 });
 

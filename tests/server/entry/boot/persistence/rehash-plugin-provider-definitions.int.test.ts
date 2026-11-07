@@ -10,6 +10,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { createDb, pluginProviderClaims, runMigrations } from "@orb/db";
 import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
@@ -84,5 +85,5 @@ test("a tombstone stored before its task retired still refuses a changed definit
   expect(await rehash()).toBe(0);
   expect(claimsAfterBoot).toHaveLength(1);
   expect(claimsAfterBoot[0]).toMatchObject({ ownerId: root.ownerId, providerId: PROVIDER, pluginId: null });
-  expect(claimsAfterBoot[0]?.definitionHash).not.toBe(STORED_HASH);
+  expect(present(claimsAfterBoot[0]).definitionHash).not.toBe(STORED_HASH);
 });

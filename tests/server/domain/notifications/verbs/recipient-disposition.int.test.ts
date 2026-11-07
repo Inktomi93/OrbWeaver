@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { nonEmpty } from "@orb/testkit/iso";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
 
@@ -14,7 +15,7 @@ describe("markAllRead — bulk recipient-scope + idempotence", () => {
     const result = await svc.markAllRead({ principal: actors.alice });
     expect(result.markedCount).toBe(3);
     const page = await svc.list({ principal: actors.alice });
-    expect(page.items.every((i) => i.readAt === clock.frozenAt)).toBe(true);
+    expect(nonEmpty(page.items).every((i) => i.readAt === clock.frozenAt)).toBe(true);
   });
 
   test("never touches another recipient's unread rows", async ({ harness, notificationActors: actors }) => {

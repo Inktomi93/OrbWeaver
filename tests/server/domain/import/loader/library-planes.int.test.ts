@@ -13,7 +13,7 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
-import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
+import { createSeededIds, FROZEN_AT_MS, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { exportLibrary, makeAssetBytes, restoreBundle, seedRpgCheckpoint, seedRpgGame, seedTranscript, signedInBox } from "@orb/testkit/node/composed";
@@ -88,7 +88,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
   expect(await planesOf(target, restoredRoom)).toEqual(expected);
   const targetCaller = await target.internalCallerFor(target.ownerId);
   const [checkpoint] = await targetCaller.rpg.listCheckpoints({ chatId: restoredRoom });
-  expect(checkpoint?.id).not.toBe(sourceCheckpoint);
+  expect(present(checkpoint).id).not.toBe(sourceCheckpoint);
   // The checkpoint's snapshot reference is a position in the file: it only restores if it resolved to the game's own snapshot.
   await target.services.rpg.restoreCheckpoint({
     principal: await target.principalFor(target.ownerId),

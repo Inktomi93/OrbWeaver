@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
@@ -288,15 +289,15 @@ test("the real React renderer ranks the planted hot component and retains the ag
     const hotFibers = fibers.filter((fiber) => fiber.name === "HotComponent");
     const hiddenActivityFibers = fibers.filter((fiber) => fiber.name === "HiddenActivityWork");
     expect(hotFibers.some((fiber) => fiber.sourceStack?.includes("main.tsx:") === true)).toBe(true);
-    expect(hotFibers.every((fiber) => fiber.type === "HotComponent")).toBe(true);
-    expect(hotFibers.every((fiber) => fiber.key === "hot-key")).toBe(true);
+    expect(nonEmpty(hotFibers).every((fiber) => fiber.type === "HotComponent")).toBe(true);
+    expect(nonEmpty(hotFibers).every((fiber) => fiber.key === "hot-key")).toBe(true);
     expect(hotFibers.some((fiber) => fiber.parentId !== null)).toBe(true);
     expect(hot?.path.includes("App")).toBe(true);
     expect(hotFibers.some((fiber) => JSON.stringify(fiber.props).includes("expensive"))).toBe(true);
     expect(hotFibers.some((fiber) => fiber.context.length > 0 && fiber.hooks.length > 0)).toBe(true);
     expect(hotFibers.some((fiber) => fiber.reason.kind === "direct-change" && fiber.reason.hooks.includes(0))).toBe(true);
     expect(hiddenActivityFibers.length).toBeGreaterThan(0);
-    expect(hiddenActivityFibers.every((fiber) => fiber.activityState === "retained-hidden")).toBe(true);
+    expect(nonEmpty(hiddenActivityFibers).every((fiber) => fiber.activityState === "retained-hidden")).toBe(true);
     expect(artifact.ranked.some((row) => row.name === "HiddenActivityWork")).toBe(false);
     expect(fibers.some((fiber) => fiber.name === "Suspense" && fiber.boundary?.status === "fallback")).toBe(true);
     expect(

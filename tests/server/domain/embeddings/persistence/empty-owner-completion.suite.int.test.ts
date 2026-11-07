@@ -11,7 +11,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { characterEmbeddings, chatDigests, chatParticipants, chatSegments, chats, documentChunks, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { finiteReplies } from "@orb/testkit/iso";
+import { finiteReplies, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -361,7 +361,7 @@ test("departed host history and a foreign room do not widen an empty owner's com
     .from(chatParticipants)
     .where(and(eq(chatParticipants.chatId, departed.chat.id), eq(chatParticipants.userId, owner.principal.userId)));
   expect(seats).toMatchObject([{ kind: "human", role: "host" }]);
-  expect(seats[0]?.leftSeq).not.toBeNull();
+  expect(present(seats[0]).leftSeq).not.toBeNull();
   const foreign = await root.principalFor((await root.actor()).id);
   await seedCorpusConnections(root, foreign);
   await root.services.chat.startChat({ principal: foreign, characterIds: [], opening: "none" });

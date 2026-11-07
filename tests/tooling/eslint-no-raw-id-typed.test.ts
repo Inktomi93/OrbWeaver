@@ -128,5 +128,5 @@ test.for([
 ])("the raw-id rule reports $name", ({ source, found }, { scratch }) => {
   const messages = lint(scratch, source);
   expect(messages).toHaveLength(found === null ? 0 : 1);
-  expect(messages.every((message) => message.includes(found ?? ""))).toBe(true);
+  expect(messages.filter((message) => !message.includes(found ?? ""))).toEqual([]);
 });

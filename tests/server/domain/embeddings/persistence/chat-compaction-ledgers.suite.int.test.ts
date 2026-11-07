@@ -11,6 +11,7 @@ import { auditLogs, compactionSpend } from "@orb/db";
 import { ProviderError, toChatRequest } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { nonEmpty } from "@orb/testkit/iso";
 import type { Fixtures } from "@orb/testkit/node";
 import { expect } from "@orb/testkit/node";
 import { captureSdkSessionRows } from "@orb/testkit/node/rows";
@@ -227,7 +228,9 @@ test("a native funding turn captures only its genuine canon-seeded session linea
   const captured = await captureSdkSessionRows(db, chatId, connection.connectionId);
   expect(captured.length).toBeGreaterThan(0);
   expect(
-    captured.every((row) => row.chatId === chatId && row.connectionId === connection.connectionId && row.canonHash !== "" && row.seededThroughSeq > 0),
+    nonEmpty(captured).every(
+      (row) => row.chatId === chatId && row.connectionId === connection.connectionId && row.canonHash !== "" && row.seededThroughSeq > 0,
+    ),
   ).toBe(true);
   expect(captured.filter((row) => row.isPrimary)).toHaveLength(1);
   const otherChatId = (await ownerCaller.chat.startChat({ characterIds: [character.id], opening: "none" })).chat.id;
@@ -242,5 +245,5 @@ test("a native funding turn captures only its genuine canon-seeded session linea
   expect(fresh.messages.filter((message) => message.role === "assistant").map((message) => message.content)).toEqual(["native funding reply"]);
   expect(await captureSdkSessionRows(db, otherChatId, connection.connectionId)).toEqual([]);
   expect(await captureSdkSessionRows(db, chatId, connection.connectionId)).toEqual(captured);
-  expect(nativeSdk.children.every((child) => child.exitCode === 0)).toBe(true);
+  expect(nonEmpty(nativeSdk.children).every((child) => child.exitCode === 0)).toBe(true);
 });

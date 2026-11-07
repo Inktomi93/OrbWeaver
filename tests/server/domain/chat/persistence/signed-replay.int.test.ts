@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/chat/substrate/wire-history.ts
 
 import { messageVariants } from "@orb/db";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { imageRoom, nativeText, wireParts } from "../engine/inline-image-physical.ts";
@@ -39,7 +40,7 @@ test("actual native signed parts replay in order through continuation and restor
     // A real user boundary preserves signed model parts instead of merging adjacent model messages on Google's wire.
     const outcome = await h.root.services.chat.send({ ...params, content: "Inspect the current account." });
     expect(outcome.aborted).toBe(false);
-    expect(outcome.messages.every(({ id }) => id !== target.id)).toBe(true);
+    expect(nonEmpty(outcome.messages).every(({ id }) => id !== target.id)).toBe(true);
     expect(await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, target.selectedVariantId)).get()).toEqual(before);
   };
   const continued = await h.root.services.chat.continueTurn(targetParams);

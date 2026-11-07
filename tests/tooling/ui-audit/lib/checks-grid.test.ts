@@ -13,6 +13,7 @@
 // Owner posture (the buried-raster precedent, one family over): a clean run is a SUCCESS condition. The
 // epsilon is float-noise slack, never a threshold to loosen until something fires.
 
+import { nonEmpty, present } from "@orb/testkit/iso";
 import type { AuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
@@ -71,7 +72,7 @@ function restTransform(over: Partial<OffGridTransformInput> = {}): OffGridTransf
 // helper — the binding is structural, not a describe-nested test.
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();
   });
 }
@@ -237,7 +238,7 @@ describe("design-audit promoted-layer-offset (crispness Law 3)", () => {
   test("the element arm is unchanged by the pseudo arm — no carrier, no pseudo language", () => {
     const element = checkPromotedLayerOffset(promotedLayer({ topDeviceFrac: 0.5 }));
     expect(element?.message).toContain("this element promotes itself");
-    expect(element?.message).not.toContain("::before");
+    expect(present(element).message).not.toContain("::before");
     expect(element?.message).toContain("Give the layer an integer offset");
   });
 

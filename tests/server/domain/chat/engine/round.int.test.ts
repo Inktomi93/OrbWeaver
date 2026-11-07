@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { GroupConfig, TurnOutcome } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { jsonValueSchema } from "@orb/kit/json";
-import { makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig, nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -69,7 +69,7 @@ test("runs each resolved speaker, committing a row per speaker (characterId = sp
   const history = await readRoomCanon(h.root, h.owner, h.chatId);
   expect(history.map(({ seq }) => seq)).toEqual([1, 2, 3, 4]);
   expect(history.slice(1).map(({ characterId }) => characterId)).toEqual(h.characters.map(({ id }) => id));
-  expect(history.slice(1).every(({ role }) => role === "assistant")).toBe(true);
+  expect(nonEmpty(history.slice(1)).every(({ role }) => role === "assistant")).toBe(true);
 });
 
 test("per-speaker merged: every speaker sends the same roster block, and each cue names its own speaker", async () => {
@@ -126,7 +126,7 @@ test("the host's PROSE override re-words the round nudge, keeping the per-speake
   const requests = await inputs(h);
   expect(requests).toHaveLength(2);
   expect(requests[0]?.at(-1)?.content).toContain("[SPEAK AS Aria. Nobody else.]");
-  expect(requests[0]?.at(-1)?.content).not.toContain("Write the next reply only as");
+  expect(present(present(requests[0]).at(-1)).content).not.toContain("Write the next reply only as");
   expect(requests[1]?.at(-1)?.content).toContain("[SPEAK AS Bran. Nobody else.]");
 });
 

@@ -14,7 +14,7 @@ import type { CharacterId, ChatId, RefinerySessionId, RosterPresetId } from "@or
 import { controlledPanel, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceProviderEvidence } from "@orb/testkit/iso";
-import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
@@ -543,7 +543,9 @@ async function homeCreatedRoom(journey: Journey, id: string, activate: () => Pro
     const detail = await journey.client.chat.getChat.query({ chatId });
     expect(detail.viewerIsHost).toBe(true);
     expect(detail.temporary).toBe(input.temporary === true);
-    expect(input.characterIds.every((characterId) => journey.run.subjects.characters.some(({ id: original }) => original === characterId))).toBe(true);
+    expect(nonEmpty(input.characterIds).every((characterId) => journey.run.subjects.characters.some(({ id: original }) => original === characterId))).toBe(
+      true,
+    );
     await attachNativeFile(journey.info, journey.info, `${id}-created-identity`, {
       body: JSON.stringify({ chatId, input, original: false }),
       contentType: "application/json",

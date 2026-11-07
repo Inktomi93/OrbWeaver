@@ -6,6 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { parseSnapArgs, prepareScenario, SNAP_HELP } from "@orb/tooling/snap";
@@ -159,7 +160,7 @@ test("the shipped tape seeds, opens, walks, maps, screenshots, and reads the sam
     }
     const data = await manifest(result.stdout);
     expect(data.scenario.checkpoints.map((checkpoint) => checkpoint.name)).toEqual(CHECKPOINTS);
-    expect(data.scenario.checkpoints.every((checkpoint) => checkpoint.screenshot !== null)).toBe(true);
+    expect(nonEmpty(data.scenario.checkpoints).every((checkpoint) => checkpoint.screenshot !== null)).toBe(true);
     expect(evalPayloads(data)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ chatId: "chat_rpg_fixture" }),

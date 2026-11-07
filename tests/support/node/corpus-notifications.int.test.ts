@@ -8,6 +8,7 @@ import { assertReferentialIntegrity } from "@orb/db";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { budget } from "@orb/tooling/floor/host/load-budget";
+import { nonEmpty } from "../iso/non-empty.ts";
 import {
   CORPUS_NOTIFICATION_PLUGIN_ERROR,
   CORPUS_NOTIFICATION_PLUGIN_MESSAGE,
@@ -34,14 +35,14 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   const result = await seedCorpusNotifications(root);
   expect(result.admission.seededPending.length).toBeGreaterThan(0);
   expect(result.admission.answeredPending).toHaveLength(result.admission.seededPending.length);
-  expect(result.admission.answeredPending.every((plugin) => !plugin.reconsentPending && plugin.status === "disabled")).toBe(true);
+  expect(nonEmpty(result.admission.answeredPending).every((plugin) => !plugin.reconsentPending && plugin.status === "disabled")).toBe(true);
   expect(result.inbox.raised.items).toHaveLength(2);
   const [newest, oldest] = result.inbox.raised.items;
   if (newest === undefined || oldest === undefined) {
     throw new Error("the native notification corpus omitted its observed ordering controls");
   }
   expect(result.inbox.raised.items.map((view) => view.seq)).toEqual([2, 1]);
-  expect(result.inbox.raised.items.every((view) => view.actionable && view.payload.recipientUserId === result.reader.userId)).toBe(true);
+  expect(nonEmpty(result.inbox.raised.items).every((view) => view.actionable && view.payload.recipientUserId === result.reader.userId)).toBe(true);
   expect(result.inbox.pages.flatMap((page) => page.items)).toEqual(result.inbox.raised.items);
   expect(result.inbox.foreignBefore.items).toHaveLength(1);
   expect(result.inbox.foreignAfter).toEqual(result.inbox.foreignBefore);
@@ -105,9 +106,9 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   expect(producers.crashes).toHaveLength(PLUGIN_CRASH_DISABLE_THRESHOLD);
   expect(producers.crashes.map(({ view }) => view.status)).toEqual([...Array.from({ length: PLUGIN_CRASH_DISABLE_THRESHOLD - 1 }, () => "enabled"), "errored"]);
   expect(producers.crashes.map(({ disabled }) => disabled.length)).toEqual([...Array.from({ length: PLUGIN_CRASH_DISABLE_THRESHOLD - 1 }, () => 0), 1]);
-  expect(producers.crashes.every(({ run, view }) => run.result.outcome === "action_error" && view.lastError?.includes(CORPUS_NOTIFICATION_PLUGIN_ERROR))).toBe(
-    true,
-  );
+  expect(
+    nonEmpty(producers.crashes).every(({ run, view }) => run.result.outcome === "action_error" && view.lastError?.includes(CORPUS_NOTIFICATION_PLUGIN_ERROR)),
+  ).toBe(true);
   expect(producers.paused.result).toEqual({ outcome: "paused" });
   expect(producers.paused.fires).toEqual(producers.crashes.at(-1)?.run.fires);
   expect(producers.disabled).toMatchObject({

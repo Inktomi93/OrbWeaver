@@ -10,6 +10,7 @@ import { brandedId } from "@orb/kit/ids";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { eq, inArray } from "drizzle-orm";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
@@ -171,7 +172,7 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   expect(await root.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
   const credentialsBefore = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
   expect(credentialsBefore).toHaveLength(2);
-  expect(credentialsBefore.every((row) => row.passwordHash === null)).toBe(true);
+  expect(nonEmpty(credentialsBefore).every((row) => row.passwordHash === null)).toBe(true);
   const ownerPassword = `owner-${root.ids.uuid()}`;
   const memberPassword = `member-${root.ids.uuid()}`;
   const address = await root.listen();
@@ -191,7 +192,7 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   }
   const credentialsAfter = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
   expect(credentialsAfter).toHaveLength(2);
-  expect(credentialsAfter.every((row) => row.passwordHash !== null)).toBe(true);
+  expect(nonEmpty(credentialsAfter).every((row) => row.passwordHash !== null)).toBe(true);
   const ownerAdmission = await captureCookieAuth(root, await root.principalFor(ownerView.userId), ownerPassword);
   const memberAdmission = await captureCookieAuth(root, await root.principalFor(memberView.userId), memberPassword);
   expect(ownerAdmission.identity.viewer).toEqual(owner);
@@ -233,7 +234,7 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   expect(await next.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
   const nextCredentials = await next.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
   expect(nextCredentials).toHaveLength(2);
-  expect(nextCredentials.every((row) => row.passwordHash === null)).toBe(true);
+  expect(nonEmpty(nextCredentials).every((row) => row.passwordHash === null)).toBe(true);
   await expect(captureCorpusCookieIdentity(next, ownerView, ownerAdmission.cookie)).rejects.toThrow("request refused (401)");
   await expect(captureCorpusCookieIdentity(next, memberView, memberAdmission.cookie)).rejects.toThrow("request refused (401)");
   for (const [viewer, password] of [

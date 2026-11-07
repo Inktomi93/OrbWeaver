@@ -1,6 +1,7 @@
 // Authored-decision population controls for the collision censuses (#987).
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
@@ -15,7 +16,7 @@ interface ToolContext {
 
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
   test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn({ runCli, scratch });
   });
 }

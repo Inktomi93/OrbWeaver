@@ -17,6 +17,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import type { AuditRuleProof } from "@orb/testkit/node";
 import { livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
 import type { ToolFixtures } from "@orb/testkit/tooling";
@@ -59,7 +60,7 @@ function auditRuleTest(
   fn: (fixtures: Pick<ToolFixtures, "runCli" | "scratch">) => void | Promise<void>,
 ): void {
   test(title, ({ runCli, scratch }) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn({ runCli, scratch });
   });
 }
@@ -740,7 +741,7 @@ test("a relational-only fixture is judged, never refused as an empty census", as
     'padding-inline-start painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
   ] as const;
   expect(tierDrifts.map(({ value }) => value).sort()).toEqual([...expectedTierDrifts].sort());
-  expect(tierDrifts.every(({ selector }) => selector === "[data-slot=card-root]")).toBe(true);
+  expect(nonEmpty(tierDrifts).every(({ selector }) => selector === "[data-slot=card-root]")).toBe(true);
 });
 
 // ── --upload (#651) ──────────────────────────────────────────────────────────

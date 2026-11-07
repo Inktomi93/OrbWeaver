@@ -9,6 +9,7 @@
 // The ring is the load-bearing choice: glyphs live in the box INTERIOR, so an interior-inclusive average
 // would measure the text it is trying to measure text AGAINST.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { ScanlineBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import { clampBoxToImage, ringBackdropOfRegion, scanlineBackdrop, scanlineLuminances } from "@orb/tooling/floor/instrument/pixel-backdrop";
@@ -142,9 +143,9 @@ test("a scanline is cut out of the MIDDLE of a bigger buffer — the row stride 
   }
   const cut = scanlineLuminances(data, width, CHANNELS, { y: 10, left: 30, width: 40 });
   expect(cut).toHaveLength(40);
-  expect(cut.every((l) => l === 1)).toBe(true);
+  expect(nonEmpty(cut).every((l) => l === 1)).toBe(true);
   // The row ABOVE it is untouched black — proof the reader indexed by `y`, not by luck.
-  expect(scanlineLuminances(data, width, CHANNELS, { y: 9, left: 30, width: 40 }).every((l) => l === 0)).toBe(true);
+  expect(nonEmpty(scanlineLuminances(data, width, CHANNELS, { y: 9, left: 30, width: 40 })).every((l) => l === 0)).toBe(true);
 });
 
 test("a box entirely outside the image resolves to NOTHING — the caller must refuse, never sample", () => {

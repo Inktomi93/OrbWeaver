@@ -19,6 +19,7 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { z } from "zod";
 import { createSeededIds } from "../iso/ids.ts";
+import { present } from "../iso/non-empty.ts";
 import { cloneCorpusFixture, createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture, publishCorpusFixture } from "./corpus.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
@@ -142,7 +143,7 @@ test("private intake retains the existing singleton owner and nonempty content i
       externalId: original.externalId,
     });
     expect(accounts.find(({ id }) => id === companion)).toMatchObject({ id: companion, handle: "companion", role: "user", externalId: null });
-    expect(capsule.wire.memberIdentities?.sharedMember.viewer.userId).not.toBe(companion);
+    expect(present(capsule.wire.memberIdentities).sharedMember.viewer.userId).not.toBe(companion);
   }
   await expect(publishCorpusFixture(capsule, join(parent, "portable-refused"))).rejects.toThrow("Private corpus cannot enter portable publication");
   const fixture = ownership.use(await prepareCorpusFixture(capsule, join(intakeParent, "prepared"), LOCAL_ENVIRONMENT));

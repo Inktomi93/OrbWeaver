@@ -1,5 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/assembly/assemble.ts
+
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { textRoom } from "../scenario-physical.ts";
 import { MOOD_CONFIG } from "./turn-lifetimes-macro-data.ts";
@@ -32,6 +34,6 @@ test("a public SEND saves its actual random-pick draw and SWIPE replays it despi
   expect((await h.root.services.chat.getVariantWire({ ...params, variantId: selected.selectedVariantId })).macroDraws).toEqual(before.macroDraws);
   const inputs = await Promise.all(h.requests.filter(({ method }) => method === "POST").map(async (request) => await request.clone().text()));
   expect(inputs).toHaveLength(2);
-  expect(inputs.every((body) => body.includes("Scene tone: grim."))).toBe(true);
+  expect(nonEmpty(inputs).every((body) => body.includes("Scene tone: grim."))).toBe(true);
   expect(inputs.some((body) => body.includes("Scene tone: wry."))).toBe(false);
 });

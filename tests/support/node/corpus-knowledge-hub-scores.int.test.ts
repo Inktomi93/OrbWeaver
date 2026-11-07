@@ -1,6 +1,7 @@
 // The `csls` workload scores indexed images as well as cards: image_embeddings.hub_score is computed by a run.
 // @subject packages/server/src/domain/discovery/workload-contributions.ts
 import { imageEmbeddings } from "@orb/db";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -22,9 +23,9 @@ test("a csls run scores indexed images", async () => {
   await seedCorpusKnowledgeImages(root);
   const before = await root.db.select({ score: imageEmbeddings.hubScore }).from(imageEmbeddings);
   expect(before.length).toBeGreaterThan(0);
-  expect(before.every((row) => row.score === null)).toBe(true);
+  expect(nonEmpty(before).every((row) => row.score === null)).toBe(true);
 
   const caller = await root.internalCallerFor(root.ownerId);
   await settleCorpusWorkloads(root, caller, [await caller.workloads.start({ input: { kind: "csls", params: {} }, mode: "singular" })]);
-  expect((await root.db.select({ score: imageEmbeddings.hubScore }).from(imageEmbeddings)).every((row) => row.score !== null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ score: imageEmbeddings.hubScore }).from(imageEmbeddings)).every((row) => row.score !== null)).toBe(true);
 });

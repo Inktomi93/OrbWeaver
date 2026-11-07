@@ -4,6 +4,7 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { WARNING_CODE } from "@orb/contracts/inference";
 import { assertReferentialIntegrity } from "@orb/db";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_VARIANT_EDIT_INSTRUCTION, CORPUS_VARIANT_FREE_PROMPT, CORPUS_VARIANT_OVERRIDE, seedCorpusImageVariants } from "./corpus-image-variants.ts";
 import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_PROMPT, createCorpusImageWire } from "./corpus-image-wire.ts";
@@ -103,7 +104,7 @@ test("native image admission and funded output variants preserve short-edge skip
       edited: false,
     },
   ]);
-  expect(result.captioned.generations[0]?.identityHash).not.toBeNull();
+  expect(present(result.captioned.generations[0]).identityHash).not.toBeNull();
   expect(result.warning.generations).toMatchObject([
     {
       tokensIn: 0,
@@ -145,10 +146,10 @@ test("native image admission and funded output variants preserve short-edge skip
   expect(result.rows).toHaveLength(4);
   expect(new Set(result.rows.map((row) => row.assetId)).size).toBe(4);
   expect(new Set(result.rows.map((row) => row.callId)).size).toBe(4);
-  expect(result.rows.every((row) => row.costUsd === null && row.costProvenance === "unrecorded" && row.provider === "custom-openai")).toBe(true);
-  expect(result.assetRows.every((row) => row.ownerId === root.ownerId)).toBe(true);
+  expect(nonEmpty(result.rows).every((row) => row.costUsd === null && row.costProvenance === "unrecorded" && row.provider === "custom-openai")).toBe(true);
+  expect(nonEmpty(result.assetRows).every((row) => row.ownerId === root.ownerId)).toBe(true);
   expect(
-    [...result.free.generations, ...result.captioned.generations, ...result.warning.generations].every(
+    nonEmpty([...result.free.generations, ...result.captioned.generations, ...result.warning.generations]).every(
       (row) => row.connectionId === result.connections[0]?.id && row.model === CORPUS_VARIANT_IMAGE_MODEL,
     ),
   ).toBe(true);
@@ -203,8 +204,8 @@ test("native image admission and funded output variants preserve short-edge skip
   expect(result.physical.images[3]?.sourceMime).toBe("image/png");
   expect(result.physical.images[3]).toMatchObject({ prompt: CORPUS_VARIANT_EDIT_INSTRUCTION, n: 1 });
   expect(result.physical.captions).toHaveLength(3);
-  expect(result.physical.captions.every(({ authenticated }) => authenticated)).toBe(true);
-  expect(result.physical.images.every(({ authenticated }) => authenticated)).toBe(true);
+  expect(nonEmpty(result.physical.captions).every(({ authenticated }) => authenticated)).toBe(true);
+  expect(nonEmpty(result.physical.images).every(({ authenticated }) => authenticated)).toBe(true);
   expect(result.physical.remaining).toBe(0);
   expect(result.bindings.after.map(({ task, binding }) => [task, binding?.connectionId ?? null])).toEqual(
     result.bindings.before.map(({ task, binding }) => [task, binding?.connectionId ?? null]),

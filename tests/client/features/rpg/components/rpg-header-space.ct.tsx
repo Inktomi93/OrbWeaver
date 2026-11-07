@@ -68,15 +68,21 @@ for (const populated of [false, true]) {
     const stone = header.locator('[data-slot="waystone"]');
     await expect(header).toBeVisible();
     const freshness = header.locator('[data-slot="rpg-freshness"]');
-    const recordedCue = await freshness.allTextContents();
+    // The populated ambient carries a clock, so its when-line must render before and after the tab switch.
+    const clockLine = header.locator('[data-slot="rpg-band-when-state"]');
+    await expect(clockLine).toHaveCount(populated ? 1 : 0);
+    const recordedClock = await clockLine.allTextContents();
     // The room has no model connection, so the tracker view reports read-only and the header must show the badge.
     const tracker = await caller.rpg.getTrackerView({ chatId });
     expect(tracker.trackersReadOnly).toBe(true);
     const readOnly = header.getByText("Read-only", { exact: true });
     await expect(readOnly).toHaveCount(1);
+    // A read-only room delivers no state, so the Read-only pill is its one cue and the freshness pill stays out.
+    await expect(freshness).toHaveCount(0);
     await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
     await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(freshness).toHaveText(recordedCue);
+    await expect(clockLine).toHaveText(recordedClock);
+    await expect(freshness).toHaveCount(0);
     await expect(readOnly).toHaveCount(1);
     const size = await resolvedLength(page, populated ? `var(${TOKENS["size.meter-hero"].cssVar})` : `var(${TOKENS["size.meter-sm"].cssVar})`);
     await expect.poll(async () => (await stone.boundingBox())?.height).toBe(size);

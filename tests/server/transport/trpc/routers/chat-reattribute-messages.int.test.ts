@@ -17,7 +17,7 @@ import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ChatRoot, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createChatRoot, freshHeldDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { textProvider, textRoom, wireBodies, wireText } from "../../../domain/chat/scenario-physical.ts";
+import { textProvider, textRoom, wireOf, wireText } from "../../../domain/chat/scenario-physical.ts";
 
 const LOCAL_ENV = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
 const ADA = createCharacterSchema.parse({ handle: "reattr-ada", name: "Ada Vane", description: "The first voice." });
@@ -378,9 +378,9 @@ test("the next prompt labels the row with its new speaker", async () => {
   await using seeded = await room({ group: { output: "per-speaker", cardScope: "scoped", policy: "list" } }, ["the next reply"]);
   const { h, secondReply, ada, bex } = seeded;
   await h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [secondReply], characterId: bex });
-  const turn = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ada });
-  expect(turn.aborted).toBe(false);
-  const wire = wireText((await wireBodies(h)).at(-1) ?? null);
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ada }));
+  expect(outcome.aborted).toBe(false);
+  const wire = wireText(bodies.at(-1) ?? bodies[0]);
   expect(wire).toContain(`${BEX.name}: ${SECOND_REPLY}`);
   expect(wire).not.toContain(`${ADA.name}: ${SECOND_REPLY}`);
 });

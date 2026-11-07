@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 
 import { messages, messageVariants } from "@orb/db";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt, max } from "drizzle-orm";
 import { OPENING_HISTORY, OPENING_OWNER_LINE, room, SIGNATURE, THINKING } from "../engine/round-cue-replay.fixtures.ts";
@@ -28,7 +29,7 @@ test("each committed reply carries its delivered cue, and every request opens wi
     .orderBy(messages.seq);
   expect(cues).toHaveLength(2);
   expect(cues.map(({ role }) => role)).toEqual(["turn-scoped-system", "user"]);
-  expect(cues.every(({ reasoning }) => reasoning === THINKING)).toBe(true);
+  expect(nonEmpty(cues).every(({ reasoning }) => reasoning === THINKING)).toBe(true);
   for (const [index, cue] of cues.entries()) {
     if (cue.cue === null) {
       throw new Error("the actual signed group reply has no persisted delivered cue");

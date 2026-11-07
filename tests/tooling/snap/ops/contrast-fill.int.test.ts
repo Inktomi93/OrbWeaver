@@ -20,6 +20,7 @@
 // the surface a reviewer's `pnpm snap --contrast` reaches, and asserting through it is what makes this
 // file a defect proof against the OLD source rather than a compile error.
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/arms/contrast.ts";
@@ -87,7 +88,7 @@ test("a fill-only subject is measured on its FILL, not on the inherited ink that
 
     // ── PRECISION NEIGHBOUR 1: text keeps the INK arm, unchanged. Same fill, same inherited colour.
     const [labelled] = await captureContrastEvidence(page, ["#labelled"], false, VIEWPORT);
-    expect(labelled?.outcome.line).not.toContain("FILL ");
+    expect(present(labelled).outcome.line).not.toContain("FILL ");
     expect(labelled?.outcome.line).toContain("(text · font 13px");
     expect(labelled?.evidence.method).toBe("css-resolve");
 
@@ -95,7 +96,7 @@ test("a fill-only subject is measured on its FILL, not on the inherited ink that
     // `currentColor`, so `color` IS its paint — routing it to the fill arm would measure the button's
     // background and call a legible icon invisible.
     const [iconic] = await captureContrastEvidence(page, ["#iconic"], false, VIEWPORT);
-    expect(iconic?.outcome.line).not.toContain("FILL ");
+    expect(present(iconic).outcome.line).not.toContain("FILL ");
     expect(iconic?.outcome.line).toContain("(ui-component ·");
     expect(iconic?.evidence.method).toBe("css-resolve");
 
@@ -215,7 +216,7 @@ test("an EMPTY field with a placeholder is judged on its PLACEHOLDER INK, at the
     // Pre-fix this printed a `FILL …` line about the textarea's box. It must now be an INK verdict on the
     // placeholder colour, at 4.5:1 (placeholder text is text), and it must FAIL — the prompt is unreadable.
     const [quiet] = await captureContrastEvidence(page, ["#quiet-prompt"], false, VIEWPORT);
-    expect(quiet?.outcome.line).not.toContain("FILL ");
+    expect(present(quiet).outcome.line).not.toContain("FILL ");
     expect(quiet?.outcome.line).toContain("(placeholder-ink ·");
     expect(quiet?.outcome.line).toContain("FAIL");
     expect(quiet?.evidence).toMatchObject({ status: "ok", method: "css-resolve", sampled: 1, passed: false, requiredRatio: AA_NORMAL_RATIO });
@@ -279,7 +280,7 @@ test("a FILLED <input> is judged on the ink it paints, not on its box", { timeou
     // PLANTED POSITIVE: near-invisible typed text on the field's own fill (~1.3:1). Pre-fix this printed a
     // FILL line about the box and the unreadable value went unjudged.
     const [typed] = await captureContrastEvidence(page, ["#typed-input"], false, VIEWPORT);
-    expect(typed?.outcome.line).not.toContain("FILL ");
+    expect(present(typed).outcome.line).not.toContain("FILL ");
     expect(typed?.outcome.line).toContain("(text · font 16px");
     expect(typed?.outcome.line).toContain("FAIL");
     expect(typed?.evidence).toMatchObject({ status: "ok", passed: false, requiredRatio: AA_NORMAL_RATIO });
@@ -299,7 +300,7 @@ test("a FILLED <input> is judged on the ink it paints, not on its box", { timeou
     // PRECISION NEIGHBOUR 2: a range input's value is "50" and it paints NO text — crediting a state
     // token with ink would move a real box subject off the FILL arm, which is the opposite defect.
     const [slider] = await captureContrastEvidence(page, ["#slider"], false, VIEWPORT);
-    expect(slider?.outcome.line).not.toContain("(text · font");
+    expect(present(slider).outcome.line).not.toContain("(text · font");
   } finally {
     await browser.close();
   }

@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { pid } from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { DEDICATED_BOX_ENV } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
@@ -232,12 +233,7 @@ test("a red one-shot run types its value and seeds its token, and no file it kee
     expect.arrayContaining(["--fill", "#field=<private>", "--debug-token", "<private>", "--local-storage", "orb:plant=<private>"]),
   );
   const trace = keptTrace(slot);
-  expect(
-    trace
-      .split("\n")
-      .filter((line) => line !== "")
-      .every((line) => typeof JSON.parse(line) === "object"),
-  ).toBe(true);
+  expect(nonEmpty(trace.split("\n").filter((line) => line !== "")).every((line) => typeof JSON.parse(line) === "object")).toBe(true);
   expect(trace).toContain("<private>");
 });
 

@@ -6,6 +6,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { and, eq, inArray } from "drizzle-orm";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -116,5 +117,5 @@ test("a wrong-width physical embedding response cannot replace vectors and retai
     .from(embeddingCalls)
     .where(and(eq(embeddingCalls.ownerId, root.ownerId), eq(embeddingCalls.connectionId, embed.id), eq(embeddingCalls.outcome, "failed")));
   expect(failed.length).toBeGreaterThan(0);
-  expect(failed.every((row) => row.task === "embed" && row.inputCount > 0)).toBe(true);
+  expect(nonEmpty(failed).every((row) => row.task === "embed" && row.inputCount > 0)).toBe(true);
 });

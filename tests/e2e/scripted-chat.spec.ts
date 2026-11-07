@@ -2,6 +2,7 @@
 // Only synthetic prompts leave the app; the held endpoint is not a provider-quality certification.
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -141,7 +142,7 @@ for (const stopped of [false, true]) {
     const before = await listCanon(chatId);
     expect(new Set(before.map((message) => message.id)).size).toBe(before.length);
     expect(before.map((message) => message.seq)).toEqual(before.map((message) => message.seq).toSorted((a, b) => a - b));
-    expect(before.filter((message) => message.role === "assistant").every((message) => message.characterId === characterId)).toBe(true);
+    expect(nonEmpty(before.filter((message) => message.role === "assistant")).every((message) => message.characterId === characterId)).toBe(true);
     const rendered = await readRenderedCanon(page, before.length);
     assertRenderedCanon(rendered, before);
     // Controlled wrong identities/content/order must fail the same rendered oracle that reload uses.

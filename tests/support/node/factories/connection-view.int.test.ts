@@ -1,5 +1,6 @@
 // @subject tests/support/node/factories/connection-view.ts
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeConnectionRow } from "./connection-view.ts";
@@ -30,7 +31,7 @@ test("a saved hosted row may lack a credential without changing its native owner
   });
   expect(created).toMatchObject({ ownerId: principal.userId, credentialId: null, providerId: snapshot.providerId, model: snapshot.model });
   expect(created.ownerId.startsWith("user_")).toBe(false);
-  expect(snapshot.tasks.every((task) => created.tasks.includes(task))).toBe(true);
+  expect(nonEmpty(snapshot.tasks).every((task) => created.tasks.includes(task))).toBe(true);
   expect(await caller.connection.get({ connectionId: created.id })).toEqual(created);
   expect(await caller.connection.list()).toEqual([...floor, created]);
   const other = await root.actor();

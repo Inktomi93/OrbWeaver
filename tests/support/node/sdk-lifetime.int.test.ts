@@ -8,6 +8,7 @@ import { ProviderError } from "@orb/inference";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
 import { z } from "zod";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { expect, test } from "./fixtures.ts";
 import { createSdkProcessIdentity, createSdkProcessSpawner } from "./sdk-process.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
@@ -257,11 +258,11 @@ test("native catalog and verify queries close their actual children after native
   const listing = await harness.app.runtime.diagnostics.listModels({ connection });
   expect(listing).toEqual({ listed: false, reason: "the provider listed no models" });
   expect(children).toHaveLength(1);
-  expect(children.every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
+  expect(nonEmpty(children).every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
   const verified = await harness.app.runtime.diagnostics.verifyAuth({ connection });
   expect(verified).toMatchObject({ ok: true, reply: "settled native SDK reply" });
   expect(children).toHaveLength(2);
-  expect(children.every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
+  expect(nonEmpty(children).every((child) => closed.has(child) && child.exitCode === 0)).toBe(true);
 });
 
 test("unexpected physical stderr failure stays visible at graph settlement without stranding cleanup", async () => {
@@ -280,7 +281,7 @@ test("unexpected physical stderr failure stays visible at graph settlement witho
     harness.app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "", userPrompt: "SDK_DIAGNOSTIC_CRASH" }] }),
   ).rejects.toMatchObject({ kind: "server" });
   await expect(harness[Symbol.asyncDispose]()).rejects.toBeInstanceOf(AggregateError);
-  expect(child?.exitCode).not.toBeNull();
+  expect(present(child).exitCode).not.toBeNull();
   await expect(harness.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
   expect(harness.timers.pending()).toBe(0);
 });

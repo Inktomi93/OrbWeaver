@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { present } from "@orb/testkit/iso";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { Hit } from "../../../tooling/src/eslint/ui-classes/hand-model.ts";
@@ -1454,7 +1455,7 @@ test("an arm that does more than write the class is refused: slots, defaults, co
   expect(reason("gauge.weight")).toBe("the door reads weight beyond the recipe, so the prop does more than write font-bold");
   expect(reason("dial.tone")).toBe("the door reads tone beyond the recipe, so the prop does more than write text-warning");
   // A literal in the applying call is the door's own choice: the caller has no such prop to set.
-  expect(census(root).hits.find((hit) => hit.detail === "font-light")?.owner).not.toBe("pin.weight");
+  expect(present(census(root).hits.find((hit) => hit.detail === "font-light")).owner).not.toBe("pin.weight");
 });
 
 /** A planted door per shape the reader must refuse: `foo` is one table, the component named for what it does. */
