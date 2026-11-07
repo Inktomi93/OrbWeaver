@@ -28,7 +28,6 @@ export interface AuthConfig {
    *  loopback-only gate #298 f2 established. Distinct from `forwardTrustedProxies`, which gates who may
    *  ASSERT an identity in a header; this one gates who IS the owner without asserting anything. */
   fallbackTrustedPeers: readonly string[];
-  /** JWKS-URL host allowlist; empty means fail-closed at the resolver. */
   jwtIssuer?: string;
   jwtAudience?: string;
 }
@@ -113,8 +112,8 @@ export interface ForwardJwtClaims extends Pick<ResolvedIdentity, "externalId" | 
 // SECURITY: no key input. The verifier holds the operator's key source, so a request can name no key, set or URL.
 export interface ForwardJwtVerifyArgs {
   jwt: string;
-  issuer?: string;
-  audience?: string;
+  issuer: string;
+  audience: string;
 }
 
 // Returns null on any signature/shape failure (fail-closed).

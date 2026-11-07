@@ -285,3 +285,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D336 | [Intent colors derive tone roles, and primitives share one tone, variant and size vocabulary](0336-tone-roles-and-one-variant-vocabulary.md) | active |
 | D337 | [A domain joins another domain's batch only through an owner-built statement this row names](0337-owner-built-statements-join-another-domains-batch.md) | active |
 | D338 | [Tone washes mix over a host surface, and a carried scope emits literal tone colours](0338-tone-hosts-and-carried-scope-literals.md) | active |
+| D339 | [Forward-header keys and claims come from the operator](0339-forward-header-keys-and-claims-come-from-the-operator.md) | active |

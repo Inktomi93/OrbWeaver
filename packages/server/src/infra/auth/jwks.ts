@@ -1,5 +1,5 @@
 // The JWT/JWKS VERIFY side of forward-header auth (mint stays entry/openid-client; verify is infra/jose —
-// docs/law/Tier-5-Entry.md). authentik forwards `X-Authentik-Jwt`; this module verifies it with a pinned alg
+// docs/law/Tier-5-Entry.md). A proxy forwards `X-Authentik-Jwt`; this module verifies it with a pinned alg
 // allowlist against the keys the operator names in FORWARD_AUTH_JWKS, then maps the verified payload to a
 // ForwardJwtClaims. It is the `verifyForwardJwt` port injected at the seam.
 //
@@ -16,7 +16,7 @@
 
 import { externalIdSchema, handleSchema } from "@orb/contracts/identity";
 import type { JWTPayload } from "jose";
-import { createLocalJWKSet, createRemoteJWKSet, customFetch, jwtVerify } from "jose";
+import { createLocalJWKSet, createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
 import type { OperatorJwks } from "#foundation/env/record";
 import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
@@ -26,12 +26,16 @@ import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs, JwksKe
 // (module-private there — a five-line repeat beats an infra-internal export just to share it).
 const GROUP_SEPARATOR = /[|,]/u;
 
-// The asymmetric algs authentik signs with. Defense-in-depth: jose already blocks alg:none and
+// The asymmetric algs a published key set can verify. Defense-in-depth: jose already blocks alg:none and
 // key/alg-class confusion, but pinning means a future JWKS quirk or jose behavior change can't widen what
 // we accept (an attacker can't downgrade an RS256 key to an HS256 MAC over the public key material).
 const PINNED_ALGS = ["RS256", "ES256"] as const;
 
 const REQUIRED_KEY_URL_PROTOCOL = "https:";
+// A token with no expiry stays valid forever once the operator's key signed it.
+const REQUIRED_CLAIMS = ["exp"];
+// jwtVerify raises its own error class for every verdict, so anything else came from retrieving the keys.
+const KEY_FETCH_FAILED = "key_fetch_failed";
 
 /** Hold the operator's key set for one graph. Its remote retrieval runs on the graph's injected execution. */
 export function createOperatorKeys(source: OperatorJwks, execution: typeof fetch): OperatorKeys {
@@ -91,9 +95,9 @@ function groupsFromClaim(claim: unknown): string[] {
   return [];
 }
 
-/** Verify `jwt` against `keyset` with the pinned alg allowlist + optional issuer/audience, returning the
- *  payload — or null on ANY failure (bad signature, wrong alg, expired, issuer/audience mismatch,
- *  alg-confusion). jose throws on every one of those; we catch and null. */
+/** Verify `jwt` against `keyset` with the pinned alg allowlist, issuer and audience, returning the payload — or null
+ *  on ANY failure (bad signature, wrong alg, expired, no expiry, issuer/audience mismatch, alg-confusion, a failed
+ *  key fetch). jose throws on every one of those; we catch and null. The log carries jose's fixed code, never token bytes. */
 async function jwtVerifyOrNull(
   { jwt, issuer, audience }: Pick<ForwardJwtVerifyArgs, "jwt" | "issuer" | "audience">,
   keyset: JwksKeySet,
@@ -102,12 +106,14 @@ async function jwtVerifyOrNull(
   try {
     const { payload } = await jwtVerify(jwt, keyset, {
       algorithms: [...PINNED_ALGS],
-      ...(issuer !== undefined ? { issuer } : {}),
-      ...(audience !== undefined ? { audience } : {}),
+      issuer,
+      audience,
+      requiredClaims: REQUIRED_CLAIMS,
     });
     return payload;
-  } catch {
-    securityEvent("jwt_verify_failed", {}, "security: forwarded JWT verification failed (signature / alg / expiry / issuer / audience) — rejecting", log);
+  } catch (err) {
+    const reason = err instanceof errors.JOSEError ? err.code : KEY_FETCH_FAILED;
+    securityEvent("jwt_verify_failed", { reason }, "security: forwarded JWT refused (`reason` names the failed step) — rejecting", log);
     return null;
   }
 }

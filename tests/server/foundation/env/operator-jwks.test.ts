@@ -1,6 +1,7 @@
 // `FORWARD_AUTH_JWKS` admits an https URL or a JWKS literal at boot, and refuses every other value before a sign-in can reach it.
 // @subject packages/server/src/foundation/env/operator-jwks.ts
 
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
@@ -32,4 +33,27 @@ test.for<{ name: string; value: string }>([
   { name: "a real key beside a null member", value: JSON.stringify({ keys: [KEY, null] }) },
 ])("$name refuses the boot", ({ value }) => {
   expect(() => sourceOf(value)).toThrow(EnvRefusedError);
+});
+
+const SIGNED_KEYS = { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", ["FORWARD_AUTH_JWKS"]: "https://auth.example.test/jwks" };
+const ISSUER = "https://auth.example.test/application/o/orbweaver/";
+const AUDIENCE = "orbweaver-client";
+
+test.for<{ name: string; missing: string; env: Record<string, string> }>([
+  { name: "no issuer", missing: "FORWARD_AUTH_JWT_ISSUER", env: { ["FORWARD_AUTH_JWT_AUDIENCE"]: AUDIENCE } },
+  { name: "no audience", missing: "FORWARD_AUTH_JWT_AUDIENCE", env: { ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER } },
+  { name: "an empty issuer", missing: "FORWARD_AUTH_JWT_ISSUER", env: { ["FORWARD_AUTH_JWT_ISSUER"]: "", ["FORWARD_AUTH_JWT_AUDIENCE"]: AUDIENCE } },
+  { name: "an empty audience", missing: "FORWARD_AUTH_JWT_AUDIENCE", env: { ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER, ["FORWARD_AUTH_JWT_AUDIENCE"]: "" } },
+])("the signed path with $name refuses the boot and names the key", ({ missing, env }) => {
+  expect(() => createTestEnv({ ...SIGNED_KEYS, ...env })).toThrow(new RegExp(missing, "u"));
+});
+
+test("the signed path boots with its issuer and audience", () => {
+  const env = createTestEnv({ ...SIGNED_KEYS, ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER, ["FORWARD_AUTH_JWT_AUDIENCE"]: AUDIENCE });
+  expect({ issuer: env.FORWARD_AUTH_JWT_ISSUER, audience: env.FORWARD_AUTH_JWT_AUDIENCE }).toEqual({ issuer: ISSUER, audience: AUDIENCE });
+});
+
+test("an unsigned deployment needs no issuer or audience", () => {
+  expect(createTestEnv({ ...SIGNED_KEYS, ["FORWARD_AUTH_VERIFY_JWT"]: "false" }).FORWARD_AUTH_VERIFY_JWT).toBe(false);
+  expect(createTestEnv({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }).FORWARD_AUTH_JWKS).toBeUndefined();
 });

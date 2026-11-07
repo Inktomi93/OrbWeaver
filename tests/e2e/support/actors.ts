@@ -6,7 +6,7 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { expect } from "@playwright/test";
 import { importJWK, SignJWT } from "jose";
-import { E2E_FORWARD_PRIVATE_JWK } from "./modes.ts";
+import { E2E_FORWARD_JWT_AUDIENCE, E2E_FORWARD_JWT_ISSUER, E2E_FORWARD_PRIVATE_JWK } from "./modes.ts";
 import type { NewConnection, TrpcClient, TrpcClientOutput } from "./trpc.ts";
 import { createTrpcClient } from "./trpc-client.ts";
 
@@ -150,6 +150,8 @@ export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Pr
   }
   const jwt = await new SignJWT(payload)
     .setProtectedHeader({ alg: E2E_FORWARD_PRIVATE_JWK.alg, kid: E2E_FORWARD_PRIVATE_JWK.kid })
+    .setIssuer(E2E_FORWARD_JWT_ISSUER)
+    .setAudience(E2E_FORWARD_JWT_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(privateKey);

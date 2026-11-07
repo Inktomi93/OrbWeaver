@@ -386,6 +386,9 @@ const E2E_FORWARD_PUBLIC_JWK = {
   use: "sig",
 } as const;
 export const E2E_FORWARD_PRIVATE_JWK = { ...E2E_FORWARD_PUBLIC_JWK, d: "eabU0IfYzRHWew1FRwtaolYPant_p6hBrTcaEYJF0mw" } as const;
+/** The stack requires both beside `FORWARD_AUTH_JWKS`, and the actor signs them into every token. */
+export const E2E_FORWARD_JWT_ISSUER = "https://e2e-forward.invalid/application/o/orbweaver/";
+export const E2E_FORWARD_JWT_AUDIENCE = "e2e-forward-client";
 
 const FWD_BACKEND_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.server);
 const FWD_VITE_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.vite);
@@ -401,6 +404,8 @@ const FORWARD_HEADER: ModeProject = {
     CREDENTIALS_KEY,
     FORWARD_AUTH_VERIFY_JWT: "true",
     FORWARD_AUTH_JWKS: JSON.stringify({ keys: [E2E_FORWARD_PUBLIC_JWK] }),
+    FORWARD_AUTH_JWT_ISSUER: E2E_FORWARD_JWT_ISSUER,
+    FORWARD_AUTH_JWT_AUDIENCE: E2E_FORWARD_JWT_AUDIENCE,
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: FWD_BACKEND_PORT,

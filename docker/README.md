@@ -49,7 +49,7 @@ The app's outbound firewall refuses private addresses until the owner admits the
 PRIVATE_ENDPOINT_ALLOWLIST=host.docker.internal
 ```
 
-`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook.
+`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook. The OIDC issuer host and the `FORWARD_AUTH_JWKS` URL host need no entry.
 
 ### Your own vLLM
 
@@ -106,7 +106,9 @@ because a same-host proxy would turn every visitor into the owner.
 
 Under `forward-header`, end every tunnel or port-forward at your auth proxy, never at the app port: anything that reaches the app directly from a peer in `FORWARD_AUTH_TRUSTED_PROXIES` can set the identity header and sign in as anyone. For the same reason the Share card and `pnpm start --share` refuse to start a relay in this mode.
 
-Under `forward-header`, the signed path trusts only the keys in `FORWARD_AUTH_JWKS`: your proxy's JWKS https URL, or the key set as one line of JSON. The app reads no key from a request, and it refuses every JWT while this key is unset. Set `FORWARD_AUTH_JWT_ISSUER` and `FORWARD_AUTH_JWT_AUDIENCE` too, so a token your identity provider signed for another application is refused.
+Under `forward-header`, the signed path trusts only the keys in `FORWARD_AUTH_JWKS`: your proxy's JWKS https URL, or the key set as one line of JSON. The app reads no key from a request, and it refuses every JWT while this key is unset. `FORWARD_AUTH_JWT_ISSUER` and `FORWARD_AUTH_JWT_AUDIENCE` are required with it, and the app refuses to boot without them: they stop a token your identity provider signed for another application from signing in here. A token must also carry an expiry and an RS256 or ES256 signature.
+
+An authentik proxy provider sends `X-authentik-jwt`, but it signs that token with HS256 and its client secret, so its `jwks/` URL publishes no key the signed path can use. With an authentik outpost, set `FORWARD_AUTH_VERIFY_JWT=false` and set `FORWARD_AUTH_TRUSTED_PROXIES` to the outpost's exact address. Left on, verification refuses every request that carries that header.
 
 Under `forward-header`, the proxy's handle for a user is that user's identity, and a handle in `OWNER_HANDLES` is the owner. Use this mode only with an identity provider whose registration is closed, or anyone who registers the owner's handle there becomes the owner here.
 

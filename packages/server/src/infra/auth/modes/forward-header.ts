@@ -88,11 +88,17 @@ async function resolveSignedJwt(jwt: string, config: AuthConfig, deps: ResolveDe
     securityEvent("jwt_no_key_source", {}, "security: forwarded JWT presented but FORWARD_AUTH_JWKS is unset — rejecting forwarded identity", deps.log);
     return REFUSED;
   }
-  const claims = await deps.verifyForwardJwt.verify({
-    jwt,
-    ...(config.jwtIssuer !== undefined ? { issuer: config.jwtIssuer } : {}),
-    ...(config.jwtAudience !== undefined ? { audience: config.jwtAudience } : {}),
-  });
+  // The env record refuses this pairing at boot; a config built by hand reaches here, and it still refuses.
+  if (config.jwtIssuer === undefined || config.jwtAudience === undefined) {
+    securityEvent(
+      "jwt_no_audience_binding",
+      {},
+      "security: forwarded JWT presented with no issuer or audience configured — rejecting forwarded identity",
+      deps.log,
+    );
+    return REFUSED;
+  }
+  const claims = await deps.verifyForwardJwt.verify({ jwt, issuer: config.jwtIssuer, audience: config.jwtAudience });
   if (claims === null) {
     // The verifier already emitted the security line naming why (verification or claims).
     return REFUSED;
