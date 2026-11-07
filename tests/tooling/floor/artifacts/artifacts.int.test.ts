@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/tooling";
 import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -344,6 +345,80 @@ test("POSITIVE CONTROL: the same ring, the same aged slot, a PUBLISH — and it 
   // a different bug wearing the same green. The prune still works; it is now a publisher's act alone.
   expect(existsSync(join(base, "ancient-00"))).toBe(false);
   expect(A.prunedRuns(root, CLOSE_INSTRUMENT).map((r) => r.runId)).toEqual(["ancient-00"]);
+});
+
+// ── ONE ALIAS FAMILY, ONE RUN: two publishers cannot interleave their pointers ──────────────────────
+
+/** A publisher of the two-alias family a screenshot run publishes. The paused role yields its family lazily
+ *  and stops between the two aliases until the test says resume, so the sibling's whole publish can be
+ *  placed deterministically in the middle of it. */
+const FAMILY_PUBLISHER = `import { existsSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+const [artifacts, root, instrument, signals, role, mode] = process.argv.slice(2);
+const A = await import(pathToFileURL(artifacts).href);
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const slot = A.openRunSlot(root, instrument);
+for (const name of ["screenshot.png", "trace.zip"]) {
+  writeFileSync(A.runFile(slot, name), role);
+}
+const family = [
+  { alias: "pair/screenshot.png", target: "screenshot.png" },
+  { alias: "pair/trace.zip", target: "trace.zip" },
+];
+function* pausedBetweenAliases() {
+  yield family[0];
+  writeFileSync(join(signals, role + "-mid"), "");
+  while (!existsSync(join(signals, "resume"))) {
+    sleep(5);
+  }
+  yield family[1];
+}
+A.publishRunSlot(root, slot, mode === "pause" ? pausedBetweenAliases() : family);
+writeFileSync(join(signals, role + "-done"), "");
+`;
+
+const FAMILY_SCRIPT = "family-publisher.mjs";
+const FAMILY_INSTRUMENT = "pairprobe";
+const FAMILY_POLL_MS = 25;
+
+/** Poll a signal file for at most `budgetMs`; false when it never appeared. */
+async function signalled(path: string, budgetMs: number): Promise<boolean> {
+  for (let waited = 0; waited < budgetMs && !existsSync(path); waited += FAMILY_POLL_MS) {
+    await sleep(FAMILY_POLL_MS);
+  }
+  return existsSync(path);
+}
+
+test("two publishers of one alias family leave every sibling pointing into the same run", { timeout: scaledBudget(60_000) }, async ({
+  plantedTree,
+  repoRoot,
+}) => {
+  const { spawnNiced } = await import("@orb/tooling/floor/process/proc");
+  const root = await plantedTree({ [FAMILY_SCRIPT]: FAMILY_PUBLISHER });
+  const artifacts = join(repoRoot, "tooling", "src", "floor", "artifacts", "artifacts.ts");
+  const signals = join(root, "signals");
+  mkdirSync(signals);
+  const publisher = (role: string, mode: "pause" | "run"): ReturnType<typeof spawnNiced> =>
+    spawnNiced(process.execPath, [join(root, FAMILY_SCRIPT), artifacts, root, FAMILY_INSTRUMENT, signals, role, mode]);
+
+  const first = publisher("a", "pause");
+  expect(await signalled(join(signals, "a-mid"), scaledBudget(30_000)), "the first publisher never reached the middle of its family").toBe(true);
+  const second = publisher("b", "run");
+  // With no family lock the sibling finishes while the first is parked mid-family. With one it waits for the
+  // first, so this bounded look is how the test places the sibling's whole publish inside the other's.
+  await signalled(join(signals, "b-done"), scaledBudget(2000));
+  writeFileSync(join(signals, "resume"), "");
+  const results = await Promise.all([first, second]);
+
+  expect(results.map((result) => `exit ${String(result.code)} ${result.stderr.trim()}`)).toEqual(["exit 0 ", "exit 0 "]);
+  const runs = ["screenshot.png", "trace.zip"].map((name) =>
+    readlinkSync(join(root, "reports", "pair", name))
+      .split("/")
+      .at(-2),
+  );
+  expect(runs[0], "the screenshot and the trace must name one run").toBe(runs[1]);
+  expect(runs[0]).toBeDefined();
 });
 
 // ── A SLOT LISTING FAILS LOUD: only an absent directory is "no slots" ────────────────────────────────

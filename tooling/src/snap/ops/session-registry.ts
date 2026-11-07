@@ -12,6 +12,7 @@ import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { readMember } from "../../floor/instrument/member.ts";
+import { DIR_LOCK_WAIT_MS, DirLockTimeoutError, withDirLock } from "../../floor/process/dir-lock.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { observeProcessGroup } from "../../floor/process/proc.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
@@ -28,7 +29,6 @@ import {
   sessionSocketPath,
 } from "../lib/session-plan.ts";
 import { readSessionRow } from "../lib/session-wire.ts";
-import { DIR_LOCK_WAIT_MS, DirLockTimeoutError, withDirLock } from "./dir-lock.ts";
 import { markerRoot } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");

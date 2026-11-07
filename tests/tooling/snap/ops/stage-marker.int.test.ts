@@ -28,9 +28,9 @@ import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { vi } from "vitest";
 import type { PortOwner } from "../../../../tooling/src/floor/host/platform.ts";
 import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
+import { releaseLockDir } from "../../../../tooling/src/floor/process/dir-lock.ts";
 import type { StageBandsFile, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { releaseLockDir } from "../../../../tooling/src/snap/ops/dir-lock.ts";
 import { stageBindingAlive } from "../../../../tooling/src/snap/ops/stage-census.ts";
 import { holdStageUse } from "../../../../tooling/src/snap/ops/stage-holders.ts";
 import {

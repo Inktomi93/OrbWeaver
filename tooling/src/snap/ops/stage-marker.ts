@@ -15,7 +15,7 @@
 //
 // ALLOCATION IS LOCKED, AND IT HAS TO BE. Two lanes reading "band 0 is free" in the same millisecond would
 // both boot onto band 0 and the second would kill the first — which is the exact contention this table
-// exists to end. `withBandsLock` is the mkdir-based mutex of `./dir-lock.ts`, held across the
+// exists to end. `withBandsLock` is the mkdir-based mutex of `floor/process/dir-lock.ts`, held across the
 // read-decide-claim window, so a band is CLAIMED by a written row before its 55 s stack boot starts.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -23,6 +23,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
+import { DIR_LOCK_WAIT_MS, withDirLock } from "../../floor/process/dir-lock.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
@@ -37,7 +38,6 @@ import {
   stageBandSharedNote,
 } from "../lib/stage-plan.ts";
 import { boundStageRow, stageBindingRefusal } from "../lib/stage-run-binding.ts";
-import { DIR_LOCK_WAIT_MS, withDirLock } from "./dir-lock.ts";
 import { repoRoot, stageCallerOwner } from "./stage-git.ts";
 import { holderProcessRunning } from "./stage-probe.ts";
 
@@ -322,7 +322,7 @@ function lockPath(home: string): string {
   return join(home, LOCK_REL);
 }
 
-/** Run `fn` holding the table's mutex, re-entrant within this process. The mutex discipline is `./dir-lock.ts`. */
+/** Run `fn` holding the table's mutex, re-entrant within this process. The mutex discipline is `floor/process/dir-lock.ts`. */
 export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = DIR_LOCK_WAIT_MS): T {
   const depth = LOCK_DEPTH.get(home) ?? 0;
   if (depth > 0) {

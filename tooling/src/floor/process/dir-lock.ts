@@ -1,15 +1,12 @@
-// The mkdir-based mutex the stage band table and the session boot reservation share (mkdir is atomic on every
-// filesystem we run on). A dead holder's lock is reaped; an ownerless directory is reaped only after
-// `LOCK_STALE_MS`, because mkdir and the holder's pid write are separate operations. A live holder is never
-// stolen: a waiter that exhausts its budget throws.
+// The mkdir-based mutex the stage band table, the session boot reservation and the artifact alias publication
+// share (mkdir is atomic on every filesystem we run on). A dead holder's lock is reaped; an ownerless directory
+// is reaped only after `LOCK_STALE_MS`, because mkdir and the holder's pid write are separate operations. A live
+// holder is never stolen: a waiter that exhausts its budget throws.
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { pidAlive } from "../../floor/artifacts/run-retention.ts";
-import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { waitSync } from "../../floor/process/sync-sleep.ts";
-
-refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
+import { pidAlive } from "../artifacts/run-retention.ts";
+import { waitSync } from "./sync-sleep.ts";
 
 /** An ownerless lock directory may be reaped after this age. A live holder is never stolen. */
 const LOCK_STALE_MS = 30_000;
