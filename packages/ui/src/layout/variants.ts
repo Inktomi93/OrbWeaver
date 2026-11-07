@@ -4,6 +4,7 @@ import {
   CAP,
   CAPTION,
   CARD_CORNERS,
+  CENTRED,
   CORNER,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
@@ -19,12 +20,14 @@ import {
   INLINE_FIELD_ROW,
   MIN_HEIGHT,
   MIN_WIDTH,
+  PLACED,
   PUSH,
   READING_INSET,
   RECEDED,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
   SCROLLER_Y,
+  SELF,
   SR_ONLY_AT,
   TEXT_ALIGN,
   TONE_ARMS,
@@ -123,9 +126,10 @@ const PADDING_INLINE_END_NARROW = {
   row: "@max-cq-28:pe-row",
   block: "@max-cq-28:pe-block",
 } as const;
-// The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to a small atom or
+// The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to none, a small atom or a
 // related-control gap, so the larger steps are no member.
 const GAP_NARROW = {
+  none: "@max-cq-28:gap-0",
   tight: "@max-cq-28:gap-tight",
   field: "@max-cq-28:gap-field",
   row: "@max-cq-28:gap-row",
@@ -138,7 +142,6 @@ const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A box laid over content that takes no pointer itself: clicks fall through to what lies under it, and only a child that asks for the pointer takes it.
 const PASS_THROUGH = { true: "pointer-events-none", false: "" } as const;
 // A capped box centres in the room its cap leaves.
-const CENTRED = { true: "mx-auto", false: "" } as const;
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
 // pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed.
 const REACH = {
@@ -147,13 +150,13 @@ const REACH = {
 } as const;
 // A Row's own reach. `column` and `page` cross the two reading boxes' insets, from the one table that lays those insets, phone step
 // included. `header` and `foot` cross a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps
-// that inset as its own, and a `foot` keeps the card's text inset, so its group ends at the card's corner.
+// that inset as its own, and a `foot` keeps the card's text inset and crosses the card's foot, so its group ends at the card's corner.
 const ROW_REACH = {
   ...REACH,
   column: READING_INSET.plate.reach,
   page: READING_INSET.page.reach,
   header: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-reach-left) pe-(--row-reach-right)",
-  foot: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-foot-inset-left) pe-(--row-foot-inset-right)",
+  foot: "-ms-(--row-reach-left) -me-(--row-reach-right) -mbe-row ps-(--row-foot-inset-left) pe-(--row-foot-inset-right)",
 } as const;
 const ALIGN = {
   start: "items-start",
@@ -379,6 +382,8 @@ export const stackVariants = tv({
     grow: GROW,
     floor: FLOOR,
     push: PUSH,
+    self: SELF,
+    placed: PLACED,
     // The lines of the runs inside: `endWide` sets a figure's lines at the end once the container is wide enough to seat it beside its title.
     textAlign: { ...TEXT_ALIGN, endWide: "@cq-40:text-end" },
     order: ORDER,
@@ -418,6 +423,8 @@ export const rowVariants = tv({
     grow: GROW,
     floor: FLOOR,
     push: PUSH,
+    self: SELF,
+    placed: PLACED,
     order: ORDER,
     pinned: PINNED,
     fill: FILL,

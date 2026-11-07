@@ -80,7 +80,6 @@ function AmbientVocabPicker({
         reserveEdge={true}
         inset="control"
         textAlign="start"
-        className="gap-0"
       >
         <Text as="span" ink={empty ? "muted" : undefined} voice="label">
           {restText}

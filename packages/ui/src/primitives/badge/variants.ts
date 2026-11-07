@@ -24,6 +24,8 @@ export const badgeVariants = tv({
     // its own block size at a coarse pointer, so the hit area fits inside the chip.
     touchFloor: { block: TOUCH_FLOOR_AT_COARSE.block },
     // Machine text on the chip (a macro token, a key): the mono face.
+    // A chip whose own controls hold the padding and the touch box, so the chip adds neither.
+    flush: { true: "gap-0 p-0" },
     cap: CAP,
     hiddenAt: HIDDEN_AT,
     // A badge that holds a sentence wraps instead of pushing its row wider.

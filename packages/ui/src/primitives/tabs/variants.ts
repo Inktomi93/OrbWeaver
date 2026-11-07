@@ -116,6 +116,8 @@ export const tabsVariants = tv({
     quiet: { true: { tab: "not-hover:not-focus-visible:not-data-active:opacity-quiet" }, false: {} },
     // The column takes its parent's whole block extent, and the list its whole box: a rail that fills the pane it is docked in.
     fill: { true: { root: "block-full", list: "block-full inline-full" }, false: {} },
+    // A column with no seam of its own: each slot pays its own padding.
+    flush: { true: { root: "gap-0" }, false: {} },
     // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
     listRule: { none: { list: "border-be-0" } },
     // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption

@@ -22,11 +22,24 @@ export const CONTROL_INSET = { control: "px-field" } as const;
 /** The insets a run takes when it is the whole of its box: `island` a quoted block, `block` a line of an announcement, `blockInline` a line in a surface's inset. */
 export const RUN_INSET = { ...CONTROL_INSET, island: "p-row", block: "px-block py-row", blockInline: "px-block" } as const;
 
-/** Children that run out of room take a second line instead of squeezing: always, or only below a container step. */
-export const WRAP = { true: "flex-wrap", false: "", "cq-20": "@max-cq-20:flex-wrap" } as const;
+/** Children that run out of room take a second line instead of squeezing: always, only below a container step, or until a phone-width pane stacks them. */
+export const WRAP = { true: "flex-wrap", false: "", "cq-20": "@max-cq-20:flex-wrap", untilCq28: "flex-wrap @max-cq-28:flex-nowrap" } as const;
 
 /**
  * Where a flex child sends the free space of its line: to its inline start (`inlineEnd`: the child sets at the line's end), its inline end, its block
  * start, or both block sides. An auto margin is alignment, not a spacing step, so no feature picks a length.
  */
 export const PUSH = { inlineEnd: "ms-auto", inlineStart: "me-auto", blockEnd: "mbs-auto", blockCentre: "my-auto" } as const;
+
+/**
+ * Where a child sets itself across its parent's line, against the parent's `align`: the child's half of that choice. `railEnd` and `railStart` hug the
+ * centred column from a `1fr` rail beside it, once the container is wide enough to seat the rail.
+ */
+export const SELF = {
+  start: "self-start",
+  center: "self-center",
+  end: "self-end",
+  stretch: "self-stretch",
+  railEnd: "@cq-56:justify-self-end",
+  railStart: "@cq-56:justify-self-start",
+} as const;

@@ -120,15 +120,7 @@ function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElemen
   }
   return (
     <>
-      <Row
-        divider="start"
-        dividerWeight="rule"
-        tone="primary"
-        receded={true}
-        aria-hidden={true}
-        className="absolute inset-y-tight -inset-s-row"
-        data-slot="setting-modified-rail"
-      />
+      <Row divider="start" dividerWeight="rule" tone="primary" receded={true} aria-hidden={true} placed="startRail" data-slot="setting-modified-rail" />
       <Text as="span" className="sr-only">
         Modified from its default.
       </Text>

@@ -117,7 +117,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           media="image"
           alt={subject.alt}
           {...(subject.dims === undefined ? {} : { dims: subject.dims })}
-          className="mx-auto"
+          centred={true}
         />
       </Section>
       <Stack gap="field">

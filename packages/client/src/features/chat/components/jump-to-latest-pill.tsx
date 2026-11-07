@@ -27,14 +27,7 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
   const label = held === 1 ? "1 new message" : `${held} new messages`;
 
   return (
-    <Row
-      justify="center"
-      aria-hidden={visible ? undefined : true}
-      className="absolute inset-x-0 inset-be-block"
-      passThrough={true}
-      layer="overlay"
-      data-slot="jump-to-latest"
-    >
+    <Row justify="center" aria-hidden={visible ? undefined : true} placed="footBand" passThrough={true} layer="overlay" data-slot="jump-to-latest">
       <FloatingChip className="flex items-center inline-fit max-inline-full" presence={visible ? "shown" : "hidden"}>
         <Button
           type="button"

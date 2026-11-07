@@ -131,7 +131,7 @@ function SuggestionChip({
   const name = tag.name;
   return (
     // Each control already owns its padding and touch box; outer gaps prevent neighboring chips from packing.
-    <Badge variant="outline" size="sm" className="gap-0 p-0">
+    <Badge variant="outline" size="sm" flush={true}>
       {/* THE LABEL RIDES THE `label` VOICE, NOT `gloss` (side-eye 2026-08-30 rail-characters P3, #843).
           `gloss` is the MICRO step (10.5px) — correct for the `Suggested` kicker, which is a footnote, and
           below the 11px functional floor for a CONTROL'S OWN LABEL. `design-audit` fired

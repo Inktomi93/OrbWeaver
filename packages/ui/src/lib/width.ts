@@ -38,6 +38,9 @@ export const CAP = {
   sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 
+/** The box sets in the middle of its line, with the free space on both sides. */
+export const CENTRED = { true: "mx-auto", false: "" } as const;
+
 /** A named fixed block size: the viewport, or the height of the control a placeholder or a row stands in for. */
 export const HEIGHT = {
   viewport: "block-dvh",

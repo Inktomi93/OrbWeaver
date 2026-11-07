@@ -18,7 +18,6 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
-import { cn } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import type { HeaderEdges, RowSkin } from "../lib/message-row-variants.ts";
@@ -28,8 +27,6 @@ import { NameRowFrame } from "./message-name-row-frame.tsx";
 
 // A phone puts the timestamp under the name (`stackBelow`), packed to the side the speaker's header packs to: stretched for the start,
 // at the end for a mirrored row.
-const STAMP_STACK = "@max-cq-28:flex-nowrap @max-cq-28:gap-0";
-
 function stampAlignment(stackStamp: boolean, mirrored: boolean): "end-cq-28" | "stretch-cq-28" | undefined {
   if (!stackStamp) {
     return undefined;
@@ -104,8 +101,9 @@ function renderRowIdentity(args: {
       stackBelow={stackStamp ? "cq-28" : undefined}
       alignBelow={stampAlignment(stackStamp, mirrored)}
       reverse={mirrored}
-      className={cn("min-inline-0", stackStamp && STAMP_STACK)}
-      wrap={true}
+      className="min-inline-0"
+      wrap={stackStamp ? "untilCq28" : true}
+      gapNarrow={stackStamp ? "none" : undefined}
     >
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance

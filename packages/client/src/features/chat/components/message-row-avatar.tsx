@@ -5,9 +5,9 @@ import { blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { cn, viewImageActionName } from "#lib";
+import { viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
 import { artRequestWidth } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
@@ -19,9 +19,8 @@ import { ChipAvatar, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageNumber } from "./message-metadata-row.tsx";
 
-// #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of the margin.
-const RAIL_LEADING = "@cq-56:justify-self-end";
-const RAIL_TRAILING = "@cq-56:justify-self-start";
+// A chip in a `1fr` rail must hug the centred column's edge or it drifts to the far side of the margin.
+const RAIL_SELF = { none: undefined, leading: "railEnd", trailing: "railStart" } as const;
 
 // Ripple's portrait column: its width token, and its phone width below the row's `md` step.
 const PORTRAIT_WIDTH = "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
@@ -71,29 +70,23 @@ export function renderRowAvatar(args: {
   if (args.avatarTreatment === "sticky-portrait") {
     return stickyPortrait(args, target);
   }
-  // The welded portrait spans the card and has no line to align to — offset only the gutter chip, on whichever
-  // element is outermost: the chip, or the button that opens it.
-  const chipLayout =
-    cn(
-      args.alignToInsideHeader ? "mbs-row" : undefined,
-      args.gutterRail === "leading" ? RAIL_LEADING : undefined,
-      args.gutterRail === "trailing" ? RAIL_TRAILING : undefined,
-    ) ?? "";
+  // The welded portrait spans the card and has no line to align to, so only the gutter chip clears the header's first line.
   return (
-    <ChipAvatar
-      size={args.avatarSize}
-      shape={args.avatarShape}
-      aspect={args.avatarAspect}
-      ring={args.avatarRing}
-      fallbackDelay={0}
-      hueSeed={args.attribution.hueSeed}
-      // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
-      {...avatarSrcProp(args.attribution.avatarHash)}
-      view={target === null ? null : artViewOf(target, args.artControl)}
-      layoutClassName={chipLayout}
-    >
-      {initialsFor(args.attribution.name)}
-    </ChipAvatar>
+    <Row align="start" paddingBlockStart={args.alignToInsideHeader ? "row" : undefined} self={RAIL_SELF[args.gutterRail]}>
+      <ChipAvatar
+        size={args.avatarSize}
+        shape={args.avatarShape}
+        aspect={args.avatarAspect}
+        ring={args.avatarRing}
+        fallbackDelay={0}
+        hueSeed={args.attribution.hueSeed}
+        // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
+        {...avatarSrcProp(args.attribution.avatarHash)}
+        view={target === null ? null : artViewOf(target, args.artControl)}
+      >
+        {initialsFor(args.attribution.name)}
+      </ChipAvatar>
+    </Row>
   );
 }
 

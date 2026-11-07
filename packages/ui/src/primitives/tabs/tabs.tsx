@@ -21,6 +21,8 @@ export interface TabsProps extends BaseTabsRootProps {
   topRule?: TabsAxes["topRule"];
   /** The column fills its parent's block extent. */
   fill?: TabsAxes["fill"];
+  /** The column has no gap of its own between its list and its panels. */
+  flush?: TabsAxes["flush"];
 }
 
 export interface TabsListProps extends BaseTabsListProps {
@@ -46,10 +48,10 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
   ground?: TabsAxes["panelGround"];
 }
 
-export function Tabs({ className, topRule, fill, ...rest }: TabsProps): ReactElement {
+export function Tabs({ className, topRule, fill, flush, ...rest }: TabsProps): ReactElement {
   return (
     <BaseTabs.Root
-      className={cn(tabsVariants({ topRule, fill }).root(), className)}
+      className={cn(tabsVariants({ topRule, fill, flush }).root(), className)}
       data-slot="tabs-root"
       data-tone={topRule === "primary" ? TABS_ACCENT_TONE : undefined}
       {...rest}

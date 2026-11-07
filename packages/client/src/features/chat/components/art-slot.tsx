@@ -276,7 +276,6 @@ export function PortraitAvatar({
 export function ChipAvatar({
   src,
   view,
-  layoutClassName,
   size,
   shape,
   aspect,
@@ -288,7 +287,6 @@ export function ChipAvatar({
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly src?: string;
     readonly view: ArtView | null;
-    readonly layoutClassName: string;
   }): ReactElement {
   const { attach, failed } = useSlotImage(src === undefined ? undefined : (): string => src);
   const tappable = view !== null && !failed;
@@ -302,16 +300,11 @@ export function ChipAvatar({
       ring={ring}
       cardCorners={cardCorners}
       fade={fade}
-      className={tappable ? "" : layoutClassName}
       {...(src === undefined || failed ? {} : { src })}
     />
   );
   if (!tappable) {
     return chip;
   }
-  return (
-    <ArtButton view={view} className={layoutClassName}>
-      {chip}
-    </ArtButton>
-  );
+  return <ArtButton view={view}>{chip}</ArtButton>;
 }

@@ -94,7 +94,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         media="image"
         alt={subject.alt}
         {...(subject.dims === undefined ? {} : { dims: subject.dims })}
-        className="mx-auto"
+        centred={true}
       />
       <Section kicker="Details">
         <ProvenanceStrip assetId={subject.assetId} />

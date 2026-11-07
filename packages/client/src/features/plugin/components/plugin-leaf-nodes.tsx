@@ -273,7 +273,7 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
       </Card>
     ) : (
       // Keep the sealed owner-scoped media path, including its broken-media fallback and contain fit.
-      <MessageMedia alt={node.alt ?? ""} {...(framed ? { className: "block-full inline-full" } : {})} media="image" src={{ kind: "asset", url }} />
+      <MessageMedia alt={node.alt ?? ""} fill={framed} media="image" src={{ kind: "asset", url }} />
     );
   return node.aspect === undefined ? media : <AspectFrame aspect={node.aspect}>{media}</AspectFrame>;
 }

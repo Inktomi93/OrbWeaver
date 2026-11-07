@@ -20,7 +20,7 @@ export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
-export { CONTROL_INSET, FLOOR, GROW, PUSH, RUN_INSET, WRAP } from "./flex-share.ts";
+export { CONTROL_INSET, FLOOR, GROW, PUSH, RUN_INSET, SELF, WRAP } from "./flex-share.ts";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,
@@ -51,6 +51,7 @@ export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
+export { PLACED } from "./placed.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
 export {
@@ -79,4 +80,4 @@ export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts"
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { type ToneStamp, type VariantStampProps, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";
-export { CAP, HEIGHT, MIN_HEIGHT, MIN_WIDTH, WIDTH } from "./width.ts";
+export { CAP, CENTRED, HEIGHT, MIN_HEIGHT, MIN_WIDTH, WIDTH } from "./width.ts";

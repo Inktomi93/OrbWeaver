@@ -119,7 +119,7 @@ function TrackerValueRest({
         grow={grow}
         width={heldWidth(width)}
         cap={width === "auto" ? "fit" : undefined}
-        className="gap-0 min-inline-0"
+        className="min-inline-0"
       >
         <Text
           as="span"

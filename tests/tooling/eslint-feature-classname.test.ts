@@ -159,7 +159,7 @@ test.for([
   [
     "a bleed off the reach ramp, which writes it as a pair of edges too",
     `${BOXES}export const T = (<Row className="-mx-block" />);\n`,
-    "is a step `reach` chooses among",
+    "is not an arm of row.reach",
   ],
   [
     "an inset off the reach ramp, which writes it as a pair of edges too",

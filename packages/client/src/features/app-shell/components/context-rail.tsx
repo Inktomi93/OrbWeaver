@@ -126,7 +126,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
               onSelect(value);
             }
           }}
-          className="gap-0 min-inline-0"
+          flush={true}
+          className="min-inline-0"
         >
           <TabsList
             ref={trackRef}
