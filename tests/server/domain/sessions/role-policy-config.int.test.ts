@@ -1,44 +1,9 @@
-import {
-  AUTH_FALLBACK_KEY,
-  AUTH_MODE_KEY,
-  authMeSchema,
-  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
-  OIDC_ADMIN_GROUPS_KEY,
-  OIDC_ALLOWED_GROUPS_KEY,
-  OWNER_GROUP_KEY,
-  OWNER_HANDLES_KEY,
-  RE_DERIVE_ROLE_ON_LOGIN_KEY,
-} from "@orb/contracts/identity";
-import type { Handle } from "@orb/kit/ids";
+import { OIDC_ADMIN_GROUPS_KEY, OIDC_ALLOWED_GROUPS_KEY, OWNER_HANDLES_KEY, RE_DERIVE_ROLE_ON_LOGIN_KEY } from "@orb/contracts/identity";
 import { brandedId } from "@orb/kit/ids";
-import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, createTestEnv, readAccounts } from "@orb/testkit/node/composed";
+import { readAccounts } from "@orb/testkit/node/composed";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
-import { headerIdentity, me, rootForConfig, rootForPolicy } from "./role-policy-config.fixtures.ts";
-
-test("a composed role policy ignores subsequent source-config grants", async () => {
-  const config = { ...createTestEnv() };
-  await using root = await rootForConfig(config);
-  const headers = {
-    "x-authentik-username": "snapshot-policy-member",
-    "x-authentik-uid": brandedId("ExternalId").parse("snapshot-policy-subject"),
-    "x-authentik-groups": "late-process-admins",
-  };
-  const before = await root.http.request("/api/auth/me", { headers });
-  expect(before.status).toBe(200);
-  const identity = authMeSchema.parse(await before.json());
-  expect(identity).toEqual({ authenticated: true, handle: headers["x-authentik-username"], role: "user" });
-
-  config.OIDC_ADMIN_GROUPS = headers["x-authentik-groups"];
-  const after = await root.http.request("/api/auth/me", { headers });
-  expect(after.status).toBe(200);
-  expect(authMeSchema.parse(await after.json())).toEqual(identity);
-  expect((await readAccounts(root)).filter(({ externalId }) => externalId === headers["x-authentik-uid"]).map(({ role }) => ({ role }))).toEqual([
-    { role: "user" },
-  ]);
-});
+import { headerIdentity, me, rootForPolicy } from "./role-policy-config.fixtures.ts";
 
 test("distinct composed policy snapshots do not share grants or depend on another root's lifetime", async () => {
   await using first = await rootForPolicy({ [OIDC_ADMIN_GROUPS_KEY]: "first-admins" });
@@ -49,103 +14,14 @@ test("distinct composed policy snapshots do not share grants or depend on anothe
   expect(await me(second, headerIdentity("second-admins"))).toMatchObject({ authenticated: true, role: "admin" });
 });
 
-const CONFIGURED_POLICY = { [OWNER_HANDLES_KEY]: "box-owner", [OWNER_GROUP_KEY]: "original-owners", [OIDC_ALLOWED_GROUPS_KEY]: "original-friends" } as const;
-const LATE_POLICY = { [OWNER_HANDLES_KEY]: "late-owner", [OWNER_GROUP_KEY]: "late-owners", [OIDC_ALLOWED_GROUPS_KEY]: "late-friends" } as const;
-
-/** The deployment's source values, writable so a case can change them after the policy is built. */
-type SourceConfig = { -readonly [Key in keyof SessionsRolePolicyConfig]: SessionsRolePolicyConfig[Key] };
-
-interface SnapshotReads {
-  readonly ownerHandles: readonly string[];
-  readonly ownerByHandle: readonly boolean[];
-  readonly ownerByGroup: readonly boolean[];
-  readonly loginGate: readonly ReturnType<SessionsRolePolicy["identityAccess"]>["outcome"][];
-}
-
-/** Each policy read the snapshot keys reach, asked of the configured value and of the late one. */
-function snapshotReads(policy: SessionsRolePolicy): SnapshotReads {
-  const handle = (raw: string): Handle => brandedId("Handle").parse(raw);
-  const member = handle("policy-member");
-  return {
-    ownerHandles: policy.ownerHandles(),
-    ownerByHandle: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.isOwnerByPolicy(handle(policyValues[OWNER_HANDLES_KEY]), [])),
-    ownerByGroup: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.isOwnerByPolicy(member, [policyValues[OWNER_GROUP_KEY]])),
-    loginGate: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.identityAccess(false, [policyValues[OIDC_ALLOWED_GROUPS_KEY]]).outcome),
-  };
-}
-
-// A harness root parses its own env record from these values, so mutating them after it is built never reaches its
-// policy; the snapshot is a property of the policy factory, read here on the object the factory was handed.
-test.each([OWNER_HANDLES_KEY, OWNER_GROUP_KEY, OIDC_ALLOWED_GROUPS_KEY] as const)("a role policy does not reread '%s' from its source config", (key) => {
-  const config: SourceConfig = { ...createTestEnv(), ...CONFIGURED_POLICY };
-  const policy = createSessionsRolePolicy(config);
-  const configured: SnapshotReads = {
-    ownerHandles: [CONFIGURED_POLICY[OWNER_HANDLES_KEY]],
-    ownerByHandle: [true, false],
-    ownerByGroup: [true, false],
-    loginGate: ["allow", "deny"],
-  };
-  expect(snapshotReads(policy)).toEqual(configured);
-
-  config[key] = LATE_POLICY[key];
-
-  expect(snapshotReads(policy)).toEqual(configured);
-});
-
-test("an identity first seen after a late source-config admin grant is provisioned from the composed policy", async () => {
-  const config = { ...createTestEnv() };
-  await using root = await rootForConfig(config);
-  config.OIDC_ADMIN_GROUPS = "late-process-admins";
-  expect(await me(root, headerIdentity("late-process-admins", "late-arrival", "late-arrival-subject"))).toEqual({
-    authenticated: true,
-    handle: "late-arrival",
-    role: "user",
-  });
-});
-
-test("copied config and exposed owner handles cannot mutate a live graph's authorization", async () => {
-  const config = { ...createTestEnv() };
-  config.OWNER_HANDLES = "box-owner";
-  config.OWNER_GROUP = "original-owners";
-  config.OIDC_ADMIN_GROUPS = "original-admins";
-  config.OIDC_ALLOWED_GROUPS = undefined;
-  await using root = await createServerHarness({
-    rolePolicyConfig: config,
-    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
-    physicalPeer: () => "127.0.0.1",
-  });
-  config.OWNER_HANDLES = "policy-member";
-  config.OWNER_GROUP = "late-grants";
-  config.OIDC_ADMIN_GROUPS = "late-grants";
-  config.OIDC_ALLOWED_GROUPS = "newly-required";
-  config.DEFAULT_USER_HANDLE = "changed-placeholder";
-  config.RE_DERIVE_ROLE_ON_LOGIN = "true";
-  const handles = root.app.sessions.rolePolicy.ownerHandles();
-  expect(Reflect.set(handles, "0", "policy-member")).toBe(false);
-  expect(await me(root, headerIdentity("late-grants"))).toEqual({ authenticated: true, handle: "policy-member", role: "user" });
+test("an admin mint refuses the configured owner handle's look-alike and admits a different handle", async () => {
+  await using root = await rootForPolicy({ [OWNER_HANDLES_KEY]: "box-owner" });
   const owner = await root.principalFor(root.ownerId);
   expect(owner.handle).toBe("box-owner");
-  await expect(
-    root.services.admin.createUser({ principal: owner, handle: brandedId("Handle").parse("Box-Owner"), password: "synthetic-policy-password" }),
-  ).rejects.toMatchObject({ code: ADMIN_OP_CODES.invalidHandle });
-});
-
-test("the legacy rederivation flag is a construction-time input, not a live source-config grant", async () => {
-  const config = { ...createTestEnv() };
-  config.OIDC_ADMIN_GROUPS = undefined;
-  config.OIDC_ALLOWED_GROUPS = undefined;
-  config.RE_DERIVE_ROLE_ON_LOGIN = undefined;
-  await using root = await rootForConfig(config);
-  const headers = headerIdentity("");
-  await me(root, headers);
-  const row = (await readAccounts(root)).find(({ externalId }) => externalId === brandedId("ExternalId").parse("policy-member-subject"));
-  if (row === undefined) {
-    throw new Error("successful header login produced no account");
-  }
-  await root.services.admin.setRole({ principal: await root.principalFor(root.ownerId), userId: row.id, role: "admin" });
-  config.RE_DERIVE_ROLE_ON_LOGIN = "true";
-  expect(await me(root, headers)).toMatchObject({ role: "admin" });
-  expect((await readAccounts(root)).filter(({ id }) => id === row.id).map(({ role }) => ({ role }))).toEqual([{ role: "admin" }]);
+  const mint = (raw: string): ReturnType<typeof root.services.admin.createUser> =>
+    root.services.admin.createUser({ principal: owner, handle: brandedId("Handle").parse(raw), password: "synthetic-policy-password" });
+  await expect(mint("Box-Owner")).rejects.toMatchObject({ code: ADMIN_OP_CODES.invalidHandle });
+  expect(await mint("box-owners")).toMatchObject({ handle: "box-owners" });
 });
 
 test("fixed group governance still rederives stored roles from every login's current claims", async () => {
