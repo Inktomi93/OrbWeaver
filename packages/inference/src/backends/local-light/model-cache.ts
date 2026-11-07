@@ -501,6 +501,15 @@ type LoadedReranker =
   | { readonly head: "sequence-classification"; readonly model: RerankModel }
   | { readonly head: "sentence-transformers"; readonly model: RerankModel; readonly scorer: StHead };
 
+// Release an encoder its reranker can never use, then raise why. The memo disposes only a load that resolved, so this
+// is the encoder's last owner. The caller needs the load's failure; a failed release is the operator's to read.
+async function refuseEncoder(model: RerankModel, failure: unknown, modelId: ModelId, log: InferenceLog): Promise<never> {
+  await model.dispose().catch((err: unknown) => {
+    log.warn({ modelId, err: String(err) }, "local-light: a refused reranker encoder did not dispose");
+  });
+  throw failure;
+}
+
 /** One score per batch row, read the way the serving's head says. A missing or misshapen output throws. */
 function readScores(loaded: LoadedReranker, out: Record<string, unknown>, modelId: ModelId, TensorCtor: TransformersModule["Tensor"]): number[] {
   if (loaded.head === "sequence-classification") {
@@ -599,14 +608,23 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
         const model = await loadWithCpuFallback(device, log, (dev) => mod.AutoModelForSequenceClassification.from_pretrained(id, { ...opts, device: dev }));
         return { head: onnx.head, model };
       }
-      const [model, scorer] = await Promise.all([
+      // Settled, not `Promise.all`: a head that fails first must still wait for the encoder, or nothing owns its session.
+      const [encoder, head] = await Promise.allSettled([
         loadWithCpuFallback(device, log, (dev) => mod.AutoModel.from_pretrained(id, { ...opts, device: dev })),
         loadHeadRepairing(mod, { modelId: id, revision: onnx.revision }, log),
       ]);
+      if (encoder.status === "rejected") {
+        throw encoder.reason;
+      }
+      const model = encoder.value;
+      if (head.status === "rejected") {
+        return await refuseEncoder(model, head.reason, id, log);
+      }
+      const scorer = head.value;
       const hiddenSize: unknown = (model.config as { hidden_size?: unknown }).hidden_size;
       if (hiddenSize !== scorer.inputDim) {
-        await model.dispose();
-        throw rerankLoadError(id, `the encoder's hidden size ${String(hiddenSize)} does not feed the ${String(scorer.inputDim)}-wide scoring head`);
+        const refusal = rerankLoadError(id, `the encoder's hidden size ${String(hiddenSize)} does not feed the ${String(scorer.inputDim)}-wide scoring head`);
+        return await refuseEncoder(model, refusal, id, log);
       }
       return { head: onnx.head, model, scorer };
     },

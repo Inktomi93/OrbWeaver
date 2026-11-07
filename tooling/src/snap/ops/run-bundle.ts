@@ -8,6 +8,7 @@ import { artifactRef, exactScopeIdentity, factBatchId, notApplicableScope, scope
 import { checkoutName } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
+import type { DiskSafeArgv } from "../contract/disk-safe-argv.ts";
 import type { SnapRunFactBatch, SnapRunResults } from "../contract/run-facts.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION, snapDiagnosticRetention, snapExitCode } from "../contract/run-facts.ts";
 import type { SnapRunArtifact, SnapRunIndex, SnapStageProvenance } from "../contract/run-index.ts";
@@ -92,7 +93,7 @@ function artifactScopeSupportsFact(artifact: SnapRunArtifact, fact: SnapRunFactB
   return scopeMatches(artifact.scope, exactScopeIdentity(fact.scope));
 }
 /** Write exactly once while the slot is still owned. A second writer is corruption, not an update. */
-export async function completeSnapRun(completion: InstrumentRunCompletion, opts: Args, argv: readonly string[]): Promise<string> {
+export async function completeSnapRun(completion: InstrumentRunCompletion, opts: Args, argv: DiskSafeArgv): Promise<string> {
   const finishedAt = new Date().toISOString();
   const diagnosticSummary = takeDiagnosticCompleteness();
   const diagnosticArtifact = await writeCompletenessArtifact(completion.slot.dir, diagnosticSummary);
@@ -175,7 +176,7 @@ export async function completeSnapRun(completion: InstrumentRunCompletion, opts:
     process: {
       host: hostname(),
       pid: process.pid,
-      argv: [...argv],
+      argv,
       startedAt: await readSnapRunStartedAt(completion.slot.dir),
       finishedAt,
       lane: owner.lane,

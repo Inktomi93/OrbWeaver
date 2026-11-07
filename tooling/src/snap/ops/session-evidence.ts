@@ -19,6 +19,7 @@ import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole
 import { redactNetworkUrl } from "../lib/har-redaction.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { networkHarReceipt } from "../lib/network-har-receipt.ts";
+import { stopTraceToFile } from "../lib/private-values.ts";
 import { requestRingFor } from "./request-ring.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> --session-export <route>");
@@ -47,7 +48,7 @@ export async function retainSessionEvidence(state: SessionEvidenceState, session
     session.contexts.map(async ({ context }, contextIndex) => {
       const suffix = session.contexts.length === 1 ? "" : `-u${contextIndex}`;
       const path = join(state.dir, `trace-${String(state.traceIndex).padStart(TRACE_INDEX_WIDTH, "0")}${suffix}.zip`);
-      await context.tracing.stop({ path });
+      await stopTraceToFile(context.tracing, path);
       await registerInstrumentArtifact("sessions", path, {
         producer: "sessions",
         producerArm: null,

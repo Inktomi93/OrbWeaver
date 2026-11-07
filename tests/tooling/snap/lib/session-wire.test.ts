@@ -6,6 +6,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
+import { diskSafeArgv, diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { readSessionEvent, readSessionRequest, readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { sessionEnvironmentOf } from "../../../../tooling/src/snap/ops/session-daemon.ts";
@@ -34,11 +35,11 @@ function row(over: Partial<SessionRow> = {}): SessionRow {
       reducedTransparency: true,
       deviceScaleFactor: null,
     },
-    bootArgv: ["--base", "http://localhost:5173", "/"],
+    bootArgv: diskSafeArgv(["--base", "http://localhost:5173", "/"]),
     createdAt: "2026-09-02T18:00:00.000Z",
     lastUsedAt: "2026-09-02T18:20:00.000Z",
     inflightOp: null,
-    lastOp: "--eval 1",
+    lastOp: diskSafeOp(["--eval", "1"], ""),
     ttlMs: 30 * MINUTE,
     headless: true,
     calls: 3,

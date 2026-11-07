@@ -217,8 +217,8 @@ test("snap rejects missing and malformed flag values", () => {
       "--click requires a value",
       '--pages expects an integer >= 1, got "0"',
       '--viewport expects positive WxH, got "wide"',
-      '--fill expects sel=value with a non-empty selector, got "input"',
-      '--local-storage expects key=value with a non-empty key, got "broken"',
+      "--fill expects sel=value with a non-empty selector",
+      "--local-storage expects key=value with a non-empty key",
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
@@ -285,7 +285,7 @@ test("a >> chain keeps its per-part engines, and a plain CSS pair still splits a
 test("snap --fill with no '=' at all still refuses, naming the expected sel=value shape", () => {
   const args = parseSnapArgs(["/", "--fill", "input"]);
 
-  expect(args.errors).toContain('--fill expects sel=value with a non-empty selector, got "input"');
+  expect(args.errors).toContain("--fill expects sel=value with a non-empty selector");
 });
 
 // #550: the refusal reaches EVERY selector-bearing flag class, not just the --wait-for that exposed it —

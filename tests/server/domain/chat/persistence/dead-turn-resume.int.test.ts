@@ -25,7 +25,7 @@ test("a turn a restart killed names no open turn, and a resume does not reopen i
   await room.root.db.run(sql`insert into chat_events (id, chat_id, seq, type, payload) values
     (${room.root.ids.typeId(ID_PREFIX.chatEvent)}, ${room.chatId}, 901, 'turnAccepted', ${JSON.stringify(accepted)}),
     (${room.root.ids.typeId(ID_PREFIX.chatEvent)}, ${room.chatId}, 902, 'delta', ${JSON.stringify(token)})`);
-  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  const device = await openDevice(room, room.hostSeat);
   try {
     const caller = await room.root.internalCallerFor(room.host.userId);
     await caller.stream.attach({ socketId: device.socketId, ref: { channel: "chat", chatId: room.chatId }, sinceSeq: 900 });
@@ -67,7 +67,7 @@ test("a round whose first speaker ended and whose second died does not revive th
       sql`insert into chat_events (id, chat_id, seq, type, payload) values (${room.root.ids.typeId(ID_PREFIX.chatEvent)}, ${room.chatId}, ${901 + offset}, ${type}, ${JSON.stringify(payload)})`,
     );
   }
-  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  const device = await openDevice(room, room.hostSeat);
   try {
     const caller = await room.root.internalCallerFor(room.host.userId);
     await caller.stream.attach({ socketId: device.socketId, ref: { channel: "chat", chatId: room.chatId }, sinceSeq: 900 });

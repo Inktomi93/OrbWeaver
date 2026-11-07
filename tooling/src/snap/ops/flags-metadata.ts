@@ -89,6 +89,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--hover": { group: "Reach", summary: "synthetic hover (loses :hover on any list re-render)" },
   "--local-storage": { group: "Where", summary: "key=json — seed localStorage before navigation (the FIRST = splits; the value is JSON)" },
   "--fill": { group: "Reach", summary: "selector=value — type into a field; the selector may be an engine form" },
+  "--fill-env": { group: "Reach", summary: "selector=ENV_NAME — type a private value read from the environment, never from argv" },
   "--key": { group: "Reach", summary: "Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses" },
   "--wait-for": { group: "Reach", summary: "selector or text=phrase — wait for a selector to become visible, or for rendered text" },
   "--upload": { group: "Reach", summary: "`selector=path[,path]` — choose file(s) through an input or a trigger's filechooser" },
