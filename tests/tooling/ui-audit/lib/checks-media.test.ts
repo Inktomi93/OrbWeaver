@@ -6,7 +6,7 @@
 // Owner ruling pinned here too: this detector is not built to fire on today's tree — a clean run is the
 // SUCCESS condition, never a failure, and the threshold is never loosened to manufacture a finding.
 
-import type { AuditRuleProof } from "@orb/testkit/node";
+import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { ImageDistortionInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
@@ -28,11 +28,7 @@ function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
   return { ...base, ...over };
 }
 
-// ── design-audit proof denominator ──────────────
-// The coverage test reads its two rows from a TOP-LEVEL `auditRuleTest(...)` call, bound to this file's own
-// local helper (the same shape index.test.ts's registers) — the binding is structural,
-// not a describe-nested test.
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
+function auditRuleTest(proofs: readonly PureAuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();

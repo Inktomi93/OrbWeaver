@@ -24,6 +24,8 @@ import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { exportProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { expect, test as houseTest } from "./fixtures.ts";
+import type { AuditRuleProof, FiresAuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
+import { expectPopulation } from "./ui-audit-relational.ts";
 
 /** The typed CLI outcome `toExitWith` asserts on (tests/support/node/matchers.ts). */
 export interface CliResult {
@@ -294,6 +296,31 @@ function normalize(v: string): string {
     out = out.replaceAll(RESULT_MS_RE, "<ms>ms");
   }
   return out;
+}
+
+/** Register a live design-audit proof. A case with a silent row returns the run's report, and every disposition is
+ *  read from it here, so a declared disposition cannot go unchecked. */
+export function auditRuleTest<const Proofs extends readonly AuditRuleProof[]>(
+  proofs: Proofs,
+  title: string,
+  fn: (
+    fixtures: Pick<ToolFixtures, "runCli" | "scratch">,
+  ) => Proofs[number] extends FiresAuditRuleProof ? Promise<void> | void : Promise<RelationalPopulationReport>,
+): void {
+  test(title, async ({ runCli, scratch }) => {
+    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    const report = await fn({ runCli, scratch });
+    for (const proof of proofs) {
+      if (proof.kind === "silent" && report !== undefined) {
+        expectPopulation(
+          report,
+          proof.rule,
+          proof.disposition,
+          proofs.some((other) => other.kind === "fires" && other.rule === proof.rule) && report.findings.some((finding) => finding.rule === proof.rule),
+        );
+      }
+    }
+  });
 }
 
 expect.addSnapshotSerializer({

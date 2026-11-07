@@ -1,9 +1,8 @@
 // Adversarial row-binding control for #984 through the shipped CLI and real Chromium geometry.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -18,7 +17,7 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   const res = await runCli("snap", ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["row-void"]).toMatchObject({
     candidates: 1,
     judged: 0,
@@ -46,7 +45,7 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   const res = await runCli("snap", ["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 0, withheld: { animating: 1 } });
   expect(report.findings.map(({ rule }) => rule)).not.toContain("cohort-anatomy");
   expect(res.stdout).toContain("INSTRUMENT ERROR");
@@ -65,7 +64,7 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
   const res = await runCli("snap", ["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 1, withheld: {} });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
@@ -106,7 +105,7 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   const res = await runCli("snap", ["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   // BOTH cohorts are candidates: the prose one is excluded with a reason, not dropped, so widening this
   // fence shows up in the denominator rather than as a quieter clean run.
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 2, judged: 1, withheld: {}, excluded: { inlineTextRun: 1 } });
@@ -118,3 +117,35 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   ).toContain("cohort-anatomy");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
+
+// The `Text` primitive is not a row anatomy: an avatar's initial, a name and a gloss share its slot and owe no common
+// height, so a row of them proves nothing. A component with a height of its own, in the same run, still reports.
+const threeInARow = (slot: string, id: string): string => `<div id="${id}" style="display:flex;gap:8px;align-items:flex-start">
+  <span data-slot="${slot}" data-size="body" style="display:flex;width:40px;height:40px">A</span>
+  <span data-slot="${slot}" data-size="body" style="display:flex;width:120px;height:16px">Name</span>
+  <span data-slot="${slot}" data-size="body" style="display:flex;width:120px;height:40px">A gloss of two lines</span>
+</div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "cohort-anatomy",
+      kind: "silent",
+      reason: "three Text primitives in one row are an avatar, a name and a gloss: one primitive, three jobs",
+      disposition: { kind: "excluded", reason: "textPrimitive" },
+    },
+    {
+      rule: "cohort-anatomy",
+      kind: "fires",
+      reason: "the same heights on a component that claims one anatomy are the rule's real target",
+    },
+  ],
+  "a row of Text primitives is no cohort, and the same heights on a real component still report",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "text-row.html"), relationalDocument(`${threeInARow("text", "text-row")}${threeInARow("band", "band-row")}`));
+    const res = await runCli("snap", ["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const report = await readAuditReport(res.stdout);
+    expect(report.findings.filter(({ rule }) => rule === "cohort-anatomy")).toHaveLength(1);
+    return report;
+  },
+);

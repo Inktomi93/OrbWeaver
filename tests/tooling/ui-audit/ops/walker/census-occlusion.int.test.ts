@@ -6,28 +6,14 @@
 // the expensive failure — so each rule pins the defect, the NEAR-MISS that must stay silent, and the
 // clipped-away subject that must be WITHHELD rather than judged clean. A rule that only proves it can
 // fire is a rule nobody can trust to be quiet.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
-
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  // Vitest parses the fixture callback's first argument SYNTACTICALLY and refuses anything but an object
-  // destructuring pattern, so the wrapper has to name the fixtures it forwards rather than pass a bag.
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
 
 interface AuditRun {
   readonly report: RelationalPopulationReport;
@@ -37,7 +23,7 @@ interface AuditRun {
 
 interface AuditFixture {
   readonly scratch: string;
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
+  readonly runCli: ToolFixtures["runCli"];
   readonly name: string;
   readonly body: string;
   readonly viewport?: string;
@@ -48,7 +34,7 @@ async function auditFixture({ scratch, runCli, name, body, viewport = "1000x600"
   const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), "--viewport", viewport, ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  return { report: JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport, code: result.code };
+  return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
 /** An opaque bordered content card, sized inside the arm's 100px..80%-of-viewport / \>=60px-tall window. */
@@ -87,6 +73,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "the nearest legitimate neighbour: identical card and line, moved so the line's centre is inside the card - a headline that lives in a card, which must be excluded rather than flagged",
+      disposition: { kind: "excluded", reason: "centre-inside-card" },
     },
   ],
   "a headline sitting INSIDE the card is excluded, not flagged",
@@ -102,6 +89,7 @@ auditRuleTest(
       affected: 0,
       excluded: { "centre-inside-card": 1 },
     });
+    return report;
   },
 );
 
@@ -111,6 +99,7 @@ auditRuleTest(
       rule: "headline-overhang",
       kind: "silent",
       reason: "a line whose unclipped rect overlaps the card while its painted rect is empty - the naive-geometry false positive, withheld instead of minted",
+      disposition: { kind: "withheld", reason: "clipped-away" },
     },
   ],
   "a headline clipped away by its own panel is withheld, never judged clean",
@@ -126,6 +115,7 @@ auditRuleTest(
     expect(report.populationAccounting?.["headline-overhang"]).toMatchObject({ candidates: 1, judged: 0, withheld: { "clipped-away": 1 } });
     // A withheld candidate is a NO VERDICT run, not a pass — the runner must refuse rather than report clean.
     expect(code).toBe(2);
+    return report;
   },
 );
 
@@ -162,6 +152,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "the nearest legitimate neighbour: an opaque inline highlight over the padding floor whose fragment still sits at about one line-height, which is a deliberate highlight and not a leak",
+      disposition: { kind: "judged" },
     },
   ],
   "a legitimately padded inline highlight at ~1x line-height stays silent",
@@ -171,6 +162,7 @@ auditRuleTest(
     const { report } = await auditFixture({ scratch, runCli, name: "leak-highlight", body: inlineFill(12, 24) });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
+    return report;
   },
 );
 
@@ -181,6 +173,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a padded inline wrapped across several lines: its bounding rect clears the line-height multiple on wrapping alone, and per-fragment measurement keeps it silent",
+      disposition: { kind: "judged" },
     },
   ],
   "a WRAPPING padded inline is judged per line fragment, not by its bounding rect",
@@ -192,6 +185,7 @@ auditRuleTest(
     const { report } = await auditFixture({ scratch, runCli, name: "leak-wrapping", body: inlineFill(12, 24, long, "wrapped-highlight"), viewport: "420x600" });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
+    return report;
   },
 );
 
@@ -201,6 +195,7 @@ auditRuleTest(
       rule: "inline-padding-leak",
       kind: "silent",
       reason: "an opaque inline whose vertical padding cannot overflow a line - excluded from the denominator rather than counted as a judged pass",
+      disposition: { kind: "excluded", reason: "padding-below-floor" },
     },
   ],
   "an inline fill below the padding floor is excluded rather than counted as judged",
@@ -208,6 +203,7 @@ auditRuleTest(
     const { report } = await auditFixture({ scratch, runCli, name: "leak-below-floor", body: inlineFill(2, 24) });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 0, excluded: { "padding-below-floor": 1 } });
+    return report;
   },
 );
 
@@ -217,6 +213,7 @@ auditRuleTest(
       rule: "inline-padding-leak",
       kind: "silent",
       reason: "a leak whose line fragment is clipped entirely out of paint - withheld as unmeasurable rather than reported clean",
+      disposition: { kind: "withheld", reason: "clipped-away" },
     },
   ],
   "an inline leak clipped away by its container is withheld, never judged clean",
@@ -230,5 +227,6 @@ auditRuleTest(
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 0, withheld: { "clipped-away": 1 } });
     expect(code).toBe(2);
+    return report;
   },
 );

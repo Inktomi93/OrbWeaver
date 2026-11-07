@@ -6,7 +6,7 @@
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 
-import type { AuditRuleProof } from "@orb/testkit/node";
+import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import type { HoverContrastInput, HoverScanInput } from "../../../tooling/src/ui-audit/contract/samples-hover.ts";
@@ -74,7 +74,7 @@ const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 const LIGHT_GRAY: Rgb = { r: 210, g: 210, b: 210 };
 const FLAT_WHITE: Backdrop = { kind: "flat", color: WHITE };
 
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
+function auditRuleTest(proofs: readonly PureAuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();

@@ -22,7 +22,13 @@
 // a P1, which is JUDGED rather than withheld, so the population can produce a verdict. Only
 // `paint-layer-over-base` earns this: `no-opaque-base` carries no evidence of an image layer and stays
 // `unresolved` (withheld).
+//
+// ART UNDER ONE SUBJECT IS MEASURED, NOT RECLASSIFIED. `art-under-subject` is a card image under its own caption:
+// it backs only that caption, so a caption below the fold is scrolled into view and sampled like its in-view twin.
+// One the page scroll cannot reach stays `unresolved` (withheld), because calling it art would file a P1 the
+// audit could have measured.
 import { errorMessage } from "@orb/kit/error-message";
+import type { PixelBox } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -31,7 +37,7 @@ import type { ContrastInput, RawSamples } from "../contract/samples.ts";
 import type { HoverForcedReadRow } from "../contract/samples-hover.ts";
 import type { BorderContrastInput } from "../contract/samples-interactive.ts";
 import type { BackdropRefusal, PixelPass } from "../contract/types.ts";
-import type { PixelRaw } from "../lib/pixel-regions.ts";
+import type { PixelRaw, RingRead } from "../lib/pixel-regions.ts";
 import { OFF_SCREEN_REFUSAL, surroundBackdropRing, textBackdropRing } from "../lib/pixel-regions.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
@@ -54,6 +60,82 @@ function reclassifyUnsampleable(text: ContrastInput): ContrastInput {
   return text;
 }
 
+function isArtUnderSubject(text: ContrastInput): boolean {
+  return text.backdrop.kind === "unresolved" && text.backdrop.reason === "art-under-subject";
+}
+
+/** Scroll the document to `top` CSS pixels, or stay put for `null`, and answer where it rests: a page edge can cut a scroll short. */
+async function scrollDocumentTo(page: Page, top: number | null): Promise<number> {
+  const at: unknown = await page.evaluate(
+    top === null ? "window.scrollY" : `(() => { window.scrollTo({ top: ${String(top)}, behavior: "instant" }); return window.scrollY; })()`,
+  );
+  if (typeof at !== "number") {
+    throw new Error(`INSTRUMENT ERROR: the reveal scroll answered ${String(at)}, not a position`);
+  }
+  return at;
+}
+
+/** The share of the viewport at each edge where a revealed text is not trusted, because a fixed bar may cover it. */
+const REVEAL_EDGE_FRACTION = 0.25;
+
+/** A deferred text with the box the walk read it at, so no step after the deferral can lose the box. */
+interface DeferredText {
+  readonly text: ContrastInput;
+  readonly box: PixelBox;
+}
+
+function shiftedUp(box: PixelBox, dy: number): PixelBox {
+  return { ...box, y: box.y - dy };
+}
+
+/** The ring of one deferred text in a shot taken after the document scrolled by `offset`. */
+function revealedRing(raw: (PixelRaw & { data: Buffer }) | { error: string }, { text, box }: DeferredText, offset: number): RingRead {
+  if ("error" in raw) {
+    return { refusal: `pixel sample unavailable (${raw.error})` };
+  }
+  return textBackdropRing(raw, shiftedUp(box, offset), text.inkBox === undefined ? undefined : shiftedUp(text.inkBox, offset));
+}
+
+/** Settle off-screen `art-under-subject` texts by scrolling to each one. Each shot centres the first unsettled text and
+ *  settles every deferred text in its middle half, so the pass takes as many scroll positions as the depths need. The
+ *  page returns exactly to the walk's scroll position, because the passes after this one read it there. */
+async function revealArtUnderSubject(
+  page: Page,
+  deferred: readonly DeferredText[],
+  viewportHeight: number,
+  refusals: BackdropRefusal[],
+): Promise<ReadonlyMap<ContrastInput, { text: ContrastInput; sampled: boolean }>> {
+  const settled = new Map<ContrastInput, { text: ContrastInput; sampled: boolean }>();
+  let pending = deferred.toSorted((a, b) => a.box.y - b.box.y);
+  const origin = await scrollDocumentTo(page, null);
+  let restored = origin;
+  try {
+    for (let first = pending[0]; first !== undefined; first = pending[0]) {
+      const offset = (await scrollDocumentTo(page, origin + first.box.y + first.box.height / 2 - viewportHeight / 2)) - origin;
+      const raw = await viewportPixels(page);
+      const still: DeferredText[] = [];
+      for (const entry of pending) {
+        // No occluder was read at this scroll position and fixed bars sit at the viewport's edges, so a shot settles
+        // only its centred text and the texts inside its middle half. The rest wait for a shot of their own.
+        const top = entry.box.y - offset;
+        const edge = viewportHeight * REVEAL_EDGE_FRACTION;
+        if (entry !== first && (top < edge || top + entry.box.height > viewportHeight - edge)) {
+          still.push(entry);
+        } else {
+          settled.set(entry.text, settleFromRing(entry.text, revealedRing(raw, entry, offset), refusals));
+        }
+      }
+      pending = still;
+    }
+  } finally {
+    restored = await scrollDocumentTo(page, origin);
+  }
+  if (restored !== origin) {
+    throw new Error(`INSTRUMENT ERROR: the reveal left the page at scrollY ${String(restored)}, not the walk's ${String(origin)}`);
+  }
+  return settled;
+}
+
 /** ONE viewport screenshot decoded to raw pixels, or the reason there are none. */
 async function viewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
   try {
@@ -69,7 +151,11 @@ async function viewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer })
  *  `flat` backdrop from pixel data, or reclassified to `image-indeterminate` for paint-layer samples the
  *  sampler cannot reach), plus any refusal and whether a pixel sample was taken. Extracted from the map
  *  body so `resolvePixelBackdrops` stays under the cognitive-complexity ceiling. */
-function settleOneSample(text: ContrastInput, raw: PixelRaw, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
+function settleOneSample(
+  text: ContrastInput,
+  raw: PixelRaw,
+  refusals: BackdropRefusal[],
+): { text: ContrastInput; sampled: boolean } | { readonly deferred: PixelBox } {
   // Painted over: sampling the box would measure the OCCLUDER's pixels, which is how the first run of
   // this path reported 1.33:1 on a paragraph under the topbar (snap refuses the same case as OCCLUDED).
   if (text.occludedBy !== undefined && text.occludedBy !== null) {
@@ -81,6 +167,14 @@ function settleOneSample(text: ContrastInput, raw: PixelRaw, refusals: BackdropR
     return { text: reclassifyUnsampleable(text), sampled: false };
   }
   const read = textBackdropRing(raw, text.box, text.inkBox);
+  if ("refusal" in read && read.refusal === OFF_SCREEN_REFUSAL && isArtUnderSubject(text)) {
+    return { deferred: text.box };
+  }
+  return settleFromRing(text, read, refusals);
+}
+
+/** The settled sample for one ring read: `flat` from the pixels, or the refusal and the reclassification it earns. */
+function settleFromRing(text: ContrastInput, read: RingRead, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
   if ("refusal" in read) {
     refusals.push({ selector: text.selector, reason: read.refusal });
     // A ring that is not one backdrop stays UNRESOLVED: calling it art would turn a measurement we could
@@ -144,11 +238,30 @@ export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Pr
   }
   const refusals: BackdropRefusal[] = [];
   let sampled = 0;
-  const texts = samples.texts.map((text) => {
+  const deferred: DeferredText[] = [];
+  const firstPass = samples.texts.map((text) => {
     if (!isUnresolved(text)) {
       return text;
     }
     const settled = settleOneSample(text, raw, refusals);
+    if ("deferred" in settled) {
+      deferred.push({ text, box: settled.deferred });
+      return text;
+    }
+    if (settled.sampled) {
+      sampled += 1;
+    }
+    return settled.text;
+  });
+  const revealed =
+    deferred.length === 0
+      ? new Map<ContrastInput, { text: ContrastInput; sampled: boolean }>()
+      : await revealArtUnderSubject(page, deferred, raw.info.height, refusals);
+  const texts = firstPass.map((text) => {
+    const settled = revealed.get(text);
+    if (settled === undefined) {
+      return text;
+    }
     if (settled.sampled) {
       sampled += 1;
     }

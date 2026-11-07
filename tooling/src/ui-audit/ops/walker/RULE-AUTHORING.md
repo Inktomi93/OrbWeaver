@@ -95,9 +95,7 @@ reads, where that selection lives, and whether a PLANTED RENDERED positive prove
 thing (#1807, from #999 item 3). Derived from the tree 2026-09-06 — re-derive before citing, and re-derive
 the whole table when the registry grows.
 
-**Read the last column exactly as written.** Every rule already owns an executable firing proof and a
-nearest-neighbour silence proof — `tests/tooling/ui-audit/contract/rules.int.test.ts` makes a missing one RED, so
-"none — owed" NEVER means "unproved verdict". It means the only proof is CHECKER-LEVEL: a hand-built
+**Read the last column exactly as written.** "none — owed" does not mean "unproved verdict". It means the only proof is CHECKER-LEVEL: a hand-built
 input object handed to the pure `checks-*.ts` function, which proves the THRESHOLD and says nothing about
 whether the census can see the shape on a real page. That is precisely the blindness this document
 exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an

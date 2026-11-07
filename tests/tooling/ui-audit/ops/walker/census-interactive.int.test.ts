@@ -15,31 +15,19 @@
 // unnamed control reported clean. So the association is resolved by the BROWSER's own
 // `HTMLElement.labels` (which knows `for=` and wrapping alike, and knows a `for` pointing elsewhere is
 // not an association) rather than by a selector this file would have to keep correct.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
-
-async function auditFixture(scratch: string, runCli: ToolContext["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+async function auditFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
   const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  return JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  return await readAuditReport(res.stdout);
 }
 
 /** The control paints a box and carries no text of its own — the switch/checkbox shape exactly. */
@@ -58,12 +46,15 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a `<label for>` names its control — the app's own settings rows (Field + Switch) are built exactly this way, so filing them unnamed made every one of them a standing false P1",
+      disposition: { kind: "judged" },
     },
   ],
   "a control named by <label for> is not filed as unnamed",
   async ({ runCli, scratch }) => {
     const body = `<label for="sw-1">Show timestamps</label><button role="switch" id="sw-1" ${CONTROL}></button>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-label-for", body))).toHaveLength(0);
+    const report = await auditFixture(scratch, runCli, "name-label-for", body);
+    expect(namesIn(report)).toHaveLength(0);
+    return report;
   },
 );
 
@@ -73,12 +64,15 @@ auditRuleTest(
       rule: "aria-name",
       kind: "silent",
       reason: "the wrapping-label spelling of the same association, which the browser reports through the same HTMLElement.labels list",
+      disposition: { kind: "judged" },
     },
   ],
   "a control wrapped in its <label> is not filed as unnamed",
   async ({ runCli, scratch }) => {
     const body = `<label>Show timestamps <button role="switch" id="sw-2" ${CONTROL}></button></label>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-label-wrap", body))).toHaveLength(0);
+    const report = await auditFixture(scratch, runCli, "name-label-wrap", body);
+    expect(namesIn(report)).toHaveLength(0);
+    return report;
   },
 );
 
@@ -175,13 +169,16 @@ auditRuleTest(
       kind: "silent",
       reason:
         "the precision neighbour: sr-only text is visually hidden but NOT aria-hidden, so it IS the control's accessible name — narrowing the text source to what the eye can see would file a P1 on every correctly-named icon button",
+      disposition: { kind: "judged" },
     },
   ],
   "screen-reader-only text still names its control",
   async ({ runCli, scratch }) => {
     const srOnly = 'style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap"';
     const body = `<button id="icon-sr" ${CONTROL}><span aria-hidden="true">x</span><span ${srOnly}>Close</span></button>`;
-    expect(namesIn(await auditFixture(scratch, runCli, "name-sr-only-text", body))).toHaveLength(0);
+    const report = await auditFixture(scratch, runCli, "name-sr-only-text", body);
+    expect(namesIn(report)).toHaveLength(0);
+    return report;
   },
 );
 
@@ -216,6 +213,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a cell of a role=toolbar view switcher is not a second door to the app-level action sharing its name — it repaints one region, and the rule's own remedy (give the verb one home) would delete the switcher",
+      disposition: { kind: "excluded", reason: "viewSwitchCell" },
     },
   ],
   "a toolbar cell sharing a name with a nav button is excluded as a view switch, and counted",
@@ -224,6 +222,7 @@ auditRuleTest(
     expect(doorsIn(report), "the nav button and the toolbar cell are two verbs, not two homes").toHaveLength(0);
     // Counted, never dropped: both cells of the switcher are in the denominator with their reason.
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 0, excluded: { viewSwitchCell: 2 } });
+    return report;
   },
 );
 
@@ -300,6 +299,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a floor-sized, fully-named textarea is the negative control proving the population read is not blanket-firing on every textarea now that it is a candidate",
+      disposition: { kind: "judged" },
     },
   ],
   "a floor-sized labeled textarea does not file a tap-target finding",
@@ -307,6 +307,7 @@ auditRuleTest(
     const body = '<label for="notes">Notes</label><textarea id="notes" style="width:64px;height:64px;display:block"></textarea>';
     const report = await auditFixture(scratch, runCli, "interactive-vocab-textarea-clean", body);
     expect(tapTargetSelectorsIn(report)).toHaveLength(0);
+    return report;
   },
 );
 
@@ -354,6 +355,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a fully-opaque control of the same shape is the negative control — no rest-hidden reveal cluster exists, so no reveal-coverage row prints at all",
+      disposition: { kind: "no-candidate" },
     },
   ],
   "a page with no rest-hidden reveal cluster produces no reveal-coverage row",
@@ -366,5 +368,6 @@ auditRuleTest(
     // test names is the PRINTED `POPULATION reveal-coverage …` line, which report.ts folds a
     // zero-candidate rule into the `nothing-to-judge` summary instead of printing on its own.
     expect(report.populationAccounting?.["reveal-coverage"]).toMatchObject({ candidates: 0, withheld: {}, excluded: {} });
+    return report;
   },
 );

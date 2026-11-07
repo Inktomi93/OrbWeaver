@@ -13,31 +13,19 @@
 // boundary, so `inactive-control-legibility` stays silent, and below AA's 4.5:1, so the pre-fix classifier
 // filed `contrast` P1. That separation is what makes this a two-sided proof instead of a swap of one
 // finding for another.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
-
-async function auditFixture(scratch: string, runCli: ToolContext["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+async function auditFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
   const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  return JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  return await readAuditReport(res.stdout);
 }
 
 /** #8a8a8a on #ffffff = 3.45:1 — under AA's 4.5:1, over 1.4.11's 3:1. */
@@ -57,6 +45,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "the text-bearing element is a CHILD of the disabled control (the real markup shape: a <span> label inside a disabled <button>), which WCAG 1.4.3 exempts — the classifier must reach the ancestor, not only the element it is bound to",
+      disposition: { kind: "excluded", reason: "inactiveExempt" },
     },
   ],
   "a label inside a disabled control is excluded as inactive, never filed as a contrast P1",
@@ -67,6 +56,7 @@ auditRuleTest(
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     // The advisory is the arm that MUST NOT fire in its place: 3.45:1 is above the UI-component floor.
     expect(report.findings.filter(({ rule }) => rule === "inactive-control-legibility")).toHaveLength(0);
+    return report;
   },
 );
 
@@ -76,6 +66,7 @@ auditRuleTest(
       rule: "contrast",
       kind: "silent",
       reason: "the aria-disabled spelling of the same shape — a declared-inactive control whose label is a descendant element",
+      disposition: { kind: "excluded", reason: "inactiveExempt" },
     },
   ],
   "a label inside an aria-disabled control is excluded as inactive",
@@ -84,6 +75,7 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "inactive-aria-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+    return report;
   },
 );
 
@@ -126,6 +118,7 @@ auditRuleTest(
       rule: "contrast",
       kind: "silent",
       reason: "aria-labelledby: the disabled control's own name is part of the inactive component, wherever the DOM puts it (the live Slider shape)",
+      disposition: { kind: "excluded", reason: "inactiveExempt" },
     },
   ],
   "text a DISABLED control names via aria-labelledby is exempt",
@@ -134,6 +127,7 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "named-by-disabled", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+    return report;
   },
 );
 
@@ -143,6 +137,7 @@ auditRuleTest(
       rule: "contrast",
       kind: "silent",
       reason: "the token-list spelling: aria-labelledby names SEVERAL ids, so the reverse lookup must match a token, not the whole attribute",
+      disposition: { kind: "excluded", reason: "inactiveExempt" },
     },
   ],
   "the reverse lookup matches a TOKEN of a multi-id aria-labelledby",
@@ -153,6 +148,7 @@ auditRuleTest(
     // Silent BECAUSE exempt, not silent because unjudged — the distinction the first run of these
     // fixtures got wrong (a black-backdrop label passed the ratio outright).
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+    return report;
   },
 );
 
@@ -236,6 +232,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "Base UI stamps [data-disabled] on a composite ROOT (a div, which cannot carry :disabled) — RULE-AUTHORING row 3's class, and state-paint.ts's vocabulary already declares data-disabled 'WCAG 1.4.3 inactive-exempt'",
+      disposition: { kind: "excluded", reason: "inactiveExempt" },
     },
   ],
   "text inside a [data-disabled] composite root is exempt",
@@ -244,6 +241,7 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "vendor-disabled", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+    return report;
   },
 );
 
@@ -279,15 +277,17 @@ auditRuleTest(
       rule: "contrast",
       kind: "silent",
       reason:
-        "a text node under a masked ancestor is withheld even at a failing ratio — resolving it flat would fabricate a ratio the mask never actually paints",
+        "a text node under a masked ancestor is excluded even at a failing ratio — resolving it flat would fabricate a ratio the mask never actually paints",
+      disposition: { kind: "excluded", reason: "maskedForeground" },
     },
   ],
-  "text under a masked ancestor is withheld, not resolved flat",
+  "text under a masked ancestor is excluded, not resolved flat",
   async ({ runCli, scratch }) => {
     const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div>`;
     const report = await auditFixture(scratch, runCli, "masked-ancestor", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ maskedForeground: 1 });
+    return report;
   },
 );
 
@@ -332,6 +332,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "background-size: auto (the CSS default) paints the raster at its own natural size, exactly like object-fit: none — it cannot squish, so it must not be judged for aspect deviation against the box",
+      disposition: { kind: "excluded", reason: "objectFitDoesNotScale" },
     },
   ],
   "a background-image under the default background-size: auto is excluded, never judged",
@@ -340,6 +341,7 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "bg-distortion-auto", body);
     expect(report.findings.filter(({ rule }) => rule === "distorted-image")).toHaveLength(0);
     expect(report.populationAccounting?.["distorted-image"]?.excluded).toMatchObject({ objectFitDoesNotScale: 1 });
+    return report;
   },
 );
 
@@ -387,12 +389,130 @@ auditRuleTest(
   },
 );
 
+// The art under a caption plate is usually an ordinary in-flow child of the card, not a positioned layer.
+const CAPTION_PLATE =
+  '<div style="position:absolute;left:0;bottom:0;width:300px;padding:10px;background:rgba(0,0,0,0.3);color:#ffffff;font-size:14px"><span>Small ink</span></div>';
+const CARD_BOX = "position:relative;width:320px;height:200px";
+const WHITE_ART_BOX = "display:block;width:320px;height:200px";
+const PLATE_OVER_ART_SHAPES = [
+  ["an in-flow img", `<img alt="" src="${ART_RASTER_URL}" style="${WHITE_ART_BOX}">`],
+  ["an in-flow canvas", `<canvas width="320" height="200" style="${WHITE_ART_BOX};background:#ffffff"></canvas>`],
+  ["an inline svg", `<svg width="320" height="200" style="display:block"><rect width="320" height="200" fill="#ffffff"></rect></svg>`],
+  ["an in-flow background image", `<div style="${WHITE_ART_BOX};background-image:url('${ART_RASTER_URL}');background-size:cover"></div>`],
+  [
+    "art inside a host that also holds text",
+    `<div style="position:absolute;inset:0"><img alt="" src="${ART_RASTER_URL}" style="${WHITE_ART_BOX}"><i style="position:absolute;top:0;color:#000;background:#fff">tag</i></div>`,
+  ],
+] as const;
+
+test.for(PLATE_OVER_ART_SHAPES)("small ink on a translucent plate over %s is measured from pixels and fails", async ([name, art], { runCli, scratch }) => {
+  const report = await auditFixture(scratch, runCli, `plate-over-${name.replaceAll(" ", "-")}`, `<div style="${CARD_BOX}">${art}${CAPTION_PLATE}</div>`);
+  expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  expect(report.populationAccounting?.["contrast"]).toMatchObject({ affected: 1 });
+});
+
+const CAPTIONED_CARD = `<div style="${CARD_BOX}"><img alt="" src="${ART_RASTER_URL}" style="${WHITE_ART_BOX}">${CAPTION_PLATE}</div>`;
+
+auditRuleTest(
+  [
+    { rule: "contrast", kind: "fires", reason: "the caption below the fold is scrolled to and measured like its in-view twin, so both fail" },
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "a caption the audit can scroll to is measured, never filed as art it could not see",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "a caption over in-flow art below the fold is measured, not filed as unseen art",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "caption-below-fold", `${CAPTIONED_CARD}<div style="height:2400px"></div>${CAPTIONED_CARD}`);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 2, affected: 2 });
+    expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 2 });
+    return report;
+  },
+);
+
+// Each depth is more than half a viewport from the last, so every caption needs a scroll position of its own. The
+// hover label sits above them all: the hover pass runs after the reveal and must find the page where the walk left it.
+const DEEP_CAPTIONS = [0, 1, 2, 3].map(() => `${CAPTIONED_CARD}<div style="height:1400px"></div>`).join("");
+const HOVER_LABEL =
+  '<style>.hover-label { display: inline-block; color: #8a8a8a; } .hover-label:hover { color: #ffffff; }</style><span class="hover-label">hover label</span>';
+
+auditRuleTest(
+  [
+    { rule: "contrast", kind: "fires", reason: "a caption at every depth is measured from a shot of its own, and each fails" },
+    {
+      rule: "hover-contrast",
+      kind: "silent",
+      reason: "the hover pass after the reveal judges the label above the captions, so the scroll came back",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "captions at four depths are each measured, and the hover pass after them still judges the top of the page",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "caption-depths", `${HOVER_LABEL}${DEEP_CAPTIONS}`);
+    // Five texts: the four captions, which fail, and the hover label, which passes at rest.
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 5, affected: 4, withheld: {} });
+    expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 5 });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "a caption parked past a carousel's edge stays off-screen after the page scroll, so it has no verdict",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "a caption the audit could not reach is withheld, never filed as unseen art",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+  ],
+  "a caption over in-flow art that no page scroll reaches is withheld",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(
+      scratch,
+      runCli,
+      "caption-past-carousel",
+      `<div style="display:flex;width:340px;overflow-x:auto"><div style="flex:none;width:2400px"></div>${CAPTIONED_CARD}</div>`,
+    );
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 1, judged: 0 });
+    return report;
+  },
+);
+
+// A picture beside a label, and an icon inside one, sit next to the glyphs: neither backs them.
+const ART_BESIDE_INK_SHAPES = [
+  [
+    "a picture beside the plate",
+    `<div style="display:flex;gap:12px;width:640px"><img alt="" src="${ART_RASTER_URL}" style="width:200px;height:200px"><div style="width:300px;padding:10px;background:rgba(0,0,0,0.3);color:#ffffff;font-size:14px"><span>Small ink</span></div></div>`,
+  ],
+  [
+    "an icon inside the labelled box",
+    `<div style="width:300px;padding:10px;background:rgba(0,0,0,0.3);color:#ffffff;font-size:14px"><img alt="" src="${ART_RASTER_URL}" style="width:280px;height:60px;display:block">Small ink</div>`,
+  ],
+] as const;
+
+test.for(ART_BESIDE_INK_SHAPES)("%s stays a flat backdrop", async ([name, body], { runCli, scratch }) => {
+  const report = await auditFixture(scratch, runCli, `ink-beside-${name.replaceAll(" ", "-")}`, body);
+  expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
+  expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
+  expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
+  expect(report.populationAccounting?.["gray-on-color"]).toMatchObject({ excluded: expect.not.objectContaining({ pixelSampled: expect.anything() }) });
+});
+
 auditRuleTest(
   [
     {
       rule: "contrast",
       kind: "silent",
       reason: "the same plate with no art behind it is a true flat backdrop: 30% black over the black body passes, and text-over-art stays excluded",
+      disposition: { kind: "judged" },
     },
   ],
   "the same plate over no art stays a flat backdrop",
@@ -401,5 +521,6 @@ auditRuleTest(
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
     expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
+    return report;
   },
 );

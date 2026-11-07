@@ -1,8 +1,8 @@
 // Adversarial region/surface controls for #984 through real visibility, paint, and authored ownership.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 
@@ -265,23 +265,43 @@ test("a hidden empty-state action is not an operable door out", async ({ runCli,
   expect(res.stdout, "the hidden descendant must not clear the dead-end arm").toContain("1 with no action");
 });
 
-test("pane-ink counts bottom illustrations and composed controls as designed occupancy", async ({ runCli, scratch }) => {
+/** A pane whose three text leaves end at the top, with `lowerInk` the only thing that can reach the lower pane. */
+async function runLowerInkFixture(name: string, lowerInk: string, runCli: ToolFixtures["runCli"], scratch: string): Promise<RelationalPopulationReport> {
   await writeFile(
-    join(scratch, "designed-bottom-ink.html"),
+    join(scratch, `${name}.html`),
     relationalDocument(`<section role="region" aria-label="Editor" style="height:900px;overflow:hidden;position:relative">
   <p style="margin:0">one</p><p style="margin:0">two</p><p style="margin:0">three</p>
-  <div style="position:absolute;top:650px"><svg aria-label="workflow illustration" role="img" width="80" height="80"><circle cx="40" cy="40" r="36" fill="orange" /></svg>
-  <button aria-label="Compose" style="width:48px;height:48px"><svg aria-hidden="true" width="16" height="16"><path d="M8 1v14M1 8h14" /></svg></button></div>
+  <div style="position:absolute;top:650px">${lowerInk}</div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "designed-bottom-ink.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return await readAuditReport(res.stdout);
+}
+
+test("pane-ink counts an inline SVG illustration as designed occupancy", async ({ runCli, scratch }) => {
+  const report = await runLowerInkFixture(
+    "designed-svg-ink",
+    '<svg aria-label="workflow illustration" role="img" width="80" height="80"><circle cx="40" cy="40" r="36" fill="orange" /></svg>',
+    runCli,
+    scratch,
+  );
   expect(
     report.findings.map((finding) => finding.rule),
-    "visible media and a composed control occupy the lower pane even though neither is a childless text leaf",
+    "an illustration occupies the lower pane even though it is no text leaf",
   ).not.toContain("pane-ink");
+  expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
+});
+
+test("pane-ink counts a composed control as designed occupancy", async ({ runCli, scratch }) => {
+  const report = await runLowerInkFixture("designed-control-ink", '<button aria-label="Compose" style="width:48px;height:48px"></button>', runCli, scratch);
+  expect(report.findings.map((finding) => finding.rule)).not.toContain("pane-ink");
+  expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
+});
+
+test("pane-ink still reports the same pane when nothing painted reaches the lower half", async ({ runCli, scratch }) => {
+  const report = await runLowerInkFixture("undesigned-lower-pane", "<span></span>", runCli, scratch);
+  expect(report.findings.map((finding) => finding.rule)).toContain("pane-ink");
+  expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 1 });
 });
 
 async function runPaneExclusionFixture(
@@ -294,7 +314,7 @@ async function runPaneExclusionFixture(
   const res = await runCli("snap", ["--file", join(scratch, `pane-${reason}.html`), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(res.stdout);
   return { report, stdout: res.stdout, code: res.code };
 }
 
