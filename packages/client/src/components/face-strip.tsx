@@ -55,7 +55,6 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
-import { Button } from "@orb/ui/button";
 import { InlineList, Row, Stack } from "@orb/ui/layout";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
@@ -422,16 +421,18 @@ export function FaceStrip<Id extends string = string>({
           <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
             <PopoverTrigger
               render={
-                // `square` IS the control-md square this used to spell as min-h/min-w classes
-                // (#169 — the multi-segment token was invisible to `ui-size-via-variant` until its value
-                // class learned hyphens); the captioned strip keeps a uniform cell pitch.
-                <Button
+                // The tile is a PictureButton with the faces' own box (the control-md floor, the captioned cell
+                // width), so it stands on the row's start edge beside them. A fixed-height Button would centre
+                // its taller picture-and-caption inside a shorter box and sit low.
+                <PictureButton
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
                   className="shrink-0"
                   data-face-overflow=""
+                  minHeight="controlMd"
+                  minWidth="controlMd"
                   ref={overflowRef}
                   variant="ghost"
-                  {...(caption ? ({ width: "avatarHero" } as const) : ({ square: true } as const))}
+                  width={caption ? "avatarHero" : undefined}
                 >
                   <Stack align="center" gap="tight">
                     {/* The tile takes the AVATAR TOKEN'S BOX so the row keeps one rhythm, and prints the count
@@ -445,7 +446,7 @@ export function FaceStrip<Id extends string = string>({
                     </Swatch>
                     {moreCaption}
                   </Stack>
-                </Button>
+                </PictureButton>
               }
             />
             <PopoverPopup>{overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}</PopoverPopup>

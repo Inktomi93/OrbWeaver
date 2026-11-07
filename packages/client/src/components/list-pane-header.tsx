@@ -31,7 +31,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
       {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
           sheds the unscoped title (below), and the shell then needs to know whether ANYTHING is left in the
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
-      <Row align="center" className="min-inline-0" data-slot="list-pane-identity" gap="field">
+      <Row align="center" data-slot="list-pane-identity" gap="field" minWidth={accent === undefined ? undefined : "title"}>
         {back === undefined ? null : (
           <Button aria-label={back.label} data-slot="list-pane-back" variant="ghost" onClick={back.onClick} square={true} type="button">
             <Icon icon={ChevronLeft} size="sm" />
@@ -78,8 +78,9 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
               masthead voice because it is the element that carries it (the heading is the flex box), which
               is the same spelling the accent half beside it already uses. */}
-          {/* The title is what gives when the band is short: the census beside it keeps its width, since a figure cut
-              to "10…" says nothing, while a cut name still reads as its pane. */}
+          {/* An unscoped title is a section's name and the identity row floors at its whole width with the census, so
+              the band's actions fold into their overflow before the name is cut: "Cha…" does not read as its pane.
+              A scoped title carries an entity's name, which is what gives, down to the title floor. */}
           <Text as="span" truncate={true} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies

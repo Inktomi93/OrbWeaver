@@ -5,6 +5,7 @@
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
@@ -60,6 +61,23 @@ test("the browse lists settings as a facet, shows them on the rows and narrows t
   await expect(loomLine).toBeVisible();
   // No genre, tone or setting: the same placeholder either way, with no stray separator.
   await expect(component.getByText("Not distilled", { exact: true })).toBeVisible();
+  // The line is text inside a whole-row button, so it reads at the label step, not the micro gloss.
+  const [lineSize, labelSize] = await component.getByText("Not distilled", { exact: true }).evaluate((node, labelVar) => {
+    const probe = document.createElement("span");
+    probe.style.fontSize = `var(${labelVar})`;
+    node.append(probe);
+    const label = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return [getComputedStyle(node).fontSize, label];
+  }, TOKENS["text.label"].cssVar);
+  expect(lineSize).toBe(labelSize);
+  // A facet with nothing but its "All" entry is disabled and points at the visible line that says why; one with choices stays live.
+  const genreSelect = component.getByRole("combobox", { name: "Genre", exact: true });
+  await expect(genreSelect).toBeDisabled();
+  await expect(component.getByRole("combobox", { name: "Setting", exact: true })).toBeEnabled();
+  const reasonId = await genreSelect.getAttribute("aria-describedby");
+  expect(reasonId).not.toBeNull();
+  await expect(component.locator(`[id="${reasonId}"]`)).toBeVisible();
 
   await component.getByRole("combobox", { name: "Setting", exact: true }).click();
   await page.getByRole("option", { name: `${CASTLE} (1)`, exact: true }).click();

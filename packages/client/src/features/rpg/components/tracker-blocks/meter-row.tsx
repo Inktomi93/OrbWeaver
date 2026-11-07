@@ -174,7 +174,7 @@ function MeterLabel({
           The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
           so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
           the hidden node on purpose. */}
-      <Text as="span" ink="muted" truncate={true} {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
+      <Text as="span" ink="muted" inset="control" truncate={true} {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
         {label}
       </Text>
       {labelHint === undefined ? null : <HintTrigger className="" hint={labelHint} subject={label} />}

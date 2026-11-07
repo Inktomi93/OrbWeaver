@@ -36,7 +36,7 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import { useQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -50,6 +50,7 @@ import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 
 const ANY_VALUE = "";
 const SKELETON_ROW_COUNT = 5;
+const NO_CHOICE_NOTE = "A filter with nothing to choose fills in as your characters are sorted.";
 /** The row's first-paint height guess (avatar + title + subtitle); every row re-measures after mount. */
 const ESTIMATED_ROW_PX = 60;
 
@@ -99,6 +100,7 @@ export function CorpusBrowseView(): ReactElement {
   const [setting, setSetting] = useState(ANY_VALUE);
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
+  const noChoiceNoteId = useId();
   const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
   const [facetsRead, catalogRead] = useQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
@@ -128,15 +130,24 @@ export function CorpusBrowseView(): ReactElement {
     catalog.topTags.map((t) => ({ value: t.tag, count: t.count })),
   );
 
+  // A facet with only its "All" entry has nothing to choose, so it is disabled and the one line below says why.
+  const noChoice = (items: SelectItems): string | undefined => (items.length > 1 ? undefined : noChoiceNoteId);
+  const anyFacetEmpty = [genreItems, toneItems, settingItems, tagItems].some((items) => items.length <= 1);
+
   return (
     <Stack className="min-block-0" grow={true} data-testid={testId("corpusBrowseView")} gap="block">
       <Row align="center" gap="field" wrap={true}>
-        <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} />
-        <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} />
-        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} />
-        <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
+        <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} unavailableNote={noChoice(genreItems)} />
+        <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} unavailableNote={noChoice(toneItems)} />
+        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} unavailableNote={noChoice(settingItems)} />
+        <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} unavailableNote={noChoice(tagItems)} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
+      {anyFacetEmpty ? (
+        <Text id={noChoiceNoteId} voice="gloss">
+          {NO_CHOICE_NOTE}
+        </Text>
+      ) : null}
       <BrowseRows
         collection={collection}
         // An UNDISTILLED library and an over-narrow filter both produce zero rows and used to read the same
@@ -208,6 +219,7 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
       leading={<CharacterAvatar id={row.characterId} name={row.name} hash={row.avatarHash} />}
       title={row.name}
       subtitle={subtitle}
+      subtitleStep="label"
     />
   );
 }

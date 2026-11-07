@@ -10,12 +10,28 @@ import { useState } from "react";
 interface HeaderStoryProps extends Pick<ListPaneHeaderView, "title" | "accent" | "count"> {
   readonly withBack?: boolean;
   readonly withAction?: boolean;
+  /** Further actions after the first, each its own wide button, so a narrow band has more than it can seat inline. */
+  readonly extraActions?: number;
   readonly width?: string;
 }
 
-export function ListPaneHeaderStory({ title, accent, count, withBack = false, withAction = false, width = "32rem" }: HeaderStoryProps): ReactElement {
+export function ListPaneHeaderStory({
+  title,
+  accent,
+  count,
+  withBack = false,
+  withAction = false,
+  extraActions = 0,
+  width = "32rem",
+}: HeaderStoryProps): ReactElement {
   const [backs, setBacks] = useState(0);
   const [actions, setActions] = useState(0);
+  const bump = (): void => setActions((value) => value + 1);
+  const action = (id: string, label: string): NonNullable<ListPaneHeaderView["actions"]>[number] => ({
+    id,
+    inline: <Button onClick={bump}>{label}</Button>,
+    menu: [{ id, label, icon: Plus, onSelect: bump }],
+  });
   const view: ListPaneHeaderView = {
     title,
     ...(accent === undefined ? {} : { accent }),
@@ -23,13 +39,7 @@ export function ListPaneHeaderStory({ title, accent, count, withBack = false, wi
     ...(withBack ? { back: { label: "Back to all characters", onClick: (): void => setBacks((value) => value + 1) } } : {}),
     ...(withAction
       ? {
-          actions: [
-            {
-              id: "new-chat",
-              inline: <Button onClick={(): void => setActions((value) => value + 1)}>New chat</Button>,
-              menu: [{ id: "new-chat", label: "New chat", icon: Plus, onSelect: (): void => setActions((value) => value + 1) }],
-            },
-          ],
+          actions: [action("new-chat", "New chat"), ...Array.from({ length: extraActions }, (_unused, index) => action(`more-${index}`, `Action ${index}`))],
         }
       : {}),
     overlay: backs === 0 && actions === 0 ? null : <output>{`Back activated ${String(backs)}; action activated ${String(actions)}`}</output>,

@@ -5,6 +5,26 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
+const TILE_FACES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"].map((name) => ({ id: name.toLowerCase(), name, avatarHash: null }));
+
+/** A strip too narrow for its faces, so it folds the rest behind the overflow tile. */
+export function FaceStripTileStory({ caption }: { readonly caption: boolean }): ReactElement {
+  return (
+    <CtIsolation subject="FaceStrip" isolates="The folded strip's tile against its faces needs no application data.">
+      <div style={{ width: caption ? 240 : 120 }}>
+        <FaceStrip
+          items={TILE_FACES}
+          selectedId={null}
+          onSelect={(): void => undefined}
+          caption={caption}
+          label="Faces"
+          overflow={{ label: "Choose another face", render: () => <Text>Other faces</Text> }}
+        />
+      </div>
+    </CtIsolation>
+  );
+}
+
 export function FaceStripRefsStory(): ReactElement {
   const [narrow, setNarrow] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
