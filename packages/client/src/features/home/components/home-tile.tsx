@@ -99,7 +99,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
           seven bands put seven UNNAMED separator stops in the a11y tree of one screen (a home walk hit 10).
           `aria-hidden` on the primitive drops the stop and paints identically; the rule is never the only
           carrier of a boundary here, so nothing announced is lost. */}
-      <Separator aria-hidden={true} className="flex-1" />
+      <Separator aria-hidden={true} grow={true} />
       {trailing}
     </Row>
   );

@@ -22,7 +22,6 @@ import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTri
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { OverflowMenuForm } from "#lib";
-import { cn } from "#lib";
 
 /** The topbar trail's trigger name; the list band's is {@link BAND_OVERFLOW_LABEL}, so a rotor tells two rows apart. */
 export const TRAIL_OVERFLOW_LABEL = "More top bar actions";
@@ -269,7 +268,8 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
   return (
     <Row
       align="center"
-      className={cn("min-inline-(--size-control-md)", className) ?? ""}
+      minWidth="controlMd"
+      className={className ?? ""}
       data-empty={empty ? "" : undefined}
       data-slot={slot}
       gap={gap}
@@ -282,7 +282,8 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
         return (
           <Row
             align="center"
-            className="shrink-0 empty:hidden"
+            className="shrink-0"
+            hiddenAt="empty"
             data-overflowed={shown ? undefined : ""}
             inert={!shown}
             key={action.id}

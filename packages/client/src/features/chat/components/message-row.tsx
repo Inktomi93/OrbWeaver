@@ -441,7 +441,7 @@ export function MessageRow({
                 scrim that left an invisible empty box; with it, every ordinary reply grew a full-width
                 chrome bar under the bubble. No CT saw it — a rendered drive did. */}
             {footerContributions.length === 0 ? null : (
-              <Stack gap="field" data-slot="message-footer" className="empty:hidden" plate="chrome">
+              <Stack gap="field" data-slot="message-footer" hiddenAt="empty" plate="chrome">
                 {footerContributions.map((c) => (
                   <Fragment key={c.id}>{c.body({ message })}</Fragment>
                 ))}

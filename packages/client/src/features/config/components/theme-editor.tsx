@@ -192,7 +192,7 @@ function ThemeableVarsReference(): ReactElement {
       <Row gap="field" wrap={true}>
         {THEME_SCOPE_EMIT_VARS.map((name) => (
           <Card key={name} padding="none" variant="soft">
-            <Text as="span" voice="code" className="px-field" ink="muted">
+            <Text as="span" voice="code" inset="control" ink="muted">
               {name}
             </Text>
           </Card>

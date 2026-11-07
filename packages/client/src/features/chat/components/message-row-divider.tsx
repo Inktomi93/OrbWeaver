@@ -12,7 +12,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
   const compacted = compactSummary !== null && compactSummary !== undefined && compactSummary.length > 0;
   return (
     <Row gap="field" align="center" data-slot="context-boundary-divider" width="full">
-      <Separator className="flex-1" tone="primary" />
+      <Separator grow={true} tone="primary" />
       {/* The divider NAMES a region of the transcript ("everything below is in context") — the `kicker`
           voice, which is exactly the caps-micro-with-a-hairline shape this line was already assembling by
           hand. The noun is COMPACTION, never memory: compaction writes `chats.compactSummary`, its own
@@ -26,7 +26,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
         </Text>
         {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}
       </Row>
-      <Separator className="flex-1" tone="primary" />
+      <Separator grow={true} tone="primary" />
     </Row>
   );
 }

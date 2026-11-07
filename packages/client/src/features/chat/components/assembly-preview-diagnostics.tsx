@@ -330,7 +330,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
         {label}
       </Text>
       {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
-      <Text className="text-end min-inline-0" wrap="word" voice="datum">
+      <Text className="min-inline-0" textAlign="end" wrap="word" voice="datum">
         {value}
       </Text>
     </Row>

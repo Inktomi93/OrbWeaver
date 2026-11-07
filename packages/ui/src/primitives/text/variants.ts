@@ -1,4 +1,4 @@
-import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, PUSH, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
+import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, PUSH, RECEDED, RUN_INSET, SR_ONLY_AT, TEXT_ALIGN, TONE_TEXT, tv, WIDTH } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -200,6 +200,11 @@ export const textVariants = tv({
     push: PUSH,
     // The widest the run grows: `prose` is a paragraph's measure, capped on the paragraph and never on the page.
     cap: CAP,
+    width: WIDTH,
+    textAlign: TEXT_ALIGN,
+    inset: RUN_INSET,
+    // A run that holds a glyph or a chip beside its words, at an atom gap.
+    cluster: { plain: "inline-flex items-center", tight: "inline-flex items-center gap-tight", field: "inline-flex items-center gap-field" },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).
     wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },

@@ -316,13 +316,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (a `PictureButton` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack
-          align="center"
-          className="shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)"
-          gap="tight"
-          key={slot}
-          width={caption ? "avatarHero" : undefined}
-        >
+        <Stack align="center" className="shrink-0" minWidth="controlMd" minHeight="controlMd" gap="tight" key={slot} width={caption ? "avatarHero" : undefined}>
           <Skeleton variant="circle" width="avatarMd" height="avatarMd" />
           {caption ? (
             <Text aria-hidden={true} voice="label">

@@ -125,7 +125,7 @@ export function PluginSurfaceShell({
           <Row align="center" gap="field">
             <CollapsibleTrigger aria-label={regionName} className="flex-1 min-inline-0" ref={disclosureRef}>
               <Icon icon={Blocks} size="sm" />
-              <Stack className="text-start min-inline-0" grow={true} gap="tight">
+              <Stack className="min-inline-0" textAlign="start" grow={true} gap="tight">
                 <Text truncate={true} voice="label">
                   {pluginName}
                 </Text>

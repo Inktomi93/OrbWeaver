@@ -147,7 +147,16 @@ function SwitchRow({
   const tabProps = tabIndex === undefined ? {} : { tabIndex };
   const isPlaying = room !== null && persona.id === room.seatId;
   return (
-    <Row align="center" onFocus={onFocusRow} wrap={true} className={ROW_BOX} data-selected={isPlaying ? "" : undefined} gap="row" padding="field">
+    <Row
+      align="center"
+      onFocus={onFocusRow}
+      wrap={true}
+      minHeight="controlMd"
+      className={ROW_BOX}
+      data-selected={isPlaying ? "" : undefined}
+      gap="row"
+      padding="field"
+    >
       {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}
       <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
@@ -174,7 +183,7 @@ function SwitchRow({
   );
 }
 
-const ROW_BOX = "group relative min-block-(--size-control-md)";
+const ROW_BOX = "group relative";
 
 /** The row body in a room: one stretched button that switches. The playing row's name says so instead of
  *  offering a no-op verb (§13.10 N3/N4). */

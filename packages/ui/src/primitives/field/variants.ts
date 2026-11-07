@@ -1,4 +1,4 @@
-import { CAPTION, FIELD_LABEL, FIELD_STACK, INLINE_FIELD_ROW, tv } from "#lib";
+import { CAP, CAPTION, FIELD_LABEL, FIELD_STACK, GROW, INLINE_FIELD_ROW, tv } from "#lib";
 
 export const fieldVariants = tv({
   slots: {
@@ -36,6 +36,8 @@ export const fieldVariants = tv({
     controlCol: "flex shrink-0 flex-col items-end gap-field",
   },
   variants: {
+    grow: { true: { root: GROW.true } },
+    cap: { paneSm: { root: CAP.paneSm } },
     // `content` sizes the field to its control, for fields that share a row at their own widths.
     width: { full: {}, content: { root: "inline-auto" } },
     // Label + description left, control docked right in a fixed control column so a select can't stretch to 100%.

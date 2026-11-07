@@ -1,17 +1,21 @@
 import type { ClassValue, VariantProps } from "tailwind-variants";
 import {
+  CAP,
   CARD_CORNERS,
   CONTROL_BLOCK,
   CONTROL_INLINE,
+  CONTROL_INSET,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
+  FLOOR,
   FOCUS_RING,
   FOCUS_RING_INSET,
   FOCUS_RING_NONE,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
+  GROW,
   HIDDEN_AT,
   HOVER_REVEAL,
   INKS,
@@ -19,6 +23,7 @@ import {
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
+  TEXT_ALIGN,
   TONE_ARMS,
   TONE_OUTLINE,
   TONE_TINT_HOVER,
@@ -58,7 +63,7 @@ export const buttonVariants = tv({
   ],
   variants: {
     // A label set at the line's start: the content packs to the start, and a label that wraps stays there.
-    justify: { start: "justify-start text-start" },
+    justify: { start: "justify-start text-start", between: "justify-between" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
@@ -91,13 +96,20 @@ export const buttonVariants = tv({
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
-    wrap: { true: "py-tight whitespace-normal block-auto", false: "" },
+    wrap: { true: `py-tight wrap-anywhere whitespace-normal block-auto ${CAP.fit}`, false: "" },
     // Declared after `size`, so the arm's own inset beats the step's. A button that is a row's door takes the room left beside its
     // siblings and sets its label at the start. `line` is a whole list line: the full width and the field inset, its text set at
     // the start.
     stretch: { row: "flex-1 justify-start min-inline-0", line: `px-field text-start ${WIDTH.full}` },
     // The button's own inline size, where the parent's width is the whole line.
-    width: { full: WIDTH.full },
+    width: WIDTH,
+    cap: CAP,
+    grow: GROW,
+    floor: FLOOR,
+    textAlign: TEXT_ALIGN,
+    inset: CONTROL_INSET,
+    // A label that wraps at spaces inside the nowrap base, on a box that keeps its own height: an inline action over a line of prose.
+    whitespace: { normal: "whitespace-normal" },
     push: PUSH,
     // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
     // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by

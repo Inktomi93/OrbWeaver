@@ -94,7 +94,7 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
     // Identity parts and verbs wrap independently so a long Back label cannot consume the member heading.
     <Row align="center" className="min-inline-0" wrap={true} data-slot="config-drill-header" gap="field" justify="between">
       <Row align="center" className="min-inline-0" wrap={true} cap="fit" gap="field">
-        <Button className="shrink-0 wrap-anywhere max-inline-full" variant="ghost" onClick={back.onClick} size="sm" wrap={true} type="button">
+        <Button className="shrink-0" variant="ghost" onClick={back.onClick} size="sm" wrap={true} type="button">
           <Icon icon={ArrowLeft} size="sm" />
           {back.label}
         </Button>

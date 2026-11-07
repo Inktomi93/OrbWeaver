@@ -72,7 +72,7 @@ function MonthField({ month }: { readonly month: string }): ReactElement {
   return (
     <Field label={MONTH_LABEL}>
       <Row align="center" className="relative">
-        <Input className="flex-1 min-inline-0" clearsGlyph={true} onValueChange={setChatListMonth} type="month" value={month} />
+        <Input className="min-inline-0" grow={true} clearsGlyph={true} onValueChange={setChatListMonth} type="month" value={month} />
         {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={(): void => setChatListMonth("")} />}
       </Row>
     </Field>

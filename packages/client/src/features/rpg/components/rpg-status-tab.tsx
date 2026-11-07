@@ -209,7 +209,7 @@ function RpgStatusCard({ actor, subject, edit, onOpen }: RpgStatusCardProps): Re
         <Row gap="block" align="center" justify="between">
           <Row gap="field" align="center" className="min-inline-0">
             <Tip text={`Open ${subject}'s sheet`}>
-              <InlineAction variant="ghost" step="label" onClick={onOpen} aria-label={`Open ${subject}`} className="px-field min-inline-0">
+              <InlineAction variant="ghost" step="label" onClick={onOpen} aria-label={`Open ${subject}`} inset="control" className="min-inline-0">
                 <Avatar size="md" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
                   {actor.name.slice(0, 1).toUpperCase()}
                 </Avatar>

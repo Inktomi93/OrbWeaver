@@ -62,9 +62,9 @@ function FlatDiagram(): ReactElement {
 function RampDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="background" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
-      <Swatch className="flex-1" fill="step1" />
-      <Swatch className="flex-1" fill="step2" />
-      <Swatch className="flex-2" fill="step3" />
+      <Swatch grow={true} fill="step1" />
+      <Swatch grow={true} fill="step2" />
+      <Swatch grow="double" fill="step3" />
     </ThemePreviewPane>
   );
 }

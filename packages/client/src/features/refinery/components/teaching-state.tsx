@@ -96,7 +96,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
-        <Heading className="text-center" level={2} voice="masthead">
+        <Heading textAlign="center" level={2} voice="masthead">
           Score → rewrite → analyze a card without drifting from your original
         </Heading>
         {/* READING, NOT GLOSS (side-eye 2026-08-19 P2). This is the SAFETY PROMISE the whole feature rests
@@ -109,7 +109,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
             Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
             picker and three step cards, which are layout, not a line of prose. */}
-        <Text className="text-center" cap="prose" voice="reading">
+        <Text textAlign="center" cap="prose" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>

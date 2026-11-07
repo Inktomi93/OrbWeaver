@@ -20,7 +20,7 @@ export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
-export { FLOOR, GROW, PUSH, WRAP } from "./flex-share.ts";
+export { CONTROL_INSET, FLOOR, GROW, PUSH, RUN_INSET, WRAP } from "./flex-share.ts";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,
@@ -70,6 +70,7 @@ export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-rin
 export { sinHash } from "./sin-hash.ts";
 export { CAPTION, FIELD_LABEL, FIELD_ROW, FIELD_STACK, FILL_PARENT, INLINE_FIELD_ROW, ROW_STRIP, SCROLLER, SCROLLER_Y, TITLE_STEP } from "./slots.ts";
 export { ARRIVAL, COLOR_MOTION, OPEN_TURN, PULSE } from "./state-motion.ts";
+export { TEXT_ALIGN } from "./text-align.ts";
 export { INKS, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";
 export { TONE_OUTLINE, TONE_SOFT, TONE_TINT_HOVER } from "./tone-skin.ts";
 export { TOUCH_FLOOR_AT_COARSE } from "./touch-floor.ts";
@@ -77,4 +78,4 @@ export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts"
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { type ToneStamp, type VariantStampProps, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";
-export { CAP, HEIGHT, WIDTH } from "./width.ts";
+export { CAP, HEIGHT, MIN_HEIGHT, MIN_WIDTH, WIDTH } from "./width.ts";

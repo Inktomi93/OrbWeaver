@@ -166,7 +166,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       {verdict.kind === "available" ? (
         <Button
           aria-label={verdict.ariaLabel}
-          className="wrap-anywhere max-inline-full"
+          cap="fit"
           loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
           onClick={(): void => {
             // applyUpgrade already

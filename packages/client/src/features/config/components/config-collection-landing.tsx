@@ -241,7 +241,9 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
         <Row align="center" wrap={true} gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="flex-1 basis-(--width-field-floor) min-inline-0"
+            grow={true}
+            floor="field"
+            className="min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {
@@ -354,7 +356,6 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
           {insight.open === undefined ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
-              className="wrap-anywhere max-inline-full"
               push="inlineEnd"
               variant="ghost"
               onClick={insight.open.run}

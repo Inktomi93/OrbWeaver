@@ -2,7 +2,9 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { InlineToken } from "@orb/ui/inline-token";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -73,6 +75,29 @@ export function OwnerAxesStory(): ReactElement {
         </InlineToken>
         <InlineToken data-probe="token-plain">b</InlineToken>
       </Text>
+      <Stack data-probe="stack-empty" hiddenAt="empty" />
+      <Stack data-probe="stack-held" hiddenAt="empty">
+        <Text>a</Text>
+      </Stack>
+      <Stack data-probe="stack-always" hiddenAt="always">
+        <Text>a</Text>
+      </Stack>
+      <Row data-probe="row-floor" minHeight="controlMd" />
+      <Stack data-probe="stack-floor" minWidth="controlMd" />
+      <Text data-probe="text-end" textAlign="end">
+        a
+      </Text>
+      <Text data-probe="text-inset" inset="control">
+        a
+      </Text>
+      <Text data-probe="text-cluster" cluster="tight">
+        <span data-probe="cluster-a">a</span>
+        <span data-probe="cluster-b">b</span>
+      </Text>
+      <Row style={{ inlineSize: WRAP_HOST_PX * 2 }}>
+        <Separator data-probe="separator-grow" grow={true} />
+        <Input data-probe="input-grow" grow={true} aria-label="x" />
+      </Row>
       <Heading data-probe="heading-cap-reading" level={2} cap="reading">
         {LONG_LINE}
       </Heading>

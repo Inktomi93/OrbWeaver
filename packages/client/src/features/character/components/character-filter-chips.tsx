@@ -162,7 +162,7 @@ export function CharacterFilterChips({
       {/* The panel element exists in BOTH states so the collapsed trigger's `aria-controls` resolves to a
           real node; only its contents are conditional. `hidden` (the Tailwind utility, i.e. `display:none`)
           rather than the HTML attribute: the attribute's UA rule loses to the `flex` this Stack sets. */}
-      <Stack className={panelOpen ? undefined : "hidden"} gap="tight" id={panelId} width={panelOpen ? "full" : undefined}>
+      <Stack hiddenAt={panelOpen ? undefined : "always"} gap="tight" id={panelId} width={panelOpen ? "full" : undefined}>
         {panelOpen ? (
           <TagVocabularyPanel onCollapse={(): void => setExpanded(false)} onCycle={onCycleTag} panelId={panelId} tagFilter={tagFilter} tags={availableTags} />
         ) : null}

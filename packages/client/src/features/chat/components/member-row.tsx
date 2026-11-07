@@ -100,7 +100,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
       {/* The name owns its line. Last seen and the chips share a wrapping line below it, because beside the name
           each `shrink-0` chip takes its width from the only thing that can give, and the name reaches zero. */}
-      <Stack className="text-start min-inline-0" grow={true}>
+      <Stack className="min-inline-0" textAlign="start" grow={true}>
         <Text as="span" voice="label" data-slot="member-name" ink={row.kind === "character" && row.disabled ? "muted" : undefined} truncate={true}>
           {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
               an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
@@ -193,7 +193,7 @@ function RowMeta({
   readonly descriptionId: string;
 }): ReactElement {
   return (
-    <Row gap="tight" align="center" className="min-inline-0 empty:hidden" wrap={true}>
+    <Row gap="tight" align="center" className="min-inline-0" hiddenAt="empty" wrap={true}>
       <LastSeen row={row} />
       <RowStateBadges row={row} />
       {responding ? (

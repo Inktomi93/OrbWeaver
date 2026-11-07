@@ -112,7 +112,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // that corner clear; shell.css's flank distance reads the same clearance.
   const thread = (
     <Stack
-      className="min-block-(--height-room-thread-min) min-inline-0"
+      className="min-inline-0"
+      minHeight="roomThread"
       paddingInlineEnd={flank.occupiesRow ? undefined : "clearance"}
       grow={true}
       data-slot="chat-room-thread"
@@ -211,7 +212,8 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   <Row
                     gap="block"
                     align="stretch"
-                    className="relative overflow-x-clip min-block-(--height-room-thread-min)"
+                    className="relative overflow-x-clip"
+                    minHeight="roomThread"
                     fill={true}
                     stackBelow="cq-32"
                     data-slot="chat-room-flank-row"
@@ -267,7 +269,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
                   // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
                   // non-empty.
-                  <Track of={Stack} track="composer" gap="row" className="empty:hidden" data-slot="chat-above-composer">
+                  <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
                     {aboveComposerContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
                     ))}

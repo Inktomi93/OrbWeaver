@@ -68,12 +68,12 @@ function MiniRoom(): ReactElement {
           polarities without asking two ramp neighbours to do something they cannot. */}
       <Card className="min-inline-0" padding="none" shape="row">
         <Row align="center" className="min-inline-0" padding="tight" gap="tight">
-          <Swatch className="flex-1 min-inline-0" size="line" fill="foreground" shape="pill" />
+          <Swatch className="min-inline-0" grow={true} size="line" fill="foreground" shape="pill" />
         </Row>
       </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
       <Row align="center" className="min-inline-0" gap="tight">
-        <Swatch className="flex-1 min-inline-0" size="line" fill="muted" shape="pill" />
+        <Swatch className="min-inline-0" grow={true} size="line" fill="muted" shape="pill" />
         <Swatch className="shrink-0" fill="primary" shape="pill" size="dotLg" />
       </Row>
     </Stack>

@@ -63,7 +63,7 @@ export function HomeRecentsTileBody(): ReactElement {
   // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
   if (hearth === undefined) {
     return (
-      <Stack className="min-block-(--height-home-recents-empty)" justify="center">
+      <Stack minHeight="homeRecents" justify="center">
         <EmptyState
           action={
             <Button variant="outline" onClick={(): void => openNewChatPicker()} size="sm">

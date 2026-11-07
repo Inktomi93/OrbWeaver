@@ -101,7 +101,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
       return null;
     }
     return (
-      <Text as="span" voice="label" className="px-field min-inline-0" wrap="word">
+      <Text as="span" voice="label" className="min-inline-0" inset="control" wrap="word">
         {actor.sheet.flavor}
       </Text>
     );
@@ -234,7 +234,7 @@ function IdentityBlock({
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
       <Stack gap="field" className="min-inline-0" grow={true}>
-        <Heading level={3} voice="label" className="px-field min-inline-0" wrap="word">
+        <Heading level={3} voice="label" className="min-inline-0" inset="control" wrap="word">
           {actor.name}
         </Heading>
         <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
@@ -423,7 +423,7 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="px-field min-inline-0" wrap="word">
+      <Text as="span" voice="gloss" className="min-inline-0" inset="control" wrap="word">
         {actor.sheet.className}
       </Text>
     );

@@ -139,7 +139,7 @@ function SuggestionChip({
           easy to mis-dismiss: the BUTTON computes 13px, the span inside it computed 10.5. The chip stays
           the quietest thing on the editor by the means CD3 actually names — no fill, a hairline outline —
           which this does not touch. */}
-      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="max-inline-full min-inline-0" onClick={onAccept}>
+      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="min-inline-0" cap="fit" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
         <Text ink="inherit" as="span" voice="label" truncate={true}>
           {name}

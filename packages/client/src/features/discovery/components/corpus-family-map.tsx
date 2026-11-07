@@ -76,7 +76,8 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
             <TooltipTrigger
               render={
                 <Button
-                  className="max-inline-full min-inline-0"
+                  className="min-inline-0"
+                  cap="fit"
                   justify="start"
                   variant="ghost"
                   size="sm"

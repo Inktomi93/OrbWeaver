@@ -278,22 +278,17 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       <Row
         align="center"
         gap="glyph"
-        className="min-block-(--size-control-md) min-inline-0"
+        className="min-inline-0"
+        minHeight="controlMd"
         grow="content"
         data-field-wrapped={fieldWrapped ? "" : undefined}
         data-slot="composer-input"
         ref={seatInput}
       >
-        <Row className="shrink-0 empty:hidden" data-slot="composer-door" ref={seatDoor}>
+        <Row className="shrink-0" hiddenAt="empty" data-slot="composer-door" ref={seatDoor}>
           {chatControl}
         </Row>
-        <Stack
-          className="self-stretch min-block-0 min-inline-(--dimension-composer-field-min)"
-          grow={true}
-          cap="fit"
-          data-slot="composer-field"
-          ref={seatField}
-        >
+        <Stack className="self-stretch min-block-0" minWidth="composerField" grow={true} cap="fit" data-slot="composer-field" ref={seatField}>
           {messageInput}
         </Stack>
         <Row aria-label="Send controls" className="shrink-0" data-slot="composer-send" gap="field" ref={seatSend} role="group">

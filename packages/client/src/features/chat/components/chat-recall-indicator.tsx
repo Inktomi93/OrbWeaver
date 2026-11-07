@@ -130,7 +130,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
           }
         />
         <PopoverPopup side="bottom" align="end">
-          <Stack gap="block" className="min-inline-(--width-popup-narrow)">
+          <Stack gap="block" minWidth="popupNarrow">
             <PopoverTitle>Memory recall</PopoverTitle>
             <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
           </Stack>

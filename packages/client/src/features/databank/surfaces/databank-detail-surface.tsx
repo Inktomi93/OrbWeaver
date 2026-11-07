@@ -234,7 +234,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               Use this after a settings change, or if search misses this document.
             </Text>
-            <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
+            <Button className="shrink-0" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
               <Icon icon={RefreshCw} size="sm" />
               Rebuild search index for this document
             </Button>

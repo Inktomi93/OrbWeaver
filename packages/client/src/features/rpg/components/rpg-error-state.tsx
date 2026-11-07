@@ -67,7 +67,7 @@ function DanglingPointerState({ chatId, isHost }: { readonly chatId: ChatId; rea
   const detach = useDetachDanglingPointer({ trpc, invalidation });
   return (
     <Stack role="alert" align="center" justify="center" gap="block" padding="section">
-      <Text className="text-center">This chat points at a game that no longer exists.</Text>
+      <Text textAlign="center">This chat points at a game that no longer exists.</Text>
       {isHost ? (
         <Button variant="outline" size="sm" onClick={(): void => detach.mutate({ chatId })} disabled={detach.isPending}>
           Detach game

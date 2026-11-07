@@ -78,7 +78,9 @@ function AmbientVocabPicker({
         aria-label={`${fieldLabel} value`}
         onClick={(): void => setOpen(true)}
         reserveEdge={true}
-        className="gap-0 px-field text-start"
+        inset="control"
+        textAlign="start"
+        className="gap-0"
       >
         <Text as="span" ink={empty ? "muted" : undefined} voice="label">
           {restText}

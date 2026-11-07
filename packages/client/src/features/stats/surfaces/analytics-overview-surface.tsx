@@ -295,14 +295,14 @@ function MomentumColumn({
 }): ReactElement {
   if (rows.length === 0) {
     return (
-      <Stack gap="field" className="min-inline-(--width-popup-narrow)" grow={true}>
+      <Stack gap="field" minWidth="popupNarrow" grow={true}>
         <Text voice="kicker">{label}</Text>
         <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }
   return (
-    <Stack className="min-inline-(--width-popup-narrow)" grow={true}>
+    <Stack minWidth="popupNarrow" grow={true}>
       <BarList
         intent={sign > 0 ? "positive" : "negative"}
         items={rows}

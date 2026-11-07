@@ -78,7 +78,7 @@ function HistoryFailureRow({
   const retriable = failure === "bridge" || failure === "refresh";
   return (
     <Row align="center">
-      <Text key={announcement} className="px-block py-row" tone="destructive" role="alert" voice="label">
+      <Text key={announcement} inset="block" tone="destructive" role="alert" voice="label">
         {CHAT_HISTORY_FAILURE_COPY[failure]}
       </Text>
       {retriable ? (
@@ -109,7 +109,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
   }
   return (
     // Only a reader who pressed is pinned: anyone else finds a failure here, at the pager's home, and hears it announced.
-    <Stack className="print:hidden" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"}>
+    <Stack hiddenAt="print" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"}>
       {failure === null ? null : (
         <HistoryFailureRow
           announcement={announcement}
@@ -287,7 +287,7 @@ function AnchoredThread({
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
     <Stack className="min-block-0" fill={true} gap="field">
-      <Row className="print:hidden" wrap={true} gap="field">
+      <Row hiddenAt="print" wrap={true} gap="field">
         <Button
           aria-describedby={pagingDescription}
           variant="ghost"
@@ -313,7 +313,7 @@ function AnchoredThread({
           Back to Corpus
         </Button>
       </Row>
-      <Text className="print:hidden" id={pagingDescription} voice="gloss">
+      <Text hiddenAt="print" id={pagingDescription} voice="gloss">
         Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
       </Text>
       {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}

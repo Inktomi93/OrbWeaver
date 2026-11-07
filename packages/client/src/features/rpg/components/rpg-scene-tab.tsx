@@ -303,7 +303,9 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
               step="label"
               onClick={(): void => revealContextPanel("rpg.quests")}
               reserveEdge={true}
-              className="px-field text-start inline-full"
+              inset="control"
+              textAlign="start"
+              width="full"
             >
               <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
             </InlineAction>

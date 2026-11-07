@@ -49,7 +49,7 @@ function ActStop({ act, current }: { readonly act: number; readonly current: num
   const style = ACT_STATE_STYLE[actState(act, current)];
   return (
     <Row gap="field" align="center" grow={act !== 1}>
-      {act === 1 ? null : <Separator className="flex-1" />}
+      {act === 1 ? null : <Separator grow={true} />}
       {/* gloss: the dot row is quiet decoration (aria-hidden) — the state tone re-colours it. */}
       <Text as="span" voice="gloss" ink={style.ink}>
         {style.glyph} {actNumeral(act)}

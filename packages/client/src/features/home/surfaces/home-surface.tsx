@@ -272,7 +272,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                             {/* DECORATIVE, exactly as on every tile band (`home-tile.tsx` TileBand): the
                                 `h2` beside it already names the region, and a bare `role="separator"` here
                                 would add an unnamed stop to the home walk's a11y tree. */}
-                            <Separator aria-hidden={true} className="flex-1" />
+                            <Separator aria-hidden={true} grow={true} />
                             {/* THE COUNT, in the band's TRAILING slot (#834) — the same position every
                                 `TileBand` puts its one trailing affordance in ("All documents →"), which is
                                 why it needs no chrome of its own. It sits OUTSIDE the trigger deliberately:

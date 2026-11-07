@@ -25,7 +25,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
       <Text className="shrink-0" voice="label">
         {label}
       </Text>
-      <Text className="text-end min-inline-0" wrap="word" voice="datum">
+      <Text className="min-inline-0" textAlign="end" wrap="word" voice="datum">
         {value}
       </Text>
     </Row>

@@ -158,7 +158,7 @@ export function CharacterPairRow({
 }): ReactElement {
   return (
     <Button
-      className="justify-between"
+      justify="between"
       variant="ghost"
       width="full"
       onClick={(): void => {
@@ -197,7 +197,7 @@ function ChatPairRow({
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
       aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
-      className="justify-between"
+      justify="between"
       variant="ghost"
       width="full"
       onClick={(): void => {
@@ -228,7 +228,7 @@ function PairFace({
 }): ReactElement {
   return (
     <Row align="center" className="min-inline-0" width="full" gap="field" justify="between">
-      <Text as="span" className="text-start" truncate={true}>
+      <Text as="span" textAlign="start" truncate={true}>
         {left} ↔ {right}
       </Text>
       <Row align="center" className="shrink-0" gap="field">

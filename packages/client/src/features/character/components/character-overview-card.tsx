@@ -214,7 +214,7 @@ function Kicker({ children }: { readonly children: string }): ReactElement {
       <Text voice="kicker" truncate={true}>
         {children}
       </Text>
-      <Separator className="flex-1" />
+      <Separator grow={true} />
     </Row>
   );
 }

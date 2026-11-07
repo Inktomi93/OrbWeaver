@@ -48,7 +48,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
               // seed state ("+ relationship") keeps its own padding for a clickable text target.
               shape="pill"
-              className={badge === null ? "px-field" : ""}
+              inset={badge === null ? "control" : undefined}
             >
               {badge ?? (
                 <>

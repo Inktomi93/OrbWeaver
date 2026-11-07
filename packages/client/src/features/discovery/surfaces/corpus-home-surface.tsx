@@ -237,7 +237,7 @@ function CorpusHomeBody(): ReactElement {
               has two columns, which is the same `@cq-40` the masthead itself flips on. */}
         {state.hero === null ? null : (
           <Row align="end" className="shrink-0" gap="section">
-            <Stack className="@cq-40:text-end" gap="tight">
+            <Stack textAlign="endWide" gap="tight">
               <Text as="span" voice="hero">
                 {state.hero.value}
               </Text>
@@ -246,7 +246,7 @@ function CorpusHomeBody(): ReactElement {
               </Text>
             </Stack>
             {state.support.map((figure) => (
-              <Stack className="@cq-40:text-end" gap="tight" key={figure.id}>
+              <Stack textAlign="endWide" gap="tight" key={figure.id}>
                 <Text as="span" voice="datum">
                   {figure.value}
                 </Text>

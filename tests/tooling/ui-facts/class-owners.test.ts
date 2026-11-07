@@ -55,7 +55,7 @@ test("a class no forwarded axis writes has no owner", ({ scratch }) => {
 test("a wrapper answers for the axes it hands on inside a carrying prop, and for no other the core computes", () => {
   const ownerOf = classOwners(REPO_ROOT);
   const square = ["shrink-0", "p-0"];
-  const wrap = ["py-tight", "whitespace-normal", "block-auto"];
+  const wrap = ["py-tight", "wrap-anywhere", "whitespace-normal", "block-auto", "max-inline-full"];
   expect(ownerOf("button", "Button", "p-0", square)).toEqual({ axis: "button.square", prop: "square", arm: "true" });
   expect(ownerOf("button", "Button", "block-auto", wrap)).toEqual({ axis: "button.wrap", prop: "wrap", arm: "true" });
   expect(ownerOf("button", "Button", "block-(--size-control-sm)", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
@@ -85,7 +85,6 @@ test("every judgement that names a home answers the lint with the census's own r
 test("a class the tables give no home is the census's row, not the lint's, and a coded keep is neither", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", "relative", [])).toBeNull();
-  expect(ownerOf("button", "Button", "justify-between", [])).toBeNull();
 });
 
 test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", () => {

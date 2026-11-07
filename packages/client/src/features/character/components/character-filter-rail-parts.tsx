@@ -119,7 +119,8 @@ export function TagVocabularyPanel({
         <Input
           aria-label={CHARACTER_FILTER_TAGS_NAME}
           aria-controls={panelId}
-          className="flex-1 min-inline-0"
+          className="min-inline-0"
+          grow={true}
           onValueChange={setQuery}
           placeholder="Filter tags…"
           type="search"

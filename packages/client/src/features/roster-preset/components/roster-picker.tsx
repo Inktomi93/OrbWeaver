@@ -205,7 +205,8 @@ function SaveCurrentRoster(props: {
             value={name}
             onChange={(e): void => setName(e.target.value)}
             // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
-            className="flex-1 min-inline-0 @max-cq-28:flex-none"
+            className="min-inline-0"
+            grow="wide"
           />
           <Button
             aria-describedby={INCLUDE_LINE_ID}

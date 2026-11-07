@@ -44,3 +44,25 @@ export const HEIGHT = {
   controlMd: "block-(--size-control-md)",
   controlLg: "block-(--size-control-lg)",
 } as const;
+
+/** The least block size a box holds, by what must fit in it: the control it seats, a scroll region's floor, or a named surface. */
+export const MIN_HEIGHT = {
+  viewport: "min-block-dvh",
+  control: "min-block-(--size-control-sm)",
+  controlMd: "min-block-(--size-control-md)",
+  scrollSm: "min-block-(--height-scroll-sm)",
+  scrollMd: "min-block-(--height-scroll-md)",
+  scrollLg: "min-block-(--height-scroll-lg)",
+  roomThread: "min-block-(--height-room-thread-min)",
+  homeRecents: "min-block-(--height-home-recents-empty)",
+  pageLastRow: "min-block-(--immersive-document-last-row-min-height)",
+} as const;
+
+/** The least inline size a box holds, by what must fit in it: a control, a popup's content, the composer's field, or a title. */
+export const MIN_WIDTH = {
+  controlMd: "min-inline-(--size-control-md)",
+  popupNarrow: "min-inline-(--width-popup-narrow)",
+  popupFloor: "min-inline-(--width-popup-floor)",
+  composerField: "min-inline-(--dimension-composer-field-min)",
+  title: "min-inline-(--width-title-floor)",
+} as const;

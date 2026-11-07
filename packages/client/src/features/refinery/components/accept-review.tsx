@@ -178,11 +178,11 @@ function QueueRow({
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
         // names line up in one column instead of the open row sitting 12px left of its siblings.
-        <Text className="px-block" truncate="fill" voice="label">
+        <Text inset="blockInline" truncate="fill" voice="label">
           {label}
         </Text>
       ) : (
-        <Button className="basis-auto max-inline-full" stretch="row" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
+        <Button cap="fit" grow="content" stretch="row" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
           <Text as="span" truncate={true} ink="inherit" voice="label">
             {label}
           </Text>

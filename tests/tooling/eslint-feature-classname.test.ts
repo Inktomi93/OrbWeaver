@@ -157,7 +157,7 @@ test.for([
   ],
   [
     "a wrap a Button's scale writes",
-    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="py-tight whitespace-normal block-auto" />);\n',
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="py-tight wrap-anywhere whitespace-normal block-auto max-inline-full" />);\n',
     "`wrap={true}`",
   ],
   [
@@ -192,7 +192,7 @@ test.for([
   ["part of a pinned arm, its bleed", `${PRIMITIVES}export const T = (<Row className="-mbs-row" />);\n`, "is part of row.pinned.header"],
   ["part of a pinned arm, its position", `${PRIMITIVES}export const T = (<Row className="sticky" />);\n`, "is what row.pinned rides on"],
   ["a class beside a ramp, under its step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col-reverse" />);\n`, "no step of it"],
-  ["part of a Button step, its inset", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="px-field" />);\n', "is part of button."],
+  ["a control inset on a Button", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="px-field" />);\n', '`inset="control"`'],
   [
     "part of a Button step, its direction",
     'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="flex-col" />);\n',
@@ -252,7 +252,7 @@ test.for([
     `${PRIMITIVES}const Pass = ({ className }) => <Row className="min-inline-0" title={className} />;\nexport const T = (<Pass className="justify-end" />);\n`,
   ],
   ["a containing block", `${PRIMITIVES}export const T = (<Stack className="relative" />);\n`],
-  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Button className="justify-between" />);\n`],
+  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Row className="contain-inline-size" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });

@@ -283,7 +283,8 @@ export function CharacterLibrarySurface(): ReactElement {
       search={
         <Input
           aria-label={CHARACTER_SEARCH_NAME}
-          className="flex-1 min-inline-0"
+          className="min-inline-0"
+          grow={true}
           onValueChange={setCharacterSearch}
           placeholder="Search characters…"
           value={query}
@@ -292,7 +293,7 @@ export function CharacterLibrarySurface(): ReactElement {
       searchAside={<CharacterSortSelect />}
       skipTo="Skip to characters"
     >
-      <Stack className="min-block-(--height-scroll-md)" grow={true}>
+      <Stack minHeight="scrollMd" grow={true}>
         <CharacterLibraryBody
           ariaLabel={CHARACTER_LIBRARY_NAME}
           categorized={viewMode === "categorized"}

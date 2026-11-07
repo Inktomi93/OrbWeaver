@@ -264,7 +264,7 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       ) : null}
       {footer.stale ? (
         <Row gap="field" align="center" wrap={true}>
-          <Badge tone="warning" size="sm" className="whitespace-normal max-inline-full">
+          <Badge tone="warning" size="sm" whitespace="normal" cap="fit">
             The built-in wording was updated
           </Badge>
           <Button variant="ghost" size="sm" wrap={true} onClick={onUseDefault}>

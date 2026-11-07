@@ -58,7 +58,8 @@ export function EditableTagChip({
         render={
           trigger === undefined ? (
             <Button
-              className="max-inline-full min-inline-0"
+              className="min-inline-0"
+              cap="fit"
               aria-label={editTitle}
               variant="ghost"
               size={iconOnly ? "sm" : "chip"}

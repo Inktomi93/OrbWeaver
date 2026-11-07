@@ -59,7 +59,7 @@ export function FieldLayout({
   );
 }
 
-export interface FieldProps extends Omit<FieldRootProps, "className">, Pick<VariantProps<typeof fieldVariants>, "width"> {
+export interface FieldProps extends Omit<FieldRootProps, "className">, Pick<VariantProps<typeof fieldVariants>, "width" | "grow" | "cap"> {
   /** Visible label — Base UI associates it with the control child automatically. */
   label: ReactNode;
   /**
@@ -111,6 +111,8 @@ export function Field({
   onHintClick,
   orientation,
   width,
+  grow,
+  cap,
   error,
   disabled = false,
   name,
@@ -126,7 +128,7 @@ export function Field({
   const hasDescription = description !== undefined && description !== null;
   // A description or an error makes one column multi-line, which is the only case that wants a top-aligned
   // horizontal row (see `multiline` in ./variants.ts).
-  const slots = fieldVariants({ align, orientation: resolved, width, multiline: hasDescription || hasError });
+  const slots = fieldVariants({ align, orientation: resolved, width, grow, cap, multiline: hasDescription || hasError });
   const hasHint = hint !== undefined && hint !== null;
 
   const labelText = (

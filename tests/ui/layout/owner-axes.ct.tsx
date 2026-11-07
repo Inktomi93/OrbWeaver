@@ -70,6 +70,40 @@ test("InlineToken leads keeps a field step before the words and a plain token ke
   expect(await marginEnd("token-leads")).not.toBe("0px");
 });
 
+test("hiddenAt empty takes an empty box out and leaves a box that holds a child, and always takes any box out", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const display = (name: string): Promise<string> => component.locator(`[data-probe="${name}"]`).evaluate((element) => getComputedStyle(element).display);
+  expect(await display("stack-held")).toBe("flex");
+  expect(await display("stack-empty")).toBe("none");
+  expect(await display("stack-always")).toBe("none");
+});
+
+test("minHeight and minWidth hold a box at the control it seats", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const floor = (await boxOf(component.locator('[data-probe="ref-control"]'))).height;
+  expect((await boxOf(component.locator('[data-probe="row-floor"]'))).height).toBe(floor);
+  const stackFloor = await component.locator('[data-probe="stack-floor"]').evaluate((element) => Number.parseFloat(getComputedStyle(element).minInlineSize));
+  expect(stackFloor).toBe(floor);
+});
+
+test("textAlign, inset and cluster set a run's lines, inset and glyph gap", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const read = (name: string, property: "textAlign" | "paddingInlineStart" | "display" | "columnGap"): Promise<string> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element, key) => getComputedStyle(element)[key], property);
+  expect(await read("text-end", "textAlign")).toBe("end");
+  expect(await read("text-inset", "paddingInlineStart")).not.toBe("0px");
+  expect(await read("text-cluster", "display")).toBe("inline-flex");
+  expect(await read("text-cluster", "columnGap")).not.toBe("normal");
+});
+
+test("grow gives a Separator and an Input the room left on their line", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const rule = await boxOf(component.locator('[data-probe="separator-grow"]'));
+  const field = await boxOf(component.locator('[data-probe="input-grow"]'));
+  expect(rule.width).toBeGreaterThan(0);
+  expect(field.width).toBeGreaterThan(0);
+});
+
 test.describe("cap", () => {
   test("Text stops at the prose measure, in its own font", async ({ mount }) => {
     const component = await mount<typeof OwnerAxesStory>(STORY);

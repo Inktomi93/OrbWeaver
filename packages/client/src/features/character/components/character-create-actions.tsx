@@ -179,11 +179,9 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 // layout, and therefore in the a11y tree, at any given pane width.
 
 /** The LABELLED arm: stands down below the `cq-20` pane step. */
-const CREATE_LABELLED_ARM = "@max-cq-20:hidden";
 
 /** The ICON-ONLY arm: exists only below it. Tailwind emits the pair as complementary range conditions
  *  (`width < 20rem` / `width >= 20rem`), so they can neither overlap nor leave a gap at the boundary. */
-const CREATE_ICON_ARM = "@cq-20:hidden";
 
 /** The band's primary, alone — file-local (see the header for why it is no longer exported).
  *
@@ -194,11 +192,11 @@ const CREATE_ICON_ARM = "@cq-20:hidden";
 function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): ReactElement {
   return (
     <>
-      <Button className={CREATE_LABELLED_ARM} onClick={onOpen} size="sm">
+      <Button hiddenAt="belowCq20" onClick={onOpen} size="sm">
         <Icon icon={Plus} size="sm" />
         New
       </Button>
-      <Button aria-label={CHARACTER_NEW_NAME} className={CREATE_ICON_ARM} onClick={onOpen} size="sm" square={true} type="button">
+      <Button aria-label={CHARACTER_NEW_NAME} hiddenAt="cq-20" onClick={onOpen} size="sm" square={true} type="button">
         <Icon icon={Plus} size="sm" />
       </Button>
     </>

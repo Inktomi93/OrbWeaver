@@ -42,7 +42,7 @@ export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
       <Heading level={3} voice="kicker">
         {kicker}
       </Heading>
-      <Separator className="flex-1" />
+      <Separator grow={true} />
       {children}
     </Row>
   );
