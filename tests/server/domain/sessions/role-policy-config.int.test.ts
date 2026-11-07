@@ -9,7 +9,10 @@ import {
   OWNER_HANDLES_KEY,
   RE_DERIVE_ROLE_ON_LOGIN_KEY,
 } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, createTestEnv, readAccounts } from "@orb/testkit/node/composed";
 import { ADMIN_OP_CODES } from "#server/domain/admin/contract/errors.ts";
@@ -46,19 +49,47 @@ test("distinct composed policy snapshots do not share grants or depend on anothe
   expect(await me(second, headerIdentity("second-admins"))).toMatchObject({ authenticated: true, role: "admin" });
 });
 
-test.each([
-  { key: OWNER_HANDLES_KEY, value: "policy-member" },
-  { key: OWNER_GROUP_KEY, value: "late-owners" },
-  { key: OIDC_ALLOWED_GROUPS_KEY, value: "newly-required" },
-] as const)("a live graph does not reread '$key' from its source config", async ({ key, value }) => {
-  const config = { ...createTestEnv() };
-  await using root = await rootForConfig(config);
-  const headers = headerIdentity("late-owners");
-  const identity = await me(root, headers);
-  expect(identity).toMatchObject({ authenticated: true, role: "user" });
-  config[key] = value;
-  expect(await me(root, headers)).toEqual(identity);
-  expect((await readAccounts(root)).filter(({ id }) => id === root.ownerId).map(({ handle }) => ({ handle }))).toEqual([{ handle: "owner" }]);
+const CONFIGURED_POLICY = { [OWNER_HANDLES_KEY]: "box-owner", [OWNER_GROUP_KEY]: "original-owners", [OIDC_ALLOWED_GROUPS_KEY]: "original-friends" } as const;
+const LATE_POLICY = { [OWNER_HANDLES_KEY]: "late-owner", [OWNER_GROUP_KEY]: "late-owners", [OIDC_ALLOWED_GROUPS_KEY]: "late-friends" } as const;
+
+/** The deployment's source values, writable so a case can change them after the policy is built. */
+type SourceConfig = { -readonly [Key in keyof SessionsRolePolicyConfig]: SessionsRolePolicyConfig[Key] };
+
+interface SnapshotReads {
+  readonly ownerHandles: readonly string[];
+  readonly ownerByHandle: readonly boolean[];
+  readonly ownerByGroup: readonly boolean[];
+  readonly loginGate: readonly ReturnType<SessionsRolePolicy["identityAccess"]>["outcome"][];
+}
+
+/** Each policy read the snapshot keys reach, asked of the configured value and of the late one. */
+function snapshotReads(policy: SessionsRolePolicy): SnapshotReads {
+  const handle = (raw: string): Handle => brandedId("Handle").parse(raw);
+  const member = handle("policy-member");
+  return {
+    ownerHandles: policy.ownerHandles(),
+    ownerByHandle: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.isOwnerByPolicy(handle(policyValues[OWNER_HANDLES_KEY]), [])),
+    ownerByGroup: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.isOwnerByPolicy(member, [policyValues[OWNER_GROUP_KEY]])),
+    loginGate: [CONFIGURED_POLICY, LATE_POLICY].map((policyValues) => policy.identityAccess(false, [policyValues[OIDC_ALLOWED_GROUPS_KEY]]).outcome),
+  };
+}
+
+// A harness root parses its own env record from these values, so mutating them after it is built never reaches its
+// policy; the snapshot is a property of the policy factory, read here on the object the factory was handed.
+test.each([OWNER_HANDLES_KEY, OWNER_GROUP_KEY, OIDC_ALLOWED_GROUPS_KEY] as const)("a role policy does not reread '%s' from its source config", (key) => {
+  const config: SourceConfig = { ...createTestEnv(), ...CONFIGURED_POLICY };
+  const policy = createSessionsRolePolicy(config);
+  const configured: SnapshotReads = {
+    ownerHandles: [CONFIGURED_POLICY[OWNER_HANDLES_KEY]],
+    ownerByHandle: [true, false],
+    ownerByGroup: [true, false],
+    loginGate: ["allow", "deny"],
+  };
+  expect(snapshotReads(policy)).toEqual(configured);
+
+  config[key] = LATE_POLICY[key];
+
+  expect(snapshotReads(policy)).toEqual(configured);
 });
 
 test("an identity first seen after a late source-config admin grant is provisioned from the composed policy", async () => {
