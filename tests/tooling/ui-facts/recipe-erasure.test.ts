@@ -1,5 +1,7 @@
 // No arm of a flat `tv()` recipe erases another axis unless that pair is declared here: `cn` drops the earlier class without a word, and a caller who sets
 // both props gets one of them. A new pair fails this test until its axes are reordered, closed by a type, or stated as a refinement.
+// A refinement or a spent inset also names the earlier arms that erase, so a new erasing arm under a declared pair fails it too.
+// A pair is keyed by axis name across components: a component that adds an axis of a declared name joins that pair unseen.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { survives } from "../../../tooling/src/eslint/ui-classes/class-conflict.ts";
@@ -10,7 +12,10 @@ import type { Arm, ArmClasses } from "../../../tooling/src/eslint/ui-classes/var
 
 const ROOT = join(import.meta.dirname, "../../..");
 
-/** The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `ToneInkSelection`, `TextCue`, or the arm is `Omit`ted from the named component. */
+/**
+ * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, or the arm is `Omit`ted from the named component.
+ * `ToneInkSelection` pairs `tone` with `ink` only as `ink="toneForeground"`, the tone's own ink on the fill it names.
+ */
 const CLOSED_BY_TYPE = [
   "clamp > lines",
   "minHeight > size+stacked",
@@ -34,115 +39,210 @@ const HIDDEN_WINS = ["flow > hiddenAt", "inline > hiddenAt", "readingFlow > hidd
 const ONE_PLACE = ["artDecoration > placed", "placed > pinned", "push > pinned", "scroll > placed"];
 
 /** An inset an axis spends on purpose: a bleed, an indent or an art reservation is the box's whole statement of that edge. */
-const INSET_SPENT = [
-  "cap > artDecoration",
-  "indent > artDecoration",
-  "indent > reach",
-  "paddingInline > reach",
-  "paddingInlineEnd > artDecoration",
-  "paddingInlineEnd > reach",
-  "paddingInlineEndNarrow > reach",
-  "paddingInlineNarrow > reach",
-  "paddingInlineStart > artDecoration",
-  "paddingInlineStart > indent",
-  "paddingInlineStart > reach",
-  "push > reach",
-  "reach > centred",
-  "shape > artDecoration",
-];
+const INSET_SPENT: Readonly<Record<string, readonly string[]>> = {
+  "cap > artDecoration": [
+    "available",
+    "avatarHero",
+    "column",
+    "columnWide",
+    "control",
+    "controlMd",
+    "fit",
+    "pane",
+    "paneSm",
+    "paneXs",
+    "prose",
+    "reading",
+    "readingMin",
+    "shell",
+    "sidebar",
+    "surface",
+  ],
+  "indent > artDecoration": ["true"],
+  "indent > reach": ["true"],
+  "paddingInline > reach": ["block", "field", "gutter", "row", "section", "tight"],
+  "paddingInlineEnd > artDecoration": ["block", "clearance", "field", "gutter", "row", "section", "tight"],
+  "paddingInlineEnd > reach": ["block", "clearance", "field", "gutter", "row", "section", "tight"],
+  "paddingInlineEndNarrow > reach": ["block", "row", "tight"],
+  "paddingInlineNarrow > reach": ["block", "row"],
+  "paddingInlineStart > artDecoration": ["block", "field", "gutter", "row", "section", "tight"],
+  "paddingInlineStart > indent": ["field", "gutter", "row", "section", "tight"],
+  "paddingInlineStart > reach": ["block", "field", "gutter", "row", "section", "tight"],
+  "push > reach": ["inlineEnd", "inlineStart"],
+  "reach > centred": ["row", "section"],
+  "shape > artDecoration": ["bubble"],
+};
 
 /** The later axis is the narrower statement of the same fact: a state over a resting style, a step over a voice, a shape's own default. */
-const REFINES = [
-  "artDecoration > artPane",
-  "artDecoration > cap",
-  "artDecoration > padding",
-  "artDecoration > share",
-  "artDim > arrival",
-  "artPane > cap",
-  "artPane > maxHeight",
-  "artPane > width",
-  "artScale > halo",
-  "cols > align",
-  "divider > dividerTone",
-  "divider > tone",
-  "dividerTone > tone",
-  "elevated > nested",
-  "fill > height",
-  "ground > ink",
-  "height > minHeight",
-  "hoverDim > artDim",
-  "indeterminate > size",
-  "ink > painted",
-  "ink > selection",
-  "inline > tracks",
-  "justify > caption",
-  "justify > textAlign",
-  "layout > typeStep",
-  "layout > width",
-  "lines > whitespace",
-  "pinned > layer",
-  "pinned > paddingBlockShort",
-  "prose > artScale",
-  "prose > halo",
-  "prose > solidLine",
-  "rail > nested",
-  "receded > arrival",
-  "receded > artDim",
-  "receded > reveal",
-  "reveal > painted",
-  "selection > focusRing",
-  "selection > painted",
-  "selection > reserveEdge",
-  "selection > underline",
-  "shape > cardCorners",
-  "shape > corners",
-  "shape > elevated",
-  "shape > nested",
-  "shape > padding",
-  "shape > share",
-  "shape > width",
-  "size > artScale",
-  "size > cap",
-  "size > face",
-  "size > flush",
-  "size > glyph",
-  "size > halo",
-  "size > inset",
-  "size > layout",
-  "size > prose",
-  "size > solidLine",
-  "size > square",
-  "size > stacked",
-  "size > step",
-  "size > stretch",
-  "size > voice",
-  "size > wrap",
-  "solidLine > halo",
-  "stackBelow > reverse",
-  "stacked > caption",
-  "stacked > inset",
-  "stretch > grow",
-  "stretch > minWidth",
-  "textAlign > caption",
-  "truncate > grow",
-  "variant > ink",
-  "variant > painted",
-  "variant > reserveEdge",
-  "variant > selection",
-  "variant > width",
-  "voice > artScale",
-  "voice > halo",
-  "voice > ink",
-  "voice > prose",
-  "voice > push",
-  "voice > solidLine",
-  "voice > tone",
-  "weight > voice",
-  "wrap > cap",
-  "wrap > inset",
-];
+const REFINES: Readonly<Record<string, readonly string[]>> = {
+  "artDecoration > artPane": ["portraitEnd", "portraitStart"],
+  "artDecoration > cap": ["portraitEnd", "portraitStart"],
+  "artDecoration > padding": ["portraitEnd", "portraitStart"],
+  "artDecoration > share": ["portraitEnd", "portraitStart"],
+  "artDim > arrival": ["lift", "rest"],
+  "artPane > cap": ["banner"],
+  "artPane > maxHeight": ["portrait"],
+  "artPane > width": ["banner", "portrait"],
+  "cols > align": ["actionBar"],
+  "divider > dividerTone": ["between", "bottom", "end", "start", "top"],
+  "divider > tone": ["between", "bottom", "end", "start", "top"],
+  "dividerTone > tone": ["sidebar"],
+  "elevated > nested": ["true"],
+  "fill > height": ["true"],
+  "ground > ink": ["background", "bubble", "card", "popover", "readingBand", "systemBubble", "userBubble"],
+  "height > minHeight": ["rail"],
+  "hoverDim > artDim": ["self"],
+  "indeterminate > size": ["true"],
+  "ink > painted": ["accolade", "dialogue", "foreground", "muted", "narration", "prose", "speaker", "toneForeground"],
+  "ink > selection": ["accolade", "dialogue", "foreground", "inherit", "muted", "narration", "prose", "speaker", "toneForeground"],
+  "inline > tracks": ["true"],
+  "justify > caption": ["between", "start"],
+  "justify > textAlign": ["start"],
+  "layout > typeStep": ["field", "inline"],
+  "layout > width": ["field", "inline"],
+  "lines > whitespace": ["2"],
+  "pinned > layer": ["header", "headerOutside"],
+  "pinned > paddingBlockShort": ["dialogFooter"],
+  "prose > artScale": ["true"],
+  "prose > solidLine": ["true"],
+  "rail > nested": ["primary"],
+  "receded > arrival": ["false", "true"],
+  "receded > artDim": ["true"],
+  "receded > reveal": ["true"],
+  "reveal > painted": ["faint"],
+  "selection > focusRing": ["negated"],
+  "selection > painted": ["negated", "on"],
+  "shape > cardCorners": ["control", "pill"],
+  "shape > corners": ["bubble", "island"],
+  "shape > elevated": ["row"],
+  "shape > nested": ["row"],
+  "shape > padding": ["bubble", "inset", "island", "row"],
+  "shape > share": ["bubble"],
+  "shape > width": ["bubble"],
+  "size > artScale": ["body", "headline", "label", "title"],
+  "size > cap": ["lg", "md", "sm"],
+  "size > face": ["compact"],
+  "size > flush": ["compact", "sm"],
+  "size > glyph": ["chip", "lg", "md", "sm"],
+  "size > inset": ["chip", "lg", "md", "sm"],
+  "size > layout": ["chip", "lg", "md", "sm"],
+  "size > prose": ["body", "headline", "label", "title"],
+  "size > solidLine": ["body", "headline", "label", "title"],
+  "size > square": ["chip", "lg", "md", "sm"],
+  "size > stacked": ["chip", "lg", "md", "sm"],
+  "size > step": ["chip", "lg", "md", "sm"],
+  "size > stretch": ["chip", "lg", "md", "sm"],
+  "size > voice": ["body", "headline", "label", "title"],
+  "size > wrap": ["chip", "lg", "md", "sm"],
+  "stackBelow > reverse": ["cq-28", "cq-32", "cq-40", "cq-64"],
+  "stacked > caption": ["true"],
+  "stacked > inset": ["true"],
+  "stretch > grow": ["row"],
+  "stretch > minWidth": ["row"],
+  "textAlign > caption": ["center", "end"],
+  "truncate > grow": ["fill"],
+  "underline > selection": ["dotted"],
+  "variant > ink": ["ghost", "link", "outline", "solid"],
+  "variant > painted": ["ghost", "link", "outline", "solid"],
+  "variant > reserveEdge": ["outline"],
+  "variant > selection": ["ghost", "link", "outline", "solid"],
+  "variant > width": ["text"],
+  "voice > artScale": [
+    "code",
+    "credit",
+    "datum",
+    "datumMono",
+    "focal",
+    "gloss",
+    "hero",
+    "interactiveKicker",
+    "kicker",
+    "label",
+    "lead",
+    "masthead",
+    "monogram",
+    "promoted",
+    "quiet",
+    "reading",
+  ],
+  "voice > ink": [
+    "code",
+    "credit",
+    "datum",
+    "datumMono",
+    "focal",
+    "gloss",
+    "hero",
+    "interactiveKicker",
+    "kicker",
+    "label",
+    "lead",
+    "masthead",
+    "promoted",
+    "quiet",
+    "reading",
+  ],
+  "voice > prose": [
+    "code",
+    "credit",
+    "datum",
+    "datumMono",
+    "focal",
+    "gloss",
+    "hero",
+    "interactiveKicker",
+    "kicker",
+    "label",
+    "lead",
+    "masthead",
+    "monogram",
+    "promoted",
+    "quiet",
+    "reading",
+  ],
+  "voice > push": ["interactiveKicker"],
+  "voice > solidLine": [
+    "code",
+    "credit",
+    "datum",
+    "datumMono",
+    "focal",
+    "gloss",
+    "hero",
+    "interactiveKicker",
+    "kicker",
+    "label",
+    "lead",
+    "masthead",
+    "monogram",
+    "promoted",
+    "quiet",
+    "reading",
+  ],
+  "voice > tone": [
+    "code",
+    "credit",
+    "datum",
+    "datumMono",
+    "focal",
+    "gloss",
+    "hero",
+    "interactiveKicker",
+    "kicker",
+    "label",
+    "lead",
+    "masthead",
+    "promoted",
+    "quiet",
+    "reading",
+  ],
+  "weight > voice": ["regular", "semibold"],
+  "wrap > cap": ["true"],
+  "wrap > inset": ["true"],
+};
 
-const DECLARED = [...CLOSED_BY_TYPE, ...HIDDEN_WINS, ...ONE_PLACE, ...INSET_SPENT, ...REFINES];
+const PAIRS_BY_RULE = [...CLOSED_BY_TYPE, ...HIDDEN_WINS, ...ONE_PLACE];
+const PAIRS_BY_ARM = { ...INSET_SPENT, ...REFINES };
 
 const flat = (arms: ArmClasses): boolean => [...arms.values()].every((arm: Arm) => arm.slots.length === 0);
 
@@ -150,33 +250,41 @@ const flat = (arms: ArmClasses): boolean => [...arms.values()].every((arm: Arm) 
 const erases = (earlier: readonly string[], later: readonly string[]): boolean =>
   earlier.some((token) => !later.includes(token) && later.some((winner) => !survives(token, winner)));
 
-const armsErase = (earlier: ArmClasses, later: readonly (readonly string[])[]): boolean =>
-  [...earlier.values()].some((arm) => later.some((tokens) => erases(arm.tokens, tokens)));
-
-function recipePairs(recipe: ComponentRecipe): readonly string[] {
+/** Each earlier arm that a later axis or compound replaces, as the pair it falls under and the arm's name. */
+function recipeErasures(recipe: ComponentRecipe): readonly (readonly [pair: string, arm: string])[] {
   const axes = [...recipe.declared].filter(([, arms]) => flat(arms));
-  return axes.flatMap(([earlier, arms], index) => [
-    ...axes
-      .slice(index + 1)
-      .filter(([, later]) =>
-        armsErase(
-          arms,
-          [...later.values()].map((arm) => arm.tokens),
-        ),
-      )
-      .map(([later]) => `${earlier} > ${later}`),
-    ...recipe.compounds
-      .filter((compound) => !compound.conditions.has(earlier) && armsErase(arms, [compound.tokens]))
-      .map((compound) => `${earlier} > ${[...compound.conditions.keys()].join("+")}`),
-  ]);
+  return axes.flatMap(([earlier, arms], index) =>
+    [...arms].flatMap(([name, arm]) => [
+      ...axes
+        .slice(index + 1)
+        .filter(([, later]) => [...later.values()].some((winner) => erases(arm.tokens, winner.tokens)))
+        .map(([later]): [string, string] => [`${earlier} > ${later}`, name]),
+      ...recipe.compounds
+        .filter((compound) => !compound.conditions.has(earlier) && erases(arm.tokens, compound.tokens))
+        .map((compound): [string, string] => [`${earlier} > ${[...compound.conditions.keys()].join("+")}`, name]),
+    ]),
+  );
 }
 
-const erasingPairs = (): readonly string[] => [
-  ...new Set([...componentTables(ROOT, loadUiSources(ROOT)).values()].flatMap((door) => [...door.values()].flatMap(recipePairs))),
-];
+/** Pair to the sorted names of the earlier arms that erase under it, across every component. */
+function erasures(): ReadonlyMap<string, readonly string[]> {
+  const found = new Map<string, Set<string>>();
+  for (const door of componentTables(ROOT, loadUiSources(ROOT)).values()) {
+    for (const [pair, arm] of [...door.values()].flatMap(recipeErasures)) {
+      found.set(pair, (found.get(pair) ?? new Set<string>()).add(arm));
+    }
+  }
+  return new Map([...found].map(([pair, arms]) => [pair, [...arms].toSorted()]));
+}
 
 test("every pair of axes where a later arm erases an earlier one is declared, and no declared pair is stale", () => {
-  const pairs = erasingPairs().toSorted();
+  const pairs = [...erasures().keys()].toSorted();
   expect(pairs).toContain("variant > selection");
-  expect(pairs).toEqual([...DECLARED].toSorted());
+  expect(pairs).toEqual([...PAIRS_BY_RULE, ...Object.keys(PAIRS_BY_ARM)].toSorted());
+});
+
+test("a refinement or a spent inset names every earlier arm that erases under it, so a new erasing arm is a new declaration", () => {
+  const found = erasures();
+  const declared = Object.fromEntries(Object.entries(PAIRS_BY_ARM).map(([pair, arms]) => [pair, arms.toSorted()]));
+  expect(Object.fromEntries(Object.keys(declared).map((pair) => [pair, found.get(pair)]))).toEqual(declared);
 });

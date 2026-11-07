@@ -146,6 +146,13 @@ test("every named opacity step is one axis", () => {
   expect(cn("opacity-disabled", "text-muted-foreground")).toBe("opacity-disabled text-muted-foreground");
 });
 
+test("a text shadow token is a shadow, so the type step and its leading survive beside it", () => {
+  expect(cn("text-title leading-title", "text-shadow-wordmark")).toBe("text-title leading-title text-shadow-wordmark");
+  expect(cn("text-shadow-wordmark", "text-title leading-title")).toBe("text-shadow-wordmark text-title leading-title");
+  expect(cn("text-shadow-wordmark", "text-shadow-none")).toBe("text-shadow-none");
+  expect(cn("text-shadow-wordmark", "text-shadow-primary")).toBe("text-shadow-wordmark text-shadow-primary");
+});
+
 test("optical stroke widths override width steps without evicting stroke color", () => {
   expect(cn("stroke-1", "stroke-icon-regular")).toBe("stroke-icon-regular");
   expect(cn("stroke-icon-regular", "stroke-2")).toBe("stroke-2");

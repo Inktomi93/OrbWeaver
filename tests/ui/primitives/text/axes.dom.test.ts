@@ -33,3 +33,8 @@ test("grow takes the room that is left, and floor is the width the run starts fr
   expect(tokensOf(createElement(Heading, { level: 2, floor: "title" }, "name"))).toContain("basis-(--width-title-floor)");
   expect(text({})).not.toContain("flex-1");
 });
+
+test("a halo is a shadow: the wordmark voice keeps its type step and line height beside it", () => {
+  expect(text({ voice: "monogram", halo: true })).toEqual(expect.arrayContaining(["text-title", "leading-title", "text-shadow-wordmark"]));
+  expect(text({ voice: "monogram" })).not.toContain("text-shadow-wordmark");
+});
