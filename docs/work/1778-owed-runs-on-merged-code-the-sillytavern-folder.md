@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-07
 priority: P2
 area: tests
 plan: test-foundation
@@ -23,10 +23,6 @@ Every spec named in the Evidence has a recorded passing run on current code. The
 
 ## Evidence
 
-Not run: every e2e spec. The lane guard refuses `pnpm e2e <spec>` as a whole-tree run, so these stay owed to the orchestrator: `tests/e2e/sillytavern-folder-import.spec.ts`, `tests/e2e/csrf-gates.forward.spec.ts`, `tests/e2e/csrf-gates.local.spec.ts`, and the lint and consistency branch specs (card-import, corpus-editor-draft-recovery, corpus-workbench, corpus-shell, corpus-settings, corpus-cold-boot, smoke, browser-launch, draft-mode-options, guided-generations, event-sequence, scripted-chat).
+Passing runs on merged code. E2E on `268a06a5bc`: smoke, CSRF forward and local, scripted chat, SillyTavern folder import, card import, event sequence. WebKit CT: platform-rule-action-groups, platform-remaining-action-groups (character), platform-context-recovery, platform-text-scale, platform-failed-art-memory, platform-connection-readout and platform-shell, 148 passed, 2 skipped. Live specs through a local engine, `E2E_LIVE=1`, at `7ad4da1733`: guided-generations and the RPG lite loop among 25 passed. Corpus cells on their lane branches: corpus-conversation 32 passed, corpus-cold-boot and corpus-shell 256 passed, corpus-settings 112 passed.
 
-`tests/e2e/rpg-lite-loop.spec.ts` needs a live engine: every case is `@live` (excluded unless `E2E_LIVE=1`) and seeds through `pinChatToLocalEngine`, which needs the opt-in local engine connection that the scripted stack does not create. Not run.
-
-WebKit CT (`pnpm test:ct:webkit`, `CT_PORT=3187`, load 35 to 43): platform-rule-action-groups, platform-remaining-action-groups (character), platform-context-recovery, platform-text-scale, platform-failed-art-memory, platform-connection-readout and platform-shell. 148 passed, 2 skipped.
-
-- E2E on 268a06a5bc passed: smoke, CSRF forward and local, scripted chat, SillyTavern folder import, card import, event sequence. Still unproven: the corpus specs (skipped under `pnpm e2e`), guided-generations (no tests found) and the RPG lite loop (needs a live engine).
+Still owed: corpus-editor-draft-recovery, corpus-workbench, browser-launch and draft-mode-options.
