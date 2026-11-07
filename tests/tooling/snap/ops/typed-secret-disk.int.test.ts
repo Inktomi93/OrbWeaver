@@ -75,6 +75,8 @@ async function go(){
 const SENT_SELECTOR = "#send[data-sent=yes]";
 const REFLECT_ARMS = ["--aria", "--map", "--requests", "--request-body", "/json", "--eval", "document.title", "--eval", "location.href", "--json"] as const;
 const ASSERT_FAILS = "#m=a string the page never shows";
+const PEER_ORIGIN = "http://peer.invalid";
+const MASKED_ECHO_HEADER = /"name": "x-echo",\s+"value": "<private>"/u;
 
 /** A loopback peer that serves the reflecting page, records what really arrived, and echoes each body back. */
 async function reflectingServer(): Promise<AsyncDisposable & { readonly base: string; readonly received: readonly string[] }> {
@@ -89,7 +91,9 @@ async function reflectingServer(): Promise<AsyncDisposable & { readonly base: st
         response.writeHead(200, { "content-type": "text/html" }).end(REFLECTING_HTML);
         return;
       }
-      response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ echoed: request.url, body }));
+      // The header is the page-side echo a HAR keeps: a real run reads no request body into it.
+      const plain = new URL(request.url ?? "/", PEER_ORIGIN).searchParams.get("plain") ?? "";
+      response.writeHead(200, { "content-type": "application/json", "x-echo": plain }).end(JSON.stringify({ echoed: request.url, body }));
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -284,7 +288,9 @@ test.for([
 
   expect(spellingsIn(run.stdout)).toEqual([]);
   expect(spellingsIn(run.stderr)).toEqual([]);
-  expect(reflections([slotOf(run.stdout)])).toEqual([]);
+  const slot = slotOf(run.stdout);
+  expect(reflections([slot])).toEqual([]);
+  expect(readFileSync(join(slot, "traces", "root.har"), "utf8")).toMatch(MASKED_ECHO_HEADER);
 });
 
 test("a session keeps a page's echoes out of its slots, its log and its export", async ({ runCli, scratch }) => {
