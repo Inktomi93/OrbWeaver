@@ -14,9 +14,10 @@ import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { EnsureStageOps, StageHolder, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { liveHoldersOf, stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
+import { releaseLockDir } from "../../../../tooling/src/snap/ops/dir-lock.ts";
 import { ensureStage } from "../../../../tooling/src/snap/ops/stage.ts";
 import { holdStageUse } from "../../../../tooling/src/snap/ops/stage-holders.ts";
-import { readBands, releaseLockDir, touchRow, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { readBands, touchRow, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { holderProcessRunning } from "../../../../tooling/src/snap/ops/stage-probe.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
