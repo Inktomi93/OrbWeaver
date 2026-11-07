@@ -310,6 +310,22 @@ test("a rule inside a cascade layer is read, and a 1 beside a star is a unit cas
   ]);
 });
 
+test("two arms that each compose a different set of classes are not a ramp, so a class of the family they share is no new arm", ({ scratch }) => {
+  const root = plantDir(scratch, "composed-arms");
+  plant(root, { "components/uses.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const A = () => <Stack className="inline-full" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    "export const stackVariants = tv({ variants: { pane: { portrait: 'aspect-portrait inline-4 max-block-full', banner: 'inline-1/2 min-block-8' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Stack({ pane, className }) {\n  return <div className={stackVariants({ pane, className })} />;\n}",
+  );
+  expect(census(root).hits.filter((hit) => hit.detail === "inline-full")).toEqual([]);
+});
+
 test("an alpha named for an opacity step stays visible beside a numbered one", ({ scratch }) => {
   const root = plantDir(scratch, "named-alpha");
   plant(root, { "components/uses.tsx": 'export const A = () => <><span className="active:bg-accent/hover" /><span className="bg-primary/hover" /></>;' });
@@ -595,17 +611,15 @@ test("a plan lists a row only when the arm writes exactly its class on a named c
   const { code, printed } = migrate(root, "plan");
   const plan = planOf(root);
   expect(code).toBe(0);
-  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 2 for review");
+  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 1 for review");
   // The alias is planned under the name its import exports, with the specifier a rewrite must prove.
   expect(plan.sites.map(({ line, source, name, token, prop, value }) => [line, source, name, token, prop, value])).toEqual([
     [4, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
     [5, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
   ]);
-  // The conditional site is a different owner and never appears; the arm that writes two classes and the carrier go to review.
-  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([
-    [6, 'arm "between" writes justify-between items-baseline, which the class string does not hold whole'],
-    [8, "the class is written on a carrier that renders Row"],
-  ]);
+  // The conditional site is a different owner and never appears; the carrier goes to review. The `between` arm composes two classes, so
+  // the axis is no ramp of alternatives and its lone class (line 6) is owned by nothing.
+  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([[8, "the class is written on a carrier that renders Row"]]);
 });
 
 test("a boolean arm plans its prop as a JSX expression", ({ scratch }) => {
@@ -1072,7 +1086,7 @@ test("a proof passes when every remaining row has a reason, and fails on a row n
     ),
   });
   expect(migrate(root, "prove")).toMatchObject({ code: 0 });
-  expect(migrate(root, "prove").printed).toContain("2 remain, 0 without a reason");
+  expect(migrate(root, "prove").printed).toContain("1 remain, 0 without a reason");
   // A row the plan listed and the codemod skipped is explained only by the skip it recorded.
   plant(root, { "components/uses.tsx": MIGRATING });
   const unexplained = migrate(root, "prove");

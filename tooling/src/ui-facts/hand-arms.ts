@@ -63,7 +63,17 @@ const writesOnly = (arm: Arm, token: string): boolean => arm.tokens.length === 1
  */
 function picksFamily(arms: ArmClasses, base: string): boolean {
   const written = writtenChoices(arms, base);
-  return written.every((family) => family.length > 0) && new Set(written.flat()).size >= MIN_FAMILY_CHOICES;
+  return written.every((family) => family.length > 0) && new Set(written.flat()).size >= MIN_FAMILY_CHOICES && alternatives(arms);
+}
+
+const coveredBy = (from: readonly string[], onto: readonly string[]): boolean => from.every((token) => onto.some((other) => sameFamily(token, other)));
+
+/** The writing arms are alternatives: each writes the same utility families. Arms that each compose a different set of classes are named compositions, not a ramp. */
+function alternatives(arms: ArmClasses): boolean {
+  const plain = armsOf(arms)
+    .filter((arm) => arm.tokens.length > 0)
+    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""));
+  return plain.every((one) => coveredBy(one, plain[0] ?? []) && coveredBy(plain[0] ?? [], one));
 }
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
