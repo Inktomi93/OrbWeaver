@@ -9,10 +9,11 @@
 //
 // THE ORACLE IS THE CATALOG, never the DOM: the spec mints its character, so the expected name is known before any
 // row renders, and each row is read by its canon id. The name has more than one word so a speaker who merely shares
-// a first word still fails the exact match. The user/persona display name is "You".
+// a first word still fails the exact match. The user row shows the default persona, whose name kit owns.
 
 import type { CharacterHandle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openNewestChat, renameOpenChat, reopenFirstChat, sendAndAwaitReply, waitForStreamOpen } from "./support/chat-room.ts";
@@ -22,7 +23,6 @@ import { canonMessage, deleteChat, listCanon, mintFreshCharacter, removeCharacte
 
 const CHARACTER_NAME = "Namesake Alpha Probe";
 const HANDLE = castId<CharacterHandle>("e2e-live-names");
-const USER_DISPLAY_NAME = "You";
 
 interface SpeakerRows {
   readonly greetingId: MessageId;
@@ -38,7 +38,7 @@ function attribution(page: Page, messageId: MessageId): Locator {
 async function expectSpeakerNames(page: Page, rows: SpeakerRows): Promise<void> {
   await expect(attribution(page, rows.greetingId)).toHaveText(CHARACTER_NAME);
   await expect(attribution(page, rows.assistantId)).toHaveText(CHARACTER_NAME);
-  await expect(attribution(page, rows.userId)).toContainText(USER_DISPLAY_NAME);
+  await expect(attribution(page, rows.userId)).toHaveText(DEFAULT_PERSONA_NAME);
 }
 
 test("row speaker names are DB-true and survive a chat rename + reload", {
