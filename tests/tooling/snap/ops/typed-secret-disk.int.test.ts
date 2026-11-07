@@ -11,6 +11,7 @@ import { DEDICATED_BOX_ENV } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { unzipSync, zipSync } from "fflate";
 import { vi } from "vitest";
+import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { listeningAddress } from "../../_server-address.ts";
 
@@ -69,6 +70,7 @@ async function go(){
   await fetch("/json",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:v})});
   await fetch("/form",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({note:v}).toString()});
   setTimeout(()=>{throw new Error("page-error "+v)},0);
+  await new Promise((resolve)=>{const s=document.createElement("script");s.src="/busy.js?plain="+encodeURIComponent(v);s.onload=resolve;document.head.append(s);});
   document.querySelector("#send").dataset["sent"]="yes";
 }
 </script></body></html>`;
@@ -76,6 +78,8 @@ const SENT_SELECTOR = "#send[data-sent=yes]";
 const REFLECT_ARMS = ["--aria", "--map", "--requests", "--request-body", "/json", "--eval", "document.title", "--eval", "location.href", "--json"] as const;
 const ASSERT_FAILS = "#m=a string the page never shows";
 const PEER_ORIGIN = "http://peer.invalid";
+/** Long enough that a CPU profile samples it: a profile holds a script's URL only if the script ran. */
+const BUSY_SCRIPT = "const end=performance.now()+80;while(performance.now()<end){}";
 const MASKED_ECHO_HEADER = /"name": "x-echo",\s+"value": "<private>"/u;
 
 /** A loopback peer that serves the reflecting page, records what really arrived, and echoes each body back. */
@@ -89,6 +93,10 @@ async function reflectingServer(): Promise<AsyncDisposable & { readonly base: st
       received.push(`${request.url ?? ""} ${body}`);
       if (request.url === "/") {
         response.writeHead(200, { "content-type": "text/html" }).end(REFLECTING_HTML);
+        return;
+      }
+      if (request.url?.startsWith("/busy.js") === true) {
+        response.writeHead(200, { "content-type": "text/javascript" }).end(BUSY_SCRIPT);
         return;
       }
       // The header is the page-side echo a HAR keeps: a real run reads no request body into it.
@@ -335,11 +343,11 @@ test("a session keeps a page's echoes out of its slots, its log and its export",
 
 // One case per dump: each is the page's own bytes, so each is a separate door.
 test.for([
-  ["--heap", ["--heap", "typed"]],
-  ["--lighthouse", ["--lighthouse", "desktop"]],
-  ["--cpu-profile", ["--cpu-profile"]],
-  ["--react-profile", ["--react-profile"]],
-] as const)("a %s dump of the page keeps none of the echoed value", async ([, arm], { runCli }) => {
+  ["--heap", ["--heap", "typed"], "heap"],
+  ["--lighthouse", ["--lighthouse", "desktop"], "lighthouse"],
+  ["--cpu-profile", ["--cpu-profile"], "cpu-profile"],
+  ["--react-profile", ["--react-profile"], "react-profile"],
+] as const)("a %s dump of the page keeps none of the echoed value", async ([, arm, folder], { runCli }) => {
   await using peer = await reflectingServer();
   const run = await runCli(
     "snap",
@@ -351,7 +359,10 @@ test.for([
   );
   expect(peer.received.join("\n")).toContain(`/echo?plain=${encodeURIComponent(REFLECTED)}`);
   expect(spellingsIn(run.stdout)).toEqual([]);
-  expect(reflections([slotOf(run.stdout)])).toEqual([]);
+  const slot = slotOf(run.stdout);
+  expect(reflections([slot])).toEqual([]);
+  // The positive control: the dump really held the value, so its absence above is the scrub and not an empty artifact.
+  expect(filesUnder(join(slot, folder)).some((path) => readFileSync(path).includes(PRIVATE_MASK))).toBe(true);
 });
 
 test("a measured fill labels its step by selector, so perf evidence holds no value", async ({ runCli, scratch }) => {
