@@ -11,7 +11,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { BUG_REPORT_DIR, bugReportIdOfStem } from "@orb/kit/bug-report";
-import { isMissingEntryError } from "../../floor/host/missing-entry.ts";
+import { isMissingEntryError } from "../../floor/host/errno.ts";
 import type { BugReportListing, BugReportSummary } from "../contract/index.ts";
 
 /** The absolute report directory for a checkout. One derivation — callers never join it themselves. */

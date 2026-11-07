@@ -20,7 +20,7 @@
 // how the answer is spoken (`formatRunProvenance`), not a thing to redesign.
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { isMissingEntryError } from "../host/missing-entry.ts";
+import { isMissingEntryError } from "../host/errno.ts";
 import { instrumentRunsDir, PUBLISHED_MANIFEST, pointerRunId, readMarker, reportsPath, runDirs } from "./artifacts.ts";
 import { pidAlive } from "./run-retention.ts";
 

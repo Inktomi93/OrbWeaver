@@ -9,7 +9,7 @@ import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSy
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { emitLine } from "../cli/log.ts";
-import { isMissingEntryError } from "../host/missing-entry.ts";
+import { isMissingEntryError } from "../host/errno.ts";
 import { withDirLock } from "../process/dir-lock.ts";
 import type { PrunedRun, RetentionCandidate } from "./run-retention.ts";
 import { pidAlive, readPrunedRuns, recordPrunedRuns, selectPrunable } from "./run-retention.ts";

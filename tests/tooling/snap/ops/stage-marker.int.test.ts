@@ -403,13 +403,16 @@ withBandsLock(${JSON.stringify(home)}, () => console.log("CLAIMED"));
   expect(result.stdout).toContain("CLAIMED");
 });
 
+// The holder file leads with the pid and may carry the holder's kernel start time after it.
+const holderPidOf = (lockDir: string): number => Number(readFileSync(join(lockDir, "pid"), "utf8").trim().split(/\s+/u)[0]);
+
 test("a dead holder is reaped and the new holder releases its own lock", () => {
   const home = scratchHome("dead-holder");
   const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
   mkdirSync(lockDir);
   writeFileSync(join(lockDir, "pid"), "2147483647\n");
 
-  expect(withBandsLock(home, () => readFileSync(join(lockDir, "pid"), "utf8"))).toBe(`${process.pid}\n`);
+  expect(withBandsLock(home, () => holderPidOf(lockDir))).toBe(process.pid);
   expect(existsSync(lockDir)).toBe(false);
 });
 
@@ -421,7 +424,7 @@ test("an aged ownerless directory is reaped, but a fresh ownerless directory rem
   expect(existsSync(lockDir)).toBe(true);
 
   utimesSync(lockDir, new Date(0), new Date(0));
-  expect(withBandsLock(home, () => readFileSync(join(lockDir, "pid"), "utf8"))).toBe(`${process.pid}\n`);
+  expect(withBandsLock(home, () => holderPidOf(lockDir))).toBe(process.pid);
   expect(existsSync(lockDir)).toBe(false);
 });
 
