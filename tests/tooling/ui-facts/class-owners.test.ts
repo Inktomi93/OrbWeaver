@@ -95,10 +95,9 @@ test("the real Text, Heading, Button and Row own the classes the clamp, grow, fl
   expect(ownerOf("text", "Text", "basis-(--width-field-floor)", [])).toEqual({ axis: "text.floor", prop: "floor", arm: "field" });
   expect(ownerOf("button", "Button", "inline-full", [])).toEqual({ axis: "button.width", prop: "width", arm: "full" });
   expect(ownerOf("layout", "Row", "orb-out-of-flow", [])).toEqual({ axis: "row.outOfFlow", prop: "outOfFlow", arm: "true" });
-  const band = ["block-(--size-control-sm)", "gap-tight", "px-tight", "text-label", "leading-label"];
-  expect(ownerOf("button", "Button", "px-tight", band)).toEqual({ axis: "button.size", prop: "size", arm: "band" });
-  const stacked = ["flex-col", "items-start", "py-row", "block-auto", "text-label", "leading-label"];
-  expect(ownerOf("button", "Button", "px-row", stacked)).toEqual({ axis: "button.size", prop: "size", arm: "stacked" });
+  const stacked = ["flex-col", "items-start", "block-auto"];
+  expect(ownerOf("button", "Button", "p-row", stacked)).toEqual({ axis: "button.stacked", prop: "stacked", arm: "true" });
+  expect(ownerOf("button", "Button", "flex-1", ["min-inline-0"])).toEqual({ axis: "button.grow", prop: "grow", arm: "true" });
 });
 
 test("an arm that writes a part inside the component owns nothing on its root", ({ scratch }) => {
@@ -121,7 +120,8 @@ test("the real layout tables own justify on Row and truncate on Text", () => {
 test("the real Row owns each class it writes below a container step, on the steps of the container scale", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", "@max-cq-32:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: "cq-32" });
-  expect(ownerOf("layout", "Row", "@max-cq-28:items-stretch", [])).toEqual({ axis: "row.stretchBelow", prop: "stretchBelow", arm: "cq-28" });
+  expect(ownerOf("layout", "Row", "@max-cq-28:items-stretch", [])).toEqual({ axis: "row.alignBelow", prop: "alignBelow", arm: "stretch-cq-28" });
+  expect(ownerOf("layout", "Row", "@max-cq-28:items-end", [])).toEqual({ axis: "row.alignBelow", prop: "alignBelow", arm: "end-cq-28" });
   expect(ownerOf("layout", "Row", "@max-cq-64:justify-end", [])).toEqual({ axis: "row.endBelow", prop: "endBelow", arm: "cq-64" });
   expect(ownerOf("layout", "Row", "@max-cq-20:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
 });
@@ -174,6 +174,24 @@ test("an arm that writes an imported class constant owns each class in it, besid
   expect(ownerOf("card", "Card", "outline-none", arm)).toEqual(owner);
   expect(ownerOf("card", "Card", "ring-2", arm)).toEqual(owner);
   expect(ownerOf("card", "Card", "ring-ring", arm)).toEqual(owner);
+});
+
+test("an arm that reads a member down a chain of const objects owns that member's classes and none of its siblings'", ({ scratch }) => {
+  const root = plantDir(scratch, "member-chain");
+  plantFile(root, "packages/ui/package.json", CARD_PACKAGE);
+  plantFile(root, "packages/ui/src/lib/ring.ts", 'export const BOX = { plate: { inset: "p-1 ring-2", reach: "outline-none ring-ring" } } as const;');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/card/variants.ts",
+    ['import { BOX } from "../../lib/ring.ts";', "export const cardVariants = tv({ variants: { focusable: { true: BOX.plate.reach, false: '' } } });"].join(
+      "\n",
+    ),
+  );
+  plantFile(root, "packages/ui/src/primitives/card/card.tsx", CARD_COMPONENT);
+  const ownerOf = classOwners(root);
+  expect(ownerOf("card", "Card", "ring-ring", ["outline-none"])).toEqual({ axis: "card.focusable", prop: "focusable", arm: "true" });
+  expect(ownerOf("card", "Card", "p-1", [])).toBeNull();
+  expect(ownerOf("card", "Card", "ring-2", [])).toBeNull();
 });
 
 test("a name the arm's file does not import reads nothing, even when a ui constant of that name exists", ({ scratch }) => {

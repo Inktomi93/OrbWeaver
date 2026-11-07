@@ -19,6 +19,14 @@
     --orb-grid-cell-fixed: var(--orb-density-compact-cell-fixed);
   }
 
+  /* The two sums across ramps that read the density's spacing resolve where density is stamped, so a compact scope keeps
+   * them equal to their parts. The root's copy in `theme.css` serves a tree with no density scope. */
+  [data-density="comfortable"],
+  [data-density="compact"] {
+    --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
+    --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
+  }
+
   [data-surface-tier="instrument"] {
     --orb-form-tier: 0;
     --orb-tier-row-title-size: var(--text-label);

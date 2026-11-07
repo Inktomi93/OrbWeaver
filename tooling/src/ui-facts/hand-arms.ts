@@ -93,19 +93,45 @@ const writesOnly = (arm: Arm, token: string): boolean => arm.tokens.length === 1
  * step. A class every arm repeats is what the axis rides on, not what it picks.
  */
 function picksFamily(arms: ArmClasses, base: string): boolean {
-  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  const writing = familyArmsOf(arms).filter((arm) => arm.tokens.length > 0);
   return (
     writing.every((arm) => writesFamily(arm, base)) && (stepsRamp(arms)?.base === base || new Set(writtenChoices(arms, base).flat()).size >= MIN_FAMILY_CHOICES)
   );
 }
 
 const unconditional = (token: string): string => token.slice(baseOf(token).variants.length);
+
+/** The two logical edges that spell one physical axis: `-ms-*` with `-me-*` is `-mx-*`, and `ps-*` with `pe-*` is `px-*`. */
+const EDGE_PAIRS = [
+  { axis: "mx", edges: ["ms", "me"] },
+  { axis: "px", edges: ["ps", "pe"] },
+] as const;
+
+const edgeOf = (token: string): string => baseOf(token).base.split("-")[0] ?? "";
+
+/**
+ * An arm that writes both edges of an axis on its own chooses in that axis's family, as a message card's `reach` writes its own insets: the pair stands for
+ * one class of the physical family. Applied to family questions only; an exact class match reads the arm as written.
+ */
+function foldEdgePairs(arm: Arm): Arm {
+  let tokens = arm.tokens;
+  for (const { axis, edges } of EDGE_PAIRS) {
+    const plain = tokens.filter((token) => baseOf(token).variants === "" && edges.some((edge) => edge === edgeOf(token)));
+    if (edges.every((edge) => plain.some((token) => edgeOf(token) === edge))) {
+      tokens = [...tokens.filter((token) => !plain.includes(token)), `${axis}-(--edge-pair)`];
+    }
+  }
+  return tokens === arm.tokens ? arm : { ...arm, tokens };
+}
+
+const familyArmsOf = (arms: ArmClasses): readonly Arm[] => armsOf(arms).map(foldEdgePairs);
+
 const writesFamily = (arm: Arm, base: string): boolean => arm.tokens.some((token) => sameFamily(unconditional(token), base));
 
 const coveredBy = (from: readonly string[], onto: readonly string[]): boolean => from.every((token) => onto.some((other) => sameFamily(token, other)));
 
 const plainArms = (arms: ArmClasses): readonly (readonly string[])[] =>
-  armsOf(arms)
+  familyArmsOf(arms)
     .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""))
     .filter((tokens) => tokens.length > 0);
 
@@ -143,7 +169,7 @@ function stepsRamp(arms: ArmClasses): { readonly stem: string; readonly base: st
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
 const writtenChoices = (arms: ArmClasses, base: string): readonly (readonly string[])[] =>
-  armsOf(arms)
+  familyArmsOf(arms)
     .filter((arm) => arm.tokens.length > 0)
     .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === "" && sameFamily(token, base)));
 
@@ -153,7 +179,7 @@ const writtenChoices = (arms: ArmClasses, base: string): readonly (readonly stri
  */
 function offersFamily(arms: ArmClasses, base: string): boolean {
   const written = writtenChoices(arms, base);
-  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  const writing = familyArmsOf(arms).filter((arm) => arm.tokens.length > 0);
   return (
     written.length === 1 &&
     arms.size > 1 &&
@@ -169,14 +195,16 @@ const wornWhole = (arm: Arm, token: string, siblings: readonly string[]): boolea
 /**
  * The axis of a component's recipe that owns the class: an arm writes it alone, is a multi-class arm whose every class the element wears
  * (`siblings` are the classes written beside it), or writes it as the axis's choice in its family. The arm worn whole is the more
- * specific claim, so it outranks a family choice on another axis.
+ * specific claim, so it outranks a family choice on another axis. A composition that merely lists the class (`artPane` lists a fraction width) never
+ * owns it while a ramp of the family exists: the class is a new arm of that ramp.
  */
 export function axisWriting(recipe: ComponentRecipe | undefined, token: string, siblings: readonly string[]): readonly [string, ArmClasses] | undefined {
   const axes = [...(recipe?.axes ?? [])];
+  const ramp = axisChoosing(recipe, token);
   return (
     axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
     axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings))) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token))
+    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token) && (ramp === undefined || alternatives(arms)))
   );
 }
 

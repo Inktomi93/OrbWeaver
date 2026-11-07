@@ -150,6 +150,22 @@ test.for([
   ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
   ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
   ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-sm)" />);\n`, "is a step `width` chooses among"],
+  ["a bare fraction width on a Stack", `${BOXES}export const T = (<Stack className="inline-1/2" />);\n`, "is a step `width` chooses among"],
+  ["a stacked row's alignment, stretched", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:items-stretch" />);\n`, '`alignBelow="stretch-cq-32"`'],
+  ["a stacked row's alignment, at the end", `${PRIMITIVES}export const T = (<Row className="@max-cq-28:items-end" />);\n`, '`alignBelow="end-cq-28"`'],
+  ["a gap given up at a phone, on a Stack", `${BOXES}export const T = (<Stack className="@max-cq-28:gap-row" />);\n`, '`gapNarrow="row"`'],
+  ["a bleed on a Row that a card's edges pay back", `${BOXES}export const T = (<Row className="-ms-(--row-reach-left)" />);\n`, "is part of row.reach.header"],
+  ["a reading box's bleed on a Row", `${BOXES}export const T = (<Row className="-mx-gutter" />);\n`, '`-mx-gutter` is `reach="page"`'],
+  [
+    "a bleed off the reach ramp, which writes it as a pair of edges too",
+    `${BOXES}export const T = (<Row className="-mx-block" />);\n`,
+    "is a step `reach` chooses among",
+  ],
+  [
+    "an inset off the reach ramp, which writes it as a pair of edges too",
+    `${BOXES}export const T = (<Stack className="px-(--spacing-gutter)" />);\n`,
+    "is a step `paddingInline` chooses among",
+  ],
   [
     "a square a Button's scale writes",
     'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="shrink-0 p-0" />);\n',
@@ -194,9 +210,9 @@ test.for([
   ["a class beside a ramp, under its step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col-reverse" />);\n`, "no step of it"],
   ["a control inset on a Button", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="px-field" />);\n', '`inset="control"`'],
   [
-    "part of a Button step, its direction",
+    "part of the stacked box, its direction",
     'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="flex-col" />);\n',
-    "is part of button.size.stacked",
+    "is part of button.stacked.true",
   ],
   ["a side inset on a primitive that is no box", `${PRIMITIVES}export const T = (<Text className="pe-block" />);\n`, "a box around it owns the inset"],
   [
@@ -222,7 +238,7 @@ test.for([
   [
     "the name row's reach to a card's edges, in a constant",
     `${BOXES}const REACH = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";\nexport const T = (<Row className={REACH} />);\n`,
-    'is `reachCard="header"`',
+    'is `reach="header"`',
   ],
 ] as const)("the layout rule reports %s", async ([, source, tokens]) => {
   const messages = await findings(LAYOUT_RULE, source);
@@ -231,13 +247,11 @@ test.for([
 });
 
 // A step that writes the type tokens is reported twice: the type tokens as paint, and every class as the step's own.
-test.for([
-  ["the band box", "block-(--size-control-sm) gap-tight px-tight text-label leading-label", '`size="band"`'],
-  ["the stacked box", "flex-col items-start px-row py-row block-auto text-label leading-label", '`size="stacked"`'],
-] as const)("the layout rule reports %s on a Button as the size step", async ([, classes, owner]) => {
+test("the layout rule reports the stacked box on a Button as its own reshape", async () => {
+  const classes = "flex-col items-start p-row block-auto text-label leading-label";
   const messages = await findings(LAYOUT_RULE, `import { Button } from "@orb/ui/button";\nexport const T = (<Button className="${classes}" />);\n`);
   expect(messages.filter((message) => message.includes("own prop owns"))).toHaveLength(1);
-  expect(messages.find((message) => message.includes("own prop owns"))).toContain(owner);
+  expect(messages.find((message) => message.includes("own prop owns"))).toContain("`stacked={true}`");
 });
 
 test.for([

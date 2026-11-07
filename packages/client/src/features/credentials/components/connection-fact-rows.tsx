@@ -86,7 +86,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
       ref={(node): void => rowRef?.(row.path, node)}
       tabIndex={-1}
     >
-      <Row align="start" gap="field" justify="between" stackBelow="cq-32" stretchBelow="cq-32">
+      <Row align="start" gap="field" justify="between" stackBelow="cq-32" alignBelow="stretch-cq-32">
         <Text className="shrink-0" voice="code">
           {row.name}
         </Text>
@@ -149,7 +149,7 @@ function FactOverrideEditor({
   const refusal = boundRefusal(row.edit, draft);
 
   return (
-    <Row align="end" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
+    <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
       <Stack className="grow min-inline-0" gap="tight">
         <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
         {refusal === null ? (

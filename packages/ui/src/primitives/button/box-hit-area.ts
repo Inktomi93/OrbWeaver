@@ -5,7 +5,7 @@
  * overflows. Each component's recipe declares its box axis against its row here, so a new step states its hit area.
  */
 export const BUTTON_BOX_OVERFLOW = {
-  button: { chip: false, sm: false, md: false, lg: false, band: false, stacked: false },
+  button: { chip: false, sm: false, md: false, lg: false },
   glyphButton: { xs: true, sm: true, md: true, lg: true },
   inlineAction: { label: true, body: true },
   /** Content-sized: the picture child is the box and owns the touch floor. */

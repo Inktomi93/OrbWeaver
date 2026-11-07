@@ -133,7 +133,7 @@ function ExtraRowView({
 
   return (
     <Stack aria-label={`Extra request ${subject}`} data-slot="connection-extra-row" data-extra-key={key} gap="tight" role="group">
-      <Row align="end" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
+      <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
         <Field className="grow min-inline-0" error={pasteError} label="Field">
           <Input
             autoComplete="off"

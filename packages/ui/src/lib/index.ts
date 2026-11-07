@@ -58,6 +58,7 @@ export {
   PortalContainerContext,
   usePortalContainer,
 } from "./portal-container.ts";
+export { READING_INSET } from "./reading-inset.ts";
 export { RECEDED } from "./receded-ink.ts";
 export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts";
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";

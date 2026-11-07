@@ -18,11 +18,11 @@ import type { HeaderShape } from "../lib/row-placement.ts";
  *  chevron does and its touch area stays inside the scrollport; it holds the same at rest and pinned. While pinned, a card's
  *  bar reaches the card's side edges and a band reaches across the reading box's inset. */
 const FRAME_INSET = {
-  none: { paddingInline: undefined, reach: undefined, reachCard: undefined },
-  pager: { paddingInline: "field", reach: undefined, reachCard: undefined },
-  card: { paddingInline: undefined, reach: undefined, reachCard: "header" },
-  column: { paddingInline: undefined, reach: "column", reachCard: undefined },
-  page: { paddingInline: undefined, reach: "page", reachCard: undefined },
+  none: { paddingInline: undefined, reach: undefined },
+  pager: { paddingInline: "field", reach: undefined },
+  card: { paddingInline: undefined, reach: "header" },
+  column: { paddingInline: undefined, reach: "column" },
+  page: { paddingInline: undefined, reach: "page" },
 } as const;
 type FrameInset = keyof typeof FRAME_INSET;
 
@@ -208,7 +208,6 @@ function FrameRow({
       paddingBlock={sticky ? "row" : undefined}
       paddingInline={FRAME_INSET[inset].paddingInline}
       reach={FRAME_INSET[inset].reach}
-      reachCard={FRAME_INSET[inset].reachCard}
       pinned={stickyPin(stickyOutside, stickyInside)}
       // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
       // partially covered text cannot look like a complete line. Off the last row it remains an overlay.

@@ -104,3 +104,8 @@ export const sliderVariants = tv({
 
 /** The D336 tone the track's invalid tint paints; the valid track reads no tone role. */
 export const SLIDER_INVALID_TONE = "destructive" satisfies Tone;
+
+// A cluster that ends where the slider's rail ends. The rail is inset by half a thumb (`control` above), so a value that is to share
+// its outer edge takes the same inset. That is the knob grid folded (`Grid cols="knob"`, below the `cq-32` container step): the cluster
+// rides the name's line, and the row reads from its end so the reset slot falls inboard of the number instead of past the rail.
+export const SLIDER_RAIL_END = "flex flex-row items-center justify-end gap-field @max-cq-32:me-(--size-slider-inset) @max-cq-32:flex-row-reverse";

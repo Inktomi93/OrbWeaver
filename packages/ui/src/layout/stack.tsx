@@ -15,6 +15,7 @@ export interface StackProps extends ComponentProps<"div">, VariantProps<typeof s
 export function Stack({
   className,
   gap,
+  gapNarrow,
   align,
   justify,
   padding,
@@ -87,6 +88,7 @@ export function Stack({
       style={imageStyle}
       className={stackVariants({
         gap,
+        gapNarrow,
         align,
         justify,
         padding,

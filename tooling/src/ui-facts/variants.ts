@@ -133,12 +133,20 @@ interface ClassRead {
   readonly unread: boolean;
 }
 
-/** The value a member read names, `SIZES.sm` of a const object: an arm writes that member, never its siblings. */
+/** The value a member read names, `SIZES.sm` of a const object or `INSET.plate.reach` down a chain of them: an arm writes that member, never its siblings. */
 function memberOf(node: ts.Identifier, index: ScaleIndex, hops: number): ts.Expression | undefined {
-  const { parent } = node;
-  const object = ts.isPropertyAccessExpression(parent) && parent.expression === node ? objectOf(node, index, hops) : null;
-  const found = object?.properties.find((property) => property.name?.getText() === (parent as ts.PropertyAccessExpression).name.text);
-  return found !== undefined && ts.isPropertyAssignment(found) ? found.initializer : undefined;
+  let reading: ts.Expression = node;
+  let value: ts.Expression | undefined;
+  while (ts.isPropertyAccessExpression(reading.parent) && reading.parent.expression === reading) {
+    const name = reading.parent.name.text;
+    const found = objectOf(value ?? node, index, hops)?.properties.find((property) => property.name?.getText() === name);
+    if (found === undefined || !ts.isPropertyAssignment(found)) {
+      return undefined;
+    }
+    value = found.initializer;
+    reading = reading.parent;
+  }
+  return value;
 }
 
 function readName(node: ts.Identifier, index: ScaleIndex, hops: number): ClassRead {

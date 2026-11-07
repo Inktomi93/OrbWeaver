@@ -18,5 +18,5 @@ test("Button refuses every box a named component owns", () => {
   createElement(Button, { size: "media" }, "x");
   // @ts-expect-error a style that draws nothing is PictureButton
   createElement(Button, { variant: "bare" }, "x");
-  expectTypeOf<NonNullable<ButtonProps["size"]>>().toEqualTypeOf<ControlSize | "band" | "stacked">();
+  expectTypeOf<NonNullable<ButtonProps["size"]>>().toEqualTypeOf<ControlSize>();
 });

@@ -127,7 +127,7 @@ function SpliceView({
 /** One preview block — a click-through ghost Button of its name + macro-chipped display text. */
 function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
-    <Button variant="outline" size="stacked" justify="start" stretch="row" onClick={(): void => onSelect(block.section.id)}>
+    <Button variant="outline" size="sm" stacked={true} stretch="row" onClick={(): void => onSelect(block.section.id)}>
       <Text voice="kicker" truncate={true}>
         {block.name}
       </Text>

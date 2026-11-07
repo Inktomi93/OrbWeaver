@@ -20,6 +20,7 @@ import {
   MIN_HEIGHT,
   MIN_WIDTH,
   PUSH,
+  READING_INSET,
   RECEDED,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
@@ -122,6 +123,13 @@ const PADDING_INLINE_END_NARROW = {
   row: "@max-cq-28:pe-row",
   block: "@max-cq-28:pe-block",
 } as const;
+// The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to a small atom or
+// related-control gap, so the larger steps are no member.
+const GAP_NARROW = {
+  tight: "@max-cq-28:gap-tight",
+  field: "@max-cq-28:gap-field",
+  row: "@max-cq-28:gap-row",
+} as const;
 // A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
 // parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent.
 const INDENT = { true: "ps-block", false: "" } as const;
@@ -132,13 +140,20 @@ const PASS_THROUGH = { true: "pointer-events-none", false: "" } as const;
 // A capped box centres in the room its cap leaves.
 const CENTRED = { true: "mx-auto", false: "" } as const;
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
-// pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed; `column` and `page` are the two
-// reading boxes' insets, phone step included.
+// pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed.
 const REACH = {
   row: "-mx-row px-row",
   section: "-mx-section px-section",
-  column: "-mx-section px-section @max-cq-28:-me-block @max-cq-28:pe-block",
-  page: "-mx-gutter px-gutter @max-cq-28:-mx-tight @max-cq-28:px-tight",
+} as const;
+// A Row's own reach. `column` and `page` cross the two reading boxes' insets, from the one table that lays those insets, phone step
+// included. `header` and `foot` cross a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps
+// that inset as its own, and a `foot` keeps the card's text inset, so its group ends at the card's corner.
+const ROW_REACH = {
+  ...REACH,
+  column: READING_INSET.plate.reach,
+  page: READING_INSET.page.reach,
+  header: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-reach-left) pe-(--row-reach-right)",
+  foot: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-foot-inset-left) pe-(--row-foot-inset-right)",
 } as const;
 const ALIGN = {
   start: "items-start",
@@ -156,19 +171,22 @@ const JUSTIFY = {
 } as const;
 
 // A row that gives up its width below a container step (`--container-cq-<rem>`, so the pane decides, never the viewport) turns into a
-// column (`stackBelow`), whose children take the full width (`stretchBelow`), and its trailing cluster lines up at the end (`endBelow`).
-// Each key names a step of the container scale and each arm writes one class as a whole literal, so Tailwind's scanner sees it.
+// column (`stackBelow`), whose children take the full width or pack to the end (`alignBelow`), and its trailing cluster lines up at the
+// end (`endBelow`). Each key names a step of the container scale and each arm writes one class as a whole literal, so Tailwind's scanner
+// sees it.
 const STACK_BELOW = {
   "cq-28": "@max-cq-28:flex-col",
   "cq-40": "@max-cq-40:flex-col",
   "cq-32": "@max-cq-32:flex-col",
   "cq-64": "@max-cq-64:flex-col",
 } as const;
-const STRETCH_BELOW = {
-  "cq-28": "@max-cq-28:items-stretch",
-  "cq-40": "@max-cq-40:items-stretch",
-  "cq-32": "@max-cq-32:items-stretch",
-  "cq-64": "@max-cq-64:items-stretch",
+// The stacked row's cross-axis alignment, by value and step: `stretch` fills the width, `end` is for a row that reads from the trailing edge.
+const ALIGN_BELOW = {
+  "stretch-cq-28": "@max-cq-28:items-stretch",
+  "stretch-cq-32": "@max-cq-32:items-stretch",
+  "stretch-cq-40": "@max-cq-40:items-stretch",
+  "stretch-cq-64": "@max-cq-64:items-stretch",
+  "end-cq-28": "@max-cq-28:items-end",
 } as const;
 const END_BELOW = {
   "cq-28": "@max-cq-28:justify-end",
@@ -268,6 +286,7 @@ export const stackVariants = tv({
   base: "flex flex-col",
   variants: {
     gap: GAP,
+    gapNarrow: GAP_NARROW,
     align: ALIGN,
     justify: JUSTIFY,
     padding: PADDING,
@@ -386,16 +405,13 @@ export const rowVariants = tv({
   base: "flex flex-row items-center",
   variants: {
     gap: GAP,
-    // The gap a row gives up at a phone-width pane, as `paddingInlineNarrow` gives up its inset.
-    gapNarrow: { field: "@max-cq-28:gap-field" },
+    gapNarrow: GAP_NARROW,
     align: ALIGN,
     justify: JUSTIFY,
     wrap: WRAP,
     stackBelow: STACK_BELOW,
     reverse: REVERSE,
-    stretchBelow: STRETCH_BELOW,
-    // `stretchBelow`'s mirror: a stacked row's children pack to the end, for a row that reads from the trailing edge.
-    alignEndBelow: { "cq-28": "@max-cq-28:items-end" },
+    alignBelow: ALIGN_BELOW,
     endBelow: END_BELOW,
     cap: CAP,
     width: WIDTH,
@@ -421,13 +437,7 @@ export const rowVariants = tv({
     indent: INDENT,
     layer: LAYER,
     passThrough: PASS_THROUGH,
-    reach: REACH,
-    // `REACH` to a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps that inset as its own,
-    // and a `foot` keeps the card's text inset, so its group ends at the card's corner.
-    reachCard: {
-      header: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-reach-left) pe-(--row-reach-right)",
-      foot: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-foot-inset-left) pe-(--row-foot-inset-right)",
-    },
+    reach: ROW_REACH,
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
