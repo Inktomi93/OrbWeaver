@@ -91,9 +91,6 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
   return <RelationshipBadge relationship={relationship} />;
 }
 
-const GUIDE_LINE = "min-inline-0";
-const GUIDE_FIELD = "wrap-break-word";
-
 interface NpcGuidesProps {
   readonly name: string;
   /** The standing per-character guides — the story writes them; an unwritten one is simply ABSENT
@@ -124,7 +121,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" ink="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true} wrap="word">
+            <Text as="span" ink="muted" italic={field === "thoughts"} className="min-inline-0" voice="gloss" prose={true} wrap="word">
               {text}
             </Text>
           ) : (
@@ -135,9 +132,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               ink="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={GUIDE_FIELD}
               width="auto"
-              restClassName={GUIDE_LINE}
               italic={field === "thoughts"}
             />
           )}

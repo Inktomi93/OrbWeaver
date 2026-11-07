@@ -68,7 +68,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         placeholder="description…"
         ink="muted"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
-        className="inline-full"
+        width="full"
         voice="label"
       />
     );
@@ -120,7 +120,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               edit.onAddObjective(quest, trimmed);
             }
           }}
-          className="inline-(--width-control-col)"
+          width="controlCol"
         />
       ) : null}
     </Stack>
@@ -201,7 +201,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
                   {quest.name}
                 </Text>
               ) : (
-                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="inline-full" />
+                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} width="full" />
               )}
               <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
             </Row>

@@ -93,10 +93,9 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
     </Row>
   );
@@ -141,11 +140,10 @@ function ValueCell({
           }
         }}
         tone={warning ? "warning" : undefined}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
-        restClassName=""
       />
       <MaxCell label={name} max={max} {...(onEditMax === undefined ? {} : { onEditMax })} {...(maxEditTitle === undefined ? {} : { maxEditTitle })} />
     </Row>

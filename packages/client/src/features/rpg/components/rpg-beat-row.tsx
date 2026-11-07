@@ -82,7 +82,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
             ariaLabel={`${beat.title} title`}
             display={beat.title}
             wrap={true}
-            className="max-inline-full min-inline-0"
+            width="auto"
             onEdit={(next): void => edit.onEditTitle(beat.key, next)}
           />
         </>

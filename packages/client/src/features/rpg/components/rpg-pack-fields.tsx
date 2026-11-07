@@ -52,7 +52,7 @@ export function ItemName({ item, edit }: { readonly item: RpgInventoryItem; read
           edit.onPatchItem(item.id, { name: trimmed });
         }
       }}
-      className="flex-1 min-inline-0"
+      grow={true}
     />
   );
 }
@@ -82,10 +82,9 @@ export function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; 
             edit.onPatchItem(item.id, { quantity: Math.max(1, n) });
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-md"
-        restClassName=""
         voice="label"
       />
     </Row>
@@ -124,7 +123,7 @@ export function ItemProseLine({
       placeholder={placeholder}
       ink="muted"
       onEdit={(next): void => edit.onPatchItem(item.id, { [field]: next.trim() })}
-      className="flex-1 min-inline-0"
+      grow={true}
       voice="label"
     />
   );

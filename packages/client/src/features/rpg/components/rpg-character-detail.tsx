@@ -81,10 +81,9 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="px-field text-end"
+          textAlign="end"
           numeric={true}
           width="avatar-md"
-          restClassName=""
         />
       </Row>
     </Badge>
@@ -154,10 +153,9 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="px-field text-end"
+            textAlign="end"
             numeric={true}
             width="avatar-md"
-            restClassName=""
             voice="label"
           />
           <Text as="span" voice="gloss">

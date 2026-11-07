@@ -175,7 +175,8 @@ function ActorTrackerText({
         display={display}
         placeholder={UNSET_DATUM}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
-        className="flex-1 text-end min-inline-0"
+        grow={true}
+        textAlign="end"
       />
     </Row>
   );
@@ -349,7 +350,7 @@ export function ConditionChips({
               onAdd(trimmed);
             }
           }}
-          className="inline-(--width-control-col)"
+          width="controlCol"
         />
       )}
     </Row>

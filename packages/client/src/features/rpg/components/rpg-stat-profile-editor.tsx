@@ -67,7 +67,7 @@ function AttributeRow({
               onCommit({ ...attr, label: trimmed });
             }
           }}
-          className="flex-1 min-inline-0"
+          grow={true}
         />
         <Badge size="sm">{attr.key}</Badge>
         <HintTrigger
@@ -112,10 +112,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
       <Text as="span" voice="gloss" aria-hidden={true}>
         –
@@ -131,10 +130,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
       <Text as="span" voice="gloss">
         on every sheet

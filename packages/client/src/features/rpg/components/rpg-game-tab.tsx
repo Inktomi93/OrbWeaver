@@ -119,7 +119,7 @@ function TrackerRow({
                 patch({ label: trimmed });
               }
             }}
-            className="flex-1 min-inline-0"
+            grow={true}
           />
         </Row>
         {def.shape === "meter" ? (
@@ -138,10 +138,9 @@ function TrackerRow({
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
               }}
-              className="px-field text-end"
+              textAlign="end"
               numeric={true}
               width="avatar-lg"
-              restClassName=""
             />
           </Row>
         ) : null}

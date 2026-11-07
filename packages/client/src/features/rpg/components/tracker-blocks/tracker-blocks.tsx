@@ -77,8 +77,7 @@ export function StatCell({ label, value, hint, onEditValue, range }: StatCellPro
             // padded button ellipsized a 2-digit value).
             width="avatar-md"
             numeric={true}
-            className="text-center"
-            restClassName="text-center"
+            textAlign="center"
             voice="promoted"
           />
         )}
@@ -121,13 +120,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           {value}
         </Text>
       ) : (
-        <TrackerValue
-          ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`}
-          display={value}
-          onEdit={onEditValue}
-          width="auto"
-          restClassName="min-inline-0 max-inline-full"
-        />
+        <TrackerValue ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`} display={value} onEdit={onEditValue} width="auto" />
       )}
     </Badge>
   );
@@ -191,7 +184,7 @@ export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProp
           {text}
         </Text>
       ) : (
-        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="inline-full" />
+        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} width="full" />
       )}
       {clock === undefined ? null : (
         <Text as="span" ink="muted" voice="datum">
