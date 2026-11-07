@@ -290,7 +290,7 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
     <Stack aria-busy={true} gap="section">
       <Text voice="gloss">{injectionsIntro(isHost)}</Text>
       {count === 0 ? (
-        <Skeleton className="block-(--leading-label) inline-1/3" />
+        <Skeleton width="third" height="lineLabel" />
       ) : (
         <Stack gap="section">
           {rows.map((index) => (
@@ -298,18 +298,18 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
               {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
               <Row align="center" className="min-block-(--size-control-sm)" padding="block" gap="field" justify="between">
-                <Skeleton className="basis-1/3 block-(--leading-label)" />
-                <Skeleton className="flex-1 block-(--leading-label) min-inline-0" />
+                <Skeleton width="third" height="lineLabel" />
+                <Skeleton className="min-inline-0" grow={true} height="lineLabel" />
               </Row>
               {/* The one-line content excerpt. */}
               <Row className="pbe-block" paddingInline="block">
-                <Skeleton className="flex-1 block-(--leading-label)" />
+                <Skeleton grow={true} height="lineLabel" />
               </Row>
             </Card>
           ))}
         </Stack>
       )}
-      {isHost ? <Skeleton className="block-(--size-control-sm) inline-1/3" /> : null}
+      {isHost ? <Skeleton width="third" height="control" /> : null}
     </Stack>
   );
 }

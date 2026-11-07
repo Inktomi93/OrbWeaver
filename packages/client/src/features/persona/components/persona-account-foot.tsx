@@ -23,7 +23,7 @@ export function PersonaAccountFoot(): ReactElement {
   const [signingOut, setSigningOut] = useState(false);
 
   if (config.data === undefined || me.data === undefined) {
-    return <Skeleton className="block-(--size-control-md) inline-full" />;
+    return <Skeleton width="full" height="controlMd" />;
   }
 
   const { mode } = config.data;

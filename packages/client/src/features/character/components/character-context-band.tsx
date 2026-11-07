@@ -50,8 +50,8 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   if (detail === undefined) {
     return (
       <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
-        <Skeleton className="shrink-0 block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-slot="character-context-band-pending" variant="portrait" />
-        <Skeleton className="block-(--size-control-sm) inline-full max-inline-cq-24" />
+        <Skeleton className="shrink-0" width="avatarLg" height="avatarLg" data-slot="character-context-band-pending" variant="portrait" />
+        <Skeleton cap="paneSm" width="full" height="control" />
       </Row>
     );
   }

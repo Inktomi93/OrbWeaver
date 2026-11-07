@@ -105,7 +105,7 @@ function TagReach({ tagId }: { readonly tagId: TagId }): ReactElement {
   const trpc = useTRPC();
   const tag = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.find((row) => row.id === tagId);
   if (tag === undefined) {
-    return <Skeleton className="block-(--height-row-placeholder) inline-full" />;
+    return <Skeleton width="full" height="row" />;
   }
   const kinds = Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[];
   return (

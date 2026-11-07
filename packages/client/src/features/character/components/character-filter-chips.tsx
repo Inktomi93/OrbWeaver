@@ -282,7 +282,7 @@ function VocabularyReserve(): ReactElement {
   return (
     <Stack aria-hidden={true} width="full" gap="tight">
       {RESERVED_CHIP_LINES.map((line) => (
-        <Skeleton className="block-(--size-touch-target) inline-full" variant="circle" key={line} />
+        <Skeleton width="full" height="chip" variant="circle" key={line} />
       ))}
     </Stack>
   );

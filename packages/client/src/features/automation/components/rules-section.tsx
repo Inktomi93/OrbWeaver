@@ -64,16 +64,16 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           <Card padding="none" key={index}>
             <Row align="center" className="min-block-(--size-control-sm)" gap="field" padding="block">
               <Stack className="min-inline-0" grow={true} gap="tight">
-                <Skeleton className="block-(--leading-label)" variant="text" />
-                <Skeleton className="block-(--leading-label) inline-full" />
-                <Skeleton className="block-(--leading-label) inline-1/2" />
+                <Skeleton height="lineLabel" variant="text" />
+                <Skeleton width="full" height="lineLabel" />
+                <Skeleton width="half" height="lineLabel" />
               </Stack>
-              <Skeleton className="shrink-0 block-(--leading-label) inline-1/6" />
+              <Skeleton className="shrink-0" width="sixth" height="lineLabel" />
             </Row>
           </Card>
         ))}
       </Stack>
-      <Skeleton className="block-(--size-control-sm) inline-1/3" />
+      <Skeleton width="third" height="control" />
     </Stack>
   );
 }

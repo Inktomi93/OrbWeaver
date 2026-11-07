@@ -90,9 +90,9 @@ function LaneBody({ stage, run, running, arrived }: { stage: RefineryStage; run:
     return (
       <Stack aria-busy={true} gap="row">
         <Text voice="label">Running {stage}…</Text>
-        <Skeleton className="block-(--size-control-lg) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton className="block-(--size-control-md)" variant="text" />
+        <Skeleton width="full" height="controlLg" />
+        <Skeleton width="full" height="controlMd" />
+        <Skeleton height="controlMd" variant="text" />
       </Stack>
     );
   }

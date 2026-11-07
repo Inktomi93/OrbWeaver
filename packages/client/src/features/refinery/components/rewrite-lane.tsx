@@ -134,9 +134,9 @@ function RewriteBody({
     return (
       <Stack aria-busy={true} gap="row">
         <Text voice="label">Running rewrite…</Text>
-        <Skeleton className="block-(--size-control-lg) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton className="block-(--size-control-md)" variant="text" />
+        <Skeleton width="full" height="controlLg" />
+        <Skeleton width="full" height="controlMd" />
+        <Skeleton height="controlMd" variant="text" />
       </Stack>
     );
   }

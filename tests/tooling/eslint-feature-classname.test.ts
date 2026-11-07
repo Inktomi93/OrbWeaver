@@ -149,7 +149,7 @@ test.for([
   ["a width cap no arm writes, on a Container", `${BOXES}export const T = (<Container className="max-inline-(--width-popup-floor)" />);\n`, "chooses among"],
   ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
   ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
-  ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-md)" />);\n`, "is a step `width` chooses among"],
+  ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-sm)" />);\n`, "is a step `width` chooses among"],
   [
     "a square a Button's scale writes",
     'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="shrink-0 p-0" />);\n',

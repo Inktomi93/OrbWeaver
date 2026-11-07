@@ -19,7 +19,7 @@ export function LabelAttachedEntities({ tagId }: { readonly tagId: TagId }): Rea
         <QueryBoundary
           resetKeys={[tagId, targetType]}
           key={targetType}
-          fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
+          fallback={<Skeleton width="full" height="row" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label={tagTargetTitle(targetType).toLowerCase()} onRetry={retry} />}
         >
           <AttachedKind tagId={tagId} targetType={targetType} />

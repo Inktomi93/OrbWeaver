@@ -323,7 +323,7 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
           key={slot}
           width={caption ? "avatarHero" : undefined}
         >
-          <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
+          <Skeleton variant="circle" width="avatarMd" height="avatarMd" />
           {caption ? (
             <Text aria-hidden={true} voice="label">
               {CAPTION_PLACEHOLDER}

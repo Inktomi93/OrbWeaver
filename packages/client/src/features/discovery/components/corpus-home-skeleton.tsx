@@ -50,38 +50,38 @@ export function CorpusHomeSkeleton(): ReactElement {
   return (
     <Stack aria-busy={true} data-slot="corpus-home-skeleton" gap="section">
       <Stack gap="tight">
-        <Skeleton className="block-(--leading-micro) inline-1/6" />
-        <Skeleton className="block-(--size-avatar-md)" variant="text" />
+        <Skeleton width="sixth" height="lineMicro" />
+        <Skeleton height="avatarMd" variant="text" />
       </Stack>
       <Grid cols="leadEarly" gap="gutter">
         <Card className="min-inline-0">
           <Stack gap="row">
-            <Skeleton className="block-(--leading-label) inline-1/3" />
+            <Skeleton width="third" height="lineLabel" />
             {slots(ISLAND_PLATES).map((i) => (
               <Row align="center" gap="row" key={i}>
-                <Skeleton className="block-(--size-avatar-lg) inline-(--size-avatar-lg)" variant="portrait" />
+                <Skeleton width="avatarLg" height="avatarLg" variant="portrait" />
                 <Stack className="min-inline-0" grow={true} gap="tight">
-                  <Skeleton className="block-(--leading-micro) inline-1/2" />
-                  <Skeleton className="block-(--leading-micro) inline-3/4" />
+                  <Skeleton width="half" height="lineMicro" />
+                  <Skeleton width="threeQuarters" height="lineMicro" />
                 </Stack>
               </Row>
             ))}
           </Stack>
         </Card>
         <Stack className="min-inline-0" gap="row">
-          <Skeleton className="block-(--leading-micro) inline-1/3" />
+          <Skeleton width="third" height="lineMicro" />
           <SkeletonRows count={READINESS_ROWS} shape="datum" />
         </Stack>
       </Grid>
       <Stack gap="row">
-        <Skeleton className="block-(--leading-micro) inline-1/5" />
+        <Skeleton width="sixth" height="lineMicro" />
         <Grid cols="auto" gap="row">
           {slots(GEM_TILES).map((i) => (
             <Row align="center" gap="row" key={i}>
-              <Skeleton className="block-(--size-avatar-lg) inline-(--size-avatar-lg)" variant="circle" />
+              <Skeleton width="avatarLg" height="avatarLg" variant="circle" />
               <Stack className="min-inline-0" grow={true} gap="tight">
-                <Skeleton className="block-(--leading-label) inline-1/2" />
-                <Skeleton className="block-(--leading-micro) inline-full" />
+                <Skeleton width="half" height="lineLabel" />
+                <Skeleton width="full" height="lineMicro" />
               </Stack>
             </Row>
           ))}

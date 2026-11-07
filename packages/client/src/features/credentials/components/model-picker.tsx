@@ -225,7 +225,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             <CommandLoading label={`Loading ${listOwner} models…`}>
               <Stack data-slot="model-picker-skeleton" gap="field" padding="row">
                 {SKELETON_ROW_KEYS.map((key) => (
-                  <Skeleton className="block-(--size-control-sm) inline-full" key={key} />
+                  <Skeleton width="full" height="control" key={key} />
                 ))}
               </Stack>
             </CommandLoading>
