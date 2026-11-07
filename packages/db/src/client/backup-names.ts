@@ -1,5 +1,13 @@
-// The db backup naming patterns, dependency-free so `#foundation/env` can read them without loading the
+// The db backup naming patterns and retention budget, dependency-free so `#foundation/env` can read them without loading the
 // libSQL client, drizzle and the schema (the plugin-worker-no-db depcruise rule holds that line).
+
+// Retention for `pruneDbBackups`. These are constants, not knobs: every retained backup is a full copy of the
+// db, so this cap is the only thing bounding `data/`. Only a boot with a pending migration takes a backup and
+// runs the sweep; a no-op boot must never copy the db aside.
+export const KEEP_RECENT_BACKUPS = 5;
+// On top of the recent budget, the newest backup of each of the last N distinct days: a coarse history that
+// survives a day of frequent migrating without unbounded growth. The ceiling is KEEP_RECENT + KEEP_DAILY files.
+export const KEEP_DAILY_BACKUPS = 7;
 
 // The pin marker: an empty sibling file `<db>.backup-<stamp>.keep` in the backup dir exempts that backup
 // from the retention sweep for good, on top of the recent/daily budget. Create one with a bare `touch`; the

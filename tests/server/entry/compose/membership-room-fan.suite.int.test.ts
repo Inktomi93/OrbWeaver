@@ -1,6 +1,7 @@
 // The verbs outside the chat domain that write a membership-class table announce the write on the room's chat
 // channel, so a co-member's projection refreshes; the per-person user bus cannot reach them.
 
+import type { RoomEntityKind } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -9,6 +10,7 @@ import { test as baseTest, expect } from "@orb/testkit/node";
 import { onTestFinished } from "vitest";
 
 type ChatFrame = Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0];
+type Announcement = (event: ChatFrame["event"]) => boolean;
 
 const test = baseTest.extend<Pick<Fixtures, "env">>({
   env: async ({}, use): Promise<void> => {
@@ -43,34 +45,50 @@ test("a host's membership-class writes reach the shared room channel, not only t
 
   const frames: ChatFrame[] = [];
   onTestFinished(app.liveBuses.chat.subscribeAllChatEvents((frame) => frames.push(frame)));
-  const roomFrames = async (write: () => Promise<unknown>): Promise<readonly ChatFrame[]> => {
+  // A write's room announcement is a specific event on the room, so any frame carrying the room id does not count:
+  // the refresh of the entity the write touched does, or for a book the attach/detach event the client invalidates on.
+  const refreshOf =
+    (entity: RoomEntityKind): Announcement =>
+    (event): boolean =>
+      event.type === "roomEntityChanged" && event.entity === entity;
+  const bookEvent =
+    (type: "wiBookAttached" | "wiBookDetached"): Announcement =>
+    (event): boolean =>
+      event.type === type && event.bookId === book.id;
+  const announcements = async (announces: Announcement, write: () => Promise<unknown>): Promise<readonly ChatFrame[]> => {
     frames.length = 0;
     await write();
     await harness.settleBackground();
-    return frames.filter((frame) => frame.event.chatId === room.id);
+    return frames.filter((frame) => frame.event.chatId === room.id && announces(frame.event));
   };
 
-  const writes: readonly (readonly [string, () => Promise<unknown>])[] = [
-    ["regex.attachToChat", (): Promise<unknown> => host.regex.attachToChat({ chatId: room.id, scriptId: script.id })],
-    ["regex.attachToChat second", (): Promise<unknown> => host.regex.attachToChat({ chatId: room.id, scriptId: second.id })],
+  const writes: readonly (readonly [string, Announcement, () => Promise<unknown>])[] = [
+    ["regex.attachToChat", refreshOf("regex"), (): Promise<unknown> => host.regex.attachToChat({ chatId: room.id, scriptId: script.id })],
+    ["regex.attachToChat second", refreshOf("regex"), (): Promise<unknown> => host.regex.attachToChat({ chatId: room.id, scriptId: second.id })],
     [
       "regex.applyScopeOrder",
+      refreshOf("regex"),
       (): Promise<unknown> => host.regex.applyScopeOrder({ scope: { kind: "chat", chatId: room.id }, orderedScriptIds: [second.id, script.id] }),
     ],
-    ["regex.detachFromChat", (): Promise<unknown> => host.regex.detachFromChat({ chatId: room.id, scriptId: script.id })],
-    ["worldInfo.attachToChat", (): Promise<unknown> => host.worldInfo.attachToChat({ chatId: room.id, bookId: book.id })],
-    ["worldInfo.detachFromChat", (): Promise<unknown> => host.worldInfo.detachFromChat({ chatId: room.id, bookId: book.id })],
-    ["databank.attachToChat", (): Promise<unknown> => host.databank.attachToChat({ chatId: room.id, documentId: document.document.id })],
-    ["databank.detachFromChat", (): Promise<unknown> => host.databank.detachFromChat({ chatId: room.id, documentId: document.document.id })],
+    ["regex.detachFromChat", refreshOf("regex"), (): Promise<unknown> => host.regex.detachFromChat({ chatId: room.id, scriptId: script.id })],
+    ["worldInfo.attachToChat", bookEvent("wiBookAttached"), (): Promise<unknown> => host.worldInfo.attachToChat({ chatId: room.id, bookId: book.id })],
+    ["worldInfo.detachFromChat", bookEvent("wiBookDetached"), (): Promise<unknown> => host.worldInfo.detachFromChat({ chatId: room.id, bookId: book.id })],
+    ["databank.attachToChat", refreshOf("databank"), (): Promise<unknown> => host.databank.attachToChat({ chatId: room.id, documentId: document.document.id })],
+    [
+      "databank.detachFromChat",
+      refreshOf("databank"),
+      (): Promise<unknown> => host.databank.detachFromChat({ chatId: room.id, documentId: document.document.id }),
+    ],
     [
       "databank.createFromText into the room",
+      refreshOf("databank"),
       (): Promise<unknown> =>
         host.databank.createFromText({ name: "room destination", text: "ingested into the room", destination: { kind: "chat", chatId: room.id } }),
     ],
   ];
   const silent: string[] = [];
-  for (const [verb, write] of writes) {
-    if ((await roomFrames(write)).length === 0) {
+  for (const [verb, announces, write] of writes) {
+    if ((await announcements(announces, write)).length === 0) {
       silent.push(verb);
     }
   }

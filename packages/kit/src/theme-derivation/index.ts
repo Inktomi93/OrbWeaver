@@ -339,7 +339,8 @@ export type SurfacePolarity = (typeof SURFACE_POLARITIES)[number];
 const FOREGROUND_L_STEP = 0.001;
 const FOREGROUND_L_DECIMALS = 3;
 
-function quantized({ r, g, b }: Rgb): Rgb {
+/** A colour as the 8-bit pixel the browser paints it at. */
+export function quantized({ r, g, b }: Rgb): Rgb {
   return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
 }
 

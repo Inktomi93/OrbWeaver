@@ -16,6 +16,8 @@ import { createServerHarness } from "./server.ts";
 
 const PASSWORD = "native-request-owned-password-not-a-session-fake";
 const OVERSIZED_PASSWORD_REPETITIONS = 1024;
+// Any width: the production ladder snaps it to a rung.
+const VARIANT_WIDTH = 1;
 
 test("chunked native first-run keeps the real body limit, CSRF and password/session admission", async () => {
   await using harness = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
@@ -217,13 +219,29 @@ test("supplied persistent CAS and variants survive root disposal and remain read
     kind: "background",
     enforceMagic: true,
   });
+  const variant = await first.services.assets.resolveVariant({
+    principal: await first.principalFor(first.ownerId),
+    hash: stored.hash,
+    width: VARIANT_WIDTH,
+    kind: "icon",
+  });
+  if (variant === undefined) {
+    throw new Error("the first graph did not derive the variant it was asked for");
+  }
   await first.settleBackground();
   await first[Symbol.asyncDispose]();
   await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
-  await access(casDir);
-  await access(variantDir);
   await using second = await createServerHarness({ db, casDir, variantDir, ownerId: first.ownerId });
   const restored = await second.services.assets.readOwnedAssetBytes(await second.principalFor(second.ownerId), stored.assetId);
   expect([...restored.bytes]).toEqual([...bytes]);
   expect(await db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
+  // The original lives only under `casDir`, so a graph with an empty CAS can answer the variant only from the cache the first graph filled.
+  await using third = await createServerHarness({ db, casDir: join(directory, "empty-cas"), variantDir, ownerId: first.ownerId });
+  const cached = await third.services.assets.resolveVariant({
+    principal: await third.principalFor(third.ownerId),
+    hash: stored.hash,
+    width: VARIANT_WIDTH,
+    kind: "icon",
+  });
+  expect([...(cached ?? [])]).toEqual([...variant]);
 });

@@ -11,7 +11,7 @@ import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
+import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, LocalLightModelCache } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
 import type { ExternalId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
@@ -85,6 +85,8 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   readonly runtimeSpan?: NonNullable<ServicesDeps["providerSeams"]>["span"];
   readonly modelKernelModule?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["kernelModule"];
   readonly allowRemoteModels?: NonNullable<NonNullable<ServicesDeps["providerSeams"]>["localLight"]>["allowRemoteModels"];
+  /** Scripts the physical model calls of the local-light backend, replacing its worker; the backend's scheduling and task code stay production. */
+  readonly localLightCache?: LocalLightModelCache;
   /** The production sessions crypto both the boot-owner step and the graph receive; a test passes one to spy on it. */
   readonly sessionsCrypto?: ServicesDeps["sessionsCrypto"];
 }
@@ -314,9 +316,10 @@ function networkExecutionOf(options: Pick<ServerHarnessOptions, "networkExecutio
   return { fetch: options.networkExecution?.fetch ?? fallbackFetch, resolver: options.networkExecution?.resolver ?? refusingResolver };
 }
 
-// The local-light cache stays the record's `LOCAL_LIGHT_CACHE_DIR`, which compose reads itself.
+// The local-light cache directory stays the record's `LOCAL_LIGHT_CACHE_DIR`, which compose reads itself; the cache object
+// itself can be injected through `localLightCache`.
 function providerExecutionOf(
-  options: Pick<ServerHarnessOptions, "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "runtimeSpan">,
+  options: Pick<ServerHarnessOptions, "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "localLightCache" | "runtimeSpan">,
 ): NonNullable<ServicesDeps["providerSeams"]> {
   return {
     agentSdk: {
@@ -331,6 +334,7 @@ function providerExecutionOf(
     localLight: {
       allowRemoteModels: options.allowRemoteModels ?? false,
       kernelModule: options.modelKernelModule ?? new URL("./refuse-model-kernel.ts", import.meta.url).href,
+      ...(options.localLightCache === undefined ? {} : { cache: options.localLightCache }),
     },
   };
 }

@@ -1,5 +1,5 @@
 // The neutral tone's strongest tint is bound so a page ink always clears AA on it: some neutral ink exists on every accepted base.
-import type { Oklch } from "@orb/kit/theme-derivation";
+import type { Oklch, Rgb } from "@orb/kit/theme-derivation";
 import {
   AA_NORMAL_RATIO,
   accentFillLightness,
@@ -9,6 +9,7 @@ import {
   oklchToSrgb,
   paintedDistance,
   proseInkCorrection,
+  quantized,
   rampDeltas,
   rampSurface,
   srgbToOklch,
@@ -106,8 +107,13 @@ test("a failing pick takes the least move from the author's lightness and keeps 
 
 test("a pick is judged at the 8-bit pixel it paints, and a stepped chroma reaches the CSS without float dust", () => {
   const base = { l: 0.18, c: 0, h: 0 };
-  const ink = { l: 0.6, c: 0.05, h: 240 };
+  // A pick that clears every host as a float colour and misses by a hair at the pixel the browser paints, so only the pixel judge moves it.
+  const ink = { l: 0.645, c: 0.05, h: 240 };
   const hosts = carriedReadingHosts(base);
+  const worstAgainstHosts = (paint: (color: Rgb) => Rgb): number =>
+    Math.min(...hosts.map((host) => wcagContrastRatio(paint(oklchToSrgb(ink)), paint(oklchToSrgb(host)))));
+  expect(worstAgainstHosts((color) => color)).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  expect(worstAgainstHosts(quantized)).toBeLessThan(AA_NORMAL_RATIO);
   expect(proseInkCorrection(ink, 1, base, hosts)?.l).toBeGreaterThan(ink.l);
   const steppedChroma = proseInkCorrection({ l: 0.86, c: 0.16, h: 85 }, 1, { l: 0.56, c: 0, h: 0 }, carriedReadingHosts({ l: 0.56, c: 0, h: 0 }));
   expect(String(steppedChroma?.c).length).toBeLessThanOrEqual(5);

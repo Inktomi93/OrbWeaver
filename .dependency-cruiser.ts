@@ -347,6 +347,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
+  "packages/server/src/domain/search/substrate/instructions.ts":
+    "SCOPE_INSTRUCTIONS: the per-scope retrieval and rerank instructions the image search suite reads the request prefix against",
   "packages/server/src/domain/search/persistence/nearest.ts":
     "nearestCharacters: the D20 owner predicate, reached with no generation because every door passes one and a generation already hashes its owner",
   "packages/server/src/domain/import/substrate/appearance.ts":
@@ -399,6 +401,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/workloads/admission.ts": "WORKLOAD_UNFUNDED: the unfunded refusal code",
   "packages/db/src/query/check-list.ts": "checkList: the SQL literal-list formatter",
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
+  "packages/inference/src/backends/wire/cache-control.ts":
+    "ANTHROPIC_PROVIDER_NAME: the provider name an OpenRouter Claude request is pinned to, which no inference door forwards",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
