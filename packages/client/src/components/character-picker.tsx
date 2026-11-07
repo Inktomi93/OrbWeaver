@@ -66,7 +66,7 @@ export interface CharacterPickerProps {
   readonly isSelected?: (id: CharacterId) => boolean;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
-  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. */
+  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. `pickerWindow` also lets the picker share the room a short dialog leaves. */
   readonly listSize?: "grow" | "pickerWindow";
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
@@ -99,6 +99,7 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
+      grow={props.listSize === "pickerWindow"}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
       {...(props.reserveKey === undefined ? {} : { reserveKey: props.reserveKey })}
       reserveBlock={props.reserveBlock}
@@ -190,7 +191,7 @@ function CharacterPickerBody({
   ));
 
   return (
-    <Command className="min-block-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
+    <Command className="min-block-0" label={label} windowed={listSize === "pickerWindow"} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
       <CommandList {...(listSize === undefined ? ({ maxHeight: "scrollLg" } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>

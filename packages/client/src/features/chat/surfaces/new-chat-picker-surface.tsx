@@ -38,13 +38,13 @@
 // claims focus any more.
 // The `orb/surface-a11y-focus` home that records this decision is in eslint.config.js; the reason is on `NewChatPicker` below.
 //
-// A WHOLE ROW SHOWS AT ANY HEIGHT, WITH START IN REACH. `dialog-short` fires when the pinned footer cannot sit over a row
-// of the list (primitives.css has the steps). There the list drops its heading and inset, so its one-row floor is a whole
-// row; it stays a scroller, so `CharacterPicker`'s tail loading has its bound, and a finished swipe chains to the body.
-// A wide short dialog keeps Blank chat and Start in the pinned row and the saved-roster door in its own row above the
-// list, all on screen at open. A narrow one (`dialog-stacked`) keeps Start pinned, drops the row's inset so a touch-sized
-// Start clears the first row, and flows Blank chat and the roster door after it. `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup
-// scrolls as one sheet.
+// A SHORT DIALOG IS ONE BOX WITH ONE SCROLLER. `dialog-short` fires when the pinned footer cannot sit over a row of the
+// list (primitives.css has the steps). There the picker is a column that shares what the dialog leaves: the command box
+// and its list take the remainder down to one touch row, so the list is the only thing that scrolls and the pinned row
+// never lies over the search card. A wide short dialog keeps Blank chat, Start and the saved-roster door in the one pinned
+// row, so the rows get the room the door's own row took. A narrow one (`dialog-stacked`) keeps Start pinned, drops the
+// row's inset so a touch-sized Start clears the first row, and flows Blank chat and the roster door after it.
+// `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup scrolls as one sheet.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
@@ -126,6 +126,7 @@ export function NewChatPicker(): ReactElement {
   // Cache-first at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
   const { data: rosters } = useQuery(trpc.rosterPreset.list.queryOptions());
   const hasRosters = (rosters?.length ?? 0) > 0;
+  const rostersPending = rosters === undefined;
 
   const dismiss = (): void => {
     clearNewChatIntent();
@@ -181,6 +182,8 @@ export function NewChatPicker(): ReactElement {
       {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
   ) : null;
+  // The door's height, held empty until the rosters answer.
+  const rosterSlot = rostersPending ? <Row minHeight="control" /> : rosterDoor;
   const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
     <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
       <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
@@ -189,7 +192,7 @@ export function NewChatPicker(): ReactElement {
   );
 
   return (
-    <Stack>
+    <Stack grow="content" minHeight="shrinks">
       {/* The temporary flag is a CREATION-ONLY parameter the user can't change later, so the picker states
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
@@ -203,10 +206,11 @@ export function NewChatPicker(): ReactElement {
           </Text>
         </Row>
       ) : null}
-      {hasRosters ? (
-        // A short dialog spends no block inset on this row, or the pinned footer would lie over the list's one row.
-        <Row paddingBlockShort="none" hiddenAt="dialogStacked" wrap={true} justify="end" padding="block">
-          {rosterDoor}
+      {hasRosters || rostersPending ? (
+        // A short dialog seats the door in its pinned row instead, so this row's height goes to the list. The row holds the
+        // door's height while the saved rosters load, so the door arriving does not push the picker down.
+        <Row hiddenAt="dialogShort" wrap={true} justify="end" padding="block">
+          {rosterSlot}
         </Row>
       ) : null}
       <CharacterPicker
@@ -240,6 +244,11 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
+        {hasRosters ? (
+          <Row hiddenAt="unlessDialogShortWide" push="inlineStart">
+            {rosterDoor}
+          </Row>
+        ) : null}
         {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStacked" })}
         <Button
           grow="contentNarrow"
@@ -255,7 +264,11 @@ export function NewChatPicker(): ReactElement {
               on screen. */}
           <Row hiddenAt="dialogStacked">
             <Row hiddenAt="cq-28">{compactStartLabel}</Row>
-            <Row hiddenAt="belowCq28">{startLabel}</Row>
+            <Row hiddenAt="belowCq28">
+              {/* The short dialog's one pinned row also seats the roster door, so Start wears the count label there. */}
+              <Row hiddenAt="dialogShort">{startLabel}</Row>
+              <Row hiddenAt="unlessDialogShort">{compactStartLabel}</Row>
+            </Row>
           </Row>
           <Row hiddenAt="unlessDialogStacked">{shortStartLabel}</Row>
         </Button>

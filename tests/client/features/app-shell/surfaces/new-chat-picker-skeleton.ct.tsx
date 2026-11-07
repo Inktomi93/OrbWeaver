@@ -25,5 +25,8 @@ test("the reserved skeleton box is the height of the picker that replaces it", a
   held.release();
   await expect(dialog.locator(COMMAND_ROOT)).toBeVisible();
   const loaded = await dialog.locator(COMMAND_ROOT).boundingBox();
-  expect(Math.abs((loaded?.height ?? 0) - (skeleton?.height ?? 0))).toBeLessThanOrEqual(SETTLE_TOLERANCE_PX);
+  expect(
+    Math.abs((loaded?.height ?? 0) - (skeleton?.height ?? 0)),
+    `the skeleton held ${String(skeleton?.height)}px and the picker ${String(loaded?.height)}px`,
+  ).toBeLessThanOrEqual(SETTLE_TOLERANCE_PX);
 });
