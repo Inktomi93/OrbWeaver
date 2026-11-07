@@ -1,0 +1,40 @@
+import { join } from "node:path";
+import { expect, test } from "@orb/testkit/tooling";
+import { ESLint, Linter } from "eslint";
+import tseslint from "typescript-eslint";
+import { resolvedConfig } from "./_eslint-config.ts";
+
+const RULE = "no-restricted-syntax";
+const WALKER_FILE = "tooling/src/ui-audit/ops/walker/probe.ts";
+
+// A walker segment is a template literal whose cooked text is the page's code: a single-backslash class loses its
+// backslash on the way, and the page then runs a regex over the bare letter.
+test("a walker segment refuses a single-backslash regex class and accepts the escaped one", { timeout: 120_000 }, async ({ repoRoot }) => {
+  const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
+  const filename = join(repoRoot, WALKER_FILE);
+  const config = await resolvedConfig(eslint, filename);
+  const linter = new Linter();
+  const native = {
+    files: ["**/*.ts"],
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
+    rules: { [RULE]: config.rules[RULE] ?? "off" },
+  };
+  for (const source of [
+    "const a = `x.split(/\\s+/)`;",
+    'const a = `x.replace(/\\s*/g, "")`;',
+    "const a = `x.split(/\\d+/)`;",
+    "const a = `x.split(/\\w+/)`;",
+    "const a = `x.split(/s+/)`;",
+  ]) {
+    expect(
+      linter.verify(source, native, { filename }).map(({ ruleId }) => ruleId),
+      source,
+    ).toEqual([RULE]);
+  }
+  for (const source of ["const a = `x.split(/\\\\s+/)`;", 'const a = `x.replace(/\\\\s*/g, "")`;', "const a = `x.split(/ +/)`;"]) {
+    expect(linter.verify(source, native, { filename }), source).toEqual([]);
+  }
+  // the block that adds this selector replaces the file-wide restrictions, so it must carry the process ones too
+  const spawned = linter.verify('spawn("rm", ["target"]);', native, { filename });
+  expect(spawned.map(({ ruleId }) => ruleId)).toEqual([RULE]);
+});

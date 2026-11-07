@@ -207,6 +207,11 @@ export class NativeWorld implements Disposable {
     return this.#sourceOf.has(file);
   }
 
+  /** The world's parse of a repository-relative file, if it holds it. */
+  source(file: string): SourceFile | undefined {
+    return this.#sourceOf.get(file);
+  }
+
   /** The sites TypeScript 7.1 find-references reports for the name at each site, the site itself included. A
    *  reference in a file outside the world's sources (a library or `node_modules`) is not resolved. */
   referencesAt(sites: readonly Site[]): Site[][] {

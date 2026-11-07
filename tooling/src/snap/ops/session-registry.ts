@@ -12,11 +12,11 @@ import { publishRunSlot } from "../../floor/artifacts/artifacts.ts";
 import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { readMember } from "../../floor/instrument/member.ts";
+import { DIR_LOCK_WAIT_MS, DirLockTimeoutError, withDirLock } from "../../floor/process/dir-lock.ts";
 import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts";
 import { observeProcessGroup } from "../../floor/process/proc.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 import { settle } from "../../floor/process/stop-escalation.ts";
-import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { SessionLimits, SessionRow } from "../contract/session.ts";
 import {
   resolveSessionLimits,
@@ -37,7 +37,6 @@ const ROW_SUFFIX = ".json";
 const SOCKET_SUFFIX = ".sock";
 const BOOT_LOCK = ".boot.lock";
 const BOOT_RESERVATIONS = ".boot";
-const BOOT_LOCK_POLL_MS = 25;
 const MS_PER_MINUTE = 60_000;
 
 /** THE ONE env door for the session registry — read once, at module load, because every consumer is a
@@ -148,41 +147,37 @@ function reservationNames(home: string): readonly string[] {
   });
 }
 
-function withBootLock<T>(home: string, fn: () => T): T {
-  const path = join(home, BOOT_LOCK);
-  for (;;) {
-    try {
-      mkdirSync(path);
-      break;
-    } catch (error) {
-      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
-        throw error;
-      }
-      waitSync(BOOT_LOCK_POLL_MS);
-    }
-  }
-  try {
-    return fn();
-  } finally {
-    rmSync(path, { recursive: true, force: true });
-  }
-}
+const SESSION_BOOT_RESERVATIONS = ["reserved", "name", "cap", "locked"] as const;
+export type SessionBootReservation = (typeof SESSION_BOOT_RESERVATIONS)[number];
 
 /** Reserve one name and one cap slot before spawning its daemon. A row is only published after Chromium
- *  launches, so checking `liveRows()` alone races two cold boots through a cap of one. */
-export function reserveSessionBoot(home: string, name: string, cap: number): "reserved" | "name" | "cap" {
-  return withBootLock(home, () => {
-    mkdirSync(reservationDir(home), { recursive: true });
-    const pending = reservationNames(home);
-    if (pending.includes(name)) {
-      return "name";
+ *  launches, so checking `liveRows()` alone races two cold boots through a cap of one. `locked` means a live
+ *  process held the registry's boot lock for the whole wait: nothing was reserved, and a retry may succeed. */
+export function reserveSessionBoot(home: string, name: string, cap: number, lockWaitMs: number = DIR_LOCK_WAIT_MS): SessionBootReservation {
+  try {
+    return withDirLock(
+      join(home, BOOT_LOCK),
+      "the session boot lock",
+      () => {
+        mkdirSync(reservationDir(home), { recursive: true });
+        const pending = reservationNames(home);
+        if (pending.includes(name)) {
+          return "name";
+        }
+        if (liveRows(home).length + pending.length >= cap) {
+          return "cap";
+        }
+        writeFileSync(reservationPath(home, name), JSON.stringify({ name, pid: process.pid } satisfies BootReservation));
+        return "reserved";
+      },
+      lockWaitMs,
+    );
+  } catch (error) {
+    if (error instanceof DirLockTimeoutError) {
+      return "locked";
     }
-    if (liveRows(home).length + pending.length >= cap) {
-      return "cap";
-    }
-    writeFileSync(reservationPath(home, name), JSON.stringify({ name, pid: process.pid } satisfies BootReservation));
-    return "reserved";
-  });
+    throw error;
+  }
 }
 
 export function releaseSessionBoot(home: string, name: string): void {

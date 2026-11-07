@@ -23,15 +23,53 @@ export function bridgePresence(value: unknown): boolean {
   return pageBoolean(value, "the __orb bridge presence probe");
 }
 
+function optionalNumberField(record: Readonly<Record<string, unknown>>, field: string, label: string): void {
+  if (record[field] !== undefined) {
+    pageNumber(record[field], `${label} field "${field}"`);
+  }
+}
+
+function optionalStringField(record: Readonly<Record<string, unknown>>, field: string, label: string): void {
+  if (record[field] !== undefined) {
+    pageString(record[field], `${label} field "${field}"`);
+  }
+}
+
+/** Every member the budgets and the evidence classifier read off a long animation frame. A missing or
+ *  non-finite timing reaches `Math.max` or a `>` comparison as NaN and answers "within budget". */
+function validateLoaf(row: unknown, label: string): void {
+  const loaf = pageObject(row, label);
+  pageNumberFields(loaf, ["startTime", "duration", "blockingDuration", "styleAndLayoutStart"], label);
+  for (const [index, scriptRow] of pageArray(loaf["scripts"], `${label} field "scripts"`).entries()) {
+    const scriptLabel = `${label} script ${String(index)}`;
+    const script = pageObject(scriptRow, scriptLabel);
+    pageString(script["sourceURL"], `${scriptLabel} field "sourceURL"`);
+    pageNumber(script["duration"], `${scriptLabel} field "duration"`);
+    optionalNumberField(script, "forcedStyleAndLayoutDuration", scriptLabel);
+    optionalStringField(script, "sourceFunctionName", scriptLabel);
+    optionalStringField(script, "invoker", scriptLabel);
+  }
+  if (loaf["selectEntrance"] !== undefined) {
+    const entranceLabel = `${label} select entrance`;
+    const entrance = pageObject(loaf["selectEntrance"], entranceLabel);
+    pageNumberFields(entrance, ["id", "startedAt"], entranceLabel);
+    pageBoolean(entrance["firstForTrigger"], `${entranceLabel} field "firstForTrigger"`);
+    optionalNumberField(entrance, "confirmedAt", entranceLabel);
+    optionalNumberField(entrance, "endedAt", entranceLabel);
+  }
+}
+
 /** `null` is a REAL answer (no bridge / an older bundle) and is passed through; anything else must carry
- *  the four required budget inputs as finite numbers. */
+ *  the required budget inputs as finite numbers, and every long-animation-frame row the budgets fold. */
 export function motionSnapshot(value: unknown): MotionSnapshot | null {
   if (value === null || value === undefined) {
     return null;
   }
   const label = "the __orb.motion() read";
   const record = pageObject(value, label);
-  pageArray(record["loafs"], `${label} field "loafs"`);
+  for (const [index, loaf] of pageArray(record["loafs"], `${label} field "loafs"`).entries()) {
+    validateLoaf(loaf, `${label} loafs row ${String(index)}`);
+  }
   pageNumberFields(record, ["cls", "worstBlocking", "worstShift"], label);
   // The optional split members — #109's three-way and #1071's observed twin. Optional because a `--ref`
   // bundle legitimately predates either; validated the moment a value IS present, because a NaN or a

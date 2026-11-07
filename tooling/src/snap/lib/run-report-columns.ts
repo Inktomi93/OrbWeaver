@@ -11,8 +11,21 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --reports");
 const ARMS_DISPLAY_CAP = 6;
 const ROUTE_DISPLAY_CAP = 48;
 
-function resultPairValue(index: SnapRunIndex, key: string): string | null {
+type ResultPairs = Pick<SnapRunIndex, "resultPairs">;
+
+function resultPairValue(index: ResultPairs, key: string): string | null {
   return index.resultPairs.find(([name]) => name === key)?.[1] ?? null;
+}
+
+/** A counter's number, or null when the pair is absent, blank or not numeric — `Number(null)` and `Number("")`
+ *  are both 0, and an unmeasured counter must not read as a measured zero. */
+function counterValue(index: ResultPairs, key: string): number | null {
+  const raw = resultPairValue(index, key)?.trim();
+  if (raw === undefined || raw === "") {
+    return null;
+  }
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
 }
 
 /** The NAME the run published under — the one column that lets a reader map ten slots back to the ten
@@ -96,12 +109,12 @@ export interface SnapRunRegression {
  *  Only worse: a run that improved needs no row, and a run whose counter is missing on either side is not
  *  compared at all (a legacy index that never carried the pair would otherwise read as a fresh zero and
  *  manufacture a regression out of an absent measurement). */
-export function runRegressions(current: SnapRunIndex, previous: SnapRunIndex): readonly SnapRunRegression[] {
+export function runRegressions(current: ResultPairs, previous: ResultPairs): readonly SnapRunRegression[] {
   const rows: SnapRunRegression[] = [];
   for (const [counter, label] of DELTA_COUNTERS) {
-    const after = Number(resultPairValue(current, counter));
-    const before = Number(resultPairValue(previous, counter));
-    if (Number.isFinite(after) && Number.isFinite(before) && after > before) {
+    const after = counterValue(current, counter);
+    const before = counterValue(previous, counter);
+    if (after !== null && before !== null && after > before) {
       rows.push({ counter, label, before, after });
     }
   }

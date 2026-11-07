@@ -2298,6 +2298,43 @@ auditRuleTest(
   },
 );
 
+auditRuleTest(
+  [
+    {
+      rule: "unreachable-hint",
+      kind: "silent",
+      reason: "a trigger described by two ids, one of which contains the letter s, resolves both at rest — the id list splits on whitespace, never on a letter",
+    },
+    {
+      rule: "unreachable-hint",
+      kind: "fires",
+      reason: "the control: an aria-describedby id that resolves to no element still carries no description",
+    },
+  ],
+  "a multi-id aria-describedby resolves every id, and a dangling id still fires",
+  async ({ runCli, scratch }) => {
+    await writeFile(
+      join(scratch, "hint-multi-id.html"),
+      tooltipTriggerPage(
+        '<button type="button" aria-label="Send message" aria-describedby="desc-one tooltip-two" data-base-ui-tooltip-trigger data-tooltip-describes="self"></button>' +
+          '<span class="sr" id="desc-one">Local engine is off.</span><span class="sr" id="tooltip-two">Enable it to send.</span>',
+      ),
+    );
+    const multi = await runCli("snap", ["--file", join(scratch, "hint-multi-id.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(multi.stdout, "unreachable-hint")).toEqual([]);
+    expect(multi.stdout).toContain("hasReachableDescription");
+
+    await writeFile(
+      join(scratch, "hint-dangling-id.html"),
+      tooltipTriggerPage(
+        '<button type="button" aria-label="Send message" aria-describedby="no-such-node" data-base-ui-tooltip-trigger data-tooltip-describes="self"></button>',
+      ),
+    );
+    const dangling = await runCli("snap", ["--file", join(scratch, "hint-dangling-id.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(findingRows(dangling.stdout, "unreachable-hint")).toHaveLength(1);
+  },
+);
+
 test("a name-repeating tooltip is excluded, and a FINE pointer excludes the population without costing the verdict", async ({ runCli, scratch }) => {
   // The two remaining dispositions, both of which would otherwise read as a clean zero. `name` is the
   // seal's own verdict that the tooltip adds nothing (most icon-only controls in this app); a fine-pointer

@@ -15,20 +15,16 @@
 //
 // ALLOCATION IS LOCKED, AND IT HAS TO BE. Two lanes reading "band 0 is free" in the same millisecond would
 // both boot onto band 0 and the second would kill the first — which is the exact contention this table
-// exists to end. `withBandsLock` is a mkdir-based mutex (mkdir is atomic on every filesystem we run on)
-// held across the read-decide-claim window, so a band is CLAIMED by a written row before its 55 s stack
-// boot starts. A dead holder's lock is reaped; an ownerless directory is reaped only after
-// `LOCK_STALE_MS` because mkdir and the holder's pid write are separate operations. A live holder is
-// never stolen, even when a waiter exhausts its budget.
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+// exists to end. `withBandsLock` is the mkdir-based mutex of `floor/process/dir-lock.ts`, held across the
+// read-decide-claim window, so a band is CLAIMED by a written row before its 55 s stack boot starts.
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { pidAlive } from "../../floor/artifacts/run-retention.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
+import { DIR_LOCK_WAIT_MS, withDirLock } from "../../floor/process/dir-lock.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
-import { waitSync } from "../../floor/process/sync-sleep.ts";
 import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
 import { parseStageDbProvenance } from "../lib/stage-identity.ts";
@@ -49,10 +45,6 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const BANDS_FILE_VERSION = 1;
 const LOCK_REL = join(STAGE_ROOT_REL, "bands.lock");
-/** An ownerless lock directory may be reaped after this age. A live holder is never stolen. */
-const LOCK_STALE_MS = 30_000;
-const LOCK_POLL_MS = 25;
-const LOCK_WAIT_MS = 5000;
 const LOCK_DEPTH = new Map<string, number>();
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -330,68 +322,8 @@ function lockPath(home: string): string {
   return join(home, LOCK_REL);
 }
 
-function lockHolderPid(path: string): number | null {
-  // optional-read-as-absent — an unreadable holder file means "I cannot identify the holder", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.
-  try {
-    const pid = Number(readFileSync(join(path, "pid"), "utf8").trim());
-    return Number.isInteger(pid) && pid > 0 ? pid : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Monotonic per-process tie-breaker so two releases of the same lock PATH inside one process (e.g.
- *  successive test cases sharing a pid) never rename to the same `.releasing-*` name. */
-let releaseSeq = 0;
-
-/** Physically release a lock directory: RENAME it off its live name first, then remove the renamed copy.
- *  The rename is the atomic step (#1732) — a concurrent `mkdirSync(path)` either lands on the fresh
- *  (post-rename) name outright, or still sees the live directory and fails EEXIST; it can never observe
- *  a half-removed directory. Before this, `rmSync(path, { recursive: true, force: true })` ran directly
- *  against the LIVE name: its internal readdir→unlink→rmdir sequence is not atomic against a concurrent
- *  write into that same still-live path, and a waiter that recreated `pid` in that window (a false-stale
- *  break, or the "give up waiting" takeover below) made the rmdir see a non-empty directory and throw
- *  ENOTEMPTY out of the holder's own release.
- *  `onRenamed` is a TEST SEAM ONLY, firing after the rename and before the removal so a suite can plant
- *  that exact race deterministically instead of chasing real OS-level timing — no production caller
- *  passes it. */
-export function releaseLockDir(path: string, onRenamed?: () => void): void {
-  releaseSeq += 1;
-  const releasing = `${path}.releasing-${process.pid}-${releaseSeq}`;
-  // the rename target is already gone — someone
-  // else's break or release beat us to it — which means there is nothing left for THIS caller to remove.
-  // Ends if this ever stops being a "someone else already finished the job" race.
-  try {
-    renameSync(path, releasing);
-  } catch {
-    return;
-  }
-  onRenamed?.();
-  rmSync(releasing, { recursive: true, force: true });
-}
-
-function breakStaleLock(path: string): void {
-  const pid = lockHolderPid(path);
-  if (pid !== null) {
-    if (!pidAlive(pid)) {
-      releaseLockDir(path);
-    }
-    return;
-  }
-  // mkdir and writing pid are separate operations: another allocator may see this directory in between.
-  // a removed lock is already free; its next claimant retries mkdir.
-  try {
-    if (Date.now() - statSync(path).mtimeMs > LOCK_STALE_MS) {
-      releaseLockDir(path);
-    }
-  } catch {
-    // Empty: see the cleanup explanation above.
-  }
-}
-
-/** Run `fn` holding the table's mutex. Reap a dead holder or an aged ownerless directory, but refuse
- *  after the wait budget rather than allowing two live processes into the critical section. */
-export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = LOCK_WAIT_MS): T {
+/** Run `fn` holding the table's mutex, re-entrant within this process. The mutex discipline is `floor/process/dir-lock.ts`. */
+export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = DIR_LOCK_WAIT_MS): T {
   const depth = LOCK_DEPTH.get(home) ?? 0;
   if (depth > 0) {
     LOCK_DEPTH.set(home, depth + 1);
@@ -402,32 +334,19 @@ export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = LOC
     }
   }
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
-  const path = lockPath(home);
-  const deadline = Date.now() + waitMs;
-  for (;;) {
-    // a held or unwritable lock is retried until the deadline, then withBandsLock throws the timeout (stage-marker.ts:392). Ends if the loop stops throwing at the deadline.
-    try {
-      mkdirSync(path);
-      writeFileSync(join(path, "pid"), `${process.pid}\n`);
-      break;
-    } catch {
-      // Held (or unwritable): judge the holder, then wait a beat.
-    }
-    breakStaleLock(path);
-    if (Date.now() > deadline) {
-      throw new Error(`timed out waiting for the stage band table lock at ${path}`);
-    }
-    waitSync(LOCK_POLL_MS);
-  }
-  LOCK_DEPTH.set(home, 1);
-  try {
-    return fn();
-  } finally {
-    LOCK_DEPTH.delete(home);
-    if (lockHolderPid(path) === process.pid) {
-      releaseLockDir(path);
-    }
-  }
+  return withDirLock(
+    lockPath(home),
+    "the stage band table lock",
+    () => {
+      LOCK_DEPTH.set(home, 1);
+      try {
+        return fn();
+      } finally {
+        LOCK_DEPTH.delete(home);
+      }
+    },
+    waitMs,
+  );
 }
 
 /** The band-ownership door every `--base`/`--url` instrument enters before it measures anything (#1186).
