@@ -2,11 +2,9 @@
 // the sites it must leave for review, and the proof that a rerun of the census closed them. A report: it moves nothing itself.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { kebab } from "./hand-arms.ts";
-import type { Hit } from "./hand-model.ts";
+import type { ComponentTables, Hit } from "../eslint/index.ts";
+import { doorOf, kebab } from "../eslint/index.ts";
 import { moveRefusal } from "./move-proof.ts";
-import { doorOf } from "./source.ts";
-import type { ComponentTables } from "./variant-tables.ts";
 
 /** One class token on one element, written where the census saw it. The codemod reads this shape; keep both in step. */
 interface PlannedSite {

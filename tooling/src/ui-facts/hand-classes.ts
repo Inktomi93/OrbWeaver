@@ -1,20 +1,29 @@
 // Hand-written class tokens: utilities a recipe prop or token already owns, Tailwind arbitrary values, repeated clusters and raw layout containers.
 
+import type { ClassConstants, ComponentTables, Elem, Hit, Judgement, Lit, Place, Source, TokenFact, ValueTokens, Wearer } from "../eslint/index.ts";
+import {
+  ALPHA_UTILITY,
+  baseOf,
+  classifyToken,
+  classStringsOf,
+  coveredJudgement,
+  elementRefOf,
+  GRADIENT_OWNER,
+  hitOf,
+  IMPORTANT_OWNER,
+  judgeLit,
+  kebab,
+  keepJudgement,
+  lit,
+  ownerRow,
+  valueStringLits,
+  wearerOf,
+  writingAxis,
+} from "../eslint/index.ts";
 import type { ForwardReader } from "./class-forwards.ts";
-import type { ClassConstants, TokenFact } from "./classes.ts";
-import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import type { Wearer } from "./hand-arms.ts";
-import { coveredJudgement, elementRefOf, kebab, ownerRow, wearerOf, writingAxis } from "./hand-arms.ts";
-import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
-import type { Lit } from "./literals.ts";
-import { lit, valueStringLits } from "./literals.ts";
 import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
 import { KINDS } from "./sites.ts";
-import type { Elem, Source } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
-import type { ComponentTables } from "./variant-tables.ts";
 
 const CLUSTER_MIN_USES = 3;
 const CLUSTER_LABEL_MAX = 80;

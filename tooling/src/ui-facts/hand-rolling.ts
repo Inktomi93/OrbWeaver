@@ -1,20 +1,15 @@
 // The hand-rolling census: every hand-written design value, class, style, pattern and constant, each with the owner that would retire it.
 
+import type { ClassConstants, ComponentTables, Hit, Source, ValueTokens } from "../eslint/index.ts";
+import { byPlace, elementsOf, hitOf } from "../eslint/index.ts";
 import { classForwards } from "./class-forwards.ts";
-import type { ClassConstants } from "./classes.ts";
 import type { NoRowUse } from "./hand-classes.ts";
 import { classHits } from "./hand-classes.ts";
 import { codeFindings, constantHits } from "./hand-code.ts";
-import type { Hit } from "./hand-model.ts";
-import { byPlace, hitOf } from "./hand-model.ts";
 import { sheetHits } from "./hand-sheets.ts";
 import { styleHits } from "./hand-style.ts";
 import type { Site } from "./sites.ts";
 import { KINDS } from "./sites.ts";
-import type { Source } from "./source.ts";
-import { elementsOf } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
-import type { ComponentTables } from "./variant-tables.ts";
 
 /** Site kinds that are a hand-built pattern a primitive owns: a raw element, or a drawing the icon set draws. */
 const PATTERN_KINDS: ReadonlySet<string> = new Set(

@@ -10,7 +10,6 @@ import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
-import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import { isFailedArt, rememberFailedArt, subscribeFailedArt } from "../lib/failed-art.ts";
 
@@ -77,12 +76,14 @@ type AvatarLookKey = (typeof AVATAR_LOOK)[number];
 function ArtButton({
   view,
   cardCorners,
+  placed,
   ...button
-}: Pick<PictureButtonProps, "cardCorners" | "className" | "children"> & { readonly view: ArtView }): ReactElement {
+}: Pick<PictureButtonProps, "cardCorners" | "placed" | "children"> & { readonly view: ArtView }): ReactElement {
   return (
     <PictureButton
       {...button}
       cardCorners={cardCorners}
+      placed={placed}
       ref={(opener): void => view.control.attach(opener)}
       aria-label={view.label}
       onClick={(event): void => view.open(event.currentTarget)}
@@ -95,7 +96,7 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
   return (
     <PictureButton
       aria-hidden="true"
-      className="absolute inset-0"
+      placed="fill"
       cardCorners={corner}
       tabIndex={-1}
       onMouseDown={(event): void => event.preventDefault()}
@@ -108,17 +109,17 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
 // art instead of staying a chip-sized glyph). The art is decorative, so it is hidden from the tree.
 export function FallbackLetter({
   initials,
-  className,
+  placed,
   height,
   scale = "portrait",
 }: {
   readonly initials: string;
-  readonly className: string;
+  readonly placed: "fill" | "topBand";
   readonly height?: "bandHead";
   readonly scale?: ComponentProps<typeof Text>["artScale"];
 }): ReactElement {
   return (
-    <Stack align="center" aria-hidden="true" className={className} container="size" height={height} justify="center">
+    <Stack align="center" aria-hidden="true" container="size" height={height} justify="center" placed={placed}>
       <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
         {initials}
       </Text>
@@ -163,9 +164,7 @@ export function WhisperBand({
       ref={attach}
       style={style}
     >
-      {band.image === undefined || failed ? (
-        <FallbackLetter className="absolute inset-x-0 inset-bs-0" height="bandHead" initials={band.fallback} scale="banner" />
-      ) : null}
+      {band.image === undefined || failed ? <FallbackLetter height="bandHead" placed="topBand" initials={band.fallback} scale="banner" /> : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
   );
@@ -193,7 +192,7 @@ export function EchoArtTile({
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
       passThrough={!tappable}
-      className={cn("absolute inset-bs-0", art.side === "left" ? "inset-s-0" : "inset-e-0")}
+      placed={art.side === "left" ? "flushStart" : "flushEnd"}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
@@ -204,10 +203,10 @@ export function EchoArtTile({
         hoverDim={tappable ? "parent" : undefined}
         imageFit="cover"
         artMask={art.side === "left" ? "start" : "end"}
-        className="absolute inset-0"
+        placed="fill"
         style={paintStyle}
       >
-        {art.image === undefined || failed ? <FallbackLetter className="absolute inset-0" initials={art.fallback} /> : null}
+        {art.image === undefined || failed ? <FallbackLetter initials={art.fallback} placed="fill" /> : null}
       </Stack>
       {tappable ? <ArtViewButton view={view} corner={corner} /> : null}
     </Stack>
@@ -221,8 +220,6 @@ function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | unde
     onFailedChange?.(failed);
   }, [failed, onFailedChange]);
 }
-
-const STICKY_TOP = "sticky inset-bs-0";
 
 /** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
  *  not a fixed size. With no image the Avatar's own fallback shows. The portrait opens full size through `view`;
@@ -238,7 +235,7 @@ export function PortraitAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, "className" | "width" | "passThrough" | AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "width" | "passThrough" | "placed" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly urlAt: ((cssWidth: number) => string) | undefined;
     readonly view: ArtView | null;
@@ -256,7 +253,7 @@ export function PortraitAvatar({
       cardCorners={cardCorners}
       fade={fade}
       width="ripplePortrait"
-      className={tappable ? "" : STICKY_TOP}
+      placed={tappable ? undefined : "pinned"}
       {...(url === undefined || failed ? {} : { src: url })}
     />
   );
@@ -264,7 +261,7 @@ export function PortraitAvatar({
     return portrait;
   }
   return (
-    <ArtButton view={view} cardCorners={cardCorners} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
+    <ArtButton view={view} cardCorners={cardCorners} placed="pinned">
       {portrait}
     </ArtButton>
   );
@@ -282,7 +279,7 @@ export function ChipAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, "className" | "src" | "width" | "passThrough" | AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "src" | "width" | "passThrough" | "placed" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly src?: string;
     readonly view: ArtView | null;

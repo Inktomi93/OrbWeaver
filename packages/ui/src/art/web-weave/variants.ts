@@ -1,7 +1,7 @@
 // The web-weave art skins (tokens-only, §5). Two tv() configs — this dir is art-tier, not a
 // primitives/ trio, so the one-tv-per-dir clause doesn't apply; the {camelName}Variants naming is
 // kept anyway (greppability).
-import { INKS, TONE_TEXT, tv } from "#lib";
+import { INKS, PLACED, TONE_TEXT, tv } from "#lib";
 
 export const weaveGlyphVariants = tv({
   variants: {
@@ -24,10 +24,9 @@ export const weaveGlyphVariants = tv({
 // It does NOT un-hide the art from assistive tech: there is nothing to
 // announce, no state to read and no keyboard path to the effect, so exposing a nameless canvas would
 // promise an affordance that does not exist. Ornament that answers a cursor is still ornament.
-// How the weave sits in its host: `veil` lies over the whole of it, and `pinned` stays at the top while the host scrolls.
 export const webWeaveBoxVariants = tv({
   variants: {
-    placed: { veil: "absolute inset-0", pinned: "sticky inset-bs-0" },
+    placed: { fill: PLACED.fill, pinned: PLACED.pinned },
   },
 });
 

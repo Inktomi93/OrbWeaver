@@ -203,7 +203,7 @@ export function NewChatPicker(): ReactElement {
       ) : null}
       {hasRosters ? (
         // A short dialog spends no block inset on this row, or the pinned footer would lie over the list's one row.
-        <Row className="dialog-short:py-0" hiddenAt="dialogStacked" wrap={true} justify="end" padding="block">
+        <Row paddingBlockShort="none" hiddenAt="dialogStacked" wrap={true} justify="end" padding="block">
           {rosterDoor}
         </Row>
       ) : null}
@@ -212,7 +212,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-block-(--height-picker-window) dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0 dialog-short:**:[[cmdk-group-heading]]:hidden"
+        listSize="pickerWindow"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"

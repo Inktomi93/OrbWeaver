@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
+import { loadSources } from "../../../tooling/src/eslint/ui-classes/source.ts";
+import { componentTables } from "../../../tooling/src/eslint/ui-classes/variant-tables.ts";
 import type { MigrationPlan } from "../../../tooling/src/ui-facts/migration.ts";
 import { recipeFailures } from "../../../tooling/src/ui-facts/recipe-check.ts";
-import { loadSources } from "../../../tooling/src/ui-facts/source.ts";
-import { componentTables } from "../../../tooling/src/ui-facts/variant-tables.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../../..");
 const TABLES = componentTables(REPO_ROOT, loadSources(REPO_ROOT));

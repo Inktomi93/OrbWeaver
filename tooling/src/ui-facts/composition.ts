@@ -1,18 +1,16 @@
 // The composition read: skeletons, section structure, read shape, feedback shape, form shape and the variant report, in one pass over the sources.
+import type { DeclaredVariants, FileFacts, Source, VariantReport } from "../eslint/index.ts";
+import { variantReport } from "../eslint/index.ts";
 import type { Cohort } from "./compare.ts";
 import type { FeedbackScan } from "./feedback.ts";
 import { buildFeedbackCohort } from "./feedback.ts";
-import type { FileFacts } from "./file-facts.ts";
 import type { FormScan } from "./forms.ts";
 import { buildFormCohort, formFactories } from "./forms.ts";
 import type { ReadScan } from "./reads.ts";
 import { buildReadCohort } from "./reads.ts";
 import type { SkeletonCohort } from "./skeleton.ts";
 import { buildSkeletons } from "./skeleton.ts";
-import type { Source } from "./source.ts";
 import { buildStructureCohort } from "./structure.ts";
-import type { DeclaredVariants, VariantReport } from "./variants.ts";
-import { variantReport } from "./variants.ts";
 
 export interface Composition {
   readonly skeletons: readonly SkeletonCohort[];

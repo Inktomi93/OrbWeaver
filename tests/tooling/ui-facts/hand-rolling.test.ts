@@ -3,11 +3,11 @@ import { join } from "node:path";
 import process from "node:process";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
-import type { Hit } from "../../../tooling/src/ui-facts/hand-model.ts";
-import { byPlace } from "../../../tooling/src/ui-facts/hand-model.ts";
+import type { Hit } from "../../../tooling/src/eslint/ui-classes/hand-model.ts";
+import { byPlace } from "../../../tooling/src/eslint/ui-classes/hand-model.ts";
+import { loadValueTokens } from "../../../tooling/src/eslint/ui-classes/tokens.ts";
 import { runUiFacts } from "../../../tooling/src/ui-facts/index.ts";
 import type { MigrationPlan } from "../../../tooling/src/ui-facts/migration.ts";
-import { loadValueTokens } from "../../../tooling/src/ui-facts/tokens.ts";
 import { plantTheme } from "./_theme.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../../..");
@@ -384,7 +384,7 @@ function plantBoxes(root: string, doors: Readonly<Record<string, string>>, uses:
 
 const SCROLL_DOOR = { one: "scroll: { y: 'overflow-y-auto overscroll-contain sticky' }" };
 
-test("a mechanism the plain-layout rule admits earns no part row, though an arm writes it", ({ scratch }) => {
+test("a class an arm writes earns a part row, plain-layout or not: a box rebuilt by hand from an arm is that arm", ({ scratch }) => {
   const root = plantDir(scratch, "part-worn");
   plantBoxes(
     root,
@@ -392,7 +392,7 @@ test("a mechanism the plain-layout rule admits earns no part row, though an arm 
     'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="overscroll-contain sticky" />;\nexport const B = () => <Box className="overflow-y-auto" />;',
   );
   const rows = census(root).hits.filter((hit) => hit.owner === "part of: box.scroll.y");
-  expect(rows).toEqual([]);
+  expect(rows.map((hit) => hit.detail).toSorted()).toEqual(["overflow-y-auto", "overscroll-contain", "sticky"]);
 });
 
 test("a class every arm of an axis repeats names the axis and no arm, and the class that tells an arm apart is part of that arm", ({ scratch }) => {
@@ -440,7 +440,7 @@ test("an arm that writes a part inside the component names no arm for a class on
     "packages/ui/src/layout/components.tsx",
     "export function Row({ pin, className }) {\n  return <div className={rowVariants({ pin, className })} />;\n}",
   );
-  expect(census(root).hits.filter((hit) => hit.detail === "sticky")).toEqual([]);
+  expect(census(root).hits.filter((hit) => hit.owner.includes("pin"))).toEqual([]);
 });
 
 test("an axis that writes only a part inside the component chooses nothing on its root", ({ scratch }) => {

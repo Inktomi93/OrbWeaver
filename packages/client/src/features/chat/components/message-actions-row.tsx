@@ -37,7 +37,7 @@ import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
@@ -106,14 +106,16 @@ export interface MessageActionsRowProps {
 // over the line it sits on, not under its words.
 function ActionsFrame({
   chip,
-  className,
   gap,
   align,
   justify,
   reveal,
   wrap,
   ...row
-}: ComponentProps<"div"> & { readonly chip: boolean } & Pick<ComponentProps<typeof Row>, "gap" | "align" | "justify" | "reveal" | "wrap">): ReactElement {
+}: Omit<ComponentProps<"div">, "className"> & { readonly chip: boolean } & Pick<
+    ComponentProps<typeof Row>,
+    "gap" | "align" | "justify" | "reveal" | "wrap"
+  >): ReactElement {
   return chip ? (
     <Row
       {...row}
@@ -125,10 +127,10 @@ function ActionsFrame({
       ground="readingBand"
       cardCorners="all"
       layer="raised"
-      className={cn("relative", className) ?? ""}
+      className="relative"
     />
   ) : (
-    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} wrap={wrap} className={className ?? ""} />
+    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} wrap={wrap} />
   );
 }
 

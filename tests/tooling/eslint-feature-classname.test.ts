@@ -1,5 +1,5 @@
-// `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive carries
-// layout tokens only, judged by the CSS each token compiles to, and never a class the primitive's own prop writes; a class string is never built.
+// `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive holds only the plain-layout list, never
+// a class the primitive's own prop writes; paint is judged by the CSS a token compiles to; a client component takes no class; a class string is never built.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -39,6 +39,9 @@ async function findings(rule: string, source: string, path = FEATURE): Promise<r
   return found.filter(({ ruleId }) => ruleId === rule).map(({ message }) => message);
 }
 
+const paintFindings = async (source: string): Promise<readonly string[]> =>
+  (await findings(LAYOUT_RULE, source)).filter((message) => message.includes("paints"));
+
 const element = (attribute: string): string => `export const T = (<Stack ${attribute} />);\n`;
 
 test.for([
@@ -74,8 +77,8 @@ test.for([
   ["paint in an alternate class prop", element('pressedClassName="text-primary"'), "`text-primary`"],
   ["paint in a destructured default", `const {props = {className: "text-primary"}} = {};\n${element("{...props}")}`, "`text-primary`"],
   ["paint in a computed class key", `const key = "restClassName";\n${element('{...{ [key]: "text-primary" }}')}`, "`text-primary`"],
-] as const)("the layout rule reports %s", async ([, source, tokens]) => {
-  const messages = await findings(LAYOUT_RULE, source);
+] as const)("the layout rule reads %s as paint", async ([, source, tokens]) => {
+  const messages = await paintFindings(source);
   expect(messages).toHaveLength(1);
   expect(messages[0]).toContain(tokens);
 });
@@ -93,11 +96,10 @@ test.for([
   ["a raw element, which the intrinsic rule owns", 'export const T = (<div className="text-primary" />);\n'],
   ["layout in an alternate class prop", element('restClassName="min-inline-0"')],
   ["layout in a spread", element('{...{ className: "flex gap-row" }}')],
-  ["a zero step of a family an axis chooses in", 'import { Stack } from "@orb/ui/layout";\nexport const T = (<Stack className="min-inline-0 pe-0" />);\n'],
   ["the selected safe member only", `const rows = { paint: { className: "text-primary" }, layout: { className: "flex" } };\n${element("{...rows.layout}")}`],
   ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text>{record.className}</Text>;'],
-] as const)("the layout rule passes %s", async ([, source]) => {
-  expect(await findings(LAYOUT_RULE, source)).toEqual([]);
+] as const)("the layout rule reads no paint in %s", async ([, source]) => {
+  expect(await paintFindings(source)).toEqual([]);
 });
 
 const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text } from "@orb/ui/text";\n';
@@ -228,12 +230,43 @@ test.for([
   [
     "a class through a same-file wrapper",
     `${PRIMITIVES}const Pass = (props) => <Row {...props} />;\nexport const T = (<Pass className="justify-end" />);\n`,
-    '`justify-end` is `justify="end"`',
+    "`className` on Pass",
   ],
   [
     "a class through a same-file wrapper declared below it",
     `${PRIMITIVES}export const T = (<Pass className="justify-end" />);\nfunction Pass({ className }) { return <Row className={cn("min-inline-0", className)} />; }\n`,
-    '`justify-end` is `justify="end"`',
+    "`className` on Pass",
+  ],
+  [
+    "a class through a wrapper from another file",
+    'import { Pass } from "./pass.tsx";\nexport const T = (<Pass className="justify-end" />);\n',
+    "`className` on Pass",
+  ],
+  [
+    "a plain class on a wrapper, which a prop names",
+    'import { Pass } from "./pass.tsx";\nexport const T = (<Pass className="shrink-0" />);\n',
+    "`className` on Pass",
+  ],
+  [
+    "a class through another class prop of a wrapper",
+    'import { Pass } from "./pass.tsx";\nexport const T = (<Pass listClassName="block-(--height-scroll-lg)" />);\n',
+    "`listClassName` on Pass",
+  ],
+  ["a class on a local that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`, "`className` on Row"],
+  [
+    "a class on a same-named component of another module",
+    'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n',
+    "`className` on Row",
+  ],
+  [
+    "a class on a member element",
+    'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n',
+    "`className` on Dialog.Title",
+  ],
+  [
+    "a carrier whose `of` is no primitive",
+    'import { Pass } from "./pass.tsx";\nexport const T = (<Track of={Pass} className="shrink-0" />);\n',
+    "`className` on Track",
   ],
   ["a class in a plain object spread", `${PRIMITIVES}export const T = (<Row {...{ className: "justify-end" }} />);\n`, '`justify-end` is `justify="end"`'],
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
@@ -261,19 +294,40 @@ test("the layout rule reports the stacked box on a Button as its own reshape", a
 
 test.for([
   ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 shrink-0" />);\n`],
-  ["an owned class under a viewport variant", `${PRIMITIVES}export const T = (<Row className="md:justify-end" />);\n`],
-  ["an owned class in an alternate class prop", `${PRIMITIVES}export const T = (<Row restClassName="justify-end" />);\n`],
-  ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],
-  ["an owned class on a component from another module", 'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n'],
-  ["an owned class on a member element", 'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n'],
+  ["a plain class in a part's own class prop", `${PRIMITIVES}export const T = (<Row restClassName="min-inline-0" />);\n`],
+  ["a plain class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="shrink-0" track="chat" />);\n`],
   [
-    "a same-file wrapper that keeps the class to itself",
-    `${PRIMITIVES}const Pass = ({ className }) => <Row className="min-inline-0" title={className} />;\nexport const T = (<Pass className="justify-end" />);\n`,
+    "the carrier that hands its `of` the caller's class",
+    "export function Track({ of: Primitive, className }) { return <Primitive className={className} />; }\n",
   ],
+  ["a plain class under a container step", `${PRIMITIVES}export const T = (<Row className="@cq-32:shrink-0" />);\n`],
   ["a containing block", `${PRIMITIVES}export const T = (<Stack className="relative" />);\n`],
   ["a mechanism the plain-layout rule admits", `${PRIMITIVES}export const T = (<Row className="contain-inline-size" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
+});
+
+// Default-deny: the classes no table has seen, and every placement spelled by hand. Each is the class an arm or a new owner must carry.
+test.for([
+  ["a multi-column layout on a Row", "Row", "columns-2", "`columns-2`"],
+  ["a touch action on a Row", "Row", "touch-none", "`touch-none`"],
+  ["a class on a Stack no table has seen", "Stack", "aspect-video", "aspect-video"],
+  ["a stacking step", "Row", "z-10", "`z-10`"],
+  ["a zero step of a family an axis chooses in", "Stack", "pe-0", "`pe-0`"],
+  ["a zero block size", "Stack", "block-0", "`block-0`"],
+  ["a class under a viewport variant", "Row", "md:justify-end", "`md:justify-end`"],
+  ["an owned class in a part's own class prop", "Row", "justify-end", "`justify-end`", "restClassName"],
+  ["a position alone on a Row", "Row", "fixed", "fixed"],
+  ["a pinned box on a Row", "Row", "sticky inset-bs-0", '`placed="pinned"`'],
+  ["a pinned box on a Stack", "Stack", "sticky inset-bs-0", '`placed="pinned"`'],
+  ["a covering box on a Row", "Row", "absolute inset-0", '`placed="fill"`'],
+  ["a covering box on a Stack", "Stack", "absolute inset-0", '`placed="fill"`'],
+  ["a viewport veil on a Row", "Row", "fixed inset-0", "`inset-0`"],
+  ["a viewport veil on a Stack", "Stack", "fixed inset-0", "`inset-0`"],
+  ["an edge inset alone", "Row", "inset-bs-0", "`inset-bs-0`"],
+] as const)("the layout rule refuses %s", async ([, tag, classes, token, prop = "className"]) => {
+  const messages = await findings(LAYOUT_RULE, `${PRIMITIVES}export const T = (<${tag} ${prop}="${classes}" />);\n`);
+  expect(messages.join(" ")).toContain(token);
 });
 
 test.for([
@@ -289,6 +343,15 @@ test.for([
   ["a helper that returns a class", 'const box = () => ({ className: "justify-end" });\nexport const T = 1;\n'],
   ["a helper that returns a class from a block", 'export function box(out) { return { className: "shrink-0", inert: out }; }\n'],
   ["a helper that returns a held object", 'export function box() { const props = { restClassName: "flex" }; return props; }\n'],
+  ["a wrapper that forwards its className", "export function Pass({ className }) { return <Row className={className} />; }\n"],
+  ["a forward under another prop's name", "export function Pass({ box }) { return <Row className={box} />; }\n"],
+  ["a forward inside cn", 'export function Pass({ box }) { return <Row className={cn("shrink-0", box)} />; }\n'],
+  ["a forward through a local", "export function Pass({ box }) { const held = box; return <Row className={held} />; }\n"],
+  ["a forward of a whole props object", "export function Pass(props) { return <Row className={props.box} />; }\n"],
+  ["a forward with a non-null assertion", "export function Pass({ box }) { return <Row className={box!} />; }\n"],
+  ["a forward beside a condition", "export function Pass({ box, on }) { return <Row className={on && box} />; }\n"],
+  ["a class handed to a part through a props object", 'export const T = (<Dialog titleProps={{ className: "truncate" }} />);\n'],
+  ["an exported object that carries a class", 'export const PROPS = { className: "justify-end" };\n'],
 ] as const)("the built-string rule reports %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toHaveLength(1);
 });
@@ -299,6 +362,13 @@ test.for([
   ["cn over strings, a conditional and undefined", element('className={cn("flex", open ? "hidden" : undefined, { "min-inline-0": narrow })}')],
   ["a local constant", `const ROW = "flex gap-row";\n${element("className={ROW}")}`],
   ["a helper that returns props with no class", "export const box = (out) => ({ inert: out, outOfFlow: out });\n"],
+  ["a condition read from a parameter", 'export function Pass({ on }) { return <Row className={on ? "shrink-0" : undefined} />; }\n'],
+  ["a condition inside cn", 'export function Pass({ on }) { return <Row className={cn("shrink-0", on && "min-inline-0")} />; }\n'],
+  [
+    "the carrier that hands its `of` the caller's class",
+    "export function Track({ of: Primitive, className }) { return <Primitive className={className} />; }\n",
+  ],
+  ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text patch={save({ className: record.className })} />;\n'],
 ] as const)("the built-string rule passes %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toEqual([]);
 });
@@ -312,8 +382,8 @@ test("both rules are on for client composition and off inside UI", async () => {
 });
 
 test("both rules judge shared client composition too", async () => {
-  const source = `import { ROW } from "./row.ts";\nexport const T = (<Stack className={cn(ROW, "text-primary")} />);\n`;
+  const source = `import { Stack } from "@orb/ui/layout";\nimport { ROW } from "./row.ts";\nexport const T = (<Stack className={cn(ROW, "text-primary")} />);\n`;
   const outside = "packages/client/src/components/control.tsx";
-  expect(await findings(LAYOUT_RULE, source, outside)).toHaveLength(1);
+  expect((await findings(LAYOUT_RULE, source, outside)).join(" ")).toContain("`text-primary`");
   expect(await findings(BUILT_RULE, source, outside)).toHaveLength(1);
 });

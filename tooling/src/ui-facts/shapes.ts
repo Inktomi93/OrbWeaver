@@ -1,7 +1,7 @@
 // Markup shapes: the same tree of raw elements in 3 or more files is a composite nobody minted.
 import ts from "typescript";
-import type { FileFacts } from "./file-facts.ts";
-import { lineOf } from "./source.ts";
+import type { FileFacts } from "../eslint/index.ts";
+import { lineOf } from "../eslint/index.ts";
 
 export interface ShapeGroup {
   readonly signature: string;

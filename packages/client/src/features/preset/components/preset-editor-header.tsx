@@ -85,7 +85,7 @@ export function PresetEditorHeader({
           The Params deck carries a THIRD, deeper column — its own instrument cap (`params-deck.tsx`) — so an
           offset between this header and the deck shows on Params and on no other tab. A CT pins the header
           to the panel column; the deck's cap is argued at its own site. */}
-      <Stack gap="block" className="sticky inset-bs-0" paddingBlock="block" ground="card" layer="raised">
+      <Stack gap="block" placed="pinned" paddingBlock="block" ground="card" layer="raised">
         <Container width="full">
           <EditorPage gap="block">
             <DetailHeader

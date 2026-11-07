@@ -61,6 +61,7 @@ export const MAX_HEIGHT = {
   scrollMdWide: "max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)",
   paneSm: "max-block-(--container-cq-24)",
   available: "max-block-(--available-height)",
+  // On a phone-width pane the box takes at most half of it, so the column it sits above stays in sight.
   halfNarrow: "@max-cq-32:max-block-1/2",
 } as const;
 
@@ -76,6 +77,7 @@ export const MIN_HEIGHT = {
   full: "min-block-full",
   control: "min-block-(--size-control-sm)",
   nameRow: "min-block-(--size-name-row-min)",
+  // The first tile of a shelf floors at the control height, so a shelf that starts on a short tile keeps its line.
   firstTile: "group-first/tile:min-block-(--size-control-sm)",
   controlMd: "min-block-(--size-control-md)",
   scrollSm: "min-block-(--height-scroll-sm)",

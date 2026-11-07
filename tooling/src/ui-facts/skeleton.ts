@@ -1,8 +1,7 @@
 // Surface skeletons: the ordered tree of templates, composites and primitives per surface file, props and text ignored.
 // Raw elements are transparent (their children hoist), so two surfaces that differ only in wrapper divs match.
 import ts from "typescript";
-import type { FileFacts } from "./file-facts.ts";
-import type { Elem } from "./source.ts";
+import type { Elem, FileFacts } from "../eslint/index.ts";
 
 /** Levels of included elements kept below a root; deeper elements are dropped from the fingerprint. */
 const SKELETON_DEPTH = 4;

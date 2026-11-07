@@ -1,5 +1,5 @@
-// A feature's `className` on a primitive is layout only, and a class string is never built (item 1316). Layout is decided by the CSS a token compiles to, never by a list of class names.
-// On an `@orb/ui` component a class the component's own `tv()` table writes through a prop is refused too: the owner comes from the table, so a new prop closes itself.
+// A feature's `className` is default-deny: on an `@orb/ui` component it holds only `PLAIN_LAYOUT`, and a class a `tv()` table writes names its prop.
+// A class never reaches a primitive through a client component: the call site and the forward are each refused, so no cross-file reading is needed.
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
@@ -7,6 +7,7 @@ import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import { jsxProperties, staticKeyName, staticObjectProperties, staticValueOptions } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { posixPath } from "./syntax.ts";
+import { plainLayout } from "./ui-classes/plain-layout.ts";
 
 /** How a class token paints: `layout` emits only layout properties, `paint` emits anything else, `unknown` does not compile. */
 const CLASS_KINDS = ["layout", "paint", "unknown"] as const;
@@ -37,7 +38,7 @@ export type PropOwner = AxisOwner | AskedOwner;
  * The prop of `component` (exported by the `@orb/ui/<door>` door) that writes `token` onto the component's own element, or null.
  *
  * @remarks
- * `classOwners` in ui-facts reads the tables and answers with the census's own judgement. A prop owns every class it writes, wherever the element
+ * `classOwners` reads the tables and answers with the census's own judgement. A prop owns every class it writes, wherever the element
  * sits in the axis order: a recipe that orders two props so a class would beat the prop is a recipe to reorder, never a class to keep.
  */
 export type PropOwners = (door: string, component: string, token: string, siblings: readonly string[]) => PropOwner | null;
@@ -182,6 +183,8 @@ export function classClassifier(candidatesToCss: CandidatesToCss): ClassClassifi
 
 const CLASS_HELPERS = new Set(["cn", "clsx"]);
 const CLIENT_DIRECTORY = "/packages/client/src/";
+// The one prop that names the element a carrier renders.
+const CARRIER_PROP = "of";
 
 // A boolean or numeric arm is a JSX expression, a named arm a string.
 const EXPRESSION_ARM = /^(?:true|false|\d+)$/u;
@@ -202,6 +205,12 @@ const MESSAGES = {
     `A feature className paints (${tokens.map((token) => `\`${token}\``).join(", ")}); colour, type, border, radius and shadow come from a primitive prop or variant.`,
   owned: (component: string, owned: readonly (readonly [string, PropOwner])[]): string =>
     `A feature className writes what ${component}'s own prop owns (${owned.map(([token, owner]) => ownerPhrase(token, owner)).join(", ")}); pass the prop and drop the class, adding the arm the prop lacks.`,
+  homeless: (component: string, tokens: readonly string[]): string =>
+    `A feature className on ${component} holds ${tokens.map((token) => `\`${token}\``).join(", ")}: a className holds only PLAIN_LAYOUT, so add the arm the primitive lacks and pass the prop.`,
+  wrapper: (name: string, prop: string): string =>
+    `\`${prop}\` on ${name}: a client component takes no class, because the class would reach a primitive unjudged. Name what the caller wants with a prop and spell the class inside.`,
+  forwarded: "A className read from a parameter hands a caller's class to a primitive; name what the caller wants with a prop and spell the class here.",
+  props: "An object that carries a className hides its tokens from lint; pass the part's own prop.",
   template: "A template className builds a class string; spell the static tokens and put the state in a primitive prop.",
   concatenation: "A concatenated className builds a class string; spell the static tokens and put the state in a primitive prop.",
   imported: "An imported class string hides its paint from the variant system; add the variant to the primitive and pass a prop.",
@@ -280,6 +289,8 @@ function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly Mayb
     case AST_NODE_TYPES.ConditionalExpression:
       return [node.consequent, node.alternate];
     case AST_NODE_TYPES.LogicalExpression:
+      // The left of `&&` is the condition: a class only comes from the right.
+      return node.operator === "&&" ? [node.right] : [node.left, node.right];
     case AST_NODE_TYPES.BinaryExpression:
       return [node.left, node.right];
     case AST_NODE_TYPES.CallExpression:
@@ -292,6 +303,7 @@ function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly Mayb
     case AST_NODE_TYPES.TSAsExpression:
     case AST_NODE_TYPES.TSSatisfiesExpression:
     case AST_NODE_TYPES.ChainExpression:
+    case AST_NODE_TYPES.TSNonNullExpression:
       return [node.expression];
     default:
       return [];
@@ -350,57 +362,14 @@ function primitiveOf(context: OrbRuleContext, element: TSESTree.JSXOpeningElemen
   return { door, component: imported.type === AST_NODE_TYPES.Identifier ? imported.name : imported.value };
 }
 
-type FunctionNode = TSESTree.ArrowFunctionExpression | TSESTree.FunctionDeclaration | TSESTree.FunctionExpression;
-
-const isFunction = (node: TSESTree.Node | null | undefined): node is FunctionNode =>
-  node?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
-  node?.type === AST_NODE_TYPES.FunctionDeclaration ||
-  node?.type === AST_NODE_TYPES.FunctionExpression;
-
-/** The function a same-file component name is bound to. */
-function localComponent(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): FunctionNode | null {
+/** The element is the `of` a carrier was handed (`function Track({ of: Primitive })`): the caller's `of` names the primitive, and its class is judged there. */
+function isOfCarrier(context: OrbRuleContext, element: TSESTree.JSXOpeningElement): boolean {
   const definition = element.name.type === AST_NODE_TYPES.JSXIdentifier ? resolvedVariable(context, element.name)?.defs[0] : undefined;
-  const node = definition?.type === TSESLint.Scope.DefinitionType.Variable ? definition.node.init : definition?.node;
-  return isFunction(node) ? node : null;
-}
-
-/** The name a component holds the caller's class under: its whole props, a `className` binding, or the rest that carries it on. */
-function classHolder(component: FunctionNode): string | null {
-  const [parameter] = component.params;
-  if (parameter?.type === AST_NODE_TYPES.Identifier) {
-    return parameter.name;
+  if (definition?.type !== TSESLint.Scope.DefinitionType.Parameter) {
+    return false;
   }
-  if (parameter?.type !== AST_NODE_TYPES.ObjectPattern) {
-    return null;
-  }
-  const bound = parameter.properties.flatMap((property) =>
-    property.type === AST_NODE_TYPES.Property && property.key.type === AST_NODE_TYPES.Identifier && property.key.name === "className" ? [property.value] : [],
-  );
-  const rest = parameter.properties.find((property) => property.type === AST_NODE_TYPES.RestElement);
-  const [holder] = [...bound, ...(rest === undefined ? [] : [rest.argument])];
-  return holder?.type === AST_NODE_TYPES.Identifier ? holder.name : null;
-}
-
-const mentions = (context: OrbRuleContext, node: TSESTree.Node, name: string): boolean =>
-  new RegExp(`\\b${name}\\b`, "u").test(context.sourceCode.getText(node));
-
-/** The element takes the caller's class: a spread or a `className` value that reads what holds it. */
-const wearsHolder = (context: OrbRuleContext, element: TSESTree.JSXOpeningElement, holder: string): boolean =>
-  element.attributes.some((attribute) =>
-    attribute.type === AST_NODE_TYPES.JSXSpreadAttribute
-      ? mentions(context, attribute.argument, holder)
-      : attribute.name.name === "className" && attribute.value !== null && mentions(context, attribute.value, holder),
-  );
-
-/** The primitive a same-file wrapper hands its `className` to; a wrapper from another file is the census's to follow, because a rule reads one file. */
-function wrappedPrimitive(context: OrbRuleContext, element: TSESTree.JSXOpeningElement, file: readonly TSESTree.JSXOpeningElement[]): Primitive | null {
-  const component = localComponent(context, element);
-  const holder = component === null ? null : classHolder(component);
-  if (component === null || holder === null) {
-    return null;
-  }
-  const inside = file.filter(({ range }) => range[0] >= component.range[0] && range[1] <= component.range[1]);
-  return inside.filter((inner) => wearsHolder(context, inner, holder)).flatMap((inner) => primitiveOf(context, inner) ?? [])[0] ?? null;
+  const { parent } = definition.name;
+  return parent.type === AST_NODE_TYPES.Property && parent.key.type === AST_NODE_TYPES.Identifier && parent.key.name === CARRIER_PROP;
 }
 
 /** The classes of one `className` that a prop of the primitive writes, each with that prop. */
@@ -417,21 +386,34 @@ function reportOwned(context: OrbRuleContext, carrier: ClassCarrier, primitive: 
   }
 }
 
-function judgeElement(
+function judgePrimitive(
   context: OrbRuleContext,
-  element: TSESTree.JSXOpeningElement,
-  file: readonly TSESTree.JSXOpeningElement[],
-  { classify, ownerOf }: { readonly classify: ClassClassifier; readonly ownerOf: PropOwners },
+  carrier: ClassCarrier,
+  primitive: Primitive,
+  judged: { readonly tokens: readonly string[]; readonly paint: readonly string[]; readonly ownerOf: PropOwners },
 ): void {
-  const primitive = primitiveOf(context, element) ?? wrappedPrimitive(context, element, file);
+  const { tokens, paint, ownerOf } = judged;
+  // A part's own class carrier reaches an element no owner table describes, so only the plain list speaks for it.
+  const owned = carrier.name === "className" ? ownedTokens(primitive, tokens, ownerOf) : [];
+  reportOwned(context, carrier, primitive, owned);
+  const homeless = tokens.filter((token) => !(plainLayout(token) || paint.includes(token) || owned.some(([written]) => written === token)));
+  if (homeless.length > 0) {
+    context.report({ node: carrier.node, message: MESSAGES.homeless(primitive.component, homeless) });
+  }
+}
+
+function judgeElement(context: OrbRuleContext, element: TSESTree.JSXOpeningElement, classify: ClassClassifier, ownerOf: PropOwners): void {
+  const primitive = primitiveOf(context, element);
   for (const carrier of classCarriers(context, element)) {
     const tokens = [...new Set(collectTokens(context, carrier.value))];
     const paint = tokens.filter((token) => !isAccessibilityUtility(token) && classify(token) === "paint");
     if (paint.length > 0) {
       context.report({ node: carrier.node, message: MESSAGES.paint(paint) });
     }
-    if (primitive !== null && carrier.name === "className") {
-      reportOwned(context, carrier, primitive, ownedTokens(primitive, tokens, ownerOf));
+    if (primitive !== null) {
+      judgePrimitive(context, carrier, primitive, { tokens, paint, ownerOf });
+    } else if (!isOfCarrier(context, element)) {
+      context.report({ node: carrier.node, message: MESSAGES.wrapper(context.sourceCode.getText(element.name), carrier.name) });
     }
   }
 }
@@ -444,20 +426,24 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier, ownerO
       if (!posixPath(context.filename).includes(CLIENT_DIRECTORY)) {
         return {};
       }
-      const file: TSESTree.JSXOpeningElement[] = [];
       return {
         "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
-          file.push(element);
-        },
-        // Judged once the file is read: a same-file wrapper can sit below the element that wears it.
-        "Program:exit": (): void => {
-          for (const element of file.filter(isComponentElement)) {
-            judgeElement(context, element, file, { classify, ownerOf });
+          if (isComponentElement(element)) {
+            judgeElement(context, element, classify, ownerOf);
           }
         },
       };
     },
   };
+}
+
+function identifierReason(context: OrbRuleContext, node: TSESTree.Identifier): string | undefined {
+  if (isImported(context, node)) {
+    return MESSAGES.imported;
+  }
+  return resolvedVariable(context, node)?.defs[0]?.type === TSESLint.Scope.DefinitionType.Parameter
+    ? MESSAGES.forwarded
+    : builtReason(context, localInitializer(context, node));
 }
 
 function firstReason(context: OrbRuleContext, nodes: readonly MaybeNode[]): string | undefined {
@@ -482,7 +468,7 @@ function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefin
       if (node.name === "undefined") {
         return undefined;
       }
-      return isImported(context, node) ? MESSAGES.imported : builtReason(context, localInitializer(context, node));
+      return identifierReason(context, node);
     case AST_NODE_TYPES.MemberExpression:
       return MESSAGES.member;
     default:
@@ -499,16 +485,20 @@ export const noBuiltClassStringRule: OrbRule = {
     if (!posixPath(context.filename).includes(CLIENT_DIRECTORY)) {
       return {};
     }
-    const reportReturned = (node: MaybeNode): void => {
+    const reportCarried = (node: MaybeNode, message: string): void => {
       if (node !== null && node !== undefined && carriesClass(context, node)) {
-        context.report({ node, message: MESSAGES.helper });
+        context.report({ node, message });
       }
     };
     return {
-      ReturnStatement: (node: TSESTree.ReturnStatement): void => reportReturned(node.argument),
-      ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => reportReturned(node.expression ? node.body : null),
+      ReturnStatement: (node: TSESTree.ReturnStatement): void => reportCarried(node.argument, MESSAGES.helper),
+      ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => reportCarried(node.expression ? node.body : null, MESSAGES.helper),
+      "JSXAttribute > JSXExpressionContainer > ObjectExpression": (node: TSESTree.ObjectExpression): void => reportCarried(node, MESSAGES.props),
+      "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator": (node: TSESTree.VariableDeclarator): void =>
+        reportCarried(node.init, MESSAGES.props),
       "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
-        for (const carrier of classCarriers(context, element)) {
+        // A carrier's `of` element takes the caller's class by design: the class was judged where the caller wrote `of`.
+        for (const carrier of isOfCarrier(context, element) ? [] : classCarriers(context, element)) {
           const message = builtReason(context, carrier.value);
           if (message !== undefined) {
             context.report({ node: carrier.node, message });

@@ -70,7 +70,6 @@ import { BandButton } from "@orb/ui/band-button";
 import type { ButtonBaseProps } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
-import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { CountText } from "./count-text.tsx";
@@ -86,6 +85,7 @@ export interface BandProps
   extends Omit<
     ButtonBaseProps,
     | "children"
+    | "placed"
     | "variant"
     | "tone"
     | "focal"
@@ -147,7 +147,7 @@ export interface BandProps
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
 /** One band: `[chevron] [glyph] Label … count marks`. */
-export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, className, ink, ...rest }: BandProps): ReactElement {
+export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, ink, ...rest }: BandProps): ReactElement {
   // The paint half of `aria-current` (see the header). `"true"` is the token BOTH band species state
   // (config-list-group.tsx's row-less leaf and config-list-collection-group.tsx's library door — the mock design
   // §3.1's owner-authorised amendment picked one token for the pane); `true` is accepted because React's
@@ -160,7 +160,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
     // identical on all thirteen settings bands and all four collection bands and entering a library cannot shift its own
     // label by 2px (the `ListRow` reservation, for the same reason).
     <BandButton
-      className={cn("min-inline-0", className) ?? ""}
+      className="min-inline-0"
       justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}

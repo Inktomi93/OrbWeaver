@@ -17,11 +17,9 @@ export interface QueryErrorStateProps {
   /** Replaces the default Retry button when a containing interaction primitive must own its key routing. */
   readonly renderRetry?: (onRetry: () => void) => ReactNode;
   /**
-   * The CALLER'S OWN PLACE for this block: its column track (`className`, layout only) and the plate it sits on
-   * over a room's art (`plate`). They are props because a `renderError` arm renders this component directly, so
+   * The plate it sits on over a room's art. A prop because a `renderError` arm renders this component directly, so
    * a surface never wraps it into a second hand-rolled error state.
    */
-  readonly className?: string;
   readonly plate?: ComponentProps<typeof Stack>["plate"];
 }
 
@@ -31,9 +29,9 @@ export interface QueryErrorStateProps {
  *
  * Usage: `renderError={(_error, retry) => <QueryErrorState label="your chats" onRetry={retry} />}`
  */
-export function QueryErrorState({ label, onRetry, renderRetry, className, plate }: QueryErrorStateProps): ReactElement {
+export function QueryErrorState({ label, onRetry, renderRetry, plate }: QueryErrorStateProps): ReactElement {
   return (
-    <Stack align="center" className={className} data-slot="query-error" gap="row" justify="center" padding="section" plate={plate}>
+    <Stack align="center" data-slot="query-error" gap="row" justify="center" padding="section" plate={plate}>
       <Text role="status" ink="muted">
         Couldn't load {label}.
       </Text>

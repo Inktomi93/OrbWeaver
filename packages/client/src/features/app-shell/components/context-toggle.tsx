@@ -7,7 +7,7 @@ import { PanelRightClose, PanelRightOpen } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { contextToggleLabel } from "#lib";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
-import { TopbarIconButton } from "./shell-topbar.tsx";
+import { CONTEXT_TOGGLE_MARKER, TopbarIconButton } from "./shell-topbar.tsx";
 
 /** ONE CONTROL, ONE NAME, AT EVERY WIDTH (#875 F19, side-eye 2026-08-30 — measured `Show detail panel` at
  *  1280 and `Show details` at 430/768 on the same button).
@@ -21,7 +21,6 @@ import { TopbarIconButton } from "./shell-topbar.tsx";
  *  resize. So the phone spelling becomes the only spelling — the ruling's own criterion, applied once. */
 /** The shell's handle on this one control: `shell.css` sheds it while the sheet is open, and the shell hands
  *  focus back to it when the sheet closes. */
-export const CONTEXT_TOGGLE_MARKER = "shell-context-toggle";
 
 export function ContextToggle(): ReactElement {
   const layout = useShellLayout();
@@ -34,7 +33,7 @@ export function ContextToggle(): ReactElement {
       // close sits where the thing it closes is" (the 2026-08-06 P2, and the build's own fork 3). With the
       // sheet CLOSED this is still the only phone door onto it, which is why the shed is state-keyed and
       // not a width-keyed removal.
-      marker={CONTEXT_TOGGLE_MARKER}
+      contextToggle={true}
       focusReturnMarker={CONTEXT_TOGGLE_MARKER}
       label={contextToggleLabel(collapsed)}
       icon={collapsed ? PanelRightOpen : PanelRightClose}

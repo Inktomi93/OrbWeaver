@@ -1,8 +1,6 @@
 // Whether moving one class off `className` onto a recipe prop renders the same; the rule and its proof are on `moveRefusal`.
-import { conflicts, survives } from "./class-conflict.ts";
-import type { ElementRef } from "./hand-model.ts";
-import type { ComponentRecipe, Compound } from "./variant-tables.ts";
-import type { Arm, ArmClasses } from "./variants.ts";
+import type { Arm, ArmClasses, ComponentRecipe, Compound, ElementRef } from "../eslint/index.ts";
+import { conflicts, survives } from "../eslint/index.ts";
 
 const ROOT_SLOT = "root";
 const FALSE_ARM = "false";

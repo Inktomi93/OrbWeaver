@@ -1,12 +1,7 @@
 // Inline `style` props: a literal is a design value written by hand; anything computed is a runtime value and stays.
 import ts from "typescript";
-import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
-import type { Lit } from "./literals.ts";
-import { litsOf, parseValue } from "./literals.ts";
-import type { Elem, Source } from "./source.ts";
-import { constInitializer, lineOf, unwrap } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
+import type { Elem, Hit, Judgement, Lit, Place, Source, ValueTokens } from "../eslint/index.ts";
+import { constInitializer, hitOf, judgeLit, keepJudgement, lineOf, litsOf, parseValue, unwrap } from "../eslint/index.ts";
 
 // React writes a bare number as pixels except on these.
 const UNITLESS: ReadonlySet<string> = new Set([

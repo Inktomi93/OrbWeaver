@@ -219,7 +219,8 @@ export const textVariants = tv({
     floor: FLOOR,
     push: PUSH,
     self: SELF,
-    scroll: { y: SCROLLER_Y },
+    // `both` is a preformatted payload that can run past its box on either axis.
+    scroll: { y: SCROLLER_Y, both: "relative overflow-auto overscroll-contain" },
     passThrough: PASS_THROUGH,
     maxHeight: { scrollSm: MAX_HEIGHT.scrollSm },
     // The widest the run grows: `prose` is a paragraph's measure, capped on the paragraph and never on the page.

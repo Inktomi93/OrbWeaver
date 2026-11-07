@@ -54,7 +54,7 @@ export function ThemeFallbackNotice({ background, accent }: FallbackDraft): Reac
       </ToneFallbackReporterContext>
       {/* A live region announces only content added after it mounts, so it stays rendered while empty; out of flow
           while empty, it adds no gap to the section. */}
-      <Stack className="empty:absolute" data-slot="theme-fallback-notice" gap="field" role="status">
+      <Stack data-slot="theme-fallback-notice" gap="field" placed="outWhileEmpty" role="status">
         {reports.tone === undefined ? null : (
           <Text data-fallback="tone" tone="warning" voice="gloss">
             {`No one label colour reads on this accent and its hover and pressed shades, so buttons deepen those shades to ${reports.tone.hover}% and ${reports.tone.active}% of the accent.`}

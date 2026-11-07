@@ -5,7 +5,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { PanelEdgeControl } from "#components";
-import { cn, publishInlineFlankFit } from "#lib";
+import { publishInlineFlankFit } from "#lib";
 import type { FlankPresentation } from "../hooks/use-flank-presentation.ts";
 
 /** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the room's
@@ -28,7 +28,7 @@ export function InlineFlankFitProbe(): ReactElement {
       publishInlineFlankFit(true);
     };
   }, []);
-  return <Row aria-hidden={true} className="block-0" outOfFlow={true} ref={sentinel} width="flankFit" />;
+  return <Row aria-hidden={true} height="none" outOfFlow={true} ref={sentinel} width="flankFit" />;
 }
 
 // A panel-mode column slides; an inline column never moves.
@@ -65,11 +65,9 @@ export function FlankColumn({
       layer={overlaid ? "raised" : undefined}
       hiddenAt="empty"
       maxHeight={flank.panelMode ? undefined : "halfNarrow"}
-      className={cn(
-        flank.panelMode
-          ? cn("min-block-0", !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0")
-          : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0",
-      )}
+      placed={flank.panelMode && !flank.occupiesRow ? "endEdge" : undefined}
+      paddingBlockStartNarrow={bandInset(flank)}
+      className={flank.panelMode ? "min-block-0" : "relative @max-cq-32:overflow-y-auto"}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
       // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.
       ground={overlaid ? "card" : undefined}
@@ -84,6 +82,11 @@ export function FlankColumn({
       {children}
     </Stack>
   );
+}
+
+// A band above the transcript gives up its top inset on a phone.
+function bandInset(flank: FlankPresentation): "none" | undefined {
+  return flank.panelMode ? undefined : "none";
 }
 
 /** The column's one control, at the room's top outer corner where the column's edge is whether it is open or not.
@@ -101,7 +104,7 @@ export function FlankEdge({
     return null;
   }
   return (
-    <Row className="absolute inset-e-0 inset-bs-0" layer="raised">
+    <Row placed="flushEnd" layer="raised">
       <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} ref={controlRef} />
     </Row>
   );

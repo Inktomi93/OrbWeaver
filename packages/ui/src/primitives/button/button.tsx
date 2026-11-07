@@ -25,9 +25,9 @@ type TextButtonProps = ButtonBaseProps & { square?: false | undefined };
  */
 type ButtonBox =
   | { square?: false | undefined; wrap?: false | undefined; stacked?: false | undefined }
-  | { square: boolean; wrap?: false | undefined; stacked?: false | undefined; stretch?: undefined }
-  | { wrap: boolean; square?: false | undefined; stacked?: false | undefined }
-  | { stacked: boolean; square?: false | undefined; wrap?: false | undefined };
+  | { square: boolean; wrap?: false | undefined; stacked?: false | undefined; stretch?: undefined; width?: undefined; grow?: undefined }
+  | { wrap: boolean; square?: false | undefined; stacked?: false | undefined; minHeight?: undefined }
+  | { stacked: boolean; square?: false | undefined; wrap?: false | undefined; minHeight?: undefined };
 
 /**
  * ONE of the two: named by an attribute, or sized so a text child can name it. An icon-only box with no

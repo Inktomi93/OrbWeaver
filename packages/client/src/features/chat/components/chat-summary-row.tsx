@@ -52,8 +52,8 @@ interface ChatSummaryRowProps {
    *  the whole list so same-named rows can't share one accessible name (`rowQualifiers`). Falls back to the
    *  row's own title + shown stamp for a caller with no list context. */
   readonly actionName?: string;
-  /** Row root className (the chats-list `group` hover-reveal root). */
-  readonly className?: string;
+  /** The row is the `group` its hover-revealed parts key on (the chats list). */
+  readonly hoverGroup?: boolean;
   /** Forwarded to `ListRow` — `"promoted"` takes the room name to the ramp's `title` step, for the ONE
    *  list where the rooms are a surface's content rather than a directory of it (home's also-open block).
    *  Every dense pane leaves it at the tier default. @defaultValue "default" */
@@ -179,7 +179,7 @@ export function ChatSummaryRow({
   menu,
   onToggleStar,
   actionName,
-  className,
+  hoverGroup = false,
   titleStep = "default",
 }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
@@ -248,7 +248,7 @@ export function ChatSummaryRow({
       titleStep={titleStep}
       // An archived chat recedes so the live rows read first — the "Archived" badge above is the datum,
       // this is only its reinforcement.
-      className={className ?? ""}
+      className={hoverGroup ? "group" : ""}
       receded={chat.archived}
     />
   );

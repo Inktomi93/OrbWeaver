@@ -5,8 +5,7 @@
 import type { ReactElement } from "react";
 import { PanelEdgeControl } from "#components";
 import type { PanelMode, PanelName } from "#state";
-import { CONTEXT_TOGGLE_MARKER } from "./context-toggle.tsx";
-import { LIST_TOGGLE_MARKER } from "./shell-topbar.tsx";
+import { CONTEXT_TOGGLE_MARKER, LIST_TOGGLE_MARKER } from "./shell-topbar.tsx";
 
 const EDGES = {
   list: { edge: "start", noun: "list panel", marker: LIST_TOGGLE_MARKER },

@@ -16,14 +16,13 @@ export const HIDDEN_AT = {
   untilFocus: "not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)",
   emptyBody: "has-[[data-section-body]:empty]:hidden",
   print: "print:hidden",
-  unlessPrint: "hidden print:block",
+  unlessPrint: "not-print:hidden",
   dialogStacked: "dialog-stacked:hidden",
-  unlessDialogStacked: "hidden dialog-stacked:flex",
   "cq-20": "@cq-20:hidden",
   "cq-28": "@cq-28:hidden",
   "cq-32": "@cq-32:hidden",
   belowCq20: "@max-cq-20:hidden",
-  belowCq28: "hidden @cq-28:flex",
+  belowCq28: "@max-cq-28:hidden",
   belowCq32: "@max-cq-32:hidden",
 } as const;
 

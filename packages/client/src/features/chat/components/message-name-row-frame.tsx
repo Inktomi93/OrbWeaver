@@ -83,7 +83,7 @@ export function NameRowFrame({
   const outside = edges.headerPlacement === "outside";
   const pinnedHeader = edges.pinnedHeader;
   const inset = frameInset(edges, pinned);
-  const overlayClass = shape.ownLine ? undefined : overlayLayout(sticky);
+  const overlay = shape.ownLine ? undefined : overlayHeight(sticky);
   return (
     <FrameRow
       rowRef={ref}
@@ -99,7 +99,7 @@ export function NameRowFrame({
       inset={inset}
       reachTrain={pinned && pinnedHeader.reach === "train"}
       chip={!shape.identity}
-      overlayClass={overlayClass}
+      overlay={overlay}
       overlayReveal={shape.ownLine ? undefined : ACTIONS_REVEAL_POSTURE[actionsReveal]}
       reserve={!outside && shape.ownLine}
       rule={rule}
@@ -114,10 +114,16 @@ export function NameRowFrame({
   );
 }
 
-function overlayLayout(sticky: boolean): string {
-  return sticky
-    ? "box-content min-block-(--size-name-row-min) col-start-1 row-start-1 self-start"
-    : "box-content block-(--size-glyph-lg) col-start-1 row-start-1 self-start";
+// An overlaid row takes the first track beside the content: a band floors at the name row, an at-rest row is the glyph's height.
+function overlayHeight(sticky: boolean): "band" | "glyph" {
+  return sticky ? "band" : "glyph";
+}
+
+function frameSelf(overlay: "band" | "glyph" | undefined, reachTrain: boolean): "start" | "stretch" | undefined {
+  if (overlay !== undefined) {
+    return "start";
+  }
+  return reachTrain ? "stretch" : undefined;
 }
 
 /** An outside header's wallpaper plate at rest: the chrome island, or its bare island once the sticky box carries the inset. */
@@ -154,7 +160,7 @@ interface FrameRowProps {
   readonly inset: FrameInset;
   readonly reachTrain: boolean;
   readonly chip: boolean;
-  readonly overlayClass: string | undefined;
+  readonly overlay: "band" | "glyph" | undefined;
   readonly overlayReveal: (typeof ACTIONS_REVEAL_POSTURE)[ActionsReveal];
   readonly reserve: boolean;
   readonly rule: boolean;
@@ -183,7 +189,7 @@ function FrameRow({
   inset,
   reachTrain,
   chip,
-  overlayClass,
+  overlay,
   overlayReveal,
   reserve,
   rule,
@@ -215,10 +221,11 @@ function FrameRow({
       reverse={flip}
       wrap={true}
       push={chip && !pinned ? "inlineEnd" : undefined}
-      minHeight={reserve ? "nameRow" : undefined}
-      self={reachTrain ? "stretch" : undefined}
+      minHeight={reserve || overlay === "band" ? "nameRow" : undefined}
+      height={overlay === "glyph" ? "glyph" : undefined}
+      self={frameSelf(overlay, reachTrain)}
       className={cn(
-        overlayClass,
+        overlay !== undefined && "col-start-1 row-start-1 box-content",
         // The rail is centred on this row, so a content height of
         // `glyph-lg - 2 * row` makes it span exactly the container's top inset, this row and the `gap-row` below it.
         // It is unconditional across ghost, editing and sticky arms. `box-content` keeps the sticky band's `pt-row` additive, so its cancellation stays exact.

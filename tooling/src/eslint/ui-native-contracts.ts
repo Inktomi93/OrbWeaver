@@ -292,7 +292,7 @@ function literalEntries(native: Native, object: ts.ObjectLiteralExpression, hops
 }
 
 // What `pnpm ui-facts` reads as a write: an object literal with known keys, a conditional or logical of those, or a
-// same-file const of one. The variant census (tooling/src/ui-facts/variants.ts) reads exactly these spreads.
+// same-file const of one. The variant census (tooling/src/eslint/ui-classes/variants.ts) reads exactly these spreads.
 function readableSpread(native: Native, expression: ts.Expression, hops: number): boolean {
   const node = outerExpression(expression);
   if (hops > MAX_SPREAD_HOPS) {

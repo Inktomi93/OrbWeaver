@@ -1,4 +1,4 @@
-import { CAP, GROW, HEIGHT, tv, WIDTH } from "#lib";
+import { CAP, GROW, HEIGHT, PLACED, tv, WIDTH } from "#lib";
 
 // The skeleton skin — a muted placeholder sized by the box it stands in for, with the shimmer sweep
 // (D62 UIP-309). The `orb-skeleton-shimmer` class (globals.css) paints the moving muted→accent→muted
@@ -48,7 +48,7 @@ export const skeletonVariants = tv({
     cap: CAP,
     grow: GROW,
     // Lies over the whole of a positioned host: the picture or the band that is still loading behind it.
-    cover: { true: "absolute inset-0", false: "" },
+    placed: { fill: PLACED.fill },
   },
   defaultVariants: { variant: "rect" },
 });

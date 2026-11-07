@@ -130,7 +130,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           <CharacterPicker
             emptyText="No characters match."
             label="Start a refinery session"
-            listClassName="block-(--height-scroll-lg)"
+            listSize="grow"
             onSelect={(id): void => {
               if (!starting) {
                 onStart(id);

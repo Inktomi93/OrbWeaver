@@ -104,7 +104,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         portraits={portraits}
         // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
         // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / HOVER_REVEAL.hover.
-        className="group"
+        hoverGroup={true}
         // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
         // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).
         // The title alone is NOT enough on a per-character projection (N rows all titled "Aveline"), so the

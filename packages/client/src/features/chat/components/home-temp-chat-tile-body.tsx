@@ -139,7 +139,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
         </Text>
         . You can't change the room later.
       </Text>
-      {placeholder ? <Skeleton cover={true} /> : null}
+      {placeholder ? <Skeleton placed="fill" /> : null}
     </Stack>
   );
 }

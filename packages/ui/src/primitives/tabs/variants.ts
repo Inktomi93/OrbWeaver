@@ -139,7 +139,10 @@ export const TABS_ACCENT_TONE = "primary" satisfies Tone;
 export const tabsListBoxVariants = tv({
   variants: {
     // How the list lays its tabs: `cells` an equal track per tab, `strip` one line that scrolls inside the row inset.
-    track: { cells: "grid grid-flow-col gap-tight", strip: "flex-nowrap overflow-x-auto px-row" },
+    // THE READABLE-CAPTION FLOOR, ON EVERY RAIL. In `minmax(max-content, 1fr)` the `1fr` keeps the cells equal columns filling the rail whenever there is
+    // slack (the owner ruling against "bitsy buttons bunched left"), and the `max-content` refuses to shrink a cell below its whole caption, so the tracks
+    // overflow and scroll: degrade to a scroll, never into an ellipsis. Not gated on the cell count: at the narrowest pane even four equal cells clip a caption.
+    track: { cells: "grid auto-cols-[minmax(max-content,1fr)] grid-flow-col gap-tight overflow-x-auto", strip: "flex-nowrap overflow-x-auto px-row" },
   },
 });
 

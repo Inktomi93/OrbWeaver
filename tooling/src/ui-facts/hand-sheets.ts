@@ -1,12 +1,19 @@
 // Hand-written values in stylesheets, read from the css-tree AST: every literal in a declaration and every length in a media or container condition.
 import type { Atrule, CssNode, Declaration } from "@eslint/css-tree";
 import { parse, walk } from "@eslint/css-tree";
-import type { Hit } from "./hand-model.ts";
-import { CONTAINER_PROPERTY, hitOf, judgeLit, KEYFRAME_PROPERTY, QUERY_PROPERTY, SUPPORTS_PROPERTY } from "./hand-model.ts";
-import type { Lit } from "./literals.ts";
-import { conditionLits, litsOf, parseValue, written } from "./literals.ts";
-import type { Source } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
+import type { Hit, Lit, Source, ValueTokens } from "../eslint/index.ts";
+import {
+  CONTAINER_PROPERTY,
+  conditionLits,
+  hitOf,
+  judgeLit,
+  KEYFRAME_PROPERTY,
+  litsOf,
+  parseValue,
+  QUERY_PROPERTY,
+  SUPPORTS_PROPERTY,
+  written,
+} from "../eslint/index.ts";
 
 // A face declaration holds URLs, ranges and metrics, none of them design values.
 const UNPRICED_AT_RULES: ReadonlySet<string> = new Set(["font-face", "import", "charset", "namespace"]);

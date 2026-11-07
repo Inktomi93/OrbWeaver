@@ -78,7 +78,7 @@ export interface RpgSatelliteRowProps {
  * IT DOES NOT WRAP — IT SCROLLS (#875 F14). Five figures in a 306px pane wrapped 4+1 and left the
  * `SILVER MARKS` figure alone at the far left of a second row, right half empty — the ragged-void shape #861
  * filed against the rail's 3+2 fold, in the band. The house answer is already written
- * (`context-rail.tsx` `RAIL_TRACK_CLASSES`): only a set that folds EVENLY folds, everything else keeps its
+ * (`context-rail.tsx` `track="cells"`): only a set that folds EVENLY folds, everything else keeps its
  * whole item and scrolls. The mock agrees — its `.sat` is a plain non-wrapping row.
  */
 export function RpgSatelliteRow({ trackerOrbs, actors, viewerUserId }: RpgSatelliteRowProps): ReactElement | null {

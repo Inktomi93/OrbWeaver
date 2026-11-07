@@ -42,7 +42,7 @@ interface ButtonCoreInput extends ButtonCoreProps {
 }
 
 /** A stretched button sets its label at the start, and a whole list line takes the full width: the arm owns both, so `justify` and `width` are the caller's only without it. */
-function placed(stretch: ButtonRecipe["stretch"], justify: ButtonRecipe["justify"], width: ButtonRecipe["width"]): Pick<ButtonRecipe, "justify" | "width"> {
+function stretched(stretch: ButtonRecipe["stretch"], justify: ButtonRecipe["justify"], width: ButtonRecipe["width"]): Pick<ButtonRecipe, "justify" | "width"> {
   if (stretch === undefined) {
     return { justify, width };
   }
@@ -79,6 +79,7 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
     whitespace,
     push,
     self,
+    placed,
     minHeight,
     minWidth,
     explainsDisabled,
@@ -95,7 +96,7 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
   // The selection rail keys its paint on `data-selected`, so the row's tone follows the same attribute.
   const selected = "data-selected" in props && props["data-selected"] !== undefined;
   const resolvedFocal = focal ?? (variant === "solid" && resolvedTone === "primary");
-  const { justify, width } = placed(stretch, calledJustify, calledWidth);
+  const { justify, width } = stretched(stretch, calledJustify, calledWidth);
   // The className, the axis stamp and the D336 tone scope, from ONE selection object; the box lands after the shared
   // recipe and before the caller's class.
   const stamp = variantProps(
@@ -130,6 +131,7 @@ export function ButtonCore(props: ButtonCoreInput): ReactElement {
       whitespace,
       push,
       self,
+      placed,
       minHeight,
       minWidth,
       explainsDisabled,

@@ -1,4 +1,4 @@
-import { CARD_CORNERS, PASS_THROUGH, tv, WIDTH } from "#lib";
+import { CARD_CORNERS, PASS_THROUGH, PLACED, tv, WIDTH } from "#lib";
 import type { Tone } from "#tokens";
 
 // Avatar sizes ride display tokens, decoupled from control-height/touch-target tokens — an avatar that
@@ -53,6 +53,8 @@ export const avatarVariants = tv({
       // and `aspect-portrait` computes the narrower width from it.
       portrait: { root: "aspect-portrait inline-auto" },
     },
+    // A portrait that stays at the top of its card while the card scrolls past.
+    placed: { pinned: { root: PLACED.pinned } },
     // A portrait welded to a card's side takes the card's corners on its outer edge (`CARD_CORNERS`).
     cardCorners: { start: { root: CARD_CORNERS.start }, end: { root: CARD_CORNERS.end } },
     // A portrait sized by the column it fills, its height following its aspect.

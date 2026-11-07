@@ -190,7 +190,8 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         anchor="top"
         size="lg"
         popupProps={{ initialFocus: popupRef, ref: popupRef }}
-        titleProps={{ className: "truncate", ref: headingRef, tabIndex: -1 }}
+        titleTruncate={true}
+        titleProps={{ ref: headingRef, tabIndex: -1 }}
         bodyContainer={true}
         headerActions={
           <Row align="center" className="shrink-0" wrap={true} cap="fit" gap="row">

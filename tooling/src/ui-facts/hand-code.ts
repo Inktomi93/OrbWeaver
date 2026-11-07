@@ -1,13 +1,7 @@
 // Hand-written values in TS and TSX: whole-string CSS values, media conditions, and the timing and measurement constants that name them.
 import ts from "typescript";
-import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement, QUERY_PROPERTY } from "./hand-model.ts";
-import type { Lit } from "./literals.ts";
-import { conditionStringLits, lit, valueStringLits } from "./literals.ts";
-import type { Source } from "./source.ts";
-import { lineOf, unwrap } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
-import { tokensHolding } from "./tokens.ts";
+import type { Hit, Judgement, Lit, Place, Source, ValueTokens } from "../eslint/index.ts";
+import { conditionStringLits, hitOf, judgeLit, keepJudgement, lineOf, lit, QUERY_PROPERTY, tokensHolding, unwrap, valueStringLits } from "../eslint/index.ts";
 
 const MAX_STRING = 120;
 const REM_PX = 16;

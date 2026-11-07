@@ -1,8 +1,9 @@
 // The whole read: sources in, one facts object out. Read-only; nothing here writes.
 
+import type { Hit, Source } from "../eslint/index.ts";
+import { componentTables, declaredVariants, factsOf, lengthTokensOf, loadSources, loadValueTokens, referencedClassConstants } from "../eslint/index.ts";
 import type { SectionAdoption } from "./adoption.ts";
 import { adoptionBySection } from "./adoption.ts";
-import { referencedClassConstants } from "./classes.ts";
 import { buildContext, classifiable, classifySite, clusterKey } from "./classify.ts";
 import { buildCohorts } from "./cohorts.ts";
 import type { Cohort, Comparison } from "./compare.ts";
@@ -15,20 +16,13 @@ import type { DuplicateGroup } from "./duplicates.ts";
 import { findDuplicateMaps } from "./duplicates.ts";
 import type { ExceptionEntry } from "./exceptions.ts";
 import { isExcepted } from "./exceptions.ts";
-import { factsOf } from "./file-facts.ts";
 import type { NoRowUse } from "./hand-classes.ts";
-import type { Hit } from "./hand-model.ts";
 import { buildHandRolling } from "./hand-rolling.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
 import type { ShapeGroup } from "./shapes.ts";
 import { findShapes } from "./shapes.ts";
 import type { Classified, Site } from "./sites.ts";
-import type { Source } from "./source.ts";
-import { loadSources } from "./source.ts";
-import { lengthTokensOf, loadValueTokens } from "./tokens.ts";
-import { componentTables } from "./variant-tables.ts";
-import { declaredVariants } from "./variants.ts";
 
 interface ScanCounts {
   readonly ts: number;

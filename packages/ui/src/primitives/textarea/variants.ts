@@ -26,7 +26,7 @@ export const textareaVariants = tv({
     },
     // A field that sits inside a box which already draws the field (the composer card): no edge, no fill and no ring
     // of its own, because the host carries the focus state.
-    chrome: { field: "", bare: `border-0 bg-transparent ${FOCUS_RING_NONE}` },
+    chrome: { field: "", bare: `border-0 bg-transparent px-0 ${FOCUS_RING_NONE}` },
     // Code typed into the field (a snippet, a script): the mono face.
     face: { text: "", code: "font-mono" },
   },

@@ -5,17 +5,23 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { cn } from "@orb/ui/lib";
 import ts from "typescript";
-import { conflicts } from "./class-conflict.ts";
-import type { ClassExpression } from "./class-expression.ts";
-import { classesIn, classesWhen, guardsIn, opaqueIn } from "./class-expression.ts";
-import { attributeClasses } from "./classes.ts";
-import { attributeValue } from "./hand-arms.ts";
+import type { ClassExpression, ComponentRecipe, ComponentTables, Elem } from "../eslint/index.ts";
+import {
+  attributeClasses,
+  attributeValue,
+  classesIn,
+  classesWhen,
+  componentTables,
+  conflicts,
+  doorOf,
+  elementsOf,
+  guardsIn,
+  loadSources,
+  opaqueIn,
+  visit,
+} from "../eslint/index.ts";
 import type { MigrationPlan } from "./migration.ts";
 import { readPlan } from "./migration.ts";
-import type { Elem } from "./source.ts";
-import { doorOf, elementsOf, loadSources, visit } from "./source.ts";
-import type { ComponentRecipe, ComponentTables } from "./variant-tables.ts";
-import { componentTables } from "./variant-tables.ts";
 
 const MAX_STATES = 64;
 const CLASS_NAME = "className";

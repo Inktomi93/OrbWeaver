@@ -1,10 +1,8 @@
 // A and B sites in TS and TSX: hand-rolled class tokens, inline styles, inline svg and raw intrinsics.
 import ts from "typescript";
-import type { ClassConstants } from "./classes.ts";
-import { classifyToken, classStringsOf } from "./classes.ts";
+import type { ClassConstants, Elem, Source } from "../eslint/index.ts";
+import { attrString, classifyToken, classStringsOf, elementsOf, lineOf } from "../eslint/index.ts";
 import type { Site } from "./sites.ts";
-import type { Elem, Source } from "./source.ts";
-import { attrString, elementsOf, lineOf } from "./source.ts";
 
 const INTRINSIC_KIND: Readonly<Record<string, string>> = {
   button: "raw-button",

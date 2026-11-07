@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
-import { classOwners } from "../../../tooling/src/ui-facts/class-owners.ts";
+import { classOwners } from "../../../tooling/src/eslint/ui-classes/class-owners.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../../..");
 const UI_PACKAGE = JSON.stringify({ exports: { "./layout": "./src/layout/index.ts" } });
@@ -93,7 +93,7 @@ test("a coded keep and a mechanism the plain-layout rule admits are nobody's row
   expect(ownerOf("layout", "Row", "relative", [])).toBeNull();
   expect(ownerOf("layout", "Row", "contain-inline-size", [])).toBeNull();
   expect(ownerOf("layout", "Row", "@cq-32:shrink-0", [])).toBeNull();
-  expect(ownerOf("layout", "Stack", "empty:absolute", [])).toBeNull();
+  expect(ownerOf("layout", "Stack", "@cq-32:shrink-0", [])).toBeNull();
   expect(ownerOf("layout", "Stack", "inset-bs-row", [])).toMatchObject({ prop: null });
 });
 
@@ -107,7 +107,7 @@ test("the real Text, Heading, Button and Row own the classes the clamp, grow, fl
   expect(ownerOf("layout", "Row", "orb-out-of-flow", [])).toEqual({ axis: "row.outOfFlow", prop: "outOfFlow", arm: "true" });
   const stacked = ["flex-col", "items-start", "block-auto"];
   expect(ownerOf("button", "Button", "p-row", stacked)).toEqual({ axis: "button.stacked", prop: "stacked", arm: "true" });
-  expect(ownerOf("button", "Button", "flex-1", ["min-inline-0"])).toEqual({ axis: "button.grow", prop: "grow", arm: "true" });
+  expect(ownerOf("button", "Button", "flex-1", ["min-inline-0"])).toEqual({ axis: "button.stretch", prop: "stretch", arm: "row" });
 });
 
 test("an arm that writes a part inside the component owns nothing on its root", ({ scratch }) => {

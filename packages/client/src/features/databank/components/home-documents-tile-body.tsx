@@ -181,7 +181,7 @@ export function HomeDocumentsTileBody(): ReactElement {
                 // therefore never bind; it read as the thing holding the floor up while the sealed height
                 // already did (#169 — invisible to `ui-size-via-variant` until its value class learned
                 // about hyphens). `p-0` stays: the Badge inside is the whole visible chip.
-                className="p-0"
+                inset="none"
                 variant="ghost"
                 key={chip.phase}
                 onClick={(): void => showPhase(chip.phase)}

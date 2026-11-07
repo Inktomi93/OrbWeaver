@@ -20,7 +20,7 @@ import { Tip } from "#components";
 export function ClearFilterGlyph({ label, onClick }: { readonly label: string; readonly onClick: () => void }): ReactElement {
   return (
     <Tip text={label}>
-      <Button aria-label={label} className="absolute inset-e-0" variant="ghost" onClick={onClick} size="sm" square={true} type="button">
+      <Button aria-label={label} placed="lineEnd" variant="ghost" onClick={onClick} size="sm" square={true} type="button">
         <Icon icon={X} size="sm" />
       </Button>
     </Tip>

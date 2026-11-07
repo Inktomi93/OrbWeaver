@@ -72,6 +72,14 @@ export const commandVariants = tv({
       compact: { list: "block-(--height-scroll-sm) **:[[cmdk-list-sizer]]:block-full" },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
+      // A picker's window inside a dialog: it caps at the window step, and a short dialog drops the inset, the headings and the scroll chain so the rows keep the room.
+      pickerWindow: {
+        list: `
+          max-block-(--height-picker-window)
+          dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
+          dialog-short:**:[[cmdk-group-heading]]:hidden
+        `,
+      },
     },
   },
   defaultVariants: { listSize: "content" },

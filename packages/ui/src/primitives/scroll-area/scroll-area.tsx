@@ -13,8 +13,8 @@ export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "classN
 
 export interface ScrollAreaProps extends Omit<BaseRootProps, "className">, VariantProps<typeof scrollAreaBoxVariants> {
   className?: string;
-  /** Class for the sized `Content` wrapper (where `children` live). */
-  contentClassName?: string;
+  /** The `Content` wrapper takes the viewport's whole width, for a list whose rows truncate against it. @defaultValue false */
+  contentFull?: boolean;
   /**
    * The child WRAPS instead of overflowing sideways — a `flex-wrap` rail, a prose column, anything whose
    * width is the viewport's. @defaultValue false
@@ -39,7 +39,7 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className">, Varia
  * cannot be mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, grow, maxHeight, contentClassName, viewportProps, wrapContent = false, children, ...rest } = props;
+  const { className, grow, maxHeight, contentFull = false, viewportProps, wrapContent = false, children, ...rest } = props;
   return (
     <BaseScrollArea.Root className={slots.root({ className: scrollAreaBoxVariants({ grow, className }) })} data-slot="scroll-area-root" {...rest}>
       <BaseScrollArea.Viewport
@@ -50,7 +50,7 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
         data-slot="scroll-area-viewport"
       >
         <BaseScrollArea.Content
-          className={slots.content({ className: cn(wrapContent ? "min-inline-0" : undefined, contentClassName) })}
+          className={slots.content({ className: cn(wrapContent ? "min-inline-0" : undefined, contentFull ? "inline-full" : undefined) })}
           data-slot="scroll-area-content"
           style={wrapContent ? { minWidth: 0 } : undefined}
         >

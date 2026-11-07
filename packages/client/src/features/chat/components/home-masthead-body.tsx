@@ -81,7 +81,7 @@ export function HomeMastheadSkeleton(): ReactElement {
       <Heading aria-hidden={true} className="invisible" level={1} voice="masthead">
         {mastheadTitle(0, false)}
       </Heading>
-      <Skeleton cover={true} />
+      <Skeleton placed="fill" />
     </Stack>
   );
 }

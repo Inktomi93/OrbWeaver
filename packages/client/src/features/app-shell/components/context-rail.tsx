@@ -24,7 +24,6 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useSyncExternalStore } from "react";
 import type { ResolvedContextTab } from "#lib";
-import { cn } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
 import type { RailOverflow } from "../lib/context-rail-overflow.ts";
 import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
@@ -37,18 +36,9 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
 /** The narrow-panel WRAP: below the `xs` container step a rail of exactly six cells lays out as ROWS of three, because
  *  six cells on one `auto-cols-fr` row clipped four captions to ~3 characters (the list's `fold`; a FINE-pointer
  *  answer, a phone stays one row and scrolls). ONLY a rail that folds EVENLY takes it: a five-cell rail would fold 3+2
- *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `RAIL_TRACK_CLASSES` below keeps
+ *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `track="cells"` keeps
  *  each cell at its whole caption and lets the row overflow. */
 const RAIL_WRAP_CELLS = 6;
-
-/** THE READABLE-CAPTION FLOOR, ON EVERY RAIL — the track-sizing function, unconditional.
- *  `minmax(max-content, 1fr)`: the `1fr` MAX keeps the cells equal columns filling the rail whenever there
- *  is slack (the owner ruling against "bitsy buttons bunched left"); the `max-content` MIN refuses to shrink
- *  a cell below its whole caption, so where the cells no longer fit the tracks OVERFLOW and
- *  `overflow-x-auto` scrolls them. Degrade to a scroll, never into an ellipsis. NOT gated on the cell count:
- *  at the narrowest pane even four equal cells clip a caption like "Members". The FOLD stays count-gated
- *  because it answers a different question. */
-const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto";
 
 /** The track's measured overflow, as an external-store subscription (ResizeObserver + scroll are the
  *  store; layout is the state's real owner, so `useSyncExternalStore` is the honest shape — the eslint
@@ -136,7 +126,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             activateOnFocus={false}
             aria-label={ariaLabel}
             track="cells"
-            className={cn("min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            className="min-inline-0"
             fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
@@ -164,7 +154,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className="absolute inset-y-0 inset-s-0"
+          placed="startEdge"
           passThrough={true}
           width="gutter"
           fade="start"
@@ -182,7 +172,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className="absolute inset-y-0 inset-e-0"
+          placed="endEdge"
           passThrough={true}
           width="gutter"
           fade="end"

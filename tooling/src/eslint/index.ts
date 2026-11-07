@@ -83,6 +83,43 @@ export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
+export { conflicts, survives } from "./ui-classes/class-conflict.ts";
+export type { ClassExpression } from "./ui-classes/class-expression.ts";
+export { classesIn, classesWhen, guardsIn, opaqueIn } from "./ui-classes/class-expression.ts";
+export type { ClassConstants, TokenFact } from "./ui-classes/classes.ts";
+export { ALPHA_UTILITY, attributeClasses, baseOf, classifyToken, classStringsOf, referencedClassConstants } from "./ui-classes/classes.ts";
+export type { FileFacts } from "./ui-classes/file-facts.ts";
+export { buttonWithText, factsOf, firstLine, hasAny, insideTag } from "./ui-classes/file-facts.ts";
+export type { Wearer } from "./ui-classes/hand-arms.ts";
+export { attributeValue, coveredJudgement, elementRefOf, kebab, ownerRow, wearerOf, writingAxis } from "./ui-classes/hand-arms.ts";
+export type { Category, ElementRef, Hit, Judgement, KeepCode, Place, Verdict } from "./ui-classes/hand-model.ts";
+export {
+  byPlace,
+  CATEGORIES,
+  CONTAINER_PROPERTY,
+  GRADIENT_OWNER,
+  HAND_ROLLING_PART,
+  hitOf,
+  IMPORTANT_OWNER,
+  judgeLit,
+  KEEP_REASONS,
+  KEYFRAME_PROPERTY,
+  keepJudgement,
+  QUERY_PROPERTY,
+  SUPPORTS_PROPERTY,
+  VERDICTS,
+} from "./ui-classes/hand-model.ts";
+export type { Lit } from "./ui-classes/literals.ts";
+export { conditionLits, conditionStringLits, lit, litsOf, parseValue, valueStringLits, written } from "./ui-classes/literals.ts";
+export { PLAIN_LAYOUT, PLAIN_LAYOUT_RULE, plainLayout } from "./ui-classes/plain-layout.ts";
+export type { Elem, Layer, Source } from "./ui-classes/source.ts";
+export { attrString, childrenText, constInitializer, doorOf, elementsOf, lineOf, loadSources, unwrap, visit } from "./ui-classes/source.ts";
+export type { LengthTokens, TokenNamespace, ValueTokens } from "./ui-classes/tokens.ts";
+export { lengthTokensOf, loadValueTokens, pxOf, tokensFor, tokensHolding } from "./ui-classes/tokens.ts";
+export type { ComponentRecipe, ComponentTables, Compound } from "./ui-classes/variant-tables.ts";
+export { componentsIn, componentTables, firstFunction, propsPattern } from "./ui-classes/variant-tables.ts";
+export type { Arm, ArmClasses, AxisUse, DeclaredVariants, VariantReport } from "./ui-classes/variants.ts";
+export { declaredVariants, totalUses, variantReport } from "./ui-classes/variants.ts";
 export { domLookupRule } from "./ui-dom.ts";
 export type { PropOwner, PropOwners } from "./ui-feature-classname.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
@@ -139,7 +176,7 @@ export function createOrbPlugin(options: {
   candidatesToCss: CandidatesToCss;
   customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
-  /** The prop of an `@orb/ui` component that writes a class, read from its tables (`classOwners` in ui-facts). */
+  /** The prop of an `@orb/ui` component that writes a class, read from its tables (`classOwners`). */
   propOwners: PropOwners;
   baseUiDoors: BaseUiDoors;
   domLookupHomes: readonly DomLookupHome[];

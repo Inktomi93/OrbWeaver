@@ -73,7 +73,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
         </Text>
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a
             ragged void beside the orphan; only a set that folds EVENLY folds, everything else keeps its whole
-            item and scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
+            item and scrolls (`context-rail.tsx` `track="cells"`, the house ruling). */}
         <Row gap="field" align="center" className="overflow-x-auto min-inline-0">
           <OwnLookMark themeOverride={detail.themeOverride} />
           {/* No chip until the read lands: a pending or failed read has no count, and 0 would be a false one. */}

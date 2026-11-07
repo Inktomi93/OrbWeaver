@@ -78,6 +78,42 @@ test("hiddenAt empty takes an empty box out and leaves a box that holds a child,
   expect(await display("stack-always")).toBe("none");
 });
 
+test("a hiddenAt arm that shows an element keeps the element's own display", async ({ mount, page }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const display = (name: string): Promise<string> => component.locator(`[data-probe="${name}"]`).evaluate((element) => getComputedStyle(element).display);
+  expect(await display("button-below-step")).toBe("inline-flex");
+  expect(await display("span-unless-print")).toBe("none");
+  await page.emulateMedia({ media: "print" });
+  expect(await display("span-unless-print")).toBe("inline");
+});
+
+test("placed takes a box out of flow by what it is, on every door, and a scroller's containing block does not undo it", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const position = (name: string): Promise<string> => component.locator(`[data-probe="${name}"]`).evaluate((element) => getComputedStyle(element).position);
+  const rect = (name: string): Promise<{ readonly top: number; readonly right: number; readonly width: number; readonly height: number }> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element) => {
+      const { top, right, width, height } = element.getBoundingClientRect();
+      return { top, right, width, height };
+    });
+  const host = await component
+    .locator('[data-probe="placed-fill-scroll"]')
+    .locator("..")
+    .evaluate((element) => {
+      const { top, right, width, height } = element.getBoundingClientRect();
+      return { top, right, width, height };
+    });
+  expect(await position("placed-fill-scroll")).toBe("absolute");
+  expect((await rect("placed-fill-scroll")).width).toBe(host.width);
+  expect(await position("placed-pinned")).toBe("sticky");
+  expect(await position("placed-avatar")).toBe("sticky");
+  expect(await position("placed-skeleton")).toBe("absolute");
+  expect(await position("placed-line-end")).toBe("absolute");
+  expect((await rect("placed-line-end")).right).toBe(host.right);
+  expect((await rect("placed-end-edge")).right).toBe(host.right);
+  expect((await rect("placed-end-edge")).height).toBe(host.height);
+  expect((await rect("placed-flush-end")).top).toBe(host.top);
+});
+
 test("minHeight and minWidth hold a box at the control it seats", async ({ mount }) => {
   const component = await mount<typeof OwnerAxesStory>(STORY);
   const floor = (await boxOf(component.locator('[data-probe="ref-control"]'))).height;

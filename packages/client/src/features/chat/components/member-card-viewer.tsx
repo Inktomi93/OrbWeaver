@@ -71,7 +71,7 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
       onOpenChange={onOpenChange}
       size="lg"
       popupProps={{ "data-testid": testId("memberCardViewer") }}
-      titleProps={{ className: "truncate" }}
+      titleTruncate={true}
       headerLeading={
         card === undefined ? null : (
           <Avatar size="lg" fallbackDelay={0} hueSeed={card.characterId} {...(card.avatarHash === null ? {} : { src: blobUrl(card.avatarHash) })}>

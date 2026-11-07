@@ -1,7 +1,7 @@
 // Area E: local maps of tone, label or size copied across files, found by their key set.
 import ts from "typescript";
-import type { Source } from "./source.ts";
-import { lineOf } from "./source.ts";
+import type { Source } from "../eslint/index.ts";
+import { lineOf } from "../eslint/index.ts";
 
 interface MapCopy {
   readonly name: string;

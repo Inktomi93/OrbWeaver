@@ -1,11 +1,8 @@
 // Which `@orb/ui` primitives a client component hands its `className` to, so a class written on a wrapper is judged where it lands.
 import { posix } from "node:path";
 import ts from "typescript";
-import type { Wearer } from "./hand-arms.ts";
-import { wearerOf } from "./hand-arms.ts";
-import type { Elem, Source } from "./source.ts";
-import { elementsOf, visit } from "./source.ts";
-import { componentsIn, firstFunction, propsPattern } from "./variant-tables.ts";
+import type { Elem, Source, Wearer } from "../eslint/index.ts";
+import { componentsIn, elementsOf, firstFunction, propsPattern, visit, wearerOf } from "../eslint/index.ts";
 
 const CLASS_NAME = "className";
 const MAX_HOPS = 4;

@@ -20,6 +20,7 @@ import {
   INKS,
   MIN_HEIGHT,
   MIN_WIDTH,
+  PLACED,
   PUSH,
   SELECTED_FILL,
   SELECTION_RAIL,
@@ -94,7 +95,8 @@ export const buttonVariants = tv({
     // height (a compound below), and the row inset replaces the step's, so the lines sit level with the list that holds them.
     stacked: { true: "flex-col items-start p-row block-auto", false: "" },
     // Beside `stretch`, whose `line` arm writes the same step: a lone inset is this axis, and `stretch` adds its width and start to it.
-    inset: CONTROL_INSET,
+    // `none` is a control whose whole visible box is the mark inside it.
+    inset: { ...CONTROL_INSET, none: "p-0" },
     // Declared after `size`, so the arm's own inset beats the step's. A button that is a row's door takes the room left beside its
     // siblings. `line` is a whole list line with the field inset. Both set their label at the start and `line` takes the full width:
     // `ButtonCore` resolves `justify` and `width` from the arm, so a call site names neither beside it.
@@ -109,6 +111,7 @@ export const buttonVariants = tv({
     whitespace: { normal: "whitespace-normal" },
     push: PUSH,
     self: SELF,
+    placed: PLACED,
     minHeight: MIN_HEIGHT,
     minWidth: MIN_WIDTH,
     // A disabled control keeps the pointer, so the tooltip that says why it is disabled can open.

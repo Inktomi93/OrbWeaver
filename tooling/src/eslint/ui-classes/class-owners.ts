@@ -1,5 +1,5 @@
 // Which prop of an `@orb/ui` component writes a class, read from the component's own `tv()` tables: a new axis or arm owns its classes with no edit here.
-import type { PropOwner, PropOwners } from "../eslint/index.ts";
+import type { PropOwner, PropOwners } from "../ui-feature-classname.ts";
 import { classifyToken } from "./classes.ts";
 import type { Wearer } from "./hand-arms.ts";
 import { armWriting, axisChoosing, axisWriting, kebab, onRoot, ownerRow } from "./hand-arms.ts";

@@ -35,7 +35,7 @@ export function OwnerAxesStory(): ReactElement {
           <Skeleton height="lineMicro" width="avatarMd" />
         </Row>
         <div data-probe="skeleton-host" style={{ position: "relative", blockSize: STAND_IN_HOST_PX, inlineSize: STAND_IN_HOST_PX }}>
-          <Skeleton data-probe="skeleton-cover" cover={true} />
+          <Skeleton data-probe="skeleton-cover" placed="fill" />
         </div>
         <Button data-probe="ref-control" size="md">
           x
@@ -83,6 +83,28 @@ export function OwnerAxesStory(): ReactElement {
       </Stack>
       <Stack data-probe="stack-always" hiddenAt="always">
         <Text>a</Text>
+      </Stack>
+      <Stack container={true}>
+        {/* A flex parent would blockify both, so their own display reads only inside a block parent. */}
+        <Text as="div">
+          <Button data-probe="button-below-step" hiddenAt="belowCq28">
+            a
+          </Button>
+          <Text as="span" data-probe="span-unless-print" hiddenAt="unlessPrint">
+            a
+          </Text>
+        </Text>
+      </Stack>
+      <Stack className="relative" height="control" width="full">
+        <Stack data-probe="placed-fill-scroll" placed="fill" scroll="y" />
+        <Row data-probe="placed-pinned" placed="pinned" />
+        <Stack data-probe="placed-end-edge" placed="endEdge" width="gutter" />
+        <Row data-probe="placed-flush-end" placed="flushEnd" />
+        <Button data-probe="placed-line-end" placed="lineEnd" variant="ghost">
+          a
+        </Button>
+        <Avatar data-probe="placed-avatar" placed="pinned" />
+        <Skeleton data-probe="placed-skeleton" placed="fill" />
       </Stack>
       <Row data-probe="row-floor" minHeight="controlMd" />
       <Stack data-probe="stack-floor" minWidth="controlMd" />

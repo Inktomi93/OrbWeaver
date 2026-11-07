@@ -25,12 +25,15 @@ const HEADING_SIZE_BY_LEVEL = {
 // The colour pair leaves the recipe's independent axes for `ToneInkSelection`, which makes them exclusive (D336).
 type TextAxes = Omit<VariantProps<typeof textVariants>, "tone" | "ink">;
 
-interface TextOwnProps extends ComponentProps<"p">, TextAxes {
+interface TextOwnProps extends ComponentProps<"p">, Omit<TextAxes, "hoverCue"> {
   /** @defaultValue "p" — the body intrinsic to render. Headings use <Heading>, never `as="h1"`. */
   as?: TextElement;
 }
 
-export type TextProps = TextOwnProps & ToneInkSelection;
+// `nudge` makes the run `inline-block`, which the merger reads as the run's width: a named width beside it is erased.
+type TextCue = { hoverCue?: "lift" | undefined } | { hoverCue?: "nudge" | undefined; width?: undefined };
+
+export type TextProps = TextOwnProps & ToneInkSelection & TextCue;
 
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.

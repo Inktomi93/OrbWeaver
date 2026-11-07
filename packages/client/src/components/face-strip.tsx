@@ -428,11 +428,10 @@ export function FaceStrip<Id extends string = string>({
                 <Button
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
                   className="shrink-0"
-                  width={caption ? "avatarHero" : undefined}
                   data-face-overflow=""
                   ref={overflowRef}
                   variant="ghost"
-                  square={true}
+                  {...(caption ? ({ width: "avatarHero" } as const) : ({ square: true } as const))}
                 >
                   <Stack align="center" gap="tight">
                     {/* The tile takes the AVATAR TOKEN'S BOX so the row keeps one rhythm, and prints the count

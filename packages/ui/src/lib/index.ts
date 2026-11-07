@@ -15,7 +15,6 @@ export { cn, tv } from "./class-merge.ts";
 export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
 export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
 export { CONTROL_BLOCK, CONTROL_INLINE, CONTROL_MIN_BLOCK, CONTROL_SIZE, CONTROL_SIZES, type ControlSize } from "./control-size.ts";
-export { CORNER } from "./corner.ts";
 export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
@@ -51,7 +50,7 @@ export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
-export { PLACED } from "./placed.ts";
+export { CORNER, PINNED, PLACED } from "./placed.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_DESCRIPTION, POPUP_SURFACE } from "./popup-surface.ts";
 export {

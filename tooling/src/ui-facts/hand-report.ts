@@ -1,10 +1,9 @@
 // The hand-rolling census section: counts per category and per surface, the owners ranked by what they would retire, and the hits that stay.
+import type { Category, Hit, KeepCode, Verdict } from "../eslint/index.ts";
+import { CATEGORIES, KEEP_REASONS, PLAIN_LAYOUT, PLAIN_LAYOUT_RULE, plainLayout, VERDICTS } from "../eslint/index.ts";
 import type { UiFacts } from "./analysis.ts";
 import type { NoRowUse } from "./hand-classes.ts";
-import type { Category, Hit, KeepCode, Verdict } from "./hand-model.ts";
-import { CATEGORIES, KEEP_REASONS, VERDICTS } from "./hand-model.ts";
 import { groupBy, table } from "./markdown.ts";
-import { PLAIN_LAYOUT, PLAIN_LAYOUT_RULE, plainLayout } from "./plain-layout.ts";
 import { HAND_ROLLING_CANNOT_SEE } from "./rules.ts";
 
 const TOP = 30;

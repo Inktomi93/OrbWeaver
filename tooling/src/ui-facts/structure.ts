@@ -1,7 +1,8 @@
 // Section structure: which parts each feature has (list, detail, context tabs, empty, loading, error) and which boundary wraps its reads.
+
+import type { FileFacts } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
-import type { FileFacts } from "./file-facts.ts";
 import { skeletonCohortOf } from "./skeleton.ts";
 
 const yesNo = (flag: boolean): string => (flag ? "yes" : "no");

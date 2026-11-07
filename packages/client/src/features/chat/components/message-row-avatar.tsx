@@ -92,10 +92,6 @@ export function renderRowAvatar(args: {
   );
 }
 
-// The portrait and its message number stick together as the row scrolls, at the portrait's own width, so the number wraps
-// beneath it instead of widening the column.
-const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0";
-
 /** A welded portrait with the message number centred under it when the skin seats the number there (`RowSkin.numberPlacement`)
  *  and the reader shows it; the metadata row then leaves the number out. */
 export function placePortraitNumber(args: {
@@ -111,7 +107,9 @@ export function placePortraitNumber(args: {
   }
   return {
     welded: (
-      <Stack align="center" gap="field" className={PORTRAIT_COLUMN} width="ripplePortrait">
+      // The portrait and its message number stick together as the row scrolls, at the portrait's own width, so the number wraps
+      // beneath it instead of widening the column.
+      <Stack align="center" gap="field" className="shrink-0" placed="pinned" width="ripplePortrait">
         {portrait}
         <MessageNumber label={number} />
       </Stack>
@@ -168,7 +166,7 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       urlAt={portraitSource(args.attribution.avatarHash)}
       view={target === null ? null : artViewOf(target, args.artControl)}
     >
-      <FallbackLetter className="absolute inset-0" initials={initialsFor(args.attribution.name ?? "")} />
+      <FallbackLetter initials={initialsFor(args.attribution.name ?? "")} placed="fill" />
     </PortraitAvatar>
   );
 }

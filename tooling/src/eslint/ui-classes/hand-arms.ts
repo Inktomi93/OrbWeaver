@@ -194,27 +194,27 @@ const wornWhole = (arm: Arm, token: string, siblings: readonly string[]): boolea
   arm.tokens.length > 1 && arm.tokens.includes(token) && arm.tokens.every((written) => written === token || siblings.includes(written));
 
 /**
- * The axis of a component's recipe that owns the class: an arm writes it alone, is a multi-class arm whose every class the element wears
- * (`siblings` are the classes written beside it), or writes it as the axis's choice in its family. The arm worn whole is the more
- * specific claim, so it outranks a family choice on another axis. A composition that merely lists the class (`artPane` lists a fraction width) never
+ * The axis of a component's recipe that owns the class: a multi-class arm whose every class the element wears (`siblings` are the classes
+ * written beside it), an arm that writes it alone, or an arm that writes it as the axis's choice in its family. The arm worn whole is the most
+ * specific claim, so it outranks both on another axis. A composition that merely lists the class (`artPane` lists a fraction width) never
  * owns it while a ramp of the family exists: the class is a new arm of that ramp.
  */
 export function axisWriting(recipe: ComponentRecipe | undefined, token: string, siblings: readonly string[]): readonly [string, ArmClasses] | undefined {
   const axes = [...(recipe?.axes ?? [])];
   const ramp = axisChoosing(recipe, token);
   return (
-    axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
     axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings))) ??
+    axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
     axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token) && (ramp === undefined || alternatives(arms)))
   );
 }
 
-/** The arm of an axis that writes the class: one that writes it alone, else one the element wears whole, else the first that lists it. */
+/** The arm of an axis that writes the class: one the element wears whole, else one that writes it alone, else the first that lists it. */
 export function armWriting(arms: ArmClasses, token: string, siblings: readonly string[]): readonly [string, Arm] | undefined {
   const all = [...arms];
   return (
-    all.find(([, candidate]) => writesOnly(candidate, token)) ??
     all.find(([, candidate]) => wornWhole(candidate, token, siblings)) ??
+    all.find(([, candidate]) => writesOnly(candidate, token)) ??
     all.find(([, candidate]) => candidate.tokens.includes(token))
   );
 }
@@ -427,11 +427,13 @@ export function ownerRow(wearer: Wearer | null, { token, guarded, siblings }: Wr
   if (baseOf(token).base === CONTAINING_BLOCK) {
     return keepJudgement("containing-block", token);
   }
+  const part = partArmJudgement(wearer, token, siblings, components) ?? ridesJudgement(wearer, token, components);
+  if (part !== null) {
+    return part;
+  }
   return plainLayout(token)
     ? null
-    : (partArmJudgement(wearer, token, siblings, components) ??
-        ridesJudgement(wearer, token, components) ??
-        siblingBaseJudgement(wearer, token, components) ??
+    : (siblingBaseJudgement(wearer, token, components) ??
         sideInsetJudgement(wearer, token) ??
         ownDoorJudgement(wearer, token, components) ??
         homelessRow(wearer, token, components));

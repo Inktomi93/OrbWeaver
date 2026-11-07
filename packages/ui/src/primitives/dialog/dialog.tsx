@@ -24,7 +24,9 @@ export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDialog.Trigger {...props} />;
 }
 
-export interface DialogPopupProps extends Omit<BasePopupProps, "className">, Omit<VariantProps<typeof dialogVariants>, "footerPush" | "headerWrap"> {
+export interface DialogPopupProps
+  extends Omit<BasePopupProps, "className">,
+    Omit<VariantProps<typeof dialogVariants>, "footerPush" | "headerWrap" | "truncate"> {
   className?: string;
   /** Defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
@@ -53,13 +55,15 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
   );
 }
 
-export interface DialogTitleProps extends Omit<BaseTitleProps, "className">, Pick<VariantProps<typeof dialogVariants>, "clearsClose" | "focusTarget"> {
+export interface DialogTitleProps
+  extends Omit<BaseTitleProps, "className">,
+    Pick<VariantProps<typeof dialogVariants>, "clearsClose" | "focusTarget" | "truncate"> {
   className?: string;
 }
 
 export function DialogTitle(props: DialogTitleProps): ReactElement {
-  const { className, clearsClose, focusTarget, ...rest } = props;
-  return <BaseDialog.Title className={dialogVariants({ clearsClose, focusTarget }).title({ className })} {...rest} />;
+  const { className, clearsClose, focusTarget, truncate, ...rest } = props;
+  return <BaseDialog.Title className={dialogVariants({ clearsClose, focusTarget, truncate }).title({ className })} {...rest} />;
 }
 
 export type DialogDescriptionProps = Omit<BaseDescriptionProps, "className">;

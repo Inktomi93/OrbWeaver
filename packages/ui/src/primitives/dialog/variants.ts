@@ -38,6 +38,8 @@ export const dialogVariants = tv({
     clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
     // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
     focusTarget: { true: { title: "outline-none" }, false: {} },
+    // A title that must hold one line beside the dialog's actions.
+    truncate: { true: { title: "truncate" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
     stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) mbe-block bg-card" } },

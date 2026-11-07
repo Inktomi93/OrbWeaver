@@ -23,6 +23,7 @@ import {
   MIN_HEIGHT,
   MIN_WIDTH,
   PASS_THROUGH,
+  PINNED,
   PLACED,
   PUSH,
   READING_INSET,
@@ -264,19 +265,11 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
 const SCROLL = { y: SCROLLER_Y } as const;
 
-// A row pinned to the foot of a scrolling dialog body: it gives its block inset back as the dialog gets short, drops it
-// when the dialog stacks, and stops pinning under the tiny step, where a pinned row would cover the content.
-//
-// `header` pins a message's name row to the scrollport's top as the row's one raised layer: only its top inset is cancelled, because a
-// negative bottom margin lets the band paint past the row's foot, and the one-pixel overshoot is the clip the pin observer reads. A
-// `headerOutside` row sits outside its box, so over a wallpaper the chrome plate supplies that inset and nothing is cancelled.
-const PINNED = {
-  dialogFooter: "sticky inset-be-0 dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static",
-  header: "-mbs-row sticky -inset-bs-px z-(--z-raised)",
-  headerOutside: "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised)",
-} as const;
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
 // `floor="line"` basis gives way to its content's width.
+// `dialog-stacked` is two conditions, so it has no negation to hide under: this arm restores the display, and only a flex box can name it.
+const BOX_HIDDEN_AT = { ...HIDDEN_AT, unlessDialogStacked: "hidden dialog-stacked:flex" } as const;
+
 const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
 
 // `fill` takes the parent's whole block size.
@@ -301,6 +294,8 @@ export const stackVariants = tv({
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
+    // The block-start inset a box gives up at a phone-width pane.
+    paddingBlockStartNarrow: { none: "@max-cq-32:pbs-0" },
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
     layer: LAYER,
@@ -320,7 +315,7 @@ export const stackVariants = tv({
     // The stack is itself the container its descendants query (an element never queries itself). `size` also
     // contains the block axis, for `cqb` and `cqmin` units.
     container: { true: "@container", size: "@container-size" },
-    hiddenAt: HIDDEN_AT,
+    hiddenAt: BOX_HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
     divider: DIVIDER,
@@ -384,7 +379,6 @@ export const stackVariants = tv({
     floor: FLOOR,
     push: PUSH,
     self: SELF,
-    placed: PLACED,
     maxHeight: MAX_HEIGHT,
     // The lines of the runs inside: `endWide` sets a figure's lines at the end once the container is wide enough to seat it beside its title.
     textAlign: { ...TEXT_ALIGN, endWide: "@cq-40:text-end" },
@@ -392,6 +386,8 @@ export const stackVariants = tv({
     minHeight: MIN_HEIGHT,
     minWidth: MIN_WIDTH,
     scroll: SCROLL,
+    // After `scroll`, whose containing block a placed box replaces.
+    placed: PLACED,
     scrollFade: SCROLL_FADE,
     fade: FADE,
     fadeFrom: FADE_FROM,
@@ -434,7 +430,10 @@ export const rowVariants = tv({
     pinned: PINNED,
     fill: FILL,
     // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
-    height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto" },
+    // `none` takes no room, for a parked box only a measure reads.
+    height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto", glyph: "block-(--size-glyph-lg)", none: "block-0" },
+    // A row of a short dialog gives its block inset back to the content.
+    paddingBlockShort: { none: "dialog-short:py-0" },
     minHeight: MIN_HEIGHT,
     minWidth: MIN_WIDTH,
     padding: PADDING,
@@ -445,12 +444,16 @@ export const rowVariants = tv({
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
+    // The block-start inset a box gives up at a phone-width pane.
+    paddingBlockStartNarrow: { none: "@max-cq-32:pbs-0" },
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
     layer: LAYER,
     passThrough: PASS_THROUGH,
     reach: ROW_REACH,
-    hiddenAt: HIDDEN_AT,
+    // Before `hiddenAt`, whose `hidden` beats the display a track set writes.
+    tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
+    hiddenAt: BOX_HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
     divider: DIVIDER,
@@ -471,7 +474,6 @@ export const rowVariants = tv({
     plate: WALLPAPER_PLATE,
     cardCorners: CARD_CORNERS,
     // A row that must keep its element across a width step takes a grid's tracks; `display: grid` wins over the flex base.
-    tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
   },
   compoundVariants: [...DIVIDER_RULE],
 });

@@ -1,8 +1,8 @@
 // Area F: each mutation factory call, where it is defined, and how it keeps reads fresh and reports failure.
 import ts from "typescript";
+import type { Source } from "../eslint/index.ts";
+import { lineOf, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
-import type { Source } from "./source.ts";
-import { lineOf, visit } from "./source.ts";
 
 const FACTORIES = new Set(["createEntityMutation", "useMutation"]);
 const HOOK_HOME = /\/hooks\/|-mutations?\.tsx?$|\/data\//u;

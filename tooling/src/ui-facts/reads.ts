@@ -1,9 +1,9 @@
 // Read shape: each `useQuery` call as a loading ladder, a gated read that wants skipToken, or a background read.
 // Law: a suspending read is `useGatedQuery` or `useSuspenseQuery` inside `QueryBoundary`, never a bare `useQuery` state ladder.
 import ts from "typescript";
+import type { Source } from "../eslint/index.ts";
+import { lineOf, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
-import type { Source } from "./source.ts";
-import { lineOf, visit } from "./source.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const STATE_FLAGS = new Set(["isPending", "isLoading", "isError", "isLoadingError", "status"]);

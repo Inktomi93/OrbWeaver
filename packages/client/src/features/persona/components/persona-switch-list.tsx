@@ -202,7 +202,7 @@ function SwitchButton({
     <Button
       aria-current={isPlaying ? "true" : undefined}
       aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
-      className="absolute inset-0"
+      placed="fill"
       data-selected={isPlaying ? "" : undefined}
       data-switch-row-button=""
       // In a room the stretched button is the row's body, so it wears the selection rail and the hover tint; the

@@ -1,21 +1,17 @@
 // ui-facts: a read-only census of hand-rolled UI over the client and ui sources. A report: no gate, no baseline.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import process from "node:process";
+import type { ComponentTables, Hit } from "../eslint/index.ts";
+import { componentTables, HAND_ROLLING_PART, loadSources } from "../eslint/index.ts";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { analyse } from "./analysis.ts";
 import { loadExceptions } from "./exceptions.ts";
-import type { Hit } from "./hand-model.ts";
-import { HAND_ROLLING_PART } from "./hand-model.ts";
 import type { MigrationPlan } from "./migration.ts";
 import { isDeclaredOwner, isMigratableOwner, planOwner, proveOwner, rankedRows, readPlan, readSkips, writePlan } from "./migration.ts";
 import { renderReport } from "./report.ts";
-import { loadSources } from "./source.ts";
-import type { ComponentTables } from "./variant-tables.ts";
-import { componentTables } from "./variant-tables.ts";
 
-export { classOwners } from "./class-owners.ts";
 export { sidecarsOf } from "./migration.ts";
 export { checkRewrite } from "./recipe-check.ts";
 
@@ -71,7 +67,7 @@ export function parseArgs(argv: readonly string[]): Args {
 export function runUiFacts(argv: readonly string[]): number {
   const args = parseArgs(argv);
   const facts = analyse(args.root, loadExceptions(args.root), args.only);
-  const dir = join(args.root, args.out);
+  const dir = resolve(args.root, args.out);
   mkdirSync(dir, { recursive: true });
   const command = `pnpm ui-facts${argv.length === 0 ? "" : ` ${argv.join(" ")}`}`;
   writeFileSync(join(dir, "ui-facts.json"), `${JSON.stringify(facts, null, 2)}\n`);
