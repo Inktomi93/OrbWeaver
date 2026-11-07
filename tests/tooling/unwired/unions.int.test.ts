@@ -102,3 +102,79 @@ test("the unions scan keeps construction evidence with its own vocabulary: a sha
   expect(report.unwired.map(({ kind, home, member }) => ({ kind, home, member }))).toEqual([{ kind: "unbuilt", home: "KINDS_A", member: "shared" }]);
   expect(report.disagreements).toEqual([]);
 });
+
+// A slot belongs to a tuple by what its declaration spells, never by which literals its type happens to hold: a
+// one-member union, a discriminated union and an independent subset tuple all hold a tuple's texts without being it.
+const ORIGIN_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/derived.ts": [
+    'export const KINDS_V = ["v1", "v2", "v3"] as const;',
+    "export type KindV = (typeof KINDS_V)[number];",
+    'type Mixed = Exclude<KindV, "v3"> | "extra";',
+    "export const takeMixed = (kind: Mixed): Mixed => kind;",
+    'export const builtMixed = [takeMixed("v1"), takeMixed("v2"), takeMixed("extra")];',
+  ].join("\n"),
+  "packages/a/src/foreign.ts": [
+    'export const KINDS_S = ["open", "mid"] as const;',
+    "export type KindS = (typeof KINDS_S)[number];",
+    "export const takeS = (kind: KindS): KindS => kind;",
+    'export const builtS = takeS("mid");',
+    'interface Evt { readonly kind: "open" }',
+    'export const evt: Evt = { kind: "open" };',
+    'export const KINDS_D = ["dopen", "dmid"] as const;',
+    "export type KindD = (typeof KINDS_D)[number];",
+    "export const takeD = (kind: KindD): KindD => kind;",
+    'export const builtD = takeD("dmid");',
+    'type Ev = { readonly t: "dopen"; readonly a: number } | { readonly t: "dclose"; readonly b: number };',
+    'export const ev: Ev = { t: "dopen", a: 1 };',
+  ].join("\n"),
+  "packages/a/src/subset.ts": [
+    'export const KINDS_T = ["a1", "b1", "c1"] as const;',
+    "export type KindT = (typeof KINDS_T)[number];",
+    'export const KINDS_U = ["a1", "b1"] as const;',
+    "export type KindU = (typeof KINDS_U)[number];",
+    "export const takeT = (kind: KindT): KindT => kind;",
+    "export const takeU = (kind: KindU): KindU => kind;",
+    'export const builtSubset = [takeU("a1"), takeU("b1"), takeT("c1")];',
+  ].join("\n"),
+  // A library signature declares `push`'s parameter, so the slot's tuple cannot be read and it rules no tuple out.
+  "packages/a/src/unread.ts": [
+    'export const KINDS_W = ["w1", "w2"] as const;',
+    "export type KindW = (typeof KINDS_W)[number];",
+    "export const bag: KindW[] = [];",
+    'bag.push("w1");',
+  ].join("\n"),
+  // `gshared` is KINDS_H's: the Record key and the equality below read H's slot, so neither is evidence about G.
+  "packages/a/src/records.ts": [
+    'export const KINDS_G = ["gshared", "gown"] as const;',
+    "export type KindG = (typeof KINDS_G)[number];",
+    'export const KINDS_H = ["gshared", "hown"] as const;',
+    "export type KindH = (typeof KINDS_H)[number];",
+    "export const takeG = (kind: KindG): KindG => kind;",
+    "export const takeH = (kind: KindH): KindH => kind;",
+    'export const builtG = takeG("gown");',
+    'export const builtH = [takeH("gshared"), takeH("hown")];',
+    'export const LABELS: Record<KindH, string> = { gshared: "G", hown: "H" };',
+    'export const isShared = (kind: KindH): boolean => kind === "gshared";',
+  ].join("\n"),
+};
+
+test("the unions scan reads a slot's tuple from its declaration, so derived slots clear and foreign ones do not", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(ORIGIN_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired
+    .map(({ home, member, checks, keys }) => ({ home, member, checks, keys }))
+    .toSorted((a, b) => `${a.home}.${a.member}`.localeCompare(`${b.home}.${b.member}`));
+  expect(found).toEqual([
+    { home: "KINDS_D", member: "dopen", checks: [], keys: [] },
+    { home: "KINDS_G", member: "gshared", checks: [], keys: [] },
+    { home: "KINDS_S", member: "open", checks: [], keys: [] },
+    { home: "KINDS_T", member: "a1", checks: [], keys: [] },
+    { home: "KINDS_T", member: "b1", checks: [], keys: [] },
+    { home: "KINDS_V", member: "v3", checks: [], keys: [] },
+    { home: "KINDS_W", member: "w2", checks: [], keys: [] },
+  ]);
+  expect(report.disagreements).toEqual([]);
+});
