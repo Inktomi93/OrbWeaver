@@ -7,6 +7,15 @@ const shared = { title: "Title", open: true, onOpenChange: (): void => undefined
 const submit = { label: "Save", onSubmit: (): void => undefined };
 const frame = { title: "Title", children: "Body" };
 
+test("a footer dismiss has a word on it", () => {
+  const word: string = "Close";
+  createElement(DismissDialog<"Close">, { ...shared, dismissLabel: "Close" });
+  createElement(DismissDialog<string>, { ...shared, dismissLabel: word });
+  // @ts-expect-error an empty label draws a button with no name
+  createElement(DismissDialog<"">, { ...shared, dismissLabel: "" });
+  expectTypeOf<Parameters<typeof DismissDialog<"Close">>[0]>().toHaveProperty("dismissLabel");
+});
+
 test("a commit dialog cannot be written without its submit", () => {
   createElement(FormDialog, { ...shared, submit });
   createElement(FormDialogPopup, { ...frame, submit });

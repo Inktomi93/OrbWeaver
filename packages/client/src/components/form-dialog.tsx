@@ -68,16 +68,16 @@ export interface FormDialogPopupProps extends DialogFrameProps {
 export type FormDialogProps = Omit<FormDialogRootProps, "children"> & FormDialogPopupProps;
 
 /** The ways out of a dialog with nothing to commit: a footer verb, a corner glyph or both. Touch has no Escape, so one is required. */
-type DismissPath =
+type DismissPath<L extends string> =
   | {
-      /** The footer's one `DialogClose`. */
-      readonly dismissLabel: string;
+      /** The footer's one `DialogClose`. A literal empty label draws a button with no name, so it does not compile. */
+      readonly dismissLabel: L & (L extends "" ? never : unknown);
       /** The verb is the dialog's main act, as Done is on an autosaving editor. @defaultValue false */
       readonly dismissPrimary?: boolean;
     }
   | { readonly closeButton: true; readonly dismissLabel?: never; readonly dismissPrimary?: never };
 
-export type DismissDialogProps = Omit<FormDialogRootProps, "children"> & DialogFrameProps & DismissPath;
+export type DismissDialogProps<L extends string = string> = Omit<FormDialogRootProps, "children"> & DialogFrameProps & DismissPath<L>;
 
 export type RequiredFormDialogProps = Omit<DialogFrameProps, "closeButton"> & Pick<FormDialogPopupProps, "submit">;
 
@@ -205,7 +205,7 @@ export function FormDialog({ open, onOpenChange, onOpenChangeComplete, ...popup 
 }
 
 /** A dialog with nothing to commit: its body is its whole act, or its stages own their commits, and the frame owns the way out. */
-export function DismissDialog({
+export function DismissDialog<L extends string>({
   open,
   onOpenChange,
   onOpenChangeComplete,
@@ -213,7 +213,7 @@ export function DismissDialog({
   dismissPrimary = false,
   children,
   ...frame
-}: DismissDialogProps): ReactElement {
+}: DismissDialogProps<L>): ReactElement {
   return (
     <FormDialogRoot onOpenChange={onOpenChange} open={open} {...(onOpenChangeComplete === undefined ? {} : { onOpenChangeComplete })}>
       <DialogFrame {...frame}>

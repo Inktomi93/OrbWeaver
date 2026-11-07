@@ -34,8 +34,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
-import { DestructiveAction } from "#components";
+import { useRef, useState } from "react";
+import { DestructiveAction, useRowDeleteFocus } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { OVERRIDE_CLEAR_VERB } from "../lib/chat-surface-names.ts";
@@ -67,13 +67,13 @@ interface OverrideCollapseCardProps {
   readonly snippet: string;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly onClear: () => void;
+  readonly clear: ReturnType<ReturnType<typeof useRowDeleteFocus>["delete"]>;
   /** No `save` seam (member / read-only): fields render disabled and the Clear affordance is omitted. */
   readonly disabled: boolean;
   readonly children: ReactNode;
 }
 
-function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, children }: OverrideCollapseCardProps): ReactElement {
+function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear, disabled, children }: OverrideCollapseCardProps): ReactElement {
   return (
     // `padding="none"`: the block padding lives on the trigger, so the whole row is one tap target (WCAG 2.5.8);
     // the snippet and panel carry their own inset. The card's top edge must hit the trigger (this component's CT).
@@ -108,16 +108,17 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           <Stack gap="field" paddingBlockEnd="block" paddingInline="block">
             {children}
             <Row align="center" gap="field">
-              {disabled || !isSet ? null : (
+              {disabled ? null : (
                 <DestructiveAction
                   confirm={{
                     confirmLabel: OVERRIDE_CLEAR_VERB,
                     description: "What you wrote here leaves this chat. This can't be undone.",
                     title: `${OVERRIDE_CLEAR_VERB} ${label}?`,
                   }}
-                  onConfirm={onClear}
+                  finalFocus={clear.deleteFinalFocus}
+                  onConfirm={clear.onDelete}
                   trigger={
-                    <Button variant="ghost" size="sm">
+                    <Button disabled={!isSet} variant="ghost" size="sm">
                       <Icon icon={Eraser} size="xs" />
                       {OVERRIDE_CLEAR_VERB}
                     </Button>
@@ -145,21 +146,17 @@ interface OverrideRowProps {
 // it; `aria-label` carries the accessible name into the panel).
 function OverrideRow({ form, name, label, rows, disabled }: OverrideRowProps): ReactElement {
   const [open, setOpen] = useState(false);
+  // Clear stays mounted, disabled, once the field empties: its confirm has to outlive the write to hand focus to the field.
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const clear = useRowDeleteFocus(fieldRef, [name]).delete(name, (): void => form.setFieldValue(name, ""));
   return (
     <form.Subscribe selector={(state): string => state.values[name]}>
       {(value): ReactElement => (
-        <OverrideCollapseCard
-          label={label}
-          isSet={value.trim() !== ""}
-          snippet={value}
-          open={open}
-          onOpenChange={setOpen}
-          onClear={(): void => form.setFieldValue(name, "")}
-          disabled={disabled}
-        >
+        <OverrideCollapseCard label={label} isSet={value.trim() !== ""} snippet={value} open={open} onOpenChange={setOpen} clear={clear} disabled={disabled}>
           <form.AppField name={name}>
             {(field): ReactElement => (
               <Textarea
+                ref={fieldRef}
                 aria-label={label}
                 value={field.state.value}
                 onChange={(e): void => field.handleChange(e.target.value)}

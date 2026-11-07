@@ -40,8 +40,8 @@ import type { SelectItems } from "@orb/ui/select";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { DestructiveAction } from "#components";
+import { useRef, useState } from "react";
+import { DestructiveAction, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
@@ -115,6 +115,12 @@ interface InjectionsListProps {
 }
 
 function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
+  // The last row's removal has no neighbour, so Add is the list's landing place.
+  const addRef = useRef<HTMLButtonElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    addRef,
+    rows.map((row) => row.key),
+  );
   return (
     <Stack gap="section">
       <Text voice="gloss">{injectionsIntro(isHost)}</Text>
@@ -126,13 +132,13 @@ function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsLis
       ) : (
         <Stack gap="section">
           {rows.map((row, index) => (
-            <InjectionRow key={row.key} ordinal={index + 1} row={row} isHost={isHost} onSave={onSave} onDelete={onDelete} />
+            <InjectionRow key={row.key} ordinal={index + 1} row={row} isHost={isHost} onSave={onSave} onDelete={onDelete} rowFocus={rowFocus} />
           ))}
         </Stack>
       )}
 
       {isHost ? (
-        <Button variant="outline" size="sm" onClick={onAdd}>
+        <Button ref={addRef} variant="outline" size="sm" onClick={onAdd}>
           Add injection
         </Button>
       ) : null}
@@ -149,9 +155,11 @@ interface InjectionRowProps {
   readonly isHost: boolean;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
   readonly onDelete: (key: string) => Promise<void>;
+  readonly rowFocus: ReturnType<typeof useRowDeleteFocus>;
 }
 
-function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowProps): ReactElement {
+function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: InjectionRowProps): ReactElement {
+  const removal = rowFocus.delete(row.key, (): Promise<void> => onDelete(row.key));
   const save = isHost ? (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values) : undefined;
   // Seeded from the SERVER row, not subscribed to the live value: a host who types into a blank row must
   // not have it fold shut under them, and a host who clears one must not have it fold shut either.
@@ -175,7 +183,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
-                  <CollapsibleTrigger inset="block" width="full" size="control">
+                  <CollapsibleTrigger ref={rowFocus.bodyRef(row.key)} inset="block" width="full" size="control">
                     <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
@@ -250,7 +258,8 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                   <Row align="center" gap="field">
                     <DestructiveAction
                       confirm={{ confirmLabel: "Remove", description: "Its text leaves this chat. This can't be undone.", title: "Remove this injection?" }}
-                      onConfirm={(): Promise<void> => onDelete(row.key)}
+                      finalFocus={removal.deleteFinalFocus}
+                      onConfirm={removal.onDelete}
                       trigger={
                         <Button variant="ghost" size="sm" aria-label="Remove injection">
                           Remove
