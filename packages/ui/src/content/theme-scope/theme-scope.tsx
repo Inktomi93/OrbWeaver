@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { createContext, use, useEffect } from "react";
+import { createContext, use, useEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { AmbientScopeContext } from "#lib";
 import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
@@ -74,19 +74,32 @@ export function ThemeScope({ tokens, children, box, className, ambientBackground
   const clamped = clampThemeTokens(tokens, ambient?.pixel, accentAmbient ?? undefined, { palette: ambient?.palette, ...scopeAmbient });
   const reportFallback = use(ToneFallbackReporterContext);
   const reportInputBorderFallback = use(InputBorderFallbackReporterContext);
-  // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once.
+  // The fallback's fields, not the object the clamp rebuilds every render, so a scope reports one fallback once. A
+  // replayed effect repeats with equal deps, so the last report is held beside them.
+  const reportedTone = useRef<string | null>(null);
+  const reportedEdge = useRef<string | null>(null);
   const fallbackAccent = clamped.toneFallback?.accent;
   const fallbackHover = clamped.toneFallback?.hover;
   const fallbackActive = clamped.toneFallback?.active;
   useEffect(() => {
-    if (reportFallback !== null && fallbackAccent !== undefined && fallbackHover !== undefined && fallbackActive !== undefined) {
+    const report = `${fallbackAccent}|${fallbackHover}|${fallbackActive}`;
+    if (
+      reportFallback !== null &&
+      fallbackAccent !== undefined &&
+      fallbackHover !== undefined &&
+      fallbackActive !== undefined &&
+      reportedTone.current !== report
+    ) {
+      reportedTone.current = report;
       reportFallback({ accent: fallbackAccent, hover: fallbackHover, active: fallbackActive });
     }
   }, [reportFallback, fallbackAccent, fallbackHover, fallbackActive]);
   const fallbackEdge = clamped.inputBorderFallback?.edge;
   const fallbackFloorMet = clamped.inputBorderFallback?.floorMet;
   useEffect(() => {
-    if (reportInputBorderFallback !== null && fallbackEdge !== undefined && fallbackFloorMet !== undefined) {
+    const report = `${fallbackEdge}|${fallbackFloorMet}`;
+    if (reportInputBorderFallback !== null && fallbackEdge !== undefined && fallbackFloorMet !== undefined && reportedEdge.current !== report) {
+      reportedEdge.current = report;
       reportInputBorderFallback({ edge: fallbackEdge, floorMet: fallbackFloorMet });
     }
   }, [reportInputBorderFallback, fallbackEdge, fallbackFloorMet]);
