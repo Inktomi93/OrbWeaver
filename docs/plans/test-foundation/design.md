@@ -57,7 +57,7 @@ The [restoration register](../restoration-register/design.md) is the coverage in
 
 ### Remaining work
 
-[Test audit findings by root cause](finding-triage.md) holds the audit findings, their root-cause groups and the lane order.
+Test audit findings land by root cause, not by test. The open client group waits for the UI branch: page-side sleeps in CT (a native rule beside `playwright/no-wait-for-timeout`), `keysOf` deletion, development React in CT (1897, run first so its reds stay separate), and the character facet record (1899). The live e2e proof for the send drivers and probes is on their items.
 
 - Qualify existing server, corpus, client and E2E mechanisms through their maintained cases.
 - Rebuild meaningful reference cases through those mechanisms, including client lifecycle and recall behavior.
