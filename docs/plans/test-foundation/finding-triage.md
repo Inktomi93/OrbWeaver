@@ -73,8 +73,7 @@ Item 1952 holds no open finding. Commit `d8684a9455` fixed the three findings of
 - Hand-rolled copies: `defer(() => closeDb(` appears 88 times in 59 files. Each copy is correct, and each is the same two lines.
 - Fix: make all three return a holder with `db` and `[Symbol.dispose]`. Callers write `using held = await freshHeldDb()`. Declaration order then closes the graph before the database. Export `ownDb(db)` beside them for `createDb` callers, and delete the hand-rolled copies with a `pnpm codemod` rewrite.
 - Rejected: a harness `dbWrap` option. It covers single-root cases only and leaves 1863 and the multi-root suites on a second path.
-- Impossible by: the type first, since a `Db` then comes only from a disposable. Biome `useDisposables` is already an error at `biome.json:510` and fires on an awaited return, as the suppression at `tests/support/node/corpus-provider.ts:357` shows.
-- Limit: a fixture written as `await use(await freshHeldDb())` has no declaration for the rule to judge. Rewrite `tests/server/domain/chat/persistence/room-reach-rows.int.test.ts:18` by hand, and test this form with a planted control.
+- Impossible by: the type first, since a `Db` then comes only from a disposable, and `OWNED_DB_RESTRICTIONS` in `eslint.config.ts`, which requires each acquisition to initialize a `using` or sit in a `.use()` call. Biome `useDisposables` alone misses several forms.
 
 ### K2: the e2e provider has no disposal
 

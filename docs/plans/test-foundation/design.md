@@ -57,6 +57,8 @@ The [restoration register](../restoration-register/design.md) is the coverage in
 
 ### Remaining work
 
+[Test audit findings by root cause](finding-triage.md) holds the audit findings, their root-cause groups and the lane order.
+
 - Qualify existing server, corpus, client and E2E mechanisms through their maintained cases.
 - Rebuild meaningful reference cases through those mechanisms, including client lifecycle and recall behavior.
 - Correct product defects exposed by selected cases, with behavioral regression coverage.
