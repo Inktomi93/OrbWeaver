@@ -14,7 +14,7 @@ import { Check, Icon, Lock } from "#primitives/icons";
 import type { PickerCellProps } from "../picker-cell/picker-cell.tsx";
 import { PickerCell } from "../picker-cell/picker-cell.tsx";
 import { pickerCellVariants } from "../picker-cell/variants.ts";
-import { pickerItemBoxVariants, radioGroupVariants } from "./variants.ts";
+import { radioGroupPickerItemBoxVariants, radioGroupVariants } from "./variants.ts";
 
 const slots = radioGroupVariants();
 
@@ -102,7 +102,7 @@ export function RadioGroupPicker({ className, detail, ...rest }: RadioGroupPicke
 }
 
 export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "children"> {
-  readonly width?: VariantProps<typeof pickerItemBoxVariants>["width"];
+  readonly width?: VariantProps<typeof radioGroupPickerItemBoxVariants>["width"];
   className?: string;
   /** The feature-supplied picture — decorative; the label names the choice. */
   readonly art?: ReactNode | undefined;
@@ -139,7 +139,7 @@ export function RadioGroupPickerItem({ className, width, art, label, description
       render={
         <PickerCell
           art={art}
-          className={pickerItemBoxVariants({ width, className })}
+          className={radioGroupPickerItemBoxVariants({ width, className })}
           descriptionId={descriptionId}
           label={label}
           labelId={labelId}

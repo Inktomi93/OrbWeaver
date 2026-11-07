@@ -5,12 +5,6 @@ import { ART_DECORATION } from "../../lib/art-decoration.ts";
 // at zero width beside the one edge it draws does not mix colours.
 export const messageBubbleVariants = tv({
   variants: {
-    width: { full: WIDTH.full },
-    // A card with a row step between its parts, when it holds its own inset.
-    gap: { row: "gap-row" },
-    self: { end: SELF.end },
-    // A card that holds at least the height of its art tile.
-    minHeight: { echoCard: "min-block-(--immersive-echo-min-height)" },
     messageRole: MESSAGE_BUBBLE_FILL,
     // `bubble` is the transcript's own box. `island` is grouped content in a surface (an editor's preview of a message):
     // the island radius and inset, which `tiers.css` resolves from the surface's tier.
@@ -32,6 +26,13 @@ export const messageBubbleVariants = tv({
       speechUser: "rounded-ss-bubble-round rounded-se-bubble-sharp rounded-ee-bubble-tail rounded-es-bubble-round",
       pill: "rounded-pill",
     },
+    // After the skin's arms: `shape="bubble"` hugs its content, and a card that spans the column overrides that.
+    width: { full: WIDTH.full },
+    // A card with a row step between its parts, when it holds its own inset.
+    gap: { row: "gap-row" },
+    self: { end: SELF.end },
+    // A card that holds at least the height of its art tile.
+    minHeight: { echoCard: "min-block-(--immersive-echo-min-height)" },
   },
   defaultVariants: { shape: "island", padding: "tier", receded: false, share: false, corners: "card" },
 });

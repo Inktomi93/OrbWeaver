@@ -69,6 +69,11 @@ test("PictureButton caption stacks the caption under its picture, and its floors
   expect([picture.width, picture.height]).toEqual([floor.width, floor.height]);
 });
 
+test("PictureButton width sets the tile at its ramp step, past what its content would size it to", async ({ mount }) => {
+  const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
+  expect((await boxOf(probe("picture-width"))).width).toBe((await boxOf(probe("ref-hero"))).width);
+});
+
 test("CollapsibleTrigger width takes the whole line", async ({ mount }) => {
   const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
   expect((await boxOf(probe("trigger-width"))).width).toBe((await boxOf(probe("wide-host"))).width);

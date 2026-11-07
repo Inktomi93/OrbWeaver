@@ -1,6 +1,6 @@
 // The @orb/ui primitive trio (UI-Primitives-and-Reuse.md §13.7): every primitives/<name>/ directory is
-// <name>.tsx + index.ts + variants.ts, the variants file has one tv() export named {camelName}Variants, and no
-// file in the directory has a default export. The directories are read from the tree, never listed here.
+// <name>.tsx + index.ts + variants.ts, the variants file has one tv() export named {camelName}Variants and any part's
+// box is {camelName}<Part>Variants, and no file has a default export. The directories are read from the tree.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +15,7 @@ const NAMES = readdirSync(PRIMITIVES, { withFileTypes: true })
 
 // Sealed satellites and barrels with no skin of their own; each is a primitive that composes classes inline or
 // wraps one vendor part.
-const VARIANTS_EXEMPT = new Set(["virtual-list", "message-list", "aria-announcer", "file-trigger", "background-layer"]);
+const VARIANTS_EXEMPT = new Set(["aria-announcer", "file-trigger", "background-layer"]);
 
 // `icons/` is the icon set's home and its one component is `Icon`, so its files and variants take the singular.
 const COMPONENT_NAME: Readonly<Record<string, string>> = { icons: "icon" };
@@ -44,10 +44,12 @@ forEachNonEmpty(
   NAMES.filter((name) => !VARIANTS_EXEMPT.has(name)),
   "primitives with a variants file",
   (name) => {
-    test(`${name} has one tv() export named for it`, () => {
+    test(`${name} has one tv() export named for it, and its part boxes carry that name`, () => {
       expect(files(name)).toContain("variants.ts");
-      const exported = [...read(name, "variants.ts").matchAll(TV_EXPORT)].map((match) => match.groups?.["id"]);
-      expect(exported).toEqual([`${camel(componentOf(name))}Variants`]);
+      const own = camel(componentOf(name));
+      const exported = [...read(name, "variants.ts").matchAll(TV_EXPORT)].map((match) => match.groups?.["id"] ?? "");
+      expect(exported.filter((id) => id === `${own}Variants`)).toHaveLength(1);
+      expect(exported.filter((id) => !new RegExp(`^${own}(?:[A-Z]\\w*)?Variants$`, "u").test(id))).toEqual([]);
     });
   },
 );

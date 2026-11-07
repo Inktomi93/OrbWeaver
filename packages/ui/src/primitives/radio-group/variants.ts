@@ -21,7 +21,7 @@ export const radioGroupVariants = tv({
   },
 });
 
-export const pickerItemBoxVariants = tv({
+export const radioGroupPickerItemBoxVariants = tv({
   variants: {
     width: { full: WIDTH.full },
   },

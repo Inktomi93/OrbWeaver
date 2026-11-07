@@ -238,7 +238,7 @@ export function PortraitAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, "className" | AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "width" | "passThrough" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly urlAt: ((cssWidth: number) => string) | undefined;
     readonly view: ArtView | null;
@@ -264,7 +264,7 @@ export function PortraitAvatar({
     return portrait;
   }
   return (
-    <ArtButton view={view} cardCorners={cardCorners} className={`${STICKY_TOP} shrink-0`}>
+    <ArtButton view={view} cardCorners={cardCorners} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
       {portrait}
     </ArtButton>
   );
@@ -282,7 +282,7 @@ export function ChipAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, "className" | "src" | AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "src" | "width" | "passThrough" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly src?: string;
     readonly view: ArtView | null;

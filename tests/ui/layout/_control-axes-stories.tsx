@@ -35,7 +35,7 @@ export function ControlAxesStory(): ReactElement {
   return (
     <CtIsolation subject="Control axes" isolates="Each control with its own props, and nothing from a shell">
       <Ref probe="ref-hero" inline={TOKENS["size.avatar-hero"].cssVar} />
-      <Ref probe="ref-pane-sm" inline="--container-cq-24" />
+      <Ref probe="ref-pane-sm" inline={TOKENS["container.cq-24"].cssVar} />
       <Ref probe="ref-field-floor" inline={TOKENS["width.field-floor"].cssVar} />
       <Ref probe="ref-scroll-sm" block={TOKENS["height.scroll-sm"].cssVar} />
       <Ref probe="ref-control-md" block={TOKENS["size.control-md"].cssVar} inline={TOKENS["size.control-md"].cssVar} />
@@ -84,6 +84,7 @@ export function ControlAxesStory(): ReactElement {
           <span data-probe="picture-label">Caption</span>
         </PictureButton>
         <PictureButton data-probe="picture-floor" minHeight="controlMd" minWidth="controlMd" />
+        <PictureButton data-probe="picture-width" width="avatarHero" />
         <Card data-probe="card-width" width="full" cap="avatarHero" />
         <Collapsible>
           <Row>
