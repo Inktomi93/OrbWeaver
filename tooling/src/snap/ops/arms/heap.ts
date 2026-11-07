@@ -36,6 +36,7 @@ import {
   writeHeapJson,
 } from "../../lib/heap-analysis.ts";
 import { withHeapDevToolsParser } from "../../lib/heap-devtools.ts";
+import { scrubPrivateFile } from "../../lib/private-values.ts";
 import { captureRawHeap } from "../heap-capture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --heap <label>");
@@ -161,6 +162,7 @@ async function captureOne(ctx: ArmPageContext, state: HeapContextState, request:
   const summaryPath = `${rawPath}.json`;
   try {
     const captured = await captureRawHeap(ctx.page, rawPath);
+    await scrubPrivateFile(rawPath);
     const receipt = await withHeapDevToolsParser(
       async (parser) =>
         await buildHeapSnapshotReceipt(parser, {
@@ -192,6 +194,8 @@ async function captureOne(ctx: ArmPageContext, state: HeapContextState, request:
     print(snapshotLine(receipt));
     return receipt;
   } catch (error) {
+    // A snapshot that stopped part way still holds the page's strings, and this keeps it.
+    await scrubPrivateFile(rawPath);
     await registerPartialRaw(rawPath, ctx, request.label, `incomplete heap snapshot: ${errorMessage(error)}`);
     throw error;
   }

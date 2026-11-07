@@ -52,9 +52,10 @@ const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
 // Pre-navigation localStorage seeds: the generic --local-storage pairs plus the two harness
 // keys (all ride _kit's one init script — same timing, before any page script).
 function buildSeeds(opts: Args): LocalStorageSeed[] {
-  const seeds: LocalStorageSeed[] = [...opts.localStorage];
-  if (opts.debugToken !== "") {
-    seeds.push({ key: DEBUG_TOKEN_KEY, value: opts.debugToken });
+  const seeds: LocalStorageSeed[] = opts.localStorage.map(({ key, value }) => ({ key, value: value.reveal() }));
+  const debugToken = opts.debugToken.reveal();
+  if (debugToken !== "") {
+    seeds.push({ key: DEBUG_TOKEN_KEY, value: debugToken });
   }
   if (opts.probe) {
     seeds.push({ key: PROBE_MODE_KEY, value: "1" });

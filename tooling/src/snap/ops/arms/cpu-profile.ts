@@ -11,6 +11,7 @@ import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../../floor/cli/exit-contract.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args } from "../../contract/types.ts";
+import { scrubPrivateJson } from "../../lib/private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -131,7 +132,7 @@ export const CPU_PROFILE_ARM = {
               records: profile.samples?.length ?? 0,
               limits: [],
             });
-            await writeFile(path, JSON.stringify(profile));
+            await writeFile(path, JSON.stringify(scrubPrivateJson(profile)));
           } catch (error) {
             failure = error instanceof Error ? error.message : String(error);
           }

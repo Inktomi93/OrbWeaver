@@ -17,6 +17,7 @@ import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 import { captureEvals } from "./arms/eval.ts";
 import { navDriveFailure, stepDriveFailure, stepLabel } from "./drive-failure-naming.ts";
 
@@ -116,7 +117,7 @@ async function runLocatedStep(
   } else if (step.kind === "key") {
     await loc.press(step.key);
   } else {
-    await loc.fill(step.value);
+    await loc.fill(step.value.reveal());
   }
   return null;
 }
@@ -176,7 +177,8 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
     await settle(page, STEP_SETTLE_MS);
     return { failures: 0, fileAction, failure: null };
   } catch (e) {
-    const msg = errorMessage(e);
+    // A fill that reaches Playwright and fails quotes its text in the error's call log, inside the part a row keeps.
+    const msg = scrubPrivateText(errorMessage(e));
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
@@ -191,8 +193,9 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
         await settle(page, STEP_SETTLE_MS);
         return { failures: 0, fileAction, failure: null };
       } catch (retryErr) {
-        print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${errorMessage(retryErr)}`);
-        return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, `${errorMessage(retryErr)} (after a dev-server churn retry)`) };
+        const retryMsg = scrubPrivateText(errorMessage(retryErr));
+        print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${retryMsg}`);
+        return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, scrubPrivateText(`${retryMsg} (after a dev-server churn retry)`)) };
       }
     }
     print(`STEP FAILED  ${stepLabel(step)}: ${msg}`);
@@ -217,12 +220,14 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
     // used to declare its own copy of the shape and assert it.
     result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
   } catch (e) {
-    print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
-    return navDriveFailure(index, action, errorMessage(e));
+    const msg = scrubPrivateText(errorMessage(e));
+    print(`NAV FAILED  ${action.kind} ${action.target}: ${msg}`);
+    return navDriveFailure(index, action, msg);
   }
   if (!result.ok) {
-    print(`NAV FAILED  ${action.kind} ${action.target}: ${result.reason ?? "rejected"}`);
-    return navDriveFailure(index, action, result.reason ?? "rejected");
+    const reason = scrubPrivateText(result.reason ?? "rejected");
+    print(`NAV FAILED  ${action.kind} ${action.target}: ${reason}`);
+    return navDriveFailure(index, action, reason);
   }
   // Let the store write + view transition settle before the next action / the shot.
   await settle(page, STEP_SETTLE_MS);

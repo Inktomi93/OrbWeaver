@@ -66,7 +66,7 @@ test("ships stage-safe behavioral tapes for every historical Appearance row", ()
   const planted = [...controlSpec.defaults, ...controlCheckpoint.args, "--fill@0", "input=planted"];
   const parsed = parseSnapArgs(planted, { scenarioCheckpoint: true });
   expect(parsed.errors).toEqual([]);
-  expect(parsed.actions).toContainEqual({ type: "step", action: { kind: "fill", selector: "input", value: "planted", page: 0 } });
+  expect(parsed.actions).toContainEqual({ type: "step", action: { kind: "fill", selector: "input", value: expect.anything(), page: 0 } });
   expect(forbiddenFlags(planted)).toEqual(["--fill"]);
 });
 

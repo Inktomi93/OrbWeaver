@@ -12,6 +12,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ContrastOutcome } from "../contract/contrast.ts";
 import type { Args, AssertionOutcome, CaptureOutcome, EvalOutcome, EvidenceRange, ReportCtx, SessionCounts, WatchTick } from "../contract/types.ts";
 import { printMapBlock } from "../lib/map-report.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 import { shotScaleResultValue } from "../lib/shot-scale.ts";
 // `cropOutcome` belongs to the PIXEL ARM (ops/arms/shot.ts) — the crop is a shot instruction, and one
 // rule with two homes is what the arm registry exists to end.
@@ -262,7 +263,7 @@ export function selectConsoleMessagesForReport(
 
 function printRequestLines(requests: readonly CapturedRequest[]): void {
   for (const r of requests) {
-    print(`  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${r.url}`);
+    print(`  ${r.method.padEnd(METHOD_PAD)} ${r.type.padEnd(TYPE_PAD)} ${r.status ?? "—"} ${r.failed ?? ""} ${scrubPrivateText(r.url)}`);
   }
 }
 
@@ -300,7 +301,7 @@ export function printCaptureLog(session: SessionCounts, requests: CaptureLogRequ
   if (session.pageErrors.length > 0) {
     print("\n--- page errors ---");
     for (const e of session.pageErrors) {
-      print(pageErrorText(e));
+      print(scrubPrivateText(pageErrorText(e)));
     }
   }
 }
@@ -335,7 +336,7 @@ function printConsoleDigest(session: SessionCounts): void {
     `console      errors=${errors.length} warnings=${warnings} messages=${session.consoleMessages.length} → browser-diagnostics/ in run ${run}; read: pnpm snap --report ${run} --all --channel console`,
   );
   for (const message of errors.slice(0, CONSOLE_REPORT_CAP)) {
-    print(`  ${message.line}`);
+    print(`  ${scrubPrivateText(message.line)}`);
   }
   if (errors.length > CONSOLE_REPORT_CAP) {
     print(`  … ${errors.length - CONSOLE_REPORT_CAP} further console error(s) — read them with the command above`);

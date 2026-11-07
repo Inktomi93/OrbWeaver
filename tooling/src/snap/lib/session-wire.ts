@@ -9,7 +9,7 @@ import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
 import type { SessionBinding, SessionEvent, SessionPageInfo, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION, SESSION_REQUEST_KINDS } from "../contract/session.ts";
-import { diskSafeArgv, diskSafeOp } from "./disk-safe-argv.ts";
+import { diskSafeArgv, storedDiskSafeOp } from "./disk-safe-argv.ts";
 import { parseStageBoundIdentity } from "./stage-identity.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -206,7 +206,7 @@ function sessionRowFrom(value: unknown): SessionRow | null {
 
 // A row outlives the build that wrote it, so a stored op passes the projection again on its way back in.
 function storedOp(text: string | null): DiskSafeOp | null {
-  return text === null ? null : diskSafeOp(text.split(" "), text);
+  return text === null ? null : storedDiskSafeOp(text);
 }
 
 export function readSessionRow(text: string): SessionRow | null {
@@ -400,7 +400,7 @@ export function readSessionEvent(line: string): SessionEvent | null {
     if (row === null || !Array.isArray(record["pages"]) || typeof record["idleMs"] !== "number" || !(busy === null || typeof busy === "string")) {
       return null;
     }
-    return { kind, row, pages: record["pages"].filter(isPageInfo), busy, idleMs: record["idleMs"] };
+    return { kind, row, pages: record["pages"].filter(isPageInfo), busy: storedOp(busy), idleMs: record["idleMs"] };
   }
   return null;
 }

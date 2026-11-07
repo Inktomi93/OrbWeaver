@@ -4,6 +4,7 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget, loadKillError } from "../../floor/host/load-budget.ts";
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SnapAction } from "../contract/types.ts";
 import { STEP_BASE_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 
@@ -120,7 +121,7 @@ async function terminatePageExecution(session: ProbeSession): Promise<void> {
 /** Bound one daemon call without closing the browser or context that the next call owns. */
 export async function runSessionCallWithinBudget(
   state: SessionCallOwner,
-  op: string,
+  op: DiskSafeOp,
   run: () => Promise<number>,
   baseMs: number = SESSION_CALL_BASE_MS,
 ): Promise<number> {

@@ -17,6 +17,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   allocateStageBand,
   DEFAULT_STAGE_CAP,
@@ -134,7 +135,7 @@ test("A ROW WITH A LIVE SESSION IS NEVER A STRAND, however long it has sat idle"
 test("T4 — a stage marked DEAD is immediately sweepable even while its session daemon is alive", () => {
   const dead = row(7, {
     sessions: ["p-home-perf"],
-    dead: { detectedAt: "2026-09-02T17:59:00.000Z", op: "--goto settings" },
+    dead: { detectedAt: "2026-09-02T17:59:00.000Z", op: diskSafeOp(["--goto", "settings"], "") },
   });
   expect(stageSweepVerdict({ ...BOUND_STAGE, row: dead, liveSessions: ["p-home-perf"] }, TTL_MS)).toBe("stranded");
   const occupied = Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) =>

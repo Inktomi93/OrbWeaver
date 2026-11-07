@@ -2,9 +2,11 @@
 // the positive control proves the raw fixture contains it before the serialized result proves it cannot.
 
 import { expect, test } from "@orb/testkit/tooling";
+import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 import type { RawNetworkEvidence } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { REDACTED } from "../../../../tooling/src/snap/contract/har-redaction.ts";
 import { redactNetworkEvidence, redactNetworkUrl } from "../../../../tooling/src/snap/lib/har-redaction.ts";
+import { __resetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 
 test("redacts every credential carrier while ordinary evidence remains useful", () => {
   const canaries = {
@@ -314,4 +316,47 @@ test("hostile getters cannot smuggle their secret through a thrown error or outp
   expect(thrown).toBe("");
   expect(output).not.toContain(canary);
   expect(output).toContain('"kind":"unreadable"');
+});
+
+test("a revealed value under a plain name leaves a URL, its pairs and every body spelling, and a bound cannot keep half of it", () => {
+  const typed = 'pl"ant& word+9z';
+  const encoded = encodeURIComponent(typed);
+  privateText(typed).reveal();
+  try {
+    const url = redactNetworkUrl(`https://example.test/path/${encoded}?note=${encoded}&ordinary=kept`);
+    expect(url.url).toBe(`https://example.test/path/${PRIVATE_MASK}?note=${PRIVATE_MASK}&ordinary=kept`);
+    expect(url.query).toEqual([
+      { name: "note", value: PRIVATE_MASK },
+      { name: "ordinary", value: "kept" },
+    ]);
+    // Unencoded by the page, the value splits at its own `&`, so no parsed pair holds it whole.
+    expect(redactNetworkUrl(`https://example.test/?note=${encodeURI(typed)}`).url).toBe(`https://example.test/?note=${PRIVATE_MASK}`);
+
+    const evidence = redactNetworkEvidence({
+      url: "https://example.test/",
+      postData: { mimeType: "application/json", text: JSON.stringify({ note: typed, ordinary: "kept" }) },
+      responseContent: { mimeType: "text/plain", text: `echo ${typed} done` },
+      responseHeaders: [{ name: "x-echo", value: typed }],
+    });
+    expect(JSON.parse(evidence.request.postData?.text ?? "")).toEqual({ note: PRIVATE_MASK, ordinary: "kept" });
+    expect(evidence.response.content?.text).toBe(`echo ${PRIVATE_MASK} done`);
+    expect(evidence.response.headers).toEqual([{ name: "x-echo", value: PRIVATE_MASK }]);
+
+    const form = redactNetworkEvidence({
+      url: "https://example.test/",
+      postData: { mimeType: "application/x-www-form-urlencoded", text: new URLSearchParams({ note: typed, ordinary: "kept" }).toString() },
+    });
+    expect(form.request.postData?.params).toEqual([
+      { name: "note", value: PRIVATE_MASK },
+      { name: "ordinary", value: "kept" },
+    ]);
+
+    const cut = redactNetworkEvidence(
+      { url: "https://example.test/", responseContent: { mimeType: "text/plain", text: `${"x".repeat(12)}${typed}${"y".repeat(40)}` } },
+      { maxBodyBytes: 20 },
+    );
+    expect(cut.response.content?.text).not.toContain("pl");
+  } finally {
+    __resetPrivateValues();
+  }
 });

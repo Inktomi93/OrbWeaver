@@ -15,6 +15,7 @@
 import type { ListeningPortsRead, ProcessCompletion } from "../../floor/host/platform.ts";
 import type { ProcessGroup } from "../../floor/process/proc-contract.ts";
 import type { ServedState } from "../../stack/index.ts";
+import type { DiskSafeOp } from "./disk-safe-argv.ts";
 
 export interface StagePorts {
   readonly server: number;
@@ -115,7 +116,7 @@ export interface StageHolder {
  *  `--stage-status` and `--stage-sweep` see the same death the session recorded. */
 interface StageDeath {
   readonly detectedAt: string;
-  readonly op: string;
+  readonly op: DiskSafeOp;
 }
 
 /** A run's first navigation missed readiness while this stage's server and vite both still answered, so the

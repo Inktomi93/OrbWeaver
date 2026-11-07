@@ -147,7 +147,7 @@ export type SessionEvent =
       readonly row: SessionRow;
       readonly pages: readonly SessionPageInfo[];
       /** The in-flight op's argv when the daemon is busy, else null. */
-      readonly busy: string | null;
+      readonly busy: DiskSafeOp | null;
       readonly idleMs: number;
     }
   | {

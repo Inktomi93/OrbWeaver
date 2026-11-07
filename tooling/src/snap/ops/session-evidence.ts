@@ -15,7 +15,7 @@ import { loadResultPairs } from "../../floor/host/load-budget.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { RequestLogEntry } from "../contract/request-log.ts";
 import type { SessionRow } from "../contract/session.ts";
-import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole, redactEvidenceText } from "../lib/browser-evidence-redaction.ts";
+import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole, redactEvidenceLabel } from "../lib/browser-evidence-redaction.ts";
 import { redactNetworkUrl } from "../lib/har-redaction.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { networkHarReceipt } from "../lib/network-har-receipt.ts";
@@ -151,10 +151,10 @@ interface SessionRingExport {
 function redactRequestEntry(entry: RequestLogEntry): RequestLogEntry {
   return {
     ...entry,
-    method: redactEvidenceText(entry.method).text,
+    method: redactEvidenceLabel(entry.method),
     url: redactNetworkUrl(entry.url).url,
-    resourceType: redactEvidenceText(entry.resourceType).text,
-    failed: entry.failed === null ? null : redactEvidenceText(entry.failed).text,
+    resourceType: redactEvidenceLabel(entry.resourceType),
+    failed: entry.failed === null ? null : redactEvidenceLabel(entry.failed),
   };
 }
 

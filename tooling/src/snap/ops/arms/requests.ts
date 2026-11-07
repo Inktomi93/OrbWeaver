@@ -10,7 +10,7 @@ import { print } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
 import type { RequestBodyOutcome, RequestLogEntry, RequestLogReceipt } from "../../contract/request-log.ts";
-import { redactEvidenceText } from "../../lib/browser-evidence-redaction.ts";
+import { redactEvidenceLabel, redactEvidenceText } from "../../lib/browser-evidence-redaction.ts";
 import { redactNetworkUrl } from "../../lib/har-redaction.ts";
 import { filterRequests, requestLogLines } from "../../lib/request-log.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
@@ -22,10 +22,10 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --requests");
 function diskSafeEntry(entry: RequestLogEntry): RequestLogEntry {
   return {
     ...entry,
-    method: redactEvidenceText(entry.method).text,
+    method: redactEvidenceLabel(entry.method),
     url: redactNetworkUrl(entry.url).url,
-    resourceType: redactEvidenceText(entry.resourceType).text,
-    failed: entry.failed === null ? null : redactEvidenceText(entry.failed).text,
+    resourceType: redactEvidenceLabel(entry.resourceType),
+    failed: entry.failed === null ? null : redactEvidenceLabel(entry.failed),
   };
 }
 
@@ -96,7 +96,8 @@ async function finishRequestLog(ring: RequestRing, start: number, opts: ArmArgs,
   const entries = read.entries.map(diskSafeEntry);
   const filter = opts.requestsFilter;
   const body = diskSafeRequestBody(read.body);
-  const shown = filterRequests(entries, filter);
+  // Filter the raw URLs: the operator's word may be a typed value, and the projection has masked it.
+  const shown = filterRequests(read.entries, filter).map(diskSafeEntry);
   const jsonPath = await artifactFile("requests", name, ".json", {
     producer: "requests",
     producerArm: "requests",

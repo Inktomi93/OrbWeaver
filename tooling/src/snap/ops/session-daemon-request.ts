@@ -9,8 +9,10 @@ import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-dia
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { installOutputSink, warn } from "../../floor/cli/log.ts";
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { diskSafeOp } from "../lib/disk-safe-argv.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 import { sessionCallTarget, sessionIdleMs } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal, sessionStageDriftRefusal } from "../lib/session-refusals.ts";
 import { armSessionCallBaseMs } from "./arms/registry.ts";
@@ -63,7 +65,7 @@ export interface SessionDaemonState extends SessionCallState {
   readonly stageBand: number | null;
   row: SessionRow;
   /** The in-flight `call`/`export`, or null — `busy` refuses a second driver; `close` awaits it. */
-  inflight: { readonly op: string; readonly startedAt: number; readonly done: Promise<string | null> } | null;
+  inflight: { readonly op: DiskSafeOp; readonly startedAt: number; readonly done: Promise<string | null> } | null;
   ttlTimer: NodeJS.Timeout | null;
   closing: boolean;
   /** A call that outlived bounded cancellation permanently poisons this browser. The socket closes next,
@@ -187,7 +189,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
 }
 
 function pagesOf(session: ProbeSession): readonly { readonly index: number; readonly url: string; readonly title: string }[] {
-  return session.pages.map((page, index) => ({ index, url: page.url(), title: "" }));
+  return session.pages.map((page, index) => ({ index, url: scrubPrivateText(page.url()), title: "" }));
 }
 
 function serveReadOnlyRequest(state: SessionDaemonState, request: SessionRequest, socket: Socket, shutdown: (reason: string) => Promise<void>): boolean {

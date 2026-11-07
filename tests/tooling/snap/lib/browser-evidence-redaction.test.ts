@@ -4,13 +4,17 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { BrowserDiagnostic } from "../../../../tooling/src/floor/browser/browser-diagnostics.ts";
 import { redactedRequestUrl } from "../../../../tooling/src/floor/browser/browser-request-url.ts";
+import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 import {
   redactBrowserDiagnostic,
   redactBrowserDiagnostics,
   redactBrowserPageError,
   redactCapturedConsole,
   redactCapturedRequest,
+  redactEvidenceLabel,
+  redactEvidenceText,
 } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
+import { __resetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 
 function diagnostic(overrides: Partial<BrowserDiagnostic> = {}): BrowserDiagnostic {
   return {
@@ -183,4 +187,25 @@ test("projection is deterministic, bounded, cyclic-safe, and hostile getters can
   expect(thrown).toBe("");
   expect(hostileSerialized).not.toContain(canary);
   expect(hostileSerialized).toContain('"category":"unreadable"');
+});
+
+test("a revealed value leaves page text but never a field the browser names, and a bound cannot keep half of it", () => {
+  const typed = "console";
+  privateText(typed).reveal();
+  try {
+    const record = redactBrowserDiagnostic(diagnostic({ text: `the page said ${typed}`, details: { echoed: typed }, raw: [typed] }));
+    expect(record.text).toBe(`the page said ${PRIVATE_MASK}`);
+    expect(record.details).toEqual({ echoed: PRIVATE_MASK });
+    expect(record.raw).toEqual([PRIVATE_MASK]);
+    expect(record.source).toBe("console-api");
+    expect(record.category).toBe("console");
+    expect(redactEvidenceLabel("console")).toBe("console");
+
+    const cut = redactEvidenceText(`${"x".repeat(10)}${typed}${"y".repeat(10)}`, { maxStringBytes: 14 });
+    expect(cut.text).not.toContain("cons");
+    expect(redactBrowserPageError({ kind: "runtime", name: "Error", message: `threw ${typed}`, stack: null }).message).toBe(`threw ${PRIVATE_MASK}`);
+    expect(redactCapturedConsole({ type: "error", text: typed, location: null, line: `[error] ${typed}` }).line).toBe(`[error] ${PRIVATE_MASK}`);
+  } finally {
+    __resetPrivateValues();
+  }
 });

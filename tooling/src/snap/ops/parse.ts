@@ -9,7 +9,7 @@ import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import type { NonArmArgs } from "../contract/arms.ts";
 import type { Args } from "../contract/types.ts";
 import { parsedArgWarnings } from "../lib/parse-warnings.ts";
-import { notePrivateValues } from "../lib/private-values.ts";
+import { privateText } from "../lib/private-values.ts";
 import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
 import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
@@ -360,7 +360,7 @@ export function parseSnapArgs(
     waitSelector: null,
     sseSeconds: 0,
     base: DEFAULT_BASE,
-    debugToken: DEFAULT_DEBUG_TOKEN,
+    debugToken: privateText(DEFAULT_DEBUG_TOKEN),
     actions: [],
     pages: 1,
     contexts: 1,
@@ -449,6 +449,5 @@ export function parseSnapArgs(
     }
   }
   args.warnings.push(...parsedArgWarnings(args));
-  notePrivateValues(args);
   return args;
 }

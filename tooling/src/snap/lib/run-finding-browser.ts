@@ -6,6 +6,7 @@ import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } fr
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriveFailure } from "../contract/actions.ts";
 import type { SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
+import { scrubPrivateText } from "./private-values.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import {
   countedBy,
@@ -187,7 +188,7 @@ function parseDriveFailure(path: string, value: unknown): DriveFailure {
   if (!valid) {
     throw new Error(`${path} has a malformed drive-failure row`);
   }
-  return { index: Number(index), kind, flag, subject, reason };
+  return { index: Number(index), kind, flag, subject, reason: scrubPrivateText(reason) };
 }
 
 function driveFailureRows(path: string, capture: Readonly<Record<string, unknown>> | null): readonly DriveFailure[] {
