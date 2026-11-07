@@ -51,7 +51,7 @@ const POSITION_ITEMS: SelectItems = PERSONA_DESCRIPTION_POSITIONS.map((value) =>
 
 export interface PersonaEditorProps {
   readonly persona: PersonaDetail;
-  /** Opens the row's delete confirm (the tier-2 ConfirmDialog the row already owns). An always-visible
+  /** Runs once the editor's Delete is confirmed. An always-visible
    *  way out of the create-on-click flow: "New persona" instantly persists a row, so the freshly-opened
    *  autosave editor must offer an explicit discard — the row's own delete is hover-revealed only. */
   readonly onDelete: () => void | Promise<void>;

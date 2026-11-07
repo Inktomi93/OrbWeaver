@@ -10,6 +10,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
+import { RuleRemoveField } from "./rule-remove-field.tsx";
 
 const APPLY_ITEMS = ANALYSIS_APPLY_MODES.map((value) => ({ value, label: value === "direct" ? "Apply directly" : "Ask the host first" }));
 
@@ -44,9 +45,7 @@ export function RuleAnalysisFields({
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Standing direction" suggestions={[]} />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                Remove standing direction
-              </Button>
+              <RuleRemoveField name="standing direction" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
             </Stack>
           )
         }

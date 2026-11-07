@@ -15,6 +15,7 @@ import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
+import { RuleRemoveField } from "./rule-remove-field.tsx";
 
 /** Keywords are individual values, not a lossy trim/split textarea projection. */
 export function RuleLoreFields({
@@ -50,18 +51,21 @@ export function RuleLoreFields({
             {ids.map((id, keyword) => (
               <Stack key={id} gap="tight">
                 <form.AppField name={`actions[${index}].keys[${keyword}]`}>
-                  {(field): ReactElement => <field.TextField label={`Keyword ${keyword + 1}`} />}
+                  {(field): ReactElement => (
+                    <>
+                      <field.TextField label={`Keyword ${keyword + 1}`} />
+                      <RuleRemoveField
+                        name={`keyword ${keyword + 1}`}
+                        onRemove={(): void => {
+                          Promise.all([form.removeFieldValue(`actions[${index}].keys`, keyword), form.removeFieldValue(`keywordIds[${index}]`, keyword)]).catch(
+                            () => notify.error("Couldn't remove the keyword."),
+                          );
+                        }}
+                        value={field.state.value}
+                      />
+                    </>
+                  )}
                 </form.AppField>
-                <Button
-                  variant="ghost"
-                  onClick={(): void => {
-                    Promise.all([form.removeFieldValue(`actions[${index}].keys`, keyword), form.removeFieldValue(`keywordIds[${index}]`, keyword)]).catch(() =>
-                      notify.error("Couldn't remove the keyword."),
-                    );
-                  }}
-                >
-                  Remove keyword {keyword + 1}
-                </Button>
               </Stack>
             ))}
             <Button

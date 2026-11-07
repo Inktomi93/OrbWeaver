@@ -24,8 +24,8 @@
 // field they came for.
 //
 // REMOVE LIVES IN THE PANEL, exactly where the Field-overrides row puts Clear. Collapsed rows are a list a
-// host scans; a destructive, irreversible affordance one click from the surface of a scan-list is the
-// pattern side-eye #621 already demoted on the rule row. Expanding is the confirmation.
+// host scans, and a destructive, irreversible affordance does not belong on the surface of a scan-list.
+// It still asks: the row's authored text has no way back.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
@@ -41,6 +41,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { DestructiveAction } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
@@ -110,7 +111,7 @@ interface InjectionsListProps {
   readonly isHost: boolean;
   readonly onAdd: () => void;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
-  readonly onDelete: (key: string) => void;
+  readonly onDelete: (key: string) => Promise<void>;
 }
 
 function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
@@ -147,7 +148,7 @@ interface InjectionRowProps {
   readonly ordinal: number;
   readonly isHost: boolean;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
-  readonly onDelete: (key: string) => void;
+  readonly onDelete: (key: string) => Promise<void>;
 }
 
 function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowProps): ReactElement {
@@ -247,9 +248,15 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     irreversible action is never one click off a collapsed scan-list. */}
                 {isHost ? (
                   <Row align="center" gap="field">
-                    <Button variant="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
-                      Remove
-                    </Button>
+                    <DestructiveAction
+                      confirm={{ confirmLabel: "Remove", description: "Its text leaves this chat. This can't be undone.", title: "Remove this injection?" }}
+                      onConfirm={(): Promise<void> => onDelete(row.key)}
+                      trigger={
+                        <Button variant="ghost" size="sm" aria-label="Remove injection">
+                          Remove
+                        </Button>
+                      }
+                    />
                   </Row>
                 ) : null}
               </Stack>
@@ -345,8 +352,8 @@ export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): R
           ...fromInjectionForm(values),
         })
       }
-      onDelete={(key): void => {
-        deleteInjection.mutate({ chatId, injectionId: typeIdSchema(ID_PREFIX.chatInjection).parse(key) });
+      onDelete={async (key): Promise<void> => {
+        await deleteInjection.mutateAsync({ chatId, injectionId: typeIdSchema(ID_PREFIX.chatInjection).parse(key) });
       }}
     />
   );

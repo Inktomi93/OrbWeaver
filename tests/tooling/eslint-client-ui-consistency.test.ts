@@ -92,8 +92,19 @@ test.for([
 
 test("a listed exempt file passes with a bare Delete", async () => {
   expect(
-    await findings(DESTRUCTIVE, "export const A = () => <Button>Remove</Button>;", "packages/client/src/features/automation/components/rule-image-fields.tsx"),
+    await findings(DESTRUCTIVE, "export const A = () => <Button>Remove</Button>;", "packages/client/src/features/persona/components/persona-room-block.tsx"),
   ).toEqual([]);
+});
+
+test.for(["Dialog", "DialogPopup"] as const)("a feature cannot reach the raw %s", async (part) => {
+  expect(await findings("orb/dialog-via-composite", `import { ${part} } from "@orb/ui/dialog";`)).toHaveLength(1);
+});
+
+const REQUIRED_DIALOG = 'import { RequiredFormDialog } from "#components";';
+
+test("the forced dialog is the first-run ask's alone", async () => {
+  expect(await findings("orb/required-dialog-home", REQUIRED_DIALOG)).toHaveLength(1);
+  expect(await findings("orb/required-dialog-home", REQUIRED_DIALOG, "packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx")).toEqual([]);
 });
 
 const LIBRARY_ROW = "orb/library-surface-row";

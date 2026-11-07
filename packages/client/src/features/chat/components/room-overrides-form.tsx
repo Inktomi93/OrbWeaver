@@ -35,8 +35,10 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { DestructiveAction } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
+import { OVERRIDE_CLEAR_VERB } from "../lib/chat-surface-names.ts";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model.ts";
 import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model.ts";
 
@@ -106,11 +108,21 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           <Stack gap="field" paddingBlockEnd="block" paddingInline="block">
             {children}
             <Row align="center" gap="field">
-              {disabled ? null : (
-                <Button variant="ghost" size="sm" onClick={onClear}>
-                  <Icon icon={Eraser} size="xs" />
-                  Clear
-                </Button>
+              {disabled || !isSet ? null : (
+                <DestructiveAction
+                  confirm={{
+                    confirmLabel: OVERRIDE_CLEAR_VERB,
+                    description: "What you wrote here leaves this chat. This can't be undone.",
+                    title: `${OVERRIDE_CLEAR_VERB} ${label}?`,
+                  }}
+                  onConfirm={onClear}
+                  trigger={
+                    <Button variant="ghost" size="sm">
+                      <Icon icon={Eraser} size="xs" />
+                      {OVERRIDE_CLEAR_VERB}
+                    </Button>
+                  }
+                />
               )}
             </Row>
           </Stack>

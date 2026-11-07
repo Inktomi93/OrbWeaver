@@ -116,6 +116,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   expect(markerIndex).toBeGreaterThanOrEqual(0);
   const delResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.deleteChatInjection") && r.status() < 500);
   await page.getByRole("button", { name: "Remove injection" }).nth(markerIndex).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
   await delResp;
 
   // ── Reload — still gone (re-open the chat from the list first). ──

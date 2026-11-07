@@ -1764,6 +1764,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/no-effect-on-shared-selection": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/dialog-via-composite": "error" } },
+    {
+      files: ["packages/client/src/**/*.{ts,tsx}"],
+      // The forced first-run ask, ruled by D330.
+      ignores: ["packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx"],
+      rules: { "orb/required-dialog-home": "error" },
+    },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
     { files: ["packages/client/src/features/**/surfaces/*-{list,library}-surface.tsx"], rules: { "orb/library-surface-row": "error" } },

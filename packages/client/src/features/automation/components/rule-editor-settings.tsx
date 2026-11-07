@@ -10,6 +10,7 @@ import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { triggerLabel } from "../lib/rule-copy.ts";
+import { RuleRemoveField } from "./rule-remove-field.tsx";
 
 /** Scope never changes through an authored update; the trigger choices reflect that scope. */
 export function RuleEditorSettings({
@@ -33,9 +34,7 @@ export function RuleEditorSettings({
           ) : (
             <Stack gap="tight">
               <field.TextareaField label="Description" />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(null)}>
-                Remove description
-              </Button>
+              <RuleRemoveField name="description" onRemove={(): void => field.handleChange(null)} value={field.state.value} />
             </Stack>
           )
         }
@@ -94,9 +93,7 @@ export function RuleEditorSettings({
                     : "A CEL expression filters matching events. A rewrite's condition cannot read the event."
                 }
               />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(null)}>
-                Remove condition
-              </Button>
+              <RuleRemoveField name="condition" onRemove={(): void => field.handleChange(null)} value={field.state.value} />
             </Stack>
           )
         }

@@ -1,6 +1,6 @@
 // The explicit-commit dialog family: a dialog that commits owns one footer, Cancel and a required submit, so a form with no way
 // out or no commit fails to compile. Cancel abandons pre-submit input, never a submitted write. A dialog with nothing to commit
-// is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D70 sanctions.
+// is a `DismissDialog`; `RequiredFormDialog` is the one forced ask, which D330 rules.
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
