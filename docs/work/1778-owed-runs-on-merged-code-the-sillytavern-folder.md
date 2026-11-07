@@ -25,4 +25,4 @@ Every spec named in the Evidence has a recorded passing run on current code. The
 
 Passing runs on merged code. E2E on `268a06a5bc`: smoke, CSRF forward and local, scripted chat, SillyTavern folder import, card import, event sequence. WebKit CT: platform-rule-action-groups, platform-remaining-action-groups (character), platform-context-recovery, platform-text-scale, platform-failed-art-memory, platform-connection-readout and platform-shell, 148 passed, 2 skipped. Live specs through a local engine, `E2E_LIVE=1`, at `7ad4da1733`: guided-generations and the RPG lite loop among 25 passed. Corpus cells on their lane branches: corpus-conversation 32 passed, corpus-cold-boot and corpus-shell 256 passed, corpus-settings 112 passed.
 
-Still owed: corpus-editor-draft-recovery, corpus-workbench, browser-launch and draft-mode-options.
+On main at `6f11775509`: browser-launch and draft-mode-options, 4 passed. corpus-editor-draft-recovery and corpus-workbench, the `@smoke` selection across the corpus cells, 88 passed, 72 skipped.
