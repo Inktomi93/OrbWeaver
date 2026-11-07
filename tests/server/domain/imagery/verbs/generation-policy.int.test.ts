@@ -12,7 +12,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { processMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -40,20 +40,15 @@ const HOST_KEY = "imagery-host-funded-key";
 const CAPTION = "  traveller, blue coat  ";
 const CAPTION_MODE = "character_multimodal";
 
-function physicalExecution(replies: readonly string[]): { execute: typeof fetch; requests: Request[]; images: Uint8Array[] } {
-  const remaining = [...replies];
+function physicalExecution(replies: readonly string[]): Disposable & { execute: typeof fetch; requests: Request[]; images: Uint8Array[] } {
+  using construction = new DisposableStack();
+  const nextReply = construction.use(finiteReplies("imagery completion", replies)).take;
   const requests: Request[] = [];
   const images: Uint8Array[] = [];
   const provider = createCorpusProviderExecution({
     modelIds: [HOST_MODEL, LIVE_MODEL, IMAGE_MODEL],
     embedding: [1, 0, 0],
-    chatText: () => {
-      const reply = remaining.shift();
-      if (reply === undefined) {
-        throw new Error("the finite imagery completion script is exhausted");
-      }
-      return reply;
-    },
+    chatText: () => nextReply(),
     structuredReplies: new Map(),
     images,
     usage: { promptTokens: 40, completionTokens: 15 },
@@ -65,7 +60,9 @@ function physicalExecution(replies: readonly string[]): { execute: typeof fetch;
     }
     return await provider.execute(request);
   };
+  const lifetime = construction.move();
   return {
+    [Symbol.dispose]: () => lifetime.dispose(),
     execute,
     requests,
     images,
@@ -144,7 +141,7 @@ async function policyRoom(root: ServerTestHarness): Promise<{
 }
 
 test("member previews use the host's live Utility binding, preset and instructions; empty and unfunded calls refuse", async () => {
-  const wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION, " "]);
+  using wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION, " "]);
   await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
   const room = await policyRoom(root);
   const preview = (): ReturnType<ServerTestHarness["services"]["imagery"]["extractPrompt"]> =>
@@ -213,7 +210,7 @@ test("member previews use the host's live Utility binding, preset and instructio
 });
 
 test("a member's room image uses the host's image connection and live negative prose, not the member's settings", async () => {
-  const wire = physicalExecution([]);
+  using wire = physicalExecution([]);
   await using root = await createServerHarness({
     startJobs: false,
     providerFetch: wire.execute,
@@ -271,7 +268,7 @@ test("a member's room image uses the host's image connection and live negative p
 });
 
 test("the count, size and negative on chat.generateImage reach the provider request, and every picture posts in one message", async () => {
-  const wire = physicalExecution([]);
+  using wire = physicalExecution([]);
   await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
   const room = await policyRoom(root);
   wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
@@ -302,7 +299,7 @@ test("the count, size and negative on chat.generateImage reach the provider requ
 });
 
 test("a chat-completions image wire warns of the count and size it dropped, a default size stays quiet, and a rule-fired picture warns the same", async () => {
-  const wire = physicalExecution([]);
+  using wire = physicalExecution([]);
   let pixels: Uint8Array = new Uint8Array();
   const reply = (): Response =>
     Response.json({
@@ -392,7 +389,7 @@ test("a chat-completions image wire warns of the count and size it dropped, a de
 });
 
 test("a count, size or negative skips the reuse gate under default reuse, and that picture is never reused", async () => {
-  const wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION]);
+  using wire = physicalExecution([CAPTION, CAPTION, CAPTION, CAPTION]);
   await using root = await createServerHarness({ startJobs: false, providerFetch: wire.execute, secretBoxKey: Buffer.alloc(32, 3) });
   const room = await policyRoom(root);
   for (let index = 0; index < 5; index += 1) {

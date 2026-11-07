@@ -1,3 +1,4 @@
+import { finiteReplies } from "@orb/testkit/iso";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { recordRequest } from "@orb/testkit/node/helpers";
 
@@ -12,17 +13,20 @@ export function eventResponse(events: readonly SseEvent[]): Response {
   });
 }
 
-/** One physical response per declared recipe; an extra send is a fixture refusal, never a recycled reply. */
-export function scriptedResponses(responses: readonly (() => Response)[], recorded: RecordedRequest[] = []): typeof fetch {
-  let next = 0;
-  return async (input, init): Promise<Response> => {
+interface ScriptedResponses extends Disposable {
+  readonly execute: typeof fetch;
+}
+
+/** One physical response per declared recipe; an extra send is a fixture refusal, never a recycled reply, and a recipe never sent fails disposal. */
+export function scriptedResponses(responses: readonly (() => Response)[], recorded: RecordedRequest[] = []): ScriptedResponses {
+  using construction = new DisposableStack();
+  const nextResponse = construction.use(finiteReplies("physical conformance", responses)).take;
+  const execute: typeof fetch = async (input, init): Promise<Response> => {
     const request = new Request(input, init);
     request.signal.throwIfAborted();
     recorded.push(await recordRequest(request));
-    const respond = responses[next++];
-    if (respond === undefined) {
-      throw new Error(`the physical conformance script exhausted its replies: ${request.method} ${request.url}`);
-    }
-    return respond();
+    return nextResponse()();
   };
+  const lifetime = construction.move();
+  return { execute, [Symbol.dispose]: () => lifetime.dispose() };
 }

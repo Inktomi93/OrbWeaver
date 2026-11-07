@@ -59,8 +59,7 @@ interface Sweepable {
 /** A root holding `count` avatars the owner stored before any embedder existed, so none is indexed yet. */
 async function unindexedAvatars(count: number, lifetime: AsyncDisposableStack): Promise<Sweepable> {
   const wire = imageProvider();
-  const root = await createServerHarness({ providerFetch: wire.execute, startJobs: false });
-  lifetime.defer(() => root[Symbol.asyncDispose]());
+  const root = lifetime.use(await createServerHarness({ providerFetch: wire.execute, startJobs: false }));
   const owner = await root.principalFor(root.ownerId);
   const assetIds: AssetId[] = [];
   for (const avatar of await shippedAvatars(count)) {
@@ -143,8 +142,7 @@ test("a finished sweep records the image space it embedded into, and an aborted 
 test("an avatar already indexed by its own event still promotes its generation in a global catch-up, without a second spend", async () => {
   await using lifetime = new AsyncDisposableStack();
   const wire = imageProvider();
-  const root = await createServerHarness({ providerFetch: wire.execute, startJobs: false });
-  lifetime.defer(() => root[Symbol.asyncDispose]());
+  const root = lifetime.use(await createServerHarness({ providerFetch: wire.execute, startJobs: false }));
   const owner = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, owner);
   const [avatar] = await shippedAvatars(1);

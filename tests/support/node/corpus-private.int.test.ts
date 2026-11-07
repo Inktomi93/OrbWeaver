@@ -9,7 +9,7 @@ import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { createDb, localPath, preCloseHousekeeping, runMigrations, users } from "@orb/db";
+import { createDb, localPath, runMigrations, users } from "@orb/db";
 import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
@@ -22,7 +22,7 @@ import { createSeededIds } from "../iso/ids.ts";
 import { cloneCorpusFixture, createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture, publishCorpusFixture } from "./corpus.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
-import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { ownFileDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { createTestEnv } from "./env.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
@@ -43,15 +43,16 @@ test("private intake retains the existing singleton owner and nonempty content i
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const layout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "source") });
   const ids = createSeededIds(100_000);
-  const db = await createDb(layout.databaseUrl);
-  const source = createIdSource(ids.next);
   let original: Awaited<ReturnType<typeof seedUser>>;
   let retainedPlugin: Awaited<ReturnType<typeof capturePluginRows>>;
   let companion: Awaited<ReturnType<typeof createServerHarness>>["ownerId"];
   let cardId: Awaited<ReturnType<Awaited<ReturnType<typeof createServerHarness>>["services"]["character"]["create"]>>["id"];
   let assetHash: string;
   let assetBytes: Uint8Array;
-  try {
+  {
+    await using held = ownFileDb(await createDb(layout.databaseUrl));
+    const db = held.db;
+    const source = createIdSource(ids.next);
     const olderMigrations = join(parent, "older-migrations");
     await cp(SHIPPED_MIGRATIONS, olderMigrations, { recursive: true });
     const journalPath = join(olderMigrations, "meta/_journal.json");
@@ -105,8 +106,6 @@ test("private intake retains the existing singleton owner and nonempty content i
     assetBytes = makeAssetBytes(source.typeId(ID_PREFIX.asset));
     const asset = await root.app.assets.store({ principal, bytes: assetBytes, mime: "image/png", kind: "gallery" });
     assetHash = asset.hash;
-  } finally {
-    await preCloseHousekeeping(db);
   }
   const database = localPath(layout.databaseUrl);
   if (database === undefined) {
@@ -128,8 +127,9 @@ test("private intake retains the existing singleton owner and nonempty content i
   expect(capsule.wire.reads["character.list"][0]?.output.items.map(({ id }) => id)).toContain(cardId);
   expect(capsule.wire.reads["chat.getChat"]).toHaveLength(2);
   expect(Buffer.from(await createCas(capsule.layout.assets, createTestLogger()).read(original.id, assetHash)).equals(Buffer.from(assetBytes))).toBe(true);
-  const capturedDb = await createDb(capsule.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(capsule.layout.databaseUrl));
+    const capturedDb = held.db;
     const copiedPlugin = await capturePluginRows(capturedDb, original.id, retainedPlugin.plugin.id);
     expect(copiedPlugin.plugin).toEqual({ ...retainedPlugin.plugin, status: "disabled", lastError: null, updatedAt: copiedPlugin.plugin.updatedAt });
     expect(copiedPlugin.assets).toEqual(retainedPlugin.assets);
@@ -143,8 +143,6 @@ test("private intake retains the existing singleton owner and nonempty content i
     });
     expect(accounts.find(({ id }) => id === companion)).toMatchObject({ id: companion, handle: "companion", role: "user", externalId: null });
     expect(capsule.wire.memberIdentities?.sharedMember.viewer.userId).not.toBe(companion);
-  } finally {
-    await preCloseHousekeeping(capturedDb);
   }
   await expect(publishCorpusFixture(capsule, join(parent, "portable-refused"))).rejects.toThrow("Private corpus cannot enter portable publication");
   const fixture = ownership.use(await prepareCorpusFixture(capsule, join(intakeParent, "prepared"), LOCAL_ENVIRONMENT));
@@ -182,9 +180,10 @@ test("private intake retains the existing singleton owner and nonempty content i
   await writeFile(join(clone.layout.root, "corpus.json"), '{"synthetic-private-field":"not-public-diagnostics"}');
   expect(() => loadCorpusFixture(clone.layout.root, LOCAL_ENVIRONMENT)).toThrow(/^Private corpus wire is malformed$/u);
   expect((await readFile(database)).equals(originalBytes)).toBe(true);
-  const queuedSource = await createDb(layout.databaseUrl);
   let unfinished: Awaited<ReturnType<Awaited<ReturnType<typeof createServerHarness>>["services"]["workloads"]["start"]>>;
-  try {
+  {
+    await using held = ownFileDb(await createDb(layout.databaseUrl));
+    const queuedSource = held.db;
     await runMigrations(queuedSource, SHIPPED_MIGRATIONS);
     await using root = await createServerHarness({
       db: queuedSource,
@@ -204,16 +203,15 @@ test("private intake retains the existing singleton owner and nonempty content i
       mode: "bulk",
       input: { kind: "compute-cooccurrence", params: {} },
     });
-  } finally {
-    await preCloseHousekeeping(queuedSource);
   }
   const beforeQueuedRefusal = await readFile(database);
   const queuedDirectory = join(intakeParent, "refused-queued-source");
   await expect(createCorpusCapsule({ ...intake, directory: queuedDirectory })).rejects.toThrow('"activeWorkloads":1');
   await expect(access(queuedDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   expect((await readFile(database)).equals(beforeQueuedRefusal)).toBe(true);
-  const futureSource = await createDb(layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(layout.databaseUrl));
+    const futureSource = held.db;
     await using root = await createServerHarness({
       db: futureSource,
       startJobs: false,
@@ -235,8 +233,6 @@ test("private intake retains the existing singleton owner and nonempty content i
       cadence: "daily",
       input: { kind: "reconcile-stats", params: {} },
     });
-  } finally {
-    await preCloseHousekeeping(futureSource);
   }
   const beforeRefusal = await readFile(database);
   const failedDirectory = join(intakeParent, "refused-scheduled-source");

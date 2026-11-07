@@ -5,7 +5,7 @@
 import { builtinProvider } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { messageVariants } from "@orb/db";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -29,7 +29,7 @@ function nativeCacheReply(physicalIndex: number, kind: (typeof CACHE_KINDS)[numb
   const source = SOURCE_IDS[index];
   const content = ["Base.", "A.", "B."][index];
   if (source === undefined || content === undefined) {
-    return Response.json({ error: { message: "the finite cache-economics supplier is exhausted" } }, { status: 400 });
+    throw new Error(`no cache-economics reply exists at physical index ${physicalIndex}`);
   }
   const hit = physicalIndex === 0 && kind === "hit";
   const usage = {
@@ -65,7 +65,6 @@ async function cacheRoom(
   const host = new URL(endpoint).hostname;
   const corpusOrigin = new URL(CORPUS_PROVIDER_ENDPOINT).origin;
   const replayHeaders: (string | null)[] = [];
-  let next = 0;
   const corpus = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -74,6 +73,7 @@ async function cacheRoom(
     images: [],
   });
   await using construction = new AsyncDisposableStack();
+  const nextIndex = construction.use(finiteReplies("cache-economics", [...SOURCE_IDS.keys(), ...(kind === "hit" ? [SOURCE_IDS.length] : [])])).take;
   const h = construction.use(
     await createChatRoot({
       memoryEnabled: false,
@@ -94,7 +94,7 @@ async function cacheRoom(
           throw new Error(`unscripted cache-economics URL: ${request.url}`);
         }
         replayHeaders.push(request.headers.get("x-openrouter-cache"));
-        return nativeCacheReply(next++, kind);
+        return nativeCacheReply(nextIndex(), kind);
       },
     }),
   );

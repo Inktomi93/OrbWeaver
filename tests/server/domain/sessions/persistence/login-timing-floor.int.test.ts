@@ -42,25 +42,28 @@ interface ObservedRoot extends AsyncDisposable {
 async function observedLocalRoot(): Promise<ObservedRoot> {
   let observed: { readonly verify: ObservedRoot["verify"]; readonly dummyHash: string } | undefined;
   const sessionsCrypto = SessionsCrypto.production();
-  const factory = vi.spyOn(sessionsCrypto, "createPasswordHasher").mockImplementation((pepper) => {
+  using _factory = vi.spyOn(sessionsCrypto, "createPasswordHasher").mockImplementation((pepper) => {
     const hasher = realCreatePasswordHasher(pepper);
     observed = { verify: vi.spyOn(hasher, "verify"), dummyHash: hasher.dummyHash };
     return hasher;
   });
-  const root = await createServerHarness({
-    physicalPeer: () => LAN_PEER,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
-    sessionsCrypto,
-  }).finally(() => factory.mockRestore());
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      physicalPeer: () => LAN_PEER,
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+      sessionsCrypto,
+    }),
+  );
   if (observed === undefined) {
-    await root[Symbol.asyncDispose]();
     throw new Error("the composed root built no sessions password verifier");
   }
+  const lifetime = construction.move();
   return {
     root,
     verify: observed.verify,
     dummyHash: observed.dummyHash,
-    [Symbol.asyncDispose]: () => root[Symbol.asyncDispose](),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
     login: async (handle, password): Promise<number> => {
       const response = await root.http.request("/api/auth/login", {
         method: "POST",

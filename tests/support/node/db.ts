@@ -12,7 +12,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Db, LibSqlWrap } from "@orb/db";
-import { closeDb, createDb } from "@orb/db";
+import { closeDb, createDb, preCloseHousekeeping } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
 import * as schema from "@orb/db/schema";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -86,6 +86,17 @@ export interface OwnedDb extends Disposable {
 /** Give a {@link createDb} handle its owner, in the same expression that opens it. */
 export function ownDb(db: Db): OwnedDb {
   return { db, [Symbol.dispose]: () => closeDb(db) };
+}
+
+/** A file-backed database with exactly one owner: disposing it truncates the WAL and closes, so the file is whole for the next reader. */
+export interface OwnedFileDb extends AsyncDisposable {
+  // Spelled through `closeDb` for the reason on {@link OwnedDb}.
+  readonly db: Parameters<typeof closeDb>[0];
+}
+
+/** Give a file-backed {@link createDb} handle its owner, in the same expression that opens it. */
+export function ownFileDb(db: Db): OwnedFileDb {
+  return { db, [Symbol.asyncDispose]: () => preCloseHousekeeping(db) };
 }
 
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */

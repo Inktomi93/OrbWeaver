@@ -28,7 +28,6 @@ import {
   seedCorpusActors,
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
-import { onTestFinished } from "vitest";
 import { z } from "zod";
 import { SEND_BLOCK_LIMITS } from "#contracts/chat/content-blocks.ts";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
@@ -42,7 +41,7 @@ const TURN_CUE = "What did the room show you?";
 type Principal = Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
-interface Box {
+interface Box extends AsyncDisposable {
   readonly root: ServerTestHarness;
   readonly host: Principal;
   readonly member: Principal;
@@ -64,10 +63,8 @@ async function openBox(): Promise<Box> {
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const root = await createServerHarness({ startJobs: false, providerFetch: wire.execute });
-  onTestFinished(async () => {
-    await root[Symbol.asyncDispose]();
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ startJobs: false, providerFetch: wire.execute }));
   const { owner, secondUserId } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
   const character = await root.services.character.create({
@@ -77,6 +74,7 @@ async function openBox(): Promise<Box> {
   const room = await root.services.chat.startChat({ principal: owner, characterIds: [character.id], opening: "none" });
   const invite = await seedChatInvite(root, { principal: owner, chatId: room.chat.id, input: { invitedHandle: member.handle } });
   await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.invite.id });
+  const lifetime = construction.move();
   return {
     root,
     host: owner,
@@ -85,6 +83,7 @@ async function openBox(): Promise<Box> {
     memberCaller: await root.internalCallerFor(member.userId),
     chatBodies,
     chatId: room.chat.id,
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
 
@@ -147,7 +146,7 @@ async function replayedImageUrls(box: Box, chatId: ChatId): Promise<string[]> {
 }
 
 test("mixed blocks persist as one body, project to the same render order and reach a vision model as ordered parts", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
   const outcome = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
@@ -165,7 +164,7 @@ test("mixed blocks persist as one body, project to the same render order and rea
 });
 
 test("a blocks body rides every later turn through swipe, edit, fork, duplicate and a bundle round trip", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   const url = await wireUrl(box, assetId);
   const sent = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
@@ -202,7 +201,7 @@ test("a blocks body rides every later turn through swipe, edit, fork, duplicate 
 });
 
 test("a text-only model keeps the block text and reports the one dropped picture", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const connection = await box.root.services.connection.create({
     principal: box.host,
     providerId: "custom-openai",
@@ -232,7 +231,7 @@ test("a text-only model keeps the block text and reports the one dropped picture
 });
 
 test("a member cannot place another user's asset through a block, and nothing commits", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const hostsPrivate = await storePicture(box, box.host, "gallery");
 
   await expect(
@@ -244,7 +243,7 @@ test("a member cannot place another user's asset through a block, and nothing co
 });
 
 test("a foreign picture spelled inside a markdown block stays unplaced and off the wire", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const hostsPrivate = await storePicture(box, box.host, "gallery");
   const own = await storePicture(box, box.member);
   const blocks: SendContentBlock[] = [{ kind: "markdown", md: `Quoting ![x](asset:${hostsPrivate})` }, ...mixedBlocks(own).slice(1, 2)];
@@ -257,7 +256,7 @@ test("a foreign picture spelled inside a markdown block stays unplaced and off t
 });
 
 test("an owned asset that is not an image is refused as a picture block", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const bytes = new TextEncoder().encode("%PDF-1.7 not a picture");
   const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "attachment", mime: "application/pdf" })).assetId;
 
@@ -269,7 +268,7 @@ test("an owned asset that is not an image is refused as a picture block", async 
 });
 
 test("a reaped upload refuses the send instead of committing a dead ref", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   await box.root.services.assets.reapIfOrphan([assetId]);
 
@@ -281,7 +280,7 @@ test("a reaped upload refuses the send instead of committing a dead ref", async 
 });
 
 test("a USER_INPUT regex reads the block text only and cannot touch a picture ref or its alt", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const script = await box.root.services.regex.createScript({
     principal: box.host,
     input: createRegexScriptSchema.parse({
@@ -302,7 +301,7 @@ test("a USER_INPUT regex reads the block text only and cannot touch a picture re
 });
 
 test("a volatile macro freezes in the block text around a picture", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   const blocks: SendContentBlock[] = [{ kind: "markdown", md: "{{roll:1d1}}" }, IMAGE_BLOCK(assetId), { kind: "markdown", md: "{{roll:1d1}} again" }];
 
@@ -312,7 +311,7 @@ test("a volatile macro freezes in the block text around a picture", async () => 
 });
 
 test("only block text picks a speaker: an @mention in an alt is a label", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const roster = await Promise.all(
     ["aria", "bryn"].map((handle) =>
       box.root.services.character.create({
@@ -368,7 +367,7 @@ test.for([
   { name: "a comment", first: "{{//", last: "}}" },
   { name: "a comment with text", first: "Before {{// hide", last: "end}} after" },
 ])("$name spanning a picture refuses rather than lose it on the wire", async ({ first, last }) => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
   await expect(sendBlocks(box, [MARKDOWN(first), IMAGE_BLOCK(assetId), MARKDOWN(last)])).rejects.toMatchObject({
@@ -379,7 +378,7 @@ test.for([
 });
 
 test("a conditional the wire leaves literal keeps the picture between its markers", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
   await sendBlocks(box, [MARKDOWN("{{#if 0}}"), IMAGE_BLOCK(assetId), MARKDOWN("{{/if}}")]);
@@ -392,7 +391,7 @@ test("a conditional the wire leaves literal keeps the picture between its marker
 });
 
 test("a regex-made card that would swallow a picture refuses before anything commits", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   await hostRegex(box, "/MAKEFENCE/g", ':::card title="x"');
   const assetId = await storePicture(box, box.host);
 
@@ -406,7 +405,7 @@ test.for([
   { name: "duplicates", findRegex: "/[\\s\\S]+/g", replaceString: "$&$&" },
   { name: "strips as non-ASCII", findRegex: "/[^\\x00-\\x7F]/g", replaceString: "" },
 ])("a transform that $name a picture placeholder refuses", async ({ findRegex, replaceString }) => {
-  const box = await openBox();
+  await using box = await openBox();
   await hostRegex(box, findRegex, replaceString);
   const assetId = await storePicture(box, box.host);
 
@@ -416,7 +415,7 @@ test.for([
 });
 
 test("a duplicate asset cannot mask a swallowed picture", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
   await expect(sendBlocks(box, [IMAGE_BLOCK(assetId), MARKDOWN(':::card title="x"'), IMAGE_BLOCK(assetId), MARKDOWN("tail")])).rejects.toMatchObject({
@@ -427,7 +426,7 @@ test("a duplicate asset cannot mask a swallowed picture", async () => {
 });
 
 test("a host mask holds a phrase split across blocks exactly as in plain text", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   await hostRegex(box, "/bad\\s+word/g", "****");
   await box.caller.chat.send({ chatId: box.chatId, content: "bad\n\nword", timeZone: UTC_TIME_ZONE });
   await sendBlocks(box, [MARKDOWN("bad"), MARKDOWN("word")]);
@@ -436,7 +435,7 @@ test("a host mask holds a phrase split across blocks exactly as in plain text", 
 });
 
 test("a user_input transform runs once per send and reads the whole message", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   await userInputRule(box, "{{draft}} [sig]");
   await box.caller.chat.send({ chatId: box.chatId, content: "one\n\ntwo\n\nthree", timeZone: UTC_TIME_ZONE });
   await sendBlocks(box, [MARKDOWN("one"), MARKDOWN("two"), MARKDOWN("three")]);
@@ -446,7 +445,7 @@ test("a user_input transform runs once per send and reads the whole message", as
 });
 
 test("a picture-only send still runs the transforms and keeps their output", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   await userInputRule(box, "{{draft}} [sig]");
   const assetId = await storePicture(box, box.host);
 
@@ -456,7 +455,7 @@ test("a picture-only send still runs the transforms and keeps their output", asy
 });
 
 test("one send's freezes draw independently across blocks and the authored body keeps its refs", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   const rolls = Array.from({ length: 8 }, () => MARKDOWN("{{roll:1d1000}}"));
 
@@ -480,7 +479,7 @@ test("one send's freezes draw independently across blocks and the authored body 
 const PLACEHOLDER = String.fromCodePoint(0xe0_00);
 
 test("{{input}} reads the block text, as on an attachment send, and no placeholder reaches the provider", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const character = await box.root.services.character.create({
     principal: box.host,
     input: createCharacterSchema.parse({ handle: "input-echo", name: "Echo", description: "INPUT<{{input}}>" }),
@@ -495,7 +494,7 @@ test("{{input}} reads the block text, as on an attachment send, and no placehold
 });
 
 test("a world-info key never matches a picture placeholder", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const book = await box.root.services.worldInfo.createBook({ principal: box.host, input: createBookSchema.parse({ name: "Scan" }) });
   await box.root.services.worldInfo.createEntry({
     principal: box.host,
@@ -510,7 +509,7 @@ test("a world-info key never matches a picture placeholder", async () => {
 });
 
 test("a macro that spans a picture stores the ref, never a placeholder, in its freeze record", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
   await sendBlocks(box, [MARKDOWN("{{random::"), IMAGE_BLOCK(assetId), MARKDOWN("}}")]);
@@ -526,7 +525,7 @@ test("a macro that spans a picture stores the ref, never a placeholder, in its f
 });
 
 test("a repeated picture places once per occurrence with one link", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   const url = await wireUrl(box, assetId);
 
@@ -587,7 +586,7 @@ const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId
 ];
 
 test.each(REFUSED_INPUTS)("the strict input refuses $name before anything commits", async ({ input }) => {
-  const box = await openBox();
+  await using box = await openBox();
   const assetId = await storePicture(box, box.host);
   const request = { chatId: box.chatId, content: "", timeZone: UTC_TIME_ZONE, ...input(assetId) };
 

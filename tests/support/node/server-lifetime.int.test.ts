@@ -34,6 +34,7 @@ test("a rejected timer clear cannot strand supervised physical fetch cancellatio
       }
     };
   });
+  // eslint-disable-next-line no-restricted-syntax -- this case observes the root's disposal promise, so it disposes by hand.
   const harness = await createServerHarness({
     clock,
     timers,
@@ -126,6 +127,7 @@ test("service jobs start once and root disposal waits for every actual lane read
   let backgroundJoined = false;
   let stopObservation: (() => void) | undefined;
   try {
+    // eslint-disable-next-line no-restricted-syntax -- this case observes the root's disposal promise, so it disposes by hand.
     harness = await createServerHarness({ db: held.db });
     await gate.reached;
     background = harness.settleBackground().then(() => {

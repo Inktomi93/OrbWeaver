@@ -4,7 +4,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { TurnOutcome } from "@orb/contracts/chat";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -25,37 +25,36 @@ async function room(
   faultStatus?: number,
   server?: Parameters<typeof createChatRoot>[0]["server"],
 ): Promise<ChatRoot> {
-  let next = 0;
+  await using construction = new AsyncDisposableStack();
+  const nextReply = construction.use(finiteReplies("physical root", replies)).take;
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: "unused FIFO fallback",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
-    completion: () => {
-      const text = replies[next++];
-      if (text === undefined) {
-        throw new Error("the physical root reply plan is exhausted");
-      }
-      return { text, toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } };
-    },
+    completion: () => ({ text: nextReply(), toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } }),
   });
-  return await createChatRoot({
-    ...(server === undefined ? {} : { server }),
-    memoryEnabled: false,
-    group: { output: "per-speaker", policy: "list" },
-    characters: names.map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: `${name}'s root witness card.` })),
-    providerFetch: async (input, init) => {
-      const request = new Request(input, init);
-      if (faultStatus !== undefined && request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions")) {
-        return Response.json(
-          { error: { message: "controlled physical provider refusal", type: faultStatus === 429 ? "rate_limit_error" : "server_error" } },
-          { status: faultStatus, headers: { "retry-after": "0" } },
-        );
-      }
-      return await physical.execute(request);
-    },
-  });
+  const h = construction.use(
+    await createChatRoot({
+      ...(server === undefined ? {} : { server }),
+      memoryEnabled: false,
+      group: { output: "per-speaker", policy: "list" },
+      characters: names.map((name) => createCharacterSchema.parse({ handle: name.toLowerCase(), name, description: `${name}'s root witness card.` })),
+      providerFetch: async (input, init) => {
+        const request = new Request(input, init);
+        if (faultStatus !== undefined && request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions")) {
+          return Response.json(
+            { error: { message: "controlled physical provider refusal", type: faultStatus === 429 ? "rate_limit_error" : "server_error" } },
+            { status: faultStatus, headers: { "retry-after": "0" } },
+          );
+        }
+        return await physical.execute(request);
+      },
+    }),
+  );
+  const lifetime = construction.move();
+  return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 async function withRefusal(status: number, prove: (h: ChatRoot, send: () => Promise<TurnOutcome>) => Promise<void>): Promise<void> {
@@ -170,7 +169,7 @@ test("a physical rate-limit refusal rejects with kind:'rate_limit'", async () =>
 });
 
 test("a stranger's send is refused leak-free (not a member)", async () => {
-  await using h = await room(["Hi there"]);
+  await using h = await room([]);
   const stranger = await h.root.principalFor((await h.root.actor()).id);
   await expect(h.root.services.chat.send({ principal: stranger, chatId: h.chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
 });

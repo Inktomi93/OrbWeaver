@@ -27,7 +27,6 @@ import {
   seedCorpusActors,
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
-import { onTestFinished } from "vitest";
 
 const PNG = "image/png";
 const IMAGE_MODEL = modelIdSchema.parse("placement-image-v1");
@@ -35,7 +34,7 @@ const REPLY = "The keeper studies the ledger.";
 /** The host's turn cue: it picks this turn's request out of every chat completion the box sends. */
 const TURN_CUE = "Describe what the room has shown you.";
 
-interface Box {
+interface Box extends AsyncDisposable {
   readonly root: ServerTestHarness;
   readonly host: Principal;
   readonly member: Principal;
@@ -57,10 +56,8 @@ async function openBox(): Promise<Box> {
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images,
   });
-  const root = await createServerHarness({ startJobs: false, providerFetch: wire.execute });
-  onTestFinished(async () => {
-    await root[Symbol.asyncDispose]();
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ startJobs: false, providerFetch: wire.execute }));
   const { owner, secondUserId } = await seedCorpusActors(root);
   const imageConnection = await root.services.connection.create({
     principal: owner,
@@ -76,7 +73,8 @@ async function openBox(): Promise<Box> {
     },
   });
   await root.services.connection.setBinding({ principal: owner, task: "generateImage", connectionId: imageConnection.id });
-  return { root, host: owner, member: await root.principalFor(secondUserId), chatBodies, images };
+  const lifetime = construction.move();
+  return { root, host: owner, member: await root.principalFor(secondUserId), chatBodies, images, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 /** A room the host started, with `guests` admitted through the real invite. */
@@ -182,7 +180,7 @@ async function wireUrl(box: Box, assetId: AssetId): Promise<string> {
 }
 
 test("a quote of another member's picture this room never placed rides as no image part, while the host's own attachment does", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const elsewhere = await openRoom(box, [box.member], "placement-elsewhere");
   const attached = await store(box, box.host, "attachment");
@@ -199,7 +197,7 @@ test("a quote of another member's picture this room never placed rides as no ima
 });
 
 test("a quote stops riding once the owner deletes the message that placed the picture", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const attached = await store(box, box.host, "attachment");
   const posted = await say(box, room, { as: box.host, content: "", attached: [attached] });
@@ -213,7 +211,7 @@ test("a quote stops riding once the owner deletes the message that placed the pi
 });
 
 test("a host's edit citing a member's picture in the member's row never reaches the wire, while the member's own edit does", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const picture = await store(box, box.member, "gallery");
   const hostEdited = await say(box, room, { as: box.member, content: "Hello." });
@@ -230,7 +228,7 @@ test("a host's edit citing a member's picture in the member's row never reaches 
 });
 
 test("a send links the typed pictures its author owns and never another member's", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const own = await store(box, box.member, "gallery");
   const hosts = await store(box, box.host, "gallery");
@@ -240,7 +238,7 @@ test("a send links the typed pictures its author owns and never another member's
 });
 
 test("a plain-text asset id in the owner's own message places nothing", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const picture = await store(box, box.host, "gallery");
   await say(box, room, { as: box.host, content: `id asset:${picture} only` });
@@ -250,7 +248,7 @@ test("a plain-text asset id in the owner's own message places nothing", async ()
 });
 
 test("a fork drops a link its copied body no longer cites", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const attached = await store(box, box.host, "attachment");
   const posted = await say(box, room, { as: box.host, content: "", attached: [attached] });
@@ -262,7 +260,7 @@ test("a fork drops a link its copied body no longer cites", async () => {
 });
 
 test("a duplicate drops a link its copied body no longer cites", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const attached = await store(box, box.host, "attachment");
   const posted = await say(box, room, { as: box.host, content: "", attached: [attached] });
@@ -274,7 +272,7 @@ test("a duplicate drops a link its copied body no longer cites", async () => {
 });
 
 test("a member's generated post sends the host-owned picture through its link", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const post = await generatedPost(box, room, box.member);
   expect((await box.root.services.assets.assetCasRefById(post.assetId))?.ownerId).toBe(box.root.ownerId);
@@ -283,7 +281,7 @@ test("a member's generated post sends the host-owned picture through its link", 
 });
 
 test("a fork carries the link: the copied picture renders for a fork member and rides to the model", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const post = await generatedPost(box, room, box.member);
   const url = await wireUrl(box, post.assetId);
@@ -297,7 +295,7 @@ test("a fork carries the link: the copied picture renders for a fork member and 
 });
 
 test("a duplicate carries the link: with the original deleted, the copy still renders for a member and rides", async () => {
-  const box = await openBox();
+  await using box = await openBox();
   const room = await openRoom(box, [box.member]);
   const post = await generatedPost(box, room, box.member);
   await box.root.services.chat.duplicateMessage({ principal: box.member, chatId: room, messageId: post.messageId });

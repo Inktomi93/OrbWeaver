@@ -12,7 +12,7 @@ function entry(identities: readonly ChatIdentity[], id: string): ChatIdentity | 
 }
 
 test("a roster character and a seat persona each resolve with their kind, and an avatar-less entity keeps a null hash", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const portrait = await storeAvatar(h, h.owner);
   const aria = await addCharacter(h, "iris", portrait);
   const bare = await addCharacter(h, "bare");
@@ -29,13 +29,13 @@ test("a roster character and a seat persona each resolve with their kind, and an
 });
 
 test("a room naming no character, seat persona or pin has an empty identity set", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const chatId = await startRoom(h, []);
   expect((await h.root.services.chat.getChat({ principal: h.owner, chatId })).identities).toEqual([]);
 });
 
 test("a persona that signed a line but no longer holds a seat still resolves in the transcript's identities", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const portrait = await storeAvatar(h, h.owner);
   const worn = await addPersona(h, h.owner, "worn");
   const old = await addPersona(h, h.owner, "mira", { avatar: portrait });
@@ -79,7 +79,7 @@ test("a removed character keeps the portrait its stored lines still show", async
 });
 
 test("a member's persona resolves in the host's room with its own name and avatar; the set is not owner-scoped", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const hostFace = await storeAvatar(h, h.owner);
   const hostPersona = await addPersona(h, h.owner, "host_pov", { avatar: hostFace });
   const chatId = await startRoom(h, [await addCharacter(h, "kai")]);
@@ -98,7 +98,7 @@ test("a member's persona resolves in the host's room with its own name and avata
 });
 
 test("a pinned persona whose owner left the room still resolves for the room that holds the pin", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const pinned = await addPersona(h, h.owner, "founder_pov");
   const chatId = await startRoom(h, [await addCharacter(h, "kai")]);
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId, personaId: pinned });

@@ -7,7 +7,8 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginTo
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { createSeededIds } from "@orb/testkit/iso";
+import type { FiniteReplies } from "@orb/testkit/iso";
+import { createSeededIds, finiteReplies } from "@orb/testkit/iso";
 import type { ChatRoot, ServerHarnessOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -72,6 +73,10 @@ function nativeResponse(parts: readonly JsonValue[], usageMetadata: NativeImageU
   return new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
 }
 
+interface ImageExchange {
+  readonly parts: ImageScript[number];
+  readonly exchange: number;
+}
 type ImageScript = readonly (readonly JsonValue[])[];
 type Generate = () => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
 const IMAGE_ROOM_GROUP = { output: "per-speaker", policy: "list", allowSelfResponses: true } as const satisfies GroupConfigInput;
@@ -94,11 +99,24 @@ export async function imageRoom(
     /** Start another chat in this root under the room's group posture. Its script replaces the current one, so the
      *  provider serves only the newest chat; the booted root and its enabled guest are reused. */
     readonly openChat: (script: ImageScript) => Promise<{ readonly chatId: ChatRoot["chatId"]; readonly turn: Generate }>;
+    /** Stage the exchanges of the next turn, so a script holds only what its case really runs. */
+    readonly script: (script: ImageScript) => void;
   }
 > {
   await using construction = new AsyncDisposableStack();
-  let script = initialScript;
-  let next = 0;
+  // Every chat's script stays owned here and registers before the root, so a late chat is judged after the root closes too.
+  const scripts = new DisposableStack();
+  construction.use(scripts);
+  // A chat's exchanges number across its staged scripts, because usage metadata is keyed by that position.
+  let scripted = initialScript.length;
+  const scriptPlan = (exchanges: ImageScript, first: number): FiniteReplies<ImageExchange>["take"] =>
+    scripts.use(
+      finiteReplies(
+        "native image completion",
+        exchanges.map((parts, index) => ({ parts, exchange: first + index })),
+      ),
+    ).take;
+  let nextExchange = scriptPlan(initialScript, 0);
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -123,11 +141,7 @@ export async function imageRoom(
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith(":streamGenerateContent")) {
-          const exchange = next++;
-          const parts = script[exchange];
-          if (parts === undefined) {
-            throw new Error("the finite native image completion script is exhausted");
-          }
+          const { parts, exchange } = nextExchange();
           return nativeResponse(
             parts,
             physicalOptions.usageMetadata?.get(exchange) ?? {
@@ -209,12 +223,16 @@ host.tools.register({name:"draw",description:"Draw the moon.",replayHistory:true
     (chatId: ChatRoot["chatId"]): Generate =>
     async (): ReturnType<Generate> =>
       await h.root.services.chat.generate({ principal: h.owner, chatId, intent: { replyMedia: "text+image", carryReasoning: "conversation" } });
+  const script = (nextScript: ImageScript): void => {
+    nextExchange = scriptPlan(nextScript, scripted);
+    scripted += nextScript.length;
+  };
   const openChat = async (nextScript: ImageScript): Promise<{ readonly chatId: ChatRoot["chatId"]; readonly turn: Generate }> => {
     const { chat } = await h.caller.chat.startChat({ characterIds: h.characters.map(({ id }) => id), opening: "none" });
     await h.caller.chat.setGroupConfig({ chatId: chat.id, config: IMAGE_ROOM_GROUP });
     await h.root.settleBackground();
-    script = nextScript;
-    next = 0;
+    scripted = 0;
+    script(nextScript);
     return { chatId: chat.id, turn: generateIn(chat.id) };
   };
   const lifetime = construction.move();
@@ -224,6 +242,7 @@ host.tools.register({name:"draw",description:"Draw the moon.",replayHistory:true
     turn: generateIn(h.chatId),
     canon: async () => await h.caller.chat.listMessages({ chatId: h.chatId }),
     openChat,
+    script,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }

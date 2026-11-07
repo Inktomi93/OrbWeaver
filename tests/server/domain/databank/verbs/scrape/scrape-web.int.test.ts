@@ -15,15 +15,19 @@ afterEach(() => vi.unstubAllGlobals());
 
 async function rootWithNetwork(): Promise<{ readonly root: Awaited<ReturnType<typeof createServerHarness>>; readonly dialed: string[] }> {
   const dialed: string[] = [];
-  const root = await createServerHarness({
-    networkExecution: {
-      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
-      fetch: (input, init) => {
-        dialed.push(new Request(input, init).url);
-        return Promise.resolve(new Response(PAGE, { headers: { "content-type": "text/html" } }));
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      networkExecution: {
+        resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
+        fetch: (input, init) => {
+          dialed.push(new Request(input, init).url);
+          return Promise.resolve(new Response(PAGE, { headers: { "content-type": "text/html" } }));
+        },
       },
-    },
-  });
+    }),
+  );
+  construction.move();
   return { root, dialed };
 }
 

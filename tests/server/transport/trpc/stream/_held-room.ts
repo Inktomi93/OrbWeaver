@@ -177,18 +177,21 @@ export async function openRoom(): Promise<Room> {
   });
   let reply = heldReply();
   const prompts: string[] = [];
-  const root = await createServerHarness({
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
-    providerFetch: async (input, init) => {
-      const request = new Request(input, init);
-      if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
-        return await provider.execute(request);
-      }
-      prompts.push(await request.text());
-      return reply.respond();
-    },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      startJobs: false,
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+      providerFetch: async (input, init) => {
+        const request = new Request(input, init);
+        if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
+          return await provider.execute(request);
+        }
+        prompts.push(await request.text());
+        return reply.respond();
+      },
+    }),
+  );
   const { owner: host } = await seedCorpusActors(root);
   const connection = await root.services.connection.create({
     principal: host,
@@ -211,6 +214,8 @@ export async function openRoom(): Promise<Room> {
   const chatId = (await root.services.chat.startChat({ principal: host, characterIds: [card.id], opening: "none" })).chat.id;
   const presence = new AbortController();
   await connectDevice(root, host.userId, presence.signal);
+  construction.defer(() => presence.abort());
+  const lifetime = construction.move();
   return {
     root,
     chatId,
@@ -237,10 +242,7 @@ export async function openRoom(): Promise<Room> {
         })
         .toBe(count);
     },
-    [Symbol.asyncDispose]: async (): Promise<void> => {
-      presence.abort();
-      await root[Symbol.asyncDispose]();
-    },
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
 

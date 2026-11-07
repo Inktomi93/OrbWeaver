@@ -305,10 +305,14 @@ export function conformanceRoot(options: Parameters<typeof createRuntimeRoot>[0]
 
 export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<ChatArmResult> {
   const model = modelForWire(wire);
+  using plans = new DisposableStack();
   await using root = await conformanceRoot(
     wire === "agent-sdk"
       ? { sdkSpawn: physicalSdkScenario({ frames: agentSdkFrames(options.script, model) }).spawn }
-      : { providerFetch: scriptedResponses([() => eventResponse(hostedScript(wire, options.script))]) },
+      : {
+          providerFetch: plans.use(scriptedResponses(options.signal?.aborted === true ? [] : [() => eventResponse(hostedScript(wire, options.script))]))
+            .execute,
+        },
   );
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
   const sink: ChatEventSink = { chatId, deltas: [], events: [] };
@@ -398,17 +402,20 @@ function embeddingsBody(dims: number): string {
 }
 
 async function driveEmbed(wire: Wire, signal?: AbortSignal): Promise<unknown> {
+  using plans = new DisposableStack();
   await using root = await conformanceRoot(
     wire === "local-light"
       ? {}
       : {
-          providerFetch: scriptedResponses([
-            () =>
-              new Response(
-                wire === "google-generative-ai" ? JSON.stringify({ embedding: { values: new Array(EMBED_DIMS).fill(1) } }) : embeddingsBody(EMBED_DIMS),
-                { headers: { "content-type": "application/json" } },
-              ),
-          ]),
+          providerFetch: plans.use(
+            scriptedResponses([
+              () =>
+                new Response(
+                  wire === "google-generative-ai" ? JSON.stringify({ embedding: { values: new Array(EMBED_DIMS).fill(1) } }) : embeddingsBody(EMBED_DIMS),
+                  { headers: { "content-type": "application/json" } },
+                ),
+            ]),
+          ).execute,
         },
   );
   const request: EmbedRequest = {

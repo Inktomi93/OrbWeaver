@@ -289,6 +289,13 @@ const EXTERNAL_MODULE_MOCK_RESTRICTION = {
 // useDisposables judges a declaration, so an acquisition passed, awaited alone or read through a member escapes it.
 const OWNED_DB_MESSAGE =
   "A test database has one owner. Write `using held = await freshDb()` before the graph that borrows it, or pass it to a stack's `.use(...)`; a fixture writes `using held` and then `await use(held)`.";
+const OWNED_PLAN_MESSAGE =
+  "A reply plan has one owner, or its spare replies go unseen. Write `using plan = finiteReplies(...)` before the root, or pass it to a stack's `.use(...)`.";
+// A harness or room has a `Db` member, and a member typed `Db` by name blinds useDisposables, so this rule is the only check on these acquisitions.
+const OWNED_ROOT_MESSAGE =
+  "A root has one owner. Write `await using root = await createServerHarness()`, pass it to a stack's `.use(...)`, or return it from a helper that owns it.";
+const OWNED_ROOT_ACQUISITIONS =
+  "/^(createServerHarness|createChatRoot|createFirstBootHarness|createCorpusHarness|createAuthModeRoot|createRuntimeRoot|conformanceRoot|coreHttpRoom|coreDispatchRoom|textRoom|followupRoom|personaRoom|turnToolsRoom|signedInBox)$/";
 const OWNED_DB_RESTRICTIONS = [
   {
     selector:
@@ -297,8 +304,17 @@ const OWNED_DB_RESTRICTIONS = [
   },
   {
     selector:
-      "CallExpression[callee.name='ownDb']:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression):not(ReturnStatement > CallExpression)",
+      "CallExpression[callee.name=/^(ownDb|ownFileDb)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression):not(ReturnStatement > CallExpression)",
     message: OWNED_DB_MESSAGE,
+  },
+  {
+    selector:
+      "CallExpression[callee.name=/^(finiteReplies|textProvider|openAiServer|scriptedResponses)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression)",
+    message: OWNED_PLAN_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.name=${OWNED_ROOT_ACQUISITIONS}]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(VariableDeclaration[kind=/using/] > VariableDeclarator > ConditionalExpression > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression):not(ReturnStatement > AwaitExpression > CallExpression):not(ReturnStatement > CallExpression):not(ArrowFunctionExpression > CallExpression):not(ArrowFunctionExpression > AwaitExpression > CallExpression):not(CallExpression[callee.name='expect'] > CallExpression)`,
+    message: OWNED_ROOT_MESSAGE,
   },
 ];
 

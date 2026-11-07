@@ -12,7 +12,7 @@ import { B_CHAT_MODEL, B_HOST_KEY, saveSpeakerConnection, speakerInputs, speaker
 import { AUTO_BEATS, memberAutoBeats, NEXT_HOST_KEY, twoPartyHandoff } from "./turn-funding.fixtures.ts";
 
 test("a valid member binding cannot replace the absent host binding or commit a user row", async () => {
-  await using room = await speakerRoom({ chat: ["Only the member's own room may use this key."] }, { group: { output: "per-speaker", policy: "list" } });
+  await using room = await speakerRoom({}, { group: { output: "per-speaker", policy: "list" } });
   const { h } = room;
   const member = await invitePerson(h);
   const memberKey = "owned-speaker-member-key";

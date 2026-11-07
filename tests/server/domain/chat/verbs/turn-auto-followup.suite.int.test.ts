@@ -65,10 +65,6 @@ const CASES: readonly FollowupCase[] = [
         text: "b",
         finishReason: "length",
       },
-      {
-        text: "c",
-        finishReason: "length",
-      },
     ],
     calls: 2,
     variants: 1,
@@ -138,9 +134,6 @@ const CASES: readonly FollowupCase[] = [
       {
         text: "still short",
       },
-      {
-        text: "again short",
-      },
     ],
     calls: 2,
     variants: 2,
@@ -190,10 +183,6 @@ const CASES: readonly FollowupCase[] = [
       },
       {
         text: "c",
-        finishReason: "length",
-      },
-      {
-        text: "d",
         finishReason: "length",
       },
     ],

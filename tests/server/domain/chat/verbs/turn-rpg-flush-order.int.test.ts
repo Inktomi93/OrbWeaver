@@ -104,14 +104,18 @@ test("the cheap tool round's user message ends on the state-tool cue; the folded
             ? turnRpgReply(prose, "Registered observatory")
             : coreSse([coreFrame({ choices: [{ delta: { content: prose } }] }), terminalSseLine({ usage: { promptTokens: 12, completionTokens: 8 } })]);
         },
-        async (request): Promise<Response> => {
-          wire[mode].push(JSON.stringify(await turnWireBody(request)));
-          return turnRpgReply("", "Registered observatory");
-        },
-        async (request): Promise<Response> => {
-          wire.resync.push(JSON.stringify(await turnWireBody(request)));
-          return turnRpgReply("", "Resynced observatory");
-        },
+        ...(mode === "cheap"
+          ? [
+              async (request: Request): Promise<Response> => {
+                wire[mode].push(JSON.stringify(await turnWireBody(request)));
+                return turnRpgReply("", "Registered observatory");
+              },
+              async (request: Request): Promise<Response> => {
+                wire.resync.push(JSON.stringify(await turnWireBody(request)));
+                return turnRpgReply("", "Resynced observatory");
+              },
+            ]
+          : []),
       ],
       {},
       mode,

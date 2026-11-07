@@ -14,7 +14,10 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
 
-async function room(greeting?: string): Promise<
+async function room(
+  greeting?: string,
+  replies: readonly string[] = ["ok"],
+): Promise<
   AsyncDisposable & {
     readonly h: ChatRoot;
     readonly chatId: ChatId;
@@ -23,7 +26,7 @@ async function room(greeting?: string): Promise<
 > {
   await using construction = new AsyncDisposableStack();
   const h = construction.use(
-    await textRoom(["ok", " more"], {
+    await textRoom(replies, {
       characters: [
         createCharacterSchema.parse({
           handle: "aria",
@@ -134,7 +137,7 @@ test("an edit to UNRELATED text also drops the record — a bake that is no long
 });
 
 test("the RESTORE path (continue undo/revert) clears it too — the snapshot it restores is not what the raw produced", async () => {
-  await using f = await room("You rolled {{roll::1d1}}");
+  await using f = await room("You rolled {{roll::1d1}}", ["ok", " more"]);
   const greeting = greetingOf(f);
   await f.h.root.services.chat.send({ principal: f.h.owner, chatId: f.chatId, content: "hello" });
   expect((await provenance(f.h.root.db, greeting.selectedVariantId)).rawContent).toBe("You rolled {{roll::1d1}}");

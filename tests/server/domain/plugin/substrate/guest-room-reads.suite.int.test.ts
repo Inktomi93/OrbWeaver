@@ -68,14 +68,17 @@ async function room(): Promise<Room> {
     await release.promise;
     return new Response("Released.");
   };
-  const h = await createChatRoot({
-    providerFetch: provider.execute,
-    memoryEnabled: false,
-    server: {
-      pluginSpawn: spawn,
-      networkExecution: { fetch: network, resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]) },
-    },
-  });
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(
+    await createChatRoot({
+      providerFetch: provider.execute,
+      memoryEnabled: false,
+      server: {
+        pluginSpawn: spawn,
+        networkExecution: { fetch: network, resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]) },
+      },
+    }),
+  );
   const member = await h.root.principalFor((await h.root.actor()).id);
   // The member can fund a turn of their own, so a turn that ran past the host gate would be visible in canon.
   await seedCorpusConnections(h.root, member);
@@ -97,6 +100,8 @@ async function room(): Promise<Room> {
     { slug: "room-reader", capabilities: ["chat.read", "worldinfo.read", "turn.trigger", "net.fetch"], netHosts: [NET_HOST] },
     ROOM_OPS,
   );
+  construction.defer(() => release.resolve());
+  const lifetime = construction.move();
   return {
     h,
     member,
@@ -105,10 +110,7 @@ async function room(): Promise<Room> {
     release: (): void => release.resolve(),
     host: guestRunner({ root: h.root, caller: h.owner, pluginId: hostPlugin, chatId: h.chatId }),
     memberGuest: guestRunner({ root: h.root, caller: member, pluginId: memberPlugin, chatId: h.chatId }),
-    [Symbol.asyncDispose]: async (): Promise<void> => {
-      release.resolve();
-      await h[Symbol.asyncDispose]();
-    },
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
 

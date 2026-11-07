@@ -106,7 +106,7 @@ test("in a labelled multi-human room the teach never reads as part of the player
 
 test("the player's dice stamp is honoured by the turns answering it and by no later turn", async () => {
   const roll = PROSE_SLOTS["rpg.reminder.playerRolledDice"].text;
-  await using h = await turnRpgRoom(Array.from({ length: 6 }, () => (): Response => turnRpgReply("The keeper nods.")));
+  await using h = await turnRpgRoom(Array.from({ length: 5 }, () => (): Response => turnRpgReply("The keeper nods.")));
   const params = { principal: h.owner, chatId: h.chatId };
   const { stamp } = await h.root.services.rpg.rollDice({ ...params, notation: "d20" });
   const rolled = await newestWireAfter(h, () => h.root.services.chat.send({ ...params, content: `I leap the gap. ${stamp}` }));
@@ -143,7 +143,7 @@ async function rollNotes(h: ChatRoot): Promise<boolean[]> {
 }
 
 test("an auto-mode beat answers another character, so only the turns answering the player's stamp carry the note", async () => {
-  await using h = await turnRpgRoom(replies(8), {
+  await using h = await turnRpgRoom(replies(4), {
     characters: TAIL_ROSTER.slice(0, 2),
     group: { output: "per-speaker", policy: "list", allowSelfResponses: false, autoMode: true, autoModeMaxTurns: 2, autoModeDelayMs: 0 },
   });
@@ -154,7 +154,7 @@ test("an auto-mode beat answers another character, so only the turns answering t
 });
 
 test("a generate on the stamped tail answers it; a generate on any later tail does not", async () => {
-  await using h = await turnRpgRoom(replies(3));
+  await using h = await turnRpgRoom(replies(2));
   const params = { principal: h.owner, chatId: h.chatId };
   await h.root.services.chat.commitMessage({ ...params, content: `I leap. ${STAMP}` });
   await h.root.services.chat.generate(params);
@@ -165,7 +165,7 @@ test("a generate on the stamped tail answers it; a generate on any later tail do
 });
 
 test("a hidden stamped message is off the wire, so a swipe is not told its roll", async () => {
-  await using h = await turnRpgRoom(replies(3));
+  await using h = await turnRpgRoom(replies(2));
   const params = { principal: h.owner, chatId: h.chatId };
   await h.root.services.chat.send({ ...params, content: `I leap. ${STAMP}` });
   await h.root.settleBackground();
@@ -182,7 +182,7 @@ test("a hidden stamped message is off the wire, so a swipe is not told its roll"
 });
 
 test("a USER_INPUT regex that strips the stamp leaves nothing for the note to answer", async () => {
-  await using h = await turnRpgRoom(replies(2));
+  await using h = await turnRpgRoom(replies(1));
   const script = await h.root.services.regex.createScript({
     principal: h.owner,
     input: createRegexScriptSchema.parse({ name: "Strip dice", findRegex: "/\\[dice:[^\\]]*\\]/g", replaceString: "", placement: ["USER_INPUT"] }),
@@ -251,7 +251,7 @@ test("a game's state block is accounted under its own budget source and reaches 
   const wire = await newestWire(game);
   expect(wire).toContain(opening);
 
-  await using plain = await textRoom(["ok"]);
+  await using plain = await textRoom([]);
   const plainPreview = await plain.root.services.chat.previewAssembly({ principal: plain.owner, chatId: plain.chatId });
   expect(plainPreview.budget.sources.some((source) => source.source === "game-state")).toBe(false);
 });

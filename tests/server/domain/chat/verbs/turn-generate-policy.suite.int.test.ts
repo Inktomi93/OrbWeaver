@@ -9,6 +9,8 @@ import { openingOf, openingText, textRoom, wireBodies } from "../scenario-physic
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs, speakerRoom } from "./speaker-funding-physical.ts";
 import { priorExchange } from "./turn-generate-policy.fixtures.ts";
 
+const NO_UTILITY_ANSWERS: readonly (readonly string[])[] = [];
+
 test("speakerless list generation skips the actual last speaker and commits only the next eligible seat", async () => {
   await using h = await textRoom(["Bryn answers."], {
     characters: [
@@ -104,7 +106,7 @@ test.for([
   {
     title: "public Smart generation commits the native Utility pick with one arbitration and no warning",
     names: ["aria", "bryn", "cara"],
-    picks: ["cara"],
+    picks: [["cara"]],
     failure: false,
     explicit: false,
     expected: 2,
@@ -112,7 +114,7 @@ test.for([
   {
     title: "a native Utility refusal makes public generate use the eligible natural fallback and exact warning",
     names: ["aria", "bryn"],
-    picks: [],
+    picks: NO_UTILITY_ANSWERS,
     failure: true,
     explicit: false,
     expected: 1,
@@ -120,7 +122,7 @@ test.for([
   {
     title: "an explicit public generation target bypasses even a saved working Utility binding",
     names: ["aria", "bryn"],
-    picks: ["bryn"],
+    picks: NO_UTILITY_ANSWERS,
     failure: false,
     explicit: true,
     expected: 0,
@@ -132,7 +134,7 @@ test.for([
   }
   const reply = `${expectedName} answers.`;
   await using f = await speakerRoom(
-    { chat: [reply], picks: [scene.picks], utilityFailure: scene.failure },
+    { chat: [reply], picks: scene.picks, utilityFailure: scene.failure },
     {
       characters: scene.names.map((name) => createCharacterSchema.parse({ handle: name, name, description: `The traveller ${name}.` })),
       group: { output: "per-speaker", policy: "smart", smartPicker: "utility", allowSelfResponses: false },

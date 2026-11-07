@@ -46,10 +46,14 @@ async function open(root: ServerTestHarness, socketId: SocketId): Promise<Connec
 }
 
 async function presenceRoot(): Promise<{ readonly root: ServerTestHarness; readonly asker: UserId } & AsyncDisposable> {
-  const root = await createServerHarness({ physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({ physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } }),
+  );
   await root.services.settings.updateAppSettings({ principal: await root.principalFor(root.ownerId), partial: { localMultiUser: true } });
   const { id } = await root.actor();
-  return { root, asker: id, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  const lifetime = construction.move();
+  return { root, asker: id, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 /** Polled, because a client's close reaches the server a beat after its own read settles. */
