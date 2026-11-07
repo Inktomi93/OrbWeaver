@@ -94,6 +94,7 @@ test("placed lays a band across its host's foot, a block step clear of it", asyn
   const host = await boxOf(probe("placed-host"));
   const band = await boxOf(probe("placed-foot"));
   expect(band.width).toBe(host.width);
+  expect(band.top).toBeGreaterThan(host.top + host.height / 2);
   expect(band.bottom).toBeLessThan(host.bottom);
 });
 

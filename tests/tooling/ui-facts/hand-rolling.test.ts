@@ -1033,6 +1033,17 @@ test("a boolean arm plans its prop as a JSX expression", ({ scratch }) => {
   expect(planOf(root).sites.map(({ prop, value }) => [prop, value])).toEqual([["truncate", "{true}"]]);
 });
 
+test("an arm the site does not wear whole is no rival for the arm that writes the class alone", ({ scratch }) => {
+  const root = plantDir(scratch, "wider-arm");
+  plantBoxes(
+    root,
+    { one: "grow: { true: 'flex-1', wide: 'flex-1 @max-cq-28:flex-none' }" },
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="flex-1" />;',
+  );
+  expect(migrate(root, "plan", "box.grow").code).toBe(0);
+  expect(planOf(root).sites.map(({ prop, value }) => [prop, value])).toEqual([["grow", "{true}"]]);
+});
+
 test("a class with a variant prefix moves to the arm that writes it whole, and one no arm writes is not planned as the plain class", ({ scratch }) => {
   const root = plantDir(scratch, "prefixed-token");
   plant(root, {

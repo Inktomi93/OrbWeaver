@@ -86,9 +86,11 @@ export function ControlAxesStory(): ReactElement {
         <PictureButton data-probe="picture-floor" minHeight="controlMd" minWidth="controlMd" />
         <Card data-probe="card-width" width="full" cap="avatarHero" />
         <Collapsible>
-          <CollapsibleTrigger data-probe="trigger-width" width="full">
-            Open
-          </CollapsibleTrigger>
+          <Row>
+            <CollapsibleTrigger data-probe="trigger-width" width="full">
+              Open
+            </CollapsibleTrigger>
+          </Row>
         </Collapsible>
       </div>
 
@@ -140,7 +142,7 @@ export function ControlAxesStory(): ReactElement {
         </Contents>
       </Row>
 
-      <Stack style={{ blockSize: SHORT_HOST_PX }} data-probe="list-host">
+      <div style={{ blockSize: SHORT_HOST_PX }} data-probe="list-host">
         <VirtualList
           aria-label="Filled list"
           estimateSize={(): number => LIST_ROW_PX}
@@ -150,7 +152,7 @@ export function ControlAxesStory(): ReactElement {
           items={LIST_ROWS}
           renderItem={(row: string): ReactElement => <div style={{ blockSize: LIST_ROW_PX }}>{row}</div>}
         />
-      </Stack>
+      </div>
     </CtIsolation>
   );
 }
