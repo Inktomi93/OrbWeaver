@@ -109,12 +109,11 @@ interface FixtureRequest {
   finished: boolean;
 }
 
-export interface FixtureProvider {
+export interface FixtureProvider extends AsyncDisposable {
   readonly baseUrl: string;
   readonly host: string;
   readonly requests: readonly FixtureRequest[];
   readonly release: (index: number) => void;
-  readonly close: () => Promise<void>;
 }
 
 // The product's outbound request is the observation, so read only the latest user turn's text; any other
@@ -215,7 +214,7 @@ export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[
           response.end();
           held.delete(index);
         },
-        close: () =>
+        [Symbol.asyncDispose]: () =>
           new Promise<void>((done) => {
             for (const response of held.values()) {
               response.destroy();

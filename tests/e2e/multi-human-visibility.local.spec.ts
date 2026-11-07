@@ -440,7 +440,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
+  await using fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-trigger"), {
     name: "Marrow",
@@ -508,6 +508,5 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     await host.trpc.character.remove.mutate({ characterId });
     await member.trpc.persona.remove.mutate({ personaId: persona.id });
     await restoreProvider?.();
-    await fixture.close();
   }
 });

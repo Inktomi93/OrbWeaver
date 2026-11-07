@@ -84,7 +84,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
+  await using fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
   const priorList = await host.trpc.character.list.query({});
@@ -161,6 +161,5 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   } finally {
     await host.trpc.character.remove.mutate({ characterId: character.id });
     await restoreProvider?.();
-    await fixture.close();
   }
 });

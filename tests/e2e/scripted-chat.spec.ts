@@ -114,68 +114,63 @@ for (const stopped of [false, true]) {
   test(scriptedChatTitle(stopped), { tag: "@smoke" }, async ({ page, baseURL }) => {
     test.setTimeout(budget(SCRIPTED_CHAT_CASE_BASE_MS));
     const host = ownerActor(baseURL ?? "");
-    let restoreProvider: (() => Promise<void>) | undefined;
-    const fixture = await startFixtureProvider(0, stopped ? [STOP] : [FIRST, SECOND]);
+    // Declared first so it runs last: a held stream closes before its room's rows go.
+    await using teardown = new AsyncDisposableStack();
+    await using fixture = await startFixtureProvider(0, stopped ? [STOP] : [FIRST, SECOND]);
     const characterId = await mintFreshCharacter(castId<CharacterHandle>("e2e-smoke-wire"), CHARACTER, GREETING);
-    try {
-      restoreProvider = await configureCustomProvider(host, fixture.baseUrl, stopped ? "fixture-stop" : "fixture-conversation");
-      const chatId = await openOwnedCharacter(page);
-      const greeting = await listCanon(chatId);
-      expect(greeting.map((message) => ({ role: message.role, content: message.content, characterId: message.characterId }))).toEqual([
-        { role: "assistant", content: GREETING, characterId },
-      ]);
-      const turns = stopped ? [STOP] : [FIRST, SECOND];
-      for (const [index, turn] of turns.entries()) {
-        await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), turn.userMessage);
-        await assertHeldPrefix(page, fixture, index, turn);
-        await expect(assertIdle(page, 100)).rejects.toThrow(/Expected|Timed out/u);
-        if (stopped) {
-          await page.getByRole("button", { name: CHAT_STOP_NAME, exact: true }).click();
-          // Peer closure must happen before teardown destroys any fixture socket.
-          await assertProviderSocketClosed(fixture, index);
-        } else {
-          fixture.release(index);
-        }
-        await expect.poll(() => fixture.requests[index]?.closed).toBe(true);
-        expect(fixture.requests[index]?.finished).toBe(!stopped);
-        await assertIdle(page);
-        await expect
-          .poll(async () => (await listCanon(chatId)).map((message) => ({ role: message.role, content: message.content })))
-          .toEqual([
-            { role: "assistant", content: GREETING },
-            ...turns
-              .slice(0, index + 1)
-              .flatMap((item) => [
-                { role: "user", content: item.userMessage },
-                ...(stopped ? [] : [{ role: "assistant", content: item.prefix + item.suffix }]),
-              ]),
-          ]);
-      }
-      const before = await listCanon(chatId);
-      expect(new Set(before.map((message) => message.id)).size).toBe(before.length);
-      expect(before.map((message) => message.seq)).toEqual(before.map((message) => message.seq).toSorted((a, b) => a - b));
-      expect(before.filter((message) => message.role === "assistant").every((message) => message.characterId === characterId)).toBe(true);
-      const rendered = await readRenderedCanon(page, before.length);
-      assertRenderedCanon(rendered, before);
-      // Controlled wrong identities/content/order must fail the same rendered oracle that reload uses.
-      const first = before[0];
-      if (first === undefined) {
-        throw new Error("owned transcript has no greeting");
-      }
-      expect(() => assertRenderedCanon(rendered, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)])).toThrow("Expected");
-      expect(() => assertRenderedCanon(rendered, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)])).toThrow("Expected");
-      expect(() => assertRenderedCanon(rendered, [...before].reverse())).toThrow("Expected");
-      await renameOpenChat(page, TITLE);
-      await page.reload();
-      await waitForAppReady(page);
-      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
-      await assertIdle(page);
-      expect(await listCanon(chatId)).toEqual(before);
-      assertRenderedCanon(await readRenderedCanon(page, before.length), before);
-    } finally {
-      await fixture.close();
+    teardown.defer(async () => {
       await removeCharacter(characterId);
-      await restoreProvider?.();
+    });
+    teardown.defer(await configureCustomProvider(host, fixture.baseUrl, stopped ? "fixture-stop" : "fixture-conversation"));
+    const chatId = await openOwnedCharacter(page);
+    const greeting = await listCanon(chatId);
+    expect(greeting.map((message) => ({ role: message.role, content: message.content, characterId: message.characterId }))).toEqual([
+      { role: "assistant", content: GREETING, characterId },
+    ]);
+    const turns = stopped ? [STOP] : [FIRST, SECOND];
+    for (const [index, turn] of turns.entries()) {
+      await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), turn.userMessage);
+      await assertHeldPrefix(page, fixture, index, turn);
+      await expect(assertIdle(page, 100)).rejects.toThrow(/Expected|Timed out/u);
+      if (stopped) {
+        await page.getByRole("button", { name: CHAT_STOP_NAME, exact: true }).click();
+        // Peer closure must happen before teardown destroys any fixture socket.
+        await assertProviderSocketClosed(fixture, index);
+      } else {
+        fixture.release(index);
+      }
+      await expect.poll(() => fixture.requests[index]?.closed).toBe(true);
+      expect(fixture.requests[index]?.finished).toBe(!stopped);
+      await assertIdle(page);
+      await expect
+        .poll(async () => (await listCanon(chatId)).map((message) => ({ role: message.role, content: message.content })))
+        .toEqual([
+          { role: "assistant", content: GREETING },
+          ...turns
+            .slice(0, index + 1)
+            .flatMap((item) => [{ role: "user", content: item.userMessage }, ...(stopped ? [] : [{ role: "assistant", content: item.prefix + item.suffix }])]),
+        ]);
     }
+    const before = await listCanon(chatId);
+    expect(new Set(before.map((message) => message.id)).size).toBe(before.length);
+    expect(before.map((message) => message.seq)).toEqual(before.map((message) => message.seq).toSorted((a, b) => a - b));
+    expect(before.filter((message) => message.role === "assistant").every((message) => message.characterId === characterId)).toBe(true);
+    const rendered = await readRenderedCanon(page, before.length);
+    assertRenderedCanon(rendered, before);
+    // Controlled wrong identities/content/order must fail the same rendered oracle that reload uses.
+    const first = before[0];
+    if (first === undefined) {
+      throw new Error("owned transcript has no greeting");
+    }
+    expect(() => assertRenderedCanon(rendered, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)])).toThrow("Expected");
+    expect(() => assertRenderedCanon(rendered, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)])).toThrow("Expected");
+    expect(() => assertRenderedCanon(rendered, [...before].reverse())).toThrow("Expected");
+    await renameOpenChat(page, TITLE);
+    await page.reload();
+    await waitForAppReady(page);
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
+    await assertIdle(page);
+    expect(await listCanon(chatId)).toEqual(before);
+    assertRenderedCanon(await readRenderedCanon(page, before.length), before);
   });
 }

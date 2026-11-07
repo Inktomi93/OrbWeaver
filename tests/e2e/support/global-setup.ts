@@ -243,20 +243,18 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     throw new Error(refusals.join("\n"));
   }
   // Routine selection cannot discover or generate against the operator's model engine.
-  const fixture = process.env["E2E_LIVE"] === "1" || SELECTED_CORPUS_FIXTURE !== undefined ? undefined : await startFixtureProvider(0, []);
-  try {
-    if (SELECTED_CORPUS_FIXTURE === undefined) {
-      await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
-    } else {
-      for (const { mode } of booted.filter((candidate) => candidate.mode.name === "local")) {
-        await seedCorpusLocal(mode);
-      }
+  await using construction = new AsyncDisposableStack();
+  // biome-ignore lint/nursery/useDisposables: construction owns this provider and construction.move transfers it to the returned teardown; local using would close it before the specs run.
+  const fixture = process.env["E2E_LIVE"] === "1" || SELECTED_CORPUS_FIXTURE !== undefined ? undefined : construction.use(await startFixtureProvider(0, []));
+  if (SELECTED_CORPUS_FIXTURE === undefined) {
+    await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
+  } else {
+    for (const { mode } of booted.filter((candidate) => candidate.mode.name === "local")) {
+      await seedCorpusLocal(mode);
     }
-  } catch (error) {
-    await fixture?.close();
-    throw error;
   }
+  const teardown = construction.move();
   return async (): Promise<void> => {
-    await fixture?.close();
+    await teardown.disposeAsync();
   };
 }
