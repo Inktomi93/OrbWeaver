@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-06
+status: doing
+updated: 2026-11-07
 priority: P2
 area: server
+lane: wt/agent-a4e0062138fd4114a
 plan: unwired-code
 ---
 
