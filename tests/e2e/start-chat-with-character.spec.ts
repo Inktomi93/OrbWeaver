@@ -1,27 +1,29 @@
 // E2E: the real "start a chat with a character" flow, end-to-end against the full running stack — the
 // proof that this seam makes the app actually generate. single-user AUTH_MODE auto-resolves the owner
-// (no login form); globalSetup (support/global-setup.ts) guarantees ≥1 character card. The `chat` Model role
-// is bound to the harness's local-engine connection (globalSetup's `pinChatConnection` — `vllm` on
-// chat-completions) + consent are live, so with a character in the room the turn WILL generate + stream.
+// (no login form). The `chat` Model role is bound to the harness's local-engine connection (globalSetup's
+// `pinChatConnection` — `vllm` on chat-completions) + consent are live, so with a character in the room the turn
+// WILL generate + stream.
 //
-// OPT-IN (`@live`): this is the ONE spec that fires a real local vLLM chat turn (up to ~120s of live
-// generation), so it is SKIPPED by default and only runs under `E2E_LIVE=1` — routine `pnpm e2e` (and the
-// CI smoke gate, which excludes `@live`) never hits live model credits. Run it explicitly with:
+// OPT-IN (`@live`): this spec fires a real local vLLM chat turn (up to ~120s of live generation), so it is SKIPPED
+// by default and only runs under `E2E_LIVE=1` — routine `pnpm e2e` (and the CI smoke gate, which excludes `@live`)
+// never hits live model credits. Run it explicitly with:
 //   E2E_LIVE=1 pnpm e2e start-chat-with-character.spec.ts
 //
-// The flow: `/` → Characters section → the first row's kebab ("Actions for X") → "Chat" (the library→chat
-// store seam; in the docked library width the inline "Chat with X" CTA folds into this kebab) → the route
-// flips CONTENT to a fresh draft seeded with that character → type (pressSequentially — `fill` bypasses
-// React's onChange so the composer's controlled value never updates) → Enter → the first send calls
-// `chat.startChat` with the seeded roster, then commits the text as its first turn → the assistant (now
-// a real speaker in the room) streams a reply back.
+// The flow: `/` → Characters section → the spec-owned character's "Chat with X" CTA → `chat.startChat` creates the
+// room at the click (D166) and seeds its greeting → type → Send → the assistant streams a reply. The character is
+// minted chatless, so the CTA starts a new room and the greeting is retained canon no reply assertion can accept.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { charactersRailButton, typeAndSend } from "./support/chat-room.ts";
-import { CASE_LIVE_FOLLOW_UP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
+import { messageRow, openCharacterRoom, sendAndAwaitReply } from "./support/chat-room.ts";
+import { CASE_LIVE_FOLLOW_UP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
+import { deleteChat, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
 
-const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
+const CHARACTER = "Start Chat Probe";
+const HANDLE = castId<CharacterHandle>("e2e-start-chat-probe");
+const GREETING = "The start-chat probe waits by the door.";
 const NON_WHITESPACE = /\S/u;
 
 // The `@live` tag is the opt-in gate: playwright.config.ts sets `grepInvert: /@live/` UNLESS `E2E_LIVE=1`,
@@ -33,100 +35,50 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // + the streamed turn) well beyond Playwright's 30s default.
   test.setTimeout(CASE_LIVE_FOLLOW_UP_MS);
 
-  await page.goto("/");
+  const characterId = await mintFreshCharacter(HANDLE, CHARACTER, GREETING);
+  const chatId = await openCharacterRoom(page, CHARACTER);
+  try {
+    const message = "Hello there! Please introduce yourself briefly.";
+    const { userId, assistantId } = await sendAndAwaitReply({ page, chatId }, message);
+    await expect(messageRow(page, userId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
 
-  // Single-user mode: `/` resolves the owner with no login. Wait for the client to mount the shell —
-  // the rail's Characters nav is the entry to the library (exact — "Characters" is a substring of
-  // "Collapse Characters panel").
-  const charactersNav = charactersRailButton(page);
-  await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await charactersNav.click();
-
-  // The first character row's "Chat with <name>" CTA (§4.4 — the 1-click core loop). The row kebab carries
-  // only Archive/Duplicate/Delete in this client — chat is the dedicated CTA, not a menu item. The revealed
-  // cluster is now INERT while hidden (an invisible control must not be hit-testable), so hover the ROW
-  // first — a bare `.click()` would wait forever on the "receives pointer events" actionability check.
-  const chatRow = page
-    .locator('[data-slot="list-row-root"]')
-    .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
-    .first();
-  await expect(chatRow).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await chatRow.hover();
-  await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
-
-  // The store seam flipped CONTENT back to the Chats section with a fresh, character-seeded draft: the
-  // composer is live.
-  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
-  await expect(composer).toBeVisible();
-
-  // Type + send via the shared helper (it drives React's onChange — `fill` does not — and RETRIES past the
-  // composer re-mount that otherwise drops all but the first keystroke; see support/chat-room.ts typeAndSend).
-  await typeAndSend(composer, "Hello there! Please introduce yourself briefly.");
-
-  // The user's message committed. The "Chat with X" CTA is resume-or-new: if a committed chat already exists
-  // for this character (e.g. other @live specs seeded one), it RESUMES into a populated room, so there can be
-  // MORE THAN ONE user row — assert on the LAST (the message we just sent), not the strict-mode-violating
-  // multi-match locator.
-  const userRow = page.locator('[data-slot="message-row"][data-role="user"]').last();
-  await expect(userRow).toContainText("Hello there!", { timeout: WAIT_SETTLE_MS });
-
-  // The money shot: with a character in the room there IS a speaker, so the assistant generates and its
-  // reply streams back as a real canonical row with non-empty content. (We assert on the landed reply,
-  // not the transient Stop-button/ghost window — the Stop affordance is a ~ttft-length flash that races
-  // the SSE-subscribe-vs-turnStarted timing; the reply appearing is the robust, deterministic proof the
-  // turn actually generated, corroborated by the local vLLM gen engine's message-POST log.)
-  const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-  await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
-  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
+    // With a character in the room there IS a speaker, so the assistant generates and its reply lands as a new
+    // canonical row with non-empty content. (The Stop affordance is a ~ttft-length flash, so the landed row is the
+    // deterministic proof the turn generated.)
+    await expect(messageRow(page, assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
+  } finally {
+    await deleteChat(chatId);
+    await removeCharacter(characterId);
+  }
 });
 
-// The draft-promotion P1 (found by a live UX review): on a NEW-CHAT DRAFT, the first send promotes the
-// draft to a committed chat MID-FLOW (fireOpening → chat.startChat mints the real chatId, then chat.send
-// runs the turn). The reply streamed + rendered FULLY, but the composer STUCK on "Stop generating" forever
-// — a re-attach of the seeded (`lastEventId:"0"`) SSE subscription re-REPLAYED the durable log from zero,
-// and the re-replayed `turnStarted` re-OPENED the already-completed turn slot with no matching terminal
-// re-arriving, stranding the slot live (composer Stop is driven purely by the slot phase). Fixed by the
-// monotonic per-chat seq guard in the bus adapter (chat-event-seq-guard.ts). This pins the EXACT broken
-// journey: after the first draft send completes, the composer RETURNS TO SEND, the input RE-ENABLES, and a
-// SECOND message sends successfully — the recovery the reload-only bug denied.
-test("draft promotion: after the first send completes, the composer returns to Send and a second message sends", {
+// A new room's first completed turn must hand the composer back. Composer Stop is driven purely by the turn slot's
+// phase, so a slot stranded live leaves the room unusable until a reload. This pins the journey: after the first turn
+// completes, the composer RETURNS TO SEND, the input RE-ENABLES, and a SECOND message sends and gets its own reply.
+test("a new room's first turn returns the composer to Send and a second message sends", {
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(CASE_TWO_LIVE_TURNS_MS);
 
-  await page.goto("/");
-  const charactersNav = charactersRailButton(page);
-  await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await charactersNav.click();
+  const characterId = await mintFreshCharacter(HANDLE, CHARACTER, GREETING);
+  const chatId = await openCharacterRoom(page, CHARACTER);
+  const room = { page, chatId };
+  try {
+    const first = await sendAndAwaitReply(room, "Hello there! Please introduce yourself in one short sentence.");
+    await expect(messageRow(page, first.assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
 
-  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
-  await expect(chatCta).toBeAttached({ timeout: WAIT_SETTLE_MS });
-  await chatCta.click();
+    // The turn is done, so the composer MUST return to Send: Stop gone, the primary Send present, the input re-enabled.
+    await expect(page.getByTestId("composer-send")).toBeVisible({ timeout: WAIT_SETTLE_MS });
+    await expect(page.getByRole("button", { name: CHAT_STOP_NAME })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeEnabled();
 
-  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
-  await expect(composer).toBeVisible();
-
-  // First send — the draft→committed promotion + a real streamed turn.
-  await typeAndSend(composer, "Hello there! Please introduce yourself in one short sentence.");
-
-  const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-  await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
-  await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
-
-  // THE RECOVERY (the bug): the turn is done, so the composer MUST return to Send — the Stop button gone,
-  // the primary Send present, and the input re-enabled. Before the fix this stuck on "Stop generating"
-  // indefinitely (input + Send disabled), recoverable only by a page reload.
-  const sendButton = page.getByTestId("composer-send");
-  await expect(sendButton).toBeVisible({ timeout: WAIT_SETTLE_MS });
-  await expect(page.getByRole("button", { name: CHAT_STOP_NAME })).toHaveCount(0);
-  await expect(composer).toBeEnabled();
-
-  // The proof the room is genuinely usable again (not just visually recovered): a SECOND message types and
-  // sends, committing its own durable user row — the journey the reviewer could not complete without a reload.
-  const userRowsBefore = await page.locator('[data-slot="message-row"][data-role="user"]').count();
-  await typeAndSend(composer, "Great — now name one hobby you enjoy.");
-  await expect
-    .poll(async () => page.locator('[data-slot="message-row"][data-role="user"]').count(), { timeout: WAIT_SETTLE_MS })
-    .toBeGreaterThan(userRowsBefore);
-  await expect(page.locator('[data-slot="message-row"][data-role="user"]').last()).toContainText("one hobby", { timeout: WAIT_SETTLE_MS });
+    // The room is genuinely usable again: a SECOND message commits its own durable row and its own reply.
+    const message = "Great — now name one hobby you enjoy.";
+    const second = await sendAndAwaitReply(room, message);
+    await expect(messageRow(page, second.userId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
+    await expect(messageRow(page, second.assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
+  } finally {
+    await deleteChat(chatId);
+    await removeCharacter(characterId);
+  }
 });

@@ -533,7 +533,7 @@ export function getConfigView(chatId: ChatId): Promise<TrpcClientOutput<"rpg.get
  *  Omit keeps the current value; a passed scalar REPLACES it (the keep-on-omit contract, §config). */
 export function setFeatureKnobs(
   chatId: ChatId,
-  knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "plotProgression">,
+  knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "cyoaChoiceBehavior" | "plotProgression">,
 ): Promise<unknown> {
   return trpc.rpg.updateConfig.mutate({ chatId, patch: knobs });
 }

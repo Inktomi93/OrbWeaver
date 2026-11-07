@@ -2,14 +2,15 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
-import { CHAT_CANCEL_EDIT_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
-import { openChatByTitle, openChatOptions, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
+import { messageRow, openChatByTitle, openChatOptions, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
+import { canonMessage } from "./support/trpc.ts";
 
 const TITLE = "Corpus conversation actions";
 const PROMPT = "Describe the synthetic lantern for the corpus smoke.";
@@ -73,19 +74,19 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   await host.trpc.chat.updateTitle.mutate({ chatId, title: TITLE });
   await openChatByTitle(page, TITLE);
   const sent = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("chat.send"));
-  await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }), PROMPT);
+  const room = { page, chatId };
+  const first = await sendHeldTurn(room, PROMPT);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(FIRST.prefix);
   fixture.release(0);
   const sentResponse = await sent;
   expect(sentResponse.ok(), await sentResponse.text()).toBe(true);
-  const assistant = page.locator('[data-slot="message-row"][data-role="assistant"]').last();
+  const { assistantId } = await first.awaitReply();
+  const assistant = messageRow(page, assistantId);
   await expect(assistant).toContainText(FIRST.prefix + FIRST.suffix);
-  const replyId = await assistant.getAttribute("data-message-id");
   await assistant.getByRole("button", { name: VARIANT_GENERATE_NAME, exact: true }).click();
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWIPE.prefix);
   fixture.release(1);
   await expect(assistant).toContainText(SWIPE.prefix + SWIPE.suffix);
-  await expect(assistant).toHaveAttribute("data-message-id", replyId ?? "");
   await assistant.getByRole("button", { name: VARIANT_PREV_NAME, exact: true }).click();
   await expect(assistant).toContainText(FIRST.prefix + FIRST.suffix);
   await assistant.getByRole("button", { name: VARIANT_NEXT_NAME, exact: true }).click();
@@ -121,19 +122,17 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   if (isMobile) {
     await jumpTo(page, TITLE);
   }
-  await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }), SWITCHED.userMessage);
+  const switched = await sendHeldTurn(room, SWITCHED.userMessage);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWITCHED.prefix);
   fixture.release(2);
-  await expect(assistant).toContainText(SWITCHED.prefix + SWITCHED.suffix);
-  const user = (await host.trpc.chat.listMessages.query({ chatId, limit: 30 })).messages.find(
-    (message) => message.role === "user" && message.content === SWITCHED.userMessage,
-  );
-  expect(user?.personaId).toBe(persona.id);
-  await expect(page.locator(`[data-message-id="${user?.id}"]`)).toContainText(SWITCHED.userMessage);
+  const switchedTurn = await switched.awaitReply();
+  await expect(messageRow(page, switchedTurn.assistantId)).toContainText(SWITCHED.prefix + SWITCHED.suffix);
+  expect((await canonMessage(chatId, switchedTurn.userId))?.personaId).toBe(persona.id);
+  await expect(messageRow(page, switchedTurn.userId)).toContainText(SWITCHED.userMessage);
   await page.reload();
   await waitForAppReady(page);
-  await expect(page.locator(`[data-message-id="${replyId}"]`)).toContainText(EDITED);
-  await expect(page.locator(`[data-message-id="${user?.id}"]`)).toContainText(SWITCHED.userMessage);
+  await expect(assistant).toContainText(EDITED);
+  await expect(messageRow(page, switchedTurn.userId)).toContainText(SWITCHED.userMessage);
   await openPersonas(page, isMobile);
   await expect(page.getByRole("button", { name: `${persona.name} — current persona`, exact: true })).toBeVisible();
   await expect(pin).toHaveAttribute("aria-pressed", "true");

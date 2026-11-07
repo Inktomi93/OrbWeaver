@@ -2237,6 +2237,15 @@ export default [
     },
   },
   {
+    files: ["tests/e2e/*.spec.ts"],
+    rules: {
+      "no-restricted-syntax": restrictedSyntax(INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS, {
+        selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
+        message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
+      }),
+    },
+  },
+  {
     files: ["tests/**/*.ct.tsx"],
     rules: {
       "no-restricted-syntax": restrictedSyntax(
