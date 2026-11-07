@@ -28,7 +28,7 @@ export interface RegionAnchorProps {
 
 export function RegionAnchor({ region, children, inset = false }: RegionAnchorProps): ReactElement {
   return (
-    <Container name={region} className={inset ? "shell-region-fill px-section" : "shell-region-fill"} data-inset={inset ? "" : undefined}>
+    <Container name={region} className="shell-region-fill" paddingInline={inset ? "section" : undefined} data-inset={inset ? "" : undefined}>
       {/* Per-region <Profiler> boundary → the render heatmap (`window.__orb.renders()`, dev-only; bare
           children in prod). Gives content/list/context render frequency + cost with one wrapper. */}
       <RenderProfiler id={`region:${region}`}>

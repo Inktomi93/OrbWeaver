@@ -261,9 +261,11 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       {checked ? (
         <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
-        <Stack aria-hidden={true} className="shrink-0 inline-(--size-checkbox)" />
+        <Stack aria-hidden={true} className="shrink-0" width="checkbox" />
       )}
-      <Stack className="flex-1 min-inline-0">{labelBlock}</Stack>
+      <Stack className="min-inline-0" grow={true}>
+        {labelBlock}
+      </Stack>
     </Row>
   );
 }

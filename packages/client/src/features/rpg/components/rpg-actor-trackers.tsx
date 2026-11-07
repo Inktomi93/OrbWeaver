@@ -253,7 +253,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="truncate px-field">
+      <Text as="span" voice="gloss" className="px-field" truncate={true}>
         {status}
       </Text>
     );
@@ -269,7 +269,6 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         placeholder="Add status"
         ink="muted"
         onEdit={edit.onEditStatus}
-        className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
         voice="label"
       />

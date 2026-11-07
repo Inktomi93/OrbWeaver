@@ -16,6 +16,7 @@ import { Fragment, useId, useState } from "react";
 
 /** Past this many characters a description is clamped to a few lines with a Show all control. */
 const CLAMP_CHARS = 280;
+const CLAMP_LINES = 4;
 
 const DIFFERENCE_NOUN: Readonly<Record<PersonaDifference, string>> = {
   description: "description",
@@ -54,11 +55,10 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
         <Text
           id={textId}
           voice="reading"
-          className={
-            long && !open
-              ? "line-clamp-4 wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)"
-              : "wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)"
-          }
+          className="max-inline-(--reading-measure-prose)"
+          clamp={long && !open ? CLAMP_LINES : undefined}
+          whitespace="preWrap"
+          wrap="word"
         >
           {shown}
         </Text>

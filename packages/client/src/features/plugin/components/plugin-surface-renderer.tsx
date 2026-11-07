@@ -294,7 +294,7 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
     return (
       <Row className="flex-wrap min-inline-0" gap={node.gap ?? "field"}>
         {renderChildren(node.children, depth, ctx).map((child) => (
-          <Stack className="max-inline-full min-inline-0" key={child.key}>
+          <Stack className="min-inline-0" cap="fit" key={child.key}>
             {child}
           </Stack>
         ))}

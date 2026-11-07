@@ -332,7 +332,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
-      <Text ink="inherit" className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
+      <Text ink="inherit" className="text-start" truncate="fill" strike={off} voice="label">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
@@ -346,7 +346,7 @@ function BudgetBar({
           meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
           IN the budget list; what it loses is a meter that was saying nothing about it. */}
       {off ? (
-        <Row className="flex-1 min-inline-0" />
+        <Row className="min-inline-0" grow={true} />
       ) : (
         <TrackBar accent={accent} className="flex-1 min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
       )}

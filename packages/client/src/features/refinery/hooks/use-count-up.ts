@@ -28,12 +28,12 @@
 // caller now states which it is — see `arrived`.
 
 import { usePrefersReducedMotion } from "@orb/ui/lib";
+import { TOKENS } from "@orb/ui/tokens";
 import { useEffect, useRef, useState } from "react";
 
-/** The ramp's duration. Deliberately inside the `--motion-layout` band (360ms) rather than a fourth
- *  duration token (guide §4.3): a count-up is a layout-scale settle, and the guide bans inventing a new
- *  step. Not read from CSS because this is a JS ramp, not a CSS transition — the number is the contract. */
-const COUNT_UP_MS = 360;
+/** The ramp's duration: the `--motion-layout` step (guide §4.3), a count-up being a layout-scale settle. Read from the
+ *  token's build-time value, not from CSS, because this is a JS ramp and not a CSS transition; every motion token is in ms. */
+const COUNT_UP_MS = Number.parseFloat(TOKENS["motion.layout"].value);
 
 /** The ease curve's exponent. Cubic is the house programmatic ease-out shape; a higher power would
  *  front-load the ramp so hard the count reads as an instant jump with a tail. */

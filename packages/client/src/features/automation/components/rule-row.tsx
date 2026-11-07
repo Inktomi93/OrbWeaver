@@ -185,7 +185,7 @@ function runNowRefusal(rule: Rule): string | null {
  *  overflow menu carrying the two actions that are not free (Run now — it spends) and not reversible
  *  (Delete — behind the composite's confirm). Then the last dry-run verdict and the collapsible fire log. */
 export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
-  const closedGloss = useMobileViewport() ? "line-clamp-2" : "block truncate";
+  const mobile = useMobileViewport();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRuleEnabled({ trpc, invalidation });
@@ -249,9 +249,9 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* THE ENABLE SWITCH IS A SIBLING OF THE TRIGGER, NEVER INSIDE IT. A control nested in a `button` is
             unreachable by keyboard and invalid content — so the header is a Row: the disclosure takes the
             slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
-            and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
+            and the one control a host needs WITHOUT opening the row sits beside it. The end inset supplies the
             padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" className="flex-wrap pe-block" gap="field">
+        <Row align="center" className="flex-wrap" paddingInlineEnd="block" gap="field">
           {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
@@ -261,13 +261,19 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
                 behind the disclosure. */}
-            <Stack className="flex-1 min-inline-0" gap="tight">
-              <Text className="wrap-anywhere" voice="promoted">
+            <Stack className="min-inline-0" grow={true} gap="tight">
+              <Text wrap="anywhere" voice="promoted">
                 {rule.name}
               </Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
                   Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
-              <Text className={open ? undefined : closedGloss} prose={true} voice="gloss">
+              <Text
+                className={open || mobile ? undefined : "block"}
+                clamp={open || !mobile ? undefined : 2}
+                prose={true}
+                truncate={!(open || mobile)}
+                voice="gloss"
+              >
                 {ruleGloss(rule)}
               </Text>
               {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host
@@ -292,7 +298,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
-          <Stack className="px-block pbe-block" gap="field">
+          <Stack className="pbe-block" paddingInline="block" gap="field">
             <Row align="center" className="flex-wrap" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (

@@ -13593,8 +13593,24 @@
     ],
     "stats.timeseries": [
       [
-        { "bucketStart": 1749999600000, "chatsCreated": 6, "userTurns": 57, "assistantTurns": 15, "tokensOut": 150, "tokensOutProvenance": "measured" },
-        { "bucketStart": 1750003200000, "chatsCreated": 18, "userTurns": 131, "assistantTurns": 15, "tokensOut": 313, "tokensOutProvenance": "measured" }
+        {
+          "bucketStart": 1749999600000,
+          "chatsCreated": 6,
+          "userTurns": 57,
+          "assistantTurns": 15,
+          "tokensOut": 150,
+          "tokensOutProvenance": "measured",
+          "messageDatesApprox": false
+        },
+        {
+          "bucketStart": 1750003200000,
+          "chatsCreated": 18,
+          "userTurns": 131,
+          "assistantTurns": 15,
+          "tokensOut": 313,
+          "tokensOutProvenance": "measured",
+          "messageDatesApprox": false
+        }
       ]
     ],
     "stats.leaderboard": [

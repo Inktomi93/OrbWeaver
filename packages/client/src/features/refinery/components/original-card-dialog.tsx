@@ -33,7 +33,7 @@ export function OriginalCardDialog({ card, onOpenChange }: { readonly card: Char
                 Depth {card.depthPrompt.depth} · {card.depthPrompt.role ?? "role not specified"}
               </Text>
             ) : null}
-            <Text className="wrap-anywhere whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
+            <Text className="max-inline-(--reading-measure-prose)" whitespace="preWrap" wrap="anywhere" prose={true}>
               {content}
             </Text>
           </Stack>
@@ -54,7 +54,7 @@ function OriginalGreetings({ greetings }: { readonly greetings: CharacterCard["g
             {slotLabelOf("greetings", index)}
             {greeting.groupOnly === true ? " · group only" : ""}
           </Text>
-          <Text className="wrap-anywhere whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
+          <Text className="max-inline-(--reading-measure-prose)" whitespace="preWrap" wrap="anywhere" prose={true}>
             {greeting.text.length === 0 ? "Empty greeting" : greeting.text}
           </Text>
         </Stack>

@@ -1,0 +1,16 @@
+{
+  "class-cluster-to-constant.moved": [
+    {
+      "cardinality": {
+        "constant": "FIELD_LABEL"
+      },
+      "count": 2
+    },
+    {
+      "cardinality": {
+        "constant": "FIELD_STACK"
+      },
+      "count": 6
+    }
+  ]
+}

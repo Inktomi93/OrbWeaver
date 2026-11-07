@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { CAPTION, FIELD_STACK, FOCUS_RING, tv } from "#lib";
 
 /**
  * The tool-call-block skin (work order item 14 / D48) — a card-surface `<details>` disclosure.
@@ -13,9 +13,9 @@ export const toolCallBlockVariants = tv({
     summary: `flex cursor-pointer list-outside items-center gap-row px-block py-row text-body leading-body font-medium text-foreground outline-none ${FOCUS_RING}`,
     name: "font-mono text-code leading-label-relaxed",
     status: "contents",
-    duration: "ms-auto text-label leading-label text-muted-foreground",
+    duration: `ms-auto ${CAPTION}`,
     body: "flex flex-col gap-block border-bs border-border p-block",
-    section: "flex flex-col gap-field",
+    section: FIELD_STACK,
     sectionLabel: "text-label leading-label font-medium text-muted-foreground",
     pre: "overflow-x-auto rounded-control bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-accent-foreground",
   },

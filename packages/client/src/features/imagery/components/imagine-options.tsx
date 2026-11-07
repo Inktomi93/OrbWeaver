@@ -45,7 +45,7 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
     <Collapsible>
       <CollapsibleTrigger>More options</CollapsibleTrigger>
       <CollapsiblePanel holds="controls">
-        <Stack className="pbs-row" gap="block">
+        <Stack paddingBlockStart="row" gap="block">
           <Stack gap="field">
             <Text as="span" id={countLabelId} voice="label">
               Number of images

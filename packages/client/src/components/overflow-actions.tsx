@@ -147,8 +147,6 @@ function roomFor(root: HTMLElement): { readonly room: number; readonly gap: numb
   return { room: content - floors - between * Math.max(0, boxes - 1), gap: between };
 }
 
-const OUT_OF_FLOW = "invisible absolute pointer-events-none";
-
 export interface OverflowActionsProps {
   readonly actions: readonly OverflowAction[];
   /** The trigger's accessible name. */
@@ -284,10 +282,11 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
         return (
           <Row
             align="center"
-            className={cn("shrink-0 empty:hidden", shown ? undefined : OUT_OF_FLOW) ?? ""}
+            className="shrink-0 empty:hidden"
             data-overflowed={shown ? undefined : ""}
             inert={!shown}
             key={action.id}
+            outOfFlow={!shown}
             ref={(element): (() => void) | undefined => {
               if (element === null) {
                 return undefined;

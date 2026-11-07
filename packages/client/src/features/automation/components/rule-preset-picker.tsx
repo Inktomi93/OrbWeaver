@@ -154,7 +154,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
           // `message-choices-block` chip is the same shape and spells it the same way.
           size="sm"
           wrap={true}
-          className="justify-start text-start"
+          justify="start"
           onClick={(): void => onPick(preset)}
         >
           <Stack gap="tight">

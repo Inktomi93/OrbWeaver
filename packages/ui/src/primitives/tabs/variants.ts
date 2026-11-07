@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
@@ -24,7 +24,7 @@ export const tabsVariants = tv({
         relative z-(--z-raised) inline-flex cursor-pointer items-center justify-center gap-field text-label leading-label font-medium whitespace-nowrap
         text-muted-foreground select-none
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
+      `${COLOR_MOTION} hover:text-foreground`,
       // The focus ring is per-LAYOUT (see the `layout` variant): a strip tab takes the offset ring every
       // control wears; a rail cell takes the INSET one, because its list can become a scroll box.
       "outline-none",
@@ -114,6 +114,8 @@ export const tabsVariants = tv({
     // A cell in a rail that does not hold the current view steps its resting ink quieter; the active rail keeps the base.
     // The step is element opacity, so it stands down wherever the cell paints more than ink: a hovered, focused or active cell.
     quiet: { true: { tab: "not-hover:not-focus-visible:not-data-active:opacity-quiet" }, false: {} },
+    // The column takes its parent's whole block extent, and the list its whole box: a rail that fills the pane it is docked in.
+    fill: { true: { root: "block-full", list: "block-full inline-full" }, false: {} },
     // The list's own bottom hairline, or none when the list sits in a band that already draws the edge.
     listRule: { none: { list: "border-be-0" } },
     // A rail of exactly six cells folds into rows of three under the `@cq-20` step at a fine pointer, so no caption

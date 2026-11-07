@@ -141,8 +141,8 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               · below @cq-28 the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
         <Stack className="pbe-block" divider="bottom" gap="tight">
-          <Row align="start" className="@max-cq-28:flex-col @max-cq-28:items-stretch" gap="block" justify="between">
-            <Stack className="flex-1 min-inline-0" gap="tight">
+          <Row align="start" gap="block" justify="between" stackBelow="cq-28" stretchBelow="cq-28">
+            <Stack className="min-inline-0" grow={true} gap="tight">
               <Row align="center" className="flex-wrap" gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 <Badge tone={status.tone} size="sm">
@@ -281,7 +281,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   <CollapsibleTrigger aria-label={`What it's allowed to do — ${plugin.name}`} size="control">
                     <Text voice="label">What it's allowed to do</Text>
                   </CollapsibleTrigger>
-                  {/* `ps-block` clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
+                  {/* The inset clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
             flipped by the grant-list rework): the panel's `overflow-hidden` is load-bearing for the
             collapse-height animation (`packages/ui/src/primitives/collapsible/variants.ts`), and a LEADING
             control's ≥44px coarse-pointer hit area (13px of pseudo past the visible 18px box each side,
@@ -289,29 +289,31 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             checkbox leads the row. The old `pe-3` cleared the END edge for the right-docked column that no
             longer exists. Scoped here rather than widened in `@orb/ui`: only a panel-adjacent docked control
             inside a height-animated panel hits this, and this is the one place that pairs the two. */}
-                  <CollapsiblePanel className="ps-block">
-                    {plugin.declaredCapabilities.length === 0 ? (
-                      <Text prose={true} voice="gloss">
-                        Nothing. It can run its own code and reach nothing else.
-                      </Text>
-                    ) : (
-                      // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
-                      // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
-                      // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
-                      // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
-                      //
-                      // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
-                      // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
-                      // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
-                      // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
-                      <PluginGrantList
-                        roleScope={{ kind: "plugin", pluginId: plugin.id }}
-                        capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
-                        declared={plugin.declaredCapabilities}
-                        granted={plugin.grantedCapabilities}
-                        netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
-                      />
-                    )}
+                  <CollapsiblePanel>
+                    <Stack paddingInlineStart="block">
+                      {plugin.declaredCapabilities.length === 0 ? (
+                        <Text prose={true} voice="gloss">
+                          Nothing. It can run its own code and reach nothing else.
+                        </Text>
+                      ) : (
+                        // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
+                        // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
+                        // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
+                        // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
+                        //
+                        // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
+                        // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
+                        // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
+                        // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
+                        <PluginGrantList
+                          roleScope={{ kind: "plugin", pluginId: plugin.id }}
+                          capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
+                          declared={plugin.declaredCapabilities}
+                          granted={plugin.grantedCapabilities}
+                          netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
+                        />
+                      )}
+                    </Stack>
                   </CollapsiblePanel>
                 </Collapsible>
               )}

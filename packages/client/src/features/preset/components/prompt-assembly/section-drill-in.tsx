@@ -127,7 +127,7 @@ export function SectionDrillIn({ form, presetId, section, index, onBack }: Secti
         <Row align="center" gap="row">
           <Icon icon={sectionGlyphIcon(section)} size="sm" />
           <Text voice="label">{label}</Text>
-          <Row className="flex-1" />
+          <Row grow={true} />
           {pivot ? null : <EnableEcho form={form} index={index} label={label} />}
         </Row>
         <Text voice="gloss">{oneLiner}</Text>

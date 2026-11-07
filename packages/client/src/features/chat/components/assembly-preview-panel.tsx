@@ -219,7 +219,7 @@ function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; re
 function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactElement {
   if (slice.parts.length > 1) {
     return (
-      <Stack>
+      <Stack indent={true}>
         {slice.parts.map((part) => (
           <ContributorRow key={part.label} part={part} />
         ))}
@@ -234,7 +234,7 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
     );
   }
   return (
-    <Text voice="code" className="block pbe-row whitespace-pre-wrap">
+    <Text voice="code" className="block pbe-row" whitespace="preWrap">
       {slice.text}
     </Text>
   );
@@ -245,12 +245,12 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
  *  to "what is each character in the room costing me": a name, a number, and the exact bytes behind it. */
 function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactElement {
   return (
-    <Collapsible className="ps-row">
+    <Collapsible>
       <CollapsibleTrigger className="inline-full">
         <SeriesRow label={part.label} value={groupThousands(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text voice="code" className="block pbe-row whitespace-pre-wrap">
+        <Text voice="code" className="block pbe-row" whitespace="preWrap">
           {part.text}
         </Text>
       </CollapsiblePanel>
@@ -263,7 +263,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="code" className="relative block overflow-y-auto overscroll-contain whitespace-pre-wrap max-block-(--height-scroll-sm)">
+      <Text voice="code" className="relative block overflow-y-auto overscroll-contain max-block-(--height-scroll-sm)" whitespace="preWrap">
         {text}
       </Text>
     </Card>

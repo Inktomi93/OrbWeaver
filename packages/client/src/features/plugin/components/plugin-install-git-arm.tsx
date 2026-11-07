@@ -43,7 +43,7 @@ export function PluginInstallGitArm({
         This downloads code from an arbitrary HTTPS repository. Orbweaver checks the manifest and sandbox boundary; it does not review the code for you.
       </Text>
       <Row align="end" gap="field">
-        <Stack className="flex-1">
+        <Stack grow={true}>
           <Field label="Repository URL">
             <Input
               disabled={disabled}

@@ -155,10 +155,8 @@ export function WhisperBand({
       featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens
       // it to 55% and keeps it at least a minimum tall. The image rests dimmed and a tap target brightens under the pointer.
-      className="
-        relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
-        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
-      "
+      className="relative ms-auto"
+      artPane="banner"
       ref={attach}
       style={style}
     >
@@ -191,11 +189,7 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
-      className={cn(
-        "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
-        tappable ? undefined : "pointer-events-none",
-        art.side === "left" ? "inset-s-0" : "inset-e-0",
-      )}
+      className={cn("absolute inset-bs-0", tappable ? undefined : "pointer-events-none", art.side === "left" ? "inset-s-0" : "inset-e-0")}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}

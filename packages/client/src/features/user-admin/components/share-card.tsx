@@ -267,7 +267,7 @@ function PublicAddressPanel({ kind, addresses }: { readonly kind: CookieAuthMode
     <Stack gap="field" data-share-public={kind}>
       {addresses.map((address) => (
         <CopyButton key={address} text={address} what={`the address ${address}`}>
-          <Text voice="code" className="wrap-break-word min-inline-0" data-public-address={address}>
+          <Text voice="code" className="min-inline-0" wrap="word" data-public-address={address}>
             <BreakableUrl url={address} />
           </Text>
         </CopyButton>
@@ -297,7 +297,7 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
     <Stack gap="field">
       {changed ? <LinkChangedNotice onDismiss={onDismissChange} /> : null}
       <CopyButton ref={linkCopyRef} text={url} what={`the share link ${url}`}>
-        <Text voice="code" className="wrap-break-word min-inline-0" data-share-url={url}>
+        <Text voice="code" className="min-inline-0" wrap="word" data-share-url={url}>
           <BreakableUrl url={url} />
         </Text>
       </CopyButton>

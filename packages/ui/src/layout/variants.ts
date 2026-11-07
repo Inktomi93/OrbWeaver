@@ -1,22 +1,30 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
   ARRIVAL,
+  CAPTION,
   CARD_CORNERS,
+  CORNER,
   DISABLED_STATE_NATIVE,
+  FIELD_ROW,
+  FLOOR,
   FOCUS_RING,
   GROUND,
+  GROW,
   HIDDEN_AT,
   HOVER_DIM,
   HOVER_REVEAL,
   INERT_UNTIL_HOVER,
+  INLINE_FIELD_ROW,
   RECEDED,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
+  SCROLLER_Y,
   SR_ONLY_AT,
   TONE_ARMS,
   TOUCH_FLOOR_AT_COARSE,
   tv,
   WALLPAPER_PLATE,
+  WIDTH,
 } from "#lib";
 import { ART_DECORATION } from "../lib/art-decoration.ts";
 
@@ -33,15 +41,18 @@ const GAP = {
   glyph: "gap-glyph-gap",
 } as const;
 const PADDING = {
+  tight: "p-tight",
   field: "p-field",
   row: "p-row",
   block: "p-block",
   section: "p-section",
   gutter: "p-gutter",
 } as const;
-// One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` has no twin
-// here for the reason it has none above. Each class is a whole literal so Tailwind's scanner sees it.
+// One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` is the atom inset
+// of a small island (a diagram's margin, a divider's side room); the narrow arms below step a roomy inset down for a pane
+// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
 const PADDING_INLINE = {
+  tight: "px-tight",
   field: "px-field",
   row: "px-row",
   block: "px-block",
@@ -49,11 +60,83 @@ const PADDING_INLINE = {
   gutter: "px-gutter",
 } as const;
 const PADDING_BLOCK = {
+  tight: "py-tight",
   field: "py-field",
   row: "py-row",
   block: "py-block",
   section: "py-section",
   gutter: "py-gutter",
+} as const;
+// One edge of the same ramp. `clearance` is the room a box keeps clear of a control floating over that edge.
+const PADDING_BLOCK_START = {
+  tight: "pbs-tight",
+  field: "pbs-field",
+  clearance: "pbs-(--size-control-clearance)",
+  row: "pbs-row",
+  block: "pbs-block",
+  section: "pbs-section",
+  gutter: "pbs-gutter",
+} as const;
+const PADDING_INLINE_START = {
+  tight: "ps-tight",
+  field: "ps-field",
+  row: "ps-row",
+  block: "ps-block",
+  section: "ps-section",
+  gutter: "ps-gutter",
+} as const;
+const PADDING_INLINE_END = {
+  tight: "pe-tight",
+  field: "pe-field",
+  clearance: "pe-(--size-control-clearance)",
+  row: "pe-row",
+  block: "pe-block",
+  section: "pe-section",
+  gutter: "pe-gutter",
+} as const;
+// The inline inset a box gives up below the `cq-28` container step (a phone-width pane), on both sides. It only ever steps down,
+// so `tight` is a member here and a full ramp is not.
+const PADDING_INLINE_NARROW = {
+  tight: "@max-cq-28:px-tight",
+  row: "@max-cq-28:px-row",
+  block: "@max-cq-28:px-block",
+} as const;
+// The same, on the inline-end edge alone: a box whose start edge holds what sits beside it keeps that inset at every width.
+const PADDING_INLINE_END_NARROW = {
+  tight: "@max-cq-28:pe-tight",
+  row: "@max-cq-28:pe-row",
+  block: "@max-cq-28:pe-block",
+} as const;
+// A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
+// parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent.
+const INDENT = { true: "ps-block", false: "" } as const;
+// The layer a box takes in its stacking context: `raised` floats over its siblings, `overlay` over the raised ones.
+const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
+// A capped box centres in the room its cap leaves.
+const CENTRED = { true: "mx-auto", false: "" } as const;
+// A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
+// pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed; `column` and `page` are the two
+// reading boxes' insets, phone step included.
+const REACH = {
+  row: "-mx-row px-row",
+  section: "-mx-section px-section",
+  column: "-mx-section px-section @max-cq-28:-me-block @max-cq-28:pe-block",
+  page: "-mx-gutter px-gutter @max-cq-28:-mx-tight @max-cq-28:px-tight",
+} as const;
+// The widest an inline box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`
+// and `column` are the page measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width.
+const CAP = {
+  fit: "max-inline-full",
+  fitNarrow: "@max-cq-20:max-inline-full",
+  reading: "max-inline-(--reading-measure)",
+  readingMin: "max-inline-(--reading-measure-min)",
+  column: "max-inline-(--width-content-col)",
+  columnWide: "max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)",
+  control: "max-inline-(--width-control-col)",
+  surface: "max-inline-(--width-surface-cap)",
+  shell: "max-inline-(--width-shell-content)",
+  pane: "max-inline-(--container-cq-48)",
+  sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 const ALIGN = {
   start: "items-start",
@@ -68,6 +151,36 @@ const JUSTIFY = {
   center: "justify-center",
   end: "justify-end",
   between: "justify-between",
+} as const;
+
+// A row that gives up its width below a container step (`--container-cq-<rem>`, so the pane decides, never the viewport) turns into a
+// column (`stackBelow`), whose children take the full width (`stretchBelow`), and its trailing cluster lines up at the end (`endBelow`).
+// Each key names a step of the container scale and each arm writes one class as a whole literal, so Tailwind's scanner sees it.
+const STACK_BELOW = {
+  "cq-28": "@max-cq-28:flex-col",
+  "cq-40": "@max-cq-40:flex-col",
+  "cq-32": "@max-cq-32:flex-col",
+  "cq-64": "@max-cq-64:flex-col",
+} as const;
+const STRETCH_BELOW = {
+  "cq-28": "@max-cq-28:items-stretch",
+  "cq-40": "@max-cq-40:items-stretch",
+  "cq-32": "@max-cq-32:items-stretch",
+  "cq-64": "@max-cq-64:items-stretch",
+} as const;
+const END_BELOW = {
+  "cq-28": "@max-cq-28:justify-end",
+  "cq-32": "@max-cq-32:justify-end",
+  "cq-40": "@max-cq-40:justify-end",
+  "cq-64": "@max-cq-64:justify-end",
+} as const;
+// `stackBelow`'s sibling: the row keeps its direction and reads from the end below the step, so a trailing control comes first
+// on screen while the DOM order stays the reading order.
+const REVERSE_BELOW = {
+  "cq-28": "@max-cq-28:flex-row-reverse",
+  "cq-40": "@max-cq-40:flex-row-reverse",
+  "cq-32": "@max-cq-32:flex-row-reverse",
+  "cq-64": "@max-cq-64:flex-row-reverse",
 } as const;
 
 // The coarse floors a layout box owns: its own block size (a row of text-height values whose hit areas must fit
@@ -120,6 +233,29 @@ const FOCUS_TARGET = { true: "outline-none", false: "" } as const;
 // mark which edges are hiding content, and the fade shows only there.
 const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
+// A box that scrolls on the block axis inside a bounded parent. It needs no `min-block-0`: a scroll container's automatic
+// minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
+const SCROLL = { y: SCROLLER_Y } as const;
+
+// A row pinned to the foot of a scrolling dialog body: it gives its block inset back as the dialog gets short, drops it
+// when the dialog stacks, and stops pinning under the tiny step, where a pinned row would cover the content.
+//
+// `header` pins a message's name row to the scrollport's top as the row's one raised layer: only its top inset is cancelled, because a
+// negative bottom margin lets the band paint past the row's foot, and the one-pixel overshoot is the clip the pin observer reads. A
+// `headerOutside` row sits outside its box, so over a wallpaper the chrome plate supplies that inset and nothing is cancelled.
+const PINNED = {
+  dialogFooter: "sticky inset-be-0 dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static",
+  header: "-mbs-row sticky -inset-bs-px z-(--z-raised)",
+  headerOutside: "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised)",
+} as const;
+// A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
+// `floor="line"` basis gives way to its content's width.
+const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
+
+// `fill` takes the parent's whole block size; `height` is a named fixed one: the viewport, or the height of the control a
+// placeholder or a row stands in for.
+const FILL = { true: "block-full", false: "" } as const;
+const HEIGHT = { viewport: "block-dvh", control: "block-(--size-control-sm)", controlMd: "block-(--size-control-md)" } as const;
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
@@ -135,6 +271,14 @@ export const stackVariants = tv({
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
+    paddingBlockStart: PADDING_BLOCK_START,
+    paddingInlineStart: PADDING_INLINE_START,
+    paddingInlineEnd: PADDING_INLINE_END,
+    paddingInlineNarrow: PADDING_INLINE_NARROW,
+    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
+    indent: INDENT,
+    layer: LAYER,
+    reach: REACH,
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -175,7 +319,18 @@ export const stackVariants = tv({
       illustrated: "orb-art-reservation",
       tide: "[--column-measure:var(--reading-tide-share-cap)] @max-cq-28:[--column-measure:var(--reading-tide-share-phone)]",
     },
-    artPane: { portrait: "orb-art-reservation inline-(--art-pane-width)" },
+    // The art pane beside or above a message. `portrait` is its width, its portrait aspect, and on a phone the fixed height the echo art takes
+    // instead of the aspect. `banner` is half the card's width (more on a phone, with a minimum height) and never past the banner's own cap.
+    artPane: {
+      banner: `
+        inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
+        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
+      `,
+      portrait: `
+        aspect-(--aspect-portrait) orb-art-reservation inline-(--art-pane-width) max-block-full
+        @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)
+      `,
+    },
     feather: {
       bubble: "orb-art-band [--art-feather-fill:var(--color-ai-bubble)]",
       userBubble: "orb-art-band [--art-feather-fill:var(--color-user-bubble)]",
@@ -189,6 +344,16 @@ export const stackVariants = tv({
     // A list item that genuinely arrives eases in from `from` to `settle`; a remounted item takes neither.
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
+    cap: CAP,
+    width: WIDTH,
+    centred: CENTRED,
+    fill: FILL,
+    height: HEIGHT,
+    grow: GROW,
+    floor: FLOOR,
+    order: ORDER,
+    minHeight: { viewport: "min-block-dvh" },
+    scroll: SCROLL,
     scrollFade: SCROLL_FADE,
     fade: FADE,
     fadeFrom: FADE_FROM,
@@ -202,18 +367,49 @@ const DIALOG_SCROLL_CLASS =
 
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
-  variants: { grow: { true: "flex-1", false: "" } },
+  variants: { grow: { true: GROW.true, false: GROW.false } },
 });
 
 export const rowVariants = tv({
   base: "flex flex-row items-center",
   variants: {
     gap: GAP,
+    // The gap a row gives up at a phone-width pane, as `paddingInlineNarrow` gives up its inset.
+    gapNarrow: { field: "@max-cq-28:gap-field" },
     align: ALIGN,
     justify: JUSTIFY,
+    stackBelow: STACK_BELOW,
+    reverseBelow: REVERSE_BELOW,
+    stretchBelow: STRETCH_BELOW,
+    // `stretchBelow`'s mirror: a stacked row's children pack to the end, for a row that reads from the trailing edge.
+    alignEndBelow: { "cq-28": "@max-cq-28:items-end" },
+    endBelow: END_BELOW,
+    cap: CAP,
+    width: WIDTH,
+    grow: GROW,
+    floor: FLOOR,
+    order: ORDER,
+    pinned: PINNED,
+    fill: FILL,
+    // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
+    height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto" },
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
+    paddingBlockStart: PADDING_BLOCK_START,
+    paddingInlineStart: PADDING_INLINE_START,
+    paddingInlineEnd: PADDING_INLINE_END,
+    paddingInlineNarrow: PADDING_INLINE_NARROW,
+    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
+    indent: INDENT,
+    layer: LAYER,
+    reach: REACH,
+    // `REACH` to a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps that inset as its own,
+    // and a `foot` keeps the card's text inset, so its group ends at the card's corner.
+    reachCard: {
+      header: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-reach-left) pe-(--row-reach-right)",
+      foot: "-ms-(--row-reach-left) -me-(--row-reach-right) ps-(--row-foot-inset-left) pe-(--row-foot-inset-right)",
+    },
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
@@ -223,6 +419,9 @@ export const rowVariants = tv({
     dividerStyle: DIVIDER_STYLE,
     tone: DIVIDER_MEANING,
     receded: { true: RECEDED, false: "" },
+    // A box that stays mounted so it can be measured but takes no room, paints nothing and takes no pointer: a part that has
+    // moved into an overflow menu, or a probe that reads a width. Pair it with `inert` so focus skips it too.
+    outOfFlow: { true: "orb-out-of-flow", false: "" },
     // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
     reveal: HOVER_REVEAL,
     inertUntilHover: { true: INERT_UNTIL_HOVER, false: "" },
@@ -235,6 +434,14 @@ export const rowVariants = tv({
     tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
   },
   compoundVariants: [...DIVIDER_RULE],
+});
+
+// A mark pinned to its positioned host's block-start, inline-end corner (see corner.tsx): `field` is the standard inset, `tight` a mark on a
+// glyph-sized host that must stay clear of the glyph. A flex box, so the mark inside has no baseline gap under it.
+export const cornerVariants = tv({
+  base: "flex",
+  variants: { inset: { field: CORNER.badge, tight: CORNER.tight } },
+  defaultVariants: { inset: "field" },
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed
@@ -254,18 +461,22 @@ export const sectionVariants = tv({
     heading: "text-title leading-title font-medium text-foreground",
     // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
     // (mirrors the Field label/hint row, field/variants.ts).
-    headingRow: "inline-flex items-center gap-field",
+    headingRow: INLINE_FIELD_ROW,
     // The KICKER band (UI-Density-Law.md §2.3/§4.3): a caps micro label + a hairline rule running to the
     // edge. This is the CD1 replacement for a box — a read-only grouping gets a name and a rule, never a
     // border+radius+bg. The type itself is the `kicker` VOICE on a real <Heading> (one spelling, in
     // text/variants.ts); only the band's layout lives here.
-    kickerRow: "flex items-center gap-field",
+    kickerRow: FIELD_ROW,
   },
   variants: {
     // The section is the container its descendants query (an element never queries itself).
     container: {
       true: { root: "@container" },
     },
+    // The cap a section holds its rows to; only the reading measure has a caller, so it is the only arm.
+    cap: { reading: { root: CAP.reading } },
+    width: { full: { root: WIDTH.full } },
+    fill: { true: { root: "block-full" }, false: { root: "" } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
       true: { heading: "border-be border-border pbe-field" },
@@ -297,6 +508,10 @@ export const gridVariants = tv({
   base: "grid",
   variants: {
     gap: GAP,
+    cap: CAP,
+    width: WIDTH,
+    paddingInline: PADDING_INLINE,
+    reach: REACH,
     cols: {
       auto: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-auto),100%),1fr))]",
       wide: "grid-cols-[repeat(auto-fit,minmax(min(var(--width-cell-wide),100%),1fr))]",
@@ -535,6 +750,7 @@ export const gridVariants = tv({
       // placement law (which home sits where) belongs to the bar, not to this recipe.
       actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-cq-28:flex @max-cq-28:flex-wrap",
     },
+    align: ALIGN,
   },
   defaultVariants: { cols: "auto" },
 });
@@ -544,6 +760,12 @@ export const containerVariants = tv({
   base: "@container",
   variants: {
     size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
+    cap: CAP,
+    width: WIDTH,
+    centred: CENTRED,
+    grow: GROW,
+    fill: FILL,
+    paddingInline: PADDING_INLINE,
     ground: GROUND,
   },
 });
@@ -579,7 +801,7 @@ export const toolbarGroupVariants = tv({
 // (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
 export const toolbarLinkVariants = tv({
   base: `
-    inline-flex items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline block-(--size-control-sm)
+    inline-flex items-center rounded-control px-field ${CAPTION} no-underline block-(--size-control-sm)
     hover:text-foreground
     focus-visible:outline-none
     ${FOCUS_RING}

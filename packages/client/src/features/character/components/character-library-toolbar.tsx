@@ -37,8 +37,8 @@ export function CharacterSortSelect(): ReactElement {
   return (
     <Select
       aria-label={CHARACTER_SORT_NAME}
-      // `inline-auto` beats the trigger's own `w-full`: a full-width trigger would crush the search box.
-      className="inline-auto"
+      // `hug` keeps the field chrome at its value's width: a full-width trigger would crush the search box.
+      layout="hug"
       items={SORT_ITEMS}
       onValueChange={(value): void => {
         if (value !== null) {

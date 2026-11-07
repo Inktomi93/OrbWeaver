@@ -1,4 +1,4 @@
-import { FOCUS_RING, tv } from "#lib";
+import { CORNER, FIELD_STACK, FOCUS_RING, tv } from "#lib";
 import { MEDIA_ASPECT_CLASSES } from "../aspect-frame/aspect.ts";
 
 // The BROWSE TILE skin. Distinct from `media-grid`'s cell, which is a square THUMBNAIL cell for an asset
@@ -24,12 +24,12 @@ export const mediaTileGridVariants = tv({
     // cover is still a picture rather than a stamp; the track sizes are a house decision and
     // `no-arbitrary-tw-values` bars the bracket form.
     tracks: "grid grid-cols-2 gap-block @cq-28:grid-cols-3 @cq-40:grid-cols-4",
-    tile: ["group flex flex-col gap-field text-start outline-none", FOCUS_RING],
+    tile: [`group ${FIELD_STACK} text-start outline-none`, FOCUS_RING],
     cover: "relative overflow-hidden rounded-control bg-muted inline-full",
     image: "object-cover block-full inline-full",
     // The no-cover fallback still occupies the reserved box, so a mixed grid stays on its rows.
     coverEmpty: "flex items-center justify-center text-muted-foreground block-full inline-full",
-    badge: "absolute inset-e-field inset-bs-field",
+    badge: CORNER.badge,
     // The tag chip row: ONE row, clipped at the tile edge (no wrap — a tile is a card, not a taxonomy; the
     // chips that fit are the scent, the rest are the detail view's job).
     tagRow: "flex gap-tight overflow-hidden",

@@ -9,7 +9,7 @@ import type { Source } from "./source.ts";
 import type { ValueTokens } from "./tokens.ts";
 
 // A face declaration holds URLs, ranges and metrics, none of them design values.
-const UNPRICED_AT_RULES: ReadonlySet<string> = new Set(["font-face", "import", "layer", "charset", "namespace"]);
+const UNPRICED_AT_RULES: ReadonlySet<string> = new Set(["font-face", "import", "charset", "namespace"]);
 const DETAIL_MAX = 90;
 const QUERY_AT_RULES: ReadonlySet<string> = new Set(["media", "container"]);
 const KEYFRAMES_AT_RULE = /^(?:-[a-z]+-)?keyframes$/iu;

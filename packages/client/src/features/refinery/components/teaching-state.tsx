@@ -91,8 +91,8 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={containerRef}>
-      <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" paddingBlock="section" ref={containerRef}>
+      <Stack align="center" cap="reading" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
@@ -143,7 +143,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      <Section className="inline-full max-inline-(--reading-measure)" kicker="How it works">
+      <Section cap="reading" kicker="How it works" width="full">
         {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
         <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
           {STEPS.map((step, index) => (
@@ -155,7 +155,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
               {index === 0 ? null : <Icon flowTurn={true} icon={ChevronRight} size="sm" />}
-              <Stack className="flex-1 block-full" gap="tight">
+              <Stack fill={true} grow={true} gap="tight">
                 <Row align="center" gap="tight">
                   <Icon icon={step.glyph} size="sm" />
                   <Text voice="label">{step.name}</Text>

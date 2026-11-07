@@ -1,6 +1,7 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
 import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
+import { plantTheme } from "./_theme.ts";
 
 const FEATURE = "packages/client/src/features/probe";
 const UI_PACKAGE = JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts", "./layout": "./src/layout/index.ts" } });
@@ -9,7 +10,7 @@ const THEME = ":root {\n  --spacing-section: round(up, 1.5rem, 1px);\n}\n";
 
 function plant(root: string, files: Readonly<Record<string, string>>): void {
   plantFile(root, "packages/ui/package.json", UI_PACKAGE);
-  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantTheme(root, THEME);
   plantFile(root, "packages/ui/src/primitives/button/variants.ts", BUTTON_VARIANTS);
   for (const [path, text] of Object.entries(files)) {
     plantFile(root, `${FEATURE}/${path}`, text);
@@ -289,7 +290,7 @@ test("a door that renders another door's core writes that door's axes", ({ scrat
     "packages/ui/package.json",
     JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts", "./inline-action": "./src/primitives/inline-action/index.ts" } }),
   );
-  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantTheme(root, THEME);
   plantFile(root, "packages/ui/src/primitives/button/variants.ts", BUTTON_VARIANTS);
   plantFile(
     root,
@@ -361,7 +362,7 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
 test("a declared axis built from a shared scale, a spread of one, or a call over one is declared; one the syntax cannot open is listed", ({ scratch }) => {
   const root = plantDir(scratch, "declared-scales");
   plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./badge": "./src/primitives/badge/index.ts" } }));
-  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantTheme(root, THEME);
   plantFile(root, "packages/ui/src/lib/scales.ts", 'export const TONE = { primary: "", neutral: "" } as const;\nexport const GAP = { sm: "a", md: "b" };');
   plantFile(
     root,

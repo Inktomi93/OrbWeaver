@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#lib";
+import { ACCENT_HOVER, CAPTION, COLOR_MOTION, CORNER, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 export const toastVariants = tv({
@@ -62,9 +62,9 @@ export const toastVariants = tv({
     // `block` and `control-sm` all shift together. Stated in tokens so it can never drift from the button.
     content: "flex flex-1 flex-col gap-field pe-(--size-control-sm) min-inline-0",
     title: "text-label leading-label font-semibold",
-    description: "text-label leading-label text-muted-foreground",
+    description: CAPTION,
     close: `
-      absolute inset-e-field inset-bs-field flex items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
+      ${CORNER.badge} flex items-center justify-center rounded-control text-muted-foreground outline-none block-(--size-control-sm)
       inline-(--size-control-sm)
       ${ACCENT_HOVER}
       ${FOCUS_RING_ON_POPOVER}
@@ -76,7 +76,8 @@ export const toastVariants = tv({
     // 8%-alpha white over the same fill (~1.1:1); the boundary has to come from the fill.
     action: `
       mbs-field inline-flex items-center justify-center gap-field rounded-control bg-tone-solid px-block text-label leading-label font-medium whitespace-nowrap
-      text-tone-foreground transition-colors duration-(--motion-fast) ease-out-expo outline-none block-(--size-control-sm) inline-fit
+      text-tone-foreground
+      ${COLOR_MOTION} outline-none block-(--size-control-sm) inline-fit
       hover:bg-tone-solid-hover
       active:bg-tone-solid-active
       ${FOCUS_RING_ON_POPOVER}

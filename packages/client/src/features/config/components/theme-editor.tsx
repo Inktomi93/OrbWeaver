@@ -106,7 +106,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
 
   return (
     <Stack gap="section">
-      <Row gap="field" align="center" className="justify-end">
+      <Row gap="field" align="center" justify="end">
         <AutosaveStatus state={isUnmintedDraft && status === "saved" ? "draft" : status} onRetry={retrySave} />
       </Row>
       <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label={CONFIG_THEME_NAME_FIELD_NAME} />}</boundForm.AppField>

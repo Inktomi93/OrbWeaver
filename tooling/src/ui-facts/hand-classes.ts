@@ -1,10 +1,21 @@
 // Hand-written class tokens: utilities a recipe prop or token already owns, Tailwind arbitrary values, repeated clusters and raw layout containers.
-import type { TokenFact } from "./classes.ts";
+import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import { coveredJudgement, elementRefOf, newArmJudgement, undeclaredJudgement, writingAxis } from "./hand-arms.ts";
+import {
+  besideJudgement,
+  coveredJudgement,
+  elementRefOf,
+  kebab,
+  mirrorJudgement,
+  newArmJudgement,
+  partArmJudgement,
+  undeclaredJudgement,
+  writingAxis,
+  ZERO_STEP,
+} from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
+import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
 import { lit, valueStringLits } from "./literals.ts";
 import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
@@ -32,15 +43,13 @@ const PREFIX_PROPERTY: readonly (readonly [RegExp, string])[] = [
 
 // The step every bare `border`, `border-s`, `divide-*` and `ring` compiles to, when the theme declares it.
 const DEFAULT_EDGE_TOKEN = "--border-width-default";
-// Padding on one inline edge. A recipe arm that writes the class still wins; this names the hits no arm owns.
+// Padding on one inline edge: a box's axis, so on a primitive that is no box it has no owner and stays a row.
 const ONE_SIDED_INLINE = /^p[se]-/u;
-// Zero is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it.
-const ZERO_STEP = /-0$/u;
 
 export interface ClassContext {
   readonly tokens: ValueTokens;
   readonly components: ComponentTables;
-  readonly referenced: ReadonlySet<string>;
+  readonly referenced: ClassConstants;
 }
 
 const placeOf = (source: Source, line: number): Place => ({ path: source.path, line, section: source.section, layer: source.layer });
@@ -148,7 +157,7 @@ const FIXED: Readonly<Record<string, Judgement>> = {
   "tw-important": {
     verdict: "decide",
     match: null,
-    owner: "decide: an important modifier needs a variant",
+    owner: IMPORTANT_OWNER,
     reason: "an important modifier fights a primitive; no variant owns the need yet",
     keep: null,
   },
@@ -159,15 +168,15 @@ const FIXED: Readonly<Record<string, Judgement>> = {
     reason: "a viewport breakpoint variant is a container-query variant (@cq-*)",
     keep: null,
   },
-  "tw-gradient": { verdict: "decide", match: null, owner: "decide: gradient has no owner", reason: "no token or primitive owns gradients", keep: null },
+  "tw-gradient": { verdict: "decide", match: null, owner: GRADIENT_OWNER, reason: "no token or primitive owns gradients", keep: null },
   "tw-clip": { verdict: "decide", match: null, owner: "decide: clip-path has no owner", reason: "no token or primitive owns clip paths", keep: null },
 };
 
 /** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
-function flaggedJudgement({ token, elem, guarded }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
-  const axis = writingAxis(elem, token, context.components);
+function flaggedJudgement({ token, elem, guarded, siblings }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
+  const axis = writingAxis(elem, token, siblings, context.components);
   if (axis !== null) {
-    return coveredJudgement(axis, token, guarded);
+    return coveredJudgement(axis, token, guarded, siblings);
   }
   const fixed = FIXED[fact.kind];
   if (fixed !== undefined) {
@@ -201,22 +210,43 @@ interface UsedToken {
   readonly token: string;
   readonly elem: Elem | null;
   readonly guarded: boolean;
+  /** Every other class the same root writes. */
+  readonly siblings: readonly string[];
 }
 
 /** A valid utility on a primitive: an arm of its own table writes it, a new arm would, or another component of the door owns the family. */
-function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassContext): Judgement | null {
-  const axis = writingAxis(elem, token, context.components);
+function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: ClassContext): Judgement | null {
+  const axis = writingAxis(elem, token, siblings, context.components);
   if (axis !== null) {
-    return coveredJudgement(axis, token, guarded);
+    return coveredJudgement(axis, token, guarded, siblings);
   }
   const { base } = baseOf(token);
   if (ZERO_STEP.test(base)) {
     return null;
   }
-  if (elem?.kind === "ui" && ONE_SIDED_INLINE.test(base)) {
-    return keepJudgement("one-sided-clearance", token);
+  return (
+    mirrorJudgement(elem, token, siblings, context.components) ??
+    newArmJudgement(elem, token, guarded, context.components) ??
+    besideJudgement(elem, token, context.components) ??
+    partArmJudgement(elem, token, siblings, context.components) ??
+    undeclaredJudgement(elem, token, context.components) ??
+    sideInsetJudgement(elem, token, base)
+  );
+}
+
+/** A side inset on a primitive whose door writes none: the box around it owns the inset. */
+function sideInsetJudgement(elem: Elem | null, token: string, base: string): Judgement | null {
+  if (elem?.kind !== "ui" || !ONE_SIDED_INLINE.test(base)) {
+    return null;
   }
-  return newArmJudgement(elem, token, guarded, context.components) ?? undeclaredJudgement(elem, token, context.components);
+  const component = kebab(elem.imported?.name ?? elem.tag);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `no axis: ${token} on ${component}`,
+    reason: `${component} is no layout box, so ${token} has no arm to move to; a box around it owns the inset`,
+    keep: null,
+  };
 }
 
 const LAYOUT_OWNER: readonly (readonly [string, string])[] = [
@@ -273,10 +303,10 @@ function tokenHits({ source, line, column, tokens, elem, guarded, plain, rootTok
   const out: Hit[] = [];
   for (const token of tokens) {
     const fact = classifyToken(token);
-    const used: UsedToken = { token, elem, guarded };
+    const peers = rootTokens.filter((written) => written !== token);
+    const used: UsedToken = { token, elem, guarded, siblings: peers };
     const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
-      const peers = rootTokens.filter((written) => written !== token);
       const element = elementRefOf(elem, { plain, peers, opaque, column });
       out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, element));
     }
@@ -352,12 +382,16 @@ function clusterHits(uses: readonly ClusterUse[]): readonly Hit[] {
 export function classHits(sources: readonly Source[], context: ClassContext): readonly Hit[] {
   const hits: Hit[] = [];
   const uses: ClusterUse[] = [];
+  const clustered = new Set<string>();
   for (const source of sources) {
     for (const classString of source.sf === null ? [] : classStringsOf(source.path, source.sf, context.referenced)) {
       const use: ClassUse = { ...classString, source, guarded: classString.conditional };
       const layout = rawLayoutHit(use);
       hits.push(...tokenHits(use, context), ...(layout === null ? [] : [layout]));
-      if (use.tokens.length >= CLUSTER_TOKENS) {
+      // One string worn by several elements is one write: a repeat is the class set written again.
+      const written = `${source.path}:${use.line}:${use.column}`;
+      if (use.tokens.length >= CLUSTER_TOKENS && !clustered.has(written)) {
+        clustered.add(written);
         const key = clusterKey(use.tokens.join(" "));
         uses.push({ key, label: key.slice(0, CLUSTER_LABEL_MAX), place: placeOf(source, use.line), door: use.elem?.door ?? null, elem: use.elem });
       }

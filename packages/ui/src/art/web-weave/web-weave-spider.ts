@@ -14,7 +14,7 @@ import type { SpiderLeg, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-g
 import type { WeavePoint } from "./web-weave-math.ts";
 import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, wrapToPi } from "./web-weave-math.ts";
 import type { PreyState } from "./web-weave-prey.ts";
-import { preyPose } from "./web-weave-prey.ts";
+import { preyPose, REST_BOB_HZ, REST_BOB_PX } from "./web-weave-prey.ts";
 import { BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 /** The palette slice the spider paints with (the render module's WeavePalette satisfies it
@@ -28,8 +28,6 @@ export interface SpiderPalette {
 export const STRAND_OUT_MS = 1800;
 /** The strand-out heading is read a few samples down the line (a stable early tangent). */
 const STRAND_OUT_HEADING_SAMPLE = 10;
-const REST_BOB_PX = 0.9;
-const REST_BOB_HZ = 0.0009;
 /** Squared px a pose must move per frame before the heading re-aims (kills jitter at rest). */
 const HEADING_MIN_MOVE_SQ = 0.05;
 

@@ -264,7 +264,7 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
               {ENVIRONMENT_BLOCK_WINS}
             </ShareProse>
             <CopyButton text={CONTAINER_LOCAL_LINES} what="the container env file lines">
-              <Text voice="code" className="wrap-anywhere whitespace-pre-wrap min-inline-0">
+              <Text voice="code" className="min-inline-0" whitespace="preWrap" wrap="anywhere">
                 {CONTAINER_LOCAL_LINES}
               </Text>
             </CopyButton>

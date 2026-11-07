@@ -192,7 +192,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="flex-auto inline-full min-block-0 min-inline-0" gap="glyph" data-slot="composer-guided-cluster">
+    <Stack className="min-block-0 min-inline-0" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
       <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu
@@ -216,10 +216,11 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         <Row align="center" gap="glyph" className="shrink-0" ref={seatReplies}>
           <Row
             aria-label="Your message"
-            {...replyBox(level === 2, "pe-field")}
+            {...replyBox(level === 2)}
             data-slot="composer-you-actions"
             divider="end"
             gap="glyph"
+            paddingInlineEnd="field"
             ref={seatYou}
             role="group"
           >
@@ -275,7 +276,8 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       <Row
         align="center"
         gap="glyph"
-        className="flex-auto min-block-(--size-control-md) min-inline-0"
+        className="min-block-(--size-control-md) min-inline-0"
+        grow="content"
         data-field-wrapped={fieldWrapped ? "" : undefined}
         data-slot="composer-input"
         ref={seatInput}
@@ -284,7 +286,9 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
           {chatControl}
         </Row>
         <Stack
-          className="flex-1 self-stretch max-inline-full min-block-0 min-inline-(--dimension-composer-field-min)"
+          className="self-stretch min-block-0 min-inline-(--dimension-composer-field-min)"
+          grow={true}
+          cap="fit"
           data-slot="composer-field"
           ref={seatField}
         >

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import type { MigrationPlan } from "../../../tooling/src/ui-facts/migration.ts";
 import { recipeFailures } from "../../../tooling/src/ui-facts/recipe-check.ts";
 import { loadSources } from "../../../tooling/src/ui-facts/source.ts";
@@ -10,6 +10,9 @@ const TABLES = componentTables(REPO_ROOT, loadSources(REPO_ROOT));
 const PATH = "packages/client/src/features/probe/uses.tsx";
 const ROW = 'import { Row } from "@orb/ui/layout";\n';
 const CARD = 'import { Card } from "@orb/ui/card";\n';
+const BUTTON = 'import { Button } from "@orb/ui/button";\n';
+const STACK = 'import { Stack } from "@orb/ui/layout";\n';
+const BOX = 'import { Box } from "@orb/ui/box";\n';
 
 /** A plan that lists the class strings at the given columns of line 2. */
 const planAt = (...columns: readonly number[]): MigrationPlan => ({
@@ -68,13 +71,94 @@ test("a non-literal prop runs every arm, and past the bound the check refuses in
   const before = `${ROW}${line};\n`;
   const plan = planAt(columnOf(line, '"justify-end'));
   await expect(check(plan, before, `${ROW}<Row gap={gap} justify="end" />;\n`)).resolves.toEqual([]);
-  const wide = '<Row gap={gap} align={align} tone={tone} className="justify-end" />';
+  const wide = '<Stack padding={a} reach={b} paddingInlineStart={c} paddingInlineEnd={d} className="px-section" />';
   const [failure] = await check(
-    planAt(columnOf(wide, '"justify-end')),
-    `${ROW}${wide};\n`,
-    `${ROW}<Row gap={gap} align={align} tone={tone} justify="end" />;\n`,
+    planAt(columnOf(wide, '"px-section')),
+    `${STACK}${wide};\n`,
+    `${STACK}<Stack padding={a} reach={b} paddingInlineStart={c} paddingInlineEnd={d} paddingInline="section" />;\n`,
   );
   expect(failure).toContain("exceed 64 states");
+});
+
+test("the door's computed axes write the same on both sides of a move, so they cost no states", async () => {
+  const line = '<Button className="justify-start text-start" />';
+  await expect(check(planAt(columnOf(line, '"justify-start')), `${BUTTON}${line};\n`, `${BUTTON}<Button justify="start" />;\n`)).resolves.toEqual([]);
+});
+
+test("a move only one value of an open prop can break fails on that value, so the prop was not left out", async () => {
+  // A square's compound writes its own inline size after every axis, so it evicts `width` and not the class.
+  const line = '<Button size="chip" square={square} className="inline-full" />';
+  const [failure] = await check(
+    planAt(columnOf(line, '"inline-full')),
+    `${BUTTON}${line};\n`,
+    `${BUTTON}<Button size="chip" square={square} width="full" />;\n`,
+  );
+  expect(failure).toContain("inline-(--size-touch-target)");
+});
+
+test("a move that only the door's default breaks fails, because the check renders with the door's own defaults", async ({ scratch }) => {
+  const root = plantDir(scratch, "default-breaks");
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./box": "./src/primitives/box/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/box/index.ts", 'export { Box } from "./box.tsx";');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/variants.ts",
+    [
+      "const tv = (table) => (props) => [",
+      "  ...Object.entries(table.variants).map(([axis, arms]) => arms[String(props[axis] ?? table.defaultVariants[axis])] ?? ''),",
+      "].join(' ');",
+      "export const boxVariants = tv({",
+      "  variants: { flag: { true: 'text-label', false: '' }, step: { low: 'text-micro', high: 'text-body' } },",
+      "  defaultVariants: { step: 'high' },",
+      "});",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/box.tsx",
+    "export function Box({ flag, step, className }) {\n  return <div className={boxVariants({ flag, step, className })} />;\n}",
+  );
+  const line = '<Box className="text-label" />';
+  const file = { path: PATH, before: `${BOX}${line};\n`, after: `${BOX}<Box flag={true} />;\n` };
+  const plan = { ...planAt(columnOf(line, '"text-label')), owner: "box.flag" };
+  const [failure] = await recipeFailures(root, plan, [file], componentTables(root, loadSources(root)));
+  expect(failure).toContain("text-body");
+});
+
+test("a compound that joins a kept-out axis to the changed prop still renders", async () => {
+  const line = '<Button size={size} className="shrink-0 p-0" />';
+  const [failure] = await check(planAt(columnOf(line, '"shrink-0')), `${BUTTON}${line};\n`, `${BUTTON}<Button size={size} square={true} />;\n`);
+  expect(failure).toContain("inline-(--size-touch-target)");
+});
+
+test("a compound joining an open prop to the changed one renders that prop, though no class of it conflicts with the move", async ({ scratch }) => {
+  const root = plantDir(scratch, "compound-reach");
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./box": "./src/primitives/box/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/box/index.ts", 'export { Box } from "./box.tsx";');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/variants.ts",
+    [
+      "const tv = (table) => (props) => [",
+      "  ...Object.entries(table.variants).map(([axis, arms]) => arms[String(props[axis])] ?? ''),",
+      "  ...table.compoundVariants.filter(({ class: written, ...when }) => Object.entries(when).every(([axis, arm]) => props[axis] === arm)).map((one) => one.class),",
+      "].join(' ');",
+      "export const boxVariants = tv({",
+      "  variants: { tone: { low: 'text-label', high: 'text-body' }, flag: { true: 'shrink-0', false: '' } },",
+      "  compoundVariants: [{ tone: 'low', flag: true, class: 'italic' }],",
+      "});",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/box.tsx",
+    "export function Box({ tone, flag, className }) {\n  return <div className={boxVariants({ tone, flag, className })} />;\n}",
+  );
+  const line = '<Box tone={tone} className="shrink-0" />';
+  const file = { path: PATH, before: `${BOX}${line};\n`, after: `${BOX}<Box tone={tone} flag={true} />;\n` };
+  const plan = { ...planAt(columnOf(line, '"shrink-0')), owner: "box.flag" };
+  const [failure] = await recipeFailures(root, plan, [file], componentTables(root, loadSources(root)));
+  expect(failure).toContain("italic");
 });
 
 test("a change outside the planned elements fails", async () => {

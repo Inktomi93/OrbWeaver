@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CAPTION, tv } from "#lib";
 
 /**
  * Slot classes for SaveBar (ui-package-design §6.1, work-order #22). Layout chrome ONLY: title +
@@ -15,7 +15,7 @@ export const saveBarVariants = tv({
     // takes a whole line, so the status wraps under it instead of the kind label running over the status.
     label: "flex grow basis-full items-baseline gap-field min-inline-0 @cq-15/save-bar:basis-0",
     title: "truncate text-body leading-body font-medium text-foreground",
-    kind: "shrink-0 text-label leading-label text-muted-foreground",
+    kind: `shrink-0 ${CAPTION}`,
     // THE DIAGNOSTIC SLOT, AND WHY IT IS NOT `actions` (side-eye 2026-08-18 P1-4). At 430px the character
     // editor's bar rendered `Sabin…  Character  1257 total · 1017 permanent  Saved`: the NAME — the only
     // thing telling a phone reader which character they are editing — got 54px while the token census got

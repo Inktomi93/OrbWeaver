@@ -71,6 +71,7 @@ function TrackerValueRest({
   display,
   editTitle,
   onOpen,
+  width,
   placeholder,
   voice,
   tone,
@@ -82,6 +83,7 @@ function TrackerValueRest({
 }: {
   readonly ariaLabel: string;
   readonly className: string;
+  readonly width: ComponentProps<typeof Input>["width"];
   readonly display: string;
   readonly editTitle: string;
   readonly onOpen: () => void;
@@ -111,7 +113,7 @@ function TrackerValueRest({
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The reserved
         // edge holds the edit input's 1px border box, so the click-to-reveal swap does not shift.
         reserveEdge={true}
-        className={cn("gap-0 px-field text-start", className) ?? ""}
+        className={cn("gap-0 px-field text-start", className, width === "auto" ? "max-inline-full min-inline-0" : undefined) ?? ""}
       >
         <Text
           as="span"
@@ -119,12 +121,51 @@ function TrackerValueRest({
           {...(empty ? ({ ink: "muted" } as const) : restPaint)}
           numeric={numeric}
           italic={italic}
-          className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
+          className={wrap ? "min-inline-0" : undefined}
+          truncate={!wrap}
+          whitespace={wrap ? "normal" : undefined}
+          wrap={wrap ? "word" : undefined}
         >
           {restText}
         </Text>
       </InlineAction>
     </Tip>
+  );
+}
+
+/** The display with no editor: the value as a line of text. A content-sized value (`width="auto"`) stays inside its
+ *  wrapping card, as its input and rest button do. */
+function TrackerValueReadOnly({
+  className,
+  display,
+  italic,
+  numeric,
+  tone,
+  ink,
+  voice,
+  width,
+}: {
+  readonly className: string | undefined;
+  readonly display: string;
+  readonly italic: boolean;
+  readonly numeric: boolean;
+  readonly tone: ToneInkSelection["tone"];
+  readonly ink: ToneInkSelection["ink"];
+  readonly voice: TrackerVoice;
+  readonly width: ComponentProps<typeof Input>["width"];
+}): ReactElement {
+  const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
+  return (
+    <Text
+      as="span"
+      voice={voice}
+      {...paint}
+      numeric={numeric}
+      italic={italic}
+      className={cn(className, width === "auto" ? "max-inline-full min-inline-0" : undefined)}
+    >
+      {display}
+    </Text>
   );
 }
 
@@ -149,7 +190,6 @@ export function TrackerValue({
   italic = false,
   range,
 }: TrackerValueProps): ReactElement {
-  const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   const source = editValue ?? display;
   // ONE state, because the three fields are only ever meaningful together: the draft is seeded when the
   // editor OPENS, `openedFrom` freezes the value it was seeded FROM (what the commit is judged against),
@@ -160,11 +200,7 @@ export function TrackerValue({
   const restoreAfterCancel = useRef(false);
 
   if (onEdit === undefined) {
-    return (
-      <Text as="span" voice={voice} {...paint} numeric={numeric} italic={italic} className={className}>
-        {display}
-      </Text>
-    );
+    return <TrackerValueReadOnly className={className} display={display} italic={italic} numeric={numeric} tone={tone} ink={ink} voice={voice} width={width} />;
   }
 
   if (session === null) {
@@ -172,6 +208,7 @@ export function TrackerValue({
       <TrackerValueRest
         ariaLabel={restAriaLabel ?? ariaLabel}
         className={restClassName ?? className ?? ""}
+        width={width}
         display={display}
         editTitle={editTitle}
         onOpen={(): void => {

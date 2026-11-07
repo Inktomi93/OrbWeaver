@@ -191,7 +191,7 @@ export function MasterDetail({
     // rather than by its own measure, and reads wider than the law's band; closing that means giving the
     // renderer's text node its own `--reading-measure-prose`, which is a plugin-surface change, not a
     // token one. The slot names the stage for the styles tier and the CT pin.
-    <Stack className="max-inline-(--reading-measure)" data-slot="plugin-detail-stage" gap="block">
+    <Stack cap="reading" data-slot="plugin-detail-stage" gap="block">
       {stage.hero === undefined || heroUrl === undefined ? null : (
         // `max-h-(--height-scroll-lg)` (the house big-art cap — the gallery lightbox's own number): an uncapped portrait
         // cover at column width fills the whole viewport and shoves the decision cluster below the fold,

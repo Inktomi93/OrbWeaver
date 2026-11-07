@@ -119,7 +119,7 @@ function SectionsListGroup({
           same anatomy the advanced fold already uses one level in. */}
       <div id={bodyId} hidden={!(open && hasRows)}>
         {open && hasRows ? (
-          <Stack aria-labelledby={bandId} className="ps-(--spacing-section)" gap="field" role="group">
+          <Stack aria-labelledby={bandId} gap="field" indent={true} role="group">
             {subcategories.primary.map((sub) => (
               <SubcategoryRow
                 key={sub.id}
@@ -164,7 +164,7 @@ function SectionsListGroup({
                 <Text id={foldLabelId} voice="kicker">
                   {fold.label}
                 </Text>
-                <Stack className="ps-(--spacing-block)" gap="field">
+                <Stack gap="field" indent={true}>
                   {subcategories.advanced.map((sub) => (
                     <SubcategoryRow
                       key={sub.id}

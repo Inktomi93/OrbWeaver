@@ -134,7 +134,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
-      className="shrink-0 whitespace-nowrap"
+      className="shrink-0"
       touchFloor="inline"
       onClick={onClick}
     >

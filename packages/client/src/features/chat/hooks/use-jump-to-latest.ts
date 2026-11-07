@@ -14,10 +14,10 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { MessageListHandle } from "@orb/ui/message-list";
+import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-const AT_TAIL_THRESHOLD_PX = 80;
 // Safari and iOS before 26.2 have no `scrollend`; a quiet period after the last `scroll` stands in for it.
 const SETTLE_DEBOUNCE_MS = 90;
 
@@ -48,7 +48,7 @@ export function useJumpToLatest({ messages, live, pinActive, listHandleRef }: Us
   const sampleAtSettle = (): void => {
     const node = scrollNodeRef.current;
     if (node !== null) {
-      setAtTail(node.scrollHeight - node.scrollTop - node.clientHeight <= AT_TAIL_THRESHOLD_PX);
+      setAtTail(node.scrollHeight - node.scrollTop - node.clientHeight <= SCROLL_END_THRESHOLD_PX);
     }
   };
 

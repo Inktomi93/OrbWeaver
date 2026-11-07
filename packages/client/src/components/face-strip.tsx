@@ -255,7 +255,8 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
           // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's primary tint is a state, so it rides the tone beside the voice; at rest it takes the muted ink.
           <Text
-            className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "truncate text-center")}
+            className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "text-center")}
+            truncate={true}
             {...(selected ? { tone: "primary" } : { ink: "muted" })}
             voice="label"
           >
@@ -316,9 +317,10 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
         // button adds nothing else) around the avatar token and its caption line.
         <Stack
           align="center"
-          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", caption ? CAPTIONED_FACE_WIDTH : undefined)}
+          className="shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)"
           gap="tight"
           key={slot}
+          width={caption ? "avatarHero" : undefined}
         >
           <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
           {caption ? (
@@ -455,7 +457,7 @@ export function FaceStrip<Id extends string = string>({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Swatch shape="pill" edge="dashed" className="flex items-center justify-center block-(--size-avatar-md) inline-(--size-avatar-md)">
+                    <Swatch shape="pill" edge="dashed" size="avatarMd" className="flex items-center justify-center">
                       <Text as="span" ink="muted" voice="label">{`+${hiddenCount}`}</Text>
                     </Swatch>
                     {moreCaption}

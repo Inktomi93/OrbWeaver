@@ -70,13 +70,13 @@ function InspectionResult({ inspection }: { readonly inspection: EndpointInspect
         {verdict.text}
       </Text>
       <Text voice="label">Request</Text>
-      <Text as="div" className="break-all whitespace-pre-wrap" voice="code">
+      <Text as="div" className="break-all" whitespace="preWrap" voice="code">
         {[`POST ${request.url}`, ...headerLines, "", request.body].join("\n")}
       </Text>
       {response === null ? null : (
         <>
           <Text voice="label">Response</Text>
-          <Text as="div" className="break-all whitespace-pre-wrap" data-slot="connection-inspection-response" voice="code">
+          <Text as="div" className="break-all" whitespace="preWrap" data-slot="connection-inspection-response" voice="code">
             {response.bodyPreview === "" ? "(an empty body)" : response.bodyPreview}
           </Text>
         </>

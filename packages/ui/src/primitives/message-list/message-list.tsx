@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
+import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, SCROLLER, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
@@ -31,8 +31,8 @@ const LEADING_ACTION_PIN = [
   "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:bg-background has-[:focus-visible,[data-keep-in-view]]:rounded-card",
 ];
 
-// 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
-const SCROLL_END_THRESHOLD_PX = 80;
+// The distance from the end that reads as "pinned to end"; the library's 1px default is too tight for sub-pixel rounding. The jump-to-latest pill measures with the same value.
+export const SCROLL_END_THRESHOLD_PX = 80;
 
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
@@ -611,7 +611,7 @@ export function MessageList<T>({
       // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
       aria-live="off"
       onScroll={onScrollTracked}
-      className={cn("relative overflow-auto overscroll-contain", className)}
+      className={cn(SCROLLER, className)}
       data-slot="message-list-scroll"
     >
       {leading === undefined && leadingAction === undefined ? null : (

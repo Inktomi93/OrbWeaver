@@ -12,7 +12,7 @@ export interface AnalyticsListAnchorProps {
 /** Provide the `analytics-leaderboard` container box the Analytics LIST surface consumes. */
 export function AnalyticsListAnchor({ children }: AnalyticsListAnchorProps): ReactElement {
   return (
-    <Container className="block-full" name="analytics-leaderboard">
+    <Container fill={true} name="analytics-leaderboard">
       {children}
     </Container>
   );
