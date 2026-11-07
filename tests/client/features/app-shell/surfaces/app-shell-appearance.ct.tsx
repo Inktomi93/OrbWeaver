@@ -224,8 +224,8 @@ function centre(box: Box): { x: number; y: number } {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** A pure-black PNG: the worst art a light glass surface can sit over, built byte for byte so no image library is needed. */
-function blackPng(side: number): Buffer {
+/** A one-grey PNG: pure black or white is the worst art a glass surface can sit over, built byte for byte so no image library is needed. */
+function greyPng(side: number, grey: number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
     const length = Buffer.alloc(4);
     length.writeUInt32BE(data.length);
@@ -240,27 +240,30 @@ function blackPng(side: number): Buffer {
   // Bit depth 8, colour type 2 (truecolour); compression, filter and interlace stay 0.
   header.writeUInt8(8, 8);
   header.writeUInt8(2, 9);
-  // Each row is a filter byte followed by its RGB triples, all zero.
-  const rows = Buffer.alloc((side * 3 + 1) * side);
+  // Each row is a zero filter byte followed by its RGB triples.
+  const rows = Buffer.alloc((side * 3 + 1) * side, grey);
+  for (let row = 0; row < side; row += 1) {
+    rows[row * (side * 3 + 1)] = 0;
+  }
   return Buffer.concat([PNG_SIGNATURE, chunk("IHDR", header), chunk("IDAT", deflateSync(rows)), chunk("IEND", Buffer.alloc(0))]);
 }
 
 /**
- * A fresh corpus root whose owner uploaded a pure-black wallpaper through the production upload route and chose it at
- * the least dim the settings allow, in the seeded Light theme with every glass surface on. Its blob is served to the
+ * A fresh corpus root whose owner uploaded a one-grey wallpaper through the production upload route and chose it at
+ * the least dim the settings allow, in the given theme with every glass surface on. Its blob is served to the
  * page from the same root under the owner's own cookie.
  */
-async function blackArtRoot(page: Page): Promise<Root> {
+async function solidArtRoot(page: Page, grey: number, selectedThemeId: ThemeId | null): Promise<Root> {
   await using construction = new AsyncDisposableStack();
   const art = construction.use(await createCorpusHarness());
   const owner = await art.principalFor(art.ownerId);
   const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
   const form = new FormData();
   form.set("kind", "background");
-  form.set("file", new Blob([new Uint8Array(blackPng(BLACK_ART_SIDE))], { type: "image/png" }), "black.png");
+  form.set("file", new Blob([new Uint8Array(greyPng(BLACK_ART_SIDE, grey))], { type: "image/png" }), "solid.png");
   const uploaded = await art.http.request("/api/assets/upload", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1", forwarded: "" }, body: form });
   if (!uploaded.ok) {
-    throw new Error(`the black wallpaper upload failed (${String(uploaded.status)})`);
+    throw new Error(`the wallpaper upload failed (${String(uploaded.status)})`);
   }
   const stored = storedAssetSchema.parse(await uploaded.json());
   const caller = await art.internalCallerFor(art.ownerId);
@@ -276,7 +279,7 @@ async function blackArtRoot(page: Page): Promise<Root> {
       backgroundDim: BACKGROUND_DIM_MIN,
     },
   });
-  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: lightThemeId } });
+  await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId } });
   await page.route(`**${BLOB_ROUTE}/**`, async (route) => {
     const url = new URL(route.request().url());
     const response = await art.http.request(`${url.pathname}${url.search}`, { headers: { cookie, forwarded: "" } });
@@ -308,6 +311,28 @@ async function landedMutedContrast(page: Page, surface: Locator, label: string, 
   const ratio = wcagContrastRatio(await tokenInk(surface, TOKENS["color.muted-foreground"].cssVar), landed);
   test.info().annotations.push({ type: "over-art-contrast", description: `${label} ${ratio.toFixed(2)}:1 over ${JSON.stringify(landed)}` });
   return ratio;
+}
+
+/** The shell's reads for a room on `art`, opening on Chats. */
+async function serveArtRoom(page: Page, corpus: Parameters<typeof createShellAmbientReads>[0], art: Root): Promise<void> {
+  await seedShellState(page, { activeSection: "chats" });
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(await art.internalCallerFor(art.ownerId), [...SECTION_PROCEDURES, ...ROOM_PROCEDURES]),
+  });
+}
+
+/** The seeded theme by name, or null for the corpus default. */
+async function seedThemeId(name: string | null): Promise<ThemeId | null> {
+  if (name === null) {
+    return null;
+  }
+  const themes = await (await root.internalCallerFor(root.ownerId)).settings.listThemes();
+  const seed = themes.find((theme) => theme.isSeed && theme.name === name);
+  if (seed === undefined) {
+    throw new Error(`The corpus root has no seeded ${name} theme`);
+  }
+  return seed.id;
 }
 
 /** The selected theme for a case: the corpus default for dark, the seeded Light theme for light. */
@@ -1164,13 +1189,77 @@ test.describe("the light arm's plate over a wallpaper", () => {
   });
 });
 
+test.describe("the dark arm over the brightest wallpaper a viewer can save", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(WIDE);
+  });
+
+  for (const seed of [null, "Mocha"] as const) {
+    test(`${seed ?? "the default"} theme's composer reads against pure white at the least dim by its fill, not by its edge`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await using art = await solidArtRoot(page, 255, await seedThemeId(seed));
+      await serveArtRoom(page, corpus, art);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+      await roomReady(page);
+      await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
+      await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
+      const box = await page.locator(COMPOSER).boundingBox();
+      if (box === null) {
+        throw new Error("The composer is not laid out");
+      }
+      const y = Math.floor(box.y + box.height / 2);
+      const field = page.locator(COMPOSER).getByRole("textbox").first();
+      for (const state of ["rest", "lifted"] as const) {
+        await (state === "rest" ? field.blur() : field.focus());
+        await page.locator(COMPOSER).evaluate((node) => Promise.all(node.getAnimations().map((animation) => animation.finished)));
+        const outside = await pixel(page, Math.floor(box.x - 8), y);
+        const edge = await pixel(page, Math.floor(box.x), y);
+        const fill = await pixel(page, Math.floor(box.x + 3), y);
+        const ratios = {
+          edgeOutside: wcagContrastRatio(edge, outside),
+          edgeFill: wcagContrastRatio(edge, fill),
+          fillOutside: wcagContrastRatio(fill, outside),
+        };
+        test.info().annotations.push({ type: "composer-boundary", description: JSON.stringify({ state, outside, edge, fill, ...ratios }) });
+        await page.screenshot({ path: test.info().outputPath(`composer-over-white-${state}.png`) });
+        // The fill against the art is the boundary a reader sees, in either state; the edge, at rest or as the focus ring, reads on the fill.
+        expect(ratios.fillOutside).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+        expect(ratios.edgeFill).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
+      }
+    });
+  }
+
+  test("the composer's glass takes the lift on hover and focus, and drops it at rest", async ({ corpus, mount, page }) => {
+    await using art = await solidArtRoot(page, 255, null);
+    await serveArtRoom(page, corpus, art);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
+    await roomReady(page);
+    const composer = page.locator(COMPOSER);
+    await expect.poll(() => fillAlpha(composer)).toBeLessThan(1);
+    await page.mouse.move(0, 0);
+    await composer.getByRole("textbox").first().blur();
+    const rest = await computed(composer, "background-color");
+    await composer.hover();
+    await expect.poll(() => computed(composer, "background-color")).not.toBe(rest);
+    const lifted = await computed(composer, "background-color");
+    expect(alphaOf(lifted)).toBeLessThan(1);
+    await page.mouse.move(0, 0);
+    await expect.poll(() => computed(composer, "background-color")).toBe(rest);
+    await composer.getByRole("textbox").first().focus();
+    await expect.poll(() => computed(composer, "background-color")).toBe(lifted);
+  });
+});
+
 test.describe("the light arm over the darkest wallpaper a viewer can save", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(WIDE);
   });
 
   test("the pane and another section's reading surface clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await blackArtRoot(page);
+    await using art = await solidArtRoot(page, 0, lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
@@ -1201,7 +1290,7 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
   });
 
   test("in a room the composer and each role's bubble clear AA on their weakest ink over pure black at the least dim", async ({ corpus, mount, page }) => {
-    await using art = await blackArtRoot(page);
+    await using art = await solidArtRoot(page, 0, lightThemeId);
     await seedShellState(page, { activeSection: "chats" });
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),

@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 interface MinimalElement {
   readonly closest: (selector: string) => object | null;
   readonly matches: (selector: string) => boolean;
+  readonly parentElement: MinimalElement | null;
 }
 interface FocusTarget {
   readonly focus: () => void;
@@ -19,8 +20,10 @@ interface MinimalDocument {
   readonly body: MinimalElement;
   readonly querySelector: (selector: string) => FocusTarget | null;
 }
-const DIALOG_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"]';
-const TEXT_ENTRY_OUTSIDE_ROOM = ':is(input, textarea, [contenteditable="true"]):not([data-slot="chat-room-surface"] *)';
+const OVERLAY_FOCUS_SCOPE = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+// A checkbox or a button is an `input` too: nothing is typed there, so arrival moves on from it.
+const TEXT_ENTRY =
+  ':is(textarea, [contenteditable="true"], input:not([type="button"], [type="checkbox"], [type="color"], [type="file"], [type="image"], [type="radio"], [type="range"], [type="reset"], [type="submit"]))';
 // The LIST band's controls in tab order: the back chevron, then the pane's primary action. The band is a
 // sibling region of the surface, so the surface finds it through the slots `ListPaneHeader` stamps.
 // An action that moved into the menu is inert, so the first VISIBLE control is the next action, or the menu trigger.
@@ -36,28 +39,25 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *  2.1.1 Keyboard). On a real navigation or modal-open the user has activated a control (or `SectionContent`
  *  focused the content anchor on the section change first), so `activeElement` is a real element ⇒ we DO
  *  move focus into the new surface. The `<body>`/null check is the exact initial-load ⇄ navigation
- *  discriminator, with no timing flag. */
+ *  discriminator, with no timing flag.
+ *
+ *  A surface can arrive long after the press that opened it, behind a read or a deferred render. By then the user may be
+ *  typing elsewhere, and a blur can cancel what they typed, or working in an open menu. So a text field outside the target
+ *  and an overlay the target is not in keep focus; a row or button that only started the arrival does not. */
 /** @param repeatOnReveal - `false` keeps a retained entity from replaying cold focus when Activity restores its effects.
  * @param enabled - `false` stands the surface DOWN — another surface owns focus for this mount by an
  *  explicit INTENT decision (the character screen's LIST projection: a selection made from the list picker
  *  focuses the pane the user just transformed, so the CONTENT editor mounting beside it must not take it
  *  back). Defaults to `true`, so every other caller is unchanged. */
 export function useFocusOnMount(ref: RefObject<FocusTarget | null>, enabled = true, repeatOnReveal = true, preserveFocus?: () => boolean): void {
-  useArrivalFocus(ref, { enabled, repeatOnReveal, preserveFocus, bandFirst: false, yieldsToTyping: false });
-}
-
-/** {@link useFocusOnMount} for the room, whose body mounts in a deferred render after its frame: by then the user may
- *  be typing in the topbar or a side pane, and taking that field's focus would cancel what they typed. A text field
- *  inside the room does not count. */
-export function useFocusRoomArrival(ref: RefObject<FocusTarget | null>, enabled = true): void {
-  useArrivalFocus(ref, { enabled, repeatOnReveal: true, preserveFocus: undefined, bandFirst: false, yieldsToTyping: true });
+  useArrivalFocus(ref, { enabled, repeatOnReveal, preserveFocus, bandFirst: false });
 }
 
 /** {@link useFocusOnMount} for a LIST surface under a band: arrival lands on the band's first control, so a
  *  forward Tab runs New, search, rows instead of starting past the band. A band with no control (the phone
  *  sheds its action) keeps the surface root as the target. */
 export function useFocusListArrival(ref: RefObject<FocusTarget | null>, enabled = true): void {
-  useArrivalFocus(ref, { enabled, repeatOnReveal: true, preserveFocus: undefined, bandFirst: true, yieldsToTyping: false });
+  useArrivalFocus(ref, { enabled, repeatOnReveal: true, preserveFocus: undefined, bandFirst: true });
 }
 
 interface ArrivalOptions {
@@ -66,19 +66,21 @@ interface ArrivalOptions {
   readonly preserveFocus: (() => boolean) | undefined;
   /** Land on the LIST band's first control when it has one, else on `ref`. */
   readonly bandFirst: boolean;
-  /** Stand down while a text field outside the room holds focus. */
-  readonly yieldsToTyping: boolean;
 }
 
-function keepsFocus(active: MinimalElement, target: FocusTarget | null, yieldsToTyping: boolean): boolean {
-  if (yieldsToTyping && active.matches(TEXT_ENTRY_OUTSIDE_ROOM)) {
+function isInside(target: object | null, node: MinimalElement | null): boolean {
+  return node !== null && (node === target || isInside(target, node.parentElement));
+}
+
+function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean {
+  if (active.matches(TEXT_ENTRY) && !isInside(target, active)) {
     return true;
   }
-  // A background surface cannot take arrival focus from a surviving global dialog.
-  return active.closest(DIALOG_FOCUS_SCOPE) !== null && (target?.closest?.(DIALOG_FOCUS_SCOPE) ?? null) === null;
+  // A background surface cannot take arrival focus from a surviving overlay.
+  return active.closest(OVERLAY_FOCUS_SCOPE) !== null && (target?.closest?.(OVERLAY_FOCUS_SCOPE) ?? null) === null;
 }
 
-function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOnReveal, preserveFocus, bandFirst, yieldsToTyping }: ArrivalOptions): void {
+function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOnReveal, preserveFocus, bandFirst }: ArrivalOptions): void {
   const handled = useRef(false);
   useEffect(() => {
     if (!enabled || preserveFocus?.() === true || (!repeatOnReveal && handled.current)) {
@@ -89,12 +91,12 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
     if (active === null || active === undefined || active === browserDocument?.body) {
       return;
     }
-    if (keepsFocus(active, ref.current, yieldsToTyping)) {
+    if (keepsFocus(active, ref.current)) {
       return;
     }
     const band = bandFirst ? (browserDocument?.querySelector(LIST_BAND_FIRST_CONTROL) ?? null) : null;
     (band ?? ref.current)?.focus();
-  }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst, yieldsToTyping]);
+  }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst]);
 }
 
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just

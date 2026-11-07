@@ -15,16 +15,27 @@ export function MessageListScrollportStory({
   initialCount = 0,
   roving = false,
   target = 0,
+  chrome = false,
+  lateRow = null,
+  remRows = false,
 }: {
   readonly scrollMode?: ScrollMode;
   readonly initialCount?: number;
   readonly roving?: boolean;
   /** The row the Delete, Swap key and Restore buttons act on. */
   readonly target?: number;
+  /** Leading chrome above the rows, so the Grow chrome button can start a reading-row hold. */
+  readonly chrome?: boolean;
+  /** A row that stays mounted above the reader, so the Grow late row button resizes it off screen, as a late image does. */
+  readonly lateRow?: number | null;
+  /** Rows sized in rem, so a root font-size change re-measures them all, as a text-scale change does. */
+  readonly remRows?: boolean;
 }): ReactElement {
   const [count, setCount] = useState(initialCount);
   const [tailHeight, setTailHeight] = useState(60);
   const [height, setHeight] = useState(240);
+  const [chromeHeight, setChromeHeight] = useState(40);
+  const [lateHeight, setLateHeight] = useState(60);
   // A row id's replacement; null removes the row. A swapped row keeps its place under a new key.
   const [changes, setChanges] = useState<ReadonlyMap<number, number | null>>(new Map());
   const handle = useRef<MessageListHandle>(null);
@@ -48,6 +59,8 @@ export function MessageListScrollportStory({
       <Button onClick={(): void => setTailHeight((previous) => previous + 180)}>Grow tail</Button>
       <Button onClick={(): void => setHeight(160)}>Shrink scrollport</Button>
       <Button onClick={(): void => handle.current?.pinToIndex(count - 1)}>Pin last row</Button>
+      <Button onClick={(): void => setChromeHeight((previous) => previous + 80)}>Grow chrome</Button>
+      <Button onClick={(): void => setLateHeight((previous) => previous + 200)}>Grow late row</Button>
       <Button onClick={(): void => change(null)}>Delete target row</Button>
       <Button onClick={(): void => change(target + SWAPPED_KEY_OFFSET)}>Swap target row key</Button>
       <Button onClick={(): void => change(undefined)}>Restore target row</Button>
@@ -55,14 +68,19 @@ export function MessageListScrollportStory({
         <MessageList
           ariaLabel="Scrollport lifecycle"
           ref={handle}
+          {...(chrome ? { leading: <div style={{ height: chromeHeight }}>Room chrome</div> } : {})}
           scrollMode={scrollMode}
           rowNavigation={roving ? "roving" : "none"}
           className="flex-1"
           items={items}
           getItemKey={(item): number => item}
           estimateSize={(): number => 60}
-          keepMounted={(item): boolean => item === count - 1}
-          renderItem={(item): ReactElement => <div style={{ height: item === count - 1 ? tailHeight : 60 }}>Row {item}</div>}
+          keepMounted={(item): boolean => item === count - 1 || item === lateRow}
+          renderItem={(item): ReactElement => {
+            const rowPx = item === lateRow ? lateHeight : 60;
+            const plain = remRows ? "3.75rem" : rowPx;
+            return <div style={{ height: item === count - 1 ? tailHeight : plain }}>Row {item}</div>;
+          }}
         />
       </div>
     </CtIsolation>
