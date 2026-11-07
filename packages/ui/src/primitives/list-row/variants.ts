@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, TITLE_STEP, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -64,7 +64,7 @@ export const listRowVariants = tv({
     // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
     // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
     title: `
-      block flex-1 truncate text-start text-body leading-body font-medium text-foreground min-inline-0
+      block flex-1 truncate text-start text-body leading-body font-medium text-foreground
       group-aria-expanded/body:text-tone-text-on-tint
       group-data-selected:text-tone-text-on-tint
     `,
@@ -81,7 +81,7 @@ export const listRowVariants = tv({
     meta: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground tabular-nums",
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
-    subtitle: "block text-start text-label leading-label text-muted-foreground",
+    subtitle: `block text-start ${CAPTION}`,
     // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
     // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
     // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
@@ -93,7 +93,7 @@ export const listRowVariants = tv({
     // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
     // the trailing `actions` buttons for width.
     subtitleReveal: `
-      invisible col-start-1 row-start-1 truncate text-start font-mono text-label leading-label text-muted-foreground
+      invisible col-start-1 row-start-1 truncate text-start font-mono ${CAPTION}
       group-focus-within:visible
       group-hover:visible
     `,
@@ -236,7 +236,7 @@ export const listRowVariants = tv({
     // Surface. Pinned by computed value, never by reading either file.
     titleStep: {
       default: {},
-      promoted: { title: "text-title leading-title font-semibold" },
+      promoted: { title: TITLE_STEP },
     },
     clickable: {
       true: {

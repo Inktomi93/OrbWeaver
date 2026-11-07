@@ -1,5 +1,5 @@
 // `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive carries
-// layout tokens only, judged by the CSS each token compiles to, and a class string is never built.
+// layout tokens only, judged by the CSS each token compiles to, and never a class the primitive's own prop writes; a class string is never built.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -93,8 +93,103 @@ test.for([
   ["a raw element, which the intrinsic rule owns", 'export const T = (<div className="text-primary" />);\n'],
   ["layout in an alternate class prop", element('restClassName="min-inline-0"')],
   ["layout in a spread", element('{...{ className: "flex gap-row" }}')],
+  ["a zero step of a family an axis chooses in", 'import { Stack } from "@orb/ui/layout";\nexport const T = (<Stack className="min-inline-0 pe-0" />);\n'],
   ["the selected safe member only", `const rows = { paint: { className: "text-primary" }, layout: { className: "flex" } };\n${element("{...rows.layout}")}`],
   ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text>{record.className}</Text>;'],
+] as const)("the layout rule passes %s", async ([, source]) => {
+  expect(await findings(LAYOUT_RULE, source)).toEqual([]);
+});
+
+const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text } from "@orb/ui/text";\n';
+const BOXES = 'import { Container, Grid, Row, Stack } from "@orb/ui/layout";\n';
+
+test.for([
+  ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
+  ["a class a boolean prop writes", `${PRIMITIVES}export const T = (<Text className="truncate" />);\n`, "`truncate` is `truncate={true}`"],
+  ["a padding class on a Stack", `${PRIMITIVES}export const T = (<Stack className="px-section" />);\n`, '`px-section` is `paddingInline="section"`'],
+  [
+    "a class that beats a later axis's class, which the prop's place in the recipe settles",
+    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-section" />);\n`,
+    '`px-section` is `paddingInline="section"`',
+  ],
+  [
+    "a class that conflicts with another in the same className",
+    `${PRIMITIVES}export const T = (<Stack className="px-section px-block" />);\n`,
+    '`px-block` is `paddingInline="block"`',
+  ],
+  [
+    "a responsive inset the narrow padding props write",
+    `${PRIMITIVES}export const T = (<Stack className="@max-cq-28:px-tight @max-cq-28:pe-block pbs-row" />);\n`,
+    '`@max-cq-28:px-tight` is `paddingInlineNarrow="tight"`',
+  ],
+  [
+    "an owned class under a guard inside cn",
+    `${PRIMITIVES}export const T = (<Row className={cn("flex-wrap", open && "justify-between")} />);\n`,
+    "`justify-between`",
+  ],
+  ["an owned class in a local constant", `${PRIMITIVES}const ROW = "flex-wrap justify-end";\nexport const T = (<Row className={ROW} />);\n`, "`justify-end`"],
+  [
+    "a stack-below class a Row prop writes",
+    `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col @max-cq-32:items-stretch" />);\n`,
+    '`@max-cq-32:flex-col` is `stackBelow="cq-32"`',
+  ],
+  [
+    "an owned class on an aliased import",
+    'import { Row as Line } from "@orb/ui/layout";\nexport const T = (<Line className="justify-end" />);\n',
+    "`justify-end`",
+  ],
+  ["an owned class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="justify-end" />);\n`, "`justify-end`"],
+  [
+    "a width cap no arm writes, on a Stack",
+    `${BOXES}export const T = (<Stack className="max-inline-(--reading-measure-prose)" />);\n`,
+    "`max-inline-(--reading-measure-prose)` is a step `cap` chooses among",
+  ],
+  ["a width cap no arm writes, on a Row", `${BOXES}export const T = (<Row className="max-inline-cq-32" />);\n`, "`max-inline-cq-32` is a step `cap`"],
+  ["a lone half of a capped arm, on a Grid", `${BOXES}export const T = (<Grid className="max-inline-(--width-sidebar-sm)" />);\n`, '`cap="sidebar"`'],
+  [
+    "a width cap no arm writes, on a Container",
+    `${BOXES}export const T = (<Container className="max-inline-(--reading-measure-prose)" />);\n`,
+    "chooses among",
+  ],
+  ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
+  ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
+  ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-md)" />);\n`, "is a step `width` chooses among"],
+  [
+    "a square a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="shrink-0 p-0" />);\n',
+    "`square={true}`",
+  ],
+  [
+    "a wrap a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="py-tight whitespace-normal block-auto" />);\n',
+    "`wrap={true}`",
+  ],
+  [
+    "a size a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="block-(--size-control-sm)" />);\n',
+    '`size="sm"`',
+  ],
+  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
+  ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
+  ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-section" />);\n`, "`-mx-section` is `reach="],
+  [
+    "the name row's reach to a card's edges, in a constant",
+    `${BOXES}const REACH = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";\nexport const T = (<Row className={REACH} />);\n`,
+    'is `reachCard="header"`',
+  ],
+] as const)("the layout rule reports %s", async ([, source, tokens]) => {
+  const messages = await findings(LAYOUT_RULE, source);
+  expect(messages).toHaveLength(1);
+  expect(messages[0]).toContain(tokens);
+});
+
+test.for([
+  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 flex-wrap" />);\n`],
+  ["an owned class under a viewport variant", `${PRIMITIVES}export const T = (<Row className="md:justify-end" />);\n`],
+  ["an owned class in an alternate class prop", `${PRIMITIVES}export const T = (<Row restClassName="justify-end" />);\n`],
+  ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],
+  ["an owned class on a component from another module", 'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n'],
+  ["an owned class on a member element", 'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n'],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });

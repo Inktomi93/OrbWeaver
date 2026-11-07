@@ -32,11 +32,11 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   useFocusOnSwap(backRef);
   return (
     <Row align="center" className="flex-wrap" data-slot="connection-editor-header" gap="field">
-      <Row align="center" className="flex-1 basis-(--width-title-floor) min-inline-0" gap="field">
+      <Row align="center" className="min-inline-0" floor="title" grow={true} gap="field">
         <Button aria-label="Back to Connections" className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
         </Button>
-        <Text className="wrap-anywhere min-inline-0" voice="label">
+        <Text className="min-inline-0" wrap="anywhere" voice="label">
           {label}
         </Text>
       </Row>

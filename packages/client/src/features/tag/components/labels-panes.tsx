@@ -33,8 +33,8 @@ export function LabelsContent(): ReactElement {
   }
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
-    <Container className="block-full min-block-0">
-      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="labels-content">
+    <Container className="min-block-0" fill={true}>
+      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="labels-content">
         {tagId === null ? (
           <LabelsLandingSurface returning={editorWasOpen} />
         ) : (
@@ -69,7 +69,7 @@ export function LabelsContextHeader(): ReactElement {
   const tagId = useSelectedLabelId();
   const name = useTagName(tagId);
   return (
-    <Text className="truncate" voice="label">
+    <Text truncate={true} voice="label">
       {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Tag")}
     </Text>
   );

@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CAPTION, FIELD_LABEL, FIELD_STACK, tv } from "#lib";
 
 /**
  * Slot classes for the progress bar (ui-package-design §5). Distinct from `<Meter>` (magnitude):
@@ -11,10 +11,10 @@ import { tv } from "#lib";
  */
 export const progressVariants = tv({
   slots: {
-    root: "relative flex flex-col gap-field inline-full",
+    root: `relative ${FIELD_STACK} inline-full`,
     header: "flex items-baseline justify-between gap-row inline-full",
-    label: "text-label leading-label font-medium text-foreground",
-    value: "text-label leading-label text-muted-foreground tabular-nums",
+    label: FIELD_LABEL,
+    value: `${CAPTION} tabular-nums`,
     track: "relative overflow-hidden rounded-full bg-muted block-field inline-full",
     // `transition-all` was catching inherited non-compositor properties, never just what this
     // indicator actually moves: Base UI sizes it via an inline `width`, and `data-complete`

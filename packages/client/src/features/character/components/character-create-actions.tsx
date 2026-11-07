@@ -227,7 +227,7 @@ export function CharacterLandingDoors(): ReactElement {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   return (
-    <Row align="center" className="flex-wrap max-inline-full" gap="field">
+    <Row align="center" className="flex-wrap" cap="fit" gap="field">
       <Button onClick={(): void => setCreateOpen(true)} size="sm">
         <Icon icon={Plus} size="sm" />
         New character

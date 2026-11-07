@@ -15,6 +15,7 @@ import { loadSources } from "./source.ts";
 import type { ComponentTables } from "./variant-tables.ts";
 import { componentTables } from "./variant-tables.ts";
 
+export { classOwners } from "./class-owners.ts";
 export { sidecarsOf } from "./migration.ts";
 export { checkRewrite } from "./recipe-check.ts";
 

@@ -1,4 +1,4 @@
-import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
+import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, TITLE_STEP, tv } from "#lib";
 
 // Wide data pickers use a field inset to retain narrow-screen reading width; lg keeps its usual modal gutter.
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
@@ -25,8 +25,8 @@ export const dialogVariants = tv({
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
     `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
-    title: "text-title leading-title font-semibold",
-    description: "mbs-field text-body leading-body text-muted-foreground",
+    title: TITLE_STEP,
+    description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",

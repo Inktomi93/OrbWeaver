@@ -14,6 +14,9 @@ export const POPUP_SURFACE =
 // `flex max-h-full flex-col` + per-size max-width vs alert-dialog's fixed `max-w-cq-24`) is per-seal.
 export const MODAL_SURFACE = "inline-full rounded-card border border-border bg-popover tone-host-popover p-section text-popover-foreground shadow-overlay";
 
+// The explanatory line under a popup's title (dialog, alert dialog, drawer, popover).
+export const POPUP_DESCRIPTION = "mbs-field text-body leading-body text-muted-foreground";
+
 // The anchored-popup ITEM row — byte-identical between autocomplete and combobox; select layers
 // `justify-between gap-row` on top. (Menu's row is a genuinely different recipe — cursor-default,
 // px-row, min-h-(--size-control-sm) — and stays its own `itemBase`.)

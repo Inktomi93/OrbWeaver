@@ -1,6 +1,6 @@
-// `PostEventSource` — the EventSource `httpSubscriptionLink` opens, over POST (easy-sharing plan, leg T): a
-// relay that buffers every GET body (a Cloudflare quick tunnel) freezes a GET EventSource, and a POST body
-// streams. It keeps the native lifecycle the tRPC consumer reads: `error` at CLOSED is terminal.
+// `PostEventSource` — the EventSource `httpSubscriptionLink` opens, over POST: a relay that buffers every GET body (a
+// Cloudflare quick tunnel) freezes a GET EventSource, and a POST body streams. It keeps the native lifecycle the tRPC
+// consumer reads: `"error"` at CLOSED is terminal.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { STREAM_INACTIVITY_TIMEOUT_MS } from "@orb/contracts/stream";

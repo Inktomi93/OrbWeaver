@@ -54,11 +54,9 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
         <Text
           id={textId}
           voice="reading"
-          className={
-            long && !open
-              ? "line-clamp-4 wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)"
-              : "wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)"
-          }
+          className={long && !open ? "line-clamp-4 max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
+          whitespace="preWrap"
+          wrap="word"
         >
           {shown}
         </Text>

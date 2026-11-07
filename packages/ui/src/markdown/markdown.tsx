@@ -2,7 +2,7 @@ import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
 import type { StreamdownProps } from "streamdown";
 import { defaultRehypePlugins, Streamdown } from "streamdown";
-import { cn, usePrefersReducedMotion } from "#lib";
+import { cn, SCROLLER, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
 import { MARKDOWN_INLINE_CODE_COMPONENTS } from "./inline-code-component.tsx";
@@ -191,10 +191,7 @@ export function Markdown({
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
-      <pre
-        className={cn("relative overflow-auto overscroll-contain text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)", className)}
-        data-slot="markdown-oversized"
-      >
+      <pre className={cn(`${SCROLLER} text-body leading-body whitespace-pre-wrap max-block-(--height-prose-cap)`, className)} data-slot="markdown-oversized">
         {children}
       </pre>
     );

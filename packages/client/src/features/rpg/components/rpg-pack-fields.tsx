@@ -33,7 +33,7 @@ export interface PackEdit {
 export function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   if (edit === undefined) {
     return (
-      <Text as="span" voice="label" className="wrap-break-word min-inline-0">
+      <Text as="span" voice="label" className="min-inline-0" wrap="word">
         {item.name}
       </Text>
     );
@@ -109,7 +109,7 @@ export function ItemProseLine({
 }): ReactElement | null {
   if (edit === undefined) {
     return value === "" ? null : (
-      <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
+      <Text as="span" voice="gloss" className="min-inline-0" wrap="word">
         {value}
       </Text>
     );

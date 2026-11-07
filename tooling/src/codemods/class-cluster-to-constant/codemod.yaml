@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "class-cluster-to-constant"
+version: "0.1.0"
+description: "Replace a run of class tokens that a shared constant owns, inside a class string, with that constant, by a map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

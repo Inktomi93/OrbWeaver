@@ -1,8 +1,10 @@
 // The actual preset editor restores the originating chevron after a section drill-in, including its pivot.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { PRESET_BACK_TO_RACK_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -53,6 +55,20 @@ for (const { width, height, density } of [
       const actions = page.getByRole("tab", { name: "Actions", exact: true });
       await actions.click();
       await expect(actions).toBeFocused();
+      // The chevron ends its row, and the editor's scroller clips anything past it: the row's end inset is what leaves the focus ring its paint.
+      const chevron = page.getByRole("button", { name: "Edit Response", exact: true });
+      await chevron.focus();
+      const ringWidth = await resolvedLength(page, `var(${TOKENS["border-width.rule"].cssVar})`, chevron);
+      const ringOffset = await resolvedLength(page, `var(${TOKENS["focus-ring.offset"].cssVar})`, chevron);
+      const room = await chevron.evaluate((node) => {
+        let clip = node.parentElement;
+        while (clip !== null && getComputedStyle(clip).overflowX === "visible") {
+          clip = clip.parentElement;
+        }
+        const box = clip?.getBoundingClientRect();
+        return (box?.left ?? Number.NaN) + (clip?.clientLeft ?? 0) + (clip?.clientWidth ?? 0) - node.getBoundingClientRect().right;
+      });
+      expect(room).toBeGreaterThanOrEqual(ringWidth + ringOffset);
       for (const name of ["Edit Response", "Edit Rewrite"]) {
         const trigger = page.getByRole("button", { name, exact: true });
         await trigger.focus();

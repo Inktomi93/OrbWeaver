@@ -95,7 +95,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       // things at rail weight — a label line, the doors, and the shared gloss. ~60px, in the flow, left
       // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
       // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
-      <Stack className="items-start" gap="field">
+      <Stack align="start" gap="field">
         <Text voice="label">No documents yet</Text>
         {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
             Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's

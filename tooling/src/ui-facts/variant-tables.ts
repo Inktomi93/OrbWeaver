@@ -40,6 +40,8 @@ export interface ComponentRecipe {
   readonly doorRefusals: ReadonlyMap<string, string>;
   /** Axis to the arm the door itself passes, or null for a value it computes; the caller's prop never reaches such an axis. */
   readonly chosen: ReadonlyMap<string, string | null>;
+  /** Axis to the prop that carries it: the door reads it as a member of that prop (`size: scale?.size`), so a wrapper hands it on inside that prop. */
+  readonly carried: ReadonlyMap<string, string>;
   /** The tables the door applies, as their exporting file and name, so a check can call the real recipes. */
   readonly applied: readonly TableRef[];
 }
@@ -198,14 +200,81 @@ const chosenIn = (object: ts.ObjectLiteralExpression | undefined): readonly (rea
       : [],
   );
 
-/** The door's parameter defaults, read from its destructured props: null when it takes the props whole. */
-function paramDefaults(body: ts.Node): ReadonlyMap<string, string | null> | null {
+/** The axes a call reads as the same-named member of one identifier, with that identifier. */
+const carriedIn = (object: ts.ObjectLiteralExpression | undefined): readonly (readonly [string, string])[] =>
+  (object?.properties ?? []).flatMap((property) => {
+    const value = ts.isPropertyAssignment(property) ? unwrap(property.initializer) : undefined;
+    return value !== undefined && ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.name.text === property.name?.getText()
+      ? [[value.name.text, value.expression.text] as const]
+      : [];
+  });
+
+const firstFunction = (body: ts.Node): ts.SignatureDeclaration | undefined => {
   let found: ts.SignatureDeclaration | undefined;
   visit(body, (node) => {
     found ??= ts.isFunctionLike(node) ? node : undefined;
   });
-  const pattern = found?.parameters[0]?.name;
-  if (pattern === undefined || !ts.isObjectBindingPattern(pattern)) {
+  return found;
+};
+
+/** The name a function gives its whole props object, when its first parameter is not a pattern. */
+const propsName = (fn: ts.SignatureDeclaration | undefined): string | undefined => {
+  const name = fn?.parameters[0]?.name;
+  return name !== undefined && ts.isIdentifier(name) ? name.text : undefined;
+};
+
+const bodyOf = (fn: ts.SignatureDeclaration): ts.Node => ("body" in fn && fn.body !== undefined ? fn.body : fn);
+
+/** Whether the body holds the props object other than by a destructuring, a member or element read, or an `in` test: any other read hands it on whole. */
+function readsPropsWhole(fn: ts.SignatureDeclaration, name: string): boolean {
+  let whole = false;
+  visit(bodyOf(fn), (node) => {
+    const parent = node.parent;
+    const named =
+      ts.isVariableDeclaration(parent) ||
+      (ts.isPropertyAccessExpression(parent) && parent.expression === node) ||
+      (ts.isElementAccessExpression(parent) && parent.expression === node) ||
+      (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.InKeyword && parent.right === node);
+    whole ||= ts.isIdentifier(node) && node.text === name && !named && !ts.isParameter(parent);
+  });
+  return whole;
+}
+
+/**
+ * The pattern a function takes its props through: its first parameter, or the destructuring of a first parameter named in its body
+ * (`const { a, b, ...rest } = props`) when that is the only way the body holds the object whole.
+ */
+function propsPattern(fn: ts.SignatureDeclaration | undefined): ts.ObjectBindingPattern | undefined {
+  const name = fn?.parameters[0]?.name;
+  if (fn === undefined || name === undefined) {
+    return undefined;
+  }
+  if (ts.isObjectBindingPattern(name)) {
+    return name;
+  }
+  if (ts.isArrayBindingPattern(name) || readsPropsWhole(fn, name.getText())) {
+    return undefined;
+  }
+  let pattern: ts.ObjectBindingPattern | undefined;
+  visit(bodyOf(fn), (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer !== undefined &&
+      ts.isIdentifier(node.initializer) &&
+      node.initializer.text === name.getText()
+    ) {
+      pattern ??= node.name;
+    }
+  });
+  return pattern;
+}
+
+/** The door's parameter defaults, read from its destructured props: null when it takes the props whole. */
+function paramDefaults(body: ts.Node): ReadonlyMap<string, string | null> | null {
+  const found = firstFunction(body);
+  const pattern = propsPattern(found);
+  if (pattern === undefined) {
     return found?.parameters.length === 0 ? new Map() : null;
   }
   return new Map(
@@ -284,6 +353,7 @@ function applyingCall(identifier: ts.Identifier): ts.CallExpression | null {
 /** The names the body reads outside a plain hand-on in the given calls: not a binding, a property key, a member name or an attribute name. */
 function readsOutside(body: ts.Node, calls: readonly ts.CallExpression[]): ReadonlySet<string> {
   const reads = new Set<string>();
+  const holder = propsName(firstFunction(body));
   const handOns = calls.flatMap((call) => call.arguments.filter(ts.isObjectLiteralExpression).flatMap((object) => object.properties.filter(isHandOn)));
   const inCall = (node: ts.Node): boolean => handOns.some((handOn) => node.pos >= handOn.pos && node.end <= handOn.end);
   visit(body, (node) => {
@@ -295,6 +365,19 @@ function readsOutside(body: ts.Node, calls: readonly ts.CallExpression[]): Reado
       ts.isJsxAttribute(parent);
     if (ts.isIdentifier(node) && !naming && !inCall(node)) {
       reads.add(node.text);
+    }
+    // `props.justify` and `props["justify"]` read the prop by name.
+    if (holder !== undefined && ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === holder) {
+      reads.add(node.name.text);
+    }
+    if (
+      holder !== undefined &&
+      ts.isElementAccessExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === holder &&
+      ts.isStringLiteralLike(node.argumentExpression)
+    ) {
+      reads.add(node.argumentExpression.text);
     }
   });
   return reads;
@@ -381,9 +464,72 @@ function recipeOf(body: ts.Node, { index, stamped }: ReadContext, tables: Readon
     sideReads: new Set([...declared.keys()].filter((axis) => reads.has(axis))),
     doorRefusals,
     chosen: new Map([...chosen, ...paramEntries.filter(([, arm]) => arm === null)]),
+    carried: new Map(applied.flatMap(({ call }) => carriedIn(call?.arguments.find(ts.isObjectLiteralExpression)))),
     applied: [...new Map(applied.map(({ name, table }) => [name, { file: table.file, name }])).values()],
   };
 }
+
+/** The props a component destructures, by name. */
+function destructuredNames(body: ts.Node): ReadonlySet<string> {
+  const pattern = propsPattern(firstFunction(body));
+  return new Set(pattern === undefined ? [] : pattern.elements.flatMap((element) => (ts.isIdentifier(element.name) ? [element.name.text] : [])));
+}
+
+/**
+ * The recipe of a component that applies no table of its own and renders one component of its door with the rest of its props
+ * (`<ButtonCore {...rest} />`): the rendered component's axes, less any the wrapper takes itself and does not hand on under their own name.
+ */
+function wrapperRecipe(body: ts.Node, components: ReadonlyMap<string, ComponentRecipe>): ComponentRecipe | undefined {
+  const rendered: ts.JsxSelfClosingElement[] = [];
+  visit(body, (node) => {
+    if (ts.isJsxSelfClosingElement(node) && components.has(node.tagName.getText()) && node.attributes.properties.some(ts.isJsxSpreadAttribute)) {
+      rendered.push(node);
+    }
+  });
+  const [element] = rendered;
+  const core = element === undefined ? undefined : components.get(element.tagName.getText());
+  if (element === undefined || core === undefined || rendered.length !== 1) {
+    return undefined;
+  }
+  const passedByName = new Set(
+    element.attributes.properties.flatMap((attribute) =>
+      ts.isJsxAttribute(attribute) &&
+      attribute.initializer !== undefined &&
+      ts.isJsxExpression(attribute.initializer) &&
+      attribute.initializer.expression?.getText() === attribute.name.getText()
+        ? [attribute.name.getText()]
+        : [],
+    ),
+  );
+  const taken = [...destructuredNames(body)].filter((name) => !passedByName.has(name));
+  const handed = handedInside(element, core);
+  const params = [...(paramDefaults(body) ?? [])].flatMap(([axis, arm]) => (arm === null ? [] : [[axis, arm] as const]));
+  return {
+    ...core,
+    axes: new Map([...core.declared].filter(([axis]) => handed.has(axis) || (core.axes.has(axis) && !taken.includes(axis)))),
+    chosen: new Map([...core.chosen].filter(([axis]) => !handed.has(axis))),
+    defaults: new Map([...core.defaults, ...params]),
+  };
+}
+
+/** The axes a wrapper hands on inside the prop that carries them (`scale={{ size, square }}`): the caller's own prop reaches each one. */
+function handedInside(element: ts.JsxSelfClosingElement, core: ComponentRecipe): ReadonlySet<string> {
+  return new Set(
+    element.attributes.properties.flatMap((attribute) => {
+      const value =
+        ts.isJsxAttribute(attribute) && attribute.initializer !== undefined && ts.isJsxExpression(attribute.initializer)
+          ? attribute.initializer.expression
+          : undefined;
+      const object = value === undefined ? undefined : unwrap(value);
+      return object !== undefined && ts.isObjectLiteralExpression(object)
+        ? [...forwardedBy(object)].filter((axis) => core.carried.get(axis) === attribute.name?.getText())
+        : [];
+    }),
+  );
+}
+
+const componentsOf = (inDoor: readonly Source[]): readonly (readonly [string, ts.Node])[] =>
+  inDoor.filter((candidate) => candidate.path.endsWith(".tsx")).flatMap((source) => (source.sf === null ? [] : componentsIn(source.sf)));
 
 /** The components of one door directory, each with the axes its own table writes and it forwards. */
 function doorComponents(inDoor: readonly Source[], context: ReadContext): ReadonlyMap<string, ComponentRecipe> {
@@ -394,12 +540,17 @@ function doorComponents(inDoor: readonly Source[], context: ReadContext): Readon
     }
   }
   const components = new Map<string, ComponentRecipe>();
-  for (const source of inDoor.filter((candidate) => candidate.path.endsWith(".tsx"))) {
-    for (const [name, body] of source.sf === null ? [] : componentsIn(source.sf)) {
-      const recipe = recipeOf(body, context, tables);
-      if (recipe.axes.size > 0) {
-        components.set(name, recipe);
-      }
+  for (const [name, body] of componentsOf(inDoor)) {
+    const recipe = recipeOf(body, context, tables);
+    if (recipe.axes.size > 0) {
+      components.set(name, recipe);
+    }
+  }
+  // A door export that wraps another component of the door (`Button` over `ButtonCore`) owns that component's axes.
+  for (const [name, body] of componentsOf(inDoor).filter(([declared]) => !components.has(declared))) {
+    const wrapped = wrapperRecipe(body, components);
+    if (wrapped !== undefined && wrapped.axes.size > 0) {
+      components.set(name, wrapped);
     }
   }
   return components;

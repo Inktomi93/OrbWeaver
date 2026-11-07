@@ -53,7 +53,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
   }
   return (
     <Section heading="Library">
-      <Stack className="max-inline-(--width-content-col)" data-slot="labels-library-facts" gap="field">
+      <Stack cap="column" data-slot="labels-library-facts" gap="field">
         {summary.facts.map((fact: TagLibraryFact) => (
           <Row align="center" gap="field" key={fact.id}>
             <Text as="span" voice="kicker">

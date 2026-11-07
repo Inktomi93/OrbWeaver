@@ -43,7 +43,7 @@ export function ExportLibrarySection(): ReactElement {
   };
 
   return (
-    <Stack className="max-inline-(--reading-measure)" gap="block">
+    <Stack cap="reading" gap="block">
       <Text className="max-inline-(--reading-measure-prose)" ink="muted">
         Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
       </Text>

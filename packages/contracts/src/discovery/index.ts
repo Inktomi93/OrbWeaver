@@ -181,6 +181,7 @@ export interface BrowseCharacter {
   readonly name: string;
   readonly genre: string | null;
   readonly tone: string | null;
+  readonly setting: string | null;
   readonly elevatorPitch: string | null;
   readonly avatarHash: string | null;
   readonly createdAt: number;
@@ -207,10 +208,11 @@ export interface FacetCount {
   readonly count: number;
 }
 
-/** The distinct genres + tones in the owner's distilled corpus, each with its card count (descending). */
+/** The distinct genres, tones and settings in the owner's distilled corpus, each with its card count (descending). */
 export interface CharacterFacets {
   readonly genres: FacetCount[];
   readonly tones: FacetCount[];
+  readonly settings: FacetCount[];
 }
 
 // ── archetypes (k-means over card embeddings, labelled from distilled facets — no LLM) ──────────────────
@@ -557,6 +559,7 @@ const browseCharacterSchema = z.strictObject({
   name: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
+  setting: z.string().nullable(),
   elevatorPitch: z.string().nullable(),
   avatarHash: z.string().nullable(),
   createdAt: z.number(),
@@ -573,6 +576,7 @@ const facetCountSchema = z.strictObject({ value: z.string(), count: z.number() }
 export const characterFacetsSchema = z.strictObject({
   genres: z.array(facetCountSchema),
   tones: z.array(facetCountSchema),
+  settings: z.array(facetCountSchema),
 }) satisfies z.ZodType<CharacterFacets>;
 
 export const corpusPointSchema = z.strictObject({

@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { FILL_PARENT, tv } from "#lib";
 
 /** The `<Chart>` wrapper skin — a plain sized box; ECharts owns everything painted inside it. */
 export const chartVariants = tv({
@@ -15,7 +15,7 @@ export const chartVariants = tv({
     // Slot-keyed, not a bare string: a `tv()` with `slots` ignores a variant value that is not a
     // per-slot record, silently and without a type error.
     fill: {
-      true: { root: "flex-1 block-full min-block-0" },
+      true: { root: FILL_PARENT },
       false: { root: "" },
     },
   },

@@ -191,7 +191,7 @@ function LooksBody(): ReactElement {
           <SettingRowGroup>
             <SettingRow settingId="shipped-looks" span={true}>
               <Stack gap="field">
-                <Row align="center" className="justify-end" gap="row">
+                <Row align="center" justify="end" gap="row">
                   <FileTrigger
                     accept="application/json"
                     onFilesSelected={([file]): void => {

@@ -335,11 +335,12 @@ function ExampleTranscript({
           key={index}
           padding="none"
           variant="outline"
-          className="p-field"
         >
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-            {block}
-          </Markdown>
+          <Stack padding="field">
+            <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
+              {block}
+            </Markdown>
+          </Stack>
         </Card>
       ))}
     </Stack>

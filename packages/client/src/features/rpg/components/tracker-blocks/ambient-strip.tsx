@@ -146,12 +146,13 @@ function AmbientVocabPicker({
           like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
-        <Row divider="top" className="mbs-field basis-full pbs-field">
+        <Row divider="top" className="mbs-field" floor="line" paddingBlockStart="field">
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="justify-start inline-full"
+            className="inline-full"
+            justify="start"
             aria-label={`Clear ${fieldLabel.toLowerCase()}`}
             onClick={(): void => {
               onPick(null);
@@ -183,7 +184,7 @@ function AmbientFieldControl({
 }): ReactElement {
   if (onEditField === undefined) {
     return (
-      <Text as="span" numeric={true} className="truncate" voice="label">
+      <Text as="span" numeric={true} truncate={true} voice="label">
         {value}
       </Text>
     );
@@ -209,9 +210,7 @@ function AmbientFieldControl({
       placeholder={UNSET_DATUM}
       onEdit={(next): void => onEditField(fieldKey, next)}
       // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
-      // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`
-      // keep a long location from overflowing the wrapping card (owner density ruling).
-      className="field-sizing-content max-inline-full min-inline-0"
+      // compact input and pairs pack 2+ per row, and a long location stays inside the wrapping card.
       width="auto"
     />
   );

@@ -18,7 +18,6 @@ import { isExcepted } from "./exceptions.ts";
 import { factsOf } from "./file-facts.ts";
 import type { Hit } from "./hand-model.ts";
 import { buildHandRolling } from "./hand-rolling.ts";
-import { staleScopes } from "./hand-scope.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
 import type { ShapeGroup } from "./shapes.ts";
@@ -115,7 +114,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     adoption: adoptionBySection(files),
     composition,
     handRolling: buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced }),
-    staleScopes: staleScopes(tokens),
+    staleScopes: tokens.staleScopes,
     sections,
   };
 }

@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { FIELD_STACK } from "#lib";
 import { Skeleton } from "#primitives/skeleton";
 
 export interface StreamShimmerProps {
@@ -10,7 +11,7 @@ export interface StreamShimmerProps {
 // `role="status"`'s accessible name is "name from author," not computed from content.
 export function StreamShimmer({ label }: StreamShimmerProps): ReactElement {
   return (
-    <span role="status" aria-label={label} data-slot="stream-shimmer" className="flex flex-col gap-field inline-full">
+    <span role="status" aria-label={label} data-slot="stream-shimmer" className={`${FIELD_STACK} inline-full`}>
       <Skeleton variant="text" className="block-block inline-full" />
       <Skeleton variant="text" className="block-block" />
     </span>

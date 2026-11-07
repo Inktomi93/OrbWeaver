@@ -46,7 +46,7 @@ import { useRef } from "react";
 import { FaceStrip, ListPage } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
-import { useDebouncedValue, useFocusListArrival } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearCharacterFilters,
   clearCharacterSelection,
@@ -80,7 +80,7 @@ import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
-import { CHARACTER_SEARCH_DEBOUNCE_MS, loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
+import { loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
 import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "../lib/character-names.ts";
 
 const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
@@ -139,7 +139,7 @@ export function CharacterLibrarySurface(): ReactElement {
   // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
   // that the predicate is the server's (the chats pane's ruling, `chat-list-surface.tsx`). The band damps
   // the same raw value with the same constant, so the number and the rows settle together.
-  const settledQuery = useDebouncedValue(query.trim(), CHARACTER_SEARCH_DEBOUNCE_MS);
+  const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const sortMode = useCharacterSortMode();
   const viewMode = useCharacterViewMode();
   const favoritesOnly = useFavoritesOnly();
@@ -292,7 +292,7 @@ export function CharacterLibrarySurface(): ReactElement {
       searchAside={<CharacterSortSelect />}
       skipTo="Skip to characters"
     >
-      <Stack className="flex-1 min-block-(--height-scroll-md)">
+      <Stack className="min-block-(--height-scroll-md)" grow={true}>
         <CharacterLibraryBody
           ariaLabel={CHARACTER_LIBRARY_NAME}
           categorized={viewMode === "categorized"}

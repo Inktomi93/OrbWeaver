@@ -91,6 +91,7 @@ export interface BandProps
     | "focal"
     | "shape"
     | "selection"
+    | "justify"
     | "size"
     | "hiddenAt"
     | "touchFloor"
@@ -102,6 +103,8 @@ export interface BandProps
     | "quietDisabled"
     | "focusRing"
     | "loading"
+    | "corner"
+    | "stretch"
   > {
   /** The band's ink, spelled on its Button so the variant census reads it. */
   readonly ink?: ButtonBaseProps["ink"];
@@ -133,7 +136,7 @@ export interface BandProps
  *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
  *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
  *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = "min-inline-0 inline-full justify-start gap-tight px-tight";
+const BAND_CHASSIS = "min-inline-0 inline-full gap-tight px-tight";
 
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
@@ -149,6 +152,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
   return (
     <Button
       className={cn(BAND_CHASSIS, className) ?? ""}
+      justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}
       variant="ghost"
@@ -174,7 +178,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
           column because a tracked label inside a `truncate` box was clipping "Regex scripts" by 0.42px on the
           271px both-panels pane. The voice keeps it for its dozen other consumers; this band no longer has a
           trailing tracking column to reclaim, so the clip is gone by construction rather than by compensation. */}
-      <Text ink="inherit" as="span" className="truncate" data-slot="band-label" voice="label">
+      <Text ink="inherit" as="span" truncate={true} data-slot="band-label" voice="label">
         {label}
       </Text>
       {count === undefined ? null : (

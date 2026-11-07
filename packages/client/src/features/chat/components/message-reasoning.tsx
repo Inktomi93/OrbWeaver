@@ -73,7 +73,7 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
   };
 
   return (
-    <Stack gap="field" data-slot="message-reasoning-editor" className="inline-full">
+    <Stack gap="field" data-slot="message-reasoning-editor" width="full">
       <Textarea
         ref={fieldRef}
         className="inline-full"

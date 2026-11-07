@@ -194,7 +194,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               tone={failed ? "destructive" : undefined}
             />
           ) : null}
-          <Stack gap="field" className="flex-1 min-inline-0">
+          <Stack gap="field" className="min-inline-0" grow={true}>
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
                 <Text as="span" voice="label" ink={dim ? "muted" : undefined} strike={dim}>

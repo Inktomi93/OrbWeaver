@@ -1,3 +1,4 @@
+import { COLOR_MOTION } from "./state-motion.ts";
 // The hover-reveal postures for a row's trailing actions, keyed on the nearest `group` ancestor (a ListRow root is one).
 // Opacity only: a display or visibility swap under a hover key moves layout under the pointer and oscillates.
 // Where the primary input cannot hover (a phone, a stylus tablet) every arm stays visible; `hover-capable` hides it at rest
@@ -39,6 +40,6 @@ export const INERT_UNTIL_HOVER =
 // The cues a quiet part of a hovered `group` (a card that is one control) gives: its ink lifts to the foreground, or a
 // trailing arrow nudges toward where the control goes.
 export const HOVER_CUE = {
-  lift: "transition-colors duration-(--motion-fast) ease-out-expo group-hover:text-foreground",
+  lift: `${COLOR_MOTION} group-hover:text-foreground`,
   nudge: "inline-block transition-transform duration-(--motion-fast) ease-out-expo group-hover:translate-x-tight",
 } as const;

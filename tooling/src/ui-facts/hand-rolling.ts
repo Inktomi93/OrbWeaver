@@ -1,4 +1,5 @@
 // The hand-rolling census: every hand-written design value, class, style, pattern and constant, each with the owner that would retire it.
+import type { ClassConstants } from "./classes.ts";
 import { classHits } from "./hand-classes.ts";
 import { codeFindings, constantHits } from "./hand-code.ts";
 import type { Hit } from "./hand-model.ts";
@@ -29,7 +30,7 @@ export interface CensusInputs {
   readonly sites: readonly Site[];
   readonly tokens: ValueTokens;
   readonly components: ComponentTables;
-  readonly referenced: ReadonlySet<string>;
+  readonly referenced: ClassConstants;
 }
 
 function patternHits(sites: readonly Site[]): readonly Hit[] {

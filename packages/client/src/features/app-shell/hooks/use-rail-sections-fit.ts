@@ -1,11 +1,10 @@
 // A short rail scrolls its sections. This ends the scroller on the middle of a button, so the next section shows half
 // clipped at rest, and keeps the current section in view, which nothing else does for a programmatic change.
 
-import { syncScrollFade } from "@orb/ui/scroll-area";
+import { SCROLL_EDGE_EPSILON_PX, syncScrollFade } from "@orb/ui/scroll-area";
 import type { RefObject } from "react";
 import { useEffect } from "react";
 
-const EDGE_EPSILON_PX = 1;
 const MAX_SIZE = "max-block-size";
 const CURRENT_ATTRIBUTE = "aria-current";
 
@@ -20,7 +19,7 @@ function fitSections(scroller: HTMLElement): void {
   const position = scroller.scrollTop;
   scroller.style.removeProperty(MAX_SIZE);
   const room = scroller.clientHeight;
-  if (scroller.scrollHeight - room <= EDGE_EPSILON_PX) {
+  if (scroller.scrollHeight - room <= SCROLL_EDGE_EPSILON_PX) {
     return;
   }
   const origin = scroller.getBoundingClientRect().top - scroller.scrollTop;
@@ -45,7 +44,7 @@ function fitSections(scroller: HTMLElement): void {
 function revealCurrent(scroller: HTMLElement): void {
   const current = buttonsOf(scroller).find((button) => button.hasAttribute(CURRENT_ATTRIBUTE));
   const view = scroller.clientHeight;
-  if (current === undefined || scroller.scrollHeight - view <= EDGE_EPSILON_PX) {
+  if (current === undefined || scroller.scrollHeight - view <= SCROLL_EDGE_EPSILON_PX) {
     return;
   }
   const { top, height } = current.getBoundingClientRect();

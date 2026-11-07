@@ -17,7 +17,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Crown, Ellipsis, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
-import { Row, Stack } from "@orb/ui/layout";
+import { Corner, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
@@ -117,7 +117,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
       ground={ownership === "owning" ? "raised" : undefined}
     >
-      <Row align="center" gap="row" className="relative px-row pbs-field pbe-row min-inline-0">
+      <Row align="center" gap="row" className="relative pbe-row min-inline-0" paddingBlockStart="field" paddingInline="row">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}
@@ -126,7 +126,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
               onSelect(value);
             }
           }}
-          className="gap-0 inline-full min-inline-0"
+          className="gap-0 min-inline-0"
         >
           <TabsList
             ref={trackRef}
@@ -134,7 +134,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={cn("grid grid-flow-col gap-tight inline-full min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            className={cn("grid grid-flow-col gap-tight min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
           >
@@ -161,7 +162,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className="pointer-events-none absolute inset-y-0 inset-s-0 inline-gutter"
+          className="pointer-events-none absolute inset-y-0 inset-s-0"
+          width="gutter"
           fade="start"
           fadeFrom={fill}
         >
@@ -177,7 +179,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className="pointer-events-none absolute inset-y-0 inset-e-0 inline-gutter"
+          className="pointer-events-none absolute inset-y-0 inset-e-0"
+          width="gutter"
           fade="end"
           fadeFrom={fill}
         >
@@ -213,8 +216,8 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch px-block min-inline-0">
-        <Text as="span" voice="label" data-slot="context-header-title" className="truncate min-inline-0">
+      <Row data-slot="context-tab-strip" align="center" className="self-stretch min-inline-0" grow={true} paddingInline="block">
+        <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
       </Row>
@@ -225,13 +228,15 @@ export function ContextHeaderTabs({
       data-slot="context-tab-strip"
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="relative flex-1 self-stretch min-inline-0"
+      className="relative self-stretch min-inline-0"
+      grow={true}
     >
       <TabsList
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row block-full inline-full min-inline-0"
+        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row min-inline-0"
+        fill={true}
         rule="none"
       >
         {tabs.map((tab) => (
@@ -285,7 +290,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       className="shrink-0"
     >
       {renderCellIcon(tab, isActive, locked)}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} /> : null}
@@ -357,14 +362,16 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate max-inline-full" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" className="max-inline-full" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST
-          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
-          LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
-          `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" ink="muted" receded={true} /> : null}
+          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped. */}
+      {locked ? (
+        <Corner>
+          <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} />
+        </Corner>
+      ) : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -383,10 +390,16 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
-        {count}
-      </Badge>
+      <Corner>
+        <Badge tone="primary" variant="solid" size="sm" aria-hidden={true}>
+          {count}
+        </Badge>
+      </Corner>
     );
   }
-  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
+  return dot ? (
+    <Corner>
+      <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+    </Corner>
+  ) : null;
 }

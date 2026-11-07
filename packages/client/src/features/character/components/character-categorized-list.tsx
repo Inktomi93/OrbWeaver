@@ -64,7 +64,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
   onLoadMore,
 }: CharacterCategorizedListProps<T>): ReactElement {
   return (
-    <Stack className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" gap="block">
+    <Stack scroll="y" grow={true} gap="block">
       {/* C9-1d: the tag's `folderType` decides each group's FIRST paint (OPEN ⇒ expanded, plain/CLOSED ⇒
           collapsed behind its name + count) — `defaultOpen`, so the user's own toggle wins from then on and
           the section never fights them back. */}
@@ -73,7 +73,7 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
           <CollapsibleTrigger
             chevron={false}
             render={
-              <Button className="justify-start inline-full" variant="ghost" size="sm">
+              <Button className="inline-full" justify="start" variant="ghost" size="sm">
                 {/* The chevron must SAY which way the section is (C9-1d): once `folderType` decides the
                     first paint, a collapsed group is an everyday state, and a chevron frozen pointing down
                     over a hidden panel is a lie. `CollapsibleTrigger` puts its `group` class + Base UI's

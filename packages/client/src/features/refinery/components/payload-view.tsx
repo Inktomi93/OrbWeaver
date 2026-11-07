@@ -420,7 +420,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
             <Stack gap="tight">
               <Button
                 aria-expanded={open}
-                className="justify-start"
+                justify="start"
                 data-testid={testId("refineryAssayRow")}
                 variant="ghost"
                 onClick={(): void => setOpenIndex(open ? null : i)}

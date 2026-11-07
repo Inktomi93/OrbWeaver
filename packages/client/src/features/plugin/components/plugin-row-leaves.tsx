@@ -236,8 +236,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
     // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
-    // a LEADING ACCENT RULE (the list-row ember-bar / rpg-hud-rail kicker grammar — `border-l-2` +
-    // `ps-block`), NOT a full bordered box. The full `/40` warning border shipped by the rework nested a
+    // a LEADING ACCENT RULE (the list-row ember-bar / rpg-hud-rail kicker grammar — `divider="start"` and
+    // `indent`), NOT a full bordered box. The full `/40` warning border shipped by the rework nested a
     // second box INSIDE the plugin's own Card border, and nested borders read cheap — tightest at ~390px,
     // where the two edges sit a handful of px apart (side-eye 2026-08-29 residual P3). A left rule carries
     // the same "attend to this" boundary with one edge, not two — at SOLID `border-l-warning`, not the box's
@@ -252,7 +252,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // never a fill"); its INPUT changed from a full box to a leading rule.
     <Stack
       aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
-      className="ps-block"
+      indent={true}
       divider="start"
       dividerWeight="rule"
       gap="block"

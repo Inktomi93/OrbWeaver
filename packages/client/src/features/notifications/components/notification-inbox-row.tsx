@@ -67,7 +67,7 @@ export function DismissedInboxRow({ item, ref }: { readonly item: InboxItem; rea
   const copy = rowCopy(item.payload, pluginName);
   return (
     <Stack aria-label={copy} gap="tight" data-slot="inbox-dismissed-row" ref={ref} role="group" tabIndex={-1}>
-      <Text as="span" voice="gloss" prose={true} className="wrap-anywhere">
+      <Text as="span" voice="gloss" prose={true} wrap="anywhere">
         {copy}
       </Text>
       <Text as="span" voice="gloss" ink="muted">
@@ -212,7 +212,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
         {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
         <Stack gap="tight" className="min-inline-0">
-          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} className="wrap-anywhere">
+          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} wrap="anywhere">
             {rowCopy(item.payload, disabledPluginName)}
           </Text>
           <Text as="span" voice="gloss" ink="muted">

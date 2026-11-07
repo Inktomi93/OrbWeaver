@@ -112,7 +112,7 @@ export function handRollingLines(facts: UiFacts, inScope: (section: string) => b
       : [
           "### Token scope rows with no token",
           "",
-          "Each row of `SCOPED` in `hand-scope.ts` here matches no token in the theme.",
+          "Each `orb.purpose` in `packages/ui/src/tokens/tokens.json` here covers no token the theme declares.",
           "",
           ...facts.staleScopes.map((row) => `- \`${row}\``),
           "",
