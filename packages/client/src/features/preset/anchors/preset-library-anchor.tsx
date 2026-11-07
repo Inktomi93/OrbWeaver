@@ -14,7 +14,7 @@ export interface PresetLibraryAnchorProps {
 /** Provide the `preset-library` container box the library surface consumes. */
 export function PresetLibraryAnchor({ children }: PresetLibraryAnchorProps): ReactElement {
   return (
-    <Container fill={true} name="preset-library">
+    <Container height="fill" name="preset-library">
       {children}
     </Container>
   );

@@ -61,7 +61,7 @@ export function ListPage({
         data-list-page={body}
         {...(label === undefined ? {} : { "aria-label": label, role: "region" })}
         className="min-block-0"
-        fill={true}
+        height="fill"
         focusTarget={true}
         scroll={body === "pane" ? "y" : undefined}
         gap="row"

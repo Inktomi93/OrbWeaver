@@ -44,8 +44,9 @@ export const CAP = {
 /** The box sets in the middle of its line, with the free space on both sides. */
 export const CENTRED = { true: "mx-auto", false: "" } as const;
 
-/** A named fixed block size: the viewport, or the height of the control a placeholder or a row stands in for. */
+/** A named block size: the parent's whole one, the viewport, or the height of the control a placeholder or a row stands in for. */
 export const HEIGHT = {
+  fill: "block-full",
   viewport: "block-dvh",
   control: "block-(--size-control-sm)",
   controlMd: "block-(--size-control-md)",
@@ -67,9 +68,6 @@ export const MAX_HEIGHT = {
 
 /** A picture's box, by what it stands for: its host's whole box, or the hero step on both sides. */
 export const PICTURE_SIZE = { fill: "block-full inline-full", hero: "block-(--size-avatar-hero) inline-(--size-avatar-hero)" } as const;
-
-/** The box takes its parent's whole block size. */
-export const FILL = { true: "block-full", false: "" } as const;
 
 /** The least block size a box holds, by what must fit in it: the control it seats, a scroll region's floor, or a named surface. */
 export const MIN_HEIGHT = {

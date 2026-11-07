@@ -740,7 +740,7 @@ test.describe("a row mounted mid-door", () => {
     await waitForShellIdle(page);
     // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
     await page.evaluate(() => {
-      for (const track of document.querySelectorAll(".orb-chat-track")) {
+      for (const track of document.querySelectorAll('[data-track="chat"]')) {
         track.setAttribute("data-ct-at-rest", "");
       }
     });
@@ -761,11 +761,11 @@ test.describe("a row mounted mid-door", () => {
       let newcomers: Element[] = [];
       while (reference.playState === "running" && newcomers.length === 0) {
         await frame();
-        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
+        newcomers = Array.from(document.querySelectorAll('[data-track="chat"]')).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       }
       // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
       await frame();
-      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
+      const mounted = Array.from(document.querySelectorAll('[data-track="chat"]')).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       return {
         reference: reference.playState === "running" ? Number(reference.currentTime) : null,
         newcomers: mounted.map((track) => {
@@ -791,7 +791,7 @@ test.describe("a row mounted mid flank door", () => {
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
     await waitForShellIdle(page);
-    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] .orb-chat-track', "room-flank-centre-flip");
+    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] [data-track="chat"]', "room-flank-centre-flip");
     const read = await page.evaluate(async (maxFrames) => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
@@ -802,7 +802,7 @@ test.describe("a row mounted mid flank door", () => {
       const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
       const flip = (element: Element): Animation | undefined =>
         element.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "room-flank-centre-flip");
-      const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
+      const tracks = (): Element[] => Array.from(row()?.querySelectorAll('[data-track="chat"]') ?? []);
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
       // Read before the scroll: the held clock fixes this time, and the scroll can replace every armed row.
       const at = Array.from(armed)

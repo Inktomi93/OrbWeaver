@@ -4,6 +4,8 @@ import ts from "typescript";
 import type { TypeServices as Native } from "./checker.ts";
 import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { isElementFactoryCall } from "./syntax.ts";
+import { isClassProperty, isComponentElement } from "./ui-feature-classname.ts";
 
 const BASE_UI_PACKAGE = /\/node_modules\/@base-ui\/react\//u;
 const REACT_TYPES_PACKAGE = /\/node_modules\/@types\/react\//u;
@@ -237,6 +239,8 @@ export const unresolvedStyleSpreadRule: OrbRule = {
 const UI_SOURCE = /\/packages\/ui\/src\//u;
 const LITERAL_NAMES = new Set(["true", "false", "undefined", "null"]);
 const MAX_SPREAD_HOPS = 3;
+const ANY_CLASS_KEY = "any class key";
+const ELEMENT_PROPS_ARGUMENT = 1;
 
 function members(type: ts.Type): readonly ts.Type[] {
   return type.isUnion() ? type.types : [type];
@@ -323,6 +327,8 @@ function carriesAnyKey(native: Native, type: ts.Type): boolean {
   return type.flags === ts.TypeFlags.Any || native.checker.getIndexInfosOfType(type).some((info) => info.keyType.flags === ts.TypeFlags.String);
 }
 
+const writesNothing = (type: ts.Type): boolean => type.flags === ts.TypeFlags.Never || type.flags === ts.TypeFlags.Undefined;
+
 function carriedAxes(native: Native, spread: ts.Type, axes: ReadonlySet<string>): readonly string[] {
   const parts = members(spread);
   if (parts.some((part) => carriesAnyKey(native, part))) {
@@ -356,6 +362,56 @@ export const opaqueVariantSpreadRule: OrbRule = {
             node,
             message: `This spread can write the variant ${carried.length === 1 ? "axis" : "axes"} ${carried.join(", ")}, which the variant census cannot read. Spell the axis as an attribute, spread an object literal, or Omit the axis from the spread's type.`,
           });
+        }
+      },
+    };
+  },
+};
+
+// A key a type declares `never` or `undefined` names a class that cannot be written, which is how a body says its rest holds none.
+function classKeys(native: Native, spread: ts.Type, at: ts.Node): readonly string[] {
+  const parts = members(spread);
+  if (parts.some((part) => carriesAnyKey(native, part))) {
+    return [ANY_CLASS_KEY];
+  }
+  const keys = parts.flatMap((part) => part.getProperties()).filter(({ name }) => isClassProperty(name));
+  return keys.filter((key) => !members(native.checker.getTypeOfSymbolAtLocation(key, at)).every(writesNothing)).map(({ name }) => name);
+}
+
+/**
+ * A spread or an element factory's props on a component cannot carry a class the static rules did not read. The value may have travelled through a
+ * nested object, an alias, a call or another file; its type still names the key. Omit the key from the type, or spread what the static rules read.
+ *
+ * @remarks
+ * A type is the limit: a value that holds a class under a type that omits the key passes. `orb/no-built-class-string` refuses that value where it leaves
+ * its declaration, and its comment names the one shape left.
+ */
+export const opaqueClassSpreadRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const native = requireTypeServices(context);
+    const judge = (node: TSESTree.Node, expression: ts.Expression): void => {
+      if (readableSpread(native, expression, 0)) {
+        return;
+      }
+      const keys = classKeys(native, native.checker.getTypeAtLocation(expression), expression);
+      if (keys.length > 0) {
+        context.report({
+          node,
+          message: `This value can carry ${keys.join(", ")} onto a component, where lint cannot read the tokens. Omit the key from its type, or pass a prop.`,
+        });
+      }
+    };
+    return {
+      JSXSpreadAttribute: (node: TSESTree.JSXSpreadAttribute): void => {
+        if (isComponentElement(node.parent)) {
+          judge(node, native.esTreeNodeToTSNodeMap.get(node).expression);
+        }
+      },
+      CallExpression: (node: TSESTree.CallExpression): void => {
+        const props = isElementFactoryCall(context, node) ? native.esTreeNodeToTSNodeMap.get(node).arguments[ELEMENT_PROPS_ARGUMENT] : undefined;
+        if (props !== undefined && !ts.isSpreadElement(props)) {
+          judge(node, props);
         }
       },
     };

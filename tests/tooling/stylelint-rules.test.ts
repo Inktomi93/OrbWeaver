@@ -430,7 +430,7 @@ test("a shell region paints from tokens and names no component", async () => {
     ".shell-main { background: rgb(from var(--color-card) r g b / 0.4); }",
     ".shell-grid { text-shadow: none; }",
     ".shell-panel-header > [data-slot='panel-overlay-close'] { opacity: 1; }",
-    ".shell-main [data-slot='chat-room-flank-row'] .orb-chat-track { opacity: 1; }",
+    ".shell-main [data-slot='chat-room-flank-row'] [data-track='chat'] { opacity: 1; }",
   ]) {
     expect(await hits(rules), rules).toEqual([]);
   }

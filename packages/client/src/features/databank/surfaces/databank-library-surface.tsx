@@ -235,7 +235,7 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
             than sitting under a virtualized viewport it could no longer be part of. */}
         <VirtualList
           aria-label="Documents"
-          fill={true}
+          height="fill"
           endApproachRows={collection.listProps.endApproachRows}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           gapToken="tight"

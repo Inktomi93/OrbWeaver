@@ -66,7 +66,7 @@ const EDGE_FADE = "data-more:mask-b-from-90%";
 /**
  * The `@tanstack/react-virtual` seal: a windowed list whose virtualizer config the call site
  * cannot get wrong (`directDomUpdates`/`containerRef`/`useFlushSync: false`/position-mode DOM
- * updates/measureElement + data-index wiring). `fill`, `grow`, `height` or the parent must bound the
+ * updates/measureElement + data-index wiring). `grow`, `height` or the parent must bound the
  * list's height: an unbounded scroll element throws at mount.
  */
 export function VirtualList<T>({
@@ -79,7 +79,6 @@ export function VirtualList<T>({
   resetScrollReady = true,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
-  fill,
   grow,
   height,
   maxHeight,
@@ -174,7 +173,7 @@ export function VirtualList<T>({
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
-      className={virtualListVariants({ fill, grow, height, maxHeight, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
+      className={virtualListVariants({ grow, height, maxHeight, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
       data-slot="virtual-list-scroll"
       onScroll={(event): void => {
         if (fadeEdge) {

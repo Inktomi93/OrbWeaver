@@ -8,7 +8,6 @@ import {
   CORNER,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
-  FILL,
   FLOOR,
   FOCUS_RING,
   GROUND,
@@ -272,7 +271,6 @@ const BOX_HIDDEN_AT = { ...HIDDEN_AT, unlessDialogStacked: "hidden dialog-stacke
 // `floor="line"` basis gives way to its content's width.
 const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
 
-// `fill` takes the parent's whole block size.
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
@@ -372,7 +370,6 @@ export const stackVariants = tv({
     cap: CAP,
     width: WIDTH,
     centred: CENTRED,
-    fill: FILL,
     // `bandHead` is the solid head of a feathered art band, above where the feather starts.
     height: { ...HEIGHT, bandHead: "block-3/5" },
     grow: GROW,
@@ -428,7 +425,6 @@ export const rowVariants = tv({
     maxHeight: MAX_HEIGHT,
     order: ORDER,
     pinned: PINNED,
-    fill: FILL,
     // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
     // `none` takes no room, for a parked box only a measure reads.
     height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto", glyph: "block-(--size-glyph-lg)", none: "block-0" },
@@ -519,7 +515,7 @@ export const sectionVariants = tv({
     // The cap a section holds its rows to; only the reading measure has a caller, so it is the only arm.
     cap: { reading: { root: CAP.reading } },
     width: { full: { root: WIDTH.full } },
-    fill: { true: { root: "block-full" }, false: { root: "" } },
+    height: { fill: { root: HEIGHT.fill } },
     // A section whose only body is grafted in leaves the page with it, kicker and all.
     hiddenAt: { emptyBody: { root: HIDDEN_AT.emptyBody } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
@@ -815,7 +811,7 @@ export const containerVariants = tv({
     width: WIDTH,
     centred: CENTRED,
     grow: GROW,
-    fill: FILL,
+    height: { fill: HEIGHT.fill },
     paddingInline: PADDING_INLINE,
     ground: GROUND,
   },

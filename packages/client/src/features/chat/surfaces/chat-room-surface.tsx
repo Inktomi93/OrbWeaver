@@ -155,7 +155,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className="overscroll-y-none"
           paddingBlockEnd="block"
-          fill={true}
+          height="fill"
           scroll="y"
           paddingInline="block"
           paddingInlineNarrow="tight"
@@ -214,7 +214,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                     align="stretch"
                     className="relative overflow-x-clip"
                     minHeight="roomThread"
-                    fill={true}
+                    height="fill"
                     stackBelow="cq-32"
                     data-slot="chat-room-flank-row"
                     ref={flankRowRef}
