@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Db } from "@orb/db";
 import { backupBeforeMigrate, checkBaseline, createDb, hasPendingMigrations, listBackupFiles, messageVariants, runMigrations } from "@orb/db";
-import { isBackupFileName } from "@orb/db/backup-names";
+import { isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "@orb/db/backup-names";
+import { MS_PER_DAY, MS_PER_SECOND } from "@orb/kit/time";
 import { runBootMigrations } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import type { OwnedDb } from "@orb/testkit/node/composed";
@@ -126,34 +127,50 @@ test("debris at the backup's own path is replaced by a real snapshot instead of 
   expect(await contents(replaced)).toEqual([CONTENT]);
 });
 
-test("a boot that migrates prunes the oldest backups and keeps the newest; a boot with nothing pending prunes nothing", async ({ importStagingDir }) => {
+test("a boot that migrates keeps the recent budget, one backup per recent day and every pinned copy, and prunes the rest; a boot with nothing pending prunes nothing", async ({
+  importStagingDir,
+}) => {
   await using previous = await migrationsBeforeLatest();
   const where = layoutIn(importStagingDir);
   using chain = await previousChainDb(where, previous.path);
   const db = chain.db;
   mkdirSync(where.backupDir, { recursive: true });
-  const stamps = [1, 2, 3, 4, 5, 6, 7, 8];
-  for (const stamp of stamps) {
-    const planted = `${DB_NAME}.backup-${stamp}`;
+  const backupName = (stamp: number): string => `${DB_NAME}.backup-${stamp}`;
+  const plant = (name: string): void => {
     // A planted copy must be one the sweep recognises, or the retention case proves nothing.
-    expect(isBackupFileName(planted, DB_NAME)).toBe(true);
-    writeFileSync(join(where.backupDir, planted), "older backup");
+    expect(isBackupFileName(name, DB_NAME)).toBe(true);
+    writeFileSync(join(where.backupDir, name), "older backup");
+  };
+  // One crowded day whose copies outnumber the recent budget, then one copy on each of more older days than the daily budget.
+  // Both days sit far before the copy the boot takes now, so that copy is the newest and opens a day of its own.
+  const crowdedDay = KEEP_DAILY_BACKUPS * 10 * MS_PER_DAY;
+  const crowded = Array.from({ length: KEEP_RECENT_BACKUPS + 3 }, (_, index) => crowdedDay + index * MS_PER_SECOND);
+  const older = Array.from({ length: KEEP_DAILY_BACKUPS + 2 }, (_, index) => (index + 1) * MS_PER_DAY);
+  const pinnedStamp = older[0] ?? 0;
+  for (const stamp of [...crowded, ...older]) {
+    plant(backupName(stamp));
   }
+  const pin = `${backupName(pinnedStamp)}.keep`;
+  plant(pin);
   await boot(db, where);
 
-  const kept = backupsIn(where.backupDir);
-  const oldest = `${DB_NAME}.backup-1`;
-  const newestPlanted = `${DB_NAME}.backup-8`;
-  expect(kept).toContain(newestPlanted);
-  expect(kept).not.toContain(oldest);
-  const taken = kept.filter((name) => !stamps.some((stamp) => name === `${DB_NAME}.backup-${stamp}`));
+  const planted = new Set([...crowded, ...older].map(backupName).concat(pin));
+  const afterMigrating = backupsIn(where.backupDir);
+  const taken = afterMigrating.filter((name) => !planted.has(name));
   expect(taken).toHaveLength(1);
+  // The fresh copy spends one recent slot and the crowded day one daily slot, and the crowded day's newest copy is both.
+  const keptCrowded = crowded.slice(-(KEEP_RECENT_BACKUPS - 1));
+  const keptOlder = older.slice(-(KEEP_DAILY_BACKUPS - 2));
+  const expected = [...taken, ...[...keptCrowded, ...keptOlder, pinnedStamp].map(backupName), pin];
+  expect([...afterMigrating].sort()).toEqual(expected.sort());
 
-  // A no-op boot touches the backup dir not at all, so a copy older than every kept one survives it.
-  const stale = `${DB_NAME}.backup-0`;
-  writeFileSync(join(where.backupDir, stale), "older backup");
+  // A no-op boot touches the backup dir not at all, so a copy no budget holds survives it.
+  const stale = backupName(0);
+  plant(stale);
+  const beforeNoop = backupsIn(where.backupDir);
   await boot(db, where);
-  expect(backupsIn(where.backupDir)).toContain(stale);
+  expect(backupsIn(where.backupDir)).toEqual(beforeNoop);
+  expect(beforeNoop).toContain(stale);
 });
 
 test("a database that recorded a migration the shipped chain does not hold refuses to boot, and nothing is wiped or copied", async ({ importStagingDir }) => {

@@ -98,6 +98,8 @@ async function drive(options: Drive): Promise<Driven> {
     ...(options.tools === undefined ? {} : { tools: options.tools }),
     ...(options.toolChoice === undefined ? {} : { toolChoice: options.toolChoice }),
   });
+  // One turn is one request: a second one would hide behind the first in every assertion on `sent`.
+  expect(recorded).toHaveLength(1);
   const [sent] = recorded;
   if (sent === undefined) {
     throw new Error("the turn reached no endpoint");

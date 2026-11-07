@@ -77,7 +77,8 @@ test("(1) an OpenRouter Claude summarize with no routing of its own is pinned to
     effort: "none",
     maxTokens: 128,
   });
-  expect(recorded[0]?.body["provider"]).toMatchObject({ ["allow_fallbacks"]: false });
+  // OpenRouter names the vendor "Anthropic"; `order` alone leaves fallbacks on, so both halves of the pin are read.
+  expect(recorded[0]?.body["provider"]).toEqual({ order: ["Anthropic"], ["allow_fallbacks"]: false });
 });
 
 test("(2) an extras key the OpenRouter transport cannot take is named on the item's log, not dropped silently", async () => {
