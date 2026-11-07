@@ -223,7 +223,7 @@ The source assessment does not establish runtime failure or deployment exposure.
 ### Bounded restoration order
 
 1. [Compare existing contract and import coverage](../../work/1902-reconcile-implemented-contracts-and-import-coverage-before-restoration.md). Record covered, partial or qualification-only obligations before adding tests.
-2. [Qualify subscription lifetime outcomes](../../work/1871-exercise-live-sse-inactivity-expiry-before-unsubscribe.md). Exercise actual inactivity expiry and compare adapter-owned protocol refusals.
+2. Qualify subscription lifetime outcomes: compare adapter-owned protocol refusals. A maintained case already exercises actual inactivity expiry.
 3. [Compare plugin permission outcomes](../../work/1903-compare-plugin-permission-outcomes-before-restoring-runtime-tests.md). Preserve real denial assertions and allowed-operation positives on the current runtime.
 4. Select persistence, RPG and automation remainders after the preceding comparisons close. Check existing migration and integration suites before claiming a gap.
 

@@ -79,8 +79,12 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
                             layout viewport keeps its height. Pair with --tap on the field, e.g.
                             --tap 'textarea' --soft-keyboard 340 (roughly an iPhone portrait keyboard with
                             its suggestion bar). Needs a touch device like --tap
-  --fill <selector=value>  --key <selector=Key> | --key <Key>
+  --fill <selector=value>  --fill-env <selector=ENV_NAME>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
+                            --fill-env types a private value from the environment; a session reads the
+                            env it booted with. Every --fill value reads as <private> in run files and
+                            printed evidence, wherever the page echoes it, so an --aria or --eval read of a
+                            typed word shows the mask. Pixels are not masked
   --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>
   --cold-start           bounded cold bootstrap on the capture page (live origins only)
   --wait <selector>       after page/app readiness, require this selector to become visible

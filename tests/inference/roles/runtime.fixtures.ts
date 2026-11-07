@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import type { Capability, DeclaredCapability, EndpointFeatures, GenerationCapability, Task } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
+import type { UserId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { ControlledTimers } from "@orb/testkit/iso";
 import { createControlledTimers, createFrozenClock, makeCapability, makeGenerationCapability, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -13,6 +15,12 @@ type ConnectionFields = Omit<Parameters<ServerTestHarness["services"]["connectio
 export const RUNTIME_KEY = "synthetic-runtime-fixture-key";
 export const RUNTIME_TOKEN = "sk-ant-oat01-0123456789abcdef0123456789abcdef";
 export const RUNTIME_ENDPOINT = "http://127.0.0.1:8703/v1";
+
+/** The `metadata.user_id` Anthropic correlates one account on. Spelled here rather than read from its producer: a
+ *  control that called the producer would pass on any digest it returned, and this value must outlive a rewrite of it. */
+export function anthropicOwnerDigest(ownerId: UserId): string {
+  return createHash("sha256").update(`orbweaver:anthropic-metadata-user-id:v1:${ownerId}`).digest("hex");
+}
 
 /** Only the owned graph's external bytes and address resolution are scripted. */
 export function createRuntimeRoot(options: ServerHarnessOptions = {}): Promise<ServerTestHarness> {
@@ -115,10 +123,10 @@ export function generationCapability(overrides: Partial<GenerationCapability> = 
 export async function runtimeConnection<T extends Task>(
   root: ServerTestHarness,
   task: T,
-  fields: Omit<ConnectionFields, "credentialId"> & { readonly key?: string },
+  fields: Omit<ConnectionFields, "credentialId"> & { readonly key?: string; readonly owner?: UserId },
 ): Promise<Resolved<T>> {
-  const principal = await root.principalFor(root.ownerId);
-  const { key, ...connection } = fields;
+  const { key, owner = root.ownerId, ...connection } = fields;
+  const principal = await root.principalFor(owner);
   const credential = key === undefined ? null : await root.services.credentials.add({ principal, provider: fields.providerId, key });
   const row = await root.services.connection.create({ ...connection, principal, credentialId: credential?.id ?? null });
   const { resolved } = await root.app.runtime.resolve({ principal, task, connectionId: row.id, cachedFacts: true });
@@ -129,6 +137,8 @@ export interface WireConnectionInput<T extends Task> extends Omit<ConnectionFiel
   readonly task: T;
   readonly baseUrl?: string | null;
   readonly key?: string;
+  /** The account that funds this connection; the root's owner unless a case names another. */
+  readonly owner?: UserId;
   readonly capability?: Capability;
   readonly declaredFeatures?: EndpointFeatures;
   readonly declared?: DeclaredCapability;

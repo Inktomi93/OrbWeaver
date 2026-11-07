@@ -38,6 +38,7 @@ import { readSessionEvent } from "../lib/session-wire.ts";
 import { tapValidationErrors } from "./parse.ts";
 import { validateRouteSection } from "./parse-route.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, registerSnapSessionProvenance } from "./run-bundle.ts";
+import type { SessionBootReservation } from "./session-registry.ts";
 import { liveRows, readRow, releaseSessionBoot, reserveSessionBoot, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
 import { repoRoot } from "./stage-git.ts";
 
@@ -186,6 +187,16 @@ function bootBudget(daemonPid: number | undefined): () => boolean {
   };
 }
 
+/** What a cold boot prints when its reservation is refused. A Record, so a new refusal must say its text. */
+const BOOT_REFUSAL: Record<
+  Exclude<SessionBootReservation, "reserved">,
+  (boot: { readonly name: string; readonly home: string; readonly cap: number }) => string
+> = {
+  cap: ({ name, home, cap }) => sessionCapRefusal(name, liveRows(home), cap, Date.now()),
+  name: ({ name }) => `SESSION REFUSED  ${name} is already booting — wait for its daemon to publish a row`,
+  locked: ({ home }) => `SESSION REFUSED  the session registry's boot lock in ${home} is held by a live process — nothing was reserved; retry in a moment`,
+};
+
 /** Boot the daemon and wait for it to answer `ping` — relaying its log meanwhile. Returns null when the
  *  session is ready, else the exit code (the daemon died during boot, or the boot budget expired). */
 async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number | null> {
@@ -198,12 +209,8 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
     return EXIT.misuse;
   }
   const reservation = reserveSessionBoot(home, name, limits.cap);
-  if (reservation === "cap") {
-    print(sessionCapRefusal(name, liveRows(home), limits.cap, Date.now()));
-    return EXIT.toolError;
-  }
-  if (reservation === "name") {
-    print(`SESSION REFUSED  ${name} is already booting — wait for its daemon to publish a row`);
+  if (reservation !== "reserved") {
+    print(BOOT_REFUSAL[reservation]({ name, home, cap: limits.cap }));
     return EXIT.toolError;
   }
   const logPath = sessionLogPath(home, name);

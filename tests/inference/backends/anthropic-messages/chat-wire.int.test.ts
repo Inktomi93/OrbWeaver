@@ -12,6 +12,7 @@ import { buildToolRoundWireTools, rpgGameConfigSchema, withStateToolExamples } f
 import type { ChatHistoryMessage, ChatResult, ToolChoice, WireTool } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import type { UserId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { AnthropicStreamEvent, RecordedRequest } from "@orb/testkit/node/helpers";
 import {
@@ -28,7 +29,7 @@ import {
 } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
-import { createRuntimeRoot, wireConnection } from "../../roles/runtime.fixtures.ts";
+import { anthropicOwnerDigest, createRuntimeRoot, wireConnection } from "../../roles/runtime.fixtures.ts";
 
 const THINKING = "The signed thought.";
 const SIGNATURE = "signed-by-the-provider";
@@ -75,6 +76,7 @@ interface Driven {
   readonly turn: ChatResult;
   readonly sent: RecordedRequest;
   readonly errorLog: readonly Record<string, unknown>[];
+  readonly ownerId: UserId;
 }
 
 /** One chat turn on the direct Anthropic wire against a scripted SSE endpoint, on the model's curated capability. */
@@ -104,6 +106,7 @@ async function drive(options: Drive): Promise<Driven> {
     turn,
     sent,
     errorLog: errors.mock.calls.flatMap(([first]) => (typeof first === "object" && first !== null ? [Object.fromEntries(Object.entries(first))] : [])),
+    ownerId: root.ownerId,
   };
 }
 
@@ -176,14 +179,14 @@ test("a prior turn's replayed thinking leads its assistant row, and the same row
 });
 
 test("a minimal turn sends exactly one request body, so a provider SDK upgrade that reshapes any field fails here", async () => {
-  const { sent } = await drive({ model: "claude-opus-5", reply: textReply });
+  const { sent, ownerId } = await drive({ model: "claude-opus-5", reply: textReply });
 
   expect(sent.body).toEqual({
     model: "claude-opus-5",
     ["max_tokens"]: expect.any(Number),
     thinking: { type: "adaptive", display: "summarized" },
     ["output_config"]: { effort: "high" },
-    metadata: { ["user_id"]: expect.any(String) },
+    metadata: { ["user_id"]: anthropicOwnerDigest(ownerId) },
     system: [{ type: "text", text: "You are a helpful assistant.", ["cache_control"]: { type: "ephemeral", ttl: "1h" } }],
     messages: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     stream: true,

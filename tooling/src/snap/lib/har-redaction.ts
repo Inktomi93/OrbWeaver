@@ -1,6 +1,7 @@
 import { isUtf8 } from "node:buffer";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { readMember } from "../../floor/instrument/member.ts";
+import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
 import type {
   DiskSafeBody,
   DiskSafeCookie,
@@ -23,11 +24,13 @@ import type {
 import { REDACTED } from "../contract/har-redaction.ts";
 import { resolveNetworkEvidenceLimits } from "./har-redaction-limits.ts";
 import { renderParsedUrl } from "./network-url-render.ts";
+import { scrubPrivateText } from "./private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 const OMITTED = "[OMITTED]";
 const TRUNCATED = "[TRUNCATED]";
 const RELATIVE_URL_BASE = "http://orb.invalid/";
+const ENCODED_PRIVATE_MASK = encodeURIComponent(PRIVATE_MASK);
 
 function event(context: HarRedactionContext, receipt: NetworkLimitEvent): void {
   context.events.push(receipt);
@@ -54,13 +57,15 @@ function bounded(
   options: { readonly kind?: "body" | "string"; readonly maxBytes?: number } = {},
 ): string {
   const maxBytes = options.maxBytes ?? context.limits.maxStringBytes;
-  const bytes = Buffer.byteLength(value, "utf8");
+  // Every string in network evidence crosses this bound. Scrub before the cut, or the cut can leave half a value behind.
+  const scrubbed = scrubPrivateText(value);
+  const bytes = Buffer.byteLength(scrubbed, "utf8");
   if (bytes <= maxBytes) {
-    return value;
+    return scrubbed;
   }
   const suffixBytes = Buffer.byteLength(TRUNCATED, "utf8");
   const retained = Math.max(0, maxBytes - suffixBytes);
-  const prefix = bytePrefix(value, retained);
+  const prefix = bytePrefix(scrubbed, retained);
   const prefixBytes = Buffer.byteLength(prefix, "utf8");
   event(context, { kind: options.kind ?? "string", path, original: bytes, retained: prefixBytes, omitted: bytes - prefixBytes });
   return `${prefix}${TRUNCATED}`;
@@ -186,7 +191,9 @@ function unreadableUrlEvidence(
   return { url: `${OMITTED}${querySuffix(query)}`, query };
 }
 
-function urlEvidence(raw: string, context: HarRedactionContext, path = "$"): { readonly url: string; readonly query: readonly DiskSafeNameValue[] } {
+function urlEvidence(unscrubbed: string, context: HarRedactionContext, path = "$"): { readonly url: string; readonly query: readonly DiskSafeNameValue[] } {
+  // Before the parse: a value a page put in a URL unencoded splits at its own `&`, and no pair then holds it whole.
+  const raw = scrubPrivateText(unscrubbed);
   const queryPath = `${path}.query`;
   const urlPath = `${path}.url`;
   if (URL.canParse(raw) || URL.canParse(raw, RELATIVE_URL_BASE)) {
@@ -205,7 +212,7 @@ function urlEvidence(raw: string, context: HarRedactionContext, path = "$"): { r
     if (parsed.hash !== "") {
       parsed.hash = REDACTED;
     }
-    const rendered = renderParsedUrl(raw, parsed).replaceAll("%5BREDACTED%5D", REDACTED);
+    const rendered = renderParsedUrl(raw, parsed).replaceAll("%5BREDACTED%5D", REDACTED).replaceAll(ENCODED_PRIVATE_MASK, PRIVATE_MASK);
     return { url: bounded(rendered, urlPath, context, { maxBytes: context.limits.maxUrlBytes }), query };
   }
   return unreadableUrlEvidence(raw, queryPath, urlPath, context);

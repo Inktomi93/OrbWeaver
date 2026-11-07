@@ -203,6 +203,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--expect-visible` | `V,R,@N` selector | action assertion | checkpoint | distinct assertion | owned | KEEP |
 | `--file` | `V,L` local HTML path | call target; render a committed/static mock over file:// | checkpoint/call | positional route is the served-app target | owned | KEEP |
 | `--fill` | `V,R,@N` selector=value | action; form fill | checkpoint | no alias | owned | KEEP |
+| `--fill-env` | `V,R,@N` selector=ENV_NAME | action; private form fill | checkpoint | no alias | owned | KEEP |
 | `--filmstrip` | `B` | capture; bounded exact-page transition contact sheet | checkpoint/arm | replaces retired Record video/GIF path | owned | KEEP; refuses contaminating profiler/trace arms |
 | `--fixture-base` | `V,L` URL | boot modifier; fixture app base | outer | child of contexts/as | owned | KEEP; refused without `--contexts`/`--as` |
 | `--fixture-server` | `V,L` URL | boot modifier; fixture controller | outer | child of contexts/as | owned | KEEP; refused without `--contexts`/`--as` |

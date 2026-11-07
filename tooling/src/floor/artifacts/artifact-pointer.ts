@@ -20,6 +20,7 @@
 // how the answer is spoken (`formatRunProvenance`), not a thing to redesign.
 import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
+import { isMissingEntryError } from "../host/errno.ts";
 import { instrumentRunsDir, PUBLISHED_MANIFEST, pointerRunId, readMarker, reportsPath, runDirs } from "./artifacts.ts";
 import { pidAlive } from "./run-retention.ts";
 
@@ -292,13 +293,15 @@ function instrumentOfAlias(root: string, alias: string): string | null {
 }
 
 function readdirSafe(dir: string): readonly string[] {
-  // no runs directory gives an empty instrument list, so publishedPointers yields no rows and pointerView refuses with NOTHING TO MEASURE (exit 3). Ends if another caller of publishedPointers reads an empty list as clean.
   try {
     return readdirSync(dir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name);
-  } catch {
-    return []; // no runs directory on this checkout — nothing has ever published here
+  } catch (error) {
+    if (isMissingEntryError(error)) {
+      return []; // no runs directory on this checkout — nothing has ever published here
+    }
+    throw error;
   }
 }
 
@@ -326,10 +329,12 @@ export function publishedPointers(root: string): readonly PointerResolution[] {
 }
 
 function readdirAll(dir: string): readonly string[] {
-  // no reports directory gives an empty list, so publishedPointers yields no rows and pointerView refuses with NOTHING TO MEASURE (exit 3). Ends if another caller of publishedPointers reads an empty list as clean.
   try {
     return readdirSync(dir).map((name) => basename(name));
-  } catch {
-    return []; // no reports/ directory — the caller distinguishes "nothing ran here" from "nothing is stale"
+  } catch (error) {
+    if (isMissingEntryError(error)) {
+      return []; // no reports/ directory — the caller distinguishes "nothing ran here" from "nothing is stale"
+    }
+    throw error;
   }
 }

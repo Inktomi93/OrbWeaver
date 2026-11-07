@@ -18,6 +18,7 @@ import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifa
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { DiskSafeBrowserDiagnostic } from "../../../../tooling/src/snap/contract/browser-evidence-redaction.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
+import { findingDispositionDisplay } from "../../../../tooling/src/snap/lib/run-finding-display.ts";
 import { collectSnapFindings } from "../../../../tooling/src/snap/lib/run-findings.ts";
 
 const SLOT_DIR = join(tmpdir(), "orb-findings-fixture");
@@ -240,6 +241,70 @@ test("an EXEMPTION problem row reads as a non-counting annotation naming the car
   // The carve-out is NAMED on the printed row; the conditions stay in the artifact behind `next=`.
   expect(row?.what).not.toContain("requires all four of");
   expect(findings.some((finding) => finding.severity === "error")).toBe(false);
+  // An excused measurement did not vote, and the printed disposition says so.
+  expect(row?.disposition).toEqual({ counted: false, reason: "exemption-record-only" });
+  expect(row === undefined ? "" : findingDispositionDisplay(row)).toBe("excluded-from-verdict(exemption-record-only)");
+});
+
+test("a failing threshold row stays counted by its arm beside the non-counting kinds", async () => {
+  const artifact = join(SLOT_DIR, "motion", "threshold-motion.json");
+  await mkdir(dirname(artifact), { recursive: true });
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      problems: [
+        {
+          arm: "motion",
+          kind: "threshold",
+          metric: "loaf-blocking-ms",
+          subject: "measurement-window",
+          observed: "181ms",
+          threshold: "50ms",
+          detail: "over budget",
+        },
+      ],
+    }),
+  );
+  const findings = await collectSnapFindings({ ...input([armVerdict({ arm: "motion", state: "failed" })]), artifacts: [motionArtifact(artifact)] });
+  const row = findings.find((finding) => finding.what.includes("loaf-blocking-ms"));
+  expect(row?.severity).toBe("error");
+  expect(row?.disposition).toEqual({ counted: true, reason: "motion-arm" });
+});
+
+test("a meter threshold row that casts no exit vote is annotated as not counted", async () => {
+  const artifact = join(SLOT_DIR, "perf", "meter-perf.json");
+  await mkdir(dirname(artifact), { recursive: true });
+  await writeFile(
+    artifact,
+    JSON.stringify({
+      problems: [
+        {
+          arm: "interaction-perf",
+          kind: "threshold",
+          metric: "click-duration-ms",
+          subject: "click #target",
+          observed: "101ms",
+          threshold: "100ms",
+          detail: "informational meter breach",
+        },
+      ],
+    }),
+  );
+  const findings = await collectSnapFindings({
+    ...input([armVerdict({ arm: "interaction-perf", state: "passed" })], "passed"),
+    artifacts: [
+      {
+        ...motionArtifact(artifact),
+        relativePath: artifactRef("perf/meter-perf.json"),
+        producer: "perf",
+        producerArm: "interaction-perf",
+        schema: "snap-interaction-perf-v1",
+      },
+    ],
+  });
+  const row = findings.find((finding) => finding.what.includes("click-duration-ms"));
+  expect(row?.severity).toBe("annotation");
+  expect(row?.disposition).toEqual({ counted: false, reason: "meter-record-only" });
 });
 
 test("THE FALLBACK STILL EXISTS: a non-passing run with no voting arm at all keeps the unattributed row", async () => {

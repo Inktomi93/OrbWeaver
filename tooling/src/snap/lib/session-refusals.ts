@@ -1,4 +1,5 @@
 // Printable session refusal contracts: ownership, capacity, liveness, stage death, and boot-only argv.
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SessionRow, SessionStageState } from "../contract/session.ts";
 import { describeStageAgePhrase } from "./stage-plan.ts";
 
@@ -31,7 +32,7 @@ function describeOpAge(ageMs: number): string {
   return minutes === 0 ? `${Math.round(ageMs / MS_PER_SECOND)}s` : `${minutes}m`;
 }
 
-export function sessionBusyRefusal(name: string, op: string, ageMs: number): string {
+export function sessionBusyRefusal(name: string, op: DiskSafeOp, ageMs: number): string {
   return (
     `SESSION BUSY  ${name} is mid-\`${op}\` (${describeOpAge(ageMs)} in) — ` +
     "one request at a time per session: two callers driving one page is the shared-tab defect wearing a socket. Wait for it or use another name — tooling/src/snap/lib/session-plan.ts."

@@ -12,8 +12,10 @@ import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { EvalOutcome, SnapEvalValue } from "../../contract/types.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../../lib/eval-text.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import { pushEval } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
 
@@ -22,17 +24,17 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --eval <expression>")
 export async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalOutcome[]> {
   const results: EvalOutcome[] = [];
   for (const expr of exprs) {
-    let text: string;
+    let text: DiskSafeText;
     let failed = false;
     // the EvalOutcome pushed into `results` carries failed: true and the EVAL ERROR text; evalFailures counts it into eval-fails. Ends if evalFailures stops reading entry.failed.
     try {
       const value: unknown = await page.evaluate(wrapEvalExpr(expr));
-      text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
-      text = capEvalText(text);
+      // Scrub before the cap, or the cut can leave half a value behind.
+      text = scrubPrivateText(capEvalText(scrubPrivateText(value === undefined ? "undefined" : JSON.stringify(value, null, 2))));
     } catch (e) {
       failed = true;
       const msg = errorMessage(e);
-      text = isContextChurn(msg) ? `EVAL ERROR: ${msg}\n${CHURN_LINE}` : `EVAL ERROR: ${msg}`;
+      text = scrubPrivateText(isContextChurn(msg) ? `EVAL ERROR: ${msg}\n${CHURN_LINE}` : `EVAL ERROR: ${msg}`);
     }
     results.push({ expr, text, failed });
   }

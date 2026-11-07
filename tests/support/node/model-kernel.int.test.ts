@@ -95,6 +95,11 @@ async function stageHead(directory: string): Promise<void> {
   }
 }
 
+/** How many times the reference kernel recorded this edge. */
+function kernelEdges(recorded: string, edge: string): number {
+  return recorded.split("\n").filter((line) => line.includes(`"edge":"${edge}"`)).length;
+}
+
 async function bindReranker(harness: Awaited<ReturnType<typeof createServerHarness>>): Promise<{
   clients: Awaited<ReturnType<typeof harness.roleClientsFor>>;
   directory: string;
@@ -148,6 +153,7 @@ test("independent roots run native tokenizer/cache/head scoring without sessions
     expect(recorded).toContain('"device":"cpu"');
     expect(recorded).toContain('"nativeTensor":true');
     expect(recorded).not.toContain('"hub-fetch"');
+    expect(kernelEdges(recorded, "model-dispose")).toBe(0);
   }
   await first[Symbol.asyncDispose]();
   await expect(access(first.modelCacheDir)).rejects.toMatchObject({ code: "ENOENT" });
@@ -289,6 +295,39 @@ test.each([
   const events = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
   expect(events).not.toContain('"model-forward"');
   expect(events).not.toContain('"hub-fetch"');
+  expect(kernelEdges(events, "model-load")).toBe(1);
+  expect(kernelEdges(events, "model-dispose")).toBe(1);
+});
+
+test("a well-formed head wider than its encoder is refused, and the encoder is disposed once", async () => {
+  await using root = await createServerHarness({ modelKernelModule: KERNEL.href });
+  const { clients, directory, metadataDirectory } = await bindReranker(root);
+  await stageTokenizer(directory, metadataDirectory);
+  await stageHead(directory);
+  await writeFile(
+    join(directory, "2_Dense/config.json"),
+    JSON.stringify({ ["in_features"]: 4, ["out_features"]: 3, ["activation_function"]: "torch.nn.modules.activation.GELU" }),
+  );
+  await writeFile(join(directory, "2_Dense/model.safetensors"), safetensors({ "linear.weight": new Array<number>(12).fill(0.5) }));
+  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("does not feed the 4-wide scoring head");
+  const events = await readFile(join(root.modelCacheDir, "kernel-execution.jsonl"), "utf8");
+  expect(kernelEdges(events, "model-dispose")).toBe(1);
+  expect(events).not.toContain('"model-forward"');
+});
+
+test("a head that fails before its encoder finishes loading still disposes that encoder, once", async () => {
+  const kernel = new URL(KERNEL);
+  kernel.searchParams.set("late-encoder", "1");
+  await using root = await createServerHarness({ modelKernelModule: kernel.href, allowRemoteModels: true });
+  const { clients, directory, metadataDirectory } = await bindReranker(root);
+  await stageTokenizer(directory, metadataDirectory);
+  await expect(clients.rerank("query", DOCUMENTS)).rejects.toThrow("reference kernel: unscripted Hub execution refused");
+  const kernelLog = join(root.modelCacheDir, "kernel-execution.jsonl");
+  await expect.poll(async () => kernelEdges(await readFile(kernelLog, "utf8"), "model-load")).toBe(1);
+  await expect.poll(async () => kernelEdges(await readFile(kernelLog, "utf8"), "model-dispose")).toBe(1);
+  const events = await readFile(kernelLog, "utf8");
+  expect(events.indexOf('"edge":"hub-fetch"')).toBeLessThan(events.indexOf('"edge":"model-load"'));
+  expect(events).not.toContain('"model-forward"');
 });
 
 test("fractional safetensors offsets cannot be truncated into a valid-looking scoring tensor", async () => {

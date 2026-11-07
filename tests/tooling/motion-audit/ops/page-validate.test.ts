@@ -55,6 +55,63 @@ describe("the __orb.motion() read", () => {
   test("a non-object answer is refused", () => {
     expect(() => motionSnapshot("{}")).toThrow(/not an object/u);
   });
+
+  describe("the long-animation-frame rows the budgets fold", () => {
+    const loaf = {
+      startTime: 120,
+      duration: 90,
+      blockingDuration: 40,
+      styleAndLayoutStart: 0,
+      scripts: [{ sourceURL: "http://localhost/src/app.ts", duration: 30 }],
+    };
+
+    test("a complete row passes, and the optional script and entrance members may be absent", () => {
+      expect(motionSnapshot({ ...SNAPSHOT, loafs: [loaf] })?.loafs).toHaveLength(1);
+      const entrance = { id: 1, startedAt: 100, firstForTrigger: true };
+      expect(motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, selectEntrance: { ...entrance, confirmedAt: 110, endedAt: 130 } }] })?.loafs).toHaveLength(1);
+      expect(
+        motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, scripts: [{ sourceURL: "", duration: 1, forcedStyleAndLayoutDuration: 0 }] }] })?.loafs,
+      ).toHaveLength(1);
+    });
+
+    test("a row with no blockingDuration is refused — Math.max would turn it into NaN and the budget would pass", () => {
+      const { blockingDuration, ...without } = loaf;
+      expect(blockingDuration).toBeDefined();
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [loaf, without] })).toThrow(/loafs row 1 field "blockingDuration" returned nothing/u);
+    });
+
+    test("a non-finite timing is refused, naming its row and field", () => {
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, styleAndLayoutStart: Number.NaN }] })).toThrow(
+        /loafs row 0 field "styleAndLayoutStart".*finite/u,
+      );
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, duration: "90" }] })).toThrow(/loafs row 0 field "duration" returned string/u);
+    });
+
+    test("a row that is not an object, or whose scripts are not a list, is refused", () => {
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: ["x"] })).toThrow(/loafs row 0 returned string, not an object/u);
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, scripts: undefined }] })).toThrow(/loafs row 0 field "scripts" returned nothing/u);
+    });
+
+    test("a malformed script is refused, naming its row, script index and field", () => {
+      const scripts = [loaf.scripts[0], { sourceURL: "x", duration: Number.NaN }];
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, scripts }] })).toThrow(/loafs row 0 script 1 field "duration".*finite/u);
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, scripts: [{ duration: 3 }] }] })).toThrow(
+        /loafs row 0 script 0 field "sourceURL" returned nothing/u,
+      );
+      expect(() =>
+        motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, scripts: [{ sourceURL: "x", duration: 3, forcedStyleAndLayoutDuration: "0" }] }] }),
+      ).toThrow(/loafs row 0 script 0 field "forcedStyleAndLayoutDuration" returned string/u);
+    });
+
+    test("a PRESENT select entrance at the wrong shape is refused", () => {
+      expect(() => motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, selectEntrance: { id: 1, startedAt: 100, firstForTrigger: "yes" } }] })).toThrow(
+        /loafs row 0 select entrance field "firstForTrigger" returned string/u,
+      );
+      expect(() =>
+        motionSnapshot({ ...SNAPSHOT, loafs: [{ ...loaf, selectEntrance: { id: 1, startedAt: 100, firstForTrigger: true, confirmedAt: Number.NaN } }] }),
+      ).toThrow(/loafs row 0 select entrance field "confirmedAt".*finite/u);
+    });
+  });
 });
 
 describe("the __orb.animations() read", () => {

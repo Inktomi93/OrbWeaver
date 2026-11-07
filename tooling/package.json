@@ -130,6 +130,7 @@
     "@typescript/native": "catalog:",
     "chrome-devtools-mcp": "catalog:",
     "cross-spawn": "catalog:",
+    "fflate": "catalog:",
     "pino-pretty": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",

@@ -5,7 +5,10 @@
 import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } from "../../floor/artifacts/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DriveFailure } from "../contract/actions.ts";
-import type { SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
+import type { CoreCapturePopulations } from "../contract/core-capture.ts";
+import { CORE_CAPTURE_BASIS } from "../contract/core-capture.ts";
+import type { SnapCompositeFinding, SnapFindingEvidenceRef, SnapRunArtifact } from "../contract/run-index.ts";
+import { scrubPrivateText } from "./private-values.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import {
   countedBy,
@@ -46,30 +49,59 @@ interface CoreCaptureRows {
   readonly pageErrors: readonly unknown[];
   readonly failedRequests: readonly unknown[];
   readonly captures: readonly unknown[];
+  /** What the page-error receipt says about the population the rows were drawn from. */
+  readonly pageErrorCompleteness: SnapCompositeFinding["completeness"];
 }
 
-const CORE_POPULATIONS = {
-  pageErrors: { dropped: 0, complete: true, basis: "all-observed" },
-  failedRequests: { dropped: null, complete: false, basis: "latest-per-url" },
-  captures: { dropped: 0, complete: true, basis: "all-pages" },
-} as const;
+type FixedPopulation = "failedRequests" | "captures";
 
-function assertPopulationReceipt(
+// The two populations whose `dropped` and `complete` the writer states as literals (see the contract type).
+const FIXED_RECEIPTS = {
+  failedRequests: { dropped: null, complete: false },
+  captures: { dropped: 0, complete: true },
+} as const satisfies { readonly [Name in FixedPopulation]: Pick<CoreCapturePopulations[Name], "dropped" | "complete"> };
+
+function receiptError(path: string, name: keyof CoreCapturePopulations): Error {
+  return new Error(`${path} has a missing or inconsistent ${name} completeness receipt`);
+}
+
+function receiptOf(
   path: string,
   populations: Readonly<Record<string, unknown>> | null,
-  name: keyof CoreCaptureRows,
+  name: keyof CoreCapturePopulations,
   rows: readonly unknown[],
-): void {
+): Readonly<Record<string, unknown>> {
   const receipt = record(populations?.[name]);
-  const expected = CORE_POPULATIONS[name];
-  if (
-    receipt?.["records"] !== rows.length ||
-    receipt["dropped"] !== expected.dropped ||
-    receipt["complete"] !== expected.complete ||
-    receipt["basis"] !== expected.basis
-  ) {
-    throw new Error(`${path} has a missing or inconsistent ${name} completeness receipt`);
+  if (receipt?.["records"] !== rows.length || receipt["basis"] !== CORE_CAPTURE_BASIS[name]) {
+    throw receiptError(path, name);
   }
+  return receipt;
+}
+
+function assertFixedReceipt(path: string, populations: Readonly<Record<string, unknown>> | null, name: FixedPopulation, rows: readonly unknown[]): void {
+  const receipt = receiptOf(path, populations, name, rows);
+  if (receipt["dropped"] !== FIXED_RECEIPTS[name].dropped || receipt["complete"] !== FIXED_RECEIPTS[name].complete) {
+    throw receiptError(path, name);
+  }
+}
+
+/** The page-error ring reports its own retention, so every coherent receipt is a valid population: complete,
+ *  evicted (`dropped` above zero) or unmeasured. Only a receipt that claims completeness over a drop is a contradiction. */
+function pageErrorCompleteness(
+  path: string,
+  populations: Readonly<Record<string, unknown>> | null,
+  rows: readonly unknown[],
+): SnapCompositeFinding["completeness"] {
+  const receipt = receiptOf(path, populations, "pageErrors", rows);
+  const dropped = receipt["dropped"];
+  const complete = receipt["complete"];
+  if (typeof dropped !== "number" || !Number.isInteger(dropped) || dropped < 0 || typeof complete !== "boolean" || (complete && dropped !== 0)) {
+    throw receiptError(path, "pageErrors");
+  }
+  if (complete) {
+    return "complete";
+  }
+  return dropped > 0 ? "bounded" : "incomplete";
 }
 
 function parseCoreRows(path: string, parsed: Readonly<Record<string, unknown>> | null): CoreCaptureRows {
@@ -82,15 +114,18 @@ function parseCoreRows(path: string, parsed: Readonly<Record<string, unknown>> |
   if (!(Array.isArray(pageErrors) && Array.isArray(failedRequests) && Array.isArray(captures))) {
     throw new Error(`${path} has malformed core capture populations`);
   }
-  const rows = { pageErrors, failedRequests, captures };
   const populations = record(parsed["populations"]);
-  for (const name of ["pageErrors", "failedRequests", "captures"] as const) {
-    assertPopulationReceipt(path, populations, name, rows[name]);
-  }
-  return rows;
+  assertFixedReceipt(path, populations, "failedRequests", failedRequests);
+  assertFixedReceipt(path, populations, "captures", captures);
+  return { pageErrors, failedRequests, captures, pageErrorCompleteness: pageErrorCompleteness(path, populations, pageErrors) };
 }
 
-function corePageErrorDrafts(path: string, rows: readonly unknown[], diagnostics: readonly FindingDraft[]): FindingDraft[] {
+function corePageErrorDrafts(
+  path: string,
+  rows: readonly unknown[],
+  completeness: SnapCompositeFinding["completeness"],
+  diagnostics: readonly FindingDraft[],
+): FindingDraft[] {
   return rows.map((value) => {
     const error = record(value);
     const kind = error?.["kind"];
@@ -115,7 +150,7 @@ function corePageErrorDrafts(path: string, rows: readonly unknown[], diagnostics
       what: text,
       where: exact === null ? "run" : findingLocation(exact.context, exact.page, exact.window),
       evidence: [findingRef("core-capture", path, identity?.scope)],
-      completeness: "complete",
+      completeness,
       conflicts: [],
       occurrences: 1,
       disposition: countedBy("page-errors"),
@@ -187,7 +222,7 @@ function parseDriveFailure(path: string, value: unknown): DriveFailure {
   if (!valid) {
     throw new Error(`${path} has a malformed drive-failure row`);
   }
-  return { index: Number(index), kind, flag, subject, reason };
+  return { index: Number(index), kind, flag, subject, reason: scrubPrivateText(reason) };
 }
 
 function driveFailureRows(path: string, capture: Readonly<Record<string, unknown>> | null): readonly DriveFailure[] {
@@ -279,7 +314,7 @@ async function readCoreDrafts(artifact: SnapRunArtifact, diagnostics: readonly F
   return [
     // Drive failures lead: a step that never ran is the reason every row under it is suspect.
     ...coreDriveFailureDrafts(artifact, rows.captures),
-    ...corePageErrorDrafts(artifact.path, rows.pageErrors, diagnostics),
+    ...corePageErrorDrafts(artifact.path, rows.pageErrors, rows.pageErrorCompleteness, diagnostics),
     ...coreRequestDrafts(artifact.path, rows.failedRequests, diagnostics),
     ...coreMapDrafts(artifact, rows.captures),
   ];

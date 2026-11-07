@@ -61,6 +61,7 @@ export type { ThemeStampExpectation, ThemeStampReceipt } from "./contract/theme-
 export type { Args, SnapAction } from "./contract/types.ts";
 export type { DiffOutcome, SnapFailureSummary } from "./contract/verdict.ts";
 export { modalModeErrors } from "./lib/cli-mode.ts";
+export { diskSafeArgv } from "./lib/disk-safe-argv.ts";
 export { capEvalText } from "./lib/eval-text.ts";
 export {
   assertComparableHeapSnapshots,

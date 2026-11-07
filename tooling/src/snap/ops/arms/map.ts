@@ -10,6 +10,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
 import type { CaptureOutcome } from "../../contract/types.ts";
 import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -71,9 +72,11 @@ async function captureSurfaceMap(
     if (result === null) {
       return { entries: null, error: `no element matches "${selector}"` };
     }
-    return { entries: await Promise.all(result.map((entry) => validateMapEntry(page, entry))), error: null };
+    const entries = await Promise.all(result.map((entry) => validateMapEntry(page, entry)));
+    // After the locator is proven: a name that holds a typed value reads as the mask, and its locator with it.
+    return { entries: entries.map((entry) => ({ ...entry, name: scrubPrivateText(entry.name), selector: scrubPrivateText(entry.selector) })), error: null };
   } catch (error) {
-    return { entries: null, error: errorMessage(error) };
+    return { entries: null, error: scrubPrivateText(errorMessage(error)) };
   }
 }
 

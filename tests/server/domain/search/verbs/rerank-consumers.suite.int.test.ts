@@ -2,7 +2,7 @@
 // wanted item last in vector order, so a first place is the reranker's work; the rerank wire is answered physically.
 // @subject packages/kit/src/rerank/index.ts
 
-import { createCharacterSchema } from "@orb/contracts/character";
+import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -104,6 +104,10 @@ interface RerankWorld extends AsyncDisposable {
   readonly elsewhere: DocumentId;
   /** A second account's document carrying the fact. */
   readonly foreign: DocumentId;
+  /** A second account's card carrying the fact. */
+  readonly foreignCharacter: CharacterId;
+  /** Every card the owner's library lists, so a hit outside it is foreign whoever owns it. */
+  readonly ownedCharacters: ReadonlySet<CharacterId>;
   readonly bindRerank: (maxInputTokens: number) => Promise<void>;
   readonly answerRerank: (mode: RerankReplyMode) => void;
   /** The second account's own caller, for the control that its document is retrievable at all. */
@@ -216,6 +220,10 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
   const stranger = await h.root.principalFor((await h.root.actor()).id);
   await seedCorpusConnections(h.root, stranger);
   const foreign = await h.root.services.databank.createFromText({ principal: stranger, name: "foreign.txt", text: `doc-foreign. They buried ${NEEDLE}.` });
+  const foreignCharacter = await h.root.services.character.create({
+    principal: stranger,
+    input: createCharacterSchema.parse({ handle: "persona-foreign", name: "Stranger", description: `persona-foreign. They buried ${NEEDLE}.` }),
+  });
   // The warm-up turn builds the room's digests through the live memory pass.
   const built = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: keeper.id, intent: TURN_INTENT });
   if (built.aborted) {
@@ -229,6 +237,7 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
   const strangerCaller = await h.root.internalCallerFor(stranger.userId);
   await strangerCaller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
   await runWorkloads(h, strangerCaller, OWNER_SWEEPS, workloads.signal);
+  const library = await h.caller.character.list({ limit: CHARACTER_LIST_MAX_LIMIT });
   const lifetime = construction.move();
   return {
     h,
@@ -236,6 +245,8 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
     personas,
     elsewhere: elsewhere.document.id,
     foreign: foreign.document.id,
+    foreignCharacter: foreignCharacter.id,
+    ownedCharacters: new Set(library.items.map((card) => card.id)),
     bindRerank,
     answerRerank: (mode): void => {
       replyMode = mode;
@@ -334,7 +345,7 @@ function placements(world: RerankWorld, result: SearchResult): readonly Placed[]
       return result.hits.flatMap((hit) => hit.segments.map((segment) => arcOf(segment.snippet)));
     case "entities":
     case "characters":
-      return result.hits.map((hit) => byCharacter.get(hit.characterId) ?? "other");
+      return result.hits.map((hit) => (world.ownedCharacters.has(hit.characterId) ? (byCharacter.get(hit.characterId) ?? "other") : "foreign"));
     case "documents":
       return result.hits.map((hit) => {
         if (hit.documentId === world.foreign) {
@@ -345,6 +356,10 @@ function placements(world: RerankWorld, result: SearchResult): readonly Placed[]
     case "images":
       return [];
   }
+}
+
+function characterIdsOf(result: SearchResult): readonly CharacterId[] {
+  return result.over === "entities" || result.over === "characters" ? result.hits.map((hit) => hit.characterId) : [];
 }
 
 async function omniboxOrder(world: RerankWorld, over: OmniboxTarget, rerank: boolean): Promise<readonly Placed[]> {
@@ -401,11 +416,16 @@ test("a late closing reaches the reranker inside a wide window and is clamped aw
   expect(await firstOwned()).not.toBe(WANTED);
 });
 
-test.for(SHAPES)("the stranger's own search reaches its document, which the owner's reads never do (%s)", async (shape) => {
+test.for(SHAPES)("the stranger's own search reaches its document and its card, which the owner's reads never do (%s)", async (shape) => {
   await using world = await rerankWorld(shape);
   const own = await world.strangerCaller.search.search({ query: QUERY, topN: OMNIBOX_TOP_N, rerank: false, over: "documents", scope: { kind: "owner" } });
   expect(placements(world, own)).toEqual(["foreign"]);
   expect(await omniboxOrder(world, "documents", false)).not.toContain("foreign");
+  for (const over of ["entities", "characters"] as const) {
+    const ownCards = await world.strangerCaller.search.search({ query: QUERY, topN: OMNIBOX_TOP_N, rerank: false, over, scope: { kind: "owner" } });
+    expect(characterIdsOf(ownCards)).toContain(world.foreignCharacter);
+    expect(await omniboxOrder(world, over, false)).not.toContain("foreign");
+  }
 });
 
 test("a failed rerank call fails the omnibox search instead of falling back to vector order", async () => {

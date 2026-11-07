@@ -7,16 +7,18 @@ import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
+import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { Args } from "../../contract/types.ts";
 import { WAIT_SELECTOR_TIMEOUT_MS } from "../../lib/budgets.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --text");
 
 interface AriaOutcome {
-  readonly text: string | null;
-  readonly error: string | null;
+  readonly text: DiskSafeText | null;
+  readonly error: DiskSafeText | null;
 }
 
 async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
@@ -27,9 +29,10 @@ async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
     if (opts.ariaDepth !== null) {
       ariaOpts.depth = opts.ariaDepth;
     }
-    return { text: await root.ariaSnapshot(ariaOpts), error: null };
+    // A password field paints dots, but its accessibility tree holds the value in plain text.
+    return { text: scrubPrivateText(await root.ariaSnapshot(ariaOpts)), error: null };
   } catch (e) {
-    return { text: null, error: `ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}` };
+    return { text: null, error: scrubPrivateText(`ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}`) };
   }
 }
 

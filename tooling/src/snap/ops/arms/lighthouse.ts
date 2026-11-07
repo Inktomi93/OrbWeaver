@@ -53,6 +53,7 @@ import {
   parseLighthouseMode,
   reportTruncation,
 } from "../../lib/lighthouse-report.ts";
+import { scrubPrivateJson } from "../../lib/private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --lighthouse <desktop|mobile>");
 
@@ -203,7 +204,7 @@ export async function auditSettledPage(page: Page, ask: LighthouseAsk): Promise<
     if (result === undefined) {
       throw new Error("Lighthouse returned no result for this page (tooling/src/snap/ops/lighthouse.ts)");
     }
-    const { lhr } = result;
+    const lhr = scrubPrivateJson(result.lhr);
     const html = generateReport(lhr, "html");
     const truncation = reportTruncation(lhr, html);
     if (truncation !== null) {

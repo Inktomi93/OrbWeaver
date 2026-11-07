@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { touchSessionHeartbeat } from "../../../../tooling/src/snap/ops/session-heartbeat.ts";
 import { readRow, writeRow } from "../../../../tooling/src/snap/ops/session-registry.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -35,7 +36,7 @@ test("one heartbeat stamps the session row and its bound stage row to the same i
       reducedTransparency: false,
       deviceScaleFactor: null,
     },
-    bootArgv: [],
+    bootArgv: diskSafeArgv([]),
     createdAt: OLD,
     lastUsedAt: OLD,
     inflightOp: null,

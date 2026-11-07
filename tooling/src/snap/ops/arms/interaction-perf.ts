@@ -115,7 +115,7 @@ function label(action: SnapAction): string | null {
     return `keyboard ${step.key}`;
   }
   if (step.kind === "fill") {
-    return `fill ${step.selector}=${step.value}`;
+    return `fill ${step.selector}`;
   }
   if (step.kind === "key") {
     return `key ${step.selector}=${step.key}`;

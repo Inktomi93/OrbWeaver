@@ -9,6 +9,8 @@ import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSy
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { emitLine } from "../cli/log.ts";
+import { isMissingEntryError } from "../host/errno.ts";
+import { withDirLock } from "../process/dir-lock.ts";
 import type { PrunedRun, RetentionCandidate } from "./run-retention.ts";
 import { pidAlive, readPrunedRuns, recordPrunedRuns, selectPrunable } from "./run-retention.ts";
 
@@ -86,6 +88,8 @@ const INFLIGHT_MARKER = ".inflight";
 export const PUBLISHED_MANIFEST = ".published";
 // Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts (#1341).
 const RUNS_SEGMENT = "runs";
+/** Dot-prefixed, so the pointer inventory skips it. */
+const PUBLISH_LOCK = ".publish.lock";
 // DOT-FREE on purpose: a run id becomes a path SEGMENT and, for a scratch artifact, part of a filename
 // a `*.json` glob has to match — a stray dot from the timestamp's milliseconds turns a `*.tmp.*.json`
 // config row into a silent non-match (paid once, 2026-09-01).
@@ -162,13 +166,16 @@ export function readMarker(dir: string): InflightMarker | null {
 }
 
 export function runDirs(root: string, instrument: string): readonly string[] {
-  // a missing or unreadable runs directory lists no slots; pruneRuns then deletes nothing and slotCensus is empty, which resolvePointer reports as a dangling pointer. Ends if a caller must tell a missing directory from an unreadable one.
+  // a missing runs directory lists no slots: nothing has run here. Any other read failure is not "no slots", so it propagates.
   try {
     return readdirSync(instrumentRunsDir(root, instrument), { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name);
-  } catch {
-    return [];
+  } catch (error) {
+    if (isMissingEntryError(error)) {
+      return [];
+    }
+    throw error;
   }
 }
 
@@ -283,6 +290,21 @@ function finishSlot(slot: RunSlot, published: readonly string[]): void {
  *  read without knowing whose run wrote it. A run that finishes and publishes NOTHING calls `closeRunSlot`
  *  instead: dropping the marker is what says "no process is writing here", and it is not optional. */
 export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly RunAlias[]): readonly string[] {
+  // The aliases of one run are a family a reader pairs (a screenshot and its trace): each pointer is replaced
+  // atomically, but two publishers interleaving their loops would leave the siblings in different runs. The
+  // lock makes the whole family one publication; pruning and the manifest stay outside it.
+  const published =
+    aliases.length === 0
+      ? []
+      : withDirLock(join(ensureReportsDir(root), PUBLISH_LOCK), "the artifact alias publication lock", () => publishAliases(root, slot, aliases));
+  finishSlot(slot, published);
+  // THE PUBLISHER-ONLY HALF (#2262): retention runs here and NOT in `closeRunSlot`. A run that publishes a
+  // `latest` pointer is speaking for the instrument, and that is what gives it standing to retire older runs.
+  pruneRuns(root, slot);
+  return published;
+}
+
+function publishAliases(root: string, slot: RunSlot, aliases: readonly RunAlias[]): readonly string[] {
   const published: string[] = [];
   for (const { alias, target } of aliases) {
     // An artifact the run never wrote is NOT published: a dangling pointer reads as "missing" to every
@@ -306,10 +328,6 @@ export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly Ru
     publishSymlink(absAlias, target === "." ? rel : join(rel, target));
     published.push(alias);
   }
-  finishSlot(slot, published);
-  // THE PUBLISHER-ONLY HALF (#2262): retention runs here and NOT in `closeRunSlot`. A run that publishes a
-  // `latest` pointer is speaking for the instrument, and that is what gives it standing to retire older runs.
-  pruneRuns(root, slot);
   return published;
 }
 

@@ -11,6 +11,7 @@ import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageBoundIdentity, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { readSessionEvent } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { refuseDriftedStageCall } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
@@ -66,7 +67,7 @@ function sessionRow(bound: StageBoundIdentity | undefined): SessionRow {
       reducedTransparency: false,
       deviceScaleFactor: null,
     },
-    bootArgv: [],
+    bootArgv: diskSafeArgv([]),
     createdAt: BOOTED,
     lastUsedAt: BOOTED,
     inflightOp: null,

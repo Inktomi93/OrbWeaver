@@ -1,6 +1,7 @@
 // Snap's one argv-ordered browser-drive queue. Types stay separate from the larger run/result contract so
 // adding an action cannot push that contract back over tooling's hard source-size ceiling.
 import type { NavMethod } from "../../floor/instrument/nav.ts";
+import type { DiskSafeText, PrivateText } from "./disk-safe-argv.ts";
 
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
@@ -31,7 +32,7 @@ type StepAction =
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }
   | { kind: "hover"; selector: string }
-  | { kind: "fill"; selector: string; value: string }
+  | { kind: "fill"; selector: string; value: PrivateText }
   | { kind: "key"; selector: string; key: string }
   // A BARE key (`--key Tab`) — dispatched to the page keyboard with NO focus change, which is what
   // makes a Tab WALK possible. The `selector=Key` arm above re-FOCUSES its selector before every press,
@@ -97,7 +98,7 @@ export interface DriveFailure {
   /** The selector/target that flag carried; null for the bare-key and pause forms, which have none. */
   readonly subject: string | null;
   /** One line: why it failed, as the browser/bridge reported it. */
-  readonly reason: string;
+  readonly reason: DiskSafeText;
 }
 
 export type Assertion =

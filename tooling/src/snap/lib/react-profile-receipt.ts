@@ -7,6 +7,7 @@ import { print } from "../../floor/artifacts/artifacts.ts";
 import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { RankedReactComponent, ReactProfilePageEvidence, ReactProfileSummaryArtifact } from "../contract/react-profile.ts";
 import { REACT_PROFILE_SUMMARY_COMPONENT_LIMIT, REACT_PROFILE_SUPPORTED_MINOR, reactProfileSummaryArtifactSchema } from "../contract/react-profile.ts";
+import { scrubPrivateJson } from "./private-values.ts";
 import { REACT_PROFILE_LIMITS, rankReactComponents, summarizeReactActivity } from "./react-profile.ts";
 
 const PRINTED_COMPONENTS = 20;
@@ -71,14 +72,14 @@ interface WriteReceiptAsk {
 
 async function writeProfileArtifact(path: string, header: Readonly<Record<string, unknown>>, pages: readonly ReactProfilePageEvidence[]): Promise<void> {
   await using file = await open(path, "w");
-  const encodedHeader = JSON.stringify(header);
+  const encodedHeader = JSON.stringify(scrubPrivateJson(header));
   await file.write(`${encodedHeader.slice(0, -1)},"pages":[`);
   for (const [pageIndex, page] of pages.entries()) {
     if (pageIndex > 0) {
       await file.write(",");
     }
     const { commits, ...pageHeader } = page;
-    const encodedPage = JSON.stringify(pageHeader);
+    const encodedPage = JSON.stringify(scrubPrivateJson(pageHeader));
     await file.write(`${encodedPage.slice(0, -1)},"commits":[`);
     for (const [commitIndex, commit] of commits.entries()) {
       if (commitIndex > 0) {
@@ -218,7 +219,7 @@ export async function writeReactProfileReceipt(ask: WriteReceiptAsk): Promise<Re
     records: Math.min(ranked.length, REACT_PROFILE_SUMMARY_COMPONENT_LIMIT),
     limits: [],
   });
-  await writeFile(tracePath, `${JSON.stringify({ traceEvents })}\n`);
+  await writeFile(tracePath, `${JSON.stringify(scrubPrivateJson({ traceEvents }))}\n`);
   await writeProfileArtifact(
     profilePath,
     {
@@ -260,7 +261,7 @@ export async function writeReactProfileReceipt(ask: WriteReceiptAsk): Promise<Re
     hottest: ranked.slice(0, REACT_PROFILE_SUMMARY_COMPONENT_LIMIT),
     artifacts: { rawFiber: profilePath, trace: tracePath },
   };
-  await writeFile(summaryPath, `${JSON.stringify(summaryArtifact)}\n`);
+  await writeFile(summaryPath, `${JSON.stringify(scrubPrivateJson(summaryArtifact))}\n`);
   return {
     profilePath,
     summaryPath,

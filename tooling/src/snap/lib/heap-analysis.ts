@@ -37,6 +37,7 @@ import {
   heapSnapshotReceiptSchema,
 } from "../contract/heap.ts";
 import type { HeapDevToolsParser, HeapParsedClassDiff, HeapParsedSnapshot } from "./heap-devtools.ts";
+import { scrubPrivateJson } from "./private-values.ts";
 
 const HEAP_LABEL_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/iu;
 const HEAP_CLASS_NAME_MAX = 160;
@@ -182,7 +183,7 @@ export async function buildHeapSnapshotReceipt(parser: HeapDevToolsParser, ident
     problems: detachedProblem(parsed),
     limits,
   };
-  await writeFile(identity.summaryPath, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  await writeFile(identity.summaryPath, `${JSON.stringify(scrubPrivateJson(receipt), null, 2)}\n`, { encoding: "utf8", flag: "wx" });
   return receipt;
 }
 

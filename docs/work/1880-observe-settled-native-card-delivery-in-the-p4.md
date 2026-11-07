@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-06
+status: blocked
+updated: 2026-11-07
 priority: P2
 area: testing
+blocked: owner
 plan: test-foundation
 ---
 

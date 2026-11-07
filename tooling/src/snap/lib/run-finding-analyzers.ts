@@ -1,8 +1,8 @@
 // Browser-free readers for analyzer-owned structured evidence. They preserve producer thresholds and gaps.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { SnapAnalyzerProblem, SnapAnalyzerProducer } from "../contract/analyzer.ts";
+import type { SnapAnalyzerProblem, SnapAnalyzerProblemKind, SnapAnalyzerProducer } from "../contract/analyzer.ts";
 import { isSnapAnalyzerProducer, snapAnalyzerArm } from "../contract/analyzer.ts";
-import type { SnapRunArtifact } from "../contract/run-index.ts";
+import type { SnapFindingDisposition, SnapRunArtifact } from "../contract/run-index.ts";
 import { failedAudits, nameMismatchTriage } from "./lighthouse-report.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import { countedBy, findingCompleteness, findingRef, findingSymptom, malformedFinding, readJson, record } from "./run-finding-common.ts";
@@ -26,6 +26,24 @@ function analyzerProblemSeverity(problem: SnapAnalyzerProblem): FindingDraft["se
   return (problem.arm === "interaction-perf" || problem.arm === "heap") && problem.kind === "threshold" ? "annotation" : "error";
 }
 
+// Why a problem kind casts no exit vote, or null where the owning arm votes on it. A Record, so a new kind must
+// say which it is.
+const NON_VOTING_REASON = {
+  "evidence-gap": null,
+  failure: null,
+  threshold: null,
+  recorded: "timing-record-only",
+  exemption: "exemption-record-only",
+} as const satisfies Record<SnapAnalyzerProblemKind, string | null>;
+
+// A meter arm's threshold row ranks evidence and never fails the run, which is why its severity is annotation.
+const METER_NON_VOTING_REASON = "meter-record-only";
+
+function analyzerProblemDisposition(problem: SnapAnalyzerProblem): SnapFindingDisposition {
+  const reason = NON_VOTING_REASON[problem.kind] ?? (analyzerProblemSeverity(problem) === "annotation" ? METER_NON_VOTING_REASON : null);
+  return reason === null ? countedBy(`${problem.arm}-arm`) : { counted: false, reason };
+}
+
 function analyzerProblemDraft(problem: SnapAnalyzerProblem, artifact: AnalyzerArtifact): FindingDraft {
   return {
     severity: analyzerProblemSeverity(problem),
@@ -46,7 +64,7 @@ function analyzerProblemDraft(problem: SnapAnalyzerProblem, artifact: AnalyzerAr
     completeness: findingCompleteness(artifact),
     conflicts: [],
     occurrences: 1,
-    disposition: problem.kind === "recorded" ? { counted: false, reason: "timing-record-only" } : countedBy(`${problem.arm}-arm`),
+    disposition: analyzerProblemDisposition(problem),
     correlation: `analyzer:${problem.arm}:${problem.metric}:${findingSymptom(problem.subject)}`,
   };
 }
