@@ -1,7 +1,7 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-10
+status: superseded
+updated: 2026-11-07
 ---
 
 # Keep mutation measurement outside GitHub-hosted CI

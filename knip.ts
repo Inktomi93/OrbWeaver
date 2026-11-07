@@ -55,6 +55,8 @@ export const config = {
       // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
       ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js"],
+      // knip's Stryker plugin only globs js and json configs; naming the `.ts` config credits the runner and checker.
+      stryker: { config: ["stryker.config.ts"] },
     },
     // @orb/testkit: the doors come from package.json `exports`; these entries are loaded by path instead (the
     // vitest setupFiles warm, URL-loaded kernels, spawned SDK stand-ins) or are the package's own tests.

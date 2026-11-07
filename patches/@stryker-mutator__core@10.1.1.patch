@@ -1,0 +1,134 @@
+diff --git a/dist/src/sandbox/sandbox.js b/dist/src/sandbox/sandbox.js
+index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..9c141909e785adf262e4ea0d0165bb7d609551c2 100644
+--- a/dist/src/sandbox/sandbox.js
++++ b/dist/src/sandbox/sandbox.js
+@@ -1,4 +1,5 @@
+ import path from 'path';
++import fs from 'fs';
+ import { npmRunPathEnv } from 'npm-run-path';
+ import { normalizeWhitespaces, isErrnoException, } from '@stryker-mutator/util';
+ import { tokens, commonTokens } from '@stryker-mutator/api/plugin';
+@@ -79,19 +80,8 @@ export class Sandbox {
+             const nodeModulesList = await fileUtils.findNodeModulesList(basePath, this.options.tempDirName);
+             if (nodeModulesList.length > 0) {
+                 for (const nodeModules of nodeModulesList) {
+-                    this.log.debug(`Create symlink from ${path.resolve(nodeModules)} to ${path.join(this.workingDirectory, nodeModules)}`);
+-                    await fileUtils
+-                        .symlinkJunction(path.resolve(nodeModules), path.join(this.workingDirectory, nodeModules))
+-                        .catch((error) => {
+-                        if (isErrnoException(error) && error.code === 'EEXIST') {
+-                            this.log.warn(normalizeWhitespaces(`Could not symlink "${nodeModules}" in sandbox directory,
+-              it is already created in the sandbox. Please remove the node_modules from your sandbox files.
+-              Alternatively, set \`symlinkNodeModules\` to \`false\` to disable this warning.`));
+-                        }
+-                        else {
+-                            this.log.warn(`Unexpected error while trying to symlink "${nodeModules}" in sandbox directory.`, error);
+-                        }
+-                    });
++                    this.log.debug(`Linking entries of ${path.resolve(nodeModules)} into ${path.join(this.workingDirectory, nodeModules)}`);
++                    await this.linkNodeModulesEntries(basePath, path.resolve(basePath, nodeModules), path.join(this.workingDirectory, nodeModules));
+                 }
+             }
+             else {
+@@ -99,6 +89,63 @@ export class Sandbox {
+             }
+         }
+     }
++    /**
++     * Creates real node_modules directories and copies the pnpm store for permissioned children.
++     * Dependency links target that sandbox store, while workspace links target the instrumented
++     * package copies so the tests and instrumented code load one copy of each workspace module.
++     */
++    async linkNodeModulesEntries(basePath, realDir, sandboxDir) {
++        await fs.promises.mkdir(sandboxDir, { recursive: true });
++        const entries = await fs.promises.readdir(realDir, { withFileTypes: true });
++        await Promise.all(entries.map(async (entry) => {
++            const realEntry = path.join(realDir, entry.name);
++            const sandboxEntry = path.join(sandboxDir, entry.name);
++            if (entry.isSymbolicLink()) {
++                const realPath = await fs.promises.realpath(realEntry).catch(() => undefined);
++                if (realPath) {
++                    const rel = path.relative(basePath, realPath);
++                    if (!rel.startsWith('..') && !path.isAbsolute(rel) && !rel.split(path.sep).includes('node_modules')) {
++                        const sandboxTarget = path.join(this.workingDirectory, rel);
++                        const targetExists = await fs.promises.stat(sandboxTarget).then(() => true, () => false);
++                        if (targetExists) {
++                            await fileUtils.symlinkJunction(sandboxTarget, sandboxEntry).catch(() => { });
++                            return;
++                        }
++                    }
++                    // Permissioned children may only read the sandbox's dependency store.
++                    const sandboxTarget = !rel.startsWith('..') && !path.isAbsolute(rel)
++                        ? path.join(this.workingDirectory, rel)
++                        : realPath;
++                    await fileUtils.symlinkJunction(sandboxTarget, sandboxEntry).catch(() => { });
++                    return;
++                }
++            }
++            else if (entry.isDirectory() && entry.name.startsWith('@')) {
++                await this.linkNodeModulesEntries(basePath, realEntry, sandboxEntry);
++                return;
++            }
++            else if (entry.isDirectory() && entry.name === '.pnpm') {
++                // ESM loads canonical paths, so a link to the original store escapes sandbox read grants.
++                await fs.promises.cp(realEntry, sandboxEntry, {
++                    recursive: true, verbatimSymlinks: true, mode: fs.constants.COPYFILE_FICLONE,
++                    filter: async (source, destination) => {
++                        if (!(await fs.promises.lstat(source)).isSymbolicLink() || !path.isAbsolute(await fs.promises.readlink(source))) {
++                            return true;
++                        }
++                        // Windows junctions are absolute; relocate them instead of retaining original-store reads.
++                        const rel = path.relative(basePath, await fs.promises.realpath(source));
++                        if (rel.startsWith('..') || path.isAbsolute(rel)) {
++                            return true;
++                        }
++                        await fileUtils.symlinkJunction(path.join(this.workingDirectory, rel), destination);
++                        return false;
++                    },
++                });
++                return;
++            }
++            await fileUtils.symlinkJunction(realEntry, sandboxEntry).catch(() => { });
++        }));
++    }
+     /**
+      * Sandboxes a file (writes it to the sandbox). Either in-place, or an actual sandbox directory.
+      * @param name The name of the file
+diff --git a/dist/src/utils/file-utils.js b/dist/src/utils/file-utils.js
+index 67da071b8e2d1a382d35a464823c6252bb4473c4..31bcd3fa0985e60f72b801717231705c8f206ba9 100644
+--- a/dist/src/utils/file-utils.js
++++ b/dist/src/utils/file-utils.js
+@@ -82,15 +82,30 @@ export const fileUtils = {
+         const dirBfsQueue = ['.'];
+         let dir;
+         while ((dir = dirBfsQueue.pop())) {
+-            if (path.basename(dir) === tempDirName) {
++            const dirName = path.basename(dir);
++            if (dirName === tempDirName) {
+                 continue;
+             }
+-            if (path.basename(dir) === 'node_modules') {
++            if (dirName === 'node_modules') {
+                 nodeModulesList.push(dir);
+                 continue;
+             }
++            // Fence: lane worktrees sit under .claude/ with full node_modules, and no Stryker option reaches this walk.
++            if (dir !== '.' && dirName.startsWith('.')) {
++                continue;
++            }
+             const parentDir = dir;
+-            const filesWithType = await fs.promises.readdir(path.join(basePath, dir), { withFileTypes: true });
++            let filesWithType;
++            try {
++                filesWithType = await fs.promises.readdir(path.join(basePath, dir), { withFileTypes: true });
++            }
++            catch (error) {
++                // A worktree swept mid-walk must not kill the run before its first mutant.
++                if (isErrnoException(error) && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
++                    continue;
++                }
++                throw error;
++            }
+             const dirs = filesWithType
+                 .filter((file) => file.isDirectory())
+                 .map((childDir) => path.join(parentDir, childDir.name));

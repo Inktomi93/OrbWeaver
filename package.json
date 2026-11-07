@@ -68,10 +68,13 @@
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:ct:webkit": "playwright test --config=playwright-ct.config.ts --project=webkit-iphone",
-    "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\""
+    "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\"",
+    "test:mutation": "node tooling/src/floor/process/niced-exec.ts node tooling/src/mutation-run/cli.ts",
+    "mutation:arid": "node tooling/src/mutation-arid/cli.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
+    "@babel/parser": "catalog:",
     "@biomejs/biome": "catalog:",
     "@codemod.com/jssg-types": "catalog:",
     "@opentelemetry/api": "catalog:",
@@ -88,6 +91,9 @@
     "@orb/tooling": "workspace:*",
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/typescript-checker": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/oxide": "catalog:",
     "@tanstack/eslint-plugin-query": "catalog:",
     "@tanstack/eslint-plugin-router": "catalog:",

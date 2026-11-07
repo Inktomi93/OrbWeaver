@@ -638,6 +638,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "**/dist/**",
       "**/.cache/**",
       "**/.claude/worktrees/**",
+      // Mutation sandboxes hold rewritten source, never authored input.
+      ".stryker-tmp/**",
       "reports/**",
       "coverage/**",
       "playwright-report/**",
