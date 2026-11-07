@@ -86,15 +86,43 @@ test("the door's computed axes write the same on both sides of a move, so they c
 });
 
 test("a move only one value of an open prop can break fails on that value, so the prop was not left out", async () => {
-  const line = '<Button size={size} className="px-field text-start inline-full" />';
-  const [failure] = await check(planAt(columnOf(line, '"px-field')), `${BUTTON}${line};\n`, `${BUTTON}<Button size={size} stretch="line" />;\n`);
-  expect(failure).toContain("px-field");
+  // A square's compound writes its own inline size after every axis, so it evicts `width` and not the class.
+  const line = '<Button size="chip" square={square} className="inline-full" />';
+  const [failure] = await check(
+    planAt(columnOf(line, '"inline-full')),
+    `${BUTTON}${line};\n`,
+    `${BUTTON}<Button size="chip" square={square} width="full" />;\n`,
+  );
+  expect(failure).toContain("inline-(--size-touch-target)");
 });
 
-test("a move that only the door's default breaks fails, because the check renders with the door's own defaults", async () => {
-  const line = '<Button className="px-field text-start inline-full" />';
-  const [failure] = await check(planAt(columnOf(line, '"px-field')), `${BUTTON}${line};\n`, `${BUTTON}<Button stretch="line" />;\n`);
-  expect(failure).toContain("px-field");
+test("a move that only the door's default breaks fails, because the check renders with the door's own defaults", async ({ scratch }) => {
+  const root = plantDir(scratch, "default-breaks");
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./box": "./src/primitives/box/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/box/index.ts", 'export { Box } from "./box.tsx";');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/variants.ts",
+    [
+      "const tv = (table) => (props) => [",
+      "  ...Object.entries(table.variants).map(([axis, arms]) => arms[String(props[axis] ?? table.defaultVariants[axis])] ?? ''),",
+      "].join(' ');",
+      "export const boxVariants = tv({",
+      "  variants: { flag: { true: 'text-label', false: '' }, step: { low: 'text-micro', high: 'text-body' } },",
+      "  defaultVariants: { step: 'high' },",
+      "});",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/box/box.tsx",
+    "export function Box({ flag, step, className }) {\n  return <div className={boxVariants({ flag, step, className })} />;\n}",
+  );
+  const line = '<Box className="text-label" />';
+  const file = { path: PATH, before: `${BOX}${line};\n`, after: `${BOX}<Box flag={true} />;\n` };
+  const plan = { ...planAt(columnOf(line, '"text-label')), owner: "box.flag" };
+  const [failure] = await recipeFailures(root, plan, [file], componentTables(root, loadSources(root)));
+  expect(failure).toContain("text-body");
 });
 
 test("a compound that joins a kept-out axis to the changed prop still renders", async () => {

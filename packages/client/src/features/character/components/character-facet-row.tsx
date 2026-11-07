@@ -63,8 +63,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       variant="outline"
       selection="rail"
       size="sm"
-      className="gap-row inline-full min-inline-0"
+      className="gap-row min-inline-0"
       justify="start"
+      width="full"
       onClick={(): void => onSelect(facet.id)}
     >
       {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be

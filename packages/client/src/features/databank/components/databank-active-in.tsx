@@ -107,7 +107,7 @@ function RoomDoors({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Re
 function RoomDoor({ room, stamp }: { readonly room: VisibleRoomRef; readonly stamp: string }): ReactElement {
   const title = deriveChatTitle(room.title, room.participantNames);
   return (
-    <Button className="inline-full" justify="start" variant="ghost" onClick={(): void => openChat(room.id)} size="sm" type="button">
+    <Button justify="start" variant="ghost" onClick={(): void => openChat(room.id)} size="sm" type="button" width="full">
       <Icon icon={MessagesSquare} size="xs" />
       <Text ink="inherit" as="span" truncate={true} voice="label">
         {title}

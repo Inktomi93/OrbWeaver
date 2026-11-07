@@ -97,7 +97,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
           // into. The injections-manager site carries the full derivation.
           <Stack className="pbe-block" paddingInline="block">
-            <Text voice="gloss" className="line-clamp-1">
+            <Text voice="gloss" clamp={1}>
               {snippet}
             </Text>
           </Stack>

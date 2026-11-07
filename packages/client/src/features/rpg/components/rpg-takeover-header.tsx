@@ -128,12 +128,12 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
   return (
     <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 max-inline-full" wrap="word" data-slot="rpg-band-when-context">
+        <Text as="span" ink="muted" voice="datum" className="max-inline-full" clamp={2} wrap="word" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}
       {when.state === "" ? null : (
-        <Text as="span" ink="muted" voice="datum" className="line-clamp-2 max-inline-full" wrap="word" data-slot="rpg-band-when-state">
+        <Text as="span" ink="muted" voice="datum" className="max-inline-full" clamp={2} wrap="word" data-slot="rpg-band-when-state">
           {when.state}
         </Text>
       )}
@@ -246,7 +246,7 @@ export function RpgTakeoverHeader({
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the
               WHEN-line's voice, with two lines before it clips. */}
-          <Text as="span" voice="gloss" className="line-clamp-2">
+          <Text as="span" voice="gloss" clamp={2}>
             {location || "No location set"}
           </Text>
           <BandWhen when={when} />

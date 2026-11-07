@@ -3,6 +3,7 @@ import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
 import {
+  besideJudgement,
   coveredJudgement,
   elementRefOf,
   kebab,
@@ -226,6 +227,7 @@ function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: 
   return (
     mirrorJudgement(elem, token, siblings, context.components) ??
     newArmJudgement(elem, token, guarded, context.components) ??
+    besideJudgement(elem, token, context.components) ??
     partArmJudgement(elem, token, siblings, context.components) ??
     undeclaredJudgement(elem, token, context.components) ??
     sideInsetJudgement(elem, token, base)

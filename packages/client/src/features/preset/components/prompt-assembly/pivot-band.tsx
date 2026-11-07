@@ -36,7 +36,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
       <Card tone="warning" variant="soft">
         <Row align="center" gap="row">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Text className="flex-1" voice="label">
+          <Text grow={true} voice="label">
             Duplicate chat history — only the first one splits the conversation. Remove this one.
           </Text>
         </Row>

@@ -29,6 +29,16 @@ test("square and wrap reshape a scale step only, and never together", () => {
   expectTypeOf<{ size: "glyph-lg"; square: true; "aria-label": "x" }>().not.toExtend<ButtonProps>();
 });
 
+test("the band and stacked boxes are their own steps, so neither reshapes into a square or a wrap", () => {
+  createElement(Button, { size: "band" }, "x");
+  createElement(Button, { size: "stacked", wrap: false }, "x");
+  // @ts-expect-error a square is a reshape of a scale step, and the band is not one
+  createElement(Button, { size: "band", square: true, "aria-label": "x" });
+  // @ts-expect-error a wrap is a reshape of a scale step, and the stacked box already grows with its content
+  createElement(Button, { size: "stacked", wrap: true }, "x");
+  expectTypeOf<{ size: "band"; wrap: true }>().not.toExtend<ButtonProps>();
+});
+
 test("a square is icon-only, so it carries its own name", () => {
   // @ts-expect-error a square leaves no room for a text child to name it
   createElement(Button, { square: true }, "x");

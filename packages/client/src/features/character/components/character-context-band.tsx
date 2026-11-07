@@ -65,7 +65,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
       <Stack gap="field" className="min-inline-0" grow={true}>
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
-        <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">
+        <Heading level={2} data-slot="character-context-band-name" className="text-balance" clamp={2}>
           {detail.name}
         </Heading>
         <Text voice="datumMono" truncate={true} data-slot="character-context-band-handle">

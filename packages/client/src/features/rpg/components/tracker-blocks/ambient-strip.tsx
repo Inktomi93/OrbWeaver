@@ -151,7 +151,7 @@ function AmbientVocabPicker({
             type="button"
             variant="ghost"
             size="sm"
-            className="inline-full"
+            width="full"
             justify="start"
             aria-label={`Clear ${fieldLabel.toLowerCase()}`}
             onClick={(): void => {

@@ -426,6 +426,61 @@ test("a class under a min step beside its resting class is the max-step arm writ
   expect(rows.map((hit) => [hit.line, hit.detail])).toEqual([[2, "@cq-32:flex-row"]]);
 });
 
+const RESTACK_ROW = (axes: string): string => `export const rowVariants = tv({ variants: { ${axes} } });`;
+const RESTACK_USES = 'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="@max-cq-32:flex-row-reverse @max-cq-32:flex-col" />;';
+
+function plantRestack(root: string, axes: string, names: string, uses = RESTACK_USES): void {
+  plant(root, { "components/uses.tsx": uses });
+  plantFile(root, "packages/ui/src/layout/variants.ts", RESTACK_ROW(axes));
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    `export function Row({ ${names}, className }) {\n  return <div className={rowVariants({ ${names}, className })} />;\n}`,
+  );
+}
+
+test("a different value of the family a steps ramp writes under the same step asks for an axis of its own, and an axis that writes it owns it", ({
+  scratch,
+}) => {
+  const stack = "stackBelow: { 'cq-28': '@max-cq-28:flex-col', 'cq-32': '@max-cq-32:flex-col' }";
+  const beside = plantDir(scratch, "beside-ramp");
+  plantRestack(beside, stack, "stackBelow");
+  const rows = census(beside).hits.filter((hit) => hit.detail === "@max-cq-32:flex-row-reverse");
+  expect(rows.map((hit) => [hit.verdict, hit.owner])).toEqual([["decide", "new axis beside: row.stackBelow"]]);
+  // The ramp's own class at a step is that ramp's, and is not asked for a new axis.
+  expect(census(beside).hits.filter((hit) => hit.detail === "@max-cq-32:flex-col")).toMatchObject([{ verdict: "recipe", owner: "row.stackBelow" }]);
+
+  const owned = plantDir(scratch, "beside-owned");
+  plantRestack(owned, `${stack}, reverseBelow: { 'cq-28': '@max-cq-28:flex-row-reverse', 'cq-32': '@max-cq-32:flex-row-reverse' }`, "stackBelow, reverseBelow");
+  const ownedRows = census(owned).hits.filter((hit) => hit.detail === "@max-cq-32:flex-row-reverse");
+  expect(ownedRows.map((hit) => [hit.verdict, hit.owner])).toEqual([["recipe", "row.reverseBelow"]]);
+});
+
+test("a ramp of different values takes a new value as a new arm, not as an axis beside it", ({ scratch }) => {
+  const root = plantDir(scratch, "beside-values");
+  plantRestack(
+    root,
+    "narrow: { tight: '@max-cq-28:px-tight', row: '@max-cq-28:px-row' }",
+    "narrow",
+    'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="@max-cq-28:px-block" />;',
+  );
+  const rows = census(root).hits.filter((hit) => hit.detail === "@max-cq-28:px-block");
+  expect(rows.map((hit) => hit.owner.split(":")[0])).not.toContain("new axis beside");
+});
+
+test("an arm of several families is a composition: it offers none of them as a choice, where a one-family arm beside an empty one does", ({ scratch }) => {
+  const root = plantDir(scratch, "offers-family");
+  plantRestack(
+    root,
+    "outOfFlow: { true: 'invisible absolute pointer-events-none', false: '' }, inset: { none: 'p-0', tier: '' }",
+    "outOfFlow, inset",
+    'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="relative" />;\nexport const B = () => <Row className="p-row" />;',
+  );
+  const hits = census(root).hits;
+  expect(hits.filter((hit) => hit.detail === "relative")).toEqual([]);
+  expect(hits.filter((hit) => hit.detail === "p-row")).toMatchObject([{ verdict: "decide", owner: "new arm: row.inset" }]);
+});
+
 test("a class held in a constant is judged on the element that wears it, and a plan leaves it for review", ({ scratch }) => {
   const root = plantDir(scratch, "worn-constant");
   plant(root, {

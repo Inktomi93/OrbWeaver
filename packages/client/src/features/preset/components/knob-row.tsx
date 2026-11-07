@@ -231,7 +231,7 @@ function KnobControls({
           the finding survived its own fix. Reversed, the number is what ends on the rail's edge and the
           reserved slot falls inboard, where it costs nothing and still never jitters. It is a CSS order, not
           a DOM one: the reading order stays name → value → its reset, which is the order the pair means. */}
-      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-cq-32:me-(--size-slider-inset) @max-cq-32:flex-row-reverse">
+      <Row align="center" data-slot="knob-value" gap="field" justify="end" reverseBelow="cq-32" className="@max-cq-32:me-(--size-slider-inset)">
         <NumberField
           aria-describedby={describedBy}
           // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL

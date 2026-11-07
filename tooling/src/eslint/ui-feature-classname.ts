@@ -171,11 +171,14 @@ export function classClassifier(candidatesToCss: CandidatesToCss): ClassClassifi
 const CLASS_HELPERS = new Set(["cn", "clsx"]);
 const CLIENT_DIRECTORY = "/packages/client/src/";
 
+// A boolean or numeric arm is a JSX expression, a named arm a string.
+const EXPRESSION_ARM = /^(?:true|false|\d+)$/u;
+
 function ownerPhrase(token: string, { prop, arm }: PropOwner): string {
   if (arm === null) {
     return `\`${token}\` is a step \`${prop}\` chooses among and has no arm for`;
   }
-  return `\`${token}\` is \`${prop}=${arm === "true" || arm === "false" ? `{${arm}}` : `"${arm}"`}\``;
+  return `\`${token}\` is \`${prop}=${EXPRESSION_ARM.test(arm) ? `{${arm}}` : `"${arm}"`}\``;
 }
 
 const MESSAGES = {

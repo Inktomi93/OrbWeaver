@@ -100,14 +100,23 @@ function nested(arms: ArmClasses): boolean {
 const VARIANT_STEP = /\d+/gu;
 const variantStem = (token: string): string => baseOf(token).variants.replaceAll(VARIANT_STEP, "");
 
-/** Every arm writes the same class under one kind of variant and the steps differ, as `stackBelow` does: that class at another step is a step of this ramp. */
+/** An axis whose every arm writes the same class under one kind of variant and the steps differ, as `stackBelow` does: the stem and the class. */
+function stepsRamp(arms: ArmClasses): { readonly stem: string; readonly base: string } | undefined {
+  const written = armsOf(arms).flatMap((arm) => arm.tokens);
+  const [first] = written;
+  if (first === undefined) {
+    return undefined;
+  }
+  const stem = variantStem(first);
+  const { base } = baseOf(first);
+  const sameClass = written.every((token) => variantStem(token) === stem && baseOf(token).base === base);
+  return stem !== "" && sameClass && new Set(written).size >= MIN_FAMILY_CHOICES ? { stem, base } : undefined;
+}
+
+/** That class at another step of a steps ramp is a step of this ramp. */
 function conditionalRamp(arms: ArmClasses, token: string): boolean {
-  const stem = variantStem(token);
-  const writing = armsOf(arms)
-    .flatMap((arm) => arm.tokens)
-    .filter((written) => variantStem(written) === stem && baseOf(written).base === baseOf(token).base);
-  const every = armsOf(arms).filter((arm) => arm.tokens.length > 0);
-  return stem !== "" && new Set(writing).size >= MIN_FAMILY_CHOICES && writing.length === every.flatMap((arm) => arm.tokens).length;
+  const ramp = stepsRamp(arms);
+  return ramp !== undefined && ramp.stem === variantStem(token) && ramp.base === baseOf(token).base;
 }
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
@@ -116,10 +125,19 @@ const writtenChoices = (arms: ArmClasses, base: string): readonly (readonly stri
     .filter((arm) => arm.tokens.length > 0)
     .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === "" && sameFamily(token, base)));
 
-/** The element's own axis offers the family as a choice against an empty arm: `padding: { none: "p-0", tier: "" }` is a padding axis. */
+/**
+ * The element's own axis offers the family as a choice against an empty arm: `padding: { none: "p-0", tier: "" }` is a padding axis. The one
+ * arm that writes anything writes only that family; an arm of several families (`invisible absolute pointer-events-none`) is a composition.
+ */
 function offersFamily(arms: ArmClasses, base: string): boolean {
   const written = writtenChoices(arms, base);
-  return written.length === 1 && arms.size > 1 && (written[0]?.length ?? 0) > 0;
+  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  return (
+    written.length === 1 &&
+    arms.size > 1 &&
+    (written[0]?.length ?? 0) > 0 &&
+    writing.every((arm) => arm.tokens.every((token) => sameFamily(unconditional(token), base)))
+  );
 }
 
 /** The arm lists more than one class and the element wears every one of them: the arm is what they write together. */
@@ -127,15 +145,16 @@ const wornWhole = (arm: Arm, token: string, siblings: readonly string[]): boolea
   arm.tokens.length > 1 && arm.tokens.includes(token) && arm.tokens.every((written) => written === token || siblings.includes(written));
 
 /**
- * The axis of a component's recipe that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is a
- * multi-class arm whose every class the element wears (`siblings` are the classes written beside it).
+ * The axis of a component's recipe that owns the class: an arm writes it alone, is a multi-class arm whose every class the element wears
+ * (`siblings` are the classes written beside it), or writes it as the axis's choice in its family. The arm worn whole is the more
+ * specific claim, so it outranks a family choice on another axis.
  */
 export function axisWriting(recipe: ComponentRecipe | undefined, token: string, siblings: readonly string[]): readonly [string, ArmClasses] | undefined {
   const axes = [...(recipe?.axes ?? [])];
   return (
     axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token)) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings)))
+    axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings))) ??
+    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token))
   );
 }
 
@@ -171,7 +190,7 @@ const doorsWriting = (token: string, components: ComponentTables): number =>
 /**
  * The arm a class is part of, when the element does not wear that arm whole. Two or more of an arm's classes worn together are that arm, whatever
  * they are. A class alone counts only when it carries the arm's meaning, and it does unless {@link MECHANISM_DOORS} or more doors write it: a class
- * that many unrelated primitives need, such as `relative` or `flex-1`, is the mechanism they ride on and names no arm. A zero step never reaches here.
+ * that many unrelated primitives need, such as `relative` or `items-start`, is the mechanism they ride on and names no arm. A zero step never reaches here.
  */
 export function partArmJudgement(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
   const worn = (arm: Arm): number => arm.tokens.filter((written) => written === token || siblings.includes(written)).length;
@@ -232,6 +251,29 @@ export function newArmJudgement(elem: Elem | null, token: string, guarded: boole
     match: null,
     owner: `new arm: ${axis.label}${conditionalMark(token, guarded)}`,
     reason: `${token} is not an arm of ${axis.label} (arms: ${[...axis.arms.keys()].join(", ")})`,
+    keep: null,
+  };
+}
+
+/**
+ * A class of the same family as a steps ramp writes, under the same kind of variant, at another value (`@max-cq-32:flex-row-reverse` beside
+ * `stackBelow`'s `@max-cq-32:flex-col`). It is no step of that ramp, whose meaning is the one class, so it asks for an axis of its own.
+ */
+export function besideJudgement(elem: Elem | null, token: string, components: ComponentTables): Judgement | null {
+  const { base } = baseOf(token);
+  const found = [...(recipeOf(elem, components)?.axes ?? [])].find(([, arms]) => {
+    const ramp = stepsRamp(arms);
+    return ramp !== undefined && ramp.stem === variantStem(token) && ramp.base !== base && sameFamily(base, ramp.base);
+  });
+  if (elem === null || found === undefined) {
+    return null;
+  }
+  const axis = declaredAxis(elem, found[0], found[1]);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `new axis beside: ${axis.label}`,
+    reason: `${token} is ${base}, a different value of the family ${axis.label} writes under the same step, so no arm of it`,
     keep: null,
   };
 }

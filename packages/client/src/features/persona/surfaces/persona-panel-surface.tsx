@@ -210,6 +210,8 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
   );
 }
 
+const DESCRIPTION_LINES = 3;
+
 /** Three lines of the description, with "More" only when the text is actually clamped. */
 function ClampedDescription({ text }: { readonly text: string }): ReactElement {
   const [clamped, setClamped] = useState(false);
@@ -222,7 +224,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
   };
   return (
     <Stack gap="field" align="start">
-      <Text className={expanded ? undefined : "line-clamp-3"} data-slot="persona-who-description" whitespace="preWrap" ref={measure} voice="gloss">
+      <Text clamp={expanded ? undefined : DESCRIPTION_LINES} data-slot="persona-who-description" whitespace="preWrap" ref={measure} voice="gloss">
         {text}
       </Text>
       {clamped ? (

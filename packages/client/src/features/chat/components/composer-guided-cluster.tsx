@@ -216,10 +216,11 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         <Row align="center" gap="glyph" className="shrink-0" ref={seatReplies}>
           <Row
             aria-label="Your message"
-            {...replyBox(level === 2, "pe-field")}
+            {...replyBox(level === 2)}
             data-slot="composer-you-actions"
             divider="end"
             gap="glyph"
+            paddingInlineEnd="field"
             ref={seatYou}
             role="group"
           >

@@ -46,6 +46,13 @@
   min-block-size: 2lh;
 }
 
+/* A box kept mounted for its size to be read: out of flow, unpainted and unreachable by the pointer (`Row outOfFlow`). */
+@utility orb-out-of-flow {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Resolve art reservations on their consumer so a carried scope's spacing and art width remain live. */
 @utility orb-art-reservation {
   --art-pane-width: min(var(--immersive-echo-art-width), 25cqi);

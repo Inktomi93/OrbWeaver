@@ -89,14 +89,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
         label="Invested but quiet characters"
         renderItem={(gem, index): ReactElement => (
           <Stack gap="tight">
-            <Button
-              className="items-start inline-full"
-              justify="start"
-              variant="ghost"
-              onClick={(): void => selectCorpusCharacter(gem.characterId)}
-              size="sm"
-              wrap={true}
-            >
+            <Button justify="start" variant="ghost" onClick={(): void => selectCorpusCharacter(gem.characterId)} size="stacked" width="full">
               <Row align="center" className="min-inline-0" width="full" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
                     shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at

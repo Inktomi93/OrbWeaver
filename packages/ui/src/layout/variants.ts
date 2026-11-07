@@ -6,8 +6,10 @@ import {
   CORNER,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
+  FLOOR,
   FOCUS_RING,
   GROUND,
+  GROW,
   HIDDEN_AT,
   HOVER_DIM,
   HOVER_REVEAL,
@@ -22,6 +24,7 @@ import {
   TOUCH_FLOOR_AT_COARSE,
   tv,
   WALLPAPER_PLATE,
+  WIDTH,
 } from "#lib";
 import { ART_DECORATION } from "../lib/art-decoration.ts";
 
@@ -171,6 +174,14 @@ const END_BELOW = {
   "cq-40": "@max-cq-40:justify-end",
   "cq-64": "@max-cq-64:justify-end",
 } as const;
+// `stackBelow`'s sibling: the row keeps its direction and reads from the end below the step, so a trailing control comes first
+// on screen while the DOM order stays the reading order.
+const REVERSE_BELOW = {
+  "cq-28": "@max-cq-28:flex-row-reverse",
+  "cq-40": "@max-cq-40:flex-row-reverse",
+  "cq-32": "@max-cq-32:flex-row-reverse",
+  "cq-64": "@max-cq-64:flex-row-reverse",
+} as const;
 
 // The coarse floors a layout box owns: its own block size (a row of text-height values whose hit areas must fit
 // inside it), or the pitch between tiled control cells. Declared after `gap` in each recipe so the coarse gap wins.
@@ -226,16 +237,6 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
 const SCROLL = { y: SCROLLER_Y } as const;
 
-// A flex child takes the room that is left (`grow`) from a starting width (`floor`), so a wrapping header gives the title
-// or the filter its own line before it squeezes. The `min-inline-0` that lets it shrink below its content stays the
-// caller's class, because only some children want that.
-// `content` grows from the content's own size where `true` grows from nothing; `double` takes twice the share of a `true` sibling.
-const GROW = { true: "flex-1", false: "", content: "flex-auto", double: "flex-2" } as const;
-const FLOOR = {
-  title: "basis-(--width-title-floor)",
-  field: "basis-(--width-field-floor)",
-  line: "basis-full",
-} as const;
 // A row pinned to the foot of a scrolling dialog body: it gives its block inset back as the dialog gets short, drops it
 // when the dialog stacks, and stops pinning under the tiny step, where a pinned row would cover the content.
 //
@@ -255,25 +256,6 @@ const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } a
 // placeholder or a row stands in for.
 const FILL = { true: "block-full", false: "" } as const;
 const HEIGHT = { viewport: "block-dvh", control: "block-(--size-control-sm)", controlMd: "block-(--size-control-md)" } as const;
-// The box's own inline size, where `cap` is only the widest it may grow. `full` is the parent's width and `fit` its content's. `control`,
-// `controlMd` and `checkbox` hold the width of the control a slot stands in for; `avatarHero` and `ripplePortrait` the picture a column sits
-// under; the rest are the named column widths. `lane` is a lane's width once the container can seat it beside another lane, and the whole
-// width until then. `flankFit` is the width a room needs to seat its plugin column beside the transcript's reading floor.
-const WIDTH = {
-  full: "inline-full",
-  fit: "inline-fit",
-  control: "inline-(--size-control-sm)",
-  controlMd: "inline-(--size-control-md)",
-  checkbox: "inline-(--size-checkbox)",
-  gutter: "inline-gutter",
-  controlCol: "inline-(--width-control-col)",
-  sidebarSm: "inline-(--width-sidebar-sm)",
-  avatarHero: "inline-(--size-avatar-hero)",
-  ripplePortrait: "inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)",
-  lane: "@max-cq-64:inline-full @cq-64:inline-(--width-lane)",
-  flankFit: "inline-(--dimension-room-flank-fit)",
-} as const;
-
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
@@ -397,6 +379,7 @@ export const rowVariants = tv({
     align: ALIGN,
     justify: JUSTIFY,
     stackBelow: STACK_BELOW,
+    reverseBelow: REVERSE_BELOW,
     stretchBelow: STRETCH_BELOW,
     // `stretchBelow`'s mirror: a stacked row's children pack to the end, for a row that reads from the trailing edge.
     alignEndBelow: { "cq-28": "@max-cq-28:items-end" },
@@ -436,6 +419,9 @@ export const rowVariants = tv({
     dividerStyle: DIVIDER_STYLE,
     tone: DIVIDER_MEANING,
     receded: { true: RECEDED, false: "" },
+    // A box that stays mounted so it can be measured but takes no room, paints nothing and takes no pointer: a part that has
+    // moved into an overflow menu, or a probe that reads a width. Pair it with `inert` so focus skips it too.
+    outOfFlow: { true: "orb-out-of-flow", false: "" },
     // A row of trailing actions that reveals on the nearest `group` ancestor's hover.
     reveal: HOVER_REVEAL,
     inertUntilHover: { true: INERT_UNTIL_HOVER, false: "" },

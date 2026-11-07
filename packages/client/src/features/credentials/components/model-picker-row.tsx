@@ -13,11 +13,11 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
     <Container className="min-inline-0" grow={true}>
       <Row align="start" gap="row" stackBelow="cq-32" stretchBelow="cq-32">
         <Stack className="min-inline-0" grow={true} gap="field">
-          <Text as="span" className="line-clamp-2 min-inline-0" wrap="word" ink="inherit">
+          <Text as="span" className="min-inline-0" clamp={2} wrap="word" ink="inherit">
             {entry.label}
           </Text>
           {entry.label === entry.id ? null : (
-            <Text as="span" className="line-clamp-2 break-all" voice="datumMono">
+            <Text as="span" className="break-all" clamp={2} voice="datumMono">
               {entry.id}
             </Text>
           )}

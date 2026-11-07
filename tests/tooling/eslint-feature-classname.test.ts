@@ -169,6 +169,25 @@ test.for([
     'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="block-(--size-control-sm)" />);\n',
     '`size="sm"`',
   ],
+  [
+    "an inline size a Button's width writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="inline-full" />);\n',
+    '`width="full"`',
+  ],
+  ["a line cap on a Text", 'import { Text } from "@orb/ui/text";\nexport const T = (<Text className="line-clamp-2" />);\n', "`line-clamp-2` is `clamp={2}`"],
+  ["a line cap on a Heading", 'import { Heading } from "@orb/ui/text";\nexport const T = (<Heading level={2} className="line-clamp-3" />);\n', "`clamp={3}`"],
+  [
+    "a flex share on a Text",
+    'import { Text } from "@orb/ui/text";\nexport const T = (<Text className="flex-1 min-inline-0" />);\n',
+    "`flex-1` is `grow={true}`",
+  ],
+  [
+    "a starting width on a Text",
+    'import { Text } from "@orb/ui/text";\nexport const T = (<Text className="basis-(--width-field-floor)" />);\n',
+    '`floor="field"`',
+  ],
+  ["a reversed row below a step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-row-reverse" />);\n`, '`reverseBelow="cq-32"`'],
+  ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
   ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
   ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-section" />);\n`, "`-mx-section` is `reach="],
@@ -181,6 +200,16 @@ test.for([
   const messages = await findings(LAYOUT_RULE, source);
   expect(messages).toHaveLength(1);
   expect(messages[0]).toContain(tokens);
+});
+
+// A step that writes the type tokens is reported twice: the type tokens as paint, and every class as the step's own.
+test.for([
+  ["the band box", "block-(--size-control-sm) gap-tight px-tight text-label leading-label", '`size="band"`'],
+  ["the stacked box", "flex-col items-start px-row py-row block-auto text-label leading-label", '`size="stacked"`'],
+] as const)("the layout rule reports %s on a Button as the size step", async ([, classes, owner]) => {
+  const messages = await findings(LAYOUT_RULE, `import { Button } from "@orb/ui/button";\nexport const T = (<Button className="${classes}" />);\n`);
+  expect(messages.filter((message) => message.includes("own prop owns"))).toHaveLength(1);
+  expect(messages.find((message) => message.includes("own prop owns"))).toContain(owner);
 });
 
 test.for([

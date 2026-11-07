@@ -109,7 +109,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
               recedes to `gloss` like its ×N and location has no head to read first. */}
-          <Text as="span" voice="label" className="flex-1 min-inline-0" wrap="word">
+          <Text as="span" voice="label" className="min-inline-0" grow={true} wrap="word">
             {item.name}
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}

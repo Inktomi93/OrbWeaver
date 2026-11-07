@@ -231,7 +231,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
           <Row align="center" className="flex-wrap" gap="row" justify="start">
-            <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+            <Text className="max-inline-(--reading-measure-prose) min-inline-0" floor="field" grow={true} voice="gloss">
               Use this after a settings change, or if search misses this document.
             </Text>
             <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>

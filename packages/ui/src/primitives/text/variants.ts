@@ -1,4 +1,4 @@
-import { HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
+import { FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -161,23 +161,26 @@ export const textVariants = tv({
       true: "text-label leading-label-relaxed",
       false: "",
     },
-    // THE ROW-ALIGNMENT MODIFIER (side-eye home re-score 2026-08-18, #216). `line-clamp-N` CAPS a run at N
-    // lines; it does not RESERVE them — so in a grid of cells, a one-line name and a two-line name push
-    // their captions to different baselines and the shelf reads as loose objects instead of one rank
-    // (measured: `descTop` 359 vs 380 in the same row, a 21px drift, on the home face shelf at 1920).
-    // `lines` is the pair: clamp at N AND reserve N lines of the element's OWN leading (`lh` resolves
+    // A run capped at N lines with an ellipsis. It reserves nothing: a short run takes only the lines it needs. The cap alone
+    // is the whole statement; where cells must share a baseline, `lines` caps and reserves.
+    clamp: {
+      1: "line-clamp-1",
+      2: "line-clamp-2",
+      3: "line-clamp-3",
+      4: "line-clamp-4",
+    },
+    // THE ROW-ALIGNMENT MODIFIER. `clamp` caps a run at N lines; it does not RESERVE them — so in a grid of cells, a one-line
+    // name and a two-line name push their captions to different baselines and the shelf reads as loose objects instead of
+    // one rank. `lines` is the pair: clamp at N AND reserve N lines of the element's OWN leading (`lh` resolves
     // against the computed line-height, so it follows the voice instead of hardcoding a pixel step), plus
     // the `whitespace-normal` that makes a clamp wrap at word boundaries rather than overflow (the Button
     // base is `whitespace-nowrap`, and a nowrap line inside a `-webkit-box` clamp escapes its cell with no
     // ellipsis at all).
     //
     // It is a LAYOUT statement about a run of text in a repeated cell, not a taste knob — the `prose`
-    // precedent — which is why it is not one of the four internal axes the density gate ratchets. Use it
-    // where cells must share a baseline; a lone clamp with nothing to align to stays a `line-clamp-*`
-    // className.
+    // precedent — which is why it is not one of the four internal axes the density gate ratchets.
     //
-    // ONE ARM, because one shape needs it: the reservation is only ever right where cells must share a
-    // baseline, and each arm costs a `.orb-lines-N` rule in globals.css (the reservation cannot be a
+    // ONE ARM, because one shape needs it: each arm costs a `.orb-lines-N` rule in primitives.css (the reservation cannot be a
     // Tailwind utility — see that rule's comment). A second arm arrives with its second consumer.
     lines: {
       2: "line-clamp-2 whitespace-normal orb-lines-2",
@@ -190,6 +193,10 @@ export const textVariants = tv({
       fill: "flex-1 truncate",
       false: "",
     },
+    // A run in a flex row that takes the room that is left (`grow`) from a starting width (`floor`). The `min-inline-0` that lets it
+    // shrink below its content stays the caller's.
+    grow: GROW,
+    floor: FLOOR,
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).
     wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },

@@ -28,7 +28,7 @@ export function InlineFlankFitProbe(): ReactElement {
       publishInlineFlankFit(true);
     };
   }, []);
-  return <Row aria-hidden={true} className="pointer-events-none invisible absolute block-0" ref={sentinel} width="flankFit" />;
+  return <Row aria-hidden={true} className="block-0" outOfFlow={true} ref={sentinel} width="flankFit" />;
 }
 
 // A panel-mode column slides; an inline column never moves.

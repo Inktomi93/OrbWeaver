@@ -205,7 +205,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     // pb-block; the report's "display: flow-root defeats the clamp" reading was wrong —
                     // `flow-root` is just Chrome's computed serialization of a blockified `-webkit-box`.)
                     <Stack className="pbe-block" paddingInline="block">
-                      <Text voice="gloss" className="line-clamp-1">
+                      <Text voice="gloss" clamp={1}>
                         {values.content}
                       </Text>
                     </Stack>

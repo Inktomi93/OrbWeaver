@@ -2,11 +2,12 @@ import type { ReactElement } from "react";
 import type { ControlSize } from "#lib";
 import type { ButtonCoreProps, ButtonPaint } from "./core.tsx";
 import { ButtonCore } from "./core.tsx";
+import type { ButtonSize } from "./variants.ts";
 
 /** Every Button prop EXCEPT the accessible-name requirement and the box reshapes — the shape a wrapper seal extends. */
 export interface ButtonBaseProps extends ButtonCoreProps {
-  /** The D336 control scale step. @defaultValue "md" */
-  size?: ControlSize | undefined;
+  /** The D336 control scale step, or the `band` and `stacked` boxes. @defaultValue "md" */
+  size?: ButtonSize | undefined;
 }
 
 /** A button that carries its own name as an attribute — free to take ANY box, including the icon-only `square`.
@@ -20,12 +21,13 @@ type TextButtonProps = ButtonBaseProps & { square?: false | undefined };
 
 /**
  * A box that is not a scale step leaves `size` (D336): `square` for icon-only and `wrap` for multiline reshape a scale
- * step, so neither combines with the other. A glyph, inline-text or picture box is its own component.
+ * step, so neither combines with the other, nor with the `band` and `stacked` boxes. A glyph, inline-text or picture box is
+ * its own component.
  */
 type ButtonBox =
   | { square?: false | undefined; wrap?: false | undefined }
-  | { square: boolean; wrap?: false | undefined }
-  | { wrap: boolean; square?: false | undefined };
+  | { square: boolean; wrap?: false | undefined; size?: ControlSize | undefined }
+  | { wrap: boolean; square?: false | undefined; size?: ControlSize | undefined };
 
 /**
  * ONE of the two: named by an attribute, or sized so a text child can name it. An icon-only box with no

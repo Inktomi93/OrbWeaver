@@ -158,8 +158,9 @@ export function CharacterPairRow({
 }): ReactElement {
   return (
     <Button
-      className="justify-between inline-full"
+      className="justify-between"
       variant="ghost"
+      width="full"
       onClick={(): void => {
         // The NAMES travel with the ids (#563): the Compare tab's pickers can only name a selection they
         // can find in their own catalog page, and a pair from this list routinely is not in it.
@@ -196,8 +197,9 @@ function ChatPairRow({
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
       aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
-      className="justify-between inline-full"
+      className="justify-between"
       variant="ghost"
+      width="full"
       onClick={(): void => {
         selectCorpusArtifact({
           kind: "pair",

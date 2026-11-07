@@ -68,7 +68,22 @@ test("a class under a container step no arm writes belongs to the ramp of that s
   expect(ownerOf("layout", "Row", "@max-cq-48:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
   expect(ownerOf("layout", "Row", "flex-col", [])).toBeNull();
   expect(ownerOf("layout", "Row", "hover:flex-col", [])).toBeNull();
-  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toEqual({ axis: "row.reverseBelow", prop: "reverseBelow", arm: "cq-32" });
+  expect(ownerOf("layout", "Row", "@max-cq-48:flex-row-reverse", [])).toEqual({ axis: "row.reverseBelow", prop: "reverseBelow", arm: null });
+});
+
+test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("text", "Text", "line-clamp-3", [])).toEqual({ axis: "text.clamp", prop: "clamp", arm: "3" });
+  expect(ownerOf("text", "Heading", "line-clamp-2", [])).toEqual({ axis: "heading.clamp", prop: "clamp", arm: "2" });
+  expect(ownerOf("text", "Text", "flex-1", [])).toEqual({ axis: "text.grow", prop: "grow", arm: "true" });
+  expect(ownerOf("text", "Text", "basis-(--width-field-floor)", [])).toEqual({ axis: "text.floor", prop: "floor", arm: "field" });
+  expect(ownerOf("button", "Button", "inline-full", [])).toEqual({ axis: "button.width", prop: "width", arm: "full" });
+  expect(ownerOf("layout", "Row", "orb-out-of-flow", [])).toEqual({ axis: "row.outOfFlow", prop: "outOfFlow", arm: "true" });
+  const band = ["block-(--size-control-sm)", "gap-tight", "px-tight", "text-label", "leading-label"];
+  expect(ownerOf("button", "Button", "px-tight", band)).toEqual({ axis: "button.size", prop: "size", arm: "band" });
+  const stacked = ["flex-col", "items-start", "py-row", "block-auto", "text-label", "leading-label"];
+  expect(ownerOf("button", "Button", "px-row", stacked)).toEqual({ axis: "button.size", prop: "size", arm: "stacked" });
 });
 
 test("an arm that writes a part inside the component owns nothing on its root", ({ scratch }) => {
