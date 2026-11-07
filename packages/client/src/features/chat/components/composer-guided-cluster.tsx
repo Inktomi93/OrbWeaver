@@ -192,7 +192,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="min-block-0 min-inline-0" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
+    <Stack className="min-inline-0" minHeight="shrinks" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
       <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu
@@ -288,7 +288,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         <Row className="shrink-0" hiddenAt="empty" data-slot="composer-door" ref={seatDoor}>
           {chatControl}
         </Row>
-        <Stack className="min-block-0" self="stretch" minWidth="composerField" grow={true} cap="fit" data-slot="composer-field" ref={seatField}>
+        <Stack minHeight="shrinks" self="stretch" minWidth="composerField" grow={true} cap="fit" data-slot="composer-field" ref={seatField}>
           {messageInput}
         </Stack>
         <Row aria-label="Send controls" className="shrink-0" data-slot="composer-send" gap="field" ref={seatSend} role="group">

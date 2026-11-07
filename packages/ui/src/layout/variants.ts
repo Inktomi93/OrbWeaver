@@ -264,8 +264,14 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
 const SCROLL = { y: SCROLLER_Y } as const;
 
-// `dialog-stacked` is two conditions, so it has no negation to hide under: this arm restores the display, and only a flex box can name it.
-const BOX_HIDDEN_AT = { ...HIDDEN_AT, unlessDialogStacked: "hidden dialog-stacked:flex" } as const;
+// `dialog-stacked` is two conditions, so it has no negation to hide under: these arms restore the display, and only a flex box can name them.
+// `unlessDialogShortWide` is a short dialog that is not stacked, the one that keeps its actions in a single pinned row.
+const BOX_HIDDEN_AT = {
+  ...HIDDEN_AT,
+  unlessDialogShort: "hidden dialog-short:flex",
+  unlessDialogStacked: "hidden dialog-stacked:flex",
+  unlessDialogShortWide: "hidden dialog-short:flex dialog-stacked:hidden",
+} as const;
 
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
 // `floor="line"` basis gives way to its content's width.
@@ -428,8 +434,6 @@ export const rowVariants = tv({
     // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
     // `none` takes no room, for a parked box only a measure reads.
     height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto", glyph: "block-(--size-glyph-lg)", none: "block-0" },
-    // A row of a short dialog gives its block inset back to the content.
-    paddingBlockShort: { none: "dialog-short:py-0" },
     minHeight: MIN_HEIGHT,
     minWidth: MIN_WIDTH,
     padding: PADDING,

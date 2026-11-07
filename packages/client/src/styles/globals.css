@@ -430,8 +430,17 @@
       }
       @variant appearance-blur-surfaces-composer {
         [data-slot="composer"] {
+          /* The island's lift is a utility this layer outranks, so its glass restates it as a tint of the muted step. The denser
+           * fill is the one text gets, and at the chrome fill bright art lifts the step until the focus ring drops under 3:1 on it. */
+          --composer-lift: color-mix(in oklab, var(--color-muted) var(--blur-fill-dense), var(--glass-under));
           backdrop-filter: var(--glass-filter);
           background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--glass-under));
+          &:is(:focus-within, [data-drag-over]) {
+            background-color: var(--composer-lift);
+          }
+          @variant hover {
+            background-color: var(--composer-lift);
+          }
         }
       }
       /* A portaled modal composites over the scrim and whatever the transcript shows (images, dark bubbles),

@@ -59,6 +59,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
         autoFocusSearch={true}
         emptyText="No characters match."
         label="New persona from a character"
+        listSize="pickerWindow"
         onEscape={(): void => onOpenChange(false)}
         onSelect={onPick}
         placeholder="Search characters…"

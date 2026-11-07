@@ -43,7 +43,7 @@ import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 export function AnalyticsModelsTab(): ReactElement {
   return (
     // ContextBracket owns the stable viewport; the reservation measures content without trapping scroll chaining.
-    <Stack className="relative min-block-0" data-testid={testId("analyticsModelsTab")}>
+    <Stack className="relative" minHeight="shrinks" data-testid={testId("analyticsModelsTab")}>
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="datum" />}

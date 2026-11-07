@@ -245,7 +245,14 @@ export function ContextHeaderTabs({
           <Menu>
             <MenuTrigger
               render={
-                <Button aria-label={`All ${ariaLabel} tabs`} data-slot="context-tab-overflow-trigger" variant="ghost" square={true} type="button">
+                <Button
+                  aria-label={`All ${ariaLabel} tabs`}
+                  data-slot="context-tab-overflow-trigger"
+                  focusRing="inset"
+                  variant="ghost"
+                  square={true}
+                  type="button"
+                >
                   <Icon icon={Ellipsis} size="sm" />
                 </Button>
               }

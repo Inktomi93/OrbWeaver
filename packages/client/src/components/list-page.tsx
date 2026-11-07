@@ -60,7 +60,7 @@ export function ListPage({
         {...data}
         data-list-page={body}
         {...(label === undefined ? {} : { "aria-label": label, role: "region" })}
-        className="min-block-0"
+        minHeight="shrinks"
         height="fill"
         focusTarget={true}
         scroll={body === "pane" ? "y" : undefined}
@@ -86,7 +86,7 @@ export function ListPage({
         {body === "pane" ? children : null}
         {body === "scroll" ? <ListScrollBox>{children}</ListScrollBox> : null}
         {body === "bounded" ? (
-          <Stack className="min-block-0" grow={true} data-slot="library-list-bounded">
+          <Stack minHeight="shrinks" grow={true} data-slot="library-list-bounded">
             {children}
           </Stack>
         ) : null}

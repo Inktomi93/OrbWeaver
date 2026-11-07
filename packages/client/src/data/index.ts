@@ -57,6 +57,7 @@ export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
+export { pressForPage } from "./press-for-page.ts";
 export { createAppQueryClient, retryUnlessBadRequest } from "./query-client.ts";
 export { QueryErrorState, QueryUnavailableState } from "./query-error-state.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";

@@ -31,6 +31,8 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
   elevated?: boolean;
   /** The palette fills its parent's block extent. */
   fill?: boolean;
+  /** The palette is a picker window's frame: it holds that box, and a footer inside takes room from the list. */
+  windowed?: boolean;
 }
 
 /**
@@ -40,14 +42,21 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
  * `Command.Dialog` is skipped (a second modal implementation alongside our Base UI Dialog); a
  * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead.
  */
-export function Command({ className, onEscape, onKeyDown, elevated, fill, ...rest }: CommandProps): ReactElement {
+export function Command({ className, onEscape, onKeyDown, elevated, fill, windowed, ...rest }: CommandProps): ReactElement {
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     onKeyDown?.(event);
     if (event.key === "Escape") {
       onEscape?.();
     }
   };
-  return <BaseCommandRoot className={cn(commandVariants({ elevated, fill }).root(), className)} data-slot="command-root" onKeyDown={handleKeyDown} {...rest} />;
+  return (
+    <BaseCommandRoot
+      className={cn(commandVariants({ elevated, fill, windowed }).root(), className)}
+      data-slot="command-root"
+      onKeyDown={handleKeyDown}
+      {...rest}
+    />
+  );
 }
 
 export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {

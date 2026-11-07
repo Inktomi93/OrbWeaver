@@ -4,6 +4,7 @@
 // @subject packages/inference/src/resolve/resolve-task.ts
 
 import { embeddingCalls } from "@orb/db";
+import type { LocalLightModelCache } from "@orb/inference";
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import { DEFAULT_EMBED_MODEL } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -63,13 +64,40 @@ test("a cleared real embedding binding refuses implicit resolution while its own
 });
 
 test("a pre-cancelled local-light embedding crosses real accounting without loading a model or exposing the caller reason", async () => {
-  await using root = await createRuntimeRoot();
+  // The scripted model edge counts what reaches it; the control below proves the count moves for a live embed.
+  const embedded: string[] = [];
+  let width = 0;
+  const unscripted = (): Promise<never> => Promise.reject(new Error("unscripted local-light model call"));
+  const localLightCache: LocalLightModelCache = {
+    embedTexts: (_model, texts) => {
+      embedded.push(...texts);
+      return Promise.resolve(texts.map(() => new Float32Array(width).fill(1)));
+    },
+    scorePairs: unscripted,
+    embedImages: unscripted,
+    embedClipTexts: unscripted,
+    preload: unscripted,
+    loadFailed: () => false,
+  };
+  await using root = await createRuntimeRoot({ localLightCache });
   const connection = await runtimeConnection(root, "embed", { providerId: "local-light", model: DEFAULT_EMBED_MODEL, baseUrl: null, allowBackground: true });
+  if (connection.capability.kind !== "embedding") {
+    throw new Error("the local-light embed connection did not resolve an embedding capability");
+  }
+  width = connection.capability.embedding.dims;
+
   const cancel = new AbortController();
   cancel.abort(new DOMException("connection timeout network overload", "TimeoutError"));
   const failure = await root.app.runtime.executor.embed({ connection, input: ["cancelled"], signal: cancel.signal }).catch((error: unknown) => error);
+  await root.settleBackground();
   expect(failure).toBeInstanceOf(ProviderError);
   expect(failure).toMatchObject({ kind: "aborted", retryable: false });
   expect(failure instanceof Error && /connection|timeout|network|overload/u.test(failure.message)).toBe(false);
+  expect(embedded).toEqual([]);
   expect(await root.db.select().from(embeddingCalls)).toEqual([]);
+
+  await root.app.runtime.executor.embed({ connection, input: ["live"] });
+  await root.settleBackground();
+  expect(embedded).toEqual(["live"]);
+  expect(await root.db.select().from(embeddingCalls)).toHaveLength(1);
 });
