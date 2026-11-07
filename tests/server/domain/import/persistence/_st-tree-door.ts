@@ -25,14 +25,14 @@ export type Files = Readonly<Record<string, Bytes>>;
 
 // The owner's default content seeds in the background after the first authed request. Settling it here keeps a
 // test's before/after row deltas from racing the seed.
-export async function harness(db?: ServerHarnessOptions["db"]): Promise<ServerTestHarness> {
+export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJobs"> = {}): Promise<ServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
       env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
       physicalPeer: () => "127.0.0.1",
       startJobs: false,
-      ...(db === undefined ? {} : { db }),
+      ...options,
     }),
   );
   await (await post(root, {}, ["refused"])).arrayBuffer();

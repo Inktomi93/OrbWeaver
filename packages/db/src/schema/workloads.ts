@@ -38,8 +38,9 @@
 //
 // EXECUTION vs ADMISSION: the three indexes above are ADMISSION (who may hold a slot). The `lane` column is
 // EXECUTION — which worker poll loop dispatches the row, so a 20-minute `import-st` sweep never head-blocks
-// a user's `databank-ingest`. It is stamped at enqueue from the OWNING domain's `WorkloadContribution.lane`
-// (a column, not a claim-time derive, so the assignment survives a restart) and never participates in a lock.
+// a user's `databank-ingest`. It is stamped at enqueue from the OWNING domain's `WorkloadContribution`: `laneFor(params)`
+// when the kind declares one, else `lane` (a column, not a claim-time derive, so the assignment survives a restart),
+// and never participates in a lock.
 
 import type { WorkloadProgress } from "@orb/contracts/workloads";
 import {
