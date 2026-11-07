@@ -6,6 +6,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { isPlainObject } from "@orb/kit/guards";
+import type { UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
@@ -16,7 +17,7 @@ import { anthropicSse, anthropicTextReply, openAiServer, recordRequest, SLEEP_PR
 import { vi } from "vitest";
 import { z } from "zod";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
-import { createRuntimeRoot, generationCapability, observeRuntimeTimers, wireConnection } from "./runtime.fixtures.ts";
+import { anthropicOwnerDigest, createRuntimeRoot, generationCapability, observeRuntimeTimers, wireConnection } from "./runtime.fixtures.ts";
 
 const LOCAL_URL = "http://box.local:8080/v1";
 
@@ -360,22 +361,26 @@ function anthropicServer(recorded: RecordedRequest[]): typeof fetch {
   };
 }
 
-test("(6) a direct Anthropic summarize carries the connection's inference geography and the owner's metadata digest", async () => {
+test("(6) a direct Anthropic summarize carries the connection's inference geography and each funder's own metadata digest", async () => {
   const recorded: RecordedRequest[] = [];
   await using root = await createRuntimeRoot({ providerFetch: anthropicServer(recorded) });
   const executor = root.app.runtime.executor;
   const model = "claude-opus-5";
-  const connection = await wireConnection(root, {
-    task: "summarize",
-    providerId: "anthropic",
-    model,
-    baseUrl: null,
-    key: "sk-ant-not-a-real-key",
-    extras: { inferenceGeo: "us" },
-  });
-  await executor.summarize({ connection, inputs: [ITEM], maxTokens: 128 });
-  expect(recorded[0]?.body["inference_geo"]).toBe("us");
-  expect(recorded[0]?.body["metadata"]).toMatchObject({ ["user_id"]: expect.any(String) });
+  const funders: readonly UserId[] = [root.ownerId, (await root.actor()).id];
+  for (const owner of funders) {
+    const connection = await wireConnection(root, {
+      task: "summarize",
+      providerId: "anthropic",
+      model,
+      baseUrl: null,
+      key: "sk-ant-not-a-real-key",
+      extras: { inferenceGeo: "us" },
+      owner,
+    });
+    await executor.summarize({ connection, inputs: [ITEM], maxTokens: 128 });
+  }
+  expect(recorded.map(({ body }) => body["inference_geo"])).toEqual(["us", "us"]);
+  expect(recorded.map(({ body }) => body["metadata"])).toEqual(funders.map((owner) => ({ ["user_id"]: anthropicOwnerDigest(owner) })));
 });
 
 const SESSION_ID = "a95fcd1f-a1ca-42db-ac6c-de6b1f01091d";
@@ -551,7 +556,7 @@ test("(9) a chat template's role refusal on summarize reads as the chat turn's f
   expect(recorded).toHaveLength(1);
 });
 
-test("(10) an unterminated <think> block at the output cap never reaches the summary text", async () => {
+test("(10) an unterminated <think> block at the output cap leaves an empty summary, neither its tag nor its reasoning", async () => {
   using server = openAiServer([], () => ({ content: "<think>weighing which beats matter and never closing", finish: "length" }));
   await using root = await createRuntimeRoot({
     providerFetch: server.execute,
@@ -559,7 +564,20 @@ test("(10) an unterminated <think> block at the output cap never reaches the sum
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
   const result = await executor.summarize({ connection, inputs: [ITEM], maxTokens: 64 });
-  expect(result.items[0]?.text).not.toContain("<think>");
+  expect(result.items[0]?.text).toBe("");
+});
+
+test("(10) a literal think tag inside a structured payload stays the payload's own content", async () => {
+  const payload = JSON.stringify({ note: "<think>the card says this aloud</think> and goes on" });
+  using server = openAiServer([], () => ({ content: payload }));
+  await using root = await createRuntimeRoot({
+    providerFetch: server.execute,
+  });
+  const executor = root.app.runtime.executor;
+  const connection = await wireConnection(root, { task: "structured", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const responseFormat: ResponseFormat = { name: "row", schema: projectJsonSchema(z.object({ note: z.string() })) };
+  const result = await executor.structured({ connection, inputs: [ITEM], responseFormat });
+  expect(result.items[0]?.text).toBe(payload);
 });
 
 test("(10) the Utility preset's own tag pair splits a summarize reply in place of the house pair", async () => {

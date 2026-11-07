@@ -25,7 +25,9 @@ import { runGit } from "../../floor/git/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../floor/host/ports.ts";
 import { DIR_LOCK_WAIT_MS, withDirLock } from "../../floor/process/dir-lock.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { StageBandClaim, StageBandsFile, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
+import { storedDiskSafeOp } from "../lib/disk-safe-argv.ts";
 import { liveHoldersOf } from "../lib/stage-bands.ts";
 import { parseStageDbProvenance } from "../lib/stage-identity.ts";
 import {
@@ -53,7 +55,7 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 function readDeath(value: unknown): Pick<StageRow, "dead"> | Record<never, never> {
   return isRecord(value) && typeof value["detectedAt"] === "string" && typeof value["op"] === "string"
-    ? { dead: { detectedAt: value["detectedAt"], op: value["op"] } }
+    ? { dead: { detectedAt: value["detectedAt"], op: storedDiskSafeOp(value["op"]) } }
     : {};
 }
 
@@ -265,7 +267,7 @@ export function setStageKeeper(home: string, band: number, keeper: StageKeeper):
 }
 
 /** Persist the stage death a session observed; status/sweep read this same row. */
-export function markStageDead(home: string, band: number, detectedAt: string, op: string): void {
+export function markStageDead(home: string, band: number, detectedAt: string, op: DiskSafeOp): void {
   withBandsLock(home, () => {
     const row = readRowFor(home, band);
     if (row !== null) {

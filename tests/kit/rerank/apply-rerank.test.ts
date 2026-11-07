@@ -60,8 +60,9 @@ test("with no scorable candidate the incoming order is capped and the runner is 
   const candidates: Candidate[] = [
     { id: "a", sourceText: null },
     { id: "b", sourceText: "" },
+    { id: "c", sourceText: "   " },
   ];
-  const out = await applyRerank("q", candidates, refusing, 10);
+  const out = await applyRerank("q", candidates, refusing, 2);
   expect(out.map((candidate) => candidate.id)).toEqual(["a", "b"]);
 });
 

@@ -15,10 +15,11 @@ import { loadResultPairs } from "../../floor/host/load-budget.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
 import type { RequestLogEntry } from "../contract/request-log.ts";
 import type { SessionRow } from "../contract/session.ts";
-import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole, redactEvidenceText } from "../lib/browser-evidence-redaction.ts";
+import { redactBrowserDiagnostics, redactBrowserPageError, redactCapturedConsole, redactEvidenceLabel } from "../lib/browser-evidence-redaction.ts";
 import { redactNetworkUrl } from "../lib/har-redaction.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { networkHarReceipt } from "../lib/network-har-receipt.ts";
+import { stopTraceToFile } from "../lib/private-values.ts";
 import { requestRingFor } from "./request-ring.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> --session-export <route>");
@@ -47,7 +48,7 @@ export async function retainSessionEvidence(state: SessionEvidenceState, session
     session.contexts.map(async ({ context }, contextIndex) => {
       const suffix = session.contexts.length === 1 ? "" : `-u${contextIndex}`;
       const path = join(state.dir, `trace-${String(state.traceIndex).padStart(TRACE_INDEX_WIDTH, "0")}${suffix}.zip`);
-      await context.tracing.stop({ path });
+      await stopTraceToFile(context.tracing, path);
       await registerInstrumentArtifact("sessions", path, {
         producer: "sessions",
         producerArm: null,
@@ -150,10 +151,10 @@ interface SessionRingExport {
 function redactRequestEntry(entry: RequestLogEntry): RequestLogEntry {
   return {
     ...entry,
-    method: redactEvidenceText(entry.method).text,
+    method: redactEvidenceLabel(entry.method),
     url: redactNetworkUrl(entry.url).url,
-    resourceType: redactEvidenceText(entry.resourceType).text,
-    failed: entry.failed === null ? null : redactEvidenceText(entry.failed).text,
+    resourceType: redactEvidenceLabel(entry.resourceType),
+    failed: entry.failed === null ? null : redactEvidenceLabel(entry.failed),
   };
 }
 

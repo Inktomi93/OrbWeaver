@@ -7,6 +7,7 @@
 
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS, parseLighthouseDevice, parseLighthouseMode } from "./lighthouse-report.ts";
 import { CROP_RE } from "./out-names.ts";
 import { selectorRefusalForFlag } from "./selector-shape.ts";
@@ -93,7 +94,7 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
     errors.push(`--crop expects WxH or WxH+X+Y, got ${JSON.stringify(raw)}`);
   }
   if (flag === "--local-storage" && splitFirstEq(raw) === null) {
-    errors.push(`--local-storage expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
+    errors.push("--local-storage expects key=value with a non-empty key");
   }
   // A rejected --scale must REFUSE, never fall back to the css default: a run that asked for device
   // pixels and silently produced CSS pixels is the same false-receipt class as the load-arm flags above.
@@ -102,12 +103,25 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
   }
 }
 
+// Names only: the variable's value is what this flag exists to keep off the command line.
+function validateFillEnv(raw: string, errors: string[]): void {
+  const split = splitSelectorEq(raw);
+  if (split === null || split.tail === "") {
+    errors.push("--fill-env expects sel=ENV_NAME with a non-empty selector and name");
+  } else if (processEnvValue(split.tail) === undefined) {
+    errors.push(`--fill-env names ${split.tail}, which this process's environment does not set`);
+  }
+}
+
 function validatePairFlagValue(flag: string, raw: string, errors: string[]): void {
   const split = splitLastEq(raw);
   // --fill splits on the FIRST '=' — its value is a JS literal that often contains '=' itself
   // (`--fill 'input=const a = 1;'`); LAST-'=' would misparse the selector and refuse.
   if (flag === "--fill" && splitSelectorEq(raw) === null) {
-    errors.push(`--fill expects sel=value with a non-empty selector, got ${JSON.stringify(raw)}`);
+    errors.push("--fill expects sel=value with a non-empty selector");
+  }
+  if (flag === "--fill-env") {
+    validateFillEnv(raw, errors);
   }
   // `--key Tab` (no '=') is the BARE-KEY form — a key name, not a selector. Only the pair form owes a
   // non-empty selector.

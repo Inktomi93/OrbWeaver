@@ -15,6 +15,7 @@ import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { beforeEach, vi } from "vitest";
 import { aggregateScope, factBatchId } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { completeSnapRun, registerSnapFactBatch, registerSnapResultPairs } from "../../../../tooling/src/snap/ops/run-bundle.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -198,7 +199,7 @@ test("#1666/#1659 — a NON-console annotation is named by its disposition, neve
           error: null,
         },
         parseSnapArgs(["--no-shot", "--no-deadcss"]),
-        ["snap", "--file", "loaded.html", "--no-shot", "--no-deadcss"],
+        diskSafeArgv(["snap", "--file", "loaded.html", "--no-shot", "--no-deadcss"]),
       );
     } finally {
       release();

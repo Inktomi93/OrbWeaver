@@ -19,6 +19,7 @@ import type { NetworkEvidenceLimits, NetworkLimitEvent, RedactedJsonValue } from
 import { REDACTED } from "../contract/har-redaction.ts";
 import { isSensitiveEvidenceName, redactNetworkUrl } from "./har-redaction.ts";
 import { resolveNetworkEvidenceLimits } from "./har-redaction-limits.ts";
+import { scrubPrivateText } from "./private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -101,8 +102,14 @@ function redactAssignments(value: string): string {
   );
 }
 
-function safeText(value: string, path: string, context: RedactionContext): string {
+// A field the browser names from a closed vocabulary: a typed word that matches one must not rewrite a field readers branch on.
+function safeLabel(value: string, path: string, context: RedactionContext): string {
   return bounded(redactAssignments(redactUrls(value, path, context)), path, context);
+}
+
+// Scrub before the bound, or the cut can leave half a value behind.
+function safeText(value: string, path: string, context: RedactionContext): string {
+  return safeLabel(scrubPrivateText(value), path, context);
 }
 
 function unreadableValue(cursor: ValueCursor, path: string): RedactedJsonValue {
@@ -198,7 +205,12 @@ function fallback(limits: NetworkEvidenceLimits): DiskSafeBrowserDiagnostic {
 
 export function redactEvidenceText(input: string, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeTextEvidence {
   const context: RedactionContext = { limits: resolveNetworkEvidenceLimits(overrides), events: [] };
-  return { text: safeText(input, "$.text", context), _orbMeasuredLimit: receipt(context) };
+  return { text: scrubPrivateText(safeText(input, "$.text", context)), _orbMeasuredLimit: receipt(context) };
+}
+
+/** {@link redactEvidenceText} for a label the browser names, such as a method, which holds no page text to scrub. */
+export function redactEvidenceLabel(input: string): string {
+  return safeLabel(input, "$.text", { limits: resolveNetworkEvidenceLimits({}), events: [] });
 }
 
 export function redactBrowserPageError(input: BrowserPageError, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeBrowserPageError {
@@ -219,9 +231,9 @@ export function redactBrowserDiagnostic(input: BrowserDiagnostic, overrides: Par
     const context: RedactionContext = { limits, events: [] };
     return {
       origin: input.origin,
-      source: safeText(input.source, "$.source", context),
+      source: safeLabel(input.source, "$.source", context),
       level: input.level,
-      category: input.category === null ? null : safeText(input.category, "$.category", context),
+      category: input.category === null ? null : safeLabel(input.category, "$.category", context),
       text: safeText(input.text, "$.text", context),
       timestamp: input.timestamp,
       location:
@@ -229,8 +241,8 @@ export function redactBrowserDiagnostic(input: BrowserDiagnostic, overrides: Par
           ? null
           : { url: safeUrl(input.location.url, "$.location.url", context), line: input.location.line, column: input.location.column },
       stack: safeValue(input.stack, "$.stack", context),
-      requestId: input.requestId === null ? null : safeText(input.requestId, "$.requestId", context),
-      issueCode: input.issueCode === null ? null : safeText(input.issueCode, "$.issueCode", context),
+      requestId: input.requestId === null ? null : safeLabel(input.requestId, "$.requestId", context),
+      issueCode: input.issueCode === null ? null : safeLabel(input.issueCode, "$.issueCode", context),
       details: safeValue(input.details, "$.details", context),
       backendNodeId: input.backendNodeId,
       contextIndex: input.contextIndex,
@@ -268,7 +280,7 @@ export function redactCapturedConsole(input: CapturedConsole, overrides: Partial
   try {
     const context: RedactionContext = { limits, events: [] };
     return {
-      type: safeText(input.type, "$.type", context),
+      type: safeLabel(input.type, "$.type", context),
       text: safeText(input.text, "$.text", context),
       location: input.location === null ? null : { ...input.location, url: safeUrl(input.location.url, "$.location.url", context) },
       line: safeText(input.line, "$.line", context),
@@ -291,11 +303,11 @@ export function redactCapturedRequest(input: CapturedRequest, overrides: Partial
   try {
     const context: RedactionContext = { limits, events: [] };
     return {
-      method: safeText(input.method, "$.method", context),
+      method: safeLabel(input.method, "$.method", context),
       url: safeUrl(input.url, "$.url", context),
       status: input.status,
-      failed: input.failed === null ? null : safeText(input.failed, "$.failed", context),
-      type: safeText(input.type, "$.type", context),
+      failed: input.failed === null ? null : safeLabel(input.failed, "$.failed", context),
+      type: safeLabel(input.type, "$.type", context),
       _orbMeasuredLimit: receipt(context),
     };
   } catch {

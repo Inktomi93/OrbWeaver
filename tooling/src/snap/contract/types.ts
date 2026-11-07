@@ -3,7 +3,7 @@ import type { AppearancePatch } from "../../floor/appearance/appearance.ts";
 import type { ThemeRequest } from "../../floor/appearance/theme.ts";
 import type { BrowserAccelerationEvidence } from "../../floor/browser/browser-acceleration.ts";
 import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
-import type { BrowserEvidenceChannels, BrowserPageError, LocalStorageSeed } from "../../floor/browser/browser-contract.ts";
+import type { BrowserEvidenceChannels, BrowserPageError } from "../../floor/browser/browser-contract.ts";
 import type { BrowserDiagnostic, OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
 import type { FileActionReceipt } from "../../floor/browser/upload.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
@@ -16,6 +16,7 @@ import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { ContrastEvidence, ContrastOutcome } from "./contrast.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
 import type { DiagnosticQuery } from "./diagnostics.ts";
+import type { DiskSafeText, PrivateText } from "./disk-safe-argv.ts";
 import type { HeapCaptureRequest, HeapComparisonRequest, HeapPageEvidence, HeapRetainerRequest } from "./heap.ts";
 import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
 import type { NetworkProfileName, VisionDeficiency } from "./load-emulation.ts";
@@ -32,6 +33,12 @@ interface PagedSelector {
   selector: string;
   page: number;
 }
+/** A `--local-storage` pair: the key is provenance, the value is private. */
+interface PrivateSeed {
+  readonly key: string;
+  readonly value: PrivateText;
+}
+
 export interface Args extends StageArgs {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;
@@ -74,7 +81,7 @@ export interface Args extends StageArgs {
   /** Seeds `orb:debug-token` BEFORE navigation so token-gated routes render real data.
    *  Defaults to env DEBUG_TOKEN if set; `--debug-token …` overrides; empty skips the
    *  seed. The token never leaves the headless context. */
-  debugToken: string;
+  debugToken: PrivateText;
   /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--force-click/--dom-click/--key/
    *  --wait-for), dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) AND --eval
    *  expressions in ONE list, executed in TRUE argv order — anything written mid-chain runs mid-chain.
@@ -123,7 +130,7 @@ export interface Args extends StageArgs {
    *  are device PRESETS and clear it. */
   viewportExplicit: boolean;
   /** localStorage seeds applied BEFORE navigation (`--local-storage key=value`, repeatable). */
-  localStorage: LocalStorageSeed[];
+  localStorage: PrivateSeed[];
   /** Deterministic-render mode: seed orb:probe-mode + kill animations via injected CSS. */
   probe: boolean;
   /** Save the shot as the baseline (reports/baselines/<out>.png) instead of diffing. */
@@ -315,7 +322,7 @@ export interface CaptureOutcome {
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
   deadCssEvidence: DeadCssEvidence | null;
-  ariaText: string | null;
+  ariaText: DiskSafeText | null;
   ariaError: string | null;
   evalResults: EvalOutcome[];
   contrastResults: ContrastOutcome[];
@@ -370,12 +377,12 @@ export type SnapEvalValue = SnapEvalSuccess | SnapEvalFailure;
 
 export interface EvalOutcome {
   expr: string;
-  text: string;
+  text: DiskSafeText;
   failed: boolean;
 }
 
 export interface AssertionOutcome {
-  readonly line: string;
+  readonly line: DiskSafeText;
   readonly failed: boolean;
   /** The requirement was never ASKED — its selector matched nothing rendered (#1343). Distinct from
    *  `failed` on purpose: a violated requirement is a verdict about the app (exit 1), an unasked one is an

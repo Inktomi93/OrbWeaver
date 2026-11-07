@@ -3,6 +3,7 @@
 import type { CapturedConsole, CapturedRequest } from "../../floor/browser/browser-capture.ts";
 import type { BrowserPageError } from "../../floor/browser/browser-contract.ts";
 import type { BrowserDiagnostic } from "../../floor/browser/browser-diagnostics.ts";
+import type { DiskSafeText } from "./disk-safe-argv.ts";
 import type { NetworkEvidenceLimits, NetworkLimitEvent, RedactedJsonValue } from "./har-redaction.ts";
 
 export interface DiskSafeLimitReceipt {
@@ -11,7 +12,7 @@ export interface DiskSafeLimitReceipt {
 }
 
 export interface DiskSafeTextEvidence {
-  readonly text: string;
+  readonly text: DiskSafeText;
   readonly _orbMeasuredLimit: DiskSafeLimitReceipt;
 }
 

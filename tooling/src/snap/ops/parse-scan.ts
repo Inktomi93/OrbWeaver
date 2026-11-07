@@ -1,6 +1,7 @@
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import { aliasRefusal, instrumentFamilyRosterErrors } from "../../floor/instrument/instrument-argv.ts";
+import { diskSafeArgv } from "../lib/disk-safe-argv.ts";
 import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
 import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
@@ -74,7 +75,7 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   if (FLAG_HANDLERS[flag] === undefined) {
     scan.routeCount += token.startsWith("-") ? 0 : 1;
     if (token.startsWith("-")) {
-      scan.errors.push(aliasRefusal(flag, KNOWN_FLAGS) ?? `unknown flag ${token}`);
+      scan.errors.push(aliasRefusal(flag, KNOWN_FLAGS) ?? `unknown flag ${diskSafeArgv([token]).join(" ")}`);
     }
     return 0;
   }

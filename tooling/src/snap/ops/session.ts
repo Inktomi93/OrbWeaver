@@ -17,6 +17,7 @@ import { prepareDevToolsCascadeRuntime } from "../../floor/devtools/devtools-run
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
+import { stopTraceToFile } from "../lib/private-values.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armLaunchNeeds } from "./arms/registry.ts";
 import { adoptRequestRing, installRequestRing } from "./request-ring.ts";
@@ -51,9 +52,10 @@ const PROBE_CSS_SCRIPT = `document.addEventListener("DOMContentLoaded", () => {
 // Pre-navigation localStorage seeds: the generic --local-storage pairs plus the two harness
 // keys (all ride _kit's one init script — same timing, before any page script).
 function buildSeeds(opts: Args): LocalStorageSeed[] {
-  const seeds: LocalStorageSeed[] = [...opts.localStorage];
-  if (opts.debugToken !== "") {
-    seeds.push({ key: DEBUG_TOKEN_KEY, value: opts.debugToken });
+  const seeds: LocalStorageSeed[] = opts.localStorage.map(({ key, value }) => ({ key, value: value.reveal() }));
+  const debugToken = opts.debugToken.reveal();
+  if (debugToken !== "") {
+    seeds.push({ key: DEBUG_TOKEN_KEY, value: debugToken });
   }
   if (opts.probe) {
     seeds.push({ key: PROBE_MODE_KEY, value: "1" });
@@ -67,7 +69,7 @@ async function finishFailureTraces(session: ProbeSession, failed: boolean, name:
     session.contexts.map(async ({ context }, index): Promise<string | null> => {
       const tracePath = join(traces, `${name}${session.contexts.length > 1 ? `-u${index}` : ""}.zip`);
       if (failed) {
-        await context.tracing.stop({ path: tracePath });
+        await stopTraceToFile(context.tracing, tracePath);
         await registerInstrumentArtifact("traces", tracePath, {
           producer: "snap",
           producerArm: null,
@@ -133,7 +135,7 @@ export async function finishSnapContext(context: ProbeContext, failed: boolean, 
     const traceDir = await artifactDir("traces");
     const tracePath = join(traceDir, `${name}.zip`);
     if (failed) {
-      await context.context.tracing.stop({ path: tracePath });
+      await stopTraceToFile(context.context.tracing, tracePath);
       await registerInstrumentArtifact("traces", tracePath, {
         producer: "snap",
         producerArm: null,

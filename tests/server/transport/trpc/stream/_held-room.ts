@@ -4,7 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { decodeStreamChunk } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
@@ -41,11 +41,31 @@ export const OPENING = "The opening stays public.";
 const HOST_PASSWORD = "a-real-late-join-host-password";
 
 const frameSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), seq: z.number(), event: z.custom<ChatBusEvent>() });
+const wireEnvelopeSchema = z.object({
+  channel: z.string().optional(),
+  type: z.string().optional(),
+  code: z.string().optional(),
+  ref: z.object({ channel: z.string() }).optional(),
+  event: z.object({ tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
+});
 
 export interface Frame {
   readonly chatId: ChatId;
   readonly seq: number;
   readonly event: ChatBusEvent;
+}
+
+/** A signed-in account, with or without a chair in the room. */
+export interface Account {
+  readonly id: UserId;
+  readonly cookie: string;
+}
+
+const heldChair: unique symbol = Symbol("held chair");
+
+/** An account that holds a chair in the room. Only this file mints one, so `openDevice` cannot hand an outsider `frames`. */
+export interface Seat extends Account {
+  readonly [heldChair]: true;
 }
 
 /** One device's real multiplexed socket, read frame by frame as the browser reads it. */
@@ -57,20 +77,70 @@ export interface Device {
   readonly close: () => Promise<void>;
 }
 
-export async function openDevice(root: ServerTestHarness, userId: UserId, cookie: string, chatId: ChatId): Promise<Device> {
+/** The socket of an account with no chair. It has no `frames`: nothing moves a socket's bytes into a list until a read
+ *  pulls them, so a list read with no pull is empty whatever the server sent. */
+export interface OutsiderDevice {
+  /** Attach the room and the account's own `user` room, and return once the socket confirms both. */
+  readonly attach: () => Promise<void>;
+  /** Every chat frame the socket delivered ahead of a fresh barrier: a `createTag` by this account, whose `tagsChanged`
+   *  rides the `user` room. The socket drains one queue in order, so the read covers everything queued before the verb
+   *  ran. Each room has its own pump into that queue, and the chat pump can lag, so a frame it queues late falls after
+   *  this read: pair it with a frame from the chat pump itself, as `takeChair` gives. A room fault rejects the read, so a
+   *  dead pump cannot pass for a refusal. */
+  readonly drained: () => Promise<readonly Frame[]>;
+  /** Seat this account, and read the same socket as a seated device from here on. */
+  readonly takeChair: () => Promise<Device>;
+  readonly close: () => Promise<void>;
+}
+
+/** What one socket has delivered so far, by lane. */
+interface SocketLog {
+  readonly frames: Frame[];
+  readonly controls: Set<string | undefined>;
+  readonly attachedChannels: Set<string>;
+  readonly barrierTagIds: Set<TagId>;
+}
+
+interface RoomSocket extends Pick<Device, "socketId" | "close"> {
+  readonly log: SocketLog;
+  readonly pullUntil: (done: () => boolean) => Promise<void>;
+}
+
+function logControl(log: SocketLog, envelope: z.infer<typeof wireEnvelopeSchema>): void {
+  log.controls.add(envelope.type);
+  if (envelope.type === "roomFailed") {
+    throw new Error(`the ${envelope.ref?.channel} room failed with ${envelope.code}`);
+  }
+  if (envelope.type === "attached" && envelope.ref !== undefined) {
+    log.attachedChannels.add(envelope.ref.channel);
+  }
+}
+
+function logWireLine(log: SocketLog, line: string): void {
+  const raw: unknown = JSON.parse(line.slice("data: ".length));
+  const envelope = wireEnvelopeSchema.parse(raw);
+  if (envelope.channel === "chat") {
+    log.frames.push(frameSchema.parse(raw));
+  } else if (envelope.channel !== "user") {
+    logControl(log, envelope);
+  } else if (envelope.event?.tagId !== undefined) {
+    log.barrierTagIds.add(envelope.event.tagId);
+  }
+}
+
+async function openSocket(root: ServerTestHarness, account: Account): Promise<RoomSocket> {
   const { socketId } = streamConnectInputSchema.parse({ socketId: root.ids.uuid() });
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await root.http.request(address, { headers: { cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await root.http.request(address, { headers: { cookie: account.cookie, accept: "text/event-stream" }, signal: stop.signal });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the socket omitted its stream");
   }
   const decoder = new TextDecoder();
-  const frames: Frame[] = [];
+  const log: SocketLog = { frames: [], controls: new Set(), attachedChannels: new Set(), barrierTagIds: new Set() };
   let pending = "";
-  const controls: (string | undefined)[] = [];
   const pull = async (): Promise<void> => {
     const next = await reader.read();
     if (next.done) {
@@ -80,34 +150,61 @@ export async function openDevice(root: ServerTestHarness, userId: UserId, cookie
     const lines = pending.split("\n");
     pending = lines.pop() ?? "";
     for (const line of lines.filter((candidate) => candidate.startsWith("data: {"))) {
-      const raw: unknown = JSON.parse(line.slice("data: ".length));
-      const envelope = z.object({ channel: z.string().optional(), type: z.string().optional() }).parse(raw);
-      if (envelope.channel === "chat") {
-        frames.push(frameSchema.parse(raw));
-      } else {
-        controls.push(envelope.type);
-      }
+      logWireLine(log, line);
     }
   };
-  while (!controls.includes("serverReady")) {
-    await pull();
-  }
+  const pullUntil = async (done: () => boolean): Promise<void> => {
+    while (!done()) {
+      await pull();
+    }
+  };
+  await pullUntil(() => log.controls.has("serverReady"));
   return {
     socketId,
-    frames,
-    attach: async (): Promise<void> => {
-      const caller = await root.internalCallerFor(userId);
-      await caller.stream.attach({ socketId, ref: { channel: "chat", chatId } });
-    },
-    waitFor: async (done): Promise<void> => {
-      while (!done(frames)) {
-        await pull();
-      }
-    },
+    log,
+    pullUntil,
     close: async (): Promise<void> => {
       stop.abort();
       await reader.cancel().catch(() => undefined);
     },
+  };
+}
+
+function seatedDevice(room: Room, socket: RoomSocket, seat: Seat): Device {
+  return {
+    socketId: socket.socketId,
+    frames: socket.log.frames,
+    attach: async (): Promise<void> => {
+      const caller = await room.root.internalCallerFor(seat.id);
+      await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "chat", chatId: room.chatId } });
+    },
+    waitFor: (done) => socket.pullUntil(() => done(socket.log.frames)),
+    close: socket.close,
+  };
+}
+
+export async function openDevice(room: Room, seat: Seat): Promise<Device> {
+  return seatedDevice(room, await openSocket(room.root, seat), seat);
+}
+
+export async function openOutsider(room: Room, account: Account): Promise<OutsiderDevice> {
+  const socket = await openSocket(room.root, account);
+  const { socketId, log } = socket;
+  return {
+    attach: async (): Promise<void> => {
+      const caller = await room.root.internalCallerFor(account.id);
+      await caller.stream.attach({ socketId, ref: { channel: "chat", chatId: room.chatId } });
+      await caller.stream.attach({ socketId, ref: { channel: "user" } });
+      await socket.pullUntil(() => log.attachedChannels.has("chat") && log.attachedChannels.has("user"));
+    },
+    drained: async (): Promise<readonly Frame[]> => {
+      const caller = await room.root.internalCallerFor(account.id);
+      const barrier = await caller.tag.createTag({ input: { name: `delivery-barrier-${room.root.ids.uuid()}` } });
+      await socket.pullUntil(() => log.barrierTagIds.has(barrier.id));
+      return [...log.frames];
+    },
+    takeChair: async (): Promise<Device> => seatedDevice(room, socket, await seatAccount(room, account)),
+    close: socket.close,
   };
 }
 
@@ -151,7 +248,7 @@ export interface Room extends AsyncDisposable {
   readonly root: ServerTestHarness;
   readonly chatId: ChatId;
   readonly host: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
-  readonly hostCookie: string;
+  readonly hostSeat: Seat;
   /** The reply the next provider request streams. */
   readonly reply: () => Reply;
   /** Arm a fresh held reply for the next turn. */
@@ -220,7 +317,7 @@ export async function openRoom(): Promise<Room> {
     root,
     chatId,
     host,
-    hostCookie,
+    hostSeat: { id: host.userId, cookie: hostCookie, [heldChair]: true },
     reply: (): Reply => reply,
     rearm: (): void => {
       reply = heldReply();
@@ -246,12 +343,15 @@ export async function openRoom(): Promise<Room> {
   };
 }
 
-export async function admit(room: Room, handle: string): Promise<{ readonly id: UserId; readonly cookie: string }> {
-  const seat = await signedInMember(room.root, castId<Handle>(handle));
-  const guest = await room.root.principalFor(seat.id);
+async function seatAccount(room: Room, account: Account): Promise<Seat> {
+  const guest = await room.root.principalFor(account.id);
   const invite = await seedChatInvite(room.root, { principal: room.host, chatId: room.chatId, input: { invitedHandle: guest.handle } });
   await seedInvitedChatParticipant(room.root, { principal: guest, inviteId: invite.invite.id });
-  return seat;
+  return { ...account, [heldChair]: true };
+}
+
+export async function admit(room: Room, handle: string): Promise<Seat> {
+  return await seatAccount(room, await signedInMember(room.root, castId<Handle>(handle)));
 }
 
 /** The stored member stamps, read through the host's verbatim replay: each text token's stamp, or the token itself
@@ -278,7 +378,7 @@ export async function leaks(room: Room, device: Device, guest: Guest): Promise<r
 /** A seated member's device, attached before a host turn stops inside its hidden span. */
 export async function memberWatching(room: Room, handle: string): Promise<{ readonly device: Device; readonly guest: Guest }> {
   const seat = await admit(room, handle);
-  const device = await openDevice(room.root, seat.id, seat.cookie, room.chatId);
+  const device = await openDevice(room, seat);
   await device.attach();
   await device.waitFor((frames) => frames.length > 0);
   return { device, guest: await room.root.principalFor(seat.id) };

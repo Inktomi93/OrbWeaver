@@ -12,6 +12,7 @@ import type { Args } from "./index.ts";
 import {
   completeSnapRun,
   configureStage,
+  diskSafeArgv,
   materializeDevToolsAssets,
   modalModeErrors,
   parseSnapArgs,
@@ -135,7 +136,7 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
     return waitExit;
   }
   const complete = async (receipt: Parameters<typeof completeSnapRun>[0]): Promise<void> => {
-    await completeSnapRun(receipt, opts, argv);
+    await completeSnapRun(receipt, opts, diskSafeArgv(argv));
   };
   // A session call boots its stage INSIDE the daemon (the stage is the session's binding), so the stage
   // door below is the one-shot path's only; the call still owns a per-call slot (design §3.7).

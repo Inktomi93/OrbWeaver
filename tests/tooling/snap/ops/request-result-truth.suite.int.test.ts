@@ -11,6 +11,7 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { printVerdictReceipt } from "@orb/tooling/floor/verdict/evidence";
 import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapReportArgs } from "../../../../tooling/src/snap/lib/run-report-query.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { completeSnapRun, registerSnapFactBatch, registerSnapResultPairs } from "../../../../tooling/src/snap/ops/run-bundle.ts";
@@ -100,7 +101,7 @@ test("zero-request terminal, immutable index, and browser-free report agree on o
   registerSnapResultPairs(terminal.value.pairs);
   registerRequestsFact(0);
   const runSlot = await slot(root, "zero-requests");
-  const path = await completeSnapRun({ slot: runSlot, root, exit: terminal.value.exit, error: null }, opts, ["snap", "--requests"]);
+  const path = await completeSnapRun({ slot: runSlot, root, exit: terminal.value.exit, error: null }, opts, diskSafeArgv(["snap", "--requests"]));
   const index = await readSnapRunIndex(path);
   expect(index.resultPairs).toEqual(terminal.value.pairs.map(([key, value]) => [key, String(value)]));
   expect(index.verdict).toMatchObject({ exit: EXIT.toolError, state: "refused" });
@@ -125,7 +126,7 @@ test("zero-request terminal, immutable index, and browser-free report agree on o
   registerSnapResultPairs(positive.value.pairs);
   registerRequestsFact(2);
   const positiveSlot = await slot(root, "two-requests");
-  const positivePath = await completeSnapRun({ slot: positiveSlot, root, exit: positive.value.exit, error: null }, opts, ["snap", "--requests"]);
+  const positivePath = await completeSnapRun({ slot: positiveSlot, root, exit: positive.value.exit, error: null }, opts, diskSafeArgv(["snap", "--requests"]));
   const positiveIndex = await readSnapRunIndex(positivePath);
   expect(positiveIndex.resultPairs).toEqual(positive.value.pairs.map(([key, value]) => [key, String(value)]));
   expect(requestsArm(positiveIndex)).toMatchObject({ state: "passed", detail: "requests=2" });

@@ -1,6 +1,7 @@
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { stageBindingDrift } from "../lib/stage-run-binding.ts";
 import { writeRow } from "./session-registry.ts";
@@ -27,7 +28,7 @@ export function observeSessionStageDrift(state: Pick<StageBoundSessionState, "ro
 }
 
 /** Sticky T4 death observation: once either stage half dies, both registries retain the first failure. */
-export function observeSessionStageDeath(state: StageBoundSessionState, op: string): SessionRow["stage"] {
+export function observeSessionStageDeath(state: StageBoundSessionState, op: DiskSafeOp): SessionRow["stage"] {
   const stage = state.row.stage;
   if (stage === null || stage === undefined || stage.status === "dead") {
     return stage;

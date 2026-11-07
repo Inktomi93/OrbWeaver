@@ -69,6 +69,7 @@ import {
 import type { Args } from "../contract/types.ts";
 import { designAuditSelectorProofCap } from "../lib/budgets.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -255,7 +256,7 @@ async function preMeasurementRefusal(input: WalkInput, url: string): Promise<Evi
 
 export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeasurement> {
   const { session, page, opts } = input;
-  const url = page.url();
+  const url = scrubPrivateText(page.url());
   const refusal = await preMeasurementRefusal(input, url);
   if (refusal !== null) {
     return terminalMeasurement(url, refusal, input);
@@ -306,7 +307,9 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
   const shellState = shellStateSnapshot(await page.evaluate("window.__orb ? window.__orb.shell() : null"));
   const surfaceState = buildSurfaceStateAccounting(shellState, drive);
   const audit = collectAudit(samples);
-  const findings: Finding[] = [...audit.findings, ...checkScriptErrors(session.pageErrors.filter((error) => error.kind === "runtime").map(pageErrorText))];
+  const findings: Finding[] = [...audit.findings, ...checkScriptErrors(session.pageErrors.filter((error) => error.kind === "runtime").map(pageErrorText))].map(
+    (finding) => ({ ...finding, message: scrubPrivateText(finding.message) }),
+  );
   const populationGap = populationEvidenceGap(audit.populationAccounting);
   const hoverGap: EvidenceGap | null =
     hover.outcome.kind === "broke"

@@ -345,6 +345,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/foundation/data-layout/contract.ts": "the data-layout slot key constants: the env keys that override one slot each",
   "packages/server/src/domain/chat/contract/metadata.ts": "TOOL_RECURSE_LIMIT_DEFAULT: the default the corpus writes back",
   "packages/server/src/domain/chat/persistence/participants-read.ts": "loadPresentRole: the production role read the authority suite compares against",
+  "packages/server/src/domain/search/persistence/nearest.ts":
+    "nearestCharacters: the D20 owner predicate, reached with no generation because every door passes one and a generation already hashes its owner",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
   "packages/server/src/entry/boot/disclaimer.ts": "BOOT_DISCLAIMER_TOPICS: the topic order the disclaimer block follows",

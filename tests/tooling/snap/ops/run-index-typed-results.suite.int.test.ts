@@ -25,6 +25,7 @@ import { snapRatePostureIdSchema } from "../../../../tooling/src/snap/contract/r
 import type { SnapRunFactBatch } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION, snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts";
 import type { SnapReportQuery, SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { artifactMatches } from "../../../../tooling/src/snap/lib/run-report-query.ts";
 import { readSessionEvent, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { disabledRunArmFailures } from "../../../../tooling/src/snap/ops/arms/registry.ts";
@@ -325,7 +326,7 @@ test("diagnostic ring eviction makes the run-index state incomplete even when re
   const path = await completeSnapRun(
     { slot: { instrument: "snap", runId, dir, relDir: join("reports", "runs", "snap", runId), racing: [] }, root, exit: 0, error: null },
     parseSnapArgs([]),
-    ["snap"],
+    diskSafeArgv(["snap"]),
   );
   const index = JSON.parse(await readFile(path, "utf8")) as { readonly diagnostics: { readonly state: string } };
   expect(index.diagnostics.state).toBe("incomplete");

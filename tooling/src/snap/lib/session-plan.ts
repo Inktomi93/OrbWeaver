@@ -322,8 +322,11 @@ export function checkpointArgErrors(inherited: Args, label: string, rawArgv: rea
 /** Every capture in one browser lifetime must seed localStorage identically — the init script is
  *  installed once, before the first navigation. */
 export function identicalSeedsError(checkpoints: readonly Args[]): string | null {
-  const firstSeeds = JSON.stringify(checkpoints[0]?.localStorage ?? []);
-  return checkpoints.some((checkpoint) => JSON.stringify(checkpoint.localStorage) !== firstSeeds)
+  const firstSeeds = checkpoints[0]?.localStorage ?? [];
+  const sameSeeds = ({ localStorage }: Args): boolean =>
+    localStorage.length === firstSeeds.length &&
+    localStorage.every(({ key, value }, index) => key === firstSeeds[index]?.key && value.equals(firstSeeds[index].value));
+  return checkpoints.some((checkpoint) => !sameSeeds(checkpoint))
     ? "scenario checkpoints must use identical --local-storage seeds because they share one browser lifetime"
     : null;
 }

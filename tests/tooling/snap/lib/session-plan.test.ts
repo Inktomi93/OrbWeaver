@@ -9,6 +9,8 @@ import { expect, test } from "@orb/testkit/tooling";
 import { APPEARANCE_PRESET_FLAG } from "@orb/tooling/floor/appearance/appearance-flags";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
+import { diskSafeArgv, diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 import {
   checkpointArgErrors,
   DEFAULT_SESSION_CAP,
@@ -71,11 +73,11 @@ function row(over: Partial<SessionRow> = {}): SessionRow {
       reducedTransparency: false,
       deviceScaleFactor: null,
     },
-    bootArgv: ["--base", "http://localhost:5173", "/"],
+    bootArgv: diskSafeArgv(["--base", "http://localhost:5173", "/"]),
     createdAt: "2026-09-02T18:00:00.000Z",
     lastUsedAt: "2026-09-02T18:20:00.000Z",
     inflightOp: null,
-    lastOp: "--eval 1",
+    lastOp: diskSafeOp(["--eval", "1"], ""),
     ttlMs: 30 * MINUTE,
     headless: true,
     calls: 3,
@@ -190,7 +192,8 @@ test("inheritSessionArgs is the scenario's partition: lifetime flags from the bo
   expect(merged.strictConsole).toBe(true);
   expect(merged.eval.map((entry) => entry.expr)).toEqual(["innerWidth"]);
   expect(merged.route).toBe("settings");
-  expect(merged.localStorage).toEqual([{ key: "a", value: "1" }]);
+  expect(merged.localStorage.map(({ key }) => key)).toEqual(["a"]);
+  expect(merged.localStorage[0]?.value.equals(privateText("1"))).toBe(true);
   expect(merged.checkpoint).toBe(true);
   expect(merged.out).toBe("fallback-out");
   // The scenario's per-RUN facts: json rides the boot in this layer (the session's second layer flips it).
@@ -374,10 +377,10 @@ test("every refusal names the fact and the remedy", () => {
   expect(cap).toContain("p-other");
   expect(cap).toContain("--session-sweep");
 
-  expect(sessionBusyRefusal("p-x", "--eval slow", 12_000)).toContain("mid-`--eval slow` (12s in)");
-  expect(sessionBusyRefusal("p-x", "--eval slow", 3 * MINUTE)).toContain("(3m in)");
+  expect(sessionBusyRefusal("p-x", diskSafeOp(["--eval", "slow"], ""), 12_000)).toContain("mid-`--eval slow` (12s in)");
+  expect(sessionBusyRefusal("p-x", diskSafeOp(["--eval", "slow"], ""), 3 * MINUTE)).toContain("(3m in)");
 
-  const deadMid = sessionDeadText(row({ inflightOp: "--goto settings --eval 1" }), "socket gone");
+  const deadMid = sessionDeadText(row({ inflightOp: diskSafeOp(["--goto", "settings", "--eval", "1"], "") }), "socket gone");
   expect(deadMid).toContain("SESSION DEAD");
   expect(deadMid).toContain("mid-`--goto settings --eval 1`");
   expect(deadMid).toContain("--session-sweep");
@@ -393,7 +396,7 @@ test("every refusal names the fact and the remedy", () => {
     band: 7,
     status: "dead",
     detectedAt: "2026-09-02T18:29:00.000Z",
-    op: "--goto settings",
+    op: diskSafeOp(["--goto", "settings"], ""),
   });
   expect(stageDead).toContain("band 7");
   expect(stageDead).toContain("2026-09-02T18:29:00.000Z");

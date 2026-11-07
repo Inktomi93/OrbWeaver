@@ -14,6 +14,7 @@ import type { SnapArmState } from "../../contract/run-facts.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";
 import { HTTP_URL_RE } from "../../lib/out-names.ts";
 import { overflowAssertionLine } from "../../lib/overflow-line.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { probeOverflow } from "../overflow.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -40,7 +41,7 @@ function urlMatches(actual: string, expected: string): boolean {
 
 /** A verdict about the app: PASS or FAIL, exit 0/1. */
 function judged(line: string, failed: boolean): AssertionOutcome {
-  return { line, failed, refused: false };
+  return { line: scrubPrivateText(line), failed, refused: false };
 }
 
 /** THE UNASKED REQUIREMENT (#1343). `text`/`focus`/`no-overflow` state something about a MATCHED element;
@@ -55,7 +56,9 @@ function noMatch(kind: Assertion["kind"], selector: string, includeHidden: boole
   // differently from the verdict beside it would be a second vocabulary for one flag.
   const label = kind === "overflow" ? "no-overflow" : kind;
   return {
-    line: `ASSERT ${label} ${selector}: NO-MATCH  nothing ${population} matches this selector${widen} — the requirement was never tested, so this run is not a verdict about it`,
+    line: scrubPrivateText(
+      `ASSERT ${label} ${selector}: NO-MATCH  nothing ${population} matches this selector${widen} — the requirement was never tested, so this run is not a verdict about it`,
+    ),
     failed: true,
     refused: true,
   };
@@ -133,7 +136,7 @@ async function runAssertions(page: Page, assertions: readonly Assertion[], inclu
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
-      outcomes.push({ line: `ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`, failed: true, refused: false });
+      outcomes.push({ line: scrubPrivateText(`ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`), failed: true, refused: false });
     }
   }
   return outcomes;

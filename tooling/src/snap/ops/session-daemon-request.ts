@@ -9,7 +9,10 @@ import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-dia
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { installOutputSink, warn } from "../../floor/cli/log.ts";
+import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
+import { diskSafeOp } from "../lib/disk-safe-argv.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 import { sessionCallTarget, sessionIdleMs } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal, sessionStageDriftRefusal } from "../lib/session-refusals.ts";
 import { armSessionCallBaseMs } from "./arms/registry.ts";
@@ -62,7 +65,7 @@ export interface SessionDaemonState extends SessionCallState {
   readonly stageBand: number | null;
   row: SessionRow;
   /** The in-flight `call`/`export`, or null — `busy` refuses a second driver; `close` awaits it. */
-  inflight: { readonly op: string; readonly startedAt: number; readonly done: Promise<string | null> } | null;
+  inflight: { readonly op: DiskSafeOp; readonly startedAt: number; readonly done: Promise<string | null> } | null;
   ttlTimer: NodeJS.Timeout | null;
   closing: boolean;
   /** A call that outlived bounded cancellation permanently poisons this browser. The socket closes next,
@@ -126,7 +129,7 @@ export function pauseSessionTtl(state: SessionDaemonState): void {
  * session reusable; a timed-out call that remains live after cancellation returns a terminal reason so
  * the request owner can answer its caller, then close the daemon without awaiting that work again. */
 async function serveSerialized(state: SessionDaemonState, request: SessionRequest, socket: Socket, run: () => Promise<number>): Promise<string | null> {
-  const op = request.argv.join(" ") || request.kind;
+  const op = diskSafeOp(request.argv, request.kind);
   const sessionProvenance: SessionRunProvenance = {
     name: state.name,
     call: request.kind === "call" ? state.calls + 1 : state.calls,
@@ -186,7 +189,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
 }
 
 function pagesOf(session: ProbeSession): readonly { readonly index: number; readonly url: string; readonly title: string }[] {
-  return session.pages.map((page, index) => ({ index, url: page.url(), title: "" }));
+  return session.pages.map((page, index) => ({ index, url: scrubPrivateText(page.url()), title: "" }));
 }
 
 function serveReadOnlyRequest(state: SessionDaemonState, request: SessionRequest, socket: Socket, shutdown: (reason: string) => Promise<void>): boolean {
@@ -217,7 +220,7 @@ function refuseDeadStageCall(state: SessionDaemonState, request: SessionRequest,
   if (request.kind !== "call") {
     return false;
   }
-  const dead = observeSessionStageDeath(state, request.argv.join(" ") || request.kind);
+  const dead = observeSessionStageDeath(state, diskSafeOp(request.argv, request.kind));
   if (dead?.status !== "dead") {
     return false;
   }
@@ -325,7 +328,7 @@ export async function serveSessionRequest(
   // armed here lets it close the browser under a legitimate long eval/export.
   pauseSessionTtl(state);
   const done = serveSerialized(state, request, socket, run);
-  state.inflight = { op: request.argv.join(" ") || request.kind, startedAt: Date.now(), done };
+  state.inflight = { op: diskSafeOp(request.argv, request.kind), startedAt: Date.now(), done };
   const terminalReason = await done;
   state.inflight = null;
   if (terminalReason !== null) {

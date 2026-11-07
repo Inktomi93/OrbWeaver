@@ -20,6 +20,7 @@ import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts"
 import type { SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { redactBrowserDiagnostics } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
+import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { FilmstripBuffer } from "../../../../tooling/src/snap/lib/filmstrip-buffer.ts";
 import { collectSnapRunArtifacts, snapDirtyIdentity, snapGitIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 import { readSnapAnalyzerProblems } from "../../../../tooling/src/snap/lib/run-report-problems.ts";
@@ -440,13 +441,11 @@ test("THE INVERSE: a load-suspect arm annotates the same clean run — one uncou
     ["load-suspect", "app-snapshot"],
     ["load", "96.0/24(planted)"],
   ]);
-  const path = await completeSnapRun(slot.completion, parseSnapArgs(["--no-shot", "--no-deadcss"]), [
-    "snap",
-    "--file",
-    "loaded.html",
-    "--no-shot",
-    "--no-deadcss",
-  ]);
+  const path = await completeSnapRun(
+    slot.completion,
+    parseSnapArgs(["--no-shot", "--no-deadcss"]),
+    diskSafeArgv(["snap", "--file", "loaded.html", "--no-shot", "--no-deadcss"]),
+  );
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   const annotations = index.findings.filter((finding) => finding.severity === "annotation");
@@ -481,10 +480,10 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
 
   const mainSlot = await openSlot(root, "collision", ["sibling-live"]);
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const mainPath = await completeSnapRun(mainSlot.completion, parseSnapArgs([]), ["snap"]);
+  const mainPath = await completeSnapRun(mainSlot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   const linkedSlot = await openSlot(linked, "collision");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const linkedPath = await completeSnapRun(linkedSlot.completion, parseSnapArgs([]), ["snap"]);
+  const linkedPath = await completeSnapRun(linkedSlot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   const main = JSON.parse(await readFile(mainPath, "utf8")) as RunIndex;
   const sibling = JSON.parse(await readFile(linkedPath, "utf8")) as RunIndex;
 
@@ -506,7 +505,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
 
   const uniqueSlot = await openSlot(root, "unique-main");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const uniquePath = await completeSnapRun(uniqueSlot.completion, parseSnapArgs([]), ["snap"]);
+  const uniquePath = await completeSnapRun(uniqueSlot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   expect(await resolveSnapRunIndex(root, "unique-main")).toBe(uniquePath);
   expect(await resolveSnapRunIndex(root, "latest")).toBe(uniquePath);
   const activeSlot = await openSlot(root, "active-inflight");
@@ -517,7 +516,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   expect(activeRead.stdout).toContain("missing or corrupt");
   const absentSlot = await openSlot(root, "static-absent");
   registerSnapResultPairs([["app-snapshot", "absent"]]);
-  const absentPath = await completeSnapRun(absentSlot.completion, parseSnapArgs([]), ["snap", "--file", "static.html"]);
+  const absentPath = await completeSnapRun(absentSlot.completion, parseSnapArgs([]), diskSafeArgv(["snap", "--file", "static.html"]));
   const absent = JSON.parse(await readFile(absentPath, "utf8")) as RunIndex;
   expect(absent.verdict.arms.find((arm) => arm.arm === "app-snapshot")).toMatchObject({
     state: "refused",
@@ -605,7 +604,7 @@ test("failed Git identity reads are unknown with field-level failures rather tha
 
   const slot = await openSlot(root, "unknown-source");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.identity).toMatchObject({
     sha: "unavailable",
@@ -633,7 +632,7 @@ test("browser-free reader preserves explicit early-v1 compatibility while curren
   await initializeRepository(root);
   const slot = await openSlot(root, "legacy-v1");
   registerSnapResultPairs([["app-snapshot", "absent"]]);
-  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   const current = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
   const identity = current["identity"] as Record<string, unknown>;
   identity["indexPath"] = undefined;
@@ -780,7 +779,7 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
   const releaseReceipt = installOutputSink({ line: (line) => receiptLines.push(line), warn: () => undefined });
   let path = "";
   try {
-    path = await completeSnapRun({ ...slot.completion, exit: EXIT.toolError }, opts, ["snap", "--react-profile"]);
+    path = await completeSnapRun({ ...slot.completion, exit: EXIT.toolError }, opts, diskSafeArgv(["snap", "--react-profile"]));
   } finally {
     releaseReceipt();
   }
@@ -929,7 +928,7 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
     },
   });
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const path = await completeSnapRun(slot.completion, parseSnapArgs(["--session", "p-isolated"]), ["snap", "--session", "p-isolated"]);
+  const path = await completeSnapRun(slot.completion, parseSnapArgs(["--session", "p-isolated"]), diskSafeArgv(["snap", "--session", "p-isolated"]));
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   expect(index.identity).toMatchObject({
@@ -998,7 +997,7 @@ test("a slot holds one diagnostic artifact per capture — distinct names, a rep
   }
 
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const runIndexPath = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap", "--matrix"]);
+  const runIndexPath = await completeSnapRun(slot.completion, parseSnapArgs([]), diskSafeArgv(["snap", "--matrix"]));
   const index = JSON.parse(await readFile(runIndexPath, "utf8")) as RunIndex;
   expect(index.diagnostics.recordArtifacts).toEqual(expect.arrayContaining([...paths]));
   expect(index.diagnostics.records.total).toBe(3);
@@ -1185,7 +1184,7 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
     ["perf", "measured"],
   ]);
   const opts = { ...parseSnapArgs(["--requests"]), interactionPerf: true } satisfies Args;
-  const path = await completeSnapRun({ ...slot.completion, exit: EXIT.violations }, opts, ["snap", "--requests", "--perf"]);
+  const path = await completeSnapRun({ ...slot.completion, exit: EXIT.violations }, opts, diskSafeArgv(["snap", "--requests", "--perf"]));
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   const unsafe = index.findings.find((finding) => finding.what.includes("ERR_UNSAFE_PORT"));
@@ -1285,7 +1284,7 @@ test("a malformed core completeness receipt is an explicit indexed problem rathe
     finishInstrumentRun();
   }
   registerSnapResultPairs([["app-snapshot", "measured"]]);
-  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap"]);
+  const path = await completeSnapRun(slot.completion, parseSnapArgs([]), diskSafeArgv(["snap"]));
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
   expect(index.verdict).toMatchObject({ exit: EXIT.clean, state: "passed" });
   expect(index.findings).toEqual([
@@ -1326,7 +1325,7 @@ test("interrupted session runs synthesize terminal evidence, indices are immutab
       failure: null,
     },
   });
-  const path = await completeSnapRun(interrupted, opts, ["snap", "--react-profile"]);
+  const path = await completeSnapRun(interrupted, opts, diskSafeArgv(["snap", "--react-profile"]));
   const index = JSON.parse(await readFile(path, "utf8")) as RunIndex;
 
   expect(index.verdict).toMatchObject({ exit: EXIT.toolError, state: "refused" });
@@ -1356,7 +1355,7 @@ test("interrupted session runs synthesize terminal evidence, indices are immutab
   expect(provenanceReport.stdout).toContain(
     `PROVENANCE   session=p-interrupted call=3 window=4 binding=base:http://127.0.0.1:5173 stage=session:bound:owner=${root}:band=4:ref=stage/p-interrupted-b4:binding=base:http://127.0.0.1:5173 concurrency=parallel-run`,
   );
-  await expect(completeSnapRun(interrupted, opts, ["snap", "--react-profile"])).rejects.toThrow(/EEXIST|exist/u);
+  await expect(completeSnapRun(interrupted, opts, diskSafeArgv(["snap", "--react-profile"]))).rejects.toThrow(/EEXIST|exist/u);
 
   const incompleteDir = join(root, "reports", "runs", "snap", "incomplete");
   await mkdir(incompleteDir, { recursive: true });
@@ -1630,7 +1629,7 @@ test("a passed current-schema analyzer artifact missing problems refuses instead
     ],
   });
   registerSnapResultPairs([["perf", "PASS"]]);
-  const path = await completeSnapRun(slot.completion, { ...parseSnapArgs([]), interactionPerf: true }, ["snap", "--perf"]);
+  const path = await completeSnapRun(slot.completion, { ...parseSnapArgs([]), interactionPerf: true }, diskSafeArgv(["snap", "--perf"]));
   const report = await runCli("snap", ["--report", path, "--problems"]);
   await expect(report).toExitWith(EXIT.toolError);
   expect(report.stdout).toContain("RUN INDEX REFUSED");
@@ -1685,7 +1684,11 @@ test("malformed analyzer problem evidence refuses instead of printing a content-
     ["perf", "measured"],
     ["breach-steps", "1"],
   ]);
-  const path = await completeSnapRun({ ...slot.completion, exit: EXIT.violations }, { ...parseSnapArgs([]), interactionPerf: true }, ["snap", "--perf"]);
+  const path = await completeSnapRun(
+    { ...slot.completion, exit: EXIT.violations },
+    { ...parseSnapArgs([]), interactionPerf: true },
+    diskSafeArgv(["snap", "--perf"]),
+  );
   const report = await runCli("snap", ["--report", path, "--arm", "perf", "--all"]);
   await expect(report).toExitWith(EXIT.toolError);
   expect(report.stdout).toContain("RUN INDEX REFUSED");

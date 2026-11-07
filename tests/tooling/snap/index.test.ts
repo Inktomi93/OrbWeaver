@@ -20,6 +20,7 @@ import {
   splitTrailingEvals,
   throttleResultValue,
 } from "../../../tooling/src/snap/index.ts";
+import { __resetPrivateValues } from "../../../tooling/src/snap/lib/private-values.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
@@ -217,13 +218,25 @@ test("snap rejects missing and malformed flag values", () => {
       "--click requires a value",
       '--pages expects an integer >= 1, got "0"',
       '--viewport expects positive WxH, got "wide"',
-      '--fill expects sel=value with a non-empty selector, got "input"',
-      '--local-storage expects key=value with a non-empty key, got "broken"',
+      "--fill expects sel=value with a non-empty selector",
+      "--local-storage expects key=value with a non-empty key",
       '--crop expects WxH or WxH+X+Y, got "100x"',
     ]),
   );
   expect(parseSnapArgs(["--viewport", "1e3x768"]).errors).toContain('--viewport expects positive WxH, got "1e3x768"');
 });
+
+/** The first `--fill` of a parse. A reveal notes the value, so it is forgotten again: Node suites share one registry per worker. */
+function firstFill(args: ReturnType<typeof parseSnapArgs>): { readonly selector: string; readonly value: string } {
+  for (const { type, action } of args.actions) {
+    if (type === "step" && action.kind === "fill") {
+      const value = action.value.reveal();
+      __resetPrivateValues();
+      return { selector: action.selector, value };
+    }
+  }
+  throw new Error("the parse holds no fill");
+}
 
 // #686: --fill splits on the FIRST '=' — its value is a JS literal that routinely contains '=' itself
 // (`--fill '[data-composer]=const a = 1;'`). Splitting on the LAST '=' instead misparses the selector
@@ -233,8 +246,7 @@ test("snap --fill splits on the first '=', so a JS-literal value containing '=' 
   const args = parseSnapArgs(["/", "--fill", "[data-composer]=const a = 1;"]);
 
   expect(args.errors).toEqual([]);
-  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
-  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-composer]", value: "const a = 1;" } });
+  expect(firstFill(args)).toEqual({ selector: "[data-composer]", value: "const a = 1;" });
 });
 
 // #816: THE #686 RULING SURVIVES — ITS INPUT CHANGED. First-'=' splitting assumed a selector never
@@ -246,16 +258,14 @@ test("snap --fill splits AFTER an attribute selector, not inside it", () => {
   const args = parseSnapArgs(["/", "--fill", '[data-testid="new-cast-name"]=Spire Trio']);
 
   expect(args.errors).toEqual([]);
-  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
-  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: '[data-testid="new-cast-name"]', value: "Spire Trio" } });
+  expect(firstFill(args)).toEqual({ selector: '[data-testid="new-cast-name"]', value: "Spire Trio" });
 });
 
 test("snap --fill keeps both halves at once: an attribute selector AND a value carrying its own '='", () => {
   const args = parseSnapArgs(["/", "--fill", "[data-slot=composer-input]=const a = 1;"]);
 
   expect(args.errors).toEqual([]);
-  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
-  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-slot=composer-input]", value: "const a = 1;" } });
+  expect(firstFill(args)).toEqual({ selector: "[data-slot=composer-input]", value: "const a = 1;" });
 });
 
 // #826: THE SAME RULING, ITS INPUT CHANGED AGAIN. A Playwright ENGINE prefix carries its own '=' inside
@@ -267,25 +277,24 @@ test("snap --fill takes a role= engine selector — the engine's own '=' is part
   const args = parseSnapArgs(["/", "--fill", 'role=textbox[name="Content"]=a line of prose']);
 
   expect(args.errors).toEqual([]);
-  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
-  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: 'role=textbox[name="Content"]', value: "a line of prose" } });
+  expect(firstFill(args)).toEqual({ selector: 'role=textbox[name="Content"]', value: "a line of prose" });
 });
 
 test("a >> chain keeps its per-part engines, and a plain CSS pair still splits at the first '='", () => {
   const chained = parseSnapArgs(["/", "--fill", "role=textbox >> nth=1=second"]);
   expect(chained.errors).toEqual([]);
-  expect(chained.actions.find((a) => a.type === "step")).toMatchObject({ action: { selector: "role=textbox >> nth=1", value: "second" } });
+  expect(firstFill(chained)).toEqual({ selector: "role=textbox >> nth=1", value: "second" });
 
   // The mirror-image regression this closes the door on: `input` is engine-SHAPED but is not an engine.
   const plain = parseSnapArgs(["/", "--fill", "input=hello"]);
   expect(plain.errors).toEqual([]);
-  expect(plain.actions.find((a) => a.type === "step")).toMatchObject({ action: { selector: "input", value: "hello" } });
+  expect(firstFill(plain)).toEqual({ selector: "input", value: "hello" });
 });
 
 test("snap --fill with no '=' at all still refuses, naming the expected sel=value shape", () => {
   const args = parseSnapArgs(["/", "--fill", "input"]);
 
-  expect(args.errors).toContain('--fill expects sel=value with a non-empty selector, got "input"');
+  expect(args.errors).toContain("--fill expects sel=value with a non-empty selector");
 });
 
 // #550: the refusal reaches EVERY selector-bearing flag class, not just the --wait-for that exposed it —

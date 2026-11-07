@@ -16,8 +16,10 @@ import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "../../floor/brow
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../floor/instrument/panel-flags.ts";
+import { processEnvValue } from "../../floor/process/process-env.ts";
 import { VISION_DEFICIENCIES } from "../contract/load-emulation.ts";
 import type { Args } from "../contract/types.ts";
+import { privateText } from "../lib/private-values.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { armFlagHandlers } from "./arms/registry.ts";
@@ -83,7 +85,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.base = rest.shift() ?? DEFAULT_BASE;
   },
   "--debug-token": (a, rest) => {
-    a.debugToken = rest.shift() ?? "";
+    a.debugToken = privateText(rest.shift() ?? "");
   },
   "--click": (a, rest, page) => {
     pushStep(a, { kind: "click", selector: rest.shift() ?? "", page });
@@ -158,7 +160,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--local-storage": (a, rest) => {
     const seed = splitFirstEq(rest.shift() ?? "");
     if (seed !== null) {
-      a.localStorage.push({ key: seed.head, value: seed.tail });
+      a.localStorage.push({ key: seed.head, value: privateText(seed.tail) });
     }
   },
   // --fill "selector=value" — the first TOP-LEVEL '=' splits (the value is a JS literal that
@@ -168,7 +170,13 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // one selector shape this app labels its inputs with.
   "--fill": (a, rest, page) => {
     const s = splitSelectorEq(rest.shift() ?? "") ?? { head: "", tail: "" };
-    pushStep(a, { kind: "fill", selector: s.head, value: s.tail, page });
+    pushStep(a, { kind: "fill", selector: s.head, value: privateText(s.tail), page });
+  },
+  // --fill-env "selector=ENV_NAME": the same step, with its text read from the environment, so a private value is
+  // typed without ever being an argument. Parsed in the daemon on a session call: it reads the env the session booted with.
+  "--fill-env": (a, rest, page) => {
+    const s = splitSelectorEq(rest.shift() ?? "") ?? { head: "", tail: "" };
+    pushStep(a, { kind: "fill", selector: s.head, value: privateText(processEnvValue(s.tail) ?? ""), page });
   },
   // TWO forms, picked by whether the value carries an '=':
   //   --key "selector=KeyName"  focus the selector, THEN press — pairs with --fill to COMMIT a search

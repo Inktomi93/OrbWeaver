@@ -22,7 +22,7 @@ async function replayedWarnings(room: Room, principal: Room["host"]): Promise<re
 }
 
 async function hostDevice(room: Room): Promise<Device> {
-  const device = await openDevice(room.root, room.host.userId, room.hostCookie, room.chatId);
+  const device = await openDevice(room, room.hostSeat);
   await device.attach();
   await device.waitFor((frames) => frames.length > 0);
   return device;

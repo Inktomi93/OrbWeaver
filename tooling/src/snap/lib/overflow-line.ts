@@ -2,6 +2,7 @@
 // The measurement half (and why there are two arms at all) is ops/overflow.ts.
 import type { OverflowProbe } from "../contract/overflow.ts";
 import type { AssertionOutcome } from "../contract/types.ts";
+import { scrubPrivateText } from "./private-values.ts";
 
 /** The historical scroll-arm tolerance. Kept at 1px — this arm's calibration predates the rect sweep
  *  and nothing about adding a second arm makes its numbers wrong. */
@@ -22,5 +23,5 @@ export function overflowAssertionLine(selector: string, probe: OverflowProbe): A
   const head = `ASSERT no-overflow ${selector}: ${failed ? "FAIL" : "PASS"} overflow=${probe.scrollX}x${probe.scrollY} judged=${judgedLabel(probe)} escapes=${probe.escapes.length}`;
   // Always a verdict: this line only exists when an element MATCHED and was probed. The unmatched case is
   // the arm's NO-MATCH refusal (ops/arms/assert.ts, #1343) and never reaches here.
-  return { line: detail === "" ? head : `${head} — ${detail}`, failed, refused: false };
+  return { line: scrubPrivateText(detail === "" ? head : `${head} — ${detail}`), failed, refused: false };
 }

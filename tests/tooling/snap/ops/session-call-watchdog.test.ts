@@ -3,6 +3,7 @@ import { setImmediate as nextTurn, setTimeout as sleep } from "node:timers/promi
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { STEP_BASE_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
+import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import {
   isTerminalSessionCallError,
@@ -35,7 +36,7 @@ async function caughtError(work: Promise<number>): Promise<Error> {
 
 test("a never-resolving non-page call reaches a terminal timeout without a second unbounded await", async () => {
   const never = new Promise<number>(() => undefined);
-  const error = await caughtError(runSessionCallWithinBudget(watchdogState(), "heap parser", () => never, 1));
+  const error = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "heap parser"), () => never, 1));
   expect(error.message).toContain("ORB-LOAD-KILL");
   expect(isTerminalSessionCallError(error)).toBe(true);
 });
@@ -48,7 +49,7 @@ test("a rejection after a terminal timeout is owned instead of becoming unhandle
   };
   process.on("unhandledRejection", onUnhandled);
   try {
-    const error = await caughtError(runSessionCallWithinBudget(watchdogState(), "late parser rejection", () => late.promise, 1));
+    const error = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "late parser rejection"), () => late.promise, 1));
     expect(isTerminalSessionCallError(error)).toBe(true);
     late.reject(new Error("planted late rejection"));
     await nextTurn();
@@ -78,7 +79,7 @@ test("a recovery that settles inside its declared inner clocks keeps the session
     },
     recoveryBaseMs: DECLARED_RECOVERY_BASE_MS,
   };
-  const error = await caughtError(runSessionCallWithinBudget(state, "slow cancellation", () => cancelled.promise, 1));
+  const error = await caughtError(runSessionCallWithinBudget(state, diskSafeOp([], "slow cancellation"), () => cancelled.promise, 1));
   expect(error.message).toContain("ORB-LOAD-KILL");
   expect(error.message).not.toContain("is terminal");
   expect(isTerminalSessionCallError(error)).toBe(false);
@@ -106,7 +107,7 @@ test("a page reload during the call extends its budget, so a call slowed by the 
     await sleep(RELOADED_WORK_MS);
     return EXIT.clean;
   };
-  await expect(runSessionCallWithinBudget(state, "eval during vite reload", work, QUIET_BUDGET_MS)).resolves.toBe(EXIT.clean);
+  await expect(runSessionCallWithinBudget(state, diskSafeOp([], "eval during vite reload"), work, QUIET_BUDGET_MS)).resolves.toBe(EXIT.clean);
 });
 
 test("a call with no reload still times out at its quiet budget", async () => {
@@ -115,7 +116,7 @@ test("a call with no reload still times out at its quiet budget", async () => {
     await sleep(RELOADED_WORK_MS);
     return EXIT.clean;
   };
-  const error = await caughtError(runSessionCallWithinBudget(state, "hung eval", slow, QUIET_BUDGET_MS));
+  const error = await caughtError(runSessionCallWithinBudget(state, diskSafeOp([], "hung eval"), slow, QUIET_BUDGET_MS));
   expect(error.message).toContain("ORB-LOAD-KILL");
 });
 
