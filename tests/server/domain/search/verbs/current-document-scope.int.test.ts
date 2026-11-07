@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createDb, preCloseHousekeeping, runMigrations } from "@orb/db";
+import { createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -13,6 +13,7 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
   createServerHarness,
+  ownFileDb,
   SHIPPED_MIGRATIONS,
   seedCorpusActors,
   seedRecallRoom,
@@ -22,8 +23,7 @@ test("room document consent is current at the native scan, not frozen before que
   await using resources = new AsyncDisposableStack();
   const directory = await mkdtemp(join(tmpdir(), "identity-enforcement-972-search-"));
   resources.defer(() => rm(directory, { recursive: true, force: true }));
-  const db = await createDb(pathToFileURL(join(directory, "scope.db")).href);
-  resources.defer(() => preCloseHousekeeping(db));
+  const db = resources.use(ownFileDb(await createDb(pathToFileURL(join(directory, "scope.db")).href))).db;
   await runMigrations(db, SHIPPED_MIGRATIONS);
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],

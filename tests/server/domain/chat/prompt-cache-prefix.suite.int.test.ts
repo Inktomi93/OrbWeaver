@@ -30,7 +30,10 @@ import {
 const newChatMarker = resolveProseText("preset.format.newChatMarker", {});
 const CACHE_CARD = `aria the innkeeper\n${"A patient archivist catalogs the observatory's numbered books.\n".repeat(512)}`;
 
-async function people(options: Parameters<typeof personaRoom>[1] = {}): Promise<
+async function people(
+  turns: number,
+  options: Parameters<typeof personaRoom>[1] = {},
+): Promise<
   AsyncDisposable & {
     readonly h: ChatRoot;
     readonly bob: ChatRoot["owner"];
@@ -42,7 +45,7 @@ async function people(options: Parameters<typeof personaRoom>[1] = {}): Promise<
   await using construction = new AsyncDisposableStack();
   const h = construction.use(
     await personaRoom(
-      Array.from({ length: 12 }, (_, i) => `r${i + 1}`),
+      Array.from({ length: turns }, (_, i) => `r${i + 1}`),
       {
         characters: [createCharacterSchema.parse({ handle: "aria", name: "aria", description: CACHE_CARD })],
         group: { policy: "list", output: "per-speaker", allowSelfResponses: true },
@@ -75,7 +78,7 @@ function personEntry(name: string, description: string): string {
 }
 
 test("Alice to Bob to Alice keeps every native history row through the previous nonvacuous cache marker", async () => {
-  await using room = await people();
+  await using room = await people(3);
   const { h, bob } = room;
   await send(h, h.owner, "hello");
   await send(h, bob, "hey");
@@ -98,7 +101,7 @@ test("Alice to Bob to Alice keeps every native history row through the previous 
 });
 
 test("a scoped room folds another character's line under its character name, never a human name", async () => {
-  await using room = await people({
+  await using room = await people(4, {
     characters: ["aria", "kai"].map((name) => createCharacterSchema.parse({ handle: name, name, description: CACHE_CARD })),
     group: { policy: "list", output: "per-speaker", cardScope: "scoped", allowSelfResponses: true },
   });
@@ -110,7 +113,7 @@ test("a scoped room folds another character's line under its character name, nev
 });
 
 test("names none labels both humans in a narrator room without labelling the narrator row", async () => {
-  await using room = await people({
+  await using room = await people(2, {
     characters: ["aria", "kai"].map((name) => createCharacterSchema.parse({ handle: name, name, description: "A seated character." })),
     group: { policy: "list", output: "narrator", allowSelfResponses: true },
     promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "none" },
@@ -318,7 +321,7 @@ test("an unstamped user row keeps its bytes and cache prefix between a human sen
 });
 
 test("a real impersonate draft uses its requesting human while ordinary canon remains anchor voiced", async () => {
-  await using room = await people();
+  await using room = await people(2);
   await send(room.h, room.bob, "hello");
   let draft = "";
   for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room.bob, chatId: room.h.chatId })) {
@@ -332,7 +335,7 @@ test("a real impersonate draft uses its requesting human while ordinary canon re
 });
 
 test("Bob leaving removes only his people entry from the native system", async () => {
-  await using room = await people();
+  await using room = await people(2);
   await send(room.h, room.h.owner, "hello");
   await room.h.root.services.chat.selfLeave({ principal: room.bob, chatId: room.h.chatId });
   await send(room.h, room.h.owner, "alone now");
@@ -353,7 +356,7 @@ test("Bob leaving removes only his people entry from the native system", async (
 });
 
 test("Bob going offline changes no native static byte and keeps his people entry", async () => {
-  await using room = await people({ multiHuman: true });
+  await using room = await people(2, { multiHuman: true });
   await send(room.h, room.h.owner, "hello");
   expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
   room.bobOnline.abort();
@@ -368,7 +371,7 @@ test("Bob going offline changes no native static byte and keeps his people entry
 });
 
 test("each real member persona book resolves user and persona against its own owner, independent of sender", async () => {
-  await using room = await people();
+  await using room = await people(2);
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
   await send(room.h, room.h.owner, "hello");
@@ -386,7 +389,7 @@ test("each real member persona book resolves user and persona against its own ow
 });
 
 test("Bob offline retains his persona lore and the exact native static block", async () => {
-  await using room = await people({ multiHuman: true });
+  await using room = await people(2, { multiHuman: true });
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
   await send(room.h, room.h.owner, "hello");
@@ -404,7 +407,7 @@ test("Bob offline retains his persona lore and the exact native static block", a
 });
 
 test("Bob leaving withdraws his persona lore while Alice's real book stays", async () => {
-  await using room = await people();
+  await using room = await people(2);
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
   await send(room.h, room.h.owner, "hello");

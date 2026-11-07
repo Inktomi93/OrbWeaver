@@ -3,6 +3,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { ChatId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
+import { finiteReplies } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -14,29 +15,33 @@ import {
   readRoomCanon,
 } from "@orb/testkit/node/composed";
 
+interface TextProvider extends Disposable {
+  readonly execute: typeof fetch;
+}
+
 /** A finite physical reply plan as provider execution, for a room or a test that wraps the provider's own timing. */
-export function textProvider(replies: readonly string[]): typeof fetch {
-  let next = 0;
+export function textProvider(replies: readonly string[]): TextProvider {
+  using construction = new DisposableStack();
+  const nextReply = construction.use(finiteReplies("scenario physical", replies)).take;
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: "unused finite reply fallback",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
-    completion: () => {
-      const text = replies[next++];
-      if (text === undefined) {
-        throw new Error("the scenario physical reply plan is exhausted");
-      }
-      return { text, toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } };
-    },
+    completion: () => ({ text: nextReply(), toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } }),
   });
-  return provider.execute;
+  const lifetime = construction.move();
+  return { execute: provider.execute, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 /** Supply a finite physical reply plan without substituting a domain operation. */
 export async function textRoom(replies: readonly string[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
-  return await createChatRoot({ memoryEnabled: false, ...options, providerFetch: textProvider(replies) });
+  await using construction = new AsyncDisposableStack();
+  const execute = construction.use(textProvider(replies)).execute;
+  const h = construction.use(await createChatRoot({ memoryEnabled: false, ...options, providerFetch: execute }));
+  const lifetime = construction.move();
+  return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 /** The JSON bodies of the room's recorded chat-completions requests, oldest first. */

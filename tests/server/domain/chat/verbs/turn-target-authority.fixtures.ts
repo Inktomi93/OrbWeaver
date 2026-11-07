@@ -4,7 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
 
-export async function room(): Promise<
+export async function room(replies: readonly string[] = []): Promise<
   AsyncDisposable & {
     readonly h: ChatRoot;
     readonly member: ChatRoot["owner"];
@@ -16,7 +16,7 @@ export async function room(): Promise<
 > {
   await using construction = new AsyncDisposableStack();
   const h = construction.use(
-    await textRoom(["Hi there", " more"], {
+    await textRoom(replies, {
       server: { random: () => 0.99 },
       characters: ["aria", "bryn"].map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} has a public character card.` })),
       group: { output: "per-speaker", policy: "natural" },

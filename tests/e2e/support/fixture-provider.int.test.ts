@@ -5,23 +5,31 @@ import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./fixture-provider.t
 const TURN = { userMessage: "Synthetic correct turn", prefix: "Synthetic prefix", suffix: " and tail." };
 
 test("a native aborted held response closes the provider socket before fixture retirement", async () => {
-  const fixture = await startFixtureProvider(0, [TURN]);
-  try {
-    const controller = new AbortController();
-    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(TURN.userMessage), signal: controller.signal });
-    const reader = response.body?.getReader();
-    if (reader === undefined) {
-      throw new Error("Held native response has no reader");
-    }
-    expect(new TextDecoder().decode((await reader.read()).value)).toContain(TURN.prefix);
-    controller.abort();
-    await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
-    await expect
-      .poll(() => ({ socketClosed: fixture.requests[0]?.socketClosed, responseClosed: fixture.requests[0]?.closed, finished: fixture.requests[0]?.finished }))
-      .toEqual({ socketClosed: true, responseClosed: true, finished: false });
-  } finally {
-    await fixture.close();
+  await using fixture = await startFixtureProvider(0, [TURN]);
+  const controller = new AbortController();
+  const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(TURN.userMessage), signal: controller.signal });
+  const reader = response.body?.getReader();
+  if (reader === undefined) {
+    throw new Error("Held native response has no reader");
   }
+  expect(new TextDecoder().decode((await reader.read()).value)).toContain(TURN.prefix);
+  controller.abort();
+  await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
+  await expect
+    .poll(() => ({ socketClosed: fixture.requests[0]?.socketClosed, responseClosed: fixture.requests[0]?.closed, finished: fixture.requests[0]?.finished }))
+    .toEqual({ socketClosed: true, responseClosed: true, finished: false });
+});
+
+test("a setup failure after startup closes the listening provider", async () => {
+  let baseUrl = "";
+  const failedMint = async (): Promise<void> => {
+    await using fixture = await startFixtureProvider(0, [TURN]);
+    baseUrl = fixture.baseUrl;
+    expect((await fetch(`${fixture.baseUrl}/models`)).ok).toBe(true);
+    throw new Error("character mint refused");
+  };
+  await expect(failedMint()).rejects.toThrow("character mint refused");
+  await expect(fetch(`${baseUrl}/models`)).rejects.toThrow("fetch failed");
 });
 
 function requestBody(content: string): string {
@@ -35,21 +43,17 @@ function requestBody(content: string): string {
 }
 
 test("a wrong latest user turn is refused even when the expected marker exists earlier in the request", async () => {
-  const fixture = await startFixtureProvider(0, [TURN]);
-  try {
-    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody("Wrong synthetic turn") });
-    expect(response.status).toBe(422);
-    expect(await response.text()).toContain("wrong user turn");
-    expect(fixture.requests.map((request) => ({ body: request.body, finished: request.finished }))).toEqual([
-      { body: requestBody("Wrong synthetic turn"), finished: false },
-    ]);
-  } finally {
-    await fixture.close();
-  }
+  await using fixture = await startFixtureProvider(0, [TURN]);
+  const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody("Wrong synthetic turn") });
+  expect(response.status).toBe(422);
+  expect(await response.text()).toContain("wrong user turn");
+  expect(fixture.requests.map((request) => ({ body: request.body, finished: request.finished }))).toEqual([
+    { body: requestBody("Wrong synthetic turn"), finished: false },
+  ]);
 });
 
 test("a non-text latest user turn refuses instead of matching an earlier text marker", async () => {
-  const fixture = await startFixtureProvider(0, [TURN]);
+  await using fixture = await startFixtureProvider(0, [TURN]);
   const body = JSON.stringify({
     messages: [
       { role: "user", content: TURN.userMessage },
@@ -57,73 +61,59 @@ test("a non-text latest user turn refuses instead of matching an earlier text ma
       { role: "user", content: [{ type: "text", text: TURN.userMessage }] },
     ],
   });
-  try {
-    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body });
-    expect(response.status).toBe(422);
-    expect(await response.text()).toContain("wrong user turn");
-    expect(fixture.requests.map((request) => ({ body: request.body, finished: request.finished }))).toEqual([{ body, finished: false }]);
-  } finally {
-    await fixture.close();
-  }
+  const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body });
+  expect(response.status).toBe(422);
+  expect(await response.text()).toContain("wrong user turn");
+  expect(fixture.requests.map((request) => ({ body: request.body, finished: request.finished }))).toEqual([{ body, finished: false }]);
 });
 
 for (const attributed of [false, true]) {
   test(`real readiness probe succeeds, then a ${attributed ? "name-stamped" : "plain"} turn exposes only its prefix until released`, async () => {
-    const fixture = await startFixtureProvider(0, [TURN]);
-    try {
-      const probe = await fetch(`${fixture.baseUrl}/models`);
-      expect(probe.ok).toBe(true);
-      expect(await probe.json()).toMatchObject({ data: [{ id: "fixture-model" }] });
-      expect(fixture.requests).toEqual([]);
-      const content = attributed
-        ? `[Synthetic opening instruction]\n\nSynthetic Persona: ${TURN.userMessage}\n\nSynthetic retrieved context.`
-        : TURN.userMessage;
-      const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
-      expect(response.ok).toBe(true);
-      const reader = response.body?.getReader();
-      if (reader === undefined) {
-        throw new Error("fixture response has no stream");
-      }
-      const first = await reader.read();
-      expect(new TextDecoder().decode(first.value)).toContain(TURN.prefix);
-      expect(new TextDecoder().decode(first.value)).not.toContain("[DONE]");
-      expect(fixture.requests[0]?.finished).toBe(false);
-      expect(fixture.requests[0]?.closed).toBe(false);
-      fixture.release(0);
-      let tail = "";
-      for (;;) {
-        const part = await reader.read();
-        if (part.done) {
-          break;
-        }
-        tail += new TextDecoder().decode(part.value);
-      }
-      expect(tail).toContain(TURN.suffix);
-      expect(tail).toContain("[DONE]");
-      expect(fixture.requests[0]?.finished).toBe(true);
-      const exhausted = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
-      expect(exhausted.status).toBe(422);
-      expect(await exhausted.text()).toContain("exhausted script");
-    } finally {
-      await fixture.close();
+    await using fixture = await startFixtureProvider(0, [TURN]);
+    const probe = await fetch(`${fixture.baseUrl}/models`);
+    expect(probe.ok).toBe(true);
+    expect(await probe.json()).toMatchObject({ data: [{ id: "fixture-model" }] });
+    expect(fixture.requests).toEqual([]);
+    const content = attributed ? `[Synthetic opening instruction]\n\nSynthetic Persona: ${TURN.userMessage}\n\nSynthetic retrieved context.` : TURN.userMessage;
+    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
+    expect(response.ok).toBe(true);
+    const reader = response.body?.getReader();
+    if (reader === undefined) {
+      throw new Error("fixture response has no stream");
     }
+    const first = await reader.read();
+    expect(new TextDecoder().decode(first.value)).toContain(TURN.prefix);
+    expect(new TextDecoder().decode(first.value)).not.toContain("[DONE]");
+    expect(fixture.requests[0]?.finished).toBe(false);
+    expect(fixture.requests[0]?.closed).toBe(false);
+    fixture.release(0);
+    let tail = "";
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) {
+        break;
+      }
+      tail += new TextDecoder().decode(part.value);
+    }
+    expect(tail).toContain(TURN.suffix);
+    expect(tail).toContain("[DONE]");
+    expect(fixture.requests[0]?.finished).toBe(true);
+    const exhausted = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
+    expect(exhausted.status).toBe(422);
+    expect(await exhausted.text()).toContain("exhausted script");
   });
 }
 
 test("the deception script admits the real name-stamped first line with game notes, but refuses an old-turn marker", async () => {
-  const fixture = await startFixtureProvider(0, undefined, TURN.userMessage);
-  try {
-    const correct = await fetch(`${fixture.baseUrl}/chat/completions`, {
-      method: "POST",
-      body: requestBody(`Synthetic Persona: ${TURN.userMessage}\n\n[Game notes for the narrator]`),
-    });
-    expect(correct.ok).toBe(true);
-    expect(await correct.text()).toContain(FIXTURE_COVER_MARKER);
-    const wrong = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody("Wrong synthetic turn") });
-    expect(wrong.status).toBe(422);
-    expect(await wrong.text()).toContain("wrong user turn");
-    expect(fixture.requests.map((request) => request.finished)).toEqual([true, false]);
-  } finally {
-    await fixture.close();
-  }
+  await using fixture = await startFixtureProvider(0, undefined, TURN.userMessage);
+  const correct = await fetch(`${fixture.baseUrl}/chat/completions`, {
+    method: "POST",
+    body: requestBody(`Synthetic Persona: ${TURN.userMessage}\n\n[Game notes for the narrator]`),
+  });
+  expect(correct.ok).toBe(true);
+  expect(await correct.text()).toContain(FIXTURE_COVER_MARKER);
+  const wrong = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody("Wrong synthetic turn") });
+  expect(wrong.status).toBe(422);
+  expect(await wrong.text()).toContain("wrong user turn");
+  expect(fixture.requests.map((request) => request.finished)).toEqual([true, false]);
 });

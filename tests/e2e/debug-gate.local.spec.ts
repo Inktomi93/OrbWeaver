@@ -58,7 +58,7 @@ test.describe("D17: a DELEGATED admin is not the box operator — the wire ring 
     const origin = baseURL ?? "";
     const owner = ownerActor(origin);
     const promptMarker = marker("debug-gate-foreign-prompt");
-    const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider);
+    await using fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider);
     let restoreProvider: (() => Promise<void>) | undefined;
     const character = await owner.trpc.character.create.mutate({
       input: { handle: marker("debug-gate-card"), name: "Warden", description: "wire ring witness" },
@@ -90,7 +90,6 @@ test.describe("D17: a DELEGATED admin is not the box operator — the wire ring 
     } finally {
       await restoreProvider?.();
       await owner.trpc.character.remove.mutate({ characterId: character.id });
-      await fixture.close();
     }
   });
 });

@@ -64,7 +64,8 @@ test("every durable resume cursor gives a member the stamped bytes, never the hi
 
 test("a continue cut between attrs seeds its delimiter, so the stream conceals what the commit conceals", async () => {
   const stored = 'Visible opening <lie character="Witness"';
-  await using h = await coreHttpRoom([(): Response => coreProse(stored), (): Response => coreProse(` truth="${TRUTH_HEAD}"/> A tail.`)], {
+  const tail = ` truth="${TRUTH_HEAD}"/> A tail.`;
+  await using h = await coreHttpRoom([(): Response => coreProse(stored), (): Response => coreProse(tail)], {
     promptConfig: makePromptConfig({ continuePostfix: "newline" }),
   });
   const member = await h.root.principalFor((await h.root.actor()).id);
@@ -74,7 +75,11 @@ test("a continue cut between attrs seeds its delimiter, so the stream conceals w
   if (target === undefined) {
     throw new Error("the actual continuation has no selected target");
   }
-  await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: target.id });
+  const continued = await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: target.id });
+  expect(continued.aborted).toBe(false);
+  // The host's row holds both halves, so the member expectations below read a continuation that really ran.
+  const host = await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId });
+  expect(host.messages.at(-1)?.content).toBe(`${stored}\n${tail}`);
   const hostLog = await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId });
   const stamped = hostLog.flatMap(({ event }) => (event.type === "delta" && event.delta.kind === "text" ? [event.memberText ?? event.delta.text] : []));
   expect(stamped.join("")).toBe("Visible opening ");

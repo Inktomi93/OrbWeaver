@@ -1,7 +1,7 @@
 // Finite raw HTTP replies feed the production graph; no fixture builds engine contexts or outcomes.
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, finiteReplies } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -18,9 +18,8 @@ const coreIds = createSeededIds();
 /** The group posture every core room opens under; a chat started later in the same room takes it from here. */
 export const CORE_ROOM_GROUP = { output: "per-speaker", policy: "list", allowSelfResponses: true } as const satisfies GroupConfigInput;
 
-/** Each physical foreground request consumes one reply; discovery and vector bytes retain the canonical supplier. */
-export async function coreHttpRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
-  let next = 0;
+/** Each physical foreground request goes to `dispatch`; discovery and vector bytes retain the canonical supplier. */
+export async function coreDispatchRoom(dispatch: CoreWireReply, options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
   const corpus = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -39,13 +38,18 @@ export async function coreHttpRoom(replies: readonly CoreWireReply[], options: O
         return await corpus.execute(request);
       }
       request.signal.throwIfAborted();
-      const reply = replies[next++];
-      if (reply === undefined) {
-        throw new Error("the finite core HTTP reply plan is exhausted");
-      }
-      return await reply(request);
+      return await dispatch(request);
     },
   });
+}
+
+/** Each physical foreground request consumes one reply, and a reply left over fails the room's disposal. */
+export async function coreHttpRoom(replies: readonly CoreWireReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
+  await using construction = new AsyncDisposableStack();
+  const nextReply = construction.use(finiteReplies("core HTTP", replies)).take;
+  const h = construction.use(await coreDispatchRoom(async (request) => await nextReply()(request), options));
+  const lifetime = construction.move();
+  return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 /** Encode only external protocol bytes; production owns parsing, reduction and accounting. */

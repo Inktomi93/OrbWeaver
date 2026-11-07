@@ -197,9 +197,9 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-server-"));
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const corpus = ownership.use(await cloneCorpusFixture(source, join(parent, "consumer")));
-  const { createDb, preCloseHousekeeping } = await import("@orb/db");
-  const db = await createDb(corpus.layout.databaseUrl);
-  ownership.defer(() => preCloseHousekeeping(db));
+  const { createDb } = await import("@orb/db");
+  const { ownFileDb } = await import("./db.ts");
+  const db = ownership.use(ownFileDb(await createDb(corpus.layout.databaseUrl))).db;
   const { createServerHarness } = await import("./server.ts");
   const { timers: _timers, relayDir: _relayDir, secretsDir: _secretsDir, ...execution } = corpusServerOptions(options);
   const root = ownership.use(
@@ -754,7 +754,8 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const server = corpusServerOptions(options.server);
   const signal = server.workloadExecutionSignal;
   signal?.throwIfAborted();
-  const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
+  const { assertReferentialIntegrity, createDb, runMigrations } = await import("@orb/db");
+  const { ownFileDb } = await import("./db.ts");
   const { SHIPPED_MIGRATIONS, createDbStatementHold } = await import("./db.ts");
   const { createCorpusChatWire } = await import("./corpus-chat-wire.ts");
   const { seedCorpusChatLifecycle } = await import("./corpus-chat-lifecycle.ts");
@@ -797,8 +798,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   await using lifetimes = new AsyncDisposableStack();
   const dbHold = createDbStatementHold();
   const chatWire = createCorpusChatWire();
-  const db = await createDb(layout.databaseUrl, dbHold.wrap);
-  lifetimes.defer(() => preCloseHousekeeping(db));
+  const db = lifetimes.use(ownFileDb(await createDb(layout.databaseUrl, dbHold.wrap))).db;
   signal?.throwIfAborted();
   await runMigrations(db, SHIPPED_MIGRATIONS);
   signal?.throwIfAborted();

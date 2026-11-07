@@ -8,6 +8,8 @@ export { createFrozenClock, FROZEN_AT_MS } from "./clock.ts";
 export type { CorpusPlayback, CorpusWire } from "./corpus.ts";
 export { corpusReadInput } from "./corpus.ts";
 export { createCorpusReadResponder, createCorpusViewerReadResponder } from "./corpus-read-responder.ts";
+export type { FiniteReplies } from "./finite-replies.ts";
+export { finiteReplies } from "./finite-replies.ts";
 export { forged } from "./forged.ts";
 export { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "./hit-extent-walk.ts";
 export type { SeededIds } from "./ids.ts";

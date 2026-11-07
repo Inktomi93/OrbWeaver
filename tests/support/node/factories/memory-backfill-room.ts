@@ -41,13 +41,17 @@ export async function createMemoryBackfillRoom(
       return "The keeper nods.";
     },
   });
-  const h = await createChatRoot({
-    server: { startJobs: false },
-    providerFetch: physical.execute,
-    memoryEnabled: true,
-    memoryDefaults: { mode: "mixC", blockSize: MEMORY_BACKFILL_BLOCK_SIZE, verbatimWindow: 0, maxTier: 0 },
-    characters: (options.characters ?? ["iris"]).map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} keeps the ledger.` })),
-    transcript: memoryBackfillLines(options.transcript ?? 8, "Earlier"),
-  });
-  return { h, summaries: () => summarized, [Symbol.asyncDispose]: () => h[Symbol.asyncDispose]() };
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(
+    await createChatRoot({
+      server: { startJobs: false },
+      providerFetch: physical.execute,
+      memoryEnabled: true,
+      memoryDefaults: { mode: "mixC", blockSize: MEMORY_BACKFILL_BLOCK_SIZE, verbatimWindow: 0, maxTier: 0 },
+      characters: (options.characters ?? ["iris"]).map((name) => createCharacterSchema.parse({ handle: name, name, description: `${name} keeps the ledger.` })),
+      transcript: memoryBackfillLines(options.transcript ?? 8, "Earlier"),
+    }),
+  );
+  const lifetime = construction.move();
+  return { h, summaries: () => summarized, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

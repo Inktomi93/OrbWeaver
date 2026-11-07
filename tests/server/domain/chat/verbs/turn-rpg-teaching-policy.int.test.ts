@@ -4,13 +4,14 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import type { UserConnectionId } from "@orb/kit/ids";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { beforeAll } from "vitest";
 import type { CoreWireReply } from "../engine/core-physical.ts";
-import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
+import { coreDispatchRoom, coreFrame, coreSse } from "../engine/core-physical.ts";
 import { createToolsConnection, startCoreChat, turnWireBody } from "./turn-rpg-physical.ts";
 
 const MANIFEST = pluginManifestSchema.parse({
@@ -53,10 +54,12 @@ function prose(): Response {
 }
 
 // One root for the file: the guest host is a spawned process, so a case sets the guest state and the saved model it
-// needs through the public doors instead of booting its own root. The plan feeds each physical request to the
-// current case's reply, and a request nobody planned fails like an exhausted finite plan.
-const PLAN_SLOTS = 8;
-const plan: CoreWireReply[] = [];
+// needs through the public doors instead of booting its own root. Each case owns a plan, so its spare replies fail
+// that case, and a request between cases meets the refusal below.
+const refuseUnplanned = (): CoreWireReply => {
+  throw new Error("no teaching-policy case planned this request");
+};
+let nextReply = refuseUnplanned;
 const wires: Awaited<ReturnType<typeof turnWireBody>>[] = [];
 const shared = Promise.withResolvers<PolicyRoom>();
 
@@ -66,9 +69,14 @@ interface PolicyRoom {
   readonly capable: UserConnectionId;
 }
 
-function planned(...replies: readonly CoreWireReply[]): void {
-  plan.splice(0, plan.length, ...replies);
+function planned(...replies: readonly CoreWireReply[]): DisposableStack {
+  using construction = new DisposableStack();
+  nextReply = construction.use(finiteReplies("teaching-policy", replies)).take;
+  construction.defer(() => {
+    nextReply = refuseUnplanned;
+  });
   wires.length = 0;
+  return construction.move();
 }
 
 function recording(): CoreWireReply {
@@ -80,19 +88,7 @@ function recording(): CoreWireReply {
 
 beforeAll(async (): Promise<() => Promise<void>> => {
   await using construction = new AsyncDisposableStack();
-  const dispatch: CoreWireReply = (request) => {
-    const reply = plan.shift();
-    if (reply === undefined) {
-      throw new Error("the finite teaching-policy reply plan is exhausted");
-    }
-    return reply(request);
-  };
-  const h = construction.use(
-    await coreHttpRoom(
-      Array.from({ length: PLAN_SLOTS }, () => dispatch),
-      { server: { pluginSpawn: spawn } },
-    ),
-  );
+  const h = construction.use(await coreDispatchRoom((request) => nextReply()(request), { server: { pluginSpawn: spawn } }));
   const bound = (await h.root.services.connection.listBindings({ principal: h.owner })).find(({ task }) => task === "chat")?.binding?.connectionId;
   if (bound === undefined || bound === null) {
     throw new Error("the core room has no actual chat binding");
@@ -128,7 +124,7 @@ const ABSENCE_ROWS = [
 
 test.for(ABSENCE_ROWS)("public SEND omits tools for $label", async (row) => {
   const { h, incapable, capable } = await shared.promise;
-  planned(recording());
+  using _plan = planned(recording());
   await ownerGuest(h, row.installed);
   await h.caller.connection.setBinding({ task: "chat", connectionId: row.capable ? capable : incapable });
   const chatId = await startCoreChat(h);
@@ -144,7 +140,7 @@ test.for(ABSENCE_ROWS)("public SEND omits tools for $label", async (row) => {
 
 test("native plugin deactivation removes its tool from the next actual SEND rather than leaving a stale attach list", async () => {
   const { h, capable } = await shared.promise;
-  planned(recording(), recording());
+  using _plan = planned(recording(), recording());
   await ownerGuest(h, true);
   await h.caller.connection.setBinding({ task: "chat", connectionId: capable });
   const chatId = await startCoreChat(h);
@@ -163,7 +159,7 @@ test("native plugin deactivation removes its tool from the next actual SEND rath
 
 test("two real installers with the same namespaced tool attach the frozen host's copy, not the first registration", async () => {
   const { h, capable } = await shared.promise;
-  planned(recording());
+  using _plan = planned(recording());
   // The stranger must register first, so the host's copy is the later one the frozen-host rule has to prefer.
   await ownerGuest(h, false);
   const stranger = await h.root.principalFor((await h.root.actor({ role: "user" })).id);

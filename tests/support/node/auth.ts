@@ -51,7 +51,9 @@ export type AuthModeRootOptions = Omit<ServerHarnessOptions, "authConfig" | "own
 export async function createAuthModeRoot(mode: AuthMode, options: AuthModeRootOptions = {}): Promise<AuthModeRoot> {
   const issuer = await createNativeIssuer();
   const wiring = authModeHarnessOptions(mode, issuer);
-  const root = await createServerHarness({ ...wiring, ...options, env: { ...wiring.env, ...options.env } });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ ...wiring, ...options, env: { ...wiring.env, ...options.env } }));
+  construction.move();
   return Object.assign(root, { mode, capability: AUTH_MODE_CAPABILITIES[mode], issuer });
 }
 

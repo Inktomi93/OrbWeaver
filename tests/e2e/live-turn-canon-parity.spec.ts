@@ -27,8 +27,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { assistantRows, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { messageRow, openNewestChat, sendHeldTurn, waitForStreamOpen } from "./support/chat-room.ts";
 import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
@@ -74,7 +73,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
 
     const beforePosts = await genPostCount();
 
-    await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), USER_PROMPT);
+    const held = await sendHeldTurn({ page, chatId }, USER_PROMPT);
 
     // ── (a) GHOST LIFECYCLE ──
     // The ghost appears (hard), streamed content renders into its body (hard), and it RESOLVES into a durable
@@ -85,8 +84,6 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // is the deterministic streaming-lifecycle proof, not the transient attribute.
     const ghost = page.locator('[data-slot="ghost-message-row"]');
     await expect(ghost).toBeVisible({ timeout: WAIT_SETTLE_MS });
-    // The identity-family locator helper (#10) — `.last()` here is a DELIBERATE "newest assistant row" choice.
-    const rows = assistantRows(page);
 
     // Streamed content rendered INTO the ghost body: `ghost-stream-body` mounts only once tokens arrive
     // (ghost-message-row.tsx renders TypingDots until held.length>0, then the body) — its appearance is the
@@ -103,11 +100,12 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
         .catch(() => {
           /* ghost resolved before its body frame was observable — the durable resolve below is the guarantee */
         }),
-      rows.last().waitFor({ state: "visible", timeout: WAIT_LIVE_TURN_MS }),
+      held.awaitReply(),
     ]);
 
     // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
-    await expect(rows.last()).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
+    const { userId, assistantId } = await held.awaitReply();
+    await expect(messageRow(page, assistantId)).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
     await expect(ghost).toHaveCount(0, { timeout: WAIT_SETTLE_MS });
     // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
     test.info().annotations.push({ type: "ghost-stream-body-observed", description: String(sawGhostBody) });
@@ -131,7 +129,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // containment: the user turn we typed is verbatim, unrendered text — its distinctive string MUST appear in
     // its DOM row. (Assistant prose is model-nondeterministic + markdown-transformed; non-emptiness + the
     // canon model check below are the honest assistant-side guarantees.)
-    const userIdx = canon.findIndex((c) => c.role === "user" && c.content.includes(USER_PROMPT));
+    const userIdx = canon.findIndex((c) => c.id === userId);
     expect(userIdx).toBeGreaterThanOrEqual(0);
     expect(dom[userIdx]?.role).toBe("user");
     expect(dom[userIdx]?.text).toContain(USER_PROMPT);
@@ -151,9 +149,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
     await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
     // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.
-    const generated = canon.filter((c) => c.role === "assistant" && c.model !== null);
-    const newest = generated.at(-1);
-    expect(newest?.model).toBe(LOCAL_MODEL_LEAF);
+    expect(canon.find((c) => c.id === assistantId)?.model).toBe(LOCAL_MODEL_LEAF);
   } finally {
     await deleteChat(chatId);
   }

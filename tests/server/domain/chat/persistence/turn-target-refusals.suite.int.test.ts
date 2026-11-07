@@ -21,7 +21,7 @@ async function canon(h: ChatRoot): Promise<{ readonly message: typeof messages.$
 }
 
 test("the host forces a specific character to speak (no user row)", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   const before = await canon(f.h);
   const outcome = await f.h.root.services.chat.forceCharacterTurn({ principal: f.h.owner, chatId: f.h.chatId, characterId: f.bryn.id });
   expect(outcome.messages).toHaveLength(1);
@@ -126,7 +126,7 @@ test("swiping a non-assistant slot is a leak-free NOT_FOUND", async () => {
 });
 
 test("undoContinue on a never-continued variant is refused no_continuation", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   const sent = await f.h.root.services.chat.generate({ principal: f.h.owner, chatId: f.h.chatId, speakerCharacterId: f.aria.id });
   const reply = sent.messages[0];
   if (reply === undefined) {

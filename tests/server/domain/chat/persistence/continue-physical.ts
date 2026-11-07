@@ -8,14 +8,10 @@ import { eq } from "drizzle-orm";
 import { imageRoom, nativeText, nativeTool } from "../engine/inline-image-physical.ts";
 
 // The first four exchanges build the continuation; the last two serve one competing continuation or swipe.
-const SIGNED_SCRIPT = [
-  [nativeTool()],
-  [nativeText("Base.", "base-private")],
-  [nativeTool()],
-  [nativeText("A.", "a-private")],
-  [nativeTool()],
-  [nativeText("B.", "b-private")],
-];
+const SIGNED_SCRIPT = [[nativeTool()], [nativeText("Base.", "base-private")], [nativeTool()], [nativeText("A.", "a-private")]];
+
+/** One more signed exchange; stage it with `image.script` immediately before the turn that spends it. */
+export const SIGNED_NEXT_SCRIPT = [[nativeTool()], [nativeText("B.", "b-private")]];
 
 export interface SignedContinuation {
   readonly chatId: ChatId;

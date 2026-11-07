@@ -27,18 +27,22 @@ export interface SignedInBoxOptions {
 
 /** A local-auth box with no background jobs, after its owner's first-login seed has settled. */
 export async function signedInBox(options: SignedInBoxOptions = {}): Promise<ServerTestHarness> {
-  const root = await createServerHarness({
-    physicalPeer: () => LOOPBACK,
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
-    ...(options.providerFetch === undefined ? {} : { providerFetch: options.providerFetch }),
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      physicalPeer: () => LOOPBACK,
+      startJobs: false,
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+      ...(options.ids === undefined ? {} : { ids: options.ids }),
+      ...(options.providerFetch === undefined ? {} : { providerFetch: options.providerFetch }),
+    }),
+  );
   const response = await root.http.request(SIGNED_IN_ROUTE);
   if (response.status !== HTTP_OK) {
     throw new Error(`the first signed-in request answered ${response.status}`);
   }
   await root.settleBackground();
+  construction.move();
   return root;
 }
 

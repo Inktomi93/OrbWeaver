@@ -103,14 +103,17 @@ async function floorRoot(newId: RawIdGenerator): Promise<FloorRoot> {
     reached.push(request.url);
     return request.url === IMAGE_URL ? new Response(Uint8Array.from(image), { headers: { "content-type": "image/png" } }) : new Response("A page.");
   };
-  const root = await createServerHarness({
-    pluginSpawn: spawn,
-    providerFetch: network,
-    networkExecution: {
-      fetch: network,
-      resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]),
-    },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      pluginSpawn: spawn,
+      providerFetch: network,
+      networkExecution: {
+        fetch: network,
+        resolver: (host) => Promise.resolve([host === NET_HOST ? PUBLIC_PEER_ADDRESS : "127.0.0.1"]),
+      },
+    }),
+  );
   const { owner, connections } = await seedCorpusActors(root);
   const caller = await root.internalCallerFor(owner.userId);
   const text = connections.text;
@@ -120,7 +123,8 @@ async function floorRoot(newId: RawIdGenerator): Promise<FloorRoot> {
     await caller.connection.setBinding({ task: "summarize", connectionId: text.id, actor: { kind: "plugin-grant", pluginId } });
     return guestRunner({ root, caller: owner, pluginId, chatId });
   };
-  return { root, owner, chatId, reached, guest, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  const lifetime = construction.move();
+  return { root, owner, chatId, reached, guest, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 // `boundary` names the external request each admitted call makes. A search over an owner with no indexed documents

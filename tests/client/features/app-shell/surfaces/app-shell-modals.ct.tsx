@@ -422,7 +422,8 @@ test.describe("on the corpus owner's own settings", () => {
 
 /** A corpus root whose owner has a custom theme selected, with the appearance patch applied over the owner's own. */
 async function themedRoot(override: Record<string, string>, appearance: Record<string, unknown> = {}): Promise<{ root: Root; themeId: ThemeId }> {
-  const root = await createCorpusHarness();
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createCorpusHarness());
   const caller = await root.internalCallerFor(root.ownerId);
   const theme = await caller.settings.createTheme({
     name: "Shell CT theme",
@@ -431,6 +432,7 @@ async function themedRoot(override: Record<string, string>, appearance: Record<s
   });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: theme.id } });
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+  construction.move();
   return { root, themeId: theme.id };
 }
 

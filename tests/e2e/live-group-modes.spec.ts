@@ -42,6 +42,7 @@ import {
   forceCharacterTurn,
   mintFreshCharacter,
   pinChatToLocalEngine,
+  probeLocalChatBackend,
   removeCharacter,
   restoreChatBinding,
   sendGroupTurn,
@@ -101,27 +102,17 @@ test.describe("group modes on the live local stack", () => {
   /** The `chat` Model role as it stood before this file ran (restored in afterAll — the rows are the
    *  single-user owner's and serial specs share them). */
   let priorChatBinding: { readonly connectionId: UserConnectionId } | null = null;
-  /** Null ⇒ local turns work on this stack; a string ⇒ the unavailable reason every arm reports to the runner. */
-  let bail: string | null = null;
+  /** Null ⇒ the local engine is there; a string ⇒ the unavailable reason every arm reports to the runner. */
+  let unavailable: string | null = null;
 
-  // The ENVIRONMENT probe, paid ONCE: pin the stateless local route and drive one throwaway turn on a
-  // scratch room. A box with no local vllm engine listening at the harness's loopback port fail-closes
-  // every local turn — an environment verdict, not a group-chat regression. Recording it here (instead of
-  // catching inside each arm) keeps a REAL group failure red: the arms below never swallow their own errors.
+  // The ENVIRONMENT verdict, paid ONCE: pin the stateless local route, then ask production's probe whether the engine
+  // is there. A box with no local vllm engine listening at the harness's loopback port fails every local turn — an
+  // environment verdict, not a regression — so only that may skip. Anything else throws here, and the arms below
+  // never swallow their own errors.
   test.beforeAll(async () => {
-    test.setTimeout(LIVE_TIMEOUT_MS);
-    const probeCast = await mintCast(1);
-    const probe = await startGroupChat({ characterIds: probeCast, title: `e2e-modes-probe-${Date.now()}` });
-    try {
-      // The stateless openai-compat local wire — the arm that honors the per-send `maxOutputTokens` ceiling.
-      priorChatBinding = await pinChatToLocalEngine();
-      await sendGroupTurn(probe.id, "Say hello.");
-    } catch (err) {
-      bail = err instanceof Error ? err.message : String(err);
-    } finally {
-      await deleteChat(probe.id).catch(() => null);
-      await dropCast(probeCast);
-    }
+    // The stateless openai-compat local wire — the arm that honors the per-send `maxOutputTokens` ceiling.
+    priorChatBinding = await pinChatToLocalEngine();
+    unavailable = await probeLocalChatBackend();
   });
 
   test.afterAll(async () => {
@@ -129,7 +120,7 @@ test.describe("group modes on the live local stack", () => {
   });
 
   function skipWhenBackendUnavailable(): void {
-    test.skip(bail !== null, bail === null ? "local chat backend available" : `no local chat backend on this stack: ${bail}`);
+    test.skip(unavailable !== null, unavailable ?? "local chat backend available");
   }
 
   test("per-speaker with three characters commits three separately-attributed, independently swipeable messages", { tag: "@live" }, async () => {

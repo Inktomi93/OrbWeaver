@@ -106,7 +106,7 @@ test("a plugin-requested first reply claims the unstarted room before its canon 
 });
 
 test("a plugin request naming a non-roster speaker is refused before it claims the unstarted room", async () => {
-  await using h = await textRoom(["No reply is owed."], { server: { pluginSpawn: spawn } });
+  await using h = await textRoom([], { server: { pluginSpawn: spawn } });
   const listed = async (): Promise<boolean> => (await h.root.services.chat.listChats({ principal: h.owner })).items.some(({ id }) => id === h.chatId);
   const command = await enableWitness(h, requestingGuest({ speakerCharacterId: h.root.ids.typeId(ID_PREFIX.character) }));
 

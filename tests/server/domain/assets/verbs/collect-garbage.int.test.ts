@@ -26,15 +26,17 @@ import {
   seedInvitedChatParticipant,
 } from "@orb/testkit/node/composed";
 import { beforeEach, describe } from "vitest";
-import type { GcBox, StoredRef } from "../gc-box.ts";
+import type { AssetStores, GcBox, StoredRef } from "../gc-box.ts";
 import {
   ageOnly,
   attach,
   aWeekAgo,
+  BOTH_STORES,
   COVER_HOST,
   COVER_URL,
   GC_IMAGE_MODEL,
   inlineImage,
+  NEITHER_STORE,
   openBox,
   openRoom,
   PNG,
@@ -44,8 +46,8 @@ import {
   stampEveryBlob,
   store,
   storedRow,
-  survival,
-  survives,
+  storesOf,
+  storesOfEach,
 } from "../gc-box.ts";
 
 const ASSET_ROW_DELETE = /^delete from "assets"/i;
@@ -238,8 +240,8 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   return refs;
 }
 
-function allTrue(refs: Readonly<Record<string, StoredRef>>): Record<string, boolean> {
-  return Object.fromEntries(Object.keys(refs).map((name) => [name, true]));
+function allKept(refs: Readonly<Record<string, StoredRef>>): Record<string, AssetStores> {
+  return Object.fromEntries(Object.keys(refs).map((name) => [name, BOTH_STORES]));
 }
 
 describe("the scheduled sweep over every reference kind", () => {
@@ -261,11 +263,11 @@ describe("the scheduled sweep over every reference kind", () => {
     const run = await runScheduledGc(box);
 
     expect(run.status).toBe("succeeded");
-    expect(await survival(box, refs)).toEqual(allTrue(refs));
+    expect(await storesOfEach(box, refs)).toEqual(allKept(refs));
     // The put→link gap: an unreferenced blob stored within the grace window is not yet garbage.
-    expect(await survives(box, inFlight)).toBe(true);
-    // Positive control: the sweep really ran and really deletes; without it every survival above is vacuous.
-    expect(await survives(box, orphan)).toBe(false);
+    expect(await storesOf(box, inFlight)).toEqual(BOTH_STORES);
+    // Positive control: the sweep really ran and really deletes; without it every kept store above is vacuous.
+    expect(await storesOf(box, orphan)).toEqual(NEITHER_STORE);
   });
 });
 
@@ -285,8 +287,8 @@ test("a body quoting another owner's asset retains nothing, while the owner's ow
   const run = await runScheduledGc(box);
 
   expect(run.status).toBe("succeeded");
-  expect(await survives(box, quotedByOwner)).toBe(true);
-  expect(await survives(box, quotedByStranger)).toBe(false);
+  expect(await storesOf(box, quotedByOwner)).toEqual(BOTH_STORES);
+  expect(await storesOf(box, quotedByStranger)).toEqual(NEITHER_STORE);
 });
 
 test("a reference written after the sweep's snapshot still wins the destructive edge, for each body and JSON source", async () => {
@@ -310,7 +312,7 @@ test("a reference written after the sweep's snapshot still wins the destructive 
       await plantForeignRoomBackground(box.root, room, { kind: "library", assetId: ref.assetId });
     },
   } as const;
-  const outcome: Record<string, boolean> = {};
+  const outcome: Record<string, AssetStores> = {};
   for (const [source, write] of Object.entries(late)) {
     const target = await store(box, "attachment");
     await ageOnly(box, target);
@@ -320,10 +322,15 @@ test("a reference written after the sweep's snapshot still wins the destructive 
     await write(target);
     deletion.release();
     expect((await sweeping).status).toBe("succeeded");
-    outcome[source] = await survives(box, target);
+    outcome[source] = await storesOf(box, target);
   }
 
-  expect(outcome).toEqual({ "message body": true, "profile avatar": true, nothing: false, "room background of an unknown kind": true });
+  expect(outcome).toEqual({
+    "message body": BOTH_STORES,
+    "profile avatar": BOTH_STORES,
+    nothing: NEITHER_STORE,
+    "room background of an unknown kind": BOTH_STORES,
+  });
 });
 
 test("a co-member's quote keeps nothing once the owner's own attachment message is gone", async () => {
@@ -346,7 +353,7 @@ test("a co-member's quote keeps nothing once the owner's own attachment message 
   const run = await runScheduledGc(box);
 
   expect(run.status).toBe("succeeded");
-  expect(await survives(box, attached)).toBe(false);
+  expect(await storesOf(box, attached)).toEqual(NEITHER_STORE);
 });
 
 test("a same-bytes upload indexed between the row delete and the unlink keeps its bytes", async () => {
@@ -366,5 +373,7 @@ test("a same-bytes upload indexed between the row delete and the unlink keeps it
   expect((await sweeping).status).toBe("succeeded");
 
   expect(again.assetId).not.toBe(target.assetId);
-  expect(await survives(box, again)).toBe(true);
+  expect(await storesOf(box, again)).toEqual(BOTH_STORES);
+  // The deleted row and the kept blob part ways here, the one state a single verdict could not report.
+  expect(await storesOf(box, target)).toEqual({ row: false, blob: true });
 });

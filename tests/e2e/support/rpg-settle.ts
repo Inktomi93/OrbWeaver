@@ -23,6 +23,8 @@
 // CANON CORRUPTION IS NOT SETTLEMENT: a view whose ambient plane vanished satisfies neither arm, so the poll
 // keeps waiting and then fails loudly, instead of scoring the disappearance as "the state moved".
 
+import type { RpgDeliveryPath, RpgFlushOutcome, RpgTraceRecord } from "@orb/contracts/rpg";
+
 /** The subset of `TrackerView` the predicate reads. Spelled structurally so this module stays free of the
  *  support tree's tRPC types (and so a fixture is three fields, not a whole projection). */
 interface RpgSettleView {
@@ -71,4 +73,14 @@ export function rpgTurnSettled(input: RpgSettleInput): boolean {
  *  the vehicle, true before the round has run (#1493 fix-back). */
 export function hasRpgFlush(records: readonly { readonly event: { readonly phase: string } }[]): boolean {
   return records.some((record) => record.event.phase === "flushed");
+}
+
+// A round that wrote and a quiet beat are both healthy; every other outcome ended without a clean settle.
+const HEALTHY_ROUND_OUTCOMES: readonly RpgFlushOutcome[] = ["wrote", "no-writes"];
+
+/** Did one turn dispatch the state round on `path` and settle it healthily? Both events must name the same turn, so
+ *  a round dispatched on another path, or a settle with no dispatch, is no round. */
+export function rpgRoundSettled(records: readonly Pick<RpgTraceRecord, "event">[], path: RpgDeliveryPath): boolean {
+  const dispatched = new Set(records.flatMap(({ event }) => (event.phase === "flush" && event.path === path ? [event.turnId] : [])));
+  return records.some(({ event }) => event.phase === "flushed" && dispatched.has(event.turnId) && HEALTHY_ROUND_OUTCOMES.includes(event.outcome));
 }

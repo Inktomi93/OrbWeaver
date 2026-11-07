@@ -13,7 +13,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { afterEach, describe } from "vitest";
-import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./sse.ts";
+import type { StreamValue } from "./sse.ts";
+import { collectChatRoomFrames, deliveredText, readStreamEvent, requireSatisfied } from "./sse.ts";
 
 const CHAT = castId<ChatId>("chat-under-test");
 const OTHER_CHAT = castId<ChatId>("a-different-chat");
@@ -174,5 +175,20 @@ describe("collectChatRoomFrames verdict", () => {
         timeoutMs: SATISFIED_TIMEOUT_MS,
       }),
     ).rejects.toThrow(/chat SSE event.*type.*not a string/u);
+  });
+});
+
+describe("deliveredText", () => {
+  const delta = (seq: number, kind: string, text: string): StreamValue => ({ seq, event: { type: "delta", delta: { kind, text } } });
+  const committed = { seq: 9, event: { type: "messageCommitted", view: { content: "He spits into the dust." } } };
+
+  test("a committed frame alone delivers no text, so a missing resumed delta cannot hide behind it", () => {
+    expect(deliveredText([committed])).toBe("");
+  });
+
+  test("coalesced and split deltas read the same, and reasoning is not delivered prose", () => {
+    const split = [delta(1, "text", "He spits "), delta(2, "reasoning", "hidden thought"), delta(3, "text", "into the dust."), committed];
+    expect(deliveredText(split)).toBe("He spits into the dust.");
+    expect(deliveredText([delta(1, "text", "He spits into the dust."), committed])).toBe("He spits into the dust.");
   });
 });

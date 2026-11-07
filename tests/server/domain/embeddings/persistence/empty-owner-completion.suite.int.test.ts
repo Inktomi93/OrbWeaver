@@ -11,6 +11,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { characterEmbeddings, chatDigests, chatParticipants, chatSegments, chats, documentChunks, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -173,19 +174,18 @@ test("an enabled owner with indexed cards and ingested documents but no hosted r
 
 for (const change of ["start", "handoff", "binding-target", "user-config", "app-config"] as const) {
   test(`a held native empty-memory receipt handles actual ${change} changes without inventing completion`, async () => {
-    let summaries = 1;
+    // Only a refused start or handoff retries through a real summary; the other changes end without one.
+    using summaries = finiteReplies(
+      "empty-owner retry summary",
+      change === "start" || change === "handoff" ? ["The harbor witness preserves the orbital ledger."] : [],
+    );
     const physical = createCorpusProviderExecution({
       modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
       embedding: CORPUS_EMBEDDING_VECTOR,
       chatText: "",
       structuredReplies: new Map(),
       images: [],
-      completion: () => {
-        if (summaries-- <= 0) {
-          throw new Error("the empty-owner retry summary script is exhausted");
-        }
-        return { text: "The harbor witness preserves the orbital ledger.", toolCalls: [], usage: { promptTokens: 50, completionTokens: 15 } };
-      },
+      completion: () => ({ text: summaries.take(), toolCalls: [], usage: { promptTokens: 50, completionTokens: 15 } }),
     });
     using held = await freshHeldDb();
     await using resources = new AsyncDisposableStack();

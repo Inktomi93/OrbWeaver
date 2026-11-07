@@ -22,7 +22,7 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 
 | Door | Holds |
 | - | - |
-| `@orb/testkit/iso` | pure helpers every world may import: the frozen clock, seeded ids, corpus readers, wire shapes |
+| `@orb/testkit/iso` | pure helpers every world may import: the frozen clock, seeded ids, finite reply plans, corpus readers, wire shapes |
 | `@orb/testkit/node` | the vitest `test` and `expect` with their fixtures; it registers fixtures at import, so only vitest files import it |
 | `@orb/testkit/node/helpers` | Node-side helpers that never load the server graph at import; Playwright configs and scripts may import it |
 | `@orb/testkit/node/composed` | the server harness, fresh boot with shipped themes (`createFirstBootHarness`), database, root seeds that run production verbs and return only ids and the verb's own outcome (never a row read back), read helpers that call production read verbs (`readRoomCanon`, `readAccounts`), corpus producers and chat composition, a root's own log and trace rings (`root.observability`), a loopback external peer (`servePhysicalPeer`) and the production OIDC owner over a root (`configureOidc`); it loads the server graph |
@@ -46,7 +46,28 @@ await using root = await createServerHarness({ db: held.db });
 
 Give a `createDb` handle its owner with `ownDb(await createDb(url))`. When a stack must own the database, pass it to the stack: `const db = stack.use(await freshDb()).db`. Read `held.db` as a member. A destructure of a holder reads as a second acquisition to `useDisposables`.
 
+Give a file-backed handle its owner with `await using held = ownFileDb(await createDb(url))`. Disposing it runs `preCloseHousekeeping`, so the file is whole for the next reader. Open it in a block when the file is read after the close. Use `ownDb` for a handle opened only to inspect a file.
+
+A helper that builds and returns a root opens `await using construction = new AsyncDisposableStack()`, passes the root to `construction.use(...)`, and calls `construction.move()` before it returns. A throw during setup then closes the root. Return the moved stack's `disposeAsync` when the helper owns more than the root.
+
 Call production operations and registry factories. Derive inputs from their contracts, builders or corpus. Script external execution at its real boundary. Do not replace domain services, authorization, persistence or application modules with fabricated behavior.
+
+## Script replies with a finite plan
+
+Script an ordered reply list with `finiteReplies` from `@orb/testkit/iso`. Declare the plan before the root that spends it, so disposal runs after the root settles.
+
+```ts
+using plan = finiteReplies("greeting", ["First reply."]);
+const physical = createCorpusProviderExecution({ ...corpusOptions, completion: () => ({ text: plan.take(), toolCalls: [], usage }) });
+await using root = await createServerHarness({ providerFetch: physical.execute });
+```
+
+- `take` returns the next reply and refuses past the end. The plan remembers the refusal and throws it again at disposal, so a caller that swallows it still fails.
+- `peek` reads the next reply without spending it.
+- Disposal refuses a plan with replies left. A spare reply claims a request that never happened, so a case that needs fewer replies queues fewer.
+- Disposal runs in reverse order, so write the plan above every `await using` in its block. The `OWNED_DB_RESTRICTIONS` rule refuses a plan declared after one, and a plan helper joins its `REPLY_PLAN_ACQUISITIONS` list in the change that adds it.
+- A room helper writes `const nextReply = construction.use(finiteReplies(label, replies)).take` before its root, then returns the stack's lifetime with the room. `coreHttpRoom`, `textRoom`, `followupRoom`, `personaRoom` and `openAiServer` own their plans this way, so their callers pass replies and nothing else.
+- A root shared across cases takes `coreDispatchRoom`, and each case owns its plan.
 
 ## Keep helper compiler worlds separate
 
@@ -168,7 +189,9 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | A production export only tests import fails the build; a Spine-Testing §9 import of a constant, limit, id, error class or pure rule that production executes reads it from its owning file | `pnpm knip:prod`, which credits in-file production use, and the `TEST_CONSTANT_HOMES` list in [dependency-cruiser](../../.dependency-cruiser.ts), which names each owning file a suite may read past its door |
 | A server suite runs production only through its mirror's door, the primitives and the composed root; another door's types stay legal | The `tests-server-mirror-own-module`, `tests-server-mirror-own-tier`, `tests-server-front-doors-only` and `tests-server-type-contracts-own-internals` rules in [dependency-cruiser](../../.dependency-cruiser.ts); its `SERVER_TEST_REACHES` list names each constant a suite imports from another module, with the reason |
 | A client, inference, kit, contracts or db suite runs production only from its package's cake and through exported doors; a client feature suite or story runs only its own feature; another door's types stay legal | The `tests-<package>-mirror-cake`, `tests-<package>-front-doors-only` and `tests-<package>-type-contracts-own-internals` rules, plus `tests-client-mirror-own-feature`, `tests-client-mirror-own-tier` and `tests-client-type-contracts-tier-doors`, in [dependency-cruiser](../../.dependency-cruiser.ts); its `PACKAGE_TEST_REACHES` list names each file a suite reaches that no door admits, with the reason |
-| A test database has one owner: `freshDb`, `freshHeldDb`, `freshCountedDb` and `ownDb` return a disposable, written `using` or passed to a stack's `.use(...)` | `OwnedDb` in [node/db.ts](node/db.ts), Biome `useDisposables` on a declaration, and `OWNED_DB_RESTRICTIONS` in [eslint.config.ts](../../eslint.config.ts) on every other form |
+| A test database has one owner: `freshDb`, `freshHeldDb`, `freshCountedDb`, `ownDb` and `ownFileDb` return a disposable, written `using` or passed to a stack's `.use(...)`; a raw `createDb` is the argument of `ownDb` or `ownFileDb` | `OwnedDb` and `OwnedFileDb` in [node/db.ts](node/db.ts), Biome `useDisposables` on a declaration, and `OWNED_DB_RESTRICTIONS` in [eslint.config.ts](../../eslint.config.ts) on every other form, including a member call such as `kit.freshDb()`. A suite on the database client, the database owners and `db-holder.ts` open their handles by hand |
+| A reply plan has one owner, a reply left unused or asked for beyond the end fails at disposal, and the plan is declared above every `await using` in its block | `finiteReplies` in [iso/finite-replies.ts](iso/finite-replies.ts), and `OWNED_DB_RESTRICTIONS` on a plan with no `using` or `.use(...)` and on a plan declared after an `await using` |
+| A root has one owner: a shared root helper is written `using`, passed to `.use(...)`, returned, or assigned in a `beforeAll` or `beforeEach` its `afterAll` or `afterEach` disposes | `OWNED_DB_RESTRICTIONS`, which matches `OWNED_ROOT_ACQUISITIONS` by name and refuses `expect(createServerHarness()).resolves`. A `Db` member hides a root from `useDisposables`, so a file-local alias stays a review check. The rules reach Node tests, component tests, end-to-end specs and support through one `TEST_SYNTAX` list |
 | A run leaves no temp folder or Chromium profile behind, even when killed | The run-owned temp root in [run-temp-root.ts](../../tooling/src/floor/process/run-temp-root.ts), installed as a globalSetup in [vitest.config.ts](../../vitest.config.ts) and the Playwright configs; a case that makes its own folder owns it with `ownedTempDir` from [temp-dir.ts](node/temp-dir.ts) |
 | Helper-world import direction | Compiler programs and the world rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Tests outside the persistence tier write rows only through verbs, root seeds and the sanctioned historic states | The `orb/no-direct-row-writes` rule in [eslint.config.ts](../../eslint.config.ts) judges each call site |

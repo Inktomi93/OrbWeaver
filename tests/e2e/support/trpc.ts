@@ -1,6 +1,6 @@
 // Native tRPC owns successful request encoding and response types. Debug routes retain their canonical parsers.
 import process from "node:process";
-import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
+import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, RpgCheckpointId, UserConnectionId } from "@orb/kit/ids";
@@ -21,9 +21,12 @@ import type {
 import type { TrpcRequestFilter } from "@orb/testkit/node/helpers";
 import { isTrpcRequestFor, matchesTrpcRequestInput } from "@orb/testkit/node/helpers";
 import type { Page, Route } from "@playwright/test";
+import { localBackendUnavailableReason } from "./backend-probe.ts";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 import type { TrpcClient } from "./trpc-client.ts";
 import { createTrpcClient } from "./trpc-client.ts";
+import type { WireCaptureRead } from "./wire-read.ts";
+import { wireCaptureRead } from "./wire-read.ts";
 
 export type { TrpcClient } from "./trpc-client.ts";
 export { createTrpcClient } from "./trpc-client.ts";
@@ -194,15 +197,23 @@ export function removeCharacter(characterId: CharacterId): Promise<unknown> {
 // derived from the router; the `/api/_debug/*` reads are parsed with their `@orb/contracts/debug` schemas. ──
 
 /** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures — presents the
- *  operator token, see `debugHeaders`). Newest-first. The capture seam must be ENABLED (WIRE_CAPTURE=on) for
- *  this to be non-empty. */
-export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<WireCapturesResponse["captures"]> {
+ *  operator token, see `debugHeaders`). Newest-first. Enabled with no capture throws; see `wireCaptureRead`. */
+export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<WireCaptureRead> {
   const query = new URLSearchParams({ chatId, ...(backend !== undefined ? { backend } : {}) });
   const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e wire-captures read failed (${res.status})`);
   }
-  return wireCapturesResponseSchema.parse(await res.json()).captures;
+  return wireCaptureRead(wireCapturesResponseSchema.parse(await res.json()), chatId, backend);
+}
+
+/** The captures of a harness stack, which boots with `WIRE_CAPTURE` on (modes.ts), so disabled is a failure here. */
+export async function requireWireCaptures(chatId: ChatId, backend: string): Promise<Extract<WireCaptureRead, { enabled: true }>["captures"]> {
+  const read = await fetchWireCaptures(chatId, backend);
+  if (!read.enabled) {
+    throw new Error(read.skipReason);
+  }
+  return read.captures;
 }
 
 /** Read the content-free SHAPE trace (chat.getShapeTrace — host-gated): per-stage ROW COUNTS, never content.
@@ -284,6 +295,13 @@ export async function pinChatToLocalEngine(): Promise<{ readonly connectionId: U
   const prior = await getChatBinding();
   await setChatBinding((await localEngineConnection()).id);
   return prior;
+}
+
+/** Why the local engine cannot serve a live arm, or null when it can. Dials production's `connection.probe`, so no
+ *  scratch turn runs and only external unavailability comes back; a product failure throws to the caller. */
+export async function probeLocalChatBackend(): Promise<string | null> {
+  const { id } = await localEngineConnection();
+  return localBackendUnavailableReason(await trpc.connection.probe.mutate({ connectionId: id }));
 }
 
 /** The caller's Claude-subscription connection, if they have one. `undefined` is a legitimate state the
@@ -533,7 +551,7 @@ export function getConfigView(chatId: ChatId): Promise<TrpcClientOutput<"rpg.get
  *  Omit keeps the current value; a passed scalar REPLACES it (the keep-on-omit contract, §config). */
 export function setFeatureKnobs(
   chatId: ChatId,
-  knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "plotProgression">,
+  knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "cyoaChoiceBehavior" | "plotProgression">,
 ): Promise<unknown> {
   return trpc.rpg.updateConfig.mutate({ chatId, patch: knobs });
 }

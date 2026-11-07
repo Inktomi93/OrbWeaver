@@ -34,34 +34,31 @@ function currentRoom(): ReadingRoom {
 
 /** Extends actual room messages so the same speakers cross the sticky reading boundary in each suite. */
 export async function createReadingRoom(): Promise<ReadingRoom> {
-  const root = await createCorpusHarness();
-  try {
-    const caller = await root.internalCallerFor(root.ownerId);
-    for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
-      const { messages } = await caller.chat.listMessages({ chatId: row.id, limit: TAIL_MESSAGES });
-      const replies = messages.filter((message) => message.role === "assistant");
-      const spoken = new Set(messages.map((message) => message.role));
-      const earlier = replies.at(-2);
-      if (READING_ROLES.every((role) => spoken.has(role)) && messages.at(-1)?.role === "assistant" && earlier !== undefined) {
-        const roomId = row.id;
-        const longReplyId = earlier.id;
-        const user = messages.findLast((message) => message.role === "user");
-        if (user === undefined) {
-          throw new Error("The corpus room has no user message");
-        }
-        const longUserId = user.id;
-        const content = Array.from({ length: LONG_REPLY_PARAGRAPHS }, () => FILLER).join("\n\n");
-        await caller.chat.editMessage({ chatId: row.id, messageId: user.id, content, timeZone: UTC_TIME_ZONE });
-        await caller.chat.editMessage({ chatId: row.id, messageId: earlier.id, content, timeZone: UTC_TIME_ZONE });
-        activeRoom = { root, roomId, longReplyId, longUserId };
-        return activeRoom;
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createCorpusHarness());
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    const { messages } = await caller.chat.listMessages({ chatId: row.id, limit: TAIL_MESSAGES });
+    const replies = messages.filter((message) => message.role === "assistant");
+    const spoken = new Set(messages.map((message) => message.role));
+    const earlier = replies.at(-2);
+    if (READING_ROLES.every((role) => spoken.has(role)) && messages.at(-1)?.role === "assistant" && earlier !== undefined) {
+      const roomId = row.id;
+      const longReplyId = earlier.id;
+      const user = messages.findLast((message) => message.role === "user");
+      if (user === undefined) {
+        throw new Error("The corpus room has no user message");
       }
+      const longUserId = user.id;
+      const content = Array.from({ length: LONG_REPLY_PARAGRAPHS }, () => FILLER).join("\n\n");
+      await caller.chat.editMessage({ chatId: row.id, messageId: user.id, content, timeZone: UTC_TIME_ZONE });
+      await caller.chat.editMessage({ chatId: row.id, messageId: earlier.id, content, timeZone: UTC_TIME_ZONE });
+      construction.move();
+      activeRoom = { root, roomId, longReplyId, longUserId };
+      return activeRoom;
     }
-    throw new Error("No corpus room ends on a reply with an earlier reply and both roles in its tail");
-  } catch (error) {
-    await root[Symbol.asyncDispose]();
-    throw error;
   }
+  throw new Error("No corpus room ends on a reply with an earlier reply and both roles in its tail");
 }
 
 /** The corpus viewer's first saved wallpaper, as the appearance fields that select it. */

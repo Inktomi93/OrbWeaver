@@ -60,12 +60,11 @@ import {
   mintFreshCharacter,
   pinChatToLocalEngine,
   previewAssembly,
+  probeLocalChatBackend,
   removeCharacter,
   restoreChatBinding,
   selectVariant,
-  startChat,
   startGroupChat,
-  swipeMessage,
   tailAssistant,
 } from "./support/trpc.ts";
 
@@ -114,8 +113,7 @@ async function typeSteer(page: Page, steer: string): Promise<void> {
   const box = composer(page);
   await box.click();
   await box.fill(steer);
-  // `fill` bypasses React onChange for a CONTROLLED textarea — verify the value stuck; if a room-settle
-  // remount ate it, retype (chat-room.ts typeAndSend documents this remount hazard).
+  // `fill` bypasses React onChange for a CONTROLLED textarea, so a room-settle remount can eat the value.
   await expect(box).toHaveValue(steer, { timeout: WAIT_UI_MS });
 }
 
@@ -153,35 +151,18 @@ test.describe("guided generations on the live local stack", () => {
   /** The `chat` Model role as it stood before this file ran (restored in afterAll — the rows are the
    *  single-user owner's and serial specs share them). */
   let priorChatBinding: { readonly connectionId: UserConnectionId } | null = null;
-  /** Null ⇒ local turns work; a string ⇒ the unavailable reason every arm reports to the runner. */
-  let bail: string | null = null;
+  /** Null ⇒ the local engine is there; a string ⇒ the unavailable reason every arm reports to the runner. */
+  let unavailable: string | null = null;
 
-  // The ENVIRONMENT probe, paid ONCE: pin the stateless route and drive one throwaway REAL turn (a swipe
-  // on a greeting-seeded chat's tail — the cheapest generation). A box with no local vllm engine listening
-  // at the harness's loopback port fail-closes every local turn — an environment verdict, not a guided
-  // regression. Recording it here keeps a REAL guided failure red (the arms never swallow their own errors).
+  // The ENVIRONMENT verdict, paid ONCE: pin the stateless local route, then ask production's probe whether the engine
+  // is there. A box with no local vllm engine listening at the harness's loopback port fails every local turn — an
+  // environment verdict, not a regression — so only that may skip. Anything else throws here, and the arms below
+  // never swallow their own errors.
   test.beforeAll(async () => {
-    test.setTimeout(LIVE_TIMEOUT_MS);
     // The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
     // precedent). A guided icon fires without an output-ceiling intent, so this pin is what caps the spend.
     priorChatBinding = await pinChatToLocalEngine();
-    const probeCharId = await mintFreshCharacter(castId<CharacterHandle>("e2e-guided-probe"), "Guidedspec Probe", "Probe greeting.");
-    // A DEFAULT-opening solo chat seeds the greeting as the assistant tail (no model turn); swiping it is
-    // the cheapest REAL generation — the faithful backend-availability probe (the group-modes precedent).
-    const probeChat = await startChat([probeCharId]);
-    try {
-      const tail = await tailAssistant(probeChat);
-      if (tail === undefined) {
-        bail = "probe chat seeded no assistant greeting tail";
-      } else {
-        await swipeMessage(probeChat, tail.id);
-      }
-    } catch (err) {
-      bail = err instanceof Error ? err.message : String(err);
-    } finally {
-      await deleteChat(probeChat).catch(() => null);
-      await removeCharacter(probeCharId).catch(() => null);
-    }
+    unavailable = await probeLocalChatBackend();
   });
 
   test.afterAll(async () => {
@@ -189,7 +170,7 @@ test.describe("guided generations on the live local stack", () => {
   });
 
   function skipWhenBackendUnavailable(): void {
-    test.skip(bail !== null, bail === null ? "local chat backend available" : `no local chat backend on this stack: ${bail}`);
+    test.skip(unavailable !== null, unavailable ?? "local chat backend available");
   }
 
   // ── LEG 1 — STEER SHAPES THE TURN ────────────────────────────────────────────────────────────────

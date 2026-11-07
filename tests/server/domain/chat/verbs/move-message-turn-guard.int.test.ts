@@ -5,7 +5,7 @@ import { createChatRoot } from "@orb/testkit/node/composed";
 import { textProvider } from "../scenario-physical.ts";
 
 test("moveMessage refuses while a turn is in flight and leaves the order alone, then moves once the turn ends", async () => {
-  const provider = textProvider(["The reply."]);
+  using provider = textProvider(["The reply."]);
   const arrived = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   // Only the chat completion is held, so the turn stays registered in the room until the test lets it finish.
@@ -15,7 +15,7 @@ test("moveMessage refuses while a turn is in flight and leaves the order alone, 
       arrived.resolve();
       await release.promise;
     }
-    return await provider(request);
+    return await provider.execute(request);
   };
   await using h = await createChatRoot({ memoryEnabled: false, providerFetch });
   const { chat } = h.root.services;

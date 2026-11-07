@@ -11,10 +11,12 @@ async function liteGame(): Promise<{
   readonly owner: Awaited<ReturnType<typeof seedCorpusActors>>["owner"];
   readonly chatId: Awaited<ReturnType<typeof seedRecallRoom>>;
 }> {
-  const root = await createServerHarness({ random: () => 0.5 });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ random: () => 0.5 }));
   const { owner } = await seedCorpusActors(root);
   const chatId = await seedRecallRoom(await root.internalCallerFor(owner.userId));
   await seedRpgGame(root, { principal: owner, chatId, mode: "lite", ruleset: "d20" });
+  construction.move();
   return { root, owner, chatId };
 }
 

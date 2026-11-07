@@ -14,7 +14,7 @@ import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ownerActor } from "./support/actors.ts";
-import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
+import { assistantRows, charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { batchResultData, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
@@ -100,7 +100,7 @@ test.describe("committed corpus room launches", () => {
       const chatId = await startedChatId(await started);
       try {
         await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
-        await expect(page.locator('[data-slot="message-row"][data-role="assistant"]').first()).toContainText(PROBE_GREETING);
+        await expect(assistantRows(page).first()).toContainText(PROBE_GREETING);
         expect(startRequests).toBe(1);
       } finally {
         await host.trpc.chat.delete.mutate({ chatId });

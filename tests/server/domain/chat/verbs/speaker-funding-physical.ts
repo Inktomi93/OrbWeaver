@@ -6,7 +6,7 @@ import type { PromptCacheSettings, RoutableTask } from "@orb/contracts/inference
 import { modelIdSchema } from "@orb/contracts/inference";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, finiteReplies } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -79,8 +79,9 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
   const reached = Promise.withResolvers<void>();
   const closed = Promise.withResolvers<void>();
   const released = Promise.withResolvers<void>();
-  let chat = 0;
-  let pick = 0;
+  const nextPick = ownership.use(finiteReplies("native speaker-pick", plan.picks ?? [])).take;
+  // biome-ignore lint/nursery/useDisposables: ownership.use registers disposal, and the caller's stack drains it after the peer closes.
+  const foreground = ownership.use(finiteReplies("native foreground", plan.chat ?? []));
   let execution: ReturnType<typeof createCorpusProviderExecution> | undefined;
   async function hold(bindings: NativeHttpBindings): Promise<void> {
     bindings.outgoing.once("close", () => closed.resolve());
@@ -107,9 +108,9 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
     if ((utility && plan.holdUtility) || (!utility && plan.holdChat)) {
       await hold(bindings);
     }
-    const reply = plan.chat?.[chat];
+    const reply = foreground.peek();
     if (!utility && reply instanceof Response) {
-      chat++;
+      foreground.take();
       return reply.clone();
     }
     return undefined;
@@ -165,18 +166,9 @@ async function speakerPeer(plan: SpeakerWirePlan, ownership: AsyncDisposableStac
       if (body.response_format?.json_schema.name === "character_distillation") {
         return;
       }
-      const text =
-        body.model === B_UTILITY_MODEL
-          ? JSON.stringify({
-              responders:
-                plan.picks?.[pick++] ??
-                (() => {
-                  throw new Error("finite native speaker-pick plan exhausted");
-                })(),
-            })
-          : plan.chat?.[chat++];
+      const text = body.model === B_UTILITY_MODEL ? JSON.stringify({ responders: nextPick() }) : foreground.take();
       if (typeof text !== "string") {
-        throw new Error("finite native foreground plan exhausted");
+        throw new Error("a foreground Response reached the corpus text path");
       }
       return { text, toolCalls: [], usage: { promptTokens: 4, completionTokens: 2 } };
     },

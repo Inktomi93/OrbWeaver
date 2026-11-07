@@ -353,6 +353,7 @@ const TEST_CONSTANT_HOMES = {
     "REFINERY_RESPONSE_FORMATS: the wire schema names the scripted peer answers each refinery stage under",
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
+  "packages/server/src/domain/plugin/substrate/snippet-gate.ts": "SNIPPET_CONCURRENCY_PER_USER: the admission ceiling a release case must exceed",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
   "packages/server/src/domain/discovery/substrate/hub-math.ts":
@@ -692,6 +693,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/lib/row-qualifiers.ts": "viewImageActionName: the portrait viewer opener accessible name",
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_EDIT_NAME: the row edit action and editor accessible name",
     "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the skin rows each chat style's measured paint is held to",
+  },
+  "tests/client/features/chat/lib/composer-send-keys.test.ts": {
+    "packages/client/src/features/chat/lib/composer-send-keys.ts":
+      "shouldSendOnEnter: the feature-private Enter and chord dispatch the composer's keydown path reads",
   },
   "tests/client/features/chat/lib/move-neighbours.test.ts": {
     "packages/client/src/features/chat/lib/move-neighbours.ts": "moveNeighboursAt and moveReasons: the pure edge and generating gates the move arrows read",

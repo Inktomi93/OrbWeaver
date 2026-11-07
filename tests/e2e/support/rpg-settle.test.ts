@@ -6,9 +6,12 @@
 // The ruling under test is preserved from the spec verbatim: BOTH outcomes are terminal (a moved state, or
 // an empty delta with canon intact — the 8B ceiling, plan-for-small-hardware). What changed is the INPUT of
 // the second arm: it now requires the flush to have been OBSERVED.
+import type { RpgDeliveryPath, RpgFlushOutcome } from "@orb/contracts/rpg";
+import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
-import { hasRpgFlush, rpgStateMoved, rpgTurnSettled } from "./rpg-settle.ts";
+import { hasRpgFlush, rpgRoundSettled, rpgStateMoved, rpgTurnSettled } from "./rpg-settle.ts";
 
 type RpgSettleView = Parameters<typeof rpgStateMoved>[0];
 
@@ -71,5 +74,36 @@ describe("hasRpgFlush", () => {
     expect(hasRpgFlush([{ event: { phase: "flush" } }])).toBe(false);
     // …and the pair together is a settled turn: the dispatch happened AND the boundary closed.
     expect(hasRpgFlush([{ event: { phase: "flush" } }, { event: { phase: "flushed" } }])).toBe(true);
+  });
+});
+
+describe("rpgRoundSettled", () => {
+  const dispatch = (chatId: ChatId, turnId: ChatTurnId, path: RpgDeliveryPath) =>
+    ({ event: { phase: "flush", chatId, turnId, path, fallbackReason: null } }) as const;
+  const settle = (chatId: ChatId, turnId: ChatTurnId, outcome: RpgFlushOutcome) =>
+    ({ event: { phase: "flushed", chatId, turnId, outcome, droppedReason: null } }) as const;
+
+  test("a healthy round passes with writes or with an authorized empty delta", ({ ids }) => {
+    const chatId = ids.typeId(ID_PREFIX.chat);
+    const turnId = ids.typeId(ID_PREFIX.chatTurn);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "tool-round"), settle(chatId, turnId, "wrote")], "tool-round")).toBe(true);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "tool-round"), settle(chatId, turnId, "no-writes")], "tool-round")).toBe(true);
+  });
+
+  test("a missing dispatch fails: a settle alone, or a settle on another path, is no cheap round", ({ ids }) => {
+    const chatId = ids.typeId(ID_PREFIX.chat);
+    const turnId = ids.typeId(ID_PREFIX.chatTurn);
+    expect(rpgRoundSettled([], "tool-round")).toBe(false);
+    expect(rpgRoundSettled([settle(chatId, turnId, "wrote")], "tool-round")).toBe(false);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "folded"), settle(chatId, turnId, "wrote")], "tool-round")).toBe(false);
+  });
+
+  test("a dispatch with no settle, another turn's settle, or a failed round is not settled", ({ ids }) => {
+    const chatId = ids.typeId(ID_PREFIX.chat);
+    const turnId = ids.typeId(ID_PREFIX.chatTurn);
+    const otherTurn = ids.typeId(ID_PREFIX.chatTurn);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "tool-round")], "tool-round")).toBe(false);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "tool-round"), settle(chatId, otherTurn, "wrote")], "tool-round")).toBe(false);
+    expect(rpgRoundSettled([dispatch(chatId, turnId, "tool-round"), settle(chatId, turnId, "failed")], "tool-round")).toBe(false);
   });
 });

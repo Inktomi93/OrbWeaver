@@ -21,6 +21,7 @@ const ALTERNATE = "Alt greeting, you rolled {{roll::1d1}} for {{user}}";
 
 interface GreetingOptions extends Pick<ServerHarnessOptions, "db"> {
   readonly windowClosed?: boolean;
+  readonly replies?: readonly string[];
 }
 
 async function room(
@@ -38,7 +39,7 @@ async function room(
 > {
   await using construction = new AsyncDisposableStack();
   const h = construction.use(
-    await textRoom(["ok"], {
+    await textRoom(options.replies ?? [], {
       server: { clock: createFrozenClock(Date.UTC(2026, 0, 15, 20, 0)), ...(options.db === undefined ? {} : { db: options.db }) },
       characters: [
         createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "A bold knight.", greetings: [{ text: primary }, { text: alternate }] }),
@@ -129,7 +130,10 @@ function personaReads(): { readonly wrap: LibSqlWrap; readonly watch: () => void
   };
 }
 
-async function consentRoom(enabled: boolean): Promise<
+async function consentRoom(
+  enabled: boolean,
+  replies: readonly string[] = [],
+): Promise<
   Awaited<ReturnType<typeof room>> & {
     readonly member: Awaited<ReturnType<typeof room>>["h"]["owner"];
     readonly reads: ReturnType<typeof personaReads>;
@@ -138,7 +142,7 @@ async function consentRoom(enabled: boolean): Promise<
   await using construction = new AsyncDisposableStack();
   const reads = personaReads();
   const db = construction.use(await freshDb(reads.wrap)).db;
-  const f = construction.use(await room(PRIMARY, ALTERNATE, { db, windowClosed: false }));
+  const f = construction.use(await room(PRIMARY, ALTERNATE, { db, windowClosed: false, replies }));
   const hostPersona = await f.h.root.services.persona.create({
     principal: f.h.owner,
     input: createPersonaSchema.parse({ name: "Host witness", description: "The host persona participates in the room." }),
@@ -237,7 +241,7 @@ test.for([true, false])("selection uses actual persona owner consent with member
 });
 
 test.for([true, false])("send uses actual persona owner consent with member enabled=%s", async (enabled) => {
-  await using f = await consentRoom(enabled);
+  await using f = await consentRoom(enabled, ["ok"]);
   f.reads.watch();
   const outcome = await f.h.root.services.chat.send({ principal: f.h.owner, chatId: f.chatId, content: "hello" });
   expect(outcome.aborted).toBe(false);

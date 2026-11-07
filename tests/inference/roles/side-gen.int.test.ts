@@ -49,7 +49,8 @@ function agentConnection<T extends "summarize" | "structured">(root: ServerTestH
 
 test("(1) an OpenRouter summarize carries the connection's provider routing, data-collection preference, fallback models and plugins", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const extras = { provider: { ["data_collection"]: "deny", only: ["Anthropic"] }, models: ["anthropic/claude-sonnet-5", "openai/gpt-5.1"] };
   await executor.summarize({
@@ -66,7 +67,8 @@ test("(1) an OpenRouter summarize carries the connection's provider routing, dat
 
 test("(1) an OpenRouter Claude summarize with no routing of its own is pinned to Anthropic, as a chat turn is", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   await executor.summarize({
     connection: await openRouterConnection(root, "summarize", "anthropic/claude-sonnet-5"),
@@ -78,7 +80,8 @@ test("(1) an OpenRouter Claude summarize with no routing of its own is pinned to
 });
 
 test("(2) an extras key the OpenRouter transport cannot take is named on the item's log, not dropped silently", async () => {
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer([], () => ({})) });
+  using server = openAiServer([], () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   using warning = vi.spyOn(root.logger, "warn");
   const executor = root.app.runtime.executor;
   await executor.summarize({
@@ -94,15 +97,16 @@ test("(3) a 429 on one item is retried before anything streamed, and the batch c
   const recorded: RecordedRequest[] = [];
   let calls = 0;
   const timer = observeRuntimeTimers();
+  using server = openAiServer(
+    recorded,
+    () => {
+      calls += 1;
+      return calls === 1 ? { status: 429, error: "rate limited" } : { content: "a summary" };
+    },
+    2,
+  );
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer(
-      recorded,
-      () => {
-        calls += 1;
-        return calls === 1 ? { status: 429, error: "rate limited" } : { content: "a summary" };
-      },
-      2,
-    ),
+    providerFetch: server.execute,
     timers: timer.timers,
   });
   const executor = root.app.runtime.executor;
@@ -318,7 +322,8 @@ test("a stalled Google embed trips retryably while caller cancellation remains a
 });
 
 test("(4) a row with shipped pricing reports the item's estimated cost", async () => {
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer([], () => ({ usage: { prompt: 1000, completion: 500 } })) });
+  using server = openAiServer([], () => ({ usage: { prompt: 1000, completion: 500 } }));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, {
     task: "summarize",
@@ -334,7 +339,8 @@ test("(4) a row with shipped pricing reports the item's estimated cost", async (
 
 test("(5) a role cap above the model's own output cap is clamped to it", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const capability = generationCapability({
     reasoning: { mode: "none", enabled: false },
@@ -504,7 +510,7 @@ test("(3) agent-sdk side generation fans out to the connection's utility calls a
 
 test("(8) a word-keyed logit bias resolves to token ids through the server's tokenizer", async () => {
   const chats: RecordedRequest[] = [];
-  const chat = openAiServer(chats, () => ({}));
+  using chat = openAiServer(chats, () => ({}));
   const server: typeof fetch = async (input, init) => {
     const request = new Request(input, init);
     if (request.url.endsWith("/tokenize")) {
@@ -512,7 +518,7 @@ test("(8) a word-keyed logit bias resolves to token ids through the server's tok
       const ids = Array.from(word).map((char) => char.codePointAt(0) ?? 0);
       return Promise.resolve(Response.json({ count: ids.length, ["max_model_len"]: 4096, tokens: ids, ["token_strs"]: Array.from(word) }));
     }
-    return chat(request);
+    return chat.execute(request);
   };
   await using root = await createRuntimeRoot({ providerFetch: server });
   const executor = root.app.runtime.executor;
@@ -528,8 +534,9 @@ test("(8) a word-keyed logit bias resolves to token ids through the server's tok
 
 test("(9) a chat template's role refusal on summarize reads as the chat turn's fix, and is not retried", async () => {
   const recorded: RecordedRequest[] = [];
+  using server = openAiServer(recorded, () => ({ status: 500, error: "System message must be at the beginning." }));
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer(recorded, () => ({ status: 500, error: "System message must be at the beginning." })),
+    providerFetch: server.execute,
   });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, {
@@ -545,8 +552,9 @@ test("(9) a chat template's role refusal on summarize reads as the chat turn's f
 });
 
 test("(10) an unterminated <think> block at the output cap never reaches the summary text", async () => {
+  using server = openAiServer([], () => ({ content: "<think>weighing which beats matter and never closing", finish: "length" }));
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer([], () => ({ content: "<think>weighing which beats matter and never closing", finish: "length" })),
+    providerFetch: server.execute,
   });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
@@ -555,8 +563,9 @@ test("(10) an unterminated <think> block at the output cap never reaches the sum
 });
 
 test("(10) the Utility preset's own tag pair splits a summarize reply in place of the house pair", async () => {
+  using server = openAiServer([], () => ({ content: "<reason>which beats matter</reason>The scene, summarized." }));
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer([], () => ({ content: "<reason>which beats matter</reason>The scene, summarized." })),
+    providerFetch: server.execute,
   });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
@@ -569,8 +578,9 @@ test("(10) a role tag pair wrapped in whitespace splits on its trimmed form, ST'
     ["think", { prefix: "<think>\n", suffix: "\n</think>" }],
     ["reason", { prefix: "<reason>\n", suffix: "\n</reason>" }],
   ] as const) {
+    using server = openAiServer([], () => ({ content: `<${tag}>which beats matter</${tag}>The scene, summarized.` }));
     await using root = await createRuntimeRoot({
-      providerFetch: openAiServer([], () => ({ content: `<${tag}>which beats matter</${tag}>The scene, summarized.` })),
+      providerFetch: server.execute,
     });
     const executor = root.app.runtime.executor;
     const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
@@ -580,8 +590,9 @@ test("(10) a role tag pair wrapped in whitespace splits on its trimmed form, ST'
 });
 
 test("(10) a role tag pair the splitter cannot carry falls back to the house pair", async () => {
+  using server = openAiServer([], () => ({ content: "<think>which beats matter</think>The scene, summarized." }));
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer([], () => ({ content: "<think>which beats matter</think>The scene, summarized." })),
+    providerFetch: server.execute,
   });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
@@ -591,7 +602,8 @@ test("(10) a role tag pair the splitter cannot carry falls back to the house pai
 
 test("(10) items sharing a static system prompt on an OpenRouter Claude route each place its cache breakpoint", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({}), 2) });
+  using server = openAiServer(recorded, () => ({}), 2);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const shared = "You are a careful summarizer. ".repeat(40);
   await executor.summarize({
@@ -677,18 +689,17 @@ test("(11) a Utility preset's Max context 16384 on an unpinned Ollama native row
 test("0525: an item refused as mandatory-reasoning replays alone; an item that already succeeded is never re-sent", async () => {
   const recorded: RecordedRequest[] = [];
   const mandatory = "Reasoning is mandatory for this endpoint and cannot be disabled.";
-  await using root = await createRuntimeRoot({
-    providerFetch: openAiServer(
-      recorded,
-      (body) => {
-        const reasoning = body["reasoning"];
-        return userTextOf(body).includes("Second item.") && isPlainObject(reasoning) && reasoning["effort"] === "none"
-          ? { status: 400, error: mandatory }
-          : { content: "done" };
-      },
-      3,
-    ),
-  });
+  using server = openAiServer(
+    recorded,
+    (body) => {
+      const reasoning = body["reasoning"];
+      return userTextOf(body).includes("Second item.") && isPlainObject(reasoning) && reasoning["effort"] === "none"
+        ? { status: 400, error: mandatory }
+        : { content: "done" };
+    },
+    3,
+  );
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const result = await executor.summarize({
     connection: await openRouterConnection(root, "summarize", "anthropic/claude-sonnet-5"),
@@ -704,8 +715,9 @@ test("0525: an item refused as mandatory-reasoning replays alone; an item that a
 });
 
 test("a failed batch carries the items it finished, by input index, so a caller re-sends only the rest", async () => {
+  using server = openAiServer([], (body) => (userTextOf(body).includes("Second item.") ? { status: 400, error: "bad item" } : { content: "done" }), 2);
   await using root = await createRuntimeRoot({
-    providerFetch: openAiServer([], (body) => (userTextOf(body).includes("Second item.") ? { status: 400, error: "bad item" } : { content: "done" }), 2),
+    providerFetch: server.execute,
   });
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, {
@@ -727,7 +739,8 @@ test("a failed batch carries the items it finished, by input index, so a caller 
 
 test("a vLLM side-generation off is the template switch alone: enable_thinking false, never reasoning_effort none beside it", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const capability = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } });
   const connection = await wireConnection(root, { task: "summarize", providerId: "vllm", model: "m", capability, baseUrl: LOCAL_URL });
