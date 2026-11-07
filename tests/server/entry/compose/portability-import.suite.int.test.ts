@@ -52,24 +52,24 @@ interface UploadBox extends AsyncDisposable {
 }
 
 async function uploadBox(): Promise<UploadBox> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      physicalPeer: () => "127.0.0.1",
+      startJobs: false,
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+    }),
+  );
   const member = await signedInMember(root, castId<Handle>("portability-target"));
   const headers = { [CSRF_HEADER]: "1", cookie: member.cookie };
   // Default content seeds in the background after each account's first request, so a case's spies start after it.
   await root.http.request(PORTABILITY_ROUTES.exportLibrary);
   await root.http.request(PORTABILITY_ROUTES.exportLibrary, { headers });
   await root.settleBackground();
-  return {
-    root,
-    source: await principal(root, root.ownerId),
-    target: await principal(root, member.id),
-    headers,
-    [Symbol.asyncDispose]: () => root[Symbol.asyncDispose](),
-  };
+  const source = await principal(root, root.ownerId);
+  const target = await principal(root, member.id);
+  const owned = construction.move();
+  return { root, source, target, headers, [Symbol.asyncDispose]: () => owned.disposeAsync() };
 }
 
 async function uploadedWorkload(response: Response): Promise<WorkloadId> {
