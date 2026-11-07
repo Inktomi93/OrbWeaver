@@ -30,12 +30,20 @@ export function assertEveryLaneClassified(projectNames: readonly string[]): void
 }
 assertEveryLaneClassified(source.test.projects.map((project) => project.test.name ?? ""));
 
+// Each rule stops a false Survived, and each sits on the projects too because a project keeps its own values.
+// isolate: one module registry per worker runs Stryker's per-test coverage hooks for the first test file alone.
+// maxWorkers: the runner forces one worker on the root only; two workers race its bail and a run can end with no test result.
+const MEASURED_RUN = { isolate: true, maxWorkers: 1 } as const;
+
 export default {
   ...base,
   test: {
     ...base.test,
+    ...MEASURED_RUN,
     // source-freshness compares committed bytes the sandbox has rewritten; the rest need history or a live model.
     tagsFilter: ["!source-freshness && !requires-git-history && !live && !local-model-cache"],
-    projects: source.test.projects.filter((project) => RUNTIME_LANES.has(project.test.name ?? "")),
+    projects: source.test.projects
+      .filter((project) => RUNTIME_LANES.has(project.test.name ?? ""))
+      .map((project) => ({ ...project, test: { ...project.test, ...MEASURED_RUN } })),
   },
 };

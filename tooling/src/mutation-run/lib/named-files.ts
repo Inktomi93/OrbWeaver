@@ -15,7 +15,7 @@ const TESTS_FLAG = "--tests";
 const USAGE = [
   "usage: pnpm test:mutation <file...> [--tests <test-file-or-glob...>]",
   "Mutates the named source files against the tests in the directory that mirrors each file.",
-  "A survivor can be caught by a test outside that mirror, such as a .suite test: name it with --tests, which replaces the mirror.",
+  "A survivor or NoCoverage mutant can be caught by a test outside that mirror, such as a .suite test: name it with --tests, which replaces the mirror.",
 ].join("\n");
 
 export interface MutationPlan {

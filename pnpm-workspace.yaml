@@ -484,6 +484,10 @@ patchedDependencies:
   echarts@6.1.0: patches/echarts@6.1.0.patch
   # React 19 scopes JSX to React; remove when the wrapper imports that type.
   echarts-for-react@3.0.6: patches/echarts-for-react@3.0.6.patch
+  # Also carries open upstream stryker-js#6209 (PR 6293): with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
   '@stryker-mutator/core@10.1.1': patches/@stryker-mutator__core@10.1.1.patch
+  # Two open upstream fixes; a bump drops each one that has landed. stryker-js#6256 (PR 6275): a run where no test reaches a
+  # selected mutant reports NoCoverage, not Survived. PR 6312: `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
+  '@stryker-mutator/vitest-runner@10.1.1': patches/@stryker-mutator__vitest-runner@10.1.1.patch
 
 nodeOptions: "--max-old-space-size=16384"

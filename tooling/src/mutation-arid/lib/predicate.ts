@@ -1,6 +1,6 @@
 // The ARID ignorer: drops mutants no honest test should kill, by where the code sits, never by a per-site comment.
-// Two families: a string whose only destination is a trace or log sink, and an arm tsc proved unreachable (a
-// `never`-typed binding). A string reaching a sink through a local stays scored; recognizing it needs data flow.
+// Three families: a string whose only destination is a trace or log sink, an arm tsc proved unreachable (a `never`-typed
+// binding), and error prose. A string reaching a sink through a local stays scored; recognizing it needs data flow.
 
 import { declareValuePlugin, PluginKind } from "@stryker-mutator/api/plugin";
 
@@ -27,11 +27,19 @@ const TRACE_NAME = "trace";
 /** The house naming convention for a trace-recording helper: `recordOverrideSource`, `recordMergedCacheBuster`. */
 const RECORDER_RE = /^record[A-Z]/u;
 
+/** Whitespace is what separates prose from a code, key or mode: `"too-large"` steers behavior, `"over the limit"` is read. */
+const WHITESPACE_RE = /\s/u;
+const ERROR_CLASS_RE = /(?:Error|Refusal)$/u;
+const NEW_NODE = "NewExpression";
+const MESSAGE_KEY = "message";
+const STRING_COERCION = "String";
+
 const MESSAGE_LOGGER = "Observability: a logger-call string is diagnostic text, never behavior.";
 const MESSAGE_RECORDER = "Observability: a trace-recorder argument only ever reaches the trace record.";
 const MESSAGE_TRACE_APPEND = "Observability: a string appended to a trace collection is a trace label.";
 const MESSAGE_TRACE_ASSIGN = "Observability: a string assigned into the trace is a trace label.";
 const MESSAGE_TRACE_PAYLOAD = "Observability: a string in a trace-carrying payload object is a trace label.";
+const MESSAGE_ERROR_PROSE = "Copy: error prose is read, never branched on, and no test may pin copy.";
 
 function nameOf(node: AridNode | undefined): string {
   return (node?.type === IDENTIFIER_NODE ? node.name : undefined) ?? "";
@@ -149,6 +157,42 @@ function aridUnreachableArm(node: AridNode): string {
   return "";
 }
 
+// --- family (3): error prose ---
+
+function staticText(node: AridNode): string {
+  return typeof node.value === "string" ? node.value : (node.quasis ?? []).map((quasi) => quasi.value.raw).join("");
+}
+
+/** An interpolation Stryker has nothing to mutate in. Matching a template swallows its whole subtree, so one holding an
+ *  operator stays scored: `${a ?? b}` is logic even inside a message. */
+function isPlainValue(node: AridNode | undefined): boolean {
+  if (node?.type === MEMBER_NODE) {
+    return node.computed !== true && isPlainValue(node.object);
+  }
+  if (node?.type === CALL_NODE) {
+    return nameOf(node.callee) === STRING_COERCION && node.arguments?.length === 1 && isPlainValue(node.arguments[0]);
+  }
+  return node?.type === IDENTIFIER_NODE;
+}
+
+function isErrorConstruction(node: AridNode | undefined): boolean {
+  return node?.type === NEW_NODE && ERROR_CLASS_RE.test(calleeName(node.callee));
+}
+
+/** R7: prose handed to an error class, as an argument or as the `message` of an options object. */
+function aridErrorProse(parentPath: AridPath, node: AridNode): string {
+  if (!(WHITESPACE_RE.test(staticText(node)) && (node.expressions ?? []).every(isPlainValue))) {
+    return "";
+  }
+  const parent = parentPath.node;
+  if (isErrorConstruction(parent)) {
+    return isArgumentOf(parent, node) ? MESSAGE_ERROR_PROSE : "";
+  }
+  const object = parentPath.parentPath;
+  const isMessageValue = parent.type === OBJECT_PROPERTY_NODE && parent.value === node && parent.computed !== true && nameOf(parent.key) === MESSAGE_KEY;
+  return isMessageValue && object?.node.type === OBJECT_NODE && isErrorConstruction(object.parentPath?.node) ? MESSAGE_ERROR_PROSE : "";
+}
+
 class AridIgnorer {
   shouldIgnore(path: AridPath): string | undefined {
     const node = path.node;
@@ -170,7 +214,10 @@ class AridIgnorer {
     // R4: the string is assigned into the trace (`trace.x = "…"`).
     const assigned = parent.type === ASSIGNMENT_NODE && parent.right === node && chainMentionsTrace(parent.left);
     const message =
-      (parent.type === CALL_NODE ? aridCallArgument(parent, node) : "") || (assigned ? MESSAGE_TRACE_ASSIGN : "") || aridTracePayload(parentPath, node);
+      (parent.type === CALL_NODE ? aridCallArgument(parent, node) : "") ||
+      (assigned ? MESSAGE_TRACE_ASSIGN : "") ||
+      aridTracePayload(parentPath, node) ||
+      aridErrorProse(parentPath, node);
 
     return message === "" ? undefined : message;
   }

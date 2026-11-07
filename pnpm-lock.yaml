@@ -607,7 +607,8 @@ packageExtensionsChecksum: sha256-Pm6x6Ey51leQq1HnsX0T0oiLt134g48UktvcasTUkdg=
 
 patchedDependencies:
   '@anthropic-ai/claude-agent-sdk@0.3.306': d8e5d2e1eeaf93db398559693a24f1de0256b5e80d55597f23b65101bc31b5f4
-  '@stryker-mutator/core@10.1.1': e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d
+  '@stryker-mutator/core@10.1.1': 3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6
+  '@stryker-mutator/vitest-runner@10.1.1': 7591edd5f8bdc288117849b0442f7f640e528309ed2859fb23a2a15252978f00
   '@vitest/eslint-plugin@1.6.27': 5d9b0cfbe2f217abee47c556cc65d2e534ae4c5c53cf97f675491dfee1a767d7
   chrome-devtools-mcp@1.11.0: f3f1f09662e22c856422d3be627d1ad300eff7badc4a4f90ad03f62849a8bc97
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
@@ -679,13 +680,13 @@ importers:
         version: 1.64.1
       '@stryker-mutator/core':
         specifier: 'catalog:'
-        version: 10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5)
+        version: 10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)
       '@stryker-mutator/typescript-checker':
         specifier: 'catalog:'
-        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)
+        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
-        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5))(vitest@5.0.5)
+        version: 10.1.1(patch_hash=7591edd5f8bdc288117849b0442f7f640e528309ed2859fb23a2a15252978f00)(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(vitest@5.0.5)
       '@tailwindcss/oxide':
         specifier: 'catalog:'
         version: 4.3.3
@@ -11312,7 +11313,7 @@ snapshots:
       tslib: 2.8.1
       typed-inject: 5.0.0
 
-  '@stryker-mutator/core@10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5)':
+  '@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)':
     dependencies:
       '@inquirer/prompts': 8.7.5(@types/node@26.6.5)
       '@stryker-mutator/api': 10.1.1
@@ -11360,20 +11361,20 @@ snapshots:
       tslib: 2.8.1
       weapon-regex: 2.0.6
 
-  '@stryker-mutator/typescript-checker@10.1.1(@stryker-mutator/core@10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)':
+  '@stryker-mutator/typescript-checker@10.1.1(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)':
     dependencies:
       '@stryker-mutator/api': 10.1.1
-      '@stryker-mutator/core': 10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5)
+      '@stryker-mutator/core': 10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)
       '@stryker-mutator/util': 10.1.1
       semver: 7.8.5
       typescript: '@typescript/typescript6@6.0.2'
 
   '@stryker-mutator/util@10.1.1': {}
 
-  '@stryker-mutator/vitest-runner@10.1.1(@stryker-mutator/core@10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5))(vitest@5.0.5)':
+  '@stryker-mutator/vitest-runner@10.1.1(patch_hash=7591edd5f8bdc288117849b0442f7f640e528309ed2859fb23a2a15252978f00)(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(vitest@5.0.5)':
     dependencies:
       '@stryker-mutator/api': 10.1.1
-      '@stryker-mutator/core': 10.1.1(patch_hash=e81ee27dc4b7000e7038fd14c1a162a87597b41f1cf6fc3e5d33f31cbaad509d)(@types/node@26.6.5)
+      '@stryker-mutator/core': 10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)
       '@stryker-mutator/util': 10.1.1
       semver: 7.8.5
       tslib: 2.8.1

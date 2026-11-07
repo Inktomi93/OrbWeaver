@@ -183,3 +183,54 @@ describe("arid family (2) — unreachable arms", () => {
     expect(shouldIgnoreArid({ node: block([plainDecl()]), parentPath: { node: { type: "IfStatement" } } })).toBeUndefined();
   });
 });
+
+describe("arid ignorer — error prose", () => {
+  function template(text: readonly string[], expressions: readonly AridNode[]): AridNode {
+    return { type: "TemplateLiteral", quasis: text.map((raw) => ({ value: { raw } })), expressions };
+  }
+
+  function newArg(className: string, args: AridNode[], node: AridNode): AridPath {
+    return { node, parentPath: { node: { type: "NewExpression", callee: id(className), arguments: args } } };
+  }
+
+  function messageOption(className: string, key: string, node: AridNode): AridPath {
+    const property: AridNode = { type: "ObjectProperty", key: id(key), value: node, computed: false };
+    const object: AridNode = { type: "ObjectExpression", properties: [property] };
+    const construction: AridNode = { type: "NewExpression", callee: id(className), arguments: [object] };
+    return { node, parentPath: { node: property, parentPath: { node: object, parentPath: { node: construction } } } };
+  }
+
+  test("prose is dropped as a sole argument, after a code, in a template, and as a message option", () => {
+    const sole = str("requires the room host");
+    expect(shouldIgnoreArid(newArg("DomainForbiddenError", [sole], sole))).toContain("error prose");
+    const afterCode = str("read past end of archive");
+    expect(shouldIgnoreArid(newArg("ZipRejectedError", [str("malformed"), afterCode], afterCode))).toContain("error prose");
+    const interpolated = template(["requires ", " privilege"], [id("action")]);
+    expect(shouldIgnoreArid(newArg("DomainForbiddenError", [interpolated], interpolated))).toContain("error prose");
+    const coerced = template(["bad value: ", ""], [{ type: "CallExpression", callee: id("String"), arguments: [member(id("args"), id("value"))] }]);
+    expect(shouldIgnoreArid(newArg("Error", [coerced], coerced))).toContain("error prose");
+    expect(shouldIgnoreArid(messageOption("TRPCError", "message", str("not allowed here")))).toContain("error prose");
+  });
+
+  test("a code, key or mode stays scored, in any position", () => {
+    const code = str("too-large");
+    expect(shouldIgnoreArid(newArg("ZipRejectedError", [code, str("over the limit")], code))).toBeUndefined();
+    const entity = str("user");
+    expect(shouldIgnoreArid(newArg("DomainNotFoundError", [str("workload admission"), entity], entity))).toBeUndefined();
+    expect(shouldIgnoreArid(messageOption("TRPCError", "code", str("FORBIDDEN")))).toBeUndefined();
+  });
+
+  test("a template holding logic stays scored, because the match would swallow its operators", () => {
+    const logic = template(["got ", " here"], [{ type: "LogicalExpression", left: id("a"), right: id("b") }]);
+    expect(shouldIgnoreArid(newArg("Error", [logic], logic))).toBeUndefined();
+    const call = template(["got ", " here"], [{ type: "CallExpression", callee: id("describe"), arguments: [id("a")] }]);
+    expect(shouldIgnoreArid(newArg("Error", [call], call))).toBeUndefined();
+  });
+
+  test("prose outside an error class stays scored", () => {
+    const prose = str("two words");
+    expect(shouldIgnoreArid(newArg("Map", [prose], prose))).toBeUndefined();
+    expect(shouldIgnoreArid(arg1(id("plain"), prose))).toBeUndefined();
+    expect(shouldIgnoreArid(messageOption("Notice", "message", prose))).toBeUndefined();
+  });
+});

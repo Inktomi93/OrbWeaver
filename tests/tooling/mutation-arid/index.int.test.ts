@@ -75,6 +75,8 @@ function walk(node: unknown, parentPath: unknown, tally: Tally): void {
   }
 }
 
+const PROSE_TYPES: readonly string[] = ["StringLiteral", "TemplateLiteral"];
+
 function walkReal(repoRoot: string): Walked {
   const ast = parse(readFileSync(join(repoRoot, SUBJECT), "utf8"), { sourceType: "module", plugins: ["typescript"] });
   const tally: Tally = { switchCases: 0, defaultArms: 0, matchedLines: [], matchedTypes: [] };
@@ -93,10 +95,16 @@ test("family (2) fires on the AST babel really emits — and only on the unreach
   // POSITIVE: both arms matched. The rule matches the SwitchCase and the BlockStatement inside it; Stryker
   // ignores the subtree under whichever it hits first, so both is redundant, never wrong.
   expect(seen.matchedLines.length, "the real `default:` arms must be recognised").toBeGreaterThan(0);
-  expect(new Set(seen.matchedTypes)).toEqual(new Set(["SwitchCase", "BlockStatement"]));
+  expect(new Set(seen.matchedTypes)).toEqual(new Set(["SwitchCase", "BlockStatement", ...PROSE_TYPES]));
 
   // NEGATIVE: exactly the default arms, never a reachable `case`. guard.ts has 6 cases and 2 defaults, so a
   // rule that leaked onto reachable arms would show more matched SwitchCases than defaults.
   const matchedSwitchCases = seen.matchedTypes.filter((t) => t === "SwitchCase").length;
   expect(matchedSwitchCases, "only the `default:` arms may match — a reachable case is live code").toBe(seen.defaultArms);
+});
+
+test("family (3) fires on the error prose babel really emits, and on nothing else that is a string", ({ repoRoot }) => {
+  const prose = walkReal(repoRoot).matchedTypes.filter((type) => PROSE_TYPES.includes(type));
+  // The fourth message interpolates `JSON.stringify`, so it stays scored as a template holding more than a plain read.
+  expect(prose.toSorted()).toEqual(["StringLiteral", "TemplateLiteral", "TemplateLiteral"]);
 });

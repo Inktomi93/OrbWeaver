@@ -12,7 +12,10 @@ const IGNORED = "Ignored" satisfies MutantStatus;
 const UNSCORED: readonly MutantStatus[] = [IGNORED, "CompileError"];
 
 const StrykerReportSchema = z.object({
-  files: z.record(z.string(), z.object({ mutants: z.array(z.object({ status: z.enum(MUTANT_STATUSES), statusReason: z.string().optional() })) })),
+  files: z.record(
+    z.string(),
+    z.object({ mutants: z.array(z.object({ status: z.enum(MUTANT_STATUSES), statusReason: z.string().optional(), testsCompleted: z.number().optional() })) }),
+  ),
 });
 
 /** Every mutant in a report. Throws on anything else, so a bad payload is a tool error and never an empty result. */

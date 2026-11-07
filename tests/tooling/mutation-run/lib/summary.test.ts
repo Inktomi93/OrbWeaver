@@ -20,3 +20,15 @@ test("ignored and compile-error mutants never count as tested", () => {
   expect(testedCount(countStatuses(mutants("Ignored", "CompileError", "Pending")))).toBe(0);
   expect(testedCount(countStatuses(mutants("Killed", "Survived", "NoCoverage", "Timeout", "RuntimeError", "Ignored")))).toBe(5);
 });
+
+test("a survivor whose run completed no test is no evidence: counted apart, untested, and never clean", () => {
+  const counts = countStatuses([{ status: "Killed" }, { status: "Survived", testsCompleted: 0 }, { status: "Survived", testsCompleted: 3 }]);
+  expect([counts.Killed, counts.Survived, counts.NotMeasured]).toEqual([1, 1, 1]);
+  expect(testedCount(counts)).toBe(2);
+  expect(exitForCounts(counts)).toBe(EXIT.toolError);
+});
+
+test("a NoCoverage mutant with no completed test stays NoCoverage", () => {
+  const counts = countStatuses([{ status: "NoCoverage", testsCompleted: 0 }]);
+  expect([counts.NoCoverage, counts.NotMeasured]).toEqual([1, 0]);
+});

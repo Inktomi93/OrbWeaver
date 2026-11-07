@@ -80,7 +80,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 - Run a new test against the unmodified source first. Confirm that it fails.
 - A test that passes before the fix proves nothing. Plant a positive control that it catches.
-- To check that a test catches a break, run `pnpm test:mutation <file...>` on the source file. Never hand-write a mutation script.
+- To check that a Node test catches a break in package source, run `pnpm test:mutation <file...>`, not a hand-written mutation script. It refuses `tooling/**` and never runs a CT; plant those breaks by hand.
 - Write old-source proofs against the old API, and assert through what the user sees.
 - Fix the cause. Never special-case a test's inputs to make it pass.
 - If a test is wrong, tell the orchestrator instead of bending the code to fit it.

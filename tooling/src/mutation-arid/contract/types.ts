@@ -29,6 +29,10 @@ export interface AridNode {
   readonly id?: AridNode;
   /** TSTypeAnnotation wrapper (`id.typeAnnotation.typeAnnotation.type === "TSNeverKeyword"`). */
   readonly typeAnnotation?: AridNode;
+  /** TemplateLiteral's static text. */
+  readonly quasis?: readonly { readonly value: { readonly raw: string } }[];
+  /** TemplateLiteral's interpolations. */
+  readonly expressions?: readonly AridNode[];
 }
 
 export interface AridPath {
@@ -44,6 +48,7 @@ export type MutantStatus = (typeof MUTANT_STATUSES)[number];
 export interface ReportMutant {
   readonly status: MutantStatus;
   readonly statusReason?: string | undefined;
+  readonly testsCompleted?: number | undefined;
 }
 
 /** One reason the ignorer fired, and how often, in a Stryker report. */

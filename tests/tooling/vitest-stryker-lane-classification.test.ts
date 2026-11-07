@@ -24,6 +24,12 @@ test("every project that can hold a behavior test of a named file stays in the r
   expect(mutation.test.projects.map((project) => project.test.name)).toEqual(expect.arrayContaining(["unit", "integration", "contract", "repository"]));
 });
 
+test("the root and every project run isolated on one worker, or a mutant reads as a false survivor", () => {
+  for (const config of [mutation.test, ...mutation.test.projects.map((project) => project.test)]) {
+    expect(config).toMatchObject({ isolate: true, maxWorkers: 1 });
+  }
+});
+
 test("the overlay keeps the base rigor and leaves the base config alone", () => {
   expect(mutation.test).not.toBe(base.test);
   expect(base.test?.projects).toHaveLength(RUNTIME_LANES.size + DROPPED_LANES.size);

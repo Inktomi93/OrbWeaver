@@ -1,3 +1,28 @@
+diff --git a/dist/src/mutants/mutant-test-planner.js b/dist/src/mutants/mutant-test-planner.js
+--- a/dist/src/mutants/mutant-test-planner.js
++++ b/dist/src/mutants/mutant-test-planner.js
+@@ -128,6 +128,12 @@
+         // 1. We have a specific test filter (not running all tests)
+         // 2. The mutant is NOT static (static mutants require full reload)
+         const canHotSwap = !!testFilter && isStatic === false;
++        // A file or test filter only selects suites. Static mutants, and mutants
++        // with unknown static status, must be active before the module evaluates.
++        // Runtime activation is reserved for mutants known to be non-static, and
++        // for hybrid mutants whose static coverage is ignored.
++        const activateAtRuntime = !!testFilter &&
++            (isStatic === false || (isStatic === true && this.options.ignoreStatic));
+         return {
+             plan: PlanKind.Run,
+             netTime,
+@@ -145,7 +151,7 @@
+                     mutatorName: mutant.mutatorName,
+                     replacement: mutant.replacement,
+                 },
+-                mutantActivation: testFilter ? 'runtime' : 'static',
++                mutantActivation: activateAtRuntime ? 'runtime' : 'static',
+                 timeout,
+                 testFilter,
+                 sandboxFileName: this.sandbox.sandboxFileFor(mutant.fileName),
 diff --git a/dist/src/sandbox/sandbox.js b/dist/src/sandbox/sandbox.js
 index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..9c141909e785adf262e4ea0d0165bb7d609551c2 100644
 --- a/dist/src/sandbox/sandbox.js
