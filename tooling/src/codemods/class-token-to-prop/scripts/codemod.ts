@@ -98,7 +98,19 @@ interface LiteralRewrite {
   readonly edit: Edit | undefined;
   readonly removesAttribute: boolean;
   readonly hit: readonly Site[];
+  /** Why the literal cannot be taken out: the join around it would be left holding one argument the rewrite does not unwrap. */
+  readonly refusal?: Refusal;
 }
+
+// What a class joiner's last argument may be for the call to give way to it: a name, a member read or a call, which TypeScript then checks as a class string.
+const UNWRAPPED_KINDS: ReadonlySet<string> = new Set([
+  "identifier",
+  "member_expression",
+  "subscript_expression",
+  "call_expression",
+  "string",
+  "template_string",
+]);
 
 /** Rewrite one string literal: drop the planned tokens and report which sites they belonged to. */
 function rewriteLiteral(literal: SgNode<TSX>, sites: readonly Site[], isBareValue: boolean): LiteralRewrite {
@@ -117,6 +129,20 @@ function rewriteLiteral(literal: SgNode<TSX>, sites: readonly Site[], isBareValu
   const siblings = parent?.kind() === "arguments" ? parent.children().filter((child) => child.isNamed()) : [];
   if (isBareValue || parent?.kind() === "jsx_expression" || siblings.length === 1) {
     return { edit: undefined, removesAttribute: true, hit };
+  }
+  const call = parent?.parent();
+  const rest = siblings.find((sibling) => sibling.id() !== literal.id());
+  if (siblings.length === 2 && call !== null && call !== undefined && rest !== undefined && isClassJoin(call)) {
+    // A join of one argument adds nothing, so the call gives way to what is left of it.
+    if (!UNWRAPPED_KINDS.has(rest.kind()) || carriesPlannedToken(rest, sites)) {
+      return {
+        edit: undefined,
+        removesAttribute: false,
+        hit,
+        refusal: { code: "join", detail: `the join would be left holding ${rest.kind()}, which the rewrite does not unwrap` },
+      };
+    }
+    return { edit: call.replace(rest.text()), removesAttribute: false, hit };
   }
   return { edit: siblings.length === 0 ? literal.replace("undefined") : dropArgument(literal, siblings), removesAttribute: false, hit };
 }
@@ -269,6 +295,10 @@ function rewriteAttribute(attribute: SgNode<TSX>, claimed: readonly Site[]): Out
 
 /** Why the hit sites of one attribute stay: a conflict between their props, the place of a literal, a spread, or a prop the element has. */
 function refuse({ attribute, literals, rewrites, proven }: AttributeRewrite, hit: readonly Site[]): Refusal | null {
+  const joined = rewrites.find((rewrite) => rewrite.refusal !== undefined)?.refusal;
+  if (joined !== undefined) {
+    return joined;
+  }
   const props = propsToAdd(hit);
   if (props === undefined) {
     return { code: "conflict", detail: "two planned tokens want different values for one prop" };
@@ -300,6 +330,40 @@ function recordSkips(targetDir: string, mapFile: string, file: string, skips: re
   }
 }
 
+const IMPORT_SPECIFIER: RuleConfig<TSX> = { rule: { kind: "import_specifier" } };
+
+/** The edits that take a class joiner's import out once the rewrite leaves no call of it: the specifier, or the whole statement when it was the only name. */
+function deadJoinerImports(rootNode: SgNode<TSX>, edits: readonly Edit[]): readonly Edit[] {
+  const text = rootNode.text();
+  const removed = (node: SgNode<TSX>): boolean => {
+    const { start, end } = node.range();
+    return edits.some((edit) => edit.startPos <= start.index && end.index <= edit.endPos);
+  };
+  return rootNode.findAll(IMPORT_SPECIFIER).flatMap((specifier) => {
+    const name = specifier.field("name")?.text() ?? "";
+    const statement = specifier.parent()?.parent()?.parent();
+    const uses = rootNode
+      .findAll({ rule: { kind: "identifier", regex: `^${name}$` } })
+      .filter((use) => use.ancestors().every((above) => above.id() !== specifier.id()));
+    if (
+      !CLASS_JOINERS.has(name) ||
+      specifier.field("alias") !== null ||
+      statement === null ||
+      statement === undefined ||
+      uses.length === 0 ||
+      !uses.every(removed)
+    ) {
+      return [];
+    }
+    const siblings = (specifier.parent()?.children() ?? []).filter((child) => child.kind() === "import_specifier");
+    if (siblings.length > 1) {
+      return [dropArgument(specifier, siblings)];
+    }
+    const { start, end } = statement.range();
+    return [{ startPos: start.index, endPos: text[end.index] === "\n" ? end.index + 1 : end.index, insertedText: "" }];
+  });
+}
+
 const codemod: Codemod<TSX> = (root, options) => {
   const mapFile = options.params["map"] ?? DEFAULT_MAP_FILE;
   const file = root.relativeFilename();
@@ -326,7 +390,8 @@ const codemod: Codemod<TSX> = (root, options) => {
   if (lost.length > 0) {
     failStep(`the plan and the tree disagree in ${file}: no ${lost.map((site) => `${site.token} at ${site.line}:${site.column}`).join(", ")}`, { file });
   }
-  const edits = outcomes.flatMap((outcome) => outcome.edits);
+  const moves = outcomes.flatMap((outcome) => outcome.edits);
+  const edits = [...moves, ...deadJoinerImports(rootNode, moves)];
   for (const site of outcomes.flatMap((outcome) => outcome.moved)) {
     moved.increment({ prop: site.prop });
   }

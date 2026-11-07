@@ -39,10 +39,10 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { ROOM_PICTURES_NOTE, viewerTimeZone } from "#lib";
+import { ROOM_PICTURES_NOTE, useElapsedSeconds, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -63,8 +63,6 @@ const MODE_LABELS: Record<ImagineMode, string> = {
 
 const PROMPT_ROWS = 3;
 const PROMPT_MAX_ROWS = 8;
-/** The pending counters tick in whole seconds — a wall-clock read is banned in render scope. */
-const ELAPSED_TICK_MS = 1000;
 
 /** The read call's own result, kept WHOLE — `costUsd` (nullable on the wire: a backend with no usage
  *  accounting reports nothing) and `source` were both destructured away before #623. Derived from the verb,
@@ -306,11 +304,7 @@ function readCostLine(receipt: ExtractedPromptResult | undefined): string {
  * (the `reasoning-block` precedent).
  */
 function PendingLine({ label, verb }: { readonly label: string; readonly verb: string }): ReactElement {
-  const [seconds, setSeconds] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((current) => current + 1), ELAPSED_TICK_MS);
-    return (): void => clearInterval(id);
-  }, []);
+  const seconds = useElapsedSeconds(true);
   return (
     <Row align="center" gap="field">
       <WebSpinner label={label} size="sm" />

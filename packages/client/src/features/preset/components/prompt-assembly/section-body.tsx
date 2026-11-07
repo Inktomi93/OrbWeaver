@@ -134,7 +134,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCop
       <Button
         aria-controls={bodyId}
         aria-expanded={open}
-        className="gap-tight self-start"
+        className="self-start"
         variant="ghost"
         onClick={(): void => setOpen((prev) => !prev)}
         size="sm"
@@ -145,7 +145,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCop
       </Button>
       <div hidden={!open} id={bodyId}>
         {open ? (
-          <Text className="whitespace-pre-wrap" voice="gloss">
+          <Text whitespace="preWrap" voice="gloss">
             {detail.text}
           </Text>
         ) : null}

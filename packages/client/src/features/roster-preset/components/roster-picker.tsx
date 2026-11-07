@@ -77,10 +77,10 @@ function RosterRow(props: {
   const counts = rosterCountsSuffix(roster);
   return (
     <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
-      <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
-        <Stack gap="tight" className="flex-1 min-inline-0">
+      <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
+        <Stack gap="tight" className="min-inline-0" grow={true}>
           <Row align="center" gap="field">
-            <Text voice="label" className="flex-1 truncate min-inline-0">
+            <Text voice="label" truncate="fill">
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
@@ -96,7 +96,7 @@ function RosterRow(props: {
             {roster.hasGroupConfig ? <Badge className="shrink-0">Group behavior</Badge> : null}
             {roster.game === null ? null : <Badge className="shrink-0">Game</Badge>}
           </Row>
-          <Text voice="gloss" className="truncate">
+          <Text voice="gloss" truncate={true}>
             {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>
@@ -198,7 +198,7 @@ function SaveCurrentRoster(props: {
     <Stack gap="tight">
       {/* Its own container: below `@cq-28` the name and the Save button stack, so the input keeps its width. */}
       <Stack container={true}>
-        <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
+        <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
           <Input
             aria-label="New roster name"
             placeholder="Name this roster…"

@@ -81,7 +81,9 @@ export function RegexScopeOrder({ scope, scripts, renderItem }: RegexScopeOrderP
       <Stack gap="field" role="list">
         {scripts.map((script, index) => (
           <Row align="center" aria-posinset={index + 1} aria-setsize={scripts.length} gap="field" key={script.id} role="listitem">
-            <Stack className="flex-1 min-inline-0">{renderItem(script, index)}</Stack>
+            <Stack className="min-inline-0" grow={true}>
+              {renderItem(script, index)}
+            </Stack>
             <MoveControls count={scripts.length} index={index} onMove={(from, to): void => commit(reseat(ids, from, to))} script={script} />
           </Row>
         ))}

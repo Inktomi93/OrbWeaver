@@ -279,7 +279,7 @@ function TypedRow({ typed, onPick }: { readonly typed: string | null; readonly o
   return (
     <Row data-slot="model-picker-typed" gap="field" padding="row">
       {typed === null ? (
-        <Stack aria-hidden={true} className="block-(--size-control-sm)" />
+        <Stack aria-hidden={true} height="control" />
       ) : (
         <CommandAuxiliaryButton variant="outline" onClick={(): void => onPick(typed)} size="sm">
           Use “{typed}” as typed

@@ -139,7 +139,7 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
  *  viewer's level a single "hidden at this level" note appears in place of the withheld tier. */
 function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   return (
-    <Stack gap="block" className="relative overflow-y-auto overscroll-contain min-block-0">
+    <Stack gap="block" scroll="y">
       <Row gap="row" align="center">
         <Stack gap="field" className="min-inline-0">
           <Row gap="field" align="center">

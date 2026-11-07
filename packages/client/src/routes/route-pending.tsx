@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 /** Full-viewport brand loading mark — shown while a route's `beforeLoad` auth gate resolves. */
 export function RoutePending(): ReactElement {
   return (
-    <Stack ground="background" align="center" justify="center" className="min-block-dvh" role="status" aria-label="Loading">
+    <Stack ground="background" align="center" justify="center" minHeight="viewport" role="status" aria-label="Loading">
       <WeaveGlyph size="display" anim={true} />
     </Stack>
   );

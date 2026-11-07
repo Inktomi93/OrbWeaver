@@ -136,7 +136,7 @@ function RewriteBody({
         <Text voice="label">Running rewrite…</Text>
         <Skeleton className="block-(--size-control-lg) inline-full" />
         <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-2/3" />
+        <Skeleton className="block-(--size-control-md)" variant="text" />
       </Stack>
     );
   }

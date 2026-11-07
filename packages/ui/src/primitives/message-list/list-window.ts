@@ -5,16 +5,13 @@
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor } from "@tanstack/react-virtual";
 import { useSyncExternalStore } from "react";
-
-// An edge fades only when more than this many px of content lie beyond it — sub-pixel rounding must
-// not flicker the fade on an unscrolled list.
-const EDGE_FADE_EPSILON_PX = 1;
+import { SCROLL_EDGE_EPSILON_PX } from "#lib";
 
 /** Marks scroll edges that hide content; the transcript keeps its top ink opaque and fades its tail. */
 export function updateEdgeFades(el: HTMLElement): void {
-  const scrolled = el.scrollTop > EDGE_FADE_EPSILON_PX;
+  const scrolled = el.scrollTop > SCROLL_EDGE_EPSILON_PX;
   el.toggleAttribute("data-fade-top", scrolled);
-  el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_FADE_EPSILON_PX);
+  el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > SCROLL_EDGE_EPSILON_PX);
 }
 
 let printing = false;

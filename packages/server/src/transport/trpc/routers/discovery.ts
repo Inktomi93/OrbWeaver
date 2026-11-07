@@ -117,6 +117,7 @@ export const discoveryRouter = t.router({
         .strictObject({
           genre: z.string().optional(),
           tone: z.string().optional(),
+          setting: z.string().optional(),
           tag: z.string().optional(),
           sort: browseSortSchema.optional(),
           limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
@@ -129,6 +130,7 @@ export const discoveryRouter = t.router({
       ctx.services.discovery.browseCharacters(ctx.auth.userId, {
         ...(input?.genre !== undefined ? { genre: input.genre } : {}),
         ...(input?.tone !== undefined ? { tone: input.tone } : {}),
+        ...(input?.setting !== undefined ? { setting: input.setting } : {}),
         ...(input?.tag !== undefined ? { tag: input.tag } : {}),
         ...(input?.sort !== undefined ? { sort: input.sort } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),

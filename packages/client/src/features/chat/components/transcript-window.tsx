@@ -121,7 +121,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           onRetry={onRetry}
         />
       )}
-      <Row gap="field" align="center">
+      <Row gap="field" align="center" paddingInlineEnd="block">
         {/* Focusable at every state, so paging on with the keyboard never drops focus onto the page. */}
         <Button
           ref={earlier}
@@ -138,7 +138,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           {EARLIER_MESSAGES_LABEL}
         </Button>
         {/* The end of history is read on screen; the sr-only form is only the pager's description while older pages remain. */}
-        <Text id={description} className={hasEarlier ? "sr-only" : "pe-block"} role="status" voice={hasEarlier ? "gloss" : "label"}>
+        <Text id={description} className={hasEarlier ? "sr-only" : undefined} role="status" voice={hasEarlier ? "gloss" : "label"}>
           {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
           {loaded === null ? "" : ` ${String(loaded)} messages loaded.`}
         </Text>
@@ -224,7 +224,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
     onDismiss: (): void => setFailures(dismissHistoryFailure),
   };
   return (
-    <Stack className="block-full min-block-0" gap="field" aria-busy={(bridging && failure === null) || isFetching}>
+    <Stack className="min-block-0" fill={true} gap="field" aria-busy={(bridging && failure === null) || isFetching}>
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
       {props.render(merged, null, { earlier: pages.hasPreviousPage, later: false, settling: bridging }, <HistoryPager {...pager} />)}
@@ -286,7 +286,7 @@ function AnchoredThread({
   return (
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
-    <Stack className="block-full min-block-0" gap="field">
+    <Stack className="min-block-0" fill={true} gap="field">
       <Row className="flex-wrap print:hidden" gap="field">
         <Button
           aria-describedby={pagingDescription}

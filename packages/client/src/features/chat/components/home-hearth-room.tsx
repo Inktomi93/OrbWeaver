@@ -162,19 +162,19 @@ export function HomeHearthRoom({
           token (`@orb/ui` styles/globals.css `[data-slot="art-bleed"]`), and its header states the contract
           from the other side. The prose is also better for it: 65ch is the low end of the design law's own
           reading band, not a concession. */}
-      <Stack className="relative max-inline-(--reading-measure-min) min-inline-0" gap="row">
+      <Stack className="relative min-inline-0" cap="readingMin" gap="row">
         <Row gap="row">
           {/* CLAMPED, NEVER TRUNCATED (side-eye F7). At the 430px coarse mount `truncate` rendered
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed
               to nothing. Two lines is the honest budget: enough to identify any room the corpus produces,
               not enough to become a paragraph at the focal step. */}
-          <Text as="span" className="line-clamp-2 wrap-anywhere min-inline-0" id={titleId} voice="focal">
+          <Text as="span" className="min-inline-0" clamp={2} wrap="anywhere" id={titleId} voice="focal">
             {title}
           </Text>
           {chat.isGame ? <Badge size="sm">Game</Badge> : null}
         </Row>
         {/* The excerpt is ordinary prose; the outer column independently protects the art and controls. */}
-        <Text className="line-clamp-2 max-inline-(--reading-measure-prose)" id={scentId} voice="reading">
+        <Text className="max-inline-(--reading-measure-prose)" clamp={2} id={scentId} voice="reading">
           {subtitle}
         </Text>
         {/* ALIGNED TO START, NOT CENTRE (side-eye HOME 2026-09-02 H17). At the 430x932 coarse mount the
@@ -198,7 +198,7 @@ export function HomeHearthRoom({
               in …"). One instant, one rendering — the masthead owns the sentence form (its own header
               carries the `formatRelativeAgo` ruling), and the hero owns the room. */}
           {creditRepeatsTitle ? null : (
-            <Text as="span" className="flex-1 min-inline-0" id={creditId} voice="credit">
+            <Text as="span" className="min-inline-0" grow={true} id={creditId} voice="credit">
               {credit}
             </Text>
           )}

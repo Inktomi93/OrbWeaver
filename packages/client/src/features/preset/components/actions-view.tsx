@@ -167,7 +167,8 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
-            <Stack className="pe-field" gap="tight">
+            {/* The chevron ends its row and the editor's scroller clips past it: the end inset leaves its focus ring the room to paint. */}
+            <Stack paddingInlineEnd="field" gap="tight">
               {group.rows.map((row) => (
                 <TemplateListRow
                   form={form}
@@ -243,8 +244,8 @@ function TemplateCluster({
   if (filtering) {
     return (
       <Stack gap="tight">
-        <Row align="center" className="px-field" gap="tight">
-          <Text as="span" className="truncate" voice="kicker">
+        <Row align="center" paddingInline="field" gap="tight">
+          <Text as="span" truncate={true} voice="kicker">
             {cluster.label}
           </Text>
           <Text as="span" voice="datum">

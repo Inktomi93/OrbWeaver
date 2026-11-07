@@ -65,7 +65,7 @@ function HiddenLogRow({
           <RevealGate subject={subject}>
             <Stack gap="field">
               {fields.map((field) => (
-                <Text key={field.key} voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
+                <Text key={field.key} voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
                   {field.key}: {field.value}
                 </Text>
               ))}
@@ -128,11 +128,11 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
             <RevealGate subject={subject}>
               <Stack gap="field">
                 {lie.reason === "" ? null : (
-                  <Text voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
+                  <Text voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
                     reason: {lie.reason}
                   </Text>
                 )}
-                <Text voice="gloss" ink="accolade" className="wrap-anywhere min-inline-0">
+                <Text voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
                   truth: {lie.truth}
                 </Text>
               </Stack>

@@ -206,7 +206,7 @@ function CorpusHomeBody(): ReactElement {
   return (
     // The container-query context is the CONTENT region's (`corpus-content.tsx`): the split answers to THIS
     // pane's inline size — the shell's docked LIST and CONTEXT panels narrow it independently.
-    <Stack className="mx-auto inline-full max-inline-(--width-surface-cap)" gap="section">
+    <Stack centred={true} width="full" cap="surface" gap="section">
       {/* THE MASTHEAD STACKS BEFORE IT SQUEEZES (side-eye corpus re-pass 2026-08-19, B7). This was one
             `flex-wrap` Row with a `flex-1 min-w-0` headline beside a `shrink-0` figure column — and
             `flex-wrap` never fires for a `min-w-0` child, because it has no minimum to overflow with. So at
@@ -215,8 +215,8 @@ function CorpusHomeBody(): ReactElement {
             (`corpus-understanding-invitation.tsx`'s own spelling): one column until the content
             region's `@container` is genuinely wide enough for two, `items-end` only in the two-column arm — a
             right-aligned figure block under a stacked headline would read as a stray. */}
-      <Row align="start" className="flex-col @cq-40:flex-row @cq-40:items-end" gap="section" justify="between">
-        <Stack className="flex-1 min-inline-0" gap="tight">
+      <Row align="end" gap="section" justify="between" stackBelow="cq-40" stretchBelow="cq-40">
+        <Stack className="min-inline-0" grow={true} gap="tight">
           <Text as="span" voice="kicker">
             Library understanding
           </Text>

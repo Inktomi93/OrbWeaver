@@ -1,4 +1,4 @@
-import { FOCUS_RING_INSET, tv } from "#lib";
+import { COLOR_MOTION, FOCUS_RING_INSET, tv } from "#lib";
 
 /**
  * Slot classes for the scroll-area (ui-package-design §5). Base UI hands us hover/scroll state on
@@ -18,7 +18,7 @@ export const scrollAreaVariants = tv({
       data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:block-row
       data-[orientation=vertical]:inline-row
     `,
-    thumb: "flex-1 rounded-full bg-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo hover:bg-foreground",
+    thumb: `flex-1 rounded-full bg-muted-foreground ${COLOR_MOTION} hover:bg-foreground`,
     // The square where the two scrollbars meet — Base UI shows it only on both-axis overflow.
     corner: "bg-transparent",
   },

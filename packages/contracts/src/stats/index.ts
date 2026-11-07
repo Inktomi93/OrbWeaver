@@ -458,7 +458,8 @@ export interface LeaderboardPage {
 
 /** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`). The wire
  *  carries the bucket's start instant, never a calendar day: the viewer's days, weekdays and hours are
- *  derived from it at the display edge, in the viewer's zone. */
+ *  derived from it at the display edge, in the viewer's zone. `messageDatesApprox` marks a bucket holding a message
+ *  dated long after its chat began, which a migrated chat's clobbered dates produce. */
 export interface ActivityBucket {
   bucketStart: number;
   chatsCreated: number;
@@ -466,6 +467,7 @@ export interface ActivityBucket {
   assistantTurns: number;
   tokensOut: number | null;
   tokensOutProvenance: TokenProvenance;
+  messageDatesApprox: boolean;
 }
 
 export interface ModelStatRow {
@@ -588,6 +590,7 @@ export const activityBucketSchema = z.strictObject({
   assistantTurns: z.number(),
   tokensOut: z.number().nullable(),
   tokensOutProvenance: tokenProvenanceSchema,
+  messageDatesApprox: z.boolean(),
 }) satisfies z.ZodType<ActivityBucket>;
 
 export const modelStatRowSchema = z.strictObject({

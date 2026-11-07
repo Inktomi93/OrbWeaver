@@ -112,7 +112,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
               // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
               // floor left it 40px wide against the 44px short side — the fragment's note carries the
               // measurement.
-              className="shrink-0 whitespace-nowrap"
+              className="shrink-0"
               touchFloor="inline"
               data-recall-phase={phase}
             >

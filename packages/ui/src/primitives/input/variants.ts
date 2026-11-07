@@ -48,7 +48,7 @@ export const inputVariants = tv({
     // className, which is why the shipped sites wrote `!w-*`.
     width: {
       full: "",
-      auto: "inline-auto",
+      auto: "field-sizing-content inline-auto max-inline-full min-inline-0",
       "avatar-md": "inline-(--size-avatar-md)",
       "avatar-lg": "inline-(--size-avatar-lg)",
     },
@@ -61,6 +61,8 @@ export const inputVariants = tv({
     typeStep: { field: "", title: "text-title leading-title" },
     // The edit twin of an italic line (a character's thought) keeps the slant.
     italic: { true: "italic", false: "" },
+    // The field's text stops short of a glyph floating over its inline end, so a long value never runs under it.
+    clearsGlyph: { true: "pe-(--size-control-clearance)", false: "" },
   },
   defaultVariants: { size: "sm", layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
 });

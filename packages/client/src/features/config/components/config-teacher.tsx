@@ -31,10 +31,10 @@ export function TeacherBand({ state }: TeacherProps): ReactElement {
   const title = state.member === null ? state.teach.title : state.member.title;
   return (
     <Stack gap="tight" className="min-inline-0">
-      <Text as="span" voice="kicker" className="truncate">
+      <Text as="span" voice="kicker" truncate={true}>
         {title}
       </Text>
-      <Text as="span" voice="gloss" className="truncate">
+      <Text as="span" voice="gloss" truncate={true}>
         {state.teach.trail}
       </Text>
     </Stack>
@@ -112,7 +112,7 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
       {roster.map((entry) => (
         <Stack key={entry.id} data-modified={entry.modified ? "" : undefined} data-setting={entry.id} data-slot="teacher-roster-entry" gap="tight">
           <Row align="baseline" gap="field" className="min-inline-0">
-            <Text as="span" voice="label" className="truncate min-inline-0">
+            <Text as="span" voice="label" truncate={true}>
               {entry.label}
             </Text>
             {/* The VALUE rides the entry's own line, in the control's display words — a roster of names

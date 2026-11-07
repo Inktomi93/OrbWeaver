@@ -95,7 +95,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       // things at rail weight — a label line, the doors, and the shared gloss. ~60px, in the flow, left
       // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
       // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
-      <Stack className="items-start" gap="field">
+      <Stack align="start" gap="field">
         <Text voice="label">No documents yet</Text>
         {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
             Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's
@@ -141,7 +141,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
             cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
             and a CSS `ch` is ~1.5 of the characters the design law counts. */}
-        <Text className="line-clamp-3 max-inline-(--reading-measure-prose)" voice="gloss" prose={true}>
+        <Text className="max-inline-(--reading-measure-prose)" clamp={3} voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>

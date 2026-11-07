@@ -1,9 +1,12 @@
 import type { ReactElement } from "react";
+import { INLINE_FIELD_ROW } from "#lib";
 
 export interface TypingDotsProps {
   /** Accessible name for the pending state — the caller supplies domain copy (e.g. "Generating a reply…"). */
   readonly label: string;
 }
+
+const DOT = "orb-typing-dot rounded-full bg-muted-foreground block-(--size-dot-sm) inline-(--size-dot-sm)";
 
 // The pending "typing" affordance shown before a stream's first token (the ghost row's pre-first-token
 // window; a calmer sibling of `StreamShimmer`). Three muted dots pulse via the `orb-typing-dot`
@@ -14,10 +17,10 @@ export interface TypingDotsProps {
 // The dots themselves are decorative (`aria-hidden`); the container carries the announced name.
 export function TypingDots({ label }: TypingDotsProps): ReactElement {
   return (
-    <span role="status" aria-label={label} data-slot="typing-dots" className="inline-flex items-center gap-field py-field">
-      <span aria-hidden="true" className="orb-typing-dot rounded-full bg-muted-foreground block-(--size-dot-sm) inline-(--size-dot-sm)" />
-      <span aria-hidden="true" className="orb-typing-dot rounded-full bg-muted-foreground block-(--size-dot-sm) inline-(--size-dot-sm)" />
-      <span aria-hidden="true" className="orb-typing-dot rounded-full bg-muted-foreground block-(--size-dot-sm) inline-(--size-dot-sm)" />
+    <span role="status" aria-label={label} data-slot="typing-dots" className={`${INLINE_FIELD_ROW} py-field`}>
+      <span aria-hidden="true" className={DOT} />
+      <span aria-hidden="true" className={DOT} />
+      <span aria-hidden="true" className={DOT} />
     </span>
   );
 }

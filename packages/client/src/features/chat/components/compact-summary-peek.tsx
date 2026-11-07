@@ -37,13 +37,13 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
           prose token's contract names. The summary Text below takes `--reading-measure-prose` and the popup
           shrink-wraps to it. */}
       <PopoverPopup side="top" align="center">
-        <Stack gap="field" className="relative overflow-y-auto overscroll-contain max-block-(--height-scroll-lg)">
+        <Stack gap="field" scroll="y" className="max-block-(--height-scroll-lg)">
           <Text as="span" voice="kicker">
             Compaction summary
           </Text>
           {/* The summary is CONTENT — the prose default (§2.3 keeps `body` for content copy), spelled by
               omission rather than by an internal `size` axis. */}
-          <Text className="whitespace-pre-wrap max-inline-(--reading-measure-prose)" data-slot="compact-summary-text">
+          <Text className="max-inline-(--reading-measure-prose)" whitespace="preWrap" data-slot="compact-summary-text">
             {summary}
           </Text>
         </Stack>

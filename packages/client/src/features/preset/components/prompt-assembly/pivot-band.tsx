@@ -36,7 +36,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
       <Card tone="warning" variant="soft">
         <Row align="center" gap="row">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
-          <Text className="flex-1" voice="label">
+          <Text grow={true} voice="label">
             Duplicate chat history — only the first one splits the conversation. Remove this one.
           </Text>
         </Row>
@@ -57,11 +57,11 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
           <Icon className="shrink-0" icon={MessagesSquare} size="sm" />
           {/* `min-w-0` on BOTH the button and its gloss: at ~530px the name collided with the chevron
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
-          <Button className="flex-1 justify-start text-start min-inline-0" variant="ghost" onClick={onSelect} size="sm" type="button">
+          <Button justify="start" stretch="row" variant="ghost" onClick={onSelect} size="sm" type="button">
             <Text ink="inherit" as="span" className="shrink-0" voice="label">
               Chat history
             </Text>
-            <Text as="span" className="truncate min-inline-0" voice="gloss">
+            <Text as="span" truncate={true} voice="gloss">
               your conversation splices in here — always on, always placed
             </Text>
           </Button>

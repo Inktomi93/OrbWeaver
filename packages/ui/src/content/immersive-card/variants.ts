@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CAPTION, ROW_STRIP, tv } from "#lib";
 
 /**
  * The immersive-card chrome skin — a card-surface frame around the sandboxed render:
@@ -9,16 +9,16 @@ import { tv } from "#lib";
 export const immersiveCardVariants = tv({
   slots: {
     root: "flex flex-col overflow-hidden rounded-card border border-border bg-card text-card-foreground inline-full tone-host-card",
-    header: "flex items-center gap-row border-be border-border py-row ps-block pe-row",
-    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground min-inline-0",
-    origin: "text-label leading-label text-muted-foreground",
+    header: `${ROW_STRIP} border-be border-border py-row ps-block pe-row`,
+    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground",
+    origin: CAPTION,
     originNote: "sr-only",
     pre: `
       relative m-0 overflow-auto overscroll-contain bg-muted p-block font-mono text-code leading-label-relaxed whitespace-pre-wrap text-accent-foreground
       inline-full
     `,
-    lightboxHeader: "flex items-center gap-row",
-    lightboxTitle: "flex-1 truncate min-inline-0",
+    lightboxHeader: ROW_STRIP,
+    lightboxTitle: "flex-1 truncate",
     lightboxBody: "flex flex-1 flex-col min-block-0",
   },
 });
@@ -36,9 +36,9 @@ export const immersiveCardVariants = tv({
 export const inertCardVariants = tv({
   slots: {
     root: "flex flex-col overflow-hidden rounded-card border border-dashed border-border bg-card text-card-foreground inline-full tone-host-card",
-    header: "flex items-center gap-row border-be border-dashed border-border py-row ps-block pe-row",
-    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground min-inline-0",
+    header: `${ROW_STRIP} border-be border-dashed border-border py-row ps-block pe-row`,
+    title: "flex-1 truncate text-label leading-label font-medium text-muted-foreground",
     body: "p-block",
-    hint: "border-bs border-dashed border-border px-block py-row text-label leading-label text-muted-foreground",
+    hint: `border-bs border-dashed border-border px-block py-row ${CAPTION}`,
   },
 });
