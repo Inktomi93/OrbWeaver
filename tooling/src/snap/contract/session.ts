@@ -7,6 +7,7 @@
 import type { ProbeAttachOptions } from "../../floor/browser/browser-contract.ts";
 import type { OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
+import type { DiskSafeArgv, DiskSafeOp } from "./disk-safe-argv.ts";
 import type { SnapRunFactBatch } from "./run-facts.ts";
 import type { StageBoundIdentity } from "./stage.ts";
 
@@ -58,7 +59,7 @@ export interface SessionStageState {
   readonly band: number;
   readonly status: "live" | "dead";
   readonly detectedAt: string | null;
-  readonly op: string | null;
+  readonly op: DiskSafeOp | null;
   /** Current rows retain the exact StageRow identity; optional only for protocol-v1 rows already on disk. */
   readonly ownerCheckout?: string;
   readonly ref?: string;
@@ -92,12 +93,12 @@ export interface SessionRow {
   /** Null for base/file sessions. A stage death is sticky until this session closes and reboots. */
   readonly stage?: SessionStageState | null;
   readonly environment: SessionEnvironment;
-  readonly bootArgv: readonly string[];
+  readonly bootArgv: DiskSafeArgv;
   readonly createdAt: string;
   readonly lastUsedAt: string;
-  /** The argv of the call in flight, or null between calls — the `mid-<op>` half of a SESSION DEAD line. */
-  readonly inflightOp: string | null;
-  readonly lastOp: string | null;
+  /** The masked argv of the call in flight, or null between calls — the `mid-<op>` half of a SESSION DEAD line. */
+  readonly inflightOp: DiskSafeOp | null;
+  readonly lastOp: DiskSafeOp | null;
   readonly ttlMs: number;
   readonly headless: boolean;
   readonly calls: number;

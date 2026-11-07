@@ -24,9 +24,11 @@ import { warn } from "../../floor/cli/log.ts";
 import { acquireHostSlot, ctHostSlotPool } from "../../floor/host/host-slots.ts";
 import { killPidGroup } from "../../floor/process/proc.ts";
 import { beginRunLease } from "../../floor/process/run-marker.ts";
+import type { DiskSafeArgv } from "../contract/disk-safe-argv.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeArgv } from "../lib/disk-safe-argv.ts";
 import { currentSnapStageProvenance } from "../lib/run-provenance.ts";
 import { SESSION_INSTRUMENT, sessionSocketPath } from "../lib/session-plan.ts";
 import { sessionCapRefusal } from "../lib/session-refusals.ts";
@@ -67,7 +69,7 @@ export function sessionEnvironmentOf(bootArgs: Args): SessionRow["environment"] 
 
 function initialRow(
   state: Pick<SessionDaemonState, "name" | "root" | "home" | "socketPath" | "ttlMs" | "bootArgs">,
-  args: { readonly slotDir: string; readonly cdpEndpoint: string | null; readonly bootArgv: readonly string[]; readonly stageBand: number | null },
+  args: { readonly slotDir: string; readonly cdpEndpoint: string | null; readonly bootArgv: DiskSafeArgv; readonly stageBand: number | null },
 ): SessionRow {
   const { bootArgs } = state;
   const stageProvenance = currentSnapStageProvenance();
@@ -194,7 +196,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     stageBand,
     row: initialRow(
       { name, root, home, socketPath, ttlMs: limits.ttlMs, bootArgs },
-      { slotDir: slot.dir, cdpEndpoint: await debuggingEndpointFor(session), bootArgv: argv, stageBand },
+      { slotDir: slot.dir, cdpEndpoint: await debuggingEndpointFor(session), bootArgv: diskSafeArgv(argv), stageBand },
     ),
     inflight: null,
     ttlTimer: null,

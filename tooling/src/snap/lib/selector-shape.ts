@@ -46,12 +46,21 @@ export const SELECTOR_VALUE_FLAGS: ReadonlySet<string> = new Set([
 
 /** Flags whose value is `selector=…`, so only the HEAD is a selector. `--key Tab` (no '=') is a bare
  *  key name and carries no selector at all. */
-const SELECTOR_HEAD_FLAGS: ReadonlySet<string> = new Set(["--cascade", "--fill", "--key", "--expect-text", "--expect-count", "--upload", "--drop-files"]);
+const SELECTOR_HEAD_FLAGS: ReadonlySet<string> = new Set([
+  "--cascade",
+  "--fill",
+  "--fill-env",
+  "--key",
+  "--expect-text",
+  "--expect-count",
+  "--upload",
+  "--drop-files",
+]);
 
 /** `--fill` splits on the FIRST '=' (its value is a JS literal that routinely contains '=' itself —
  *  `--fill 'input=const a = 1;'`); every other head flag keeps the LAST-'=' convention (selectors can
  *  themselves contain '=', e.g. `[data-x="a=b"]`). */
-const FIRST_EQ_HEAD_FLAGS: ReadonlySet<string> = new Set(["--fill"]);
+const FIRST_EQ_HEAD_FLAGS: ReadonlySet<string> = new Set(["--fill", "--fill-env"]);
 
 /** Every element name a CSS type selector can legitimately name: HTML (incl. the legacy tags a mock or
  *  an imported card can still carry), SVG, and MathML. Compared case-insensitively — an HTML-document

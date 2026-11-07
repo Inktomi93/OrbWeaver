@@ -2,6 +2,7 @@ import type { InstrumentArtifactCompleteness, InstrumentArtifactLimitReceipt, In
 import type { ArtifactRef, EvidenceWindowId, InstrumentEvidenceScope } from "../../floor/artifacts/artifact-scope.ts";
 import type { DiagnosticLevel, OrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
 import type { Arm } from "./arm-vocabulary.ts";
+import type { DiskSafeArgv } from "./disk-safe-argv.ts";
 import type { SnapArmState, SnapRunResults } from "./run-facts.ts";
 import type { SessionBinding } from "./session.ts";
 
@@ -156,7 +157,7 @@ export interface SnapRunIndex {
   readonly process: {
     readonly host: string;
     readonly pid: number;
-    readonly argv: readonly string[];
+    readonly argv: DiskSafeArgv;
     readonly startedAt: string;
     readonly finishedAt: string;
     readonly lane: string | null;
