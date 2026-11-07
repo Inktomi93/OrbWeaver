@@ -1,6 +1,7 @@
 import { expect, test } from "@orb/testkit/tooling";
-import { browserLaunchEnvironment, nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
+import { browserLaunchEnvironment, nativeBrowserLaunchOptions, ownedLaunchOptions } from "@orb/tooling/floor/browser/browser";
 import { GPU_LAUNCH_SWITCH } from "@orb/tooling/floor/browser/browser-acceleration";
+import type { ProbeLaunchOptions } from "@orb/tooling/floor/browser/browser-contract";
 import type { GraphicalSessionDeps } from "@orb/tooling/floor/host/platform";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { inheritedRunMarker, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
@@ -106,6 +107,40 @@ test("WebKit and Firefox never invoke the Chromium graphics discovery path", () 
   for (const browserName of ["firefox", "webkit"] as const) {
     const options = nativeBrowserLaunchOptions(browserName, {}, deps);
     expect(options.args).toBeUndefined();
-    expect(options.env).toMatchObject(inheritedProcessEnv());
   }
+});
+
+// A reporter writes the resolved launch options to disk, so an inherited secret becomes a file on disk.
+const CANARY_KEY = "ORB_CANARY_SECRET";
+const CANARY = "canary-browser-env";
+const LAUNCH_PLUMBING = { ["PATH"]: "/canary/bin", ["HOME"]: "/canary-home", ["DISPLAY"]: ":7" };
+const LAUNCH_AMBIENT = { ...LAUNCH_PLUMBING, [CANARY_KEY]: CANARY };
+
+function canaryEntries(env: NodeJS.ProcessEnv | undefined): readonly string[] {
+  return Object.entries(env ?? {}).flatMap(([key, value]) => (key === CANARY_KEY || value === CANARY ? [key] : []));
+}
+
+test.for(["chromium", "webkit", "firefox"] as const)("a %s config launch inherits plumbing and never an ambient secret", (browserName) => {
+  const options = nativeBrowserLaunchOptions(browserName, { headless: true }, { ambient: LAUNCH_AMBIENT, platform: "darwin" });
+  expect(options.env).toMatchObject(LAUNCH_PLUMBING);
+  expect(canaryEntries(options.env)).toEqual([]);
+});
+
+test("an owned probe launch inherits plumbing and never an ambient secret on either launch kind", () => {
+  const opts = {
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  } as const satisfies ProbeLaunchOptions;
+  const deps = { ambient: LAUNCH_AMBIENT, platform: "darwin" } as const;
+  const plain = ownedLaunchOptions(opts, null, deps);
+  expect(plain.kind).toBe("browser");
+  expect(plain.options.env).toMatchObject(LAUNCH_PLUMBING);
+  expect(canaryEntries(plain.options.env)).toEqual([]);
+  const persistent = ownedLaunchOptions({ ...opts, persistentProfileDir: "/canary-profile" }, null, deps);
+  expect(persistent.kind).toBe("persistent");
+  expect(persistent.options.env).toMatchObject(LAUNCH_PLUMBING);
+  expect(canaryEntries(persistent.options.env)).toEqual([]);
 });
