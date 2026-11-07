@@ -30,29 +30,21 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
-import { openContextTab, openNewestChat } from "./support/chat-room.ts";
-import {
-  CASE_LIVE_LOOP_MS,
-  CASE_LIVE_TURN_MS,
-  CASE_STREAM_MS,
-  WAIT_LIVE_TURN_MS,
-  WAIT_ROUND_TRIP_MS,
-  WAIT_SHORT_MS,
-  WAIT_SURFACE_MS,
-} from "./support/timeouts.ts";
+import { assistantRows, messageRow, openContextTab, openNewestChat, witnessTurn } from "./support/chat-room.ts";
+import { CASE_LIVE_LOOP_MS, CASE_LIVE_TURN_MS, CASE_STREAM_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
   createLiteGame,
   deleteChat,
   editMessage,
   editSnapshot,
   fetchDebugErrors,
-  fetchWireCaptures,
   getConfigView,
   getTrackerView,
   listCanon,
   mintFreshCharacter,
   pinChatToLocalEngine,
   removeCharacter,
+  requireWireCaptures,
   restoreChatBinding,
   revealHidden,
   sendGameSteerTurn,
@@ -258,9 +250,14 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
   try {
     // BE: cyoa defaults OFF; flip it on (the standing-mode knob). The render is toggle-independent — a stored
     // choices fence renders regardless — but the flip proves the knob is real (config truth).
-    expect((await getConfigView(chatId)).cyoa).toBe(false);
-    await setFeatureKnobs(chatId, { cyoa: true });
-    expect((await getConfigView(chatId)).cyoa).toBe(true);
+    const defaults = await getConfigView(chatId);
+    expect(defaults.cyoa).toBe(false);
+    expect(defaults.cyoaChoiceBehavior).toBe("compose");
+    // `compose` only fills the draft; this case proves the immediate send, so it selects that behavior.
+    await setFeatureKnobs(chatId, { cyoa: true, cyoaChoiceBehavior: "send" });
+    const configured = await getConfigView(chatId);
+    expect(configured.cyoa).toBe(true);
+    expect(configured.cyoaChoiceBehavior).toBe("send");
 
     const greeting = await greetingRowId(chatId);
     await editMessage(chatId, greeting, CHOICES_FENCE);
@@ -274,26 +271,18 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
     const optionButton = choices.getByRole("button", { name: new RegExp(CHOICE_OPTION.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")) });
     await expect(optionButton).toBeVisible();
 
-    // The greeting is the ONLY assistant row before the click — the "a fresh reply landed" comparand.
-    const assistantRows = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRows).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
+    // The greeting is the ONLY assistant row before the click.
+    await expect(assistantRows(page)).toHaveCount(1, { timeout: WAIT_SURFACE_MS });
 
     // ── CLICK → SEND: clicking the option sends its TEXT as the user's next turn (a choice IS a user turn).
-    // The proof it fired the send: a user row carrying the option text lands in canon (DB) AND renders (FE),
+    // The proof it fired the send: a NEW user row with exactly the option text lands in canon (DB) AND renders (FE),
     // independent of the live reply's content — the send is the seam under test, not the model's answer. ──
-    await optionButton.click();
-    await expect
-      .poll(async () => (await listCanon(chatId)).some((m) => m.role === "user" && m.content.includes(CHOICE_OPTION)), {
-        timeout: WAIT_LIVE_TURN_MS,
-        intervals: [1000],
-      })
-      .toBe(true);
-    // FE: the sent choice renders as a user row in the transcript (DOM ↔ canon parity for the send).
-    await expect(page.locator('[data-slot="message-row"][data-role="user"]').filter({ hasText: CHOICE_OPTION })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+    const held = await witnessTurn({ page, chatId }, CHOICE_OPTION, () => optionButton.click());
+    await expect(messageRow(page, held.userId)).toContainText(CHOICE_OPTION, { timeout: WAIT_SURFACE_MS });
 
-    // The reply STARTED — a SECOND assistant row (beyond the greeting) streams back. The choice drove a real
-    // turn end-to-end (a fresh generation, not the pre-existing greeting row satisfying the assertion).
-    await expect(assistantRows).toHaveCount(2, { timeout: WAIT_LIVE_TURN_MS });
+    // The choice drove a real turn end-to-end: a NEW assistant row after that user row.
+    const { assistantId } = await held.awaitReply();
+    await expect(messageRow(page, assistantId)).toBeVisible({ timeout: WAIT_SURFACE_MS });
   } finally {
     await cleanup();
   }
@@ -377,11 +366,8 @@ test("P5 wand: a Plot-submenu game steer fires a real turn and resolves LIVE off
     // resolved against THIS game's live snapshot, not an empty string). The model's answer is irrelevant here.
     await sendGameSteerTurn(chatId, "twist");
 
-    const captures = await fetchWireCaptures(chatId);
-    expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.providerId === "vllm");
-    expect(turnCapture).toBeDefined();
-    const promptText = turnCapture === undefined ? "" : wireMessagesText(turnCapture);
+    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
+    const promptText = wireMessagesText(turnCapture);
     // The twist template's markers ("Story steer" heading + "complication" ask) reached the prompt…
     expect(promptText).toContain("Story steer");
     expect(promptText).toContain("complication");

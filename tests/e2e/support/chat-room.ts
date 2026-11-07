@@ -1,10 +1,12 @@
 // Shared e2e helpers for the chat-room persistence/sync ports (chat-persistence · multi-tab-sync ·
-// event-sequence · injection-roundtrip). Orb has NO zero-cost "create committed chat" affordance: a draft
-// only commits on first `send` (use-send-message.ts → chat.startChat then chat.send), and startChat seeds
-// the character's greeting (assistant rows, no model call) while the send fires ONE real turn. So the
-// cheapest way to guarantee a committed chat is: reuse an existing one if the DB already has any, else
-// drive the real start-chat+send flow ONCE (the exemplar start-chat-with-character.spec.ts pattern). Under
-// serial `workers:1`, the first spec that bootstraps pays the turn cost and the rest reuse the row.
+// event-sequence · injection-roundtrip). A chat row exists from the creation click (D166): `chat.startChat`
+// seeds the character's greeting (assistant rows, no model call) and a list-visible chat needs one send, which
+// fires ONE real turn. So the cheapest way to guarantee a listed chat is: reuse an existing one if the DB already
+// has any, else drive the real start-chat+send flow ONCE. Under serial `workers:1`, the first spec that
+// bootstraps pays the turn cost and the rest reuse the row.
+//
+// EVERY SEND RETURNS ITS WITNESS. `sendAndAwaitReply`, `sendHeldTurn` and `witnessTurn` read canon before the send
+// and return the ids of the rows it created, so a caller asserts through `messageRow`. The typing step stays private.
 //
 // SELECTOR STRATEGY (orb has no neo-style chat testids — verified against the live client source):
 //   • chat LIST rows are native <button>s (@orb/ui/list-row clickable), accessible name = the chat title.
@@ -21,19 +23,24 @@
 
 import { GAME_STRIP_LABEL, rowActionsName } from "@orb/client/lib";
 import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId, MessageId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEARCH_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
-import { WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
+import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
+import type { CanonMessage } from "./trpc.ts";
+import { batchResultData, listCanon } from "./trpc.ts";
+import { newReplyRow, newUserRow } from "./turn-witness.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -152,32 +159,54 @@ export async function openChatsList(page: Page): Promise<void> {
   await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 }
 
-/** Drive the real library→draft→send flow to CREATE one committed chat (one real turn). Returns once the
- *  user's row has committed durably (the chat row exists in the DB from that point). */
+/** Click a character's Chat CTA on a character with no room and return the room `chat.startChat` created. */
+async function startChatFrom(page: Page, cta: Locator): Promise<ChatId> {
+  const started = page.waitForResponse((candidate) => candidate.url().includes("/api/trpc/chat.startChat"));
+  await cta.click();
+  const response = await started;
+  expect(response.ok()).toBe(true);
+  // The click's response is a raw wire observation; read the one field this flow needs and parse its id.
+  const data = batchResultData(await response.json())?.data;
+  const chat = isPlainObject(data) ? data["chat"] : undefined;
+  const rawId = isPlainObject(chat) ? chat["id"] : undefined;
+  if (rawId === undefined) {
+    throw new Error("chat.startChat returned no chat id");
+  }
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  return typeIdSchema(ID_PREFIX.chat).parse(rawId);
+}
+
+/** Start a chat with the spec-owned, chatless character `name` from the library, and land in its room. */
+export async function openCharacterRoom(page: Page, name: string): Promise<ChatId> {
+  await page.goto("/");
+  await waitForAppReady(page);
+  await charactersRailButton(page).click();
+  await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
+  const cta = page.getByRole("button", { name: `Chat with ${name}`, exact: true });
+  const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
+  await expect(row).toBeVisible({ timeout: WAIT_SETTLE_MS });
+  await row.hover();
+  return await startChatFrom(page, cta);
+}
+
+/** Drive the real library→room→send flow to CREATE one listed chat (one real turn). Returns once the user's row
+ *  has committed durably. */
 async function createChatViaSend(page: Page): Promise<void> {
   const charactersNav = charactersRailButton(page);
   await expect(charactersNav).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await charactersNav.click();
 
-  // The first row's "Chat with <name>" CTA — the resume-or-new library→chat seam (the exemplar path). It is
-  // always in the a11y tree, but while hidden it is INERT to the pointer (an invisible control must not be
-  // hit-testable), so the ROW is hovered first — a bare click would hang on the actionability check.
+  // The first row's "Chat with <name>" CTA. It is always in the a11y tree, but while hidden it is INERT to the
+  // pointer (an invisible control must not be hit-testable), so the ROW is hovered first — a bare click would
+  // hang on the actionability check.
   const chatRow = page
     .locator('[data-slot="list-row-root"]')
     .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
     .first();
   await expect(chatRow).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await chatRow.hover();
-  await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
-
-  const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
-  await expect(composer).toBeVisible();
-  await composer.pressSequentially(BOOTSTRAP_MESSAGE);
-  await composer.press("Enter");
-
-  // The user's row committing == the draft was promoted to a real chat row (chat.startChat resolved).
-  const userRow = page.locator('[data-slot="message-row"][data-role="user"]');
-  await expect(userRow.first()).toContainText(BOOTSTRAP_MESSAGE, { timeout: WAIT_STREAM_MS });
+  const chatId = await startChatFrom(page, chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }));
+  await sendHeldTurn({ page, chatId }, BOOTSTRAP_MESSAGE);
 }
 
 /** Ensure a committed chat exists and OPEN it, landing on the room. Reuses the first existing chat if the
@@ -200,15 +229,89 @@ export async function openOrCreateChat(page: Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
-/** Type and send once; a lost controlled value fails instead of being retyped. */
-export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, message: string): Promise<void> {
-  await expect(composer).toBeEditable({ timeout: WAIT_SETTLE_MS });
-  await composer.click();
-  await composer.press("ControlOrMeta+A");
-  await composer.press("Delete");
-  await composer.pressSequentially(message, { delay: 15 });
-  await expect(composer).toHaveValue(message, { timeout: WAIT_SETTLE_MS });
-  await composer.press("Enter");
+/** The open room a turn is driven in. */
+export interface TurnRoom {
+  readonly page: Page;
+  readonly chatId: ChatId;
+}
+
+/** The canon rows one send created. */
+export interface SentTurn {
+  readonly userId: MessageId;
+  readonly assistantId: MessageId;
+}
+
+/** A send whose user row has committed and whose reply is still owed. */
+export interface HeldTurn {
+  readonly userId: MessageId;
+  /** Resolves on a NEW assistant row after the user row; retained history never satisfies it. */
+  readonly awaitReply: (timeoutMs?: number) => Promise<SentTurn>;
+}
+
+async function pollCanon<T>(chatId: ChatId, read: (canon: readonly CanonMessage[]) => T | undefined, message: string, timeout: number): Promise<T> {
+  let found: T | undefined;
+  await expect
+    .poll(
+      async () => {
+        found = read(await listCanon(chatId));
+        return found !== undefined;
+      },
+      { message, timeout },
+    )
+    .toBe(true);
+  if (found === undefined) {
+    throw new Error(message);
+  }
+  return found;
+}
+
+/** Witness the turn `trigger` sends: canon is read first, so only a row this send created can satisfy it. */
+export async function witnessTurn(room: TurnRoom, content: string, trigger: () => Promise<void>, userRowTimeoutMs: number = WAIT_SETTLE_MS): Promise<HeldTurn> {
+  const before = await listCanon(room.chatId);
+  await trigger();
+  const userId = await pollCanon(
+    room.chatId,
+    (canon) => newUserRow(before, canon, content),
+    `no new user row with the sent content in ${room.chatId}: ${content}`,
+    userRowTimeoutMs,
+  );
+  return {
+    userId,
+    awaitReply: async (timeoutMs = WAIT_LIVE_TURN_MS): Promise<SentTurn> => ({
+      userId,
+      assistantId: await pollCanon(
+        room.chatId,
+        (canon) => newReplyRow(before, canon, userId),
+        `no new assistant row after ${userId} in ${room.chatId}`,
+        timeoutMs,
+      ),
+    }),
+  };
+}
+
+// The Send button sends under either `enterSends` preference; plain Enter would insert a newline under one of them.
+// A lost controlled value fails here instead of being retyped.
+async function typeAndSubmit(page: Page, message: string): Promise<void> {
+  const composer = page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
+  const input = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+  await expect(input).toBeEditable({ timeout: WAIT_SETTLE_MS });
+  await input.click();
+  await input.press("ControlOrMeta+A");
+  await input.press("Delete");
+  await input.pressSequentially(message, { delay: 15 });
+  await expect(input).toHaveValue(message, { timeout: WAIT_SETTLE_MS });
+  await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
+}
+
+/** Send through the composer and return once the new user row committed. The reply stays owed, for a case that
+ *  watches or holds it: the ghost, Stop, a scripted provider's held stream. */
+export async function sendHeldTurn(room: TurnRoom, message: string, userRowTimeoutMs?: number): Promise<HeldTurn> {
+  return await witnessTurn(room, message, () => typeAndSubmit(room.page, message), userRowTimeoutMs);
+}
+
+/** Send through the composer and return the ids of the new user row and its reply. */
+export async function sendAndAwaitReply(room: TurnRoom, message: string): Promise<SentTurn> {
+  return await (await sendHeldTurn(room, message)).awaitReply();
 }
 
 /** Navigate to `/` and open the NEWEST chat (the first Chats-list row — the list is desc(updatedAt), and a

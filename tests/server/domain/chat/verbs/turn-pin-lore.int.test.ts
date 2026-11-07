@@ -8,6 +8,7 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import type { CreateEntryInput } from "@orb/contracts/world-info";
 import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import type { PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
@@ -233,6 +234,28 @@ test("the host's member-lore switch governs a member's pin as it governs a membe
   await seatPersona(h, h.owner, "Wanderer", "The persona speaking now.");
   await h.root.services.chat.setMemberPersonaLore({ principal: h.owner, chatId: h.chatId, enabled: false });
   expect((await previewOf(h)).text).toContain("HOST-PIN-LORE");
+});
+
+test("a held pin keeps the card identity while the voice and people rows leave with its owner", async () => {
+  const characters = [createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "{{user}} is my brother" })];
+  await using h = await personaRoom(REPLIES, { characters, group: { output: "per-speaker", policy: "list" } });
+  await seatPersona(h, h.owner, "Host voice", "The host's own voice.");
+  const { pinned } = await heldPinRoom(h);
+
+  const chat = await h.root.services.chat.getChat({ principal: h.owner, chatId: h.chatId });
+  expect(chat.anchorState).toBe("held");
+  expect(chat.anchorPersonaId).toBe(pinned);
+  const [characterId] = chat.participants.flatMap((seat) => (seat.characterId === null ? [] : [seat.characterId]));
+  if (characterId === undefined) {
+    throw new Error("the room seated no character");
+  }
+  const card = await h.root.services.chat.getMemberCard({ principal: h.owner, chatId: h.chatId, characterId, timeZone: UTC_TIME_ZONE });
+  expect(card.description).toBe("Ledgerkeeper is my brother");
+
+  const { budget } = await h.root.services.chat.previewAssembly({ principal: h.owner, chatId: h.chatId });
+  const rows = budget.sections.find((section) => section.sectionId === "persona")?.rows.map((row) => row.label) ?? [];
+  expect(rows[0]).toContain("Host voice");
+  expect(rows.filter((label) => label.includes("Ledgerkeeper"))).toEqual([]);
 });
 
 test("group rounds, a forced turn and an automation turn carry the held pin's book", async () => {

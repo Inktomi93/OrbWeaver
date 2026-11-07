@@ -6,6 +6,7 @@ import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 
 const STYLESHEET_SUFFIX = ".css";
+const UNTOUCHED_URL = "about:blank";
 const HTTP_ERROR_FLOOR = 400;
 
 interface RequestFault {
@@ -27,7 +28,8 @@ function watchFaults(page: Page): readonly RequestFault[] {
   return faults;
 }
 
-test("the first navigation of a cold document finishes with no failed or refused request", { tag: "@smoke" }, async ({ page }) => {
+test("the first navigation of a cold document finishes with no failed or refused request", { tag: "@smoke" }, async ({ coldPage: page }) => {
+  expect(page.url()).toBe(UNTOUCHED_URL);
   const faults = watchFaults(page);
   await page.goto("/");
   await waitForAppReady(page);
@@ -35,7 +37,8 @@ test("the first navigation of a cold document finishes with no failed or refused
   expect(faults).toEqual([]);
 });
 
-test("the same watch names a stylesheet that is aborted", { tag: "@smoke" }, async ({ page }) => {
+test("the same watch names a stylesheet that is aborted", { tag: "@smoke" }, async ({ coldPage: page }) => {
+  expect(page.url()).toBe(UNTOUCHED_URL);
   const faults = watchFaults(page);
   let aborted: string | undefined;
   await page.route(
