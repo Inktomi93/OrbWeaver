@@ -76,7 +76,7 @@ export interface UserMacroEditorDialogProps<TValues extends UserMacrosFormValues
   readonly index: number;
   readonly onClose: () => void;
   /**
-   * The `{{ }}` completion catalog the template body offers (`withUserMacros(...)` at both call sites — the
+   * The `{{ }}` completion catalog the template body offers (`macroCatalog(...).suggestions` at both call sites — the
    * builtins PLUS the plane this editor's own macro belongs to, so one macro can complete a sibling).
    * Spelled STRUCTURALLY rather than as `@orb/ui/macro-textarea`'s `MacroSuggestion`: that type is re-exported
    * from a browser `.tsx`, and importing it here (even type-only) drags the component into the DOM-LESS type

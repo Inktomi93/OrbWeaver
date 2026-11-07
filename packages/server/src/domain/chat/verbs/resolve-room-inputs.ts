@@ -11,12 +11,17 @@ import type { ChatRoomInputDeps, ChatRoomInputs } from "../contract/room-inputs.
 /** Resolve turn configuration without replacing a failed foreign read with a default. */
 
 export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
-  const resolvePromptConfigFor = async (runAsUserId: UserId, defaultPresetId: PresetId | null): Promise<{ config: PromptConfig; name: string | null }> => {
+  const resolvePromptConfigFor = async (
+    runAsUserId: UserId,
+    defaultPresetId: PresetId | null,
+  ): Promise<{ config: PromptConfig; name: string | null; presetId: PresetId | null }> => {
     if (defaultPresetId === null) {
-      return { config: DEFAULT_PROMPT_CONFIG, name: null };
+      return { config: DEFAULT_PROMPT_CONFIG, name: null, presetId: null };
     }
     const detail = await deps.loadOptionalPreset(runAsUserId, defaultPresetId);
-    return detail === null ? { config: DEFAULT_PROMPT_CONFIG, name: null } : { config: detail.config, name: detail.name };
+    return detail === null
+      ? { config: DEFAULT_PROMPT_CONFIG, name: null, presetId: null }
+      : { config: detail.config, name: detail.name, presetId: defaultPresetId };
   };
   const resolvePromptConfigWithOverride = async (
     runAsUserId: UserId,
@@ -56,6 +61,17 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
     const us = await deps.loadUserSettings(hostUserId);
     const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
     return config.userMacros;
+  };
+
+  // The id of the preset `resolvePromptUserMacros` read: null for the built-in default, and for a stale or
+  // unowned default, which resolves to the built-in config.
+  const resolvePromptPresetId = async (chatId: ChatId): Promise<PresetId | null> => {
+    const hostUserId = await deps.resolveHostUserId(chatId);
+    if (hostUserId === null) {
+      return null;
+    }
+    const us = await deps.loadUserSettings(hostUserId);
+    return (await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId)).presetId;
   };
 
   // The chat's app-tier PROSE overrides, resolved under the chat's HOST (PROSE-1 owner-decision 8, option
@@ -112,6 +128,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
   return {
     resolvePromptVariables,
     resolvePromptUserMacros,
+    resolvePromptPresetId,
     resolveChatProse,
     resolveChatPresetProse,
     resolveChatPresetParams,

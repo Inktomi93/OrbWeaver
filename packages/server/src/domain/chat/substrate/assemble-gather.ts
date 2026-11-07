@@ -13,7 +13,7 @@
 // The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
-import type { AssembleContext, ChatInjection, GuidedSteer, MacroFreezeRecord, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, GuidedSteer, MacroFreezeRecord, MacroSlice, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
@@ -156,10 +156,12 @@ async function loadRecallNames(ctx: ChatContext, rows: readonly MsgRow[]): Promi
 function pickMacroRegistries(
   render: MacroRegistry | undefined,
   freeze: MacroRegistry | undefined,
-): { macroRegistry?: MacroRegistry; freezeMacroRegistry?: MacroRegistry } {
+  trace: MacroSlice | undefined,
+): { macroRegistry?: MacroRegistry; freezeMacroRegistry?: MacroRegistry; macroTrace?: MacroSlice } {
   return {
     ...(render !== undefined ? { macroRegistry: render } : {}),
     ...(freeze !== undefined ? { freezeMacroRegistry: freeze } : {}),
+    ...(trace !== undefined ? { macroTrace: trace } : {}),
   };
 }
 
@@ -338,6 +340,8 @@ export async function gatherAssembleContext(
      *  Absent ⇒ the pure build falls back to the process singletons (byte-identical non-user-macro turn). */
     readonly macroRegistry?: MacroRegistry | undefined;
     readonly freezeMacroRegistry?: MacroRegistry | undefined;
+    /** The registry build's slice for the assembly trace; absent with the registries. */
+    readonly macroTrace?: MacroSlice | undefined;
     /** The zone `{{date}}`/`{{time}}`/`{{weekday}}` read in: the viewer's reported zone, or the caller's ruled
      *  one for a turn with no viewer. Absent ⇒ UTC. */
     readonly timeZone?: IanaTimeZone | undefined;
@@ -443,7 +447,7 @@ export async function gatherAssembleContext(
 
   // The per-turn user-macro registries (WAVE MU), collected by a pure top-level helper so the two
   // omit-when-undefined branches live OUTSIDE this function's cognitive-complexity budget.
-  const macroRegistries = pickMacroRegistries(args.macroRegistry, args.freezeMacroRegistry);
+  const macroRegistries = pickMacroRegistries(args.macroRegistry, args.freezeMacroRegistry, args.macroTrace);
 
   return await buildAssembleContext(
     ctx,

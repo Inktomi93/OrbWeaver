@@ -89,6 +89,9 @@ export interface UserMacroDef {
   readonly strict: boolean;
 }
 
+/** Why a user macro whose name is already registered is refused. */
+export const USER_MACRO_NAME_COLLISION_REASON = "name collides with an existing macro — user macros never shadow";
+
 // ── the values bag + input resolution (#24) ──────────────────────────────────────────────────────
 
 /** One input's per-turn per-user pick: string (single-select) · boolean (boolean-toggle) ·
@@ -286,6 +289,8 @@ export interface RejectedUserMacro {
 }
 
 export interface UserMacroRegistration {
+  /** The definitions that registered, in registration order. */
+  readonly accepted: readonly UserMacroDef[];
   /** Refused definitions — the boot/config-error posture: a name may NEVER shadow a builtin
    *  (or an earlier registration); the surface that owns the defs renders these as authoring errors. */
   readonly rejected: readonly RejectedUserMacro[];
@@ -485,7 +490,7 @@ export function registerUserMacros(registry: MacroRegistry, defs: readonly UserM
     }
     const key = def.name.toLowerCase();
     if (claimed.has(key)) {
-      rejected.push({ name: def.name, reason: "name collides with an existing macro — user macros never shadow" });
+      rejected.push({ name: def.name, reason: USER_MACRO_NAME_COLLISION_REASON });
       continue;
     }
     claimed.add(key);
@@ -501,5 +506,5 @@ export function registerUserMacros(registry: MacroRegistry, defs: readonly UserM
       metadata: userMacroMetadata(def, opts.source),
     });
   }
-  return { rejected };
+  return { accepted, rejected };
 }

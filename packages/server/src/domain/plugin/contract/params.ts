@@ -340,6 +340,11 @@ export interface ListCommandsParams {
   readonly caller: Principal;
 }
 
+/** `listMacros` — the CALLER's OWN enabled plugins' registered macros; the `listCommands` posture exactly. */
+export interface ListMacrosParams {
+  readonly caller: Principal;
+}
+
 /** `invokeUiCommand` — run one registered command (U5, §4.5). Owner-scoped on `pluginId` (leak-free NOT_FOUND);
  *  re-enters `onRun` under the crash policy + the per-instance invoke queue, exactly like a UI action.
  *

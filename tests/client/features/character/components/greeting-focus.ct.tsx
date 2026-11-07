@@ -21,6 +21,7 @@ test("removing an alternate greeting returns focus to Add greeting", async ({ co
       "character.get",
       "character.update",
       "preset.get",
+      "plugin.listMacros",
       "chat.listChats",
       "regex.listForCharacter",
       "tag.listPendingSuggestions",

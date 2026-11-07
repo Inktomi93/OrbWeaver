@@ -215,6 +215,7 @@ Name your lane, state your default, and keep working. Send nothing else.
 - Keep mid-run messages to the same shape.
 - If the hand-back of your card is refused, send it with SendMessage to `main`. A lane that ends without a delivered card loses its work.
 - A new board item goes in the report as title, what, why and done. The orchestrator files it.
+- The orchestrator lands items and regenerates indexes. Put `Closes:` in your commit and report the ids. `pnpm doc edit` is yours when a brief asks for it.
 - Name coupled risks, such as a moved file or a removed last importer.
 - Put authored text such as specs, copy or ledger rows in a `docs/` file, and cite the path. Report text is not kept.
 - Report a new lesson as text. The orchestrator decides its home.

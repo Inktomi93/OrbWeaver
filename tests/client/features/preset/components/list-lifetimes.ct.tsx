@@ -11,6 +11,7 @@ const PRESET_READS = [
   "settings.getUserSettings",
   "sessions.me",
   "preset.get",
+  "plugin.listMacros",
   "preset.list",
   "preset.resolveEffective",
   "connection.resolveChatCapability",

@@ -226,6 +226,8 @@ export interface ChatComposeInput {
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
    *  registry without either importing the other. */
   readonly pluginMacros?: PluginMacroRegistry["resolveForTurn"];
+  /** The registry's names-only read: a preview lists a plugin's macros without running its guest. */
+  readonly listPluginMacros?: PluginMacroRegistry["listNames"];
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -260,6 +262,8 @@ export interface ChatComposeResult extends AsyncDisposable {
      *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
      *  a chat; rpg re-deriving it would be a second home for the rule). */
     readonly resolvePromptUserMacros: RpgAssemblyContext["resolvePresetUserMacros"];
+    /** The id of the preset `resolvePromptUserMacros` read, for imagery's macro source attribution. */
+    readonly resolvePromptPresetId: ChatRoomInputs["resolvePromptPresetId"];
     /** The chat's GM-PRESET prose overrides (PROSE-1 S4) — what the two rpg HOST DOORS (`resyncFromStory`,
      *  `populateFromCharacter`) resolve their extraction prose through. Chat owns preset resolution AND the
      *  GM-voice redirect; rpg reads no preset table, and re-deriving either here would be a second home for
@@ -354,8 +358,15 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveTurnPersonas: createTurnPersonaResolver(input.resolvePersonasForParticipants),
     rpg: input.rpg ?? null,
   });
-  const { resolvePromptVariables, resolvePromptUserMacros, resolveChatProse, resolveChatPresetProse, resolveChatPresetParams, resolveMemoryConfig } =
-    roomInputs;
+  const {
+    resolvePromptVariables,
+    resolvePromptUserMacros,
+    resolvePromptPresetId,
+    resolveChatProse,
+    resolveChatPresetProse,
+    resolveChatPresetParams,
+    resolveMemoryConfig,
+  } = roomInputs;
   // The D50 PromptTransform registrar — one per deploy. Zero registrants today
   // (automation A7 + the plugin host register onto it later); its `apply` is the `ChatContext.promptTransforms`
   // op, so a chat with no transforms assembles + streams byte-identically.
@@ -549,6 +560,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     promptTransforms: promptTransformRegistry.apply,
     // The per-turn plugin-macro resolve (U6). Null ⇒ no plugin host wired (byte-identical no-op).
     pluginMacros: input.pluginMacros ?? null,
+    listPluginMacros: input.listPluginMacros ?? null,
   };
 
   const chatDeps: ChatServiceDeps = {
@@ -600,6 +612,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
+      resolvePromptPresetId,
       resolveChatPresetProse,
       resolveChatPresetParams,
     },

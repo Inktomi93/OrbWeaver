@@ -28,6 +28,7 @@ for (const { width, height, density } of [
           "settings.getUserSettings",
           "preset.list",
           "preset.get",
+          "plugin.listMacros",
           "preset.resolveEffective",
           "connection.resolveChatCapability",
           "connection.providersAvailable",

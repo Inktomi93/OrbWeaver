@@ -33,6 +33,7 @@
 // the list context is gone and the taxonomy datum earns its ink.
 
 import type { PromptConfig, TemplateClusterId } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, ExternalLink, Icon, Search } from "@orb/ui/icons";
@@ -82,12 +83,14 @@ function markerHealth(sections: PromptConfig["sections"]): MarkerHealth {
 
 export interface ActionsViewProps {
   readonly form: PresetForm;
+  /** The preset being edited, for the macro completion's source ref. */
+  readonly presetId: PresetId;
   /** Reveal + select a rack section — the `guided_instruction` cross-link's target (§16 row 19: one
    *  selection writer, the same one the rack uses). */
   readonly onSelectSection: (sectionId: string) => void;
 }
 
-export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactElement {
+export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProps): ReactElement {
   // WHICH body the view paints — STORE state (never local): the drill must survive the fork-retarget
   // remount (IA §2.6). A stale id (a def that left the registry) resolves to no row and the list stands.
   const drilledId = useDrilledPresetTemplateId();
@@ -115,6 +118,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
     return (
       <TemplateDrillIn
         form={form}
+        presetId={presetId}
         onBack={(): void => {
           setRestoreFocusTemplateId(drilled.def.id);
           closePresetTemplateDrill();

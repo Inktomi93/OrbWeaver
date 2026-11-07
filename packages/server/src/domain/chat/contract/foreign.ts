@@ -132,9 +132,8 @@ export type TurnTrigger = { readonly kind: "human"; readonly userId: UserId; rea
 export interface ForeignInputs {
   readonly promptConfig: PromptConfig;
   /** The RESOLVED preset id `promptConfig` came from (GM override wins over host default), or null when the system
-   *  `DEFAULT_PROMPT_CONFIG` stood in — WAVE MU user-macro source attribution (`MacroSourceRef` needs the id).
-   *  Absent/null ⇒ the turn stamps the `"default"` source label (unreachable when no user macros are
-   *  authored, since the default config has none). */
+   *  `DEFAULT_PROMPT_CONFIG` stood in — the preset source ref of the user macros it declares.
+   *  Absent/null ⇒ the source ref carries a null preset id (the default config declares no user macros). */
   readonly presetId?: PresetId | null | undefined;
   /** The NAME of the preset {@link ForeignInputs.presetId} points at — the SAME resolution, so the two can
    *  never disagree about which preset this room assembles. Read by the room's Regex section, which must

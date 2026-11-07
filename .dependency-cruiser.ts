@@ -762,6 +762,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/workloads/lib/workloads-model.ts":
       "ASSET_KIND_ITEMS and WORKLOAD_KIND_LABELS: the job name and the asset kind names the schedule dialog's pickers print",
   },
+  "tests/client/features/workloads/components/import-preview.ct.tsx": {
+    "packages/client/src/features/workloads/lib/portability-model.ts": "IMPORT_PREVIEW_RETRY_NAME: the production name of the preview's retry control",
+  },
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",

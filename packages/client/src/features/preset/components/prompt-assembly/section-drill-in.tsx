@@ -35,6 +35,7 @@
 
 import type { GenerationType, PromptSection, PromptSectionId } from "@orb/contracts/preset";
 import { mintPromptSectionId } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -88,13 +89,15 @@ const TAIL_DEPTH = 0;
 
 export interface SectionDrillInProps {
   readonly form: AssemblyForm;
+  /** The preset being edited, for the macro completion's source ref. */
+  readonly presetId: PresetId;
   readonly section: PromptSection;
   readonly index: number;
   /** Back to the rack — the drill-in's one exit (Esc stays overlay-only, the house rule). */
   readonly onBack: () => void;
 }
 
-export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInProps): ReactElement {
+export function SectionDrillIn({ form, presetId, section, index, onBack }: SectionDrillInProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   const pivot = isPivotSection(section);
   // A CARRIER declares no `inject` in the schema, so the Placement cluster's Order/Depth sub-fields are
@@ -131,7 +134,7 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
       </Stack>
 
       <Section kicker="Body">
-        <SectionBody form={form} index={index} section={section} />
+        <SectionBody form={form} index={index} presetId={presetId} section={section} />
       </Section>
 
       {/* ONE subscription for BOTH clusters: the zone decides whether Delivery even HAS a depth half, so

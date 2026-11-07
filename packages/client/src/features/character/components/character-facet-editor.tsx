@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { ASSISTANT_PREFILL_WARNING } from "#lib";
+import { ASSISTANT_PREFILL_WARNING, BUILTIN_MACRO_SUGGESTIONS } from "#lib";
 import { useSpoilerBlur } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
@@ -133,8 +133,11 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
   exampleMessages: ({ form, trusted, allowExternalMedia, spoilerBlur, suggestions }) => (
     <ExampleMessagesField form={form} trusted={trusted} allowExternalMedia={allowExternalMedia} spoilerBlur={spoilerBlur} suggestions={suggestions} />
   ),
-  creatorNotes: ({ form, suggestions }) => (
-    <form.AppField name="creatorNotes">{(field): ReactElement => <field.MacroField label="Creator notes" suggestions={suggestions} rows={8} />}</form.AppField>
+  // Creator notes render only in the member card viewer, which registers no user macros: builtins are all that resolve.
+  creatorNotes: ({ form }) => (
+    <form.AppField name="creatorNotes">
+      {(field): ReactElement => <field.MacroField label="Creator notes" suggestions={BUILTIN_MACRO_SUGGESTIONS} rows={8} />}
+    </form.AppField>
   ),
   systemPrompt: ({ form, suggestions }) => (
     <SpoilerMacroField

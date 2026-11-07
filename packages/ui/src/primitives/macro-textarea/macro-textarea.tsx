@@ -31,6 +31,8 @@ export interface MacroSuggestion {
    * so a block entry reads as the macro it is.
    */
   insertTemplate?: string;
+  /** Where the macro lives ("This preset", "Plugin: Oracle Deck"), shown at the row's trailing edge. Absent on a builtin. */
+  source?: string;
 }
 
 export interface MacroTextareaProps extends Pick<ComponentProps<typeof Textarea>, "aria-describedby"> {
@@ -81,7 +83,7 @@ function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<Mac
     fields: ["name", "description"],
     // `insertTemplate` is stored (never indexed): the picked row is reconstructed from the STORED fields,
     // so a block macro reached through search must carry its insertion with it or it inserts a bare call.
-    storeFields: ["name", "description", "category", "args", "insertTemplate"],
+    storeFields: ["name", "description", "category", "args", "insertTemplate", "source"],
     searchOptions: {
       prefix: true,
       fuzzy: 0.2,
@@ -91,6 +93,25 @@ function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<Mac
   index.addAll(suggestions.map((s) => ({ ...s, id: s.name })));
   indexCache.set(suggestions, index);
   return index;
+}
+
+/** One option row's content: the macro name and description, then the source at the trailing edge. */
+function OptionContent({ suggestion }: { readonly suggestion: MacroSuggestion }): ReactElement {
+  return (
+    <>
+      <span className={slots.itemMain()}>
+        <span className={slots.itemName()}>{`{{${suggestion.name}}}`}</span>
+        {suggestion.description !== undefined && suggestion.description !== "" ? (
+          <span className={slots.itemDescription()}>{suggestion.description}</span>
+        ) : null}
+      </span>
+      {suggestion.source === undefined ? null : (
+        <span className={slots.itemSource()} data-slot="macro-textarea-option-source">
+          {suggestion.source}
+        </span>
+      )}
+    </>
+  );
 }
 
 type SuggestionRow = { kind: "header"; label: string } | { kind: "item"; suggestion: MacroSuggestion; index: number };
@@ -128,6 +149,7 @@ function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly 
       ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
       ...(Array.isArray(h["args"]) ? { args: h["args"].filter((arg): arg is string => typeof arg === "string") } : {}),
       ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
+      ...(h["source"] !== undefined ? { source: h["source"] as string } : {}),
     }),
   );
 }
@@ -327,12 +349,7 @@ export function MacroTextarea({
                 role="option"
                 type="button"
               >
-                <span className={slots.itemMain()}>
-                  <span className={slots.itemName()}>{`{{${row.suggestion.name}}}`}</span>
-                  {row.suggestion.description !== undefined && row.suggestion.description !== "" ? (
-                    <span className={slots.itemDescription()}>{row.suggestion.description}</span>
-                  ) : null}
-                </span>
+                <OptionContent suggestion={row.suggestion} />
               </button>
             ),
           )}

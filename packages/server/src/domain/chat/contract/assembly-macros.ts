@@ -3,10 +3,11 @@
 // interface outside `contract/`, so these live here rather than file-local in `assembly/macros.ts` /
 // `assembly/user-macros.ts` (the `contract/macro-ids.ts` precedent — the same §7.4 move).
 
-import type { AssembleContext, UserMacroDraws } from "@orb/contracts/chat";
+import type { AssembleContext, MacroSlice, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
+import type { PluginMacroNames } from "@orb/contracts/plugin";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroFreeze, MacroRegistry, RandomSource, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry, MacroSourceKind, MacroSourceOf, RandomSource, UserMacroDef } from "@orb/kit/macro";
 
 export const CHOICE_PICK_MODES = ["random", "stable"] as const;
 /** How a ChoiceBlock `randomPick` variable resolves: `random` draws one of the stored values from the gather's PRNG
@@ -62,10 +63,10 @@ export interface FreezeVolatileMacrosArgs {
   readonly frozenMacros?: readonly MacroFreeze[] | undefined;
 }
 
-/** ONE authoring home's macro defs + the id its source attribution carries (`MacroSourceRef.id` — the
- *  resolved preset id for the preset group, the game's chat id for the game group). */
-export interface UserMacroDefGroup {
-  readonly id: string;
+/** ONE authoring home's macro defs + the source ref its attribution carries: the resolved preset (null only for the
+ *  built-in default), the game's chat id for the game group, one plugin's id for a plugin group. */
+export interface UserMacroDefGroup<K extends MacroSourceKind> {
+  readonly source: MacroSourceOf<K>;
   readonly defs: readonly UserMacroDef[];
 }
 
@@ -74,16 +75,19 @@ export interface UserMacroDefGroup {
  *  policy is law, not a caller's choice, so `buildTurnUserMacros` owns it (see its header). */
 export interface BuildTurnUserMacrosArgs {
   /** The active preset's authored macro defs (`foreign.promptConfig.userMacros`) + the resolved preset id. */
-  readonly preset: UserMacroDefGroup;
+  readonly preset: UserMacroDefGroup<"preset">;
   /** The GAME's authored macro defs (`rpg_games.config.userMacros`, via `ChatRpgOps.resolveUserMacros`) +
    *  the game's chat id. Absent ⇒ a non-game chat (byte-identical to preset-only). */
-  readonly game?: UserMacroDefGroup | undefined;
+  readonly game?: UserMacroDefGroup<"game"> | undefined;
   /** The turn AUTHOR's PLUGIN macros, already resolved to values by the plugin
    *  plane (`ChatContext.pluginMacros`). A THIRD authoring home, and the only one whose names are HOST-assigned
    *  (`plugin_<slug'>_<name>`), which is why it needs no shadow policy: it cannot collide with a builtin, and a
    *  preset/game def that deliberately spells the same name simply wins by registering first. Absent ⇒ a chat
    *  with no plugin macros, byte-identical to preset+game only. */
-  readonly plugin?: UserMacroDefGroup | undefined;
+  readonly plugin?: readonly UserMacroDefGroup<"plugin">[] | undefined;
+  /** Plugin macros a PREVIEW lists without resolving: their names land in the trace as deferred entries and nowhere
+   *  in the registry, so a render leaves them as it always did. A real turn passes {@link BuildTurnUserMacrosArgs.plugin}. */
+  readonly pluginNames?: readonly PluginMacroNames[] | undefined;
   /** The per-chat input picks bag — macro NAME → input name → pick. `{}` is fully functional (unpicked
    *  inputs resolve their per-kind defaults; a random-pick pool falls back to ALL options). Keyed by NAME,
    *  never by source: a pick made while the PRESET owned `{{mood}}` keeps applying when a game def shadows
@@ -106,7 +110,10 @@ export interface TurnUserMacros {
   readonly freezeRegistry: MacroRegistry;
   /** The EFFECTIVE draw record (frozen ∪ fresh) the engine persists onto every committed variant. */
   readonly draws: UserMacroDraws;
-  /** Refused defs (name collision / bad name) — the caller logs these loud at turn time (D53); the
-   *  authoring surface (preset editor macro-browser) is the primary error UI. */
-  readonly rejected: readonly RejectedUserMacro[];
+  /** Refused defs (name collision / bad name), each with the home that offered it — the caller logs these loud
+   *  at turn time (D53). The ruled game-over-preset shadow is not a refusal and is not here. */
+  readonly rejected: readonly MacroSliceRejection[];
+  /** What the assembly trace reports: every registered macro, and every macro that lost its name, the
+   *  shadowed preset defs included. */
+  readonly trace: MacroSlice;
 }

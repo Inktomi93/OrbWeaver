@@ -52,6 +52,7 @@ import {
   pluginIdInputSchema,
   pluginLogInputSchema,
   pluginLogViewSchema,
+  pluginMacroViewSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
   pluginSurfaceStateInputSchema,
@@ -385,6 +386,11 @@ export const pluginRouter = t.router({
   listCommands: authedProcedure
     .output(strictTwin(z.array(pluginCommandViewSchema).readonly()))
     .query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
+
+  // `listMacros` is the `listCommands` twin: no input, the caller's own enabled plugins' macros, sweep-EXEMPT.
+  listMacros: authedProcedure
+    .output(strictTwin(z.array(pluginMacroViewSchema).readonly()))
+    .query(({ ctx }) => ctx.services.plugin.listMacros({ caller: ctx.auth })),
 
   invokeUiCommand: authedProcedure
     .input(

@@ -37,6 +37,7 @@ import { createListBundleAssets } from "./verbs/list-bundle-assets.ts";
 import { createListCommands } from "./verbs/list-commands.ts";
 import { createListDisplayTransforms } from "./verbs/list-display-transforms.ts";
 import { createListDistributedPlugins } from "./verbs/list-distributed-plugins.ts";
+import { createListMacros } from "./verbs/list-macros.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
 import { createPreviewFromUrl } from "./verbs/preview-from-url.ts";
@@ -148,6 +149,7 @@ export function createPluginService(
     // `/plugin` dispatcher + the command palette both read, and a crash-policy'd round-trip that returns the
     // drained UI outcome.
     listCommands: createListCommands(ctx, registry),
+    listMacros: createListMacros(ctx, registry),
     invokeUiCommand: createInvokeUiCommand(ctx, registry),
     // The DISPLAY-transform read side (U6, seam 14) — the same resident registry, the same owner-scoped read.
     listDisplayTransforms: createListDisplayTransforms(ctx, registry),

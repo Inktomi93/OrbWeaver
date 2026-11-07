@@ -30,12 +30,13 @@ export function providerDependentConnectionReads(trpc: Trpc): readonly ReturnTyp
 }
 
 /** The resident contribution catalogs every lifecycle transition must reconcile together, including the
- *  rule editor's tool catalog, which lists the tools the caller's enabled plugins register. */
+ *  rule editor's tool catalog and the macro catalog, which list what the caller's enabled plugins register. */
 function pluginContributionCatalogReads(
   trpc: Trpc,
 ): readonly [
   ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>,
   ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>,
+  ReturnType<Trpc["plugin"]["listMacros"]["queryFilter"]>,
   ReturnType<Trpc["plugin"]["listDisplayTransforms"]["queryFilter"]>,
   ReturnType<Trpc["plugin"]["transformForDisplay"]["queryFilter"]>,
   ReturnType<Trpc["automation"]["listRuleTools"]["queryFilter"]>,
@@ -43,6 +44,7 @@ function pluginContributionCatalogReads(
   return [
     trpc.plugin.listSurfaces.queryFilter(),
     trpc.plugin.listCommands.queryFilter(),
+    trpc.plugin.listMacros.queryFilter(),
     trpc.plugin.listDisplayTransforms.queryFilter(),
     trpc.plugin.transformForDisplay.queryFilter(),
     trpc.automation.listRuleTools.queryFilter(),

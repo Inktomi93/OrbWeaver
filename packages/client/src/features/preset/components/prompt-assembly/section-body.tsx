@@ -18,6 +18,7 @@
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ChevronDown, ChevronRight, ExternalLink, Icon, Info } from "@orb/ui/icons";
@@ -49,10 +50,15 @@ export interface SectionEditProps {
   readonly index: number;
 }
 
-export function SectionBody({ form, section, index }: SectionEditProps): ReactElement {
+/** A section body also needs the preset it edits: the source ref of the macros its completion offers. */
+export interface SectionBodyProps extends SectionEditProps {
+  readonly presetId: PresetId;
+}
+
+export function SectionBody({ form, section, index, presetId }: SectionBodyProps): ReactElement {
   if (section.type === "literal") {
     return (
-      <PresetMacroSuggestions form={form}>
+      <PresetMacroSuggestions form={form} presetId={presetId}>
         {(suggestions): ReactElement => (
           <form.AppField name={`sections[${index}].content`}>
             {(field): ReactElement => <field.MacroField className={BODY_MIN_H} label="Text" rows={BODY_ROWS} suggestions={suggestions} />}
@@ -62,14 +68,14 @@ export function SectionBody({ form, section, index }: SectionEditProps): ReactEl
     );
   }
   if (isTemplatedMarkerSection(section)) {
-    return <TemplatedMarkerBody form={form} index={index} section={section} />;
+    return <TemplatedMarkerBody form={form} index={index} presetId={presetId} section={section} />;
   }
-  return <CarrierBody form={form} section={section} />;
+  return <CarrierBody form={form} presetId={presetId} section={section} />;
 }
 
 /** A templated marker's FRAMING template — one textarea, ghosting the factory default. The two
  *  empty-default markers (`main_prompt`/`post_history`) ghost their explainer instead of bare nothing. */
-function TemplatedMarkerBody({ form, section, index }: SectionEditProps): ReactElement | null {
+function TemplatedMarkerBody({ form, section, index, presetId }: SectionBodyProps): ReactElement | null {
   if (!isTemplatedMarkerSection(section)) {
     return null;
   }
@@ -85,7 +91,7 @@ function TemplatedMarkerBody({ form, section, index }: SectionEditProps): ReactE
       {/* NO `<Field label="Template">` (side-eye F-32): the cluster kicker already says BODY and the
           drill-in header already names the section, so a third "Template" was the same idea three times.
           The accessible name rides `aria-label` — the datum reaches AT, the eye stops re-reading it. */}
-      <PresetMacroSuggestions form={form}>
+      <PresetMacroSuggestions form={form} presetId={presetId}>
         {(suggestions): ReactElement => (
           <MacroTextarea
             aria-label="Template"
@@ -153,7 +159,15 @@ function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCop
  *  standing `openConfigTo` intent — never a route fork. It carries the collection KIND, not just the
  *  section, because the Configuration list's groups start collapsed: a bare section switch would land a
  *  reader who asked for world info on a closed door. */
-function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement | null {
+function CarrierBody({
+  form,
+  section,
+  presetId,
+}: {
+  readonly form: AssemblyForm;
+  readonly section: PromptSection;
+  readonly presetId: PresetId;
+}): ReactElement | null {
   if (!isPlainMarkerSection(section)) {
     return null;
   }
@@ -181,7 +195,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
         // mock draws a single-line input. `rows={1}` + the Textarea's own `field-sizing: content` grows it
         // only if the author writes a multi-line wrapper. The explainer moves to the hover hint — the
         // datum ({{entry}}) is what stays visible (§4.1).
-        <PresetMacroSuggestions form={form}>
+        <PresetMacroSuggestions form={form} presetId={presetId}>
           {(suggestions): ReactElement => (
             <form.AppField name="formatStrings.wiFormat">
               {(field): ReactElement => (

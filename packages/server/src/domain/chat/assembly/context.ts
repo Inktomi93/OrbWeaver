@@ -12,6 +12,7 @@ import type {
   ChatInjection,
   GuidedSteer,
   MacroFreezeRecord,
+  MacroSlice,
   MemoryRecallSlice,
   RoomOverrides,
   SpeakerRef,
@@ -366,6 +367,9 @@ interface BuildAssembleContextInput {
    *  produced the text. Absent ⇒ recall never ran for this build ⇒ the assembly trace reports
    *  `memoryRecall: null` (a preview / hand-built ctx), which is distinct from a recall that surfaced nothing. */
   readonly memoryTrace?: MemoryRecallSlice | undefined;
+  /** The user-macro registry build behind this context's registries, for the assembly trace's `macros` slice.
+   *  Absent ⇒ no home offered a user macro. */
+  readonly macroTrace?: MacroSlice | undefined;
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
@@ -482,6 +486,7 @@ function buildBaseContext(
   setIf(base, "nowMs", input.nowMs);
   setIf(base, "memory", input.memory);
   setIf(base, "memoryTrace", input.memoryTrace);
+  setIf(base, "macroTrace", input.macroTrace);
   // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
   setIf(base, "databank", input.databank);
   setIf(base, "compactSummary", input.compactSummary);
