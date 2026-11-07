@@ -312,7 +312,15 @@ test("a file no framed upload can carry is skipped with its reason instead of se
   const served: TreeImportCaps = { totalBytes: totalHolding([small]), fileBytes: UNIT * 2, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
   const plan = await planServedTreeImport([small, whole], served, []);
   expect(plan.batches).toEqual([[small]]);
-  expect(plan.skipped).toHaveLength(1);
+  const [skip, ...rest] = skippedByReason(plan.skipped);
+  expect(rest).toEqual([]);
+  expect(skip?.files).toBe(1);
+  // The per-file cap is a different refusal: the same file under a smaller per-file cap names its own reason.
+  const overFileCap = await planServedTreeImport([small, whole], { ...served, fileBytes: UNIT }, []);
+  const [fileCapSkip] = skippedByReason(overFileCap.skipped);
+  expect(fileCapSkip?.reason).not.toBe("");
+  expect(skip?.reason).not.toBe("");
+  expect(skip?.reason).not.toBe(fileCapSkip?.reason);
   expect(plan.batches.flat()).not.toContain(whole);
   expect(plan.files).toBe(1);
 });

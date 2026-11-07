@@ -249,7 +249,7 @@ test("unsubscribe suppresses a queued late frame and releases the response reade
   }
 });
 
-test("the adapter owns inactivity and unsubscribe cancels both an idle reader and a pending retry", async () => {
+test("a stream idle past the inactivity deadline is cancelled and retried, a received frame restarts the clock, and unsubscribe cancels the pending retry", async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const ready = Promise.withResolvers<ReadableStreamDefaultController<Uint8Array>>();
   let cancellations = 0;
@@ -264,38 +264,35 @@ test("the adapter owns inactivity and unsubscribe cancels both an idle reader an
   const requests = scriptFetch((_request, attempt) =>
     attempt === 1 ? new Response(body, { headers: SSE_HEADERS }) : new Response(CONNECTED, { headers: SSE_HEADERS }),
   );
-  const client = createTrpcClient(CLIENT_URL);
   const delivered = Promise.withResolvers<void>();
-  const subscription = client.stream.connect.subscribe(INPUT, { onData: () => delivered.resolve() });
-  let retrying: ReturnType<typeof client.stream.connect.subscribe> | undefined;
+  const subscription = createTrpcClient(CLIENT_URL).stream.connect.subscribe(INPUT, { onData: () => delivered.resolve() });
   try {
     await delivered.promise;
-    await vi.advanceTimersByTimeAsync(1);
+    // The vendor watchdog instruction (1 ms) is dropped: only the adapter's own deadline may end the stream.
+    await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_TIMEOUT_MS - 1);
+    expect(requests[0]?.signal.aborted).toBe(false);
+    expect(cancellations).toBe(0);
+    // A frame at the edge of the deadline restarts the full window.
+    controller.enqueue(encoder.encode(tracked("2", SECOND)));
+    await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_TIMEOUT_MS - 1);
+    expect(requests[0]?.signal.aborted).toBe(false);
     expect(requests).toHaveLength(1);
-    subscription.unsubscribe();
-    await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_TIMEOUT_MS);
+
+    await vi.advanceTimersByTimeAsync(1);
     expect(requests[0]?.signal.aborted).toBe(true);
     expect(cancellations).toBe(1);
     expect(body.locked).toBe(false);
+    expect(requests).toHaveLength(1);
 
-    const phases: string[] = [];
-    const reconnecting = Promise.withResolvers<void>();
-    retrying = client.stream.connect.subscribe(INPUT, {
-      onStarted: () => phases.push("started"),
-      onConnectionStateChange: (state) => {
-        if (state.state === "connecting" && phases.includes("started")) {
-          reconnecting.resolve();
-        }
-      },
-    });
-    await reconnecting.promise;
-    retrying.unsubscribe();
+    await vi.advanceTimersToNextTimerAsync();
+    expect(requests).toHaveLength(2);
+    // The second answer ends at once, so another retry is pending; unsubscribe cancels it.
+    subscription.unsubscribe();
     await vi.runAllTimersAsync();
     expect(requests).toHaveLength(2);
     expect(vi.getTimerCount()).toBe(0);
   } finally {
     subscription.unsubscribe();
-    retrying?.unsubscribe();
     controller.error(new Error("the inactivity fixture is closing"));
   }
 });

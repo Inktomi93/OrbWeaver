@@ -30,7 +30,11 @@ test("a name that left the surface unrecorded warns at its span and suggests the
 });
 
 test("an unknown name with nothing near it warns without a suggestion", () => {
-  const [warning] = themeCssHookWarnings(".shell-zzzzzzzzzzzzzz {}", SURFACE, RENAMES);
+  const css = ".shell-zzzzzzzzzzzzzz {}";
+  const [warning, ...rest] = themeCssHookWarnings(css, SURFACE, RENAMES);
+  expect(rest).toEqual([]);
+  expect(warning?.severity).toBe("warning");
+  expect(css.slice(warning?.from, warning?.to)).toBe("shell-zzzzzzzzzzzzzz");
   expect(SURFACE.filter((hook) => warning?.message.includes(hook.name))).toEqual([]);
 });
 
