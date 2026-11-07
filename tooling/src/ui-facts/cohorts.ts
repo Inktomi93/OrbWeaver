@@ -151,7 +151,7 @@ const ACTION_TAGS = new Set(["Button", "GlyphButton", "InlineAction", "MenuItem"
 // The same evidence `orb/destructive-needs-confirm` reads: an Undo, a Keep or Cancel step beside the control, a Cancel-able dialog,
 // and the files the owner exempted (`DESTRUCTIVE_EXEMPT`).
 const INLINE_CONFIRM_WORDS = new Set(["Keep", "Cancel"]);
-const EXEMPT_PATHS = DESTRUCTIVE_EXEMPT.map(({ path }) => new RegExp(`^${path.replaceAll(".", "\\.").replaceAll("*", "[^/]*")}$`, "u"));
+const EXEMPT_PATHS = new Set(Object.keys(DESTRUCTIVE_EXEMPT));
 
 function destructiveMembers(facts: FileFacts): readonly Member[] {
   const sf = facts.source.sf;
@@ -183,7 +183,7 @@ function destructiveMembers(facts: FileFacts): readonly Member[] {
       ) ||
       sf.text.includes('label: "Undo"') ||
       buttonWithText(facts, INLINE_CONFIRM_WORDS) ||
-      EXEMPT_PATHS.some((pattern) => pattern.test(facts.source.path));
+      EXEMPT_PATHS.has(facts.source.path);
     out.push(member(facts, text === "" ? elem.tag : text, { confirm: cell(guarded ? "confirm in file" : "none", elem.line) }));
   }
   return out;

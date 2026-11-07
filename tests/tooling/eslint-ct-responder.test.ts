@@ -18,18 +18,30 @@ beforeAll(async () => {
   await eslint.calculateConfigForFile(join(ROOT, SPEC));
 }, 120_000);
 
-// The router record and the route-map types of the route helper, over two procedures: one takes a request, one takes none.
-const PRELUDE = `
+// The router record, in a module named like the route helper so the rule finds it by its route-trpc.ts file lookup,
+// over two procedures: one takes a request, one takes none. Loading the real helper pulls the server graph past the budget.
+const ROUTE_HELPER = join(ROOT, "tests/client/features/probe/route-trpc.ts");
+const ROUTER_RECORD = `
 interface Procedure<I, O> { readonly _def: { readonly $types: { readonly input: I; readonly output: O } } }
-type AppRouterRecord = { a: { list: Procedure<{ id: string }, readonly string[]>; ping: Procedure<void, string> } };
+export type AppRouterRecord = { a: { list: Procedure<{ id: string }, readonly string[]>; ping: Procedure<void, string> } };
+`;
+
+// The route-map types and kit markers of the route helper.
+const PRELUDE = `
 interface Outputs { "a.list": readonly string[]; "a.ping": string }
 interface Inputs { "a.list": { id: string }; "a.ping": undefined }
 type Path = keyof Outputs;
 interface TrpcHoldMarker { readonly requested: Promise<void>; release(data: unknown): void }
 interface TrpcErrorMarker { readonly code: string }
+interface TrpcWireEscapeMarker { readonly escaped: unknown }
+interface TrpcSubscriptionEndMarker { readonly ended: true }
+interface ServedHold { readonly requested: Promise<void>; release(): void }
 declare function trpcError(options?: { code?: string }): TrpcErrorMarker;
 declare function trpcHold(): TrpcHoldMarker;
-type Response<P extends Path> = Outputs[P] | TrpcHoldMarker | TrpcErrorMarker;
+declare function malformedOrForwardTrpcWire(value: unknown): TrpcWireEscapeMarker;
+declare function trpcEndSubscription(): TrpcSubscriptionEndMarker;
+declare function holdServed(): ServedHold;
+type Response<P extends Path> = Outputs[P] | TrpcHoldMarker | TrpcErrorMarker | TrpcWireEscapeMarker | TrpcSubscriptionEndMarker | ServedHold;
 type Responder<P extends Path> = Response<P> | ((input: Inputs[P]) => Response<P>);
 type TrpcRoutes<P extends Path = never> = [P] extends [never] ? { [K in Path]?: Responder<K> } : { [K in P]-?: Responder<K> };
 type Routes<R> = { readonly [K in keyof R]: K extends Path ? Responder<K> : never };
@@ -38,7 +50,7 @@ declare function defineTrpcRoutes<const R extends object>(routes: R & Routes<NoI
 declare const page: unknown;
 `;
 
-// A one-file program: the rule needs the route types, not the repo graph.
+// A program of the spec and the planted route helper: the rule needs the route types, not the repo graph.
 function programFor(fileName: string, source: string): ts.Program {
   const options: ts.CompilerOptions = {
     target: ts.ScriptTarget.ES2024,
@@ -50,15 +62,21 @@ function programFor(fileName: string, source: string): ts.Program {
     types: [],
     noEmit: true,
   };
+  const planted = new Map([
+    [fileName, source],
+    [ROUTE_HELPER, ROUTER_RECORD],
+  ]);
   const host = ts.createCompilerHost(options, true);
   const read = host.getSourceFile.bind(host);
-  host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined =>
-    name === fileName ? ts.createSourceFile(name, source, version, true) : read(name, version, onError, create);
+  host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined => {
+    const text = planted.get(name);
+    return text === undefined ? read(name, version, onError, create) : ts.createSourceFile(name, text, version, true);
+  };
   const exists = host.fileExists.bind(host);
-  host.fileExists = (name): boolean => name === fileName || exists(name);
+  host.fileExists = (name): boolean => planted.has(name) || exists(name);
   const readFile = host.readFile.bind(host);
-  host.readFile = (name): string | undefined => (name === fileName ? source : readFile(name));
-  return ts.createProgram([fileName], options, host);
+  host.readFile = (name): string | undefined => planted.get(name) ?? readFile(name);
+  return ts.createProgram([fileName, ROUTE_HELPER], options, host);
 }
 
 async function findings(body: string, header = "", spec = SPEC): Promise<readonly Linter.LintMessage[]> {
@@ -225,45 +243,57 @@ test("a yielded input is observed outside the generator", async () => {
   expect(await findings('await routeTrpc(page, { "a.list": function* (input) { yield input.id; return ["x"]; } });')).toEqual([]);
 });
 
+// The rule's two refusals, a fixed answer and a fabricated refusal, told apart by the clause each message opens with.
+const FIXED = "fixed";
+const REFUSED = "refused";
+const OPENINGS = [
+  ["A fixed responder", FIXED],
+  ["An unconditional trpcError", REFUSED],
+] as const;
+const refusalOf = (message: string): string => OPENINGS.find(([opening]) => message.startsWith(opening))?.[1] ?? message;
+
 test.for([
   [
     "a fixed responder factory",
     `const always = (rows: readonly string[]) => (_input: { id: string }) => rows; await routeTrpc(page, { "a.list": always(["x"]) });`,
-    1,
+    [FIXED],
   ],
-  ["a named function ignoring input", `function answer(_input: { id: string }) { return ["x"]; } await routeTrpc(page, { "a.list": answer });`, 1],
-  ["a discarded comma operand", `await routeTrpc(page, { "a.list": input => (input, ["x"]) });`, 1],
-  ["a dead array initializer", `await routeTrpc(page, { "a.list": input => { const unused = [input.id]; return ["x"]; } });`, 1],
-  ["a dead unary initializer", `await routeTrpc(page, { "a.list": input => { const unused = +input.id; return ["x"]; } });`, 1],
-  ["a dead nested object initializer", `await routeTrpc(page, { "a.list": input => { const unused = { values: [+input.id] }; return ["x"]; } });`, 1],
-  ["a dead binary initializer", `await routeTrpc(page, { "a.list": input => { const unused = "prefix" + input.id; return ["x"]; } });`, 1],
-  ["a dead alias", `await routeTrpc(page, { "a.list": input => { const unused = input; return ["x"]; } });`, 1],
-  ["a computed typed key", `const key = "a.list"; const reads: TrpcRoutes<"a.list"> = { [key]: ["x"] }; void reads;`, 1],
-  ["a typed wrapper receiving an untyped map", `function wrap(reads: TrpcRoutes) { return reads; } const reads = { "a.list": ["x"] }; wrap(reads);`, 1],
-  ["a fixed array for a procedure that takes a request", `await routeTrpc(page, { "a.list": ["x"] });`, 1],
-  ["a responder that ignores the request", `await routeTrpc(page, { "a.list": () => ["x"] });`, 1],
-  ["a responder whose parameter is never read", `await routeTrpc(page, { "a.list": (_request) => ["x"] });`, 1],
-  ["a responder that only names its parameter with void", `await routeTrpc(page, { "a.list": (request) => {\n void request;\n return ["x"];\n } });`, 1],
-  ["a responder that only names its parameter as a statement", `await routeTrpc(page, { "a.list": (request) => {\n request;\n return ["x"];\n } });`, 1],
-  ["fixed data handed over by name", `const rows = ["x"];\n await routeTrpc(page, { "a.list": rows });`, 1],
-  ["a map bound to a variable", `const reads = { "a.list": () => ["x"] };\n await routeTrpc(page, reads);`, 1],
-  ["a map spread into the call", `const base = { "a.list": ["x"] };\n await routeTrpc(page, { ...base });`, 1],
-  ["a map handed to defineTrpcRoutes by name", `const map = { "a.list": ["x"] };\n defineTrpcRoutes(map);`, 1],
-  ["a map typed as TrpcRoutes with no call", `const reads: TrpcRoutes<"a.list"> = { "a.list": ["x"] };\n void reads;`, 1],
-  ["a map returned as TrpcRoutes", `function reads(): TrpcRoutes<"a.list"> {\n return { "a.list": () => ["x"] };\n }\n void reads;`, 1],
-  ["the defineTrpcRoutes door", `defineTrpcRoutes({ "a.list": () => [] });`, 1],
-  ["an unconditional trpcError value", `await routeTrpc(page, { "a.ping": trpcError() });`, 1],
-  ["an unconditional trpcError from a responder", `await routeTrpc(page, { "a.ping": () => trpcError({ code: "NOT_FOUND" }) });`, 1],
-  ["a trpcError held in a const", `const refused = trpcError();\n await routeTrpc(page, { "a.ping": refused });`, 1],
-  ["a trpcError held in a const and returned", `const refused = trpcError();\n await routeTrpc(page, { "a.ping": () => refused });`, 1],
+  ["a named function ignoring input", `function answer(_input: { id: string }) { return ["x"]; } await routeTrpc(page, { "a.list": answer });`, [FIXED]],
+  ["a discarded comma operand", `await routeTrpc(page, { "a.list": input => (input, ["x"]) });`, [FIXED]],
+  ["a dead array initializer", `await routeTrpc(page, { "a.list": input => { const unused = [input.id]; return ["x"]; } });`, [FIXED]],
+  ["a dead unary initializer", `await routeTrpc(page, { "a.list": input => { const unused = +input.id; return ["x"]; } });`, [FIXED]],
+  ["a dead nested object initializer", `await routeTrpc(page, { "a.list": input => { const unused = { values: [+input.id] }; return ["x"]; } });`, [FIXED]],
+  ["a dead binary initializer", `await routeTrpc(page, { "a.list": input => { const unused = "prefix" + input.id; return ["x"]; } });`, [FIXED]],
+  ["a dead alias", `await routeTrpc(page, { "a.list": input => { const unused = input; return ["x"]; } });`, [FIXED]],
+  ["a computed typed key", `const key = "a.list"; const reads: TrpcRoutes<"a.list"> = { [key]: ["x"] }; void reads;`, [FIXED]],
+  ["a typed wrapper receiving an untyped map", `function wrap(reads: TrpcRoutes) { return reads; } const reads = { "a.list": ["x"] }; wrap(reads);`, [FIXED]],
+  ["a fixed array for a procedure that takes a request", `await routeTrpc(page, { "a.list": ["x"] });`, [FIXED]],
+  ["a responder that ignores the request", `await routeTrpc(page, { "a.list": () => ["x"] });`, [FIXED]],
+  ["a responder whose parameter is never read", `await routeTrpc(page, { "a.list": (_request) => ["x"] });`, [FIXED]],
+  ["a responder that only names its parameter with void", `await routeTrpc(page, { "a.list": (request) => {\n void request;\n return ["x"];\n } });`, [FIXED]],
+  ["a responder that only names its parameter as a statement", `await routeTrpc(page, { "a.list": (request) => {\n request;\n return ["x"];\n } });`, [FIXED]],
+  ["fixed data handed over by name", `const rows = ["x"];\n await routeTrpc(page, { "a.list": rows });`, [FIXED]],
+  ["a map bound to a variable", `const reads = { "a.list": () => ["x"] };\n await routeTrpc(page, reads);`, [FIXED]],
+  ["a map spread into the call", `const base = { "a.list": ["x"] };\n await routeTrpc(page, { ...base });`, [FIXED]],
+  ["a map handed to defineTrpcRoutes by name", `const map = { "a.list": ["x"] };\n defineTrpcRoutes(map);`, [FIXED]],
+  ["a map typed as TrpcRoutes with no call", `const reads: TrpcRoutes<"a.list"> = { "a.list": ["x"] };\n void reads;`, [FIXED]],
+  ["a map returned as TrpcRoutes", `function reads(): TrpcRoutes<"a.list"> {\n return { "a.list": () => ["x"] };\n }\n void reads;`, [FIXED]],
+  ["the defineTrpcRoutes door", `defineTrpcRoutes({ "a.list": () => [] });`, [FIXED]],
+  ["an unconditional trpcError value", `await routeTrpc(page, { "a.ping": trpcError() });`, [REFUSED]],
+  ["an unconditional trpcError from a responder", `await routeTrpc(page, { "a.ping": () => trpcError({ code: "NOT_FOUND" }) });`, [REFUSED]],
+  ["a trpcError held in a const", `const refused = trpcError();\n await routeTrpc(page, { "a.ping": refused });`, [REFUSED]],
+  ["a trpcError held in a const and returned", `const refused = trpcError();\n await routeTrpc(page, { "a.ping": () => refused });`, [REFUSED]],
   [
     "a refusal on both branches of a ternary",
     `await routeTrpc(page, { "a.list": ({ id }) => (id === "x" ? trpcError() : trpcError({ code: "NOT_FOUND" })) });`,
-    1,
+    [REFUSED],
   ],
-  ["each fixed route of one map", `await routeTrpc(page, { "a.list": () => [], "a.ping": () => trpcError() });`, 2],
-] as const)("native responder wall refuses: %s", async ([, body, count]) => {
-  expect((await findings(body)).filter(({ ruleId }) => ruleId === RULE)).toHaveLength(count);
+  ["each fixed route of one map", `await routeTrpc(page, { "a.list": () => [], "a.ping": () => trpcError() });`, [FIXED, REFUSED]],
+] as const)("native responder wall refuses: %s", async ([, body, verdicts]) => {
+  expect(
+    (await findings(body)).filter(({ ruleId }) => ruleId === RULE).map(({ message }) => refusalOf(message)),
+    body,
+  ).toEqual(verdicts);
 });
 
 test.for([
@@ -297,6 +327,9 @@ test.for([
   ["a map spread into the call that reads the request", `const base = { "a.list": ({ id }: { id: string }) => [id] };\n await routeTrpc(page, { ...base });`],
   ["a typed map that reads the request", `const reads: TrpcRoutes<"a.list"> = { "a.list": ({ id }) => [id] };\n void reads;`],
   ["a refusal beside a hold", `const hold = trpcHold();\n await routeTrpc(page, { "a.list": ({ id }) => (id === "dead" ? trpcError() : hold) });`],
+  ["a forward-wire escape", `await routeTrpc(page, { "a.list": malformedOrForwardTrpcWire({ id: "forward" }) });`],
+  ["an ended subscription", `await routeTrpc(page, { "a.list": trpcEndSubscription() });`],
+  ["a served hold", `await routeTrpc(page, { "a.list": holdServed() });`],
   ["an object that is not a route map", `const other = { "a.list": ["x"] };\n void other;`],
 ] as const)("native responder wall admits: %s", async ([, body]) => {
   expect(await findings(body)).toEqual([]);

@@ -88,6 +88,7 @@ import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
+export { homeReasons, homes } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { conflicts, survives } from "./ui-classes/class-conflict.ts";
 export type { ClassExpression } from "./ui-classes/class-expression.ts";

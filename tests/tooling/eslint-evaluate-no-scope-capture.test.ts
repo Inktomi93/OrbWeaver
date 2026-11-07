@@ -121,6 +121,10 @@ test.for([
     "interface Meta { readonly count: number }\nasync function run(page: { evaluate: (fn: unknown) => Promise<number> }): Promise<number> {\n  return await page.evaluate(() => (globalThis as unknown as Meta).count);\n}\n",
   ],
   [
+    "a module const read only through typeof in a type position",
+    "const LIMITS = { max: 10 };\nasync function run(page: { evaluate: (fn: unknown) => Promise<number> }): Promise<number> {\n  return await page.evaluate((limits: typeof LIMITS) => limits.max);\n}\n",
+  ],
+  [
     "a block binding inside the enclosing function is a local, not module scope",
     `async function tag(${LOC}): Promise<void> {\n  if (loc !== undefined) {\n    const MARK = "data-mark";\n    await loc.evaluate((${SET}) => el.setAttribute(MARK, "1"));\n  }\n}\n`,
   ],

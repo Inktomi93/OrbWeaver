@@ -7,6 +7,22 @@ export const ROOT_SPAN_OPENERS = ["withRequestSpan", "superviseDetached", "super
 /** A path with `/` separators: ESLint hands rules native paths, and the directory policies below match `/`-spelled segments. */
 export const posixPath = (path: string): string => path.replaceAll("\\", "/");
 
+type GlobPath = `${string}${"*" | "?" | "{" | "["}${string}`;
+/** A repository path with no glob character; a glob literal resolves to `never`, so it fails where an exact file is required. */
+export type ExactPath<H extends string> = H extends GlobPath ? never : H;
+
+/**
+ * The exact files a rule exempts.
+ * @remarks A glob in an exemption list would exempt every file the pattern later matches, so a glob argument fails `tsc`.
+ */
+export const homes = <const H extends string>(...paths: ExactPath<H>[]): string[] => paths;
+
+/**
+ * Exempt files keyed to the reason each is exempt.
+ * @remarks A glob key fails `tsc` for the same reason as in {@link homes}.
+ */
+export const homeReasons = <const R extends Record<string, string>>(reasons: R & Record<Extract<keyof R, GlobPath>, never>): R => reasons;
+
 export const memberNamed = (name: string, prefix = ""): string =>
   `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
 

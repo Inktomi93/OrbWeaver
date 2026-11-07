@@ -48,7 +48,7 @@ const OWNERS = {
 const IMPORTS =
   'import { sessions } from "../../domain/sessions/contract/service.ts";\nimport type { SessionsService } from "../../domain/sessions/contract/service.ts";\nimport { seams } from "../../../../kit/src/time/index.ts";';
 
-function lint(root: string, file: string, source: string): readonly Linter.LintMessage[] {
+function lint(root: string, file: string, source: string, rule: NonNullable<ESLint.Plugin["rules"]>[string]): readonly Linter.LintMessage[] {
   const options: ts.CompilerOptions = {
     strict: true,
     target: ts.ScriptTarget.ESNext,
@@ -63,7 +63,7 @@ function lint(root: string, file: string, source: string): readonly Linter.LintM
     source,
     {
       files: ["**/*.ts"],
-      plugins: { orb: { rules: { "derived-port-member": derivedPortMemberRule } } },
+      plugins: { orb: { rules: { "derived-port-member": rule } } },
       languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], project: false, projectService: false } },
       rules: { [RULE]: "error" },
     },
@@ -317,22 +317,29 @@ test.for([
   },
 ] as const)("derived-port-member judges $name", async ({ file, source, findings }, { plantedTree }) => {
   const root = await plantedTree({ ...OWNERS, [file]: source });
-  const messages = lint(root, file, source).map(({ message }) => message);
+  const messages = lint(root, file, source, derivedPortMemberRule).map(({ message }) => message);
   expect(messages).toHaveLength(findings.length);
   for (const [index, expected] of findings.entries()) {
     expect(messages[index]).toContain(expected);
   }
 });
 
-// The cases above register the rule by hand to give it a planted program; this one reads the production config, so the
-// rule's name, its severity and its plugin registration are proven where they are wired.
-test("the production config registers derived-port-member as an error on server compose files", { timeout: 120_000 }, async () => {
+// The cases above register the rule by hand to give it a planted program; this one takes the rule the production config
+// registers under the name, so a name mapped to another rule fails the planted restatement.
+test("the production config registers derived-port-member as an error on server compose files", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = join(import.meta.dirname, "../..");
   const config = await resolvedConfig(
     new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }),
     join(root, "packages/server/src/entry/compose/chat.ts"),
   );
   expect(config.rules[RULE]).toEqual([2]);
-  // The config loads its own module instance, so the registered rule is compared by its declared meta.
-  expect(config.plugins["orb"]?.rules?.["derived-port-member"]?.meta).toEqual(derivedPortMemberRule.meta);
+  const registered = config.plugins["orb"]?.rules?.["derived-port-member"];
+  if (registered === undefined) {
+    throw new Error("The production config registers no orb/derived-port-member rule.");
+  }
+  const source = `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\nexport const deps: { sessions: Port } = { sessions };`;
+  const planted = await plantedTree({ ...OWNERS, [SITE]: source });
+  expect(lint(planted, SITE, source, registered).map(({ message }) => message)).toEqual([
+    expect.stringContaining("Port.create hand-restates SessionsService.create"),
+  ]);
 });
