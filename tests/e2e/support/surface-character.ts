@@ -8,7 +8,7 @@ import type { DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
-import { keysOf, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -74,6 +74,8 @@ const UNEXERCISED_ACTIONS = [
   "source identity/appearance mutation",
 ] as const;
 
+const DISPOSED_ACTIONS = ["openInRefinery", "setWelcomeGreeter"] as const satisfies readonly (keyof typeof CHARACTER_ACTIONS)[];
+
 const ACTION_DISPOSITIONS = {
   openInRefinery: {
     disposition: "skipped",
@@ -81,9 +83,7 @@ const ACTION_DISPOSITIONS = {
     reason: "The cross-section session-opening action is not executed by this Character-only itinerary; no model operation is requested.",
   },
   setWelcomeGreeter: { disposition: "excluded", reason: "Changing the account's original welcome preference is outside disposable Character mutations." },
-} as const satisfies Readonly<
-  Partial<Record<keyof typeof CHARACTER_ACTIONS, DistributiveOmit<SurfaceCoverageInventory["observations"][number], "id" | "kind">>>
->;
+} as const satisfies Readonly<Record<(typeof DISPOSED_ACTIONS)[number], DistributiveOmit<SurfaceCoverageInventory["observations"][number], "id" | "kind">>>;
 
 const COMMAND_ACTION_IDS = [
   "duplicate",
@@ -1234,7 +1234,7 @@ async function disposableArea(flow: CharacterFlow, area: DisposableArea, origina
         await lookFailureJourney(flow, id);
       },
       "trust-actions": async (): Promise<void> => {
-        for (const action of keysOf(ACTION_DISPOSITIONS)) {
+        for (const action of DISPOSED_ACTIONS) {
           expectSubject(flow, action, "action");
           flow.observations.push({ id: action, kind: "action", ...ACTION_DISPOSITIONS[action] });
         }

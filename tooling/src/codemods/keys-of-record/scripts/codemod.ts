@@ -1,69 +1,70 @@
-// Replaces `Object.keys(R) as (keyof typeof R)[]` with the testkit `keysOf(R)`, which checks each key instead of
-// asserting the union.
+// Replaces `keysOf(R)` with the tuple that owns R's keys, and drops the helper's import. A record with no row in
+// OWNING_TUPLES keeps its call, so `tsc` names it once the helper is gone.
 import type { Codemod, Edit, GetSelector, SgNode } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
 
-const MUTABLE = { rule: { kind: "as_expression", pattern: "Object.keys($R) as (keyof typeof $R)[]" } } as const;
-const READONLY = { rule: { kind: "as_expression", pattern: "Object.keys($R) as readonly (keyof typeof $R)[]" } } as const;
-const ANY_ASSERTION = { rule: { kind: "as_expression" } } as const;
-const KIT_DIR = "tests/support/";
-const DOOR = "@orb/testkit/iso";
-const HELPER = "iso/keys-of.ts";
+const OWNING_TUPLES: ReadonlyMap<string, string> = new Map([
+  ["SEED_THEME_VALUE_SETS", "SEED_THEME_NAMES"],
+  ["BUTTON_BOX_OVERFLOW", "BUTTON_BOX_STEPS"],
+]);
+const HELPER = "keysOf";
+const CALL = { rule: { pattern: `${HELPER}($R)` } } as const;
+const ROOT_NAME = /^[A-Z_]+/u;
 
-export const getSelector: GetSelector<TS> = () => ANY_ASSERTION;
+export const getSelector: GetSelector<TS> = () => CALL;
 
-function importSpecifier(filename: string): string {
-  const at = filename.lastIndexOf(KIT_DIR);
-  if (at === -1) {
-    return DOOR;
-  }
-  const from = filename
-    .slice(at + KIT_DIR.length)
-    .split("/")
-    .slice(0, -1);
-  const to = HELPER.split("/");
-  let shared = 0;
-  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) {
-    shared++;
-  }
-  const up = from.length - shared;
-  return `${up === 0 ? "./" : "../".repeat(up)}${to.slice(shared).join("/")}`;
+// One import list's new names: the helper leaves, a record that lost its last use becomes its tuple, one still in use gains it.
+function rewrittenNames(names: readonly string[], rootNode: SgNode<TS>, replaced: ReadonlyMap<string, number>, helperGone: boolean): readonly string[] {
+  return names.flatMap((name) => {
+    if (name === HELPER) {
+      return helperGone ? [] : [name];
+    }
+    const count = replaced.get(name);
+    const tuple = OWNING_TUPLES.get(name);
+    if (count === undefined || tuple === undefined) {
+      return [name];
+    }
+    // Beyond the replaced calls, a record that lost its last use keeps one mention: this import.
+    const stillUsed = rootNode.findAll({ rule: { kind: "identifier", regex: `^${name}$` } }).length > count + 1;
+    return stillUsed ? [name, tuple] : [tuple];
+  });
 }
 
-function importEdit(rootNode: SgNode<TS>, specifier: string): Edit | null {
-  const declarations = rootNode.findAll({ rule: { kind: "import_statement" } });
-  // A type-only import cannot carry a value, so the helper gets its own statement beside it.
-  const existing = declarations.find(
-    (declaration) => declaration.field("source")?.text().slice(1, -1) === specifier && !declaration.text().startsWith("import type"),
-  );
-  const named = existing?.find({ rule: { kind: "named_imports" } });
-  if (named !== undefined && named !== null) {
-    if (named.text().includes("keysOf")) {
-      return null;
-    }
-    const close = named.range().end.index - 1;
-    return { startPos: close, endPos: close, insertedText: ", keysOf " };
+function importEdit(imports: SgNode<TS>, names: readonly string[]): Edit {
+  if (names.length > 0) {
+    return imports.replace(`{ ${names.join(", ")} }`);
   }
-  const last = declarations.at(-1);
-  const at = last === undefined ? 0 : last.range().end.index;
-  return { startPos: at, endPos: at, insertedText: `\nimport { keysOf } from "${specifier}";` };
+  const statement = imports.ancestors().find((ancestor) => ancestor.kind() === "import_statement") ?? imports;
+  const range = statement.range();
+  return { startPos: range.start.index, endPos: range.end.index + 1, insertedText: "" };
 }
 
 const codemod: Codemod<TS> = (root) => {
   const rootNode = root.root();
   const edits: Edit[] = [];
-  for (const assertion of [...rootNode.findAll(MUTABLE), ...rootNode.findAll(READONLY)]) {
-    const record = assertion.getMatch("R");
-    if (record) {
-      const range = assertion.range();
-      edits.push({ startPos: range.start.index, endPos: range.end.index, insertedText: `keysOf(${record.text()})` });
+  const replaced = new Map<string, number>();
+  const calls = rootNode.findAll(CALL);
+  for (const call of calls) {
+    const record = call.getMatch("R")?.text() ?? "";
+    const owner = ROOT_NAME.exec(record)?.[0] ?? "";
+    const tuple = OWNING_TUPLES.get(owner);
+    if (tuple !== undefined) {
+      edits.push(call.replace(`${tuple}${record.slice(owner.length)}`));
+      replaced.set(owner, (replaced.get(owner) ?? 0) + 1);
     }
   }
-  const added = edits.length === 0 ? null : importEdit(rootNode, importSpecifier(root.filename()));
-  if (added !== null) {
-    edits.push(added);
+  if (edits.length === 0) {
+    return Promise.resolve(null);
   }
-  return Promise.resolve(edits.length === 0 ? null : rootNode.commitEdits(edits));
+  const helperGone = edits.length === calls.length;
+  for (const imports of rootNode.findAll({ rule: { kind: "named_imports" } })) {
+    const names = imports.findAll({ rule: { kind: "import_specifier" } }).map((specifier) => specifier.text());
+    const next = rewrittenNames(names, rootNode, replaced, helperGone);
+    if (next.join() !== names.join()) {
+      edits.push(importEdit(imports, next));
+    }
+  }
+  return Promise.resolve(rootNode.commitEdits(edits));
 };
 
 export default codemod;

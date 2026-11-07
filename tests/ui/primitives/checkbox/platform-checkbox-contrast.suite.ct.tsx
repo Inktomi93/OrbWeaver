@@ -2,8 +2,7 @@
 // paints around, and stays below the focus ring on the card, under each seed and under custom ThemeScopes near the crossover.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
-import { keysOf } from "@orb/testkit/iso";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
@@ -18,7 +17,7 @@ const CARRIERS = [
 ] as const;
 const CASES = [
   { name: "hearth seed" },
-  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom mid-grey ThemeScope", background: CUSTOM_MID_GREY, accent: STRONG_ACCENT },
   { name: "custom mid-grey ThemeScope with the inherited app accent", background: CUSTOM_MID_GREY, ambientAccent: INHERITED_ACCENT },
   { name: "custom light mid-tone ThemeScope", background: CUSTOM_LIGHT_MID_TONE, ambientAccent: INHERITED_ACCENT },

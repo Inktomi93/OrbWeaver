@@ -12,7 +12,6 @@ import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const TAKEN = "Held name";
-const settle = (): Promise<void> => new Promise<void>((done) => setTimeout(done, 400));
 
 type Corpus = Parameters<typeof createShellAmbientReads>[0];
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -65,10 +64,12 @@ test("a name refusal that lands after the name was edited is still said, by the 
   await mount<typeof ShellAmbientStory>(STORY, {});
   await submitTakenName(page, held);
 
-  await page.getByRole("dialog").getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(`${TAKEN} two`);
-  await page.evaluate(settle);
+  const name = page.getByRole("dialog").getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true });
+  await name.fill(`${TAKEN} two`);
+  await expect(name).toHaveValue(`${TAKEN} two`);
   held.land();
   await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert").first()).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
 });
 
 test("a name refusal that lands while the dialog is open is said in the dialog", async ({ corpus, mount, page }) => {

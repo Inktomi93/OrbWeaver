@@ -81,8 +81,10 @@ export async function collectChatRoomFrames(args: {
   readonly until: (values: readonly StreamValue[]) => boolean;
   readonly timeoutMs: number;
   readonly sinceSeq?: number;
+  /** Runs at this room's `attached` frame: its pump has started, so a turn fired now reaches this socket. */
+  readonly onLive?: () => void;
 }): Promise<ChatRoomCollection> {
-  const { baseUrl, headers, chatId, until, timeoutMs, sinceSeq } = args;
+  const { baseUrl, headers, chatId, until, timeoutMs, sinceSeq, onLive } = args;
   // One socket per collect call — this instrument IS a tab, and a distinct id keeps two concurrent viewers
   // (host + member) on genuinely independent cells.
   const socketId = globalThis.crypto.randomUUID();
@@ -102,7 +104,7 @@ export async function collectChatRoomFrames(args: {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const tally: FrameTally = { values: [], malformed: 0 };
+  const tally: FrameTally = { values: [], malformed: 0, onLive };
   // The timer is the only abort source before `finally`, so an aborted read that reaches the catch below
   // leaves this default standing.
   let outcome: ChatRoomCollectionOutcome = "timed-out";
@@ -124,6 +126,16 @@ export async function collectChatRoomFrames(args: {
   return { values: tally.values, outcome, malformedFrames: tally.malformed };
 }
 
+/** A collection whose socket is already live, so the caller can fire a turn at once. A failed connect rejects here. */
+export async function openChatRoomCollection(
+  args: Omit<Parameters<typeof collectChatRoomFrames>[0], "onLive">,
+): Promise<{ readonly collection: Promise<ChatRoomCollection> }> {
+  const live = Promise.withResolvers<void>();
+  const collection = collectChatRoomFrames({ ...args, onLive: live.resolve });
+  await Promise.race([live.promise, collection]);
+  return { collection };
+}
+
 /** The values of a collection that is EVIDENCE — `until` held and every frame was readable — else a thrown
  *  error naming `label`, the verdict and what was collected. Every spec reading a collection's values goes
  *  through this, and an ABSENCE assertion above all: a timed-out empty collection passes one vacuously. */
@@ -140,6 +152,7 @@ export function requireSatisfied(collection: ChatRoomCollection, label: string):
 interface FrameTally {
   readonly values: StreamValue[];
   malformed: number;
+  readonly onLive: (() => void) | undefined;
 }
 
 /** Read SSE chunks, record every frame in `tally`, and STOP once `until(values)` holds (`satisfied`) or the
@@ -177,6 +190,8 @@ function drainFrames(buffer: string, tally: FrameTally, chatId: ChatId): string 
       tally.values.push(reading.value);
     } else if (reading.kind === "malformed") {
       tally.malformed += 1;
+    } else if (reading.kind === "attached") {
+      tally.onLive?.();
     }
     rest = rest.slice(sep + 2);
     sep = rest.indexOf("\n\n");
@@ -184,11 +199,31 @@ function drainFrames(buffer: string, tally: FrameTally, chatId: ChatId): string 
   return rest;
 }
 
-/** What one SSE frame was: THIS room's data frame, expected traffic to skip, or a frame nobody can read. */
-type FrameReading = { readonly kind: "value"; readonly value: StreamValue } | { readonly kind: "skip" } | { readonly kind: "malformed" };
+/** What one SSE frame was: THIS room's data frame, its `attached` notice, expected traffic to skip, or a frame nobody can read. */
+type FrameReading =
+  | { readonly kind: "value"; readonly value: StreamValue }
+  | { readonly kind: "skip" }
+  | { readonly kind: "malformed" }
+  | { readonly kind: "attached" };
 
 const SKIP: FrameReading = { kind: "skip" };
 const MALFORMED: FrameReading = { kind: "malformed" };
+const ATTACHED: FrameReading = { kind: "attached" };
+
+/** Is this the control frame that says the pump for `chatId` started on this socket? */
+function isRoomAttached(payload: object, chatId: ChatId): boolean {
+  return (
+    "channel" in payload &&
+    payload.channel === "control" &&
+    "type" in payload &&
+    payload.type === "attached" &&
+    "ref" in payload &&
+    typeof payload.ref === "object" &&
+    payload.ref !== null &&
+    "chatId" in payload.ref &&
+    payload.ref.chatId === chatId
+  );
+}
 
 /** Read one SSE frame. tRPC's `httpSubscriptionLink` writes the YIELDED VALUE directly as the `data:` JSON
  *  (NOT wrapped in `{data:…}`), with the per-socket ordinal on a following `id:` line. A frame with no `data:`
@@ -213,6 +248,9 @@ function readFrame(frame: string, chatId: ChatId): FrameReading {
   }
   if (typeof payload !== "object" || payload === null) {
     return MALFORMED;
+  }
+  if (isRoomAttached(payload, chatId)) {
+    return ATTACHED;
   }
   if (!("channel" in payload) || payload.channel !== "chat" || !("chatId" in payload) || payload.chatId !== chatId) {
     return SKIP;

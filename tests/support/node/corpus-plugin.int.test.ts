@@ -46,7 +46,10 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
   await assertReferentialIntegrity(root.db);
 });
 
-test("the corpus keeps real consent, per-owner provider claims and distribution outcomes distinct from contained activation failure", async () => {
+// The full corpus seed activates real plugin host processes for each owner and stage, so this case is bound by process spawns.
+test("the corpus keeps real consent, per-owner provider claims and distribution outcomes distinct from contained activation failure", {
+  tags: ["slow"],
+}, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const other = await root.actor();
   const captured = await seedCorpusPlugins(root, other.id);
@@ -153,7 +156,10 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   await assertReferentialIntegrity(root.db);
 });
 
-test("a real stranger cannot enable the corpus owner's install or alter either owner's private KV and permanent provider claims", async () => {
+// The same full seed: the stranger's refusals read the state only its real host activations leave.
+test("a real stranger cannot enable the corpus owner's install or alter either owner's private KV and permanent provider claims", {
+  tags: ["slow"],
+}, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const recipient = await root.actor();
   const captured = await seedCorpusPlugins(root, recipient.id);

@@ -477,7 +477,7 @@ function renderTokensTs({ tokens, polarityArms, lengths, conditions, tones, pigm
     "}",
     "",
     "/** The seed [data-theme] value-sets — their own generated module (see tokens.build.ts), re-exported here so `@orb/ui/tokens` stays the ONE import for every token surface. */",
-    `export { SEED_THEME_VALUE_SETS } from "${THEMES_MODULE}";`,
+    `export { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS } from "${THEMES_MODULE}";`,
     "",
   ].join("\n");
 }
@@ -612,6 +612,13 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
     "/** The seed [data-theme] value-sets, GENERATED from src/tokens/themes/*.json — the same palettes theme.css emits as `[data-theme=…]` blocks, exposed to TS (e.g. the theme picker) so a seed palette has ONE source. */",
     "export const SEED_THEME_VALUE_SETS = {",
   ];
+  lines.splice(
+    2,
+    0,
+    "/** The seed palette names, in file order: the tuple that owns the keys of `SEED_THEME_VALUE_SETS`. */",
+    `export const SEED_THEME_NAMES = [${themes.map((theme) => JSON.stringify(theme.name)).join(", ")}] as const;`,
+    "",
+  );
   for (const theme of themes) {
     lines.push(`  ${JSON.stringify(theme.name)}: {`);
     lines.push(`    colorScheme: ${JSON.stringify(theme.colorScheme)},`);
@@ -622,7 +629,7 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
     lines.push("    },");
     lines.push("  },");
   }
-  lines.push("} as const;");
+  lines.push("} as const satisfies Readonly<Record<(typeof SEED_THEME_NAMES)[number], unknown>>;");
   lines.push("");
   return lines.join("\n");
 }

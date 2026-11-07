@@ -244,6 +244,8 @@ test.describe("rule editor field rows", () => {
       throw new Error("The warning and the switch list must render");
     }
     expect(alertBox.y).toBeGreaterThanOrEqual(lastSwitchBox.y);
+    // The stamp selects the tone's ink in the actual theme, and the paint proves the stamp reached the text.
+    await expect(warning).toHaveAttribute("data-tone", "destructive");
     const ink = (locator: typeof warning): Promise<string> => locator.evaluate((node) => getComputedStyle(node).color);
     expect(await ink(warning)).not.toBe(await ink(outputs.getByText("Outputs", { exact: true })));
   });
@@ -290,5 +292,8 @@ test.describe("rule editor field rows", () => {
     }
     await expect(increase).toBeDisabled();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ n: MAX_IMAGE_COUNT });
+    await expect
+      .poll(async () => (await caller.automation.listOwnerRules()).find((row) => row.id === captured.id)?.actions[0])
+      .toMatchObject({ type: "generate_image", negative: "extra fingers", size, n: MAX_IMAGE_COUNT });
   });
 });

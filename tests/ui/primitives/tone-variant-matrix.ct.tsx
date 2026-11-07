@@ -1,9 +1,8 @@
 // D336: every primitive paints each tone and style from the tone's own roles, under each seed and a nested custom scope.
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/spec";
-import { keysOf } from "@orb/testkit/iso";
 import type { ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TONES } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES, TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { BASES } from "../content/theme-scope/contrast-cases.ts";
@@ -12,7 +11,7 @@ import type { ToneVariantMatrixStory } from "./_tone-variant-matrix-stories.tsx"
 const STORY = "tests/ui/primitives/_tone-variant-matrix-stories/ToneVariantMatrixStory";
 const CASES = [
   { name: "hearth seed" },
-  ...keysOf(SEED_THEME_VALUE_SETS).map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
   { name: "custom dark scope nested in the light seed", theme: "light" as const, background: BASES[0].background },
 ] as const;
 // The neutral tone carries no meaning, so a neutral box keeps the quiet edge where a colour tone draws its solid.

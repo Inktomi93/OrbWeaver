@@ -1,6 +1,6 @@
 import type { ClassValue } from "tailwind-variants";
 import { TOUCH_TARGET_PSEUDO_STRETCH, tv } from "#lib";
-import type { BUTTON_BOX_OVERFLOW } from "../button/box-hit-area.ts";
+import type { BUTTON_BOX_STEPS } from "../button/box-hit-area.ts";
 
 // A datum or a line of prose that is also the click target (a tracker value, a beat line, a roster name): no control
 // box, text-height, start-aligned and at the regular weight, so it reads as the text it stands in for and a
@@ -17,6 +17,6 @@ export const inlineActionVariants = tv({
     step: {
       label: inlineBox("text-label leading-label"),
       body: inlineBox("text-body leading-body"),
-    } satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.inlineAction, ClassValue>,
+    } satisfies Record<(typeof BUTTON_BOX_STEPS.inlineAction)[number], ClassValue>,
   },
 });

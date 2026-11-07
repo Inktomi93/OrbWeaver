@@ -2,6 +2,7 @@
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import {
+  absenceWindow,
   createShellAmbientReads,
   ROOM_PROCEDURES,
   routeAuthConfig,
@@ -131,10 +132,10 @@ for (const [title, nativeScrollend] of [
     await expect(pill).toHaveCount(0);
     await listening.promise;
     await expect.poll(() => socket.attaches().some((ref) => ref.channel === "chat" && ref.chatId === chatId)).toBe(true);
-    await scroller.evaluate(async (element, settleMs) => {
+    await scroller.evaluate((element) => {
       element.scrollTop = 0;
-      await new Promise((resolve) => setTimeout(resolve, settleMs));
-    }, SETTLE_MARGIN_MS);
+    });
+    await absenceWindow(page, SETTLE_MARGIN_MS);
     expect(await distanceFromTail()).toBeGreaterThan(await scroller.evaluate((element) => element.clientHeight));
     const outcome = await caller.chat.commitMessage({ chatId, content: source.content, timeZone: UTC_TIME_ZONE });
     const committed = outcome.messages.at(-1);

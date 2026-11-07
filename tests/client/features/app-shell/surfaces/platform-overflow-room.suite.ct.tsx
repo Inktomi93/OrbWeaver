@@ -3,10 +3,12 @@
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
 import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import { channelName, SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -20,6 +22,8 @@ const NARROWEST_PHONE = { width: 320, height: 640 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 // Sub-pixel layout rounding.
 const SUBPIXEL = 1;
+// The client retries a failed read twice on its backoff before the pane can say so.
+const READ_RETRIES_MS = 10_000;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -36,6 +40,8 @@ test.beforeEach(async ({ corpus, page }) => {
 test.afterAll(async () => {
   await root[Symbol.asyncDispose]();
 });
+
+const ownerCaller = (): ReturnType<Root["internalCallerFor"]> => root.internalCallerFor(root.ownerId);
 
 function boxOf(locator: Locator): Promise<{ readonly left: number; readonly right: number; readonly width: number }> {
   return locator.evaluate((element) => {
@@ -193,8 +199,71 @@ test.describe("on a desktop", () => {
   }
 });
 
+const PANE = ".shell-content [data-ready]";
+
+const COLD_PANES = [
+  {
+    name: "Databank",
+    section: "databank",
+    label: SECTION_LABELS.databank,
+    reads: ["databank.bankHealth"],
+    failed: queryFailedLabel("your databank"),
+    landing: (pane: Locator): Locator => pane.getByText("Your databank", { exact: true }),
+  },
+  {
+    name: "Plugin pages",
+    section: "extensions",
+    label: SECTION_LABELS.extensions,
+    reads: ["plugin.list", "plugin.listSurfaces"],
+    failed: queryFailedLabel("your plugins"),
+    landing: (pane: Locator): Locator => pane.getByRole("heading").first(),
+  },
+] as const;
+
+/** The shell's reads, with `reads` failing until the returned `recover` runs: home warms some of them, so a failed read is what leaves the cache cold. */
+async function routeColdReads(page: Page, corpus: CorpusPlayback, reads: (typeof COLD_PANES)[number]["reads"]): Promise<() => void> {
+  const caller = await ownerCaller();
+  let failing = true;
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+    ...serveCorpusProcedures(caller, reads, () => (failing ? trpcError() : undefined)),
+  });
+  return (): void => {
+    failing = false;
+  };
+}
+
 test.describe("offline, where the first read of a pane waits for the network", () => {
   test.use({ viewport: DESKTOP });
+
+  for (const family of COLD_PANES) {
+    test(`a cold ${family.name} pane says it is waiting while offline, and shows its landing when the connection returns`, async ({ corpus, mount, page }) => {
+      const recover = await routeColdReads(page, corpus, family.reads);
+      await seedShellState(page, { activeSection: "home" });
+      await mount<typeof AppShellStory>(STORY, {});
+      await page.context().setOffline(true);
+      await page.locator(".shell-rail").getByRole("button", { name: family.label, exact: true }).click();
+      const pane = page.locator(PANE);
+      await expect(pane.getByText(QUERY_WAITING_LINE, { exact: true })).toBeVisible();
+      recover();
+      await page.context().setOffline(false);
+      await expect(family.landing(pane)).toBeVisible();
+      await expect(pane.getByText(QUERY_WAITING_LINE, { exact: true })).toHaveCount(0);
+    });
+
+    test(`a ${family.name} pane whose first read fails says so, and Retry shows its landing`, async ({ corpus, mount, page }) => {
+      const recover = await routeColdReads(page, corpus, family.reads);
+      await seedShellState(page, { activeSection: family.section });
+      await mount<typeof AppShellStory>(STORY, {});
+      const pane = page.locator(PANE);
+      await expect(pane.getByText(family.failed, { exact: true })).toBeVisible({ timeout: READ_RETRIES_MS });
+      recover();
+      await pane.getByRole("button", { name: "Retry", exact: true }).click();
+      await expect(family.landing(pane)).toBeVisible();
+      await expect(pane.getByText(family.failed, { exact: true })).toHaveCount(0);
+    });
+  }
 
   for (const family of [
     { name: "Presets", label: SECTION_LABELS.presets },
@@ -206,7 +275,7 @@ test.describe("offline, where the first read of a pane waits for the network", (
       await mount<typeof AppShellStory>(STORY, {});
       await page.context().setOffline(true);
       await page.locator(".shell-rail").getByRole("button", { name: family.label, exact: true }).click();
-      const pane = page.locator(".shell-content [data-ready]");
+      const pane = page.locator(PANE);
       await expect(pane).toHaveAttribute("data-ready", "true");
       await expect(pane).toHaveCSS("opacity", "1");
       await page.context().setOffline(false);

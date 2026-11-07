@@ -29,7 +29,8 @@ export const componentWebServer = {
   reuseExistingServer: false,
   timeout: budget(BASE_SERVER_TIMEOUT_MS),
   gracefulShutdown: { signal: "SIGTERM", timeout: budget(BASE_STOP_TIMEOUT_MS) },
-  env: { VITE_PORT: String(port), ORB_ENV_NO_FILE: "1" },
+  // A Vite build defaults to production whatever `--mode` says, and production React replays no StrictMode effect.
+  env: { VITE_PORT: String(port), ORB_ENV_NO_FILE: "1", NODE_ENV: "development" },
   stdout: "pipe",
   stderr: "pipe",
 } satisfies PlaywrightTestConfig["webServer"];
