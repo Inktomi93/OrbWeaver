@@ -88,9 +88,10 @@ const TEST_INHERITED_ENV_KEYS = [
   "CORPUS_PRIVATE_EXECUTION_EXPIRES_AT_MS",
 ] as const;
 
-// Process and loader plumbing, locale, and the display, session and bus keys Chromium's X11 and Wayland
+// Process and loader plumbing, locale, and the display and session keys Chromium's X11 and Wayland
 // selection reads. Runner protocols stay out too: Playwright reporters write launch options to disk, so a
-// browser must never inherit a credential, and only an allowlist holds against a secret added later.
+// browser must never inherit a credential, and only an allowlist holds against a secret added later. The
+// session bus address stays out: no launch needs it, and with it every browser connects to the desktop bus.
 const BROWSER_INHERITED_ENV_KEYS = [
   "PATH",
   "Path",
@@ -123,7 +124,6 @@ const BROWSER_INHERITED_ENV_KEYS = [
   "XAUTHORITY",
   "WAYLAND_DISPLAY",
   "XDG_SESSION_TYPE",
-  "DBUS_SESSION_BUS_ADDRESS",
 ] as const;
 
 function pickedEnv(keys: readonly string[], ambient: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
