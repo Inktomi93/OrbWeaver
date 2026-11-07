@@ -39,6 +39,10 @@ function slideOf(flank: FlankPresentation): "shown" | "parked" | undefined {
   return undefined;
 }
 
+/** An open panel gives way to the room's height; set inline beside the transcript the column is positioned against its row. */
+const PANEL_BOX = { minHeight: "shrinks" } as const;
+const INLINE_BOX = { className: "relative @max-cq-32:overflow-y-auto" } as const;
+
 /** One column at its design width that never changes width (a frame inside is never squeezed) and never leaves the
  *  tree (a frame inside stays minted). Out of the row it is positioned against the row, whose `overflow-x-clip`
  *  hides it while parked, and it turns `invisible` once its slide out ends, so nothing of it paints at rest. */
@@ -67,7 +71,7 @@ export function FlankColumn({
       maxHeight={flank.panelMode ? undefined : "halfNarrow"}
       placed={flank.panelMode && !flank.occupiesRow ? "endEdge" : undefined}
       paddingBlockStartNarrow={bandInset(flank)}
-      className={flank.panelMode ? "min-block-0" : "relative @max-cq-32:overflow-y-auto"}
+      {...(flank.panelMode ? PANEL_BOX : INLINE_BOX)}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
       // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.
       ground={overlaid ? "card" : undefined}

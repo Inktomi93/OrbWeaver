@@ -13,6 +13,7 @@ import type { SectionShellStory } from "../_surface-stories.tsx";
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
 const SCROLL_EPSILON = 2;
 const PANE_BODY = ".shell-panel-body";
+const OVERFLOW_TRIGGER = '[data-slot="context-tab-overflow-trigger"]';
 for (const regime of [
   { name: "short desktop", viewport: { width: 1440, height: 390 }, coarse: false, owner: "panel" },
   { name: "coarse landscape", viewport: { width: 844, height: 390 }, coarse: true, owner: "pane" },
@@ -45,6 +46,38 @@ for (const regime of [
       const portrait = panel.getByRole("button", { name: character.name, exact: true });
       await expect(portrait).toBeVisible();
       await assertContextScroll({ pane: context.locator(PANE_BODY), panel, expected: regime.owner }, portrait, browserName, character.characterId);
+    });
+    test("the tab overflow trigger paints its focus ring inside its own box", async ({ corpus, mount, page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+      await caller.settings.updateUserSettingsSection({ section: "theme", patch: DEFAULT_USER_SETTINGS.theme });
+      await routeTrpc(page, {
+        ...createShellAmbientReads(corpus, root.ownerId),
+        ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+      });
+      await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
+      await mount<typeof SectionShellStory>(STORY, { section: "corpus" });
+      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+      const context = page.locator('.shell-panel[data-panel-side="context"]');
+      const overflow = context.locator(OVERFLOW_TRIGGER);
+      const hide = page.getByRole("button", { name: contextToggleLabel(false), exact: true });
+      await expect(overflow).toBeVisible();
+      // A key press first: only keyboard focus draws the ring.
+      await page.keyboard.press("Shift");
+      await overflow.focus();
+      // The pane clips at its top edge, so a ring that draws outside the trigger loses a side; every layer must be inset.
+      const own = await ringLayers(overflow);
+      expect(own.length).toBeGreaterThan(0);
+      expect(
+        own.every((layer) => /\binset\b/u.test(layer)),
+        own.join(" | "),
+      ).toBe(true);
+      // The detector sees an outer ring: the details toggle beside the pane paints one.
+      await hide.focus();
+      const outer = await ringLayers(hide);
+      expect(outer.some((layer) => !/\binset\b/u.test(layer))).toBe(true);
     });
     test("Insights registry tabs share the Context scroll owner and reachable tails", async ({ corpus, mount, page, browserName }) => {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
@@ -80,6 +113,34 @@ for (const regime of [
       }
     });
   });
+}
+
+/** A computed `box-shadow` split at the commas outside a colour function's parentheses. */
+function shadowLayers(shadow: string): string[] {
+  const layers: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let at = 0; at < shadow.length; at += 1) {
+    const character = shadow.charAt(at);
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+    } else if (character === "," && depth === 0) {
+      layers.push(shadow.slice(start, at).trim());
+      start = at + 1;
+    }
+  }
+  layers.push(shadow.slice(start).trim());
+  return layers;
+}
+
+/** The focused control's box-shadow layers that paint, which is how the ring draws. */
+async function ringLayers(control: Locator): Promise<readonly string[]> {
+  const shadow = await control.evaluate((node) => getComputedStyle(node).boxShadow);
+  const layers = shadow === "none" ? [] : shadowLayers(shadow);
+  // A layer with no offset, blur or spread paints nothing, whatever its keyword.
+  return layers.filter((layer) => !/ 0px 0px 0px 0px(?: inset)?$/u.test(layer));
 }
 
 interface ScrollOwners {

@@ -224,7 +224,7 @@ function OrdinaryHistory({ tail, ...props }: TranscriptWindowProps & { readonly 
     onDismiss: (): void => setFailures(dismissHistoryFailure),
   };
   return (
-    <Stack className="min-block-0" height="fill" gap="field" aria-busy={(bridging && failure === null) || isFetching}>
+    <Stack minHeight="shrinks" height="fill" gap="field" aria-busy={(bridging && failure === null) || isFetching}>
       {/* The merged list ends at the live tail, which wins every overlap: nothing exists after its last row. `hasNextPage`
           only describes the bridge from older pages up to that tail, and reads true while the tail is catching up. */}
       {props.render(merged, null, { earlier: pages.hasPreviousPage, later: false, settling: bridging }, <HistoryPager {...pager} />)}
@@ -286,7 +286,7 @@ function AnchoredThread({
   return (
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
-    <Stack className="min-block-0" height="fill" gap="field">
+    <Stack minHeight="shrinks" height="fill" gap="field">
       <Row hiddenAt="print" wrap={true} gap="field">
         <Button
           aria-describedby={pagingDescription}

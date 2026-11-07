@@ -1,5 +1,5 @@
-// A box 24rem tall or less has one scroller: the New chat picker's list takes what its dialog's chrome leaves and nothing nests inside it.
-// Layer: CT. Production entry: the AppShell opening the registered `newChat` modal over the corpus root's own reads.
+// A box 24rem tall or less has one scroller: a picker's list takes what its dialog's chrome leaves and nothing nests inside it.
+// Layer: CT. Production entry: the AppShell opening the registered `newChat` and `command` modals over the corpus root's own reads.
 import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -27,6 +27,19 @@ interface PickerGeometry {
   readonly wholeRows: number;
   readonly commandBottom: number;
   readonly actionsTop: number;
+}
+
+/** Every element in the dialog, its popup included, that scrolls and has something to scroll to. */
+async function scrollersOf(page: Page): Promise<readonly string[]> {
+  return await page
+    .getByRole("dialog")
+    .evaluate(
+      (popup, epsilon) =>
+        [popup, ...popup.querySelectorAll("*")]
+          .filter((element) => /auto|scroll/u.test(getComputedStyle(element).overflowY) && element.scrollHeight - element.clientHeight > epsilon)
+          .map((element) => element.getAttribute("data-slot") ?? element.tagName.toLowerCase()),
+      GEOMETRY_EPSILON,
+    );
 }
 
 async function geometry(page: Page): Promise<PickerGeometry> {
@@ -132,14 +145,21 @@ for (const regime of [
   { name: "coarse portrait", viewport: { width: 390, height: 844 }, coarse: true },
   { name: "desktop", viewport: { width: 1440, height: 900 }, coarse: false },
 ] as const) {
-  test.describe(`${regime.name} while the library loads`, () => {
+  test.describe(`${regime.name} with no saved rosters while the library loads`, () => {
     test.use({ viewport: regime.viewport, hasTouch: regime.coarse, isMobile: regime.coarse });
 
     test("the New chat dialog holds its height when the picker replaces its skeleton", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
+      for (const roster of await caller.rosterPreset.list()) {
+        await caller.rosterPreset.remove({ presetId: roster.id });
+      }
       const held = holdCorpusProcedure(caller, "character.list");
-      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES), ...held.routes });
+      await routeTrpc(page, {
+        ...createShellAmbientReads(corpus, root.ownerId),
+        ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+        ...held.routes,
+      });
       await seedShellState(page, { activeSection: "chats" });
       await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
       await held.requested;
@@ -153,6 +173,62 @@ for (const regime of [
         Math.abs(loaded.height - skeleton.height),
         `the skeleton held ${String(skeleton.height)}px and the loaded picker ${String(loaded.height)}px`,
       ).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+    });
+  });
+}
+
+test.describe("coarse landscape focus ring", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+  test("the New chat rows stay clear of the command box's focus ring", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.locator(ROW).first()).toBeVisible();
+    await expect(dialog.getByRole("combobox")).toBeFocused();
+    const ring = await resolvedLength(page, `var(${TOKENS["border-width.rule"].cssVar})`, dialog);
+    const band = await dialog.locator(COMMAND_ROOT).evaluate(
+      (commandBox, probe) => {
+        const box = commandBox.getBoundingClientRect();
+        const edge = commandBox.clientLeft + probe.ring;
+        const rows = [...commandBox.querySelectorAll(probe.row)].map((row) => row.getBoundingClientRect());
+        const list = commandBox.querySelector(probe.list)?.getBoundingClientRect();
+        return {
+          leftIntrusion: Math.max(0, ...rows.map((row) => box.left + edge - row.left)),
+          rightIntrusion: Math.max(0, ...rows.map((row) => row.right - (box.right - edge))),
+          bottomIntrusion: list === undefined ? Number.POSITIVE_INFINITY : list.bottom - (box.bottom - edge),
+          rows: rows.length,
+        };
+      },
+      { ring, row: ROW, list: LIST },
+    );
+    expect(band.rows).toBeGreaterThan(0);
+    expect(band.leftIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+    expect(band.rightIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+    expect(band.bottomIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+  });
+});
+
+for (const regime of [
+  { name: "coarse landscape", viewport: { width: 844, height: 390 } },
+  { name: "coarse small landscape", viewport: { width: 568, height: 320 } },
+] as const) {
+  test.describe(`${regime.name} dialogs`, () => {
+    test.use({ viewport: regime.viewport, hasTouch: true, isMobile: true });
+
+    test("the command palette is one scroller", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(STORY, { modalId: "command" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.locator(ROW).first()).toBeVisible();
+      // Exactly one: none would mean nothing in the palette is reachable by scrolling, two means one nests inside the other.
+      expect(await scrollersOf(page)).toHaveLength(1);
     });
   });
 }

@@ -20,7 +20,7 @@ A phone user in landscape picks from one visible row and scrolls two boxes to re
 
 ## Done when
 
-At 844x390 coarse the picker shows several rows, the context sheet scrolls as one box, neither nests a scroller, and no focus ring is cut. One shell-short rule owns both. A CT or snap measurement proves it.
+At 844x390 coarse the picker shows several rows, the context sheet scrolls as one box, neither nests a scroller, and no focus ring is cut. One `container.cq-24` threshold owns both, read by a dialog popup as `dialog-short` and by a bracketed Context pane as `@container shell-panel`. A CT or snap measurement proves it.
 
 ## Evidence
 

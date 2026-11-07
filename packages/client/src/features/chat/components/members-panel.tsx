@@ -344,7 +344,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
-    <Stack gap="row" className="min-block-0" height="fill" data-testid={testId("membersPanel")}>
+    <Stack gap="row" minHeight="shrinks" height="fill" data-testid={testId("membersPanel")}>
       {/* A members list scrolls vertically only, so the content wraps at the viewport width and a long member
           name truncates instead of busting the panel width. */}
       <ScrollArea grow={true} className="min-block-0" contentFull={true} wrapContent={true}>

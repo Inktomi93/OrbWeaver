@@ -73,7 +73,14 @@ export const commandVariants = tv({
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
-      compact: { list: "block-(--height-scroll-sm) **:[[cmdk-list-sizer]]:block-full" },
+      // A short dialog lets it share the room the dialog leaves, like a picker window, so the dialog body is the only other box.
+      compact: {
+        list: `
+          block-(--height-scroll-sm)
+          dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:block-auto dialog-short:min-block-(--height-scroll-short)
+          **:[[cmdk-list-sizer]]:block-full
+        `,
+      },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
       // A picker's window inside a dialog: it caps at the window step. A short dialog is one box with one scroller, so the
@@ -82,8 +89,8 @@ export const commandVariants = tv({
       pickerWindow: {
         list: `
           max-block-(--height-picker-window)
-          dialog-short:flex-auto dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0 dialog-short:max-block-none
-          dialog-short:min-block-(--height-scroll-short)
+          dialog-short:mx-(--border-width-rule) dialog-short:mbe-(--border-width-rule) dialog-short:flex-auto dialog-short:overflow-x-hidden
+          dialog-short:overscroll-auto dialog-short:p-0 dialog-short:max-block-none dialog-short:min-block-(--height-scroll-short)
           dialog-short:**:[[cmdk-group-heading]]:hidden
         `,
       },

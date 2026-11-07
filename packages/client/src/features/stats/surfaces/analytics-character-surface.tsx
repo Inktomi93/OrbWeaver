@@ -50,7 +50,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" height="fill" focusTarget={true} data-testid={testId("analyticsCharacterSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} minHeight="shrinks" height="fill" focusTarget={true} data-testid={testId("analyticsCharacterSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper

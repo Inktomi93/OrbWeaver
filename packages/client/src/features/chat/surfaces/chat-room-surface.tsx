@@ -175,7 +175,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           <ChatCharacterBar chatId={chatId} />
           {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can split it between reading
               and writing. */}
-          <Stack className="min-block-0" grow={true} gap="field" data-slot="chat-room-body">
+          <Stack minHeight="shrinks" grow={true} gap="field" data-slot="chat-room-body">
             {bodyMounted ? (
               <>
                 {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
@@ -297,7 +297,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
 function RoomTranscriptSkeleton(): ReactElement {
   return (
-    <Stack className="min-block-0" grow={true} data-slot="chat-room-mounting">
+    <Stack minHeight="shrinks" grow={true} data-slot="chat-room-mounting">
       <Track of={Stack} track="chat" plate="loading">
         <SkeletonRows count={3} />
       </Track>

@@ -122,7 +122,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
     // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
     // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
-    <Stack className="min-block-0" grow={true} data-collection={group.id} data-slot="config-collection-landing" gap="section">
+    <Stack minHeight="shrinks" grow={true} data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigPaneGlance blurb={true} group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />

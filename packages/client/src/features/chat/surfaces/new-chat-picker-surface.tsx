@@ -126,7 +126,6 @@ export function NewChatPicker(): ReactElement {
   // Cache-first at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
   const { data: rosters } = useQuery(trpc.rosterPreset.list.queryOptions());
   const hasRosters = (rosters?.length ?? 0) > 0;
-  const rostersPending = rosters === undefined;
 
   const dismiss = (): void => {
     clearNewChatIntent();
@@ -182,8 +181,13 @@ export function NewChatPicker(): ReactElement {
       {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
   ) : null;
-  // The door's height, held empty until the rosters answer.
-  const rosterSlot = rostersPending ? <Row minHeight="control" /> : rosterDoor;
+  // The door's own row sits inside the picker's boundary, so the box this device remembers for the picker includes it and the
+  // skeleton holds that box. A short dialog seats the door in its pinned row instead, so this row's height goes to the list.
+  const leadingDoor = hasRosters ? (
+    <Row hiddenAt="dialogShort" wrap={true} justify="end" padding="block">
+      {rosterDoor}
+    </Row>
+  ) : null;
   const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
     <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
       <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
@@ -206,18 +210,12 @@ export function NewChatPicker(): ReactElement {
           </Text>
         </Row>
       ) : null}
-      {hasRosters || rostersPending ? (
-        // A short dialog seats the door in its pinned row instead, so this row's height goes to the list. The row holds the
-        // door's height while the saved rosters load, so the door arriving does not push the picker down.
-        <Row hiddenAt="dialogShort" wrap={true} justify="end" padding="block">
-          {rosterSlot}
-        </Row>
-      ) : null}
       <CharacterPicker
         autoFocusSearch={true}
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
+        leading={leadingDoor}
         listSize="pickerWindow"
         onEscape={dismiss}
         onSelect={toggle}

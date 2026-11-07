@@ -112,7 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" height="fill" focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} minHeight="shrinks" width="full" height="fill" focusTarget={true}>
       <QueryBoundary
         resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
@@ -413,7 +413,7 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative min-block-0" height="fill">
+      <Stack className="relative" minHeight="shrinks" height="fill">
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
@@ -426,7 +426,7 @@ function ChatThread({
   }
   return (
     <ArtViewerProvider>
-      <Stack className="relative min-block-0" height="fill">
+      <Stack className="relative" minHeight="shrinks" height="fill">
         {sourceStatus}
         <PrintCoverage edges={edges} />
         <MessageList
