@@ -375,6 +375,13 @@ const PORTABLE_PROCESS_SYNTAX = [
   },
 ];
 
+// A walker segment is a template literal, which consumes a single backslash: `/\s+/` there emits `/s+/`, a regex over the
+// letter s. The selector writes the slash as \x2f because esquery's regex grammar ends at the first `/`.
+const WALKER_LETTER_REGEX_SYNTAX = {
+  selector: String.raw`TemplateElement[value.raw=/\x2fs[+*]\x2f/]`,
+  message: "A walker segment is a template literal: write the whitespace class as a double backslash, or the emitted regex matches the letter s.",
+};
+
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
 // environment leaks across files and the first file's value wins. Tests pass the value through the harness seam
 // (`createServerHarness` options) or the subject's own parameter instead.
@@ -2278,6 +2285,10 @@ export default [
     // These existing adapters own native OS process behavior; ordinary tooling callers do not.
     ignores: ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"],
     rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) },
+  },
+  {
+    files: ["tooling/src/ui-audit/ops/walker/**/*.ts"],
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],

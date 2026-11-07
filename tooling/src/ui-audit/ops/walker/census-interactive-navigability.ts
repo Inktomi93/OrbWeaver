@@ -41,7 +41,7 @@ export const WALKER_CENSUS_INTERACTIVE_NAVIGABILITY = `  // \`pointerCoarse\` is
   for (var uh = 0; uh < tooltipTriggers.length; uh += 1) {
     var uel = tooltipTriggers[uh];
     if (!isVisible(uel) || isDevChrome(uel)) continue;
-    var describedIds = String(uel.getAttribute("aria-describedby") || "").trim().split(/s+/).filter(Boolean);
+    var describedIds = String(uel.getAttribute("aria-describedby") || "").trim().split(/\\s+/).filter(Boolean);
     var resolvedCount = 0;
     for (var di = 0; di < describedIds.length; di += 1) {
       var target = uel.ownerDocument.getElementById(describedIds[di]);

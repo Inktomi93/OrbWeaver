@@ -220,8 +220,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
 
   function voidFlankText(el) {
     // \\s, not \\\\s: this is a TEMPLATE LITERAL, so a single backslash is consumed as an escape and
-    // the emitted regex becomes /s+/g — which silently replaces the LETTER s. Caught by a fixture
-    // reading back "Avatar  hape"; every sibling census writes it the same way for the same reason.
+    // the emitted regex would match the LETTER s. Every sibling census writes it the same way.
     var t = (el.textContent || "").replace(/\\s+/g, " ").trim();
     return t.length > 40 ? t.slice(0, 40) : t;
   }
