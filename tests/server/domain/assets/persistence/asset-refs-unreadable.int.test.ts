@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSettingsBytes, plantForeignSettingsValue } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "../gc-box.ts";
-import { ageOnly, openBox, openRoom, runScheduledGc, store, survival } from "../gc-box.ts";
+import { ageOnly, BOTH_STORES, openBox, openRoom, runScheduledGc, store, storesOfEach } from "../gc-box.ts";
 
 /** Stored shapes no current writer produces — a newer build's row, a hand edit, or corruption — written
  *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach.
@@ -76,5 +76,5 @@ test.each(Object.entries(UNREADABLE_REFERENCES))("%s refuses the whole sweep, na
 
   expect(run.status).toBe("failed");
   expect(run.error).toContain(brokenRow);
-  expect(await survival(box, { named, orphan })).toEqual({ named: true, orphan: true });
+  expect(await storesOfEach(box, { named, orphan })).toEqual({ named: BOTH_STORES, orphan: BOTH_STORES });
 });
