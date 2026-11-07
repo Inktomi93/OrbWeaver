@@ -5,7 +5,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
+import { aggregateScope, artifactRef, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { BoundedEvidenceRing, BROWSER_EVIDENCE_SOURCES, retentionBatch } from "@orb/tooling/floor/browser/browser-evidence-ring";
 import type { SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";
 import { coreFindingDrafts } from "../../../../tooling/src/snap/lib/run-finding-browser.ts";
@@ -45,7 +45,7 @@ async function coreArtifact(scratch: string, retained: number, population: PageE
   );
   return {
     path,
-    relativePath: "evidence/core-capture.json",
+    relativePath: artifactRef("evidence/core-capture.json"),
     bytes: 0,
     producer: "snap",
     producerArm: "app-snapshot",

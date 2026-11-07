@@ -85,7 +85,7 @@ function assertFixedReceipt(path: string, populations: Readonly<Record<string, u
 }
 
 /** The page-error ring reports its own retention, so every coherent receipt is a valid population: complete,
- *  evicted (`dropped` > 0) or unmeasured. Only a receipt that claims completeness over a drop is a contradiction. */
+ *  evicted (`dropped` above zero) or unmeasured. Only a receipt that claims completeness over a drop is a contradiction. */
 function pageErrorCompleteness(
   path: string,
   populations: Readonly<Record<string, unknown>> | null,

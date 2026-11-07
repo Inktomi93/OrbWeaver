@@ -10,7 +10,7 @@ export const CORE_CAPTURE_BASIS = {
 
 export interface CoreCapturePopulations {
   /** `dropped` and `complete` are read off the page-error ring's retention receipt, never asserted: complete
-   *  with nothing dropped, evicted (incomplete, `dropped` > 0), or unmeasured (incomplete, no receipt,
+   *  with nothing dropped, evicted (incomplete, `dropped` above zero), or unmeasured (incomplete, no receipt,
    *  `dropped` 0). */
   readonly pageErrors: { readonly records: number; readonly dropped: number; readonly complete: boolean; readonly basis: typeof CORE_CAPTURE_BASIS.pageErrors };
   readonly failedRequests: {

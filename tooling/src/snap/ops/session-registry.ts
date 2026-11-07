@@ -147,7 +147,8 @@ function reservationNames(home: string): readonly string[] {
   });
 }
 
-export type SessionBootReservation = "reserved" | "name" | "cap" | "locked";
+const SESSION_BOOT_RESERVATIONS = ["reserved", "name", "cap", "locked"] as const;
+export type SessionBootReservation = (typeof SESSION_BOOT_RESERVATIONS)[number];
 
 /** Reserve one name and one cap slot before spawning its daemon. A row is only published after Chromium
  *  launches, so checking `liveRows()` alone races two cold boots through a cap of one. `locked` means a live
