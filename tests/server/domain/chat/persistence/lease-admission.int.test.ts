@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatLocks, closeDb, messages } from "@orb/db";
+import { chatLocks, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
 import { freshHeldDb } from "@orb/testkit/node/composed";
@@ -54,9 +54,8 @@ test("an accepted swipe closes exactly once on a real held lease while public lo
 });
 
 test("a real post-accept target deletion closes the swipe slot with not-found before any turn starts", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const h = ownership.use(await coreHttpRoom([reply], { server: { db: held.db } }));
   const target = (await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId })).messages[0];
   if (target === undefined) {

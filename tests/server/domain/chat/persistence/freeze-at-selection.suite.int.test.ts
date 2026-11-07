@@ -6,7 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { LibSqlWrap } from "@orb/db";
-import { closeDb, messageVariants } from "@orb/db";
+import { messageVariants } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { createFrozenClock } from "@orb/testkit/iso";
@@ -137,8 +137,7 @@ async function consentRoom(enabled: boolean): Promise<
 > {
   await using construction = new AsyncDisposableStack();
   const reads = personaReads();
-  const db = await freshDb(reads.wrap);
-  construction.defer(() => closeDb(db));
+  const db = construction.use(await freshDb(reads.wrap)).db;
   const f = construction.use(await room(PRIMARY, ALTERNATE, { db, windowClosed: false }));
   const hostPersona = await f.h.root.services.persona.create({
     principal: f.h.owner,

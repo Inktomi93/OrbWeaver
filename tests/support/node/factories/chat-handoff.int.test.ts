@@ -1,6 +1,5 @@
 // @subject tests/support/node/factories/rows/chat.ts
 
-import { closeDb } from "@orb/db";
 import { CHAT_OP_CODES } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { seedRecallRoom } from "../corpus-actors.ts";
 import { freshHeldDb } from "../db.ts";
@@ -10,9 +9,7 @@ import { captureChatHandoffResumption } from "./rows/chat.ts";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./rows.ts";
 
 test("real accepted host handoff exposes its durable resumption only until accepted-host completion and preserves actual copied actor IDs", async () => {
-  const held = await freshHeldDb();
-  await using dbLifetime = new AsyncDisposableStack();
-  dbLifetime.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ db: held.db });
   const owner = await root.principalFor(root.ownerId);
   const memberRow = await root.actor();

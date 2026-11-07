@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/rpg/chat-ops/index.ts
 import { resolveProseText } from "@orb/contracts/prose";
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { freshCountedDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -9,9 +8,8 @@ import { coreFrame, coreHeldReply, coreSse } from "../engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom, turnWireBody } from "./turn-rpg-physical.ts";
 
 test("the actual post-commit RPG flush enters its physical game read before public turn completion", async () => {
-  const counted = await freshCountedDb();
+  using counted = await freshCountedDb();
   await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(counted.db));
   const state = coreHeldReply();
   const h = lifetime.use(
     await turnRpgRoom(

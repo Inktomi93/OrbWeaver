@@ -7,7 +7,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
-import { chatLocks, closeDb, messages, messageVariants, statsCanonVersions } from "@orb/db";
+import { chatLocks, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -20,9 +20,8 @@ import { registerCancellationRoom } from "../verbs/turn-cancellation-physical.ts
 const withPeer = registerCancellationRoom();
 
 test("a real competing user commit wins the held seq and send retries without losing either writer", async () => {
+  using held = await freshHeldDb();
   await using construction = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  construction.defer(() => closeDb(held.db));
   const h = construction.use(await textRoom(["Hi there"], { server: { db: held.db } }));
   const gate = held.hold(/insert into "messages"/u);
   const sending = h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
@@ -112,9 +111,8 @@ test("a solo send returns the owned user and primary character reply with durabl
 });
 
 test("the actual first-user greeting freeze fences one canon-version transition after the user commit", async () => {
+  using held = await freshHeldDb();
   await using construction = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  construction.defer(() => closeDb(held.db));
   const h = construction.use(
     await textRoom([], {
       server: { db: held.db },

@@ -1,5 +1,4 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { closeDb } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -9,9 +8,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("root teardown cancels its actual service graph before joining a held real HTTP handler", async () => {
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using harness = await createServerHarness({ db: held.db, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const handle = castId<Handle>("held-native-login");

@@ -295,7 +295,8 @@ async function embeddingPosture(db: Db): Promise<SurfaceEmbeddingPosture> {
 }
 
 async function sourceEmbeddingPosture(sourceRoot: string, runRoot: string): Promise<SurfaceEmbeddingPosture> {
-  const { closeDb, createDb, localPath } = await import("@orb/db");
+  const { createDb, localPath } = await import("@orb/db");
+  const { ownDb } = await import("./db.ts");
   const { resolveDataLayout } = await import("@orb/server/foundation/data-layout");
   const source = localPath(resolveDataLayout({ ["DATA_DIR"]: sourceRoot }).databaseUrl);
   if (source === undefined) {
@@ -317,26 +318,21 @@ async function sourceEmbeddingPosture(sourceRoot: string, runRoot: string): Prom
       }
     }
     await secureCopiedTree(audit.root);
-    const db = await createDb(audit.databaseUrl);
-    try {
-      return await embeddingPosture(db);
-    } finally {
-      // Baseline observation must not migrate, optimize or otherwise reinterpret the source's completed state.
-      closeDb(db);
-    }
+    // Baseline observation must not migrate, optimize or otherwise reinterpret the source's completed state.
+    using opened = ownDb(await createDb(audit.databaseUrl));
+    const db = opened.db;
+    return await embeddingPosture(db);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
   }
 }
 
 async function preparedEmbeddingPosture(layout: DataLayout): Promise<SurfaceEmbeddingPosture> {
-  const { closeDb, createDb } = await import("@orb/db");
-  const db = await createDb(layout.databaseUrl);
-  try {
-    return await embeddingPosture(db);
-  } finally {
-    closeDb(db);
-  }
+  const { createDb } = await import("@orb/db");
+  const { ownDb } = await import("./db.ts");
+  using opened = ownDb(await createDb(layout.databaseUrl));
+  const db = opened.db;
+  return await embeddingPosture(db);
 }
 
 async function datasetInventory(layout: DataLayout, idleRequired: boolean): Promise<Pick<SurfaceDataProvenance, "owner" | "subjects" | "plugins">> {

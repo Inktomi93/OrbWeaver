@@ -1,7 +1,7 @@
 // A stored rule whose actions this build cannot decode is auto-disabled by a manual run; the index refresh that
 // follows may fail and is retried at the next event. The undecodable row is planted directly: no verb writes it.
 // @subject packages/server/src/domain/automation/substrate/run-now.ts
-import { automationRules, closeDb } from "@orb/db";
+import { automationRules } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -30,7 +30,7 @@ async function storedRule(root: ServerTestHarness, id: AutomationRuleId): Promis
 test("a failed index refresh after manual auto-disable preserves the committed run and retries at the event door", async () => {
   let armed = false;
   let refreshReads = 0;
-  const db = await freshDb(
+  using fresh = await freshDb(
     (client) =>
       new Proxy(client, {
         get(target, property): unknown {
@@ -55,8 +55,7 @@ test("a failed index refresh after manual auto-disable preserves the committed r
         },
       }),
   );
-  await using database = new AsyncDisposableStack();
-  database.defer(() => closeDb(db));
+  const db = fresh.db;
   await using root = await createServerHarness({ db });
   const principal = await root.principalFor(root.ownerId);
   const { chat } = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });

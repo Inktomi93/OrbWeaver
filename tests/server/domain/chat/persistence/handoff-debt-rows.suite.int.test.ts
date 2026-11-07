@@ -8,7 +8,7 @@ import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
-import { chatLocks, closeDb, pendingTurns, rpgSnapshots } from "@orb/db";
+import { chatLocks, pendingTurns, rpgSnapshots } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -183,9 +183,8 @@ test("acceptance settles only this room while another room's frozen debt remains
 });
 
 test("an admitted offline send finishes its actual enqueue before acceptance reads and settles the debt", async () => {
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  ownership.defer(() => closeDb(held.db));
   const room = ownership.use(
     await speakerRoom({ chat: ["The raced enqueue is still answered by A."] }, { characters: [ARIA], group: LIST, server: { db: held.db } }),
   );
@@ -223,9 +222,8 @@ test("an admitted offline send finishes its actual enqueue before acceptance rea
 });
 
 test("admission owns an invoked turn before even its real membership query can finish", async () => {
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  ownership.defer(() => closeDb(held.db));
   const room = ownership.use(
     await speakerRoom({ chat: ["The invocation still belongs to the outgoing host."] }, { characters: [ARIA], group: LIST, server: { db: held.db } }),
   );
@@ -264,9 +262,8 @@ test("admission owns an invoked turn before even its real membership query can f
 });
 
 test("a claimed row held in real card preparation blocks handoff and refuses new turn admission before effects", async () => {
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  ownership.defer(() => closeDb(held.db));
   const room = ownership.use(
     await speakerRoom({ chat: ["The already claimed round finishes as A."] }, { characters: [ARIA], group: LIST, server: { db: held.db } }),
   );
@@ -312,9 +309,8 @@ test("a claimed row held in real card preparation blocks handoff and refuses new
 });
 
 test("an early native lock-loss rejection cannot release handoff before the actual old body settles", async () => {
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  ownership.defer(() => closeDb(held.db));
   const room = ownership.use(
     await speakerRoom(
       { chat: ["The physically completed old reply must not become stale canon."] },
@@ -415,9 +411,8 @@ test("a detached native SDK marker settles before the accepted copy and authorit
 });
 
 test("a completed public user commit retains its real RPG snapshot tail until handoff can transfer", async () => {
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  ownership.defer(() => closeDb(held.db));
   const location = "The outgoing owner's registered observatory";
   const h = ownership.use(await turnRpgRoom([(): Response => turnRpgReply("The keeper reaches the observatory.", location)], { server: { db: held.db } }));
   const initial = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, timeZone: UTC_TIME_ZONE });

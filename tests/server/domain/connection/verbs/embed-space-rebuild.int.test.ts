@@ -64,10 +64,12 @@ async function twoEncoders(stack: AsyncDisposableStack): Promise<Box> {
     },
   });
   let client: NativeDriver | undefined;
-  const db = await freshDb((opened) => {
-    client = opened;
-    return opened;
-  });
+  const db = stack.use(
+    await freshDb((opened) => {
+      client = opened;
+      return opened;
+    }),
+  ).db;
   const root = stack.use(await createServerHarness({ providerFetch: physical.execute, startJobs: false, db, logLevel: "error" }));
   if (client === undefined) {
     throw new Error("the root's database never handed over its native client");

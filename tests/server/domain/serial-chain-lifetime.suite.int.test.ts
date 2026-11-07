@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 import { setTimeout as physicalDeadline } from "node:timers/promises";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { closeDb, notifications } from "@orb/db";
+import { notifications } from "@orb/db";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -58,9 +58,8 @@ async function createGameSubject(root: ServerTestHarness): Promise<{
 }
 
 test("one plugin service serializes consent across installed rows and publishes the final committed count", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const root = ownership.use(await createServerHarness({ db: held.db }));
   const first = await installConsentSubject(root, "consent-first");
   const second = await installConsentSubject(root, "consent-second");
@@ -88,9 +87,8 @@ test("one plugin service serializes consent across installed rows and publishes 
 });
 
 test("same-recipient independent plugin roots publish and dispose without waiting for another root's consent", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const firstRoot = ownership.use(await createServerHarness({ db: held.db }));
   const secondRoot = ownership.use(await createServerHarness());
   const first = await installConsentSubject(firstRoot, "consent-root");
@@ -138,9 +136,8 @@ test("a failed consent publication leaves the grant committed and releases the s
 });
 
 test("one RPG graph serializes hand edits so both read-modify-write gestures survive", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const root = ownership.use(await createServerHarness({ db: held.db }));
   const params = await createGameSubject(root);
   const targetRef = { kind: "user", userId: params.principal.userId } as const;
@@ -165,9 +162,8 @@ test("one RPG graph serializes hand edits so both read-modify-write gestures sur
 });
 
 test("same-game independent RPG roots write and dispose while another root's hand write remains held", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const firstRoot = ownership.use(await createServerHarness({ db: held.db }));
   const secondRoot = ownership.use(await createServerHarness());
   const first = await createGameSubject(firstRoot);
@@ -194,9 +190,8 @@ test("same-game independent RPG roots write and dispose while another root's han
 });
 
 test("RPG root disposal joins an accepted hand write before its dependencies close", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const root = ownership.use(await createServerHarness({ db: held.db }));
   const params = await createGameSubject(root);
   const gate = held.hold(/^insert into "rpg_snapshots"/u);

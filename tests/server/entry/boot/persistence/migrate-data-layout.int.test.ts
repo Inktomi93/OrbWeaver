@@ -12,7 +12,7 @@ import { migrateDataLayout } from "@orb/server/entry/boot";
 import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
+import { createTestEnv, createTestLogger, ownDb } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
@@ -98,7 +98,8 @@ function busyOn(root: string, from: string): (from: string, to: string) => void 
 async function plantLegacyDb(root: string, scratchParent: string): Promise<void> {
   const scratch = mkdtempSync(join(scratchParent, "legacy-db-"));
   const scratchDb = join(scratch, DB_FILE_NAME);
-  const db = await createDb(pathToFileURL(scratchDb).href);
+  using opened = ownDb(await createDb(pathToFileURL(scratchDb).href));
+  const db = opened.db;
   await db.run(sql`CREATE TABLE probe (value text not null)`);
   await db.run(sql`INSERT INTO probe (value) VALUES ('checkpointed')`);
   await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
@@ -107,7 +108,6 @@ async function plantLegacyDb(root: string, scratchParent: string): Promise<void>
   for (const suffix of ["", "-wal", "-shm"]) {
     cpSync(scratchDb + suffix, join(root, DB_FILE_NAME + suffix));
   }
-  await preCloseHousekeeping(db);
 }
 
 /** Every legacy name the layout knows, the operator's own file the layout does not, and stores that never move. */

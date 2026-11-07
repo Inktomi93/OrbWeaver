@@ -1,16 +1,16 @@
 // The real database wrapper records each query's success and failure as spans and still closes natively.
 
-import { closeDb, createDb } from "@orb/db";
+import { createDb } from "@orb/db";
 import { createObservabilityRings, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node";
+import { ownDb } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 
 const DB_ROOT = "traced-client.request";
 
 test("the real DB wrapper records query results and failures without breaking native close", async ({ ids }) => {
-  const db = await createDb(":memory:", wrapLibSqlClient);
   using lifetime = new DisposableStack();
-  lifetime.defer(() => closeDb(db));
+  const db = lifetime.use(ownDb(await createDb(":memory:", wrapLibSqlClient))).db;
   const { traces } = createObservabilityRings();
   const successId = `db-success:${ids.uuid()}`;
   await withRequestSpan({ traces, requestId: successId }, DB_ROOT, {}, async () => {

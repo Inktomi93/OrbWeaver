@@ -1,7 +1,7 @@
 // @subject packages/db/src/migrations/0006_bookmark-checkpoint-snapshots.sql
 // A launched room whose checkpoint pinned a turn snapshot keeps its current state through the migration, can
 // delete that turn afterwards, and still restores the bookmark.
-import { assertReferentialIntegrity, closeDb, createDb, runMigrations } from "@orb/db";
+import { assertReferentialIntegrity, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -12,6 +12,7 @@ import {
   createCorpusProviderExecution,
   createServerHarness,
   migrationsBefore,
+  ownDb,
   plantLegacyCheckpoint,
   SHIPPED_MIGRATIONS,
   seedCorpusActors,
@@ -41,8 +42,7 @@ interface LegacyRoom {
 /** A composed root over a database on the chain cut before 0006; `migrate` runs the shipped chain over it. */
 async function legacyRoom(ownership: AsyncDisposableStack): Promise<LegacyRoom> {
   const previousChain = ownership.use(await migrationsBefore(MIGRATION)).path;
-  const db = await createDb(":memory:");
-  ownership.defer(() => closeDb(db));
+  const db = ownership.use(ownDb(await createDb(":memory:"))).db;
   await runMigrations(db, previousChain);
   const wire = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],

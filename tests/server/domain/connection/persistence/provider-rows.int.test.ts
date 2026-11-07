@@ -8,7 +8,7 @@ import type { Task } from "@orb/contracts/inference";
 import { providerTasks, RETIRED_TASKS } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { closeDb, pluginProviderClaims, providerRows, users } from "@orb/db";
+import { pluginProviderClaims, providerRows, users } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { makeProviderRow, pluginProviderId } from "@orb/testkit/iso";
@@ -175,9 +175,8 @@ const RETIRED_SERVES = ["chat", ...RETIRED_TASKS, "summarize"] as const;
 const SDK_SERVES_AFTER: Task[] = ["chat", "summarize"];
 
 test("a stored admin row that names a retired task loads and serves the remaining tasks", async () => {
-  await using lifetime = new AsyncDisposableStack();
-  const db = await freshDb();
-  lifetime.defer(() => closeDb(db));
+  using fresh = await freshDb();
+  const db = fresh.db;
   const id = "legacy-sdk";
   await db.run(sql`insert into provider_rows (id, label, wire, auth, apis, serves, catalog, metered, definition_hash, origin_kind)
     values (${id}, 'Legacy SDK', 'agent-sdk', 'oauthToken', '["agent-sdk"]', ${JSON.stringify(RETIRED_SERVES)}, 'url', 0, 'stored-hash', 'admin')`);

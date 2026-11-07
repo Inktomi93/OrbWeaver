@@ -1,5 +1,4 @@
 import { automationTriggerFor } from "@orb/contracts/automation";
-import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
@@ -8,9 +7,7 @@ import { vi } from "vitest";
 const COUNTER = "observer-witness";
 
 test("same-ID roots keep observer lanes independent and stop only their own tap before joining held work", async () => {
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using first = await createServerHarness({ db: held.db });
   await using second = await createServerHarness();
   await Promise.all([first.settleBackground(), second.settleBackground()]);

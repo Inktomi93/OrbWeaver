@@ -1,7 +1,7 @@
 // A deleted funder's foreign key clears to null (ON DELETE SET NULL); no verb deletes a user, so the row is removed directly.
 // @subject packages/server/src/domain/workloads/persistence/queries.ts
 // @subject packages/server/src/domain/workloads/verbs/retry.ts
-import { characterSummaries, closeDb, users } from "@orb/db";
+import { characterSummaries, users } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshHeldDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
@@ -36,9 +36,7 @@ test("atomic claim reads cleared funding instead of the captured queue observati
 });
 
 test("retry refuses a funder deleted after its read without persisting another job", async () => {
-  const held = await freshHeldDb();
-  await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ db: held.db });
   const owner = await root.principalFor(root.ownerId);
   const funder = await root.principalFor((await root.actor()).id);

@@ -6,7 +6,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { isSeededGreetingRow } from "@orb/contracts/chat";
-import { closeDb, messages, messageVariants, ownerStats } from "@orb/db";
+import { messages, messageVariants, ownerStats } from "@orb/db";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -254,9 +254,8 @@ test("an unstamped imported reply is preserved as a variant without invented gen
 
 for (const race of ["greeting", "user-turn"] as const) {
   test(`a held greeting step refuses a concurrent ${race} before changing canon or accounting`, async () => {
-    const held = await freshHeldDb();
+    using held = await freshHeldDb();
     await using resources = new AsyncDisposableStack();
-    resources.defer(() => closeDb(held.db));
     const root = resources.use(await createServerHarness({ db: held.db }));
     if (race === "user-turn") {
       await seedCorpusActors(root);

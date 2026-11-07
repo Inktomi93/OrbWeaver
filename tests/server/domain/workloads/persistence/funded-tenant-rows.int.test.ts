@@ -13,7 +13,7 @@
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { characterSummaries, characters, chatDigests, chatSegments, closeDb, embeddingCalls, embedGenerations } from "@orb/db";
+import { characterSummaries, characters, chatDigests, chatSegments, embeddingCalls, embedGenerations } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_EMBEDDING_VECTOR, createServerHarness, freshDb, SECRET_BOX_TEST_KEY, seedRecallRoom } from "@orb/testkit/node/composed";
@@ -23,9 +23,9 @@ import type { HostedFundingRoom } from "../funding.fixtures.ts";
 import { card, DISTILL, executeAdmitted, fundedOwner, physicalWire } from "../funding.fixtures.ts";
 
 test("restart and a different retry caller preserve admitted funding and owned enumeration", async () => {
-  const db = await freshDb();
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(db));
   const wire = physicalWire();
   const root = await createServerHarness({ db, providerFetch: wire.execute });
   lifetime.defer(() => root[Symbol.asyncDispose]());

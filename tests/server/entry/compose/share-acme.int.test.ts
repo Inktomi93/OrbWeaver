@@ -14,7 +14,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { IpCertificateSetting } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, CSRF_HEADER, ipCertificateSettingSchema } from "@orb/contracts/identity";
-import { closeDb } from "@orb/db";
 import { IP_CERTIFICATE_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { createControlledTimers, createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -303,11 +302,11 @@ test("a real TLS listener still closes and root storage releases when a supplied
 });
 
 test("shutdown preserves borrowed certificates for real restart; a corrupt stored key forces another native order", async () => {
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using resources = new AsyncDisposableStack();
   const directory = await mkdtemp(join(tmpdir(), "share-acme-native-restart-"));
   resources.defer(() => rm(directory, { recursive: true, force: true }));
-  const db = await freshDb();
-  resources.defer(() => closeDb(db));
   await using first = await setup(undefined, { db, secretsDir: join(directory, "secrets") });
   await first.caller.share.enableIpCertificate(first.setting);
   await first.harness.settleSharing();

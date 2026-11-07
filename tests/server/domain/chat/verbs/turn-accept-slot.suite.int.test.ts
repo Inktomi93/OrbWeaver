@@ -3,7 +3,6 @@
 import type { ChatBusEvent, MessageView, TurnOutcome } from "@orb/contracts/chat";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
-import { closeDb } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -48,8 +47,7 @@ interface SlotRoom extends AsyncDisposable {
 async function room(): Promise<SlotRoom> {
   await using construction = new AsyncDisposableStack();
   const fault = presetReadFault();
-  const db = await freshDb(fault.wrap);
-  construction.defer(() => closeDb(db));
+  const db = construction.use(await freshDb(fault.wrap)).db;
   const h = construction.use(
     await textRoom(["first", "second"], { server: { db }, group: { output: "per-speaker", policy: "list", allowSelfResponses: true } }),
   );

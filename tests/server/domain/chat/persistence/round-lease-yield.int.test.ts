@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/round.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chatLocks, closeDb, messages } from "@orb/db";
+import { chatLocks, messages } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -18,9 +18,8 @@ import { seedPeerLeaseRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
 test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,

@@ -6,7 +6,7 @@
 import process from "node:process";
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatEvents, chats, closeDb, messages, messageVariants } from "@orb/db";
+import { chatEvents, chats, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -14,9 +14,8 @@ import { vi } from "vitest";
 import { coreFrame, coreHttpRoom } from "../engine/core-physical.ts";
 
 test("deleting an actually streaming room aborts its source and totals the already queued post-delete delta without orphan canon or unhandled rejection", async () => {
+  using held = await freshHeldDb();
   await using lifetime = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  lifetime.defer(() => closeDb(held.db));
   const source = Promise.withResolvers<readonly [ReadableStreamDefaultController<Uint8Array>, AbortSignal]>();
   const firstDelta = Promise.withResolvers<void>();
   const stopped = Promise.withResolvers<void>();

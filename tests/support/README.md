@@ -37,6 +37,15 @@ Import testkit through the doors its `package.json` exports. A door is a barrel 
 
 To publish a helper, add its name to the door's barrel. Inside testkit, use relative imports. Follow [the test layout and world rules](../../docs/law/Spine-Testing.md#2-the-tree).
 
+Own a database with `using`, declared before the graph that borrows it, so the graph closes first. The harness borrows a supplied database, because a suite can run several roots on one.
+
+```ts
+using held = await freshHeldDb();
+await using root = await createServerHarness({ db: held.db });
+```
+
+Give a `createDb` handle its owner with `ownDb(await createDb(url))`. When a stack must own the database, pass it to the stack: `const db = stack.use(await freshDb()).db`. Read `held.db` as a member. A destructure of a holder reads as a second acquisition to `useDisposables`.
+
 Call production operations and registry factories. Derive inputs from their contracts, builders or corpus. Script external execution at its real boundary. Do not replace domain services, authorization, persistence or application modules with fabricated behavior.
 
 ## Keep helper compiler worlds separate
@@ -159,6 +168,7 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | A production export only tests import fails the build; a Spine-Testing §9 import of a constant, limit, id, error class or pure rule that production executes reads it from its owning file | `pnpm knip:prod`, which credits in-file production use, and the `TEST_CONSTANT_HOMES` list in [dependency-cruiser](../../.dependency-cruiser.ts), which names each owning file a suite may read past its door |
 | A server suite runs production only through its mirror's door, the primitives and the composed root; another door's types stay legal | The `tests-server-mirror-own-module`, `tests-server-mirror-own-tier`, `tests-server-front-doors-only` and `tests-server-type-contracts-own-internals` rules in [dependency-cruiser](../../.dependency-cruiser.ts); its `SERVER_TEST_REACHES` list names each constant a suite imports from another module, with the reason |
 | A client, inference, kit, contracts or db suite runs production only from its package's cake and through exported doors; a client feature suite or story runs only its own feature; another door's types stay legal | The `tests-<package>-mirror-cake`, `tests-<package>-front-doors-only` and `tests-<package>-type-contracts-own-internals` rules, plus `tests-client-mirror-own-feature`, `tests-client-mirror-own-tier` and `tests-client-type-contracts-tier-doors`, in [dependency-cruiser](../../.dependency-cruiser.ts); its `PACKAGE_TEST_REACHES` list names each file a suite reaches that no door admits, with the reason |
+| A test database has one owner: `freshDb`, `freshHeldDb`, `freshCountedDb` and `ownDb` return a disposable, written `using` or passed to a stack's `.use(...)` | `OwnedDb` in [node/db.ts](node/db.ts), Biome `useDisposables` on a declaration, and `OWNED_DB_RESTRICTIONS` in [eslint.config.ts](../../eslint.config.ts) on every other form |
 | A run leaves no temp folder or Chromium profile behind, even when killed | The run-owned temp root in [run-temp-root.ts](../../tooling/src/floor/process/run-temp-root.ts), installed as a globalSetup in [vitest.config.ts](../../vitest.config.ts) and the Playwright configs; a case that makes its own folder owns it with `ownedTempDir` from [temp-dir.ts](node/temp-dir.ts) |
 | Helper-world import direction | Compiler programs and the world rules in [dependency-cruiser](../../.dependency-cruiser.ts) |
 | Tests outside the persistence tier write rows only through verbs, root seeds and the sanctioned historic states | The `orb/no-direct-row-writes` rule in [eslint.config.ts](../../eslint.config.ts) judges each call site |
@@ -218,7 +228,7 @@ The row-write lint judges call sites, so a state the product can no longer produ
 - The case reaches production rather than a copied implementation or fabricated collaborator.
 - Assertions catch the stated defect instead of confirming only fixture data or an array length.
 - A refusal or absence assertion has a valid positive control or completed operation.
-- Owned databases, processes, routes, requests and browser resources are released, including after failure.
+- Owned processes, routes, requests and browser resources are released, including after failure.
 - Reference cases have supported dispositions; unresolved cases remain explicit.
 
 Reviewers compare selected original cases with the maintained assertions, not only the new diff. Follow the plan's [implementation and review briefs](../../docs/plans/test-foundation/design.md#implementation-and-review-briefs).

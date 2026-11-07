@@ -3,7 +3,7 @@
 // Stored-byte corruption and held-driver races exercise the composed notification service, not a query double.
 
 import type { Db } from "@orb/db";
-import { closeDb, notifications } from "@orb/db";
+import { notifications } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { NotificationId } from "@orb/kit/ids";
 import { createPluginNotificationDelivery } from "@orb/server/domain/notifications";
@@ -16,12 +16,8 @@ import { expect, test as notificationTest } from "../_fixtures.ts";
 
 const test = notificationTest.extend<{ heldDb: HeldDb } & Pick<Fixtures, "db">>({
   heldDb: async ({}, use): Promise<void> => {
-    const held = await freshHeldDb();
-    try {
-      await use(held);
-    } finally {
-      closeDb(held.db);
-    }
+    using held = await freshHeldDb();
+    await use(held);
   },
   db: async ({ heldDb }, use): Promise<void> => {
     await use(heldDb.db);

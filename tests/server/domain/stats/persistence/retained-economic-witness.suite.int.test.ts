@@ -6,7 +6,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { MessageView } from "@orb/contracts/chat";
 import { parseVariantMetadata, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
-import { characterStats, closeDb, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
+import { characterStats, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
@@ -38,9 +38,8 @@ for (const [operation, unselected] of [
   ["select", true],
 ] as const) {
   test(`a real cheap round invalidates captured ${operation} economics; unselected contribution: ${unselected}`, async () => {
-    const held = await freshHeldDb();
+    using held = await freshHeldDb();
     await using ownership = new AsyncDisposableStack();
-    ownership.defer(() => closeDb(held.db));
     const roundEntered = Promise.withResolvers<void>();
     const roundReleased = Promise.withResolvers<void>();
     let narrativeReplies = 1;

@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/preset/seed.ts
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { closeDb, presets } from "@orb/db";
+import { presets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { expect, test } from "@orb/testkit/node";
@@ -53,31 +53,28 @@ test("the boot root never overwrites an owned row colliding with the system sent
 });
 
 test("the reseed update rechecks null ownership after the root read while preserving the competing owner's bytes", async ({ clock }) => {
-  const { db, hold } = await freshHeldDb();
+  using held = await freshHeldDb();
+  const db = held.db;
+  const owner = await seedUser(db);
+  await ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger());
+  await db
+    .update(presets)
+    .set({ schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion - 1 })
+    .where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
+  const fence = held.hold(/^update "presets" set "config"/iu);
+  clock.advance(10);
+  const pending = ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger());
+  let ownedBefore: (typeof presets.$inferSelect)[] = [];
   try {
-    const owner = await seedUser(db);
-    await ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger());
-    await db
-      .update(presets)
-      .set({ schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion - 1 })
-      .where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
-    const fence = hold(/^update "presets" set "config"/iu);
-    clock.advance(10);
-    const pending = ensureSystemDefaultPreset(databaseHandle(db), clock.now, createTestLogger());
-    let ownedBefore: (typeof presets.$inferSelect)[] = [];
-    try {
-      await fence.reached;
-      fence.disarm();
-      // The real driver is paused after the root's shared-row read, not after its UPDATE has entered SQLite.
-      await db.update(presets).set({ ownerId: owner.id }).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
-      ownedBefore = await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
-    } finally {
-      fence.release();
-    }
-    await pending;
-    expect(ownedBefore[0]?.ownerId).toBe(owner.id);
-    expect(await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID))).toEqual(ownedBefore);
+    await fence.reached;
+    fence.disarm();
+    // The real driver is paused after the root's shared-row read, not after its UPDATE has entered SQLite.
+    await db.update(presets).set({ ownerId: owner.id }).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
+    ownedBefore = await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID));
   } finally {
-    closeDb(db);
+    fence.release();
   }
+  await pending;
+  expect(ownedBefore[0]?.ownerId).toBe(owner.id);
+  expect(await db.select().from(presets).where(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID))).toEqual(ownedBefore);
 });

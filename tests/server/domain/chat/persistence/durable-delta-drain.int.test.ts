@@ -5,7 +5,7 @@
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { LogLevel } from "@orb/contracts/settings";
-import { chatEvents, chatLocks, closeDb, messages, messageVariants } from "@orb/db";
+import { chatEvents, chatLocks, messages, messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
@@ -21,9 +21,8 @@ test.for([
   { label: "success", failed: false },
   { label: "provider failure", failed: true },
 ] as const)("native $label cannot settle before its real durable delta finishes", async (row) => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   let gate: HeldStatement | undefined;
   const providerDone = Promise.withResolvers<void>();
   const h = ownership.use(

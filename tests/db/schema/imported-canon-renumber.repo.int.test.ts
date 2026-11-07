@@ -2,12 +2,12 @@
 // A launched room numbered from seq 0 moves to seq 1 with every plane that names its message seqs.
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { assertReferentialIntegrity, chatParticipants, chats, closeDb, createDb, messages, runMigrations } from "@orb/db";
+import { assertReferentialIntegrity, chatParticipants, chats, createDb, messages, runMigrations } from "@orb/db";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedCharacterRow, seedChatRow, seedMessageRow, seedUser } from "@orb/testkit/node/rows";
 import { asc, eq, sql } from "drizzle-orm";
 
@@ -119,47 +119,44 @@ async function sidePlanes(db: Db, room: Room): Promise<Record<string, unknown>> 
 
 test("the migration renumbers launched 0-based rooms, keeps a carried bundle marker and leaves 1-based rooms byte for byte", async () => {
   await using previous = await migrationsBefore(MIGRATION);
-  const db = await createDb(":memory:");
-  try {
-    await runMigrations(db, previous.path);
-    const ids = createIdSource(createSeededIds().next);
-    // Untouched since a bundle import: the marker names the source room's seqs.
-    const bundle = await seedRoom(db, ids, { first: 0, importedFrom: "aria/room.orb.json", updatedAt: BEFORE_IMPORT, compactedAtSeq: 2, settled: 0 });
-    // Written after the import: the marker may be a local pass over the 0-based rows.
-    const local = await seedRoom(db, ids, { first: 0, importedFrom: "aria/room.jsonl", updatedAt: AFTER_IMPORT, compactedAtSeq: 1, settled: 2 });
-    const uncompacted = await seedRoom(db, ids, { first: 0, importedFrom: "aria/other.jsonl", updatedAt: AFTER_IMPORT, compactedAtSeq: null, settled: 1 });
-    const control = await seedRoom(db, ids, { first: 1, importedFrom: "aria/today.jsonl", updatedAt: BEFORE_IMPORT, compactedAtSeq: 2, settled: 2 });
-    const bundleRows = await canonSeqs(db, bundle.chatId);
-    const localRows = await canonSeqs(db, local.chatId);
-    const controlBefore = await capture(db, control);
+  using opened = ownDb(await createDb(":memory:"));
+  const db = opened.db;
+  await runMigrations(db, previous.path);
+  const ids = createIdSource(createSeededIds().next);
+  // Untouched since a bundle import: the marker names the source room's seqs.
+  const bundle = await seedRoom(db, ids, { first: 0, importedFrom: "aria/room.orb.json", updatedAt: BEFORE_IMPORT, compactedAtSeq: 2, settled: 0 });
+  // Written after the import: the marker may be a local pass over the 0-based rows.
+  const local = await seedRoom(db, ids, { first: 0, importedFrom: "aria/room.jsonl", updatedAt: AFTER_IMPORT, compactedAtSeq: 1, settled: 2 });
+  const uncompacted = await seedRoom(db, ids, { first: 0, importedFrom: "aria/other.jsonl", updatedAt: AFTER_IMPORT, compactedAtSeq: null, settled: 1 });
+  const control = await seedRoom(db, ids, { first: 1, importedFrom: "aria/today.jsonl", updatedAt: BEFORE_IMPORT, compactedAtSeq: 2, settled: 2 });
+  const bundleRows = await canonSeqs(db, bundle.chatId);
+  const localRows = await canonSeqs(db, local.chatId);
+  const controlBefore = await capture(db, control);
 
-    await runMigrations(db, SHIPPED_MIGRATIONS);
+  await runMigrations(db, SHIPPED_MIGRATIONS);
 
-    expect(await canonSeqs(db, bundle.chatId)).toEqual(bundleRows.map((row) => ({ ...row, seq: row.seq + 1 })));
-    expect(await canonSeqs(db, local.chatId)).toEqual(localRows.map((row) => ({ ...row, seq: row.seq + 1 })));
-    expect(await marker(db, bundle.chatId)).toBe(2);
-    expect(await marker(db, local.chatId)).toBe(2);
-    expect(await marker(db, uncompacted.chatId)).toBeNull();
-    expect(await sidePlanes(db, local)).toEqual({
-      deltas: [1, 4],
-      seats: [
-        { kind: "character", role: "member", joinSeq: 0, leftSeq: 1 },
-        { kind: "human", role: "host", joinSeq: 0, leftSeq: null },
-        { kind: "human", role: "member", joinSeq: 3, leftSeq: 4 },
-      ],
-      segments: [{ seqStart: 1, seqEnd: 2 }],
-      events: [
-        { type: "messageCommitted", viewSeq: 3, slotSeq: null },
-        { type: "delta", viewSeq: null, slotSeq: 4 },
-        { type: "chatUpdated", viewSeq: null, slotSeq: null },
-      ],
-      settled: { settled: 3 },
-    });
-    // A zero watermark means nothing is settled yet, so it stays zero.
-    expect((await sidePlanes(db, bundle))["settled"]).toEqual({ settled: 0 });
-    expect(await capture(db, control)).toEqual(controlBefore);
-    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
-  } finally {
-    closeDb(db);
-  }
+  expect(await canonSeqs(db, bundle.chatId)).toEqual(bundleRows.map((row) => ({ ...row, seq: row.seq + 1 })));
+  expect(await canonSeqs(db, local.chatId)).toEqual(localRows.map((row) => ({ ...row, seq: row.seq + 1 })));
+  expect(await marker(db, bundle.chatId)).toBe(2);
+  expect(await marker(db, local.chatId)).toBe(2);
+  expect(await marker(db, uncompacted.chatId)).toBeNull();
+  expect(await sidePlanes(db, local)).toEqual({
+    deltas: [1, 4],
+    seats: [
+      { kind: "character", role: "member", joinSeq: 0, leftSeq: 1 },
+      { kind: "human", role: "host", joinSeq: 0, leftSeq: null },
+      { kind: "human", role: "member", joinSeq: 3, leftSeq: 4 },
+    ],
+    segments: [{ seqStart: 1, seqEnd: 2 }],
+    events: [
+      { type: "messageCommitted", viewSeq: 3, slotSeq: null },
+      { type: "delta", viewSeq: null, slotSeq: 4 },
+      { type: "chatUpdated", viewSeq: null, slotSeq: null },
+    ],
+    settled: { settled: 3 },
+  });
+  // A zero watermark means nothing is settled yet, so it stays zero.
+  expect((await sidePlanes(db, bundle))["settled"]).toEqual({ settled: 0 });
+  expect(await capture(db, control)).toEqual(controlBefore);
+  await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
 });

@@ -1,12 +1,9 @@
 // Settings edits and portability imports must share the same per-user write owner.
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
 
 test("a held backup import preserves a concurrent section edit while another user keeps writing", async () => {
-  const held = await freshHeldDb();
-  await using database = new AsyncDisposableStack();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ db: held.db });
   const owner = await root.principalFor(root.ownerId);
   const neighbor = await root.principalFor((await root.actor()).id);

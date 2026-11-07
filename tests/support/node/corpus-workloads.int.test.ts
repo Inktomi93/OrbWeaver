@@ -4,7 +4,7 @@ import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { LogLevel } from "@orb/contracts/settings";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
-import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
+import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
@@ -23,9 +23,7 @@ const WORKLOAD_BY_ID_READ = /from "workloads" where "workloads"\."id" = \?/u;
 test(
   "an owned corpus deadline reaches its owner before blocked native reads are released",
   async () => {
-    await using database = new AsyncDisposableStack();
-    const held = await freshHeldDb();
-    database.defer(() => closeDb(held.db));
+    using held = await freshHeldDb();
     await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
@@ -68,9 +66,7 @@ test(
 test(
   "an owned corpus deadline retains the selected admitted index without fabricating a terminal row",
   async () => {
-    await using database = new AsyncDisposableStack();
-    const held = await freshHeldDb();
-    database.defer(() => closeDb(held.db));
+    using held = await freshHeldDb();
     await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
@@ -125,9 +121,7 @@ test(
 test(
   "an owned corpus deadline labels only the scheduled worker snapshot already read before timeout",
   async () => {
-    await using database = new AsyncDisposableStack();
-    const held = await freshHeldDb();
-    database.defer(() => closeDb(held.db));
+    using held = await freshHeldDb();
     await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db });
     await root.settleBackground();
     const caller = await root.internalCallerFor(root.ownerId);
@@ -188,9 +182,7 @@ test(
 test(
   "an owned corpus deadline does not replace missing observations with a foreign read refusal",
   async () => {
-    await using database = new AsyncDisposableStack();
-    const held = await freshHeldDb();
-    database.defer(() => closeDb(held.db));
+    using held = await freshHeldDb();
     await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db, startJobs: false });
     const owner = await root.internalCallerFor(root.ownerId);
     const foreign = await seedCorpusAccount(root);
@@ -274,9 +266,7 @@ test("physical provider completion cannot advance persisted corpus workload time
 });
 
 test("native background settlement joins the worker post-run read before certifying a logical phase", async () => {
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ logLevel: WORKLOAD_LOG_LEVEL, db: held.db });
   await root.settleBackground();
   const caller = await root.internalCallerFor(root.ownerId);

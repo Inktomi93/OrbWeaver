@@ -8,7 +8,7 @@ import { ruleViewSchema } from "@orb/contracts/automation";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
-import { closeDb, createDb, localPath, runMigrations, sessions } from "@orb/db";
+import { createDb, localPath, runMigrations, sessions } from "@orb/db";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { cloneStageDb } from "@orb/tooling/snap";
 import { z } from "zod";
@@ -20,7 +20,7 @@ import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { seedCorpusLibraryViews } from "./corpus-library-views.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
-import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { ownDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
@@ -32,7 +32,6 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const sourceLayout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "source") });
-  const sourceDb = await createDb(sourceLayout.databaseUrl);
   const clock = createFrozenClock();
   const ids = createSeededIds();
   const authEnv = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" };
@@ -48,35 +47,33 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     readonly authentication: Awaited<ReturnType<typeof captureCookieAuth>>;
     readonly foreignId: Awaited<ReturnType<typeof seedCorpusActors>>["secondUserId"];
   }> => {
-    try {
-      await runMigrations(sourceDb, SHIPPED_MIGRATIONS);
-      await using root = await createServerHarness({
-        db: sourceDb,
-        clock,
-        ids,
-        env: authEnv,
-        providerFetch: execution.execute,
-        secretBoxKey: SECRET_BOX_TEST_KEY,
-        casDir: sourceLayout.assets,
-        variantDir: sourceLayout.variants,
-        importStagingDir: sourceLayout.importStaging,
-      });
-      const actors = await seedCorpusActors(root);
-      const library = await seedCorpusLibraries(root);
-      const views = await seedCorpusLibraryViews(root, library, actors);
-      const authentication = await captureCookieAuth(root, actors.owner, "private-source-library-password");
-      const reads = await captureCorpusReads(root, { soloChatId: library.room.chat.id, groupChatId: library.room.chat.id, documentId: library.document.id });
-      const wire = hydrateCorpusWire({
-        auth: authentication.auth,
-        reads,
-        health: healthResponseSchema.parse(await (await root.http.request("/healthz")).json()),
-        libraryRelations: views.publication.relations,
-      });
-      await root.settleBackground();
-      return { wire: parseCorpusWire(serializeCorpusWire(wire, authentication.secrets)), authentication, foreignId: actors.secondUserId };
-    } finally {
-      closeDb(sourceDb);
-    }
+    using opened = ownDb(await createDb(sourceLayout.databaseUrl));
+    const sourceDb = opened.db;
+    await runMigrations(sourceDb, SHIPPED_MIGRATIONS);
+    await using root = await createServerHarness({
+      db: sourceDb,
+      clock,
+      ids,
+      env: authEnv,
+      providerFetch: execution.execute,
+      secretBoxKey: SECRET_BOX_TEST_KEY,
+      casDir: sourceLayout.assets,
+      variantDir: sourceLayout.variants,
+      importStagingDir: sourceLayout.importStaging,
+    });
+    const actors = await seedCorpusActors(root);
+    const library = await seedCorpusLibraries(root);
+    const views = await seedCorpusLibraryViews(root, library, actors);
+    const authentication = await captureCookieAuth(root, actors.owner, "private-source-library-password");
+    const reads = await captureCorpusReads(root, { soloChatId: library.room.chat.id, groupChatId: library.room.chat.id, documentId: library.document.id });
+    const wire = hydrateCorpusWire({
+      auth: authentication.auth,
+      reads,
+      health: healthResponseSchema.parse(await (await root.http.request("/healthz")).json()),
+      libraryRelations: views.publication.relations,
+    });
+    await root.settleBackground();
+    return { wire: parseCorpusWire(serializeCorpusWire(wire, authentication.secrets)), authentication, foreignId: actors.secondUserId };
   })();
   const cloneLayout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "clone") });
   const sourcePath = localPath(sourceLayout.databaseUrl);
@@ -87,8 +84,7 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     { databaseUrl: cloneLayout.databaseUrl, assetsDir: cloneLayout.assets },
     { publication: { privateLiterals: produced.authentication.secrets } },
   );
-  const cloneDb = await createDb(cloneLayout.databaseUrl);
-  ownership.defer(() => closeDb(cloneDb));
+  const cloneDb = ownership.use(ownDb(await createDb(cloneLayout.databaseUrl))).db;
   expect(await cloneDb.select().from(sessions)).toEqual([]);
   const relations = produced.wire.libraryRelations;
   assert(relations !== undefined);

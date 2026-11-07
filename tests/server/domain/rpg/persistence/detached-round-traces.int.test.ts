@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
-import { closeDb, rpgSnapshots } from "@orb/db";
+import { rpgSnapshots } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -12,9 +12,8 @@ import { coreFrame, coreSse } from "../../chat/engine/core-physical.ts";
 import { turnRpgReply, turnRpgRoom } from "../../chat/verbs/turn-rpg-physical.ts";
 
 test("the actual detached RPG round seals a fresh trace after its outer SEND has completed and its durable write settles", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(held.db));
   const h = lifetime.use(
     await turnRpgRoom(
       [
@@ -63,9 +62,8 @@ test("the actual detached RPG round seals a fresh trace after its outer SEND has
 });
 
 test("the actual SEND user-commit confirms prior state under its own fresh trace after the outer request seals", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using lifetime = new AsyncDisposableStack();
-  lifetime.defer(() => closeDb(held.db));
   const h = lifetime.use(
     await turnRpgRoom(
       [

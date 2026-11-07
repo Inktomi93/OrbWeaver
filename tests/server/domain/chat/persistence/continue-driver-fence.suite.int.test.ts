@@ -2,7 +2,7 @@
 // counter and the chat_events log change only at the fenced commit.
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 
-import { chatEvents, closeDb, messages, messageVariants, statsCanonVersions } from "@orb/db";
+import { chatEvents, messages, messageVariants, statsCanonVersions } from "@orb/db";
 import { ChatOperationError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -22,9 +22,8 @@ async function continuedSlot(h: ChatRoot): Promise<Awaited<ReturnType<ChatRoot["
 }
 
 test("restore refuses a newer real continuation before canon, versions or events", async () => {
+  using held = await freshHeldDb();
   await using lifetime = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  lifetime.defer(() => closeDb(held.db));
   const h = lifetime.use(await textRoom(["Base.", "A.", "B."], { server: { db: held.db }, group: { policy: "list", output: "per-speaker" } }));
   const assistant = await continuedSlot(h);
   const gate = held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
@@ -51,9 +50,8 @@ test("restore refuses a newer real continuation before canon, versions or events
 });
 
 test("post-success host demotion returns current member bytes without undoing the valid restore", async () => {
+  using held = await freshHeldDb();
   await using lifetime = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  lifetime.defer(() => closeDb(held.db));
   const h = lifetime.use(
     await textRoom(['Before.<lie truth="host-secret"/>After.', "A."], { server: { db: held.db }, group: { policy: "list", output: "per-speaker" } }),
   );

@@ -1,13 +1,12 @@
 // Startup adopts persisted autoindex as its baseline; later settings and account seeds reach live sweep ports.
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb } from "@orb/testkit/node/composed";
 
 for (const enabled of [false, true]) {
   test(`persisted corpusAutoindex=${enabled} boots without catch-up and a later off-to-on save queues exactly one run`, async () => {
-    const db = await freshDb();
+    using fresh = await freshDb();
+    const db = fresh.db;
     await using resources = new AsyncDisposableStack();
-    resources.defer(() => closeDb(db));
     const first = await createServerHarness({ db, startJobs: false });
     const { ownerId, ids } = first;
     try {

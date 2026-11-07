@@ -14,7 +14,7 @@ import {
   OIDC_ALLOWED_GROUPS_KEY,
   OWNER_HANDLES_KEY,
 } from "@orb/contracts/identity";
-import { closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
+import { oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
 import { toError } from "@orb/kit/error-message";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
@@ -240,9 +240,9 @@ test("native OIDC group claims fail closed under the graph's configured allowed 
 });
 
 test("a handle that became an owner seed-key look-alike after the callback is refused at the confirm", async () => {
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using resources = new AsyncDisposableStack();
-  const db = await freshDb();
-  resources.defer(() => closeDb(db));
   const issuer = await createNativeIssuer();
   const first = resources.use(
     await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { [DEFAULT_USER_HANDLE_KEY]: "owner", [OWNER_HANDLES_KEY]: "original-owner" } }),
@@ -403,9 +403,7 @@ test("root teardown aborts and joins native remote-JWKS body cancellation before
 });
 
 test("failed OIDC GC construction joins its held actual database sweep and retains the borrowed database", async () => {
-  await using resources = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  resources.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   const gate = held.hold(/^delete from "oidc_transactions"/u);
   const clock = createFrozenClock();
   // biome-ignore lint/nursery/useDisposables: createServerHarness owns these timers on admission and must dispose them on failed construction without an outer fallback.

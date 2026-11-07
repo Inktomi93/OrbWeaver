@@ -1,4 +1,4 @@
-import { closeDb, users } from "@orb/db";
+import { users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { BootDatabaseHandle, DatabaseHandle } from "@orb/db/wiring";
@@ -21,67 +21,58 @@ import { makeUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
 test("wiring handles are distinct inert identities and retain the borrowed physical connection", async () => {
-  const first = await freshDb();
-  try {
-    const second = await freshDb();
-    try {
-      const handle = databaseHandle(first);
-      const other = databaseHandle(second);
-      expect(handle).not.toBe(first);
-      expect(handle).not.toBe(other);
-      expect(Object.isFrozen(handle)).toBe(true);
-      expect(Object.getPrototypeOf(handle)).toBe(Object.prototype);
-      for (const name of [
-        "select",
-        "query",
-        "insert",
-        "update",
-        "delete",
-        "run",
-        "get",
-        "all",
-        "values",
-        "execute",
-        "executeMultiple",
-        "batch",
-        "transaction",
-        "$client",
-        "then",
-      ]) {
-        expect(Reflect.has(handle, name), name).toBe(false);
-      }
-      expect(databaseForOwner(handle)).toBe(first);
-      expect(databaseForOwner(other)).toBe(second);
-      expect(() => databaseForOwner({ ...handle })).toThrow("database wiring handle is not registered");
-      await databaseForOwner(handle).run(sql`PRAGMA user_version=73`);
-      expect(await first.get(sql`PRAGMA user_version`)).toEqual({ ["user_version"]: 73 });
-      expect(await second.get(sql`PRAGMA user_version`)).toEqual({ ["user_version"]: 0 });
-    } finally {
-      closeDb(second);
-    }
-  } finally {
-    closeDb(first);
+  using firstDb = await freshDb();
+  using secondDb = await freshDb();
+  const first = firstDb.db;
+  const second = secondDb.db;
+  const handle = databaseHandle(first);
+  const other = databaseHandle(second);
+  expect(handle).not.toBe(first);
+  expect(handle).not.toBe(other);
+  expect(Object.isFrozen(handle)).toBe(true);
+  expect(Object.getPrototypeOf(handle)).toBe(Object.prototype);
+  for (const name of [
+    "select",
+    "query",
+    "insert",
+    "update",
+    "delete",
+    "run",
+    "get",
+    "all",
+    "values",
+    "execute",
+    "executeMultiple",
+    "batch",
+    "transaction",
+    "$client",
+    "then",
+  ]) {
+    expect(Reflect.has(handle, name), name).toBe(false);
   }
+  expect(databaseForOwner(handle)).toBe(first);
+  expect(databaseForOwner(other)).toBe(second);
+  expect(() => databaseForOwner({ ...handle })).toThrow("database wiring handle is not registered");
+  await databaseForOwner(handle).run(sql`PRAGMA user_version=73`);
+  expect(await first.get(sql`PRAGMA user_version`)).toEqual({ ["user_version"]: 73 });
+  expect(await second.get(sql`PRAGMA user_version`)).toEqual({ ["user_version"]: 0 });
 });
 
 test("a boot grant is a distinct inert identity over the same admitted connection, and a cast or a copy is refused", async () => {
-  const db = await freshDb();
-  try {
-    const boot = bootGrantFor(db);
-    expect(boot).not.toBe(bootGrantFor(db));
-    expect(Object.isFrozen(boot)).toBe(true);
-    // A grant handed down as a plain handle still serves a plain-handle verb; only the grant-typed spelling fails tsc.
-    const plain: DatabaseHandle = boot;
-    expect(databaseForOwner(plain)).toBe(db);
-    expect(bootDatabaseForOwner(boot)).toBe(db);
-    // A cast is the forgery a request route could write; the grant registry refuses it at recovery.
-    expect(() => bootDatabaseForOwner(forged<BootDatabaseHandle>(databaseHandle(db)))).toThrow("boot wiring handle is not granted");
-    expect(() => bootDatabaseForOwner({ ...boot })).toThrow("boot wiring handle is not granted");
-    const copy: DatabaseHandle = { ...boot };
-    expect(() => databaseForOwner(copy)).toThrow("database wiring handle is not registered");
-  } finally {
-    closeDb(db);
-  }
+  using fresh = await freshDb();
+  const db = fresh.db;
+  const boot = bootGrantFor(db);
+  expect(boot).not.toBe(bootGrantFor(db));
+  expect(Object.isFrozen(boot)).toBe(true);
+  // A grant handed down as a plain handle still serves a plain-handle verb; only the grant-typed spelling fails tsc.
+  const plain: DatabaseHandle = boot;
+  expect(databaseForOwner(plain)).toBe(db);
+  expect(bootDatabaseForOwner(boot)).toBe(db);
+  // A cast is the forgery a request route could write; the grant registry refuses it at recovery.
+  expect(() => bootDatabaseForOwner(forged<BootDatabaseHandle>(databaseHandle(db)))).toThrow("boot wiring handle is not granted");
+  expect(() => bootDatabaseForOwner({ ...boot })).toThrow("boot wiring handle is not granted");
+  const copy: DatabaseHandle = { ...boot };
+  expect(() => databaseForOwner(copy)).toThrow("database wiring handle is not registered");
 });
 
 test("the owner conversion subpath loads its recoveries without the boot mint or the driver-admission mint", async () => {
@@ -94,50 +85,44 @@ test("the owner conversion subpath loads its recoveries without the boot mint or
 });
 
 test("statement tokens neither assimilate nor rebuild a native awaitable statement", async () => {
-  const db = await freshDb();
-  try {
-    const user = makeUser();
-    const statement = db.insert(users).values(user).returning({ id: users.id });
-    const token = awaitableStatementToken(statement);
-    expect(Object.isFrozen(token)).toBe(true);
-    for (const name of ["then", "execute", "run", "getSQL", "prepare", "$client"]) {
-      expect(Reflect.has(token, name), name).toBe(false);
-    }
-    expect(await Promise.resolve(token)).toBe(token);
-    expect(await db.select().from(users)).toEqual([]);
-    expect(statementForOwner(token)).toBe(statement);
-    expect(awaitableStatementForOwner(token)).toBe(statement);
-    expect(() => statementForOwner({ ...token })).toThrow("statement wiring token is not registered");
-    expect(() => awaitableStatementForOwner({ ...token })).toThrow("awaitable statement wiring token is not registered");
-    expect(await awaitableStatementForOwner(token)).toEqual([{ id: user.id }]);
-    expect(await db.select().from(users)).toEqual([user]);
-  } finally {
-    closeDb(db);
+  using fresh = await freshDb();
+  const db = fresh.db;
+  const user = makeUser();
+  const statement = db.insert(users).values(user).returning({ id: users.id });
+  const token = awaitableStatementToken(statement);
+  expect(Object.isFrozen(token)).toBe(true);
+  for (const name of ["then", "execute", "run", "getSQL", "prepare", "$client"]) {
+    expect(Reflect.has(token, name), name).toBe(false);
   }
+  expect(await Promise.resolve(token)).toBe(token);
+  expect(await db.select().from(users)).toEqual([]);
+  expect(statementForOwner(token)).toBe(statement);
+  expect(awaitableStatementForOwner(token)).toBe(statement);
+  expect(() => statementForOwner({ ...token })).toThrow("statement wiring token is not registered");
+  expect(() => awaitableStatementForOwner({ ...token })).toThrow("awaitable statement wiring token is not registered");
+  expect(await awaitableStatementForOwner(token)).toEqual([{ id: user.id }]);
+  expect(await db.select().from(users)).toEqual([user]);
 });
 
 test("batch tokens preserve the exact mutable operand, statement identity and atomic rollback", async () => {
-  const db = await freshDb();
-  try {
-    const first = makeUser();
-    const duplicate = makeUser({ handle: first.handle, handleKey: first.handleKey });
-    const statement = db.insert(users).values(first);
-    const token = statementToken(statement);
-    const batch: BatchStmt[] = [];
-    const handle = batchHandle(batch);
-    expect(batchForOwner(handle)).toBe(batch);
-    expect(Object.isFrozen(handle)).toBe(true);
-    expect(() => batchForOwner({ ...handle })).toThrow("batch wiring handle is not registered");
-    expect(await db.batch(batchMany(batchForOwner(handle)))).toEqual([]);
-    batchForOwner(handle).push(statementForOwner(token));
-    expect(batch[0]).toBe(statement);
-    batch.push(db.insert(users).values(duplicate));
-    await expect(db.batch(batchMany(batchForOwner(handle)))).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
-    expect(await db.select().from(users)).toEqual([]);
-    batch.pop();
-    await db.batch(batchMany(batchForOwner(handle)));
-    expect(await db.select().from(users)).toEqual([first]);
-  } finally {
-    closeDb(db);
-  }
+  using fresh = await freshDb();
+  const db = fresh.db;
+  const first = makeUser();
+  const duplicate = makeUser({ handle: first.handle, handleKey: first.handleKey });
+  const statement = db.insert(users).values(first);
+  const token = statementToken(statement);
+  const batch: BatchStmt[] = [];
+  const handle = batchHandle(batch);
+  expect(batchForOwner(handle)).toBe(batch);
+  expect(Object.isFrozen(handle)).toBe(true);
+  expect(() => batchForOwner({ ...handle })).toThrow("batch wiring handle is not registered");
+  expect(await db.batch(batchMany(batchForOwner(handle)))).toEqual([]);
+  batchForOwner(handle).push(statementForOwner(token));
+  expect(batch[0]).toBe(statement);
+  batch.push(db.insert(users).values(duplicate));
+  await expect(db.batch(batchMany(batchForOwner(handle)))).rejects.toMatchObject({ code: "SQLITE_CONSTRAINT" });
+  expect(await db.select().from(users)).toEqual([]);
+  batch.pop();
+  await db.batch(batchMany(batchForOwner(handle)));
+  expect(await db.select().from(users)).toEqual([first]);
 });

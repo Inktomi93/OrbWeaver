@@ -10,7 +10,6 @@ import { execPath } from "node:process";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { closeDb } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
@@ -643,10 +642,7 @@ export async function createServerHarness(
   construction.defer(() => pendingTimers?.[Symbol.dispose]());
   const rootDir = await mkdtemp(join(options.temporaryParentDir ?? tmpdir(), "orb-server-harness-"));
   construction.defer(() => rm(rootDir, { recursive: true, force: true }));
-  const db = options.db ?? (await freshDb());
-  if (options.db === undefined) {
-    construction.defer(() => closeDb(db));
-  }
+  const db = options.db ?? construction.use(await freshDb()).db;
   const scheduling = harnessScheduling(options, construction);
   const { clock, timers } = scheduling;
   const identity = harnessIdentity(options);

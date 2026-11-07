@@ -4,11 +4,11 @@
 // @subject packages/db/src/schema/connection-bindings.ts
 import { PLUGIN_PROVIDER_ID_PREFIX, RETIRED_TASKS } from "@orb/contracts/inference";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
-import { assertReferentialIntegrity, closeDb, createDb, runMigrations } from "@orb/db";
+import { assertReferentialIntegrity, createDb, runMigrations } from "@orb/db";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
 import { sql } from "drizzle-orm";
 
@@ -57,9 +57,8 @@ interface StoredRow {
 
 test("the forward migration strips retired tasks at rest and keeps every definition row and claim", async () => {
   await using previous = await migrationsBefore(MIGRATION);
-  await using lifetime = new AsyncDisposableStack();
-  const db = await createDb(":memory:");
-  lifetime.defer(() => closeDb(db));
+  using opened = ownDb(await createDb(":memory:"));
+  const db = opened.db;
   await runMigrations(db, previous.path);
   const ids = createIdSource(createSeededIds().next);
   const owner = await seedUser(db, {}, ids);

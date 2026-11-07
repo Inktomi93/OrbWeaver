@@ -12,7 +12,8 @@ test("a failed roster read still reaches the pre-captured recipients and is repo
   const source = createIdSource(ids.next);
   const chatId = source.typeId(ID_PREFIX.chat);
   const justKicked = source.userId();
-  const db = await freshDb();
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using _withheld = await withheldTable(db, chatParticipants);
   const publish = vi.fn<Parameters<typeof createEmitChatChanged>[1]>();
   const logger = createTestLogger();

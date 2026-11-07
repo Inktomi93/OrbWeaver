@@ -14,7 +14,8 @@ const insert = (id: string, origin: "admin" | "plugin"): SQL =>
     values (${id}, 'x', 'openai-compat', 'endpoint', '["chat-completions"]', 'url', 0, ${`hash-${id}`}, ${origin})`;
 
 test("the table refuses an admin row on a plugin id and a plugin row on a bare id, and accepts each on its own namespace", async () => {
-  const db = await freshDb();
+  using fresh = await freshDb();
+  const db = fresh.db;
   await db.run(insert("acme-endpoint", "admin"));
   await db.run(insert(PLUGIN_ROW, "plugin"));
 
