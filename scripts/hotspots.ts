@@ -6,11 +6,12 @@ import { readFileSync } from "node:fs";
 import process from "node:process";
 import { parseArgs } from "node:util";
 
-const SORTS = ["hot", "fix", "commits", "churn", "ratio", "recent"] as const;
+const SORTS = ["defect", "hot", "fix", "commits", "churn", "ratio", "recent"] as const;
 type Sort = (typeof SORTS)[number];
 
 const USAGE = `usage: pnpm hotspots [--sort ${SORTS.join("|")}] [--top n] [--path prefix] [--since date] [--min-commits n] [--wide n] [--json]
 
+defect   fix commits weighted by how few files each touched, per 100 lines
 hot      fix commits weighted by file size
 fix      commits with a fix or revert subject
 commits  every commit that touched the file
@@ -24,6 +25,10 @@ const RECENT_DAYS = 30;
 const DAY_MS = 86_400_000;
 const FIX_SUBJECT = /^(fix|revert|hotfix)\b/iu;
 const SOURCE_FILE = /\.(ts|tsx|mts|css|sh|mjs)$/u;
+const COMPOSITION_FILE = /\/entry\/compose\//u;
+const PER_LINES = 100;
+// A density over a few lines ranks size, not defects.
+const MIN_DENSITY_LINES = 50;
 const GENERATED_FILE = /(^|\/)(dist|generated|__generated__)\/|\.d\.ts$|\.gen\.ts$/u;
 const COMMIT_MARK = "\u0001";
 const BARREL_LINE = /^\s*($|\/\/|\/\*|\*|export (\*|type \*|\{|type \{)|import |(type )?[\w$]+( as [\w$]+)?,$|\}.*from )/u;
@@ -44,6 +49,7 @@ interface Row {
   last: string;
   size: number;
   hot: number;
+  focused: number;
 }
 
 function git(args: readonly string[]): string {
@@ -106,6 +112,7 @@ function record(row: Row, commit: Commit, lines: number, limits: { readonly wide
   row.commits += 1;
   row.churn += lines;
   row.fixes += commit.fix ? 1 : 0;
+  row.focused += commit.fix ? 1 / commit.files.length : 0;
   row.recentFixes += commit.fix && commit.date >= limits.recentFrom ? 1 : 0;
 }
 
@@ -124,7 +131,18 @@ function tally(commits: readonly Commit[], wideLimit: number, recentFrom: string
       const keep = judged.get(path) ?? counted(path, tracked);
       judged.set(path, keep);
       if (keep) {
-        const row = rows.get(path) ?? { path, commits: 0, fixes: 0, recentFixes: 0, churn: 0, wide: 0, last: commit.date, size: lineCount(path), hot: 0 };
+        const row = rows.get(path) ?? {
+          path,
+          commits: 0,
+          fixes: 0,
+          recentFixes: 0,
+          churn: 0,
+          wide: 0,
+          last: commit.date,
+          size: lineCount(path),
+          hot: 0,
+          focused: 0,
+        };
         rows.set(path, row);
         record(row, commit, file.lines, { wide: wideLimit, recentFrom });
       }
@@ -137,6 +155,7 @@ function tally(commits: readonly Commit[], wideLimit: number, recentFrom: string
 }
 
 const RANKERS: Readonly<Record<Sort, (row: Row) => number>> = {
+  defect: (row) => (row.focused * PER_LINES) / row.size,
   hot: (row) => row.hot,
   fix: (row) => row.fixes,
   commits: (row) => row.commits,
@@ -160,7 +179,7 @@ function table(rows: readonly Row[]): string {
 function main(): void {
   const { values } = parseArgs({
     options: {
-      sort: { type: "string", default: "hot" },
+      sort: { type: "string", default: "defect" },
       top: { type: "string", default: "40" },
       path: { type: "string", default: "" },
       since: { type: "string" },
@@ -176,11 +195,19 @@ function main(): void {
     return;
   }
   const rank = RANKERS[values.sort];
-  const minimum = values.sort === "ratio" ? Number(values["min-commits"]) : 0;
+  const density = values.sort === "ratio" || values.sort === "defect";
+  const minimum = density ? Number(values["min-commits"]) : 0;
+  const minimumLines = values.sort === "defect" ? MIN_DENSITY_LINES : 0;
   const recentFrom = new Date(Date.now() - RECENT_DAYS * DAY_MS).toISOString().slice(0, "yyyy-mm-dd".length);
   const commits = readHistory(values.since);
   const rows = tally(commits, Number(values.wide), recentFrom)
-    .filter((row) => row.path.startsWith(values.path) && row.commits >= minimum)
+    .filter(
+      (row) =>
+        row.path.startsWith(values.path) &&
+        row.commits >= minimum &&
+        row.size >= minimumLines &&
+        !(values.sort === "defect" && COMPOSITION_FILE.test(row.path)),
+    )
     .toSorted((a, b) => rank(b) - rank(a))
     .slice(0, Number(values.top));
   process.stdout.write(values.json ? `${JSON.stringify(rows)}\n` : `${String(commits.length)} commits, sorted by ${values.sort}\n${table(rows)}\n`);

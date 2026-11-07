@@ -1,11 +1,17 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { MessageListPinnedFailureStory } from "./_pinned-failure-stories.tsx";
+import type { MessageListHeldUnderPlateStory, MessageListPinnedFailureStory } from "./_pinned-failure-stories.tsx";
 
 const STORY = "tests/ui/primitives/message-list/_pinned-failure-stories/MessageListPinnedFailureStory";
+const HELD_STORY = "tests/ui/primitives/message-list/_pinned-failure-stories/MessageListHeldUnderPlateStory";
 const ROW = '[data-slot="message-list-row"]';
 const PLATE = '[data-slot="message-list-leading-action"]';
 const EPSILON_PX = 1;
+const HELD_ROW = 20;
+// Near enough to mount the row; the park places it exactly off its own box.
+const ROW_ESTIMATE_PX = 120;
+// Past a hold's settling frames.
+const HOLD_FRAMES = 30;
 const VIEWPORTS = [
   { name: "phone", viewport: { width: 390, height: 844 }, touch: true },
   { name: "desktop", viewport: { width: 1280, height: 900 }, touch: false },
@@ -24,6 +30,39 @@ async function headBelowPlate(page: Page, index: number): Promise<number> {
     },
     [ROW, PLATE, String(index)] as const,
   );
+}
+
+/** Scrolls until row `index` starts `offsetPx` below the port's top, and waits for the list to read it there. */
+async function parkRowAt(log: Locator, index: number, offsetPx: number): Promise<void> {
+  await expect(log.locator(ROW).first()).toBeVisible();
+  // Rows are virtual: walk toward the row until it mounts, then place it exactly.
+  await log.evaluate(
+    async (node, { row, at, offset, rowEstimate }) => {
+      const frame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      node.scrollTop = at * rowEstimate;
+      await frame();
+      await frame();
+      const target = node.querySelector(`${row}[data-index="${String(at)}"]`);
+      if (target === null) {
+        throw new Error(`row ${String(at)} never mounted`);
+      }
+      node.scrollTop += target.getBoundingClientRect().top - node.getBoundingClientRect().top - offset;
+      await frame();
+      await frame();
+    },
+    { row: ROW, at: index, offset: offsetPx, rowEstimate: ROW_ESTIMATE_PX },
+  );
+  await expect(log.locator(`${ROW}[data-index="${String(index)}"]`)).toHaveAttribute("tabindex", "0");
+}
+
+/** The row's distance below the plate after the hold has had its settling frames. */
+async function settledHead(page: Page, index: number): Promise<number> {
+  await page.evaluate(async (count) => {
+    for (let frame = 0; frame < count; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }, HOLD_FRAMES);
+  return await headBelowPlate(page, index);
 }
 
 for (const { name, viewport, touch } of VIEWPORTS) {
@@ -77,6 +116,25 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       await page.getByRole("button", { name: "Reveal row 12", exact: true }).click();
       await expect(log.locator(`${ROW}[data-index="12"]`)).toBeVisible();
       await expect.poll(async () => await headBelowPlate(page, 12), { message: "row 12 clears the plate" }).toBeGreaterThanOrEqual(-EPSILON_PX);
+    });
+
+    test("a hold started by the plate arriving lands the reader's row below it", async ({ mount, page }) => {
+      await mount<typeof MessageListHeldUnderPlateStory>(HELD_STORY);
+      const log = page.getByRole("log", { name: "Held under plate", exact: true });
+      await parkRowAt(log, HELD_ROW, 0);
+      await page.getByRole("button", { name: "Fail the press", exact: true }).click();
+      await expect(page.locator(`${PLATE} [data-keep-in-view]`)).toBeVisible();
+      await expect.poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" }).toBeLessThanOrEqual(EPSILON_PX);
+      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-EPSILON_PX);
+    });
+
+    test("a hold under a standing plate keeps the row at the plate's edge, not the row beneath the plate", async ({ mount, page }) => {
+      await mount<typeof MessageListHeldUnderPlateStory>(HELD_STORY, { standing: true });
+      const log = page.getByRole("log", { name: "Held under plate", exact: true });
+      await parkRowAt(log, HELD_ROW, await log.evaluate((node, plate) => node.querySelector(plate)?.getBoundingClientRect().height ?? Number.NaN, PLATE));
+      await page.getByRole("button", { name: "Enlarge the text", exact: true }).click();
+      await expect.poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" }).toBeLessThanOrEqual(EPSILON_PX);
+      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-EPSILON_PX);
     });
   });
 }

@@ -29,7 +29,9 @@ import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, t
  */
 export const commandVariants = tv({
   slots: {
-    root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover ${FOCUS_RING_WITHIN_INSET}`,
+    // In a short dialog the command box is a flex child that shares the room the dialog leaves; `overflow-hidden` lets it shrink below its list.
+    root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover dialog-short:flex-auto ${FOCUS_RING_WITHIN_INSET}
+    `,
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
@@ -65,18 +67,30 @@ export const commandVariants = tv({
     elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent.
     fill: { true: { root: "block-full" } },
+    // The box is a picker window's frame and never outgrows it, so a footer inside takes room from the list; a short dialog lets it shrink with the dialog instead.
+    windowed: { true: { root: "max-block-(--height-picker-box) dialog-short:max-block-none" } },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
-      compact: { list: "block-(--height-scroll-sm) **:[[cmdk-list-sizer]]:block-full" },
+      // A short dialog lets it share the room the dialog leaves, like a picker window, so the dialog body is the only other box.
+      compact: {
+        list: `
+          block-(--height-scroll-sm)
+          dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:block-auto dialog-short:min-block-(--height-scroll-short)
+          **:[[cmdk-list-sizer]]:block-full
+        `,
+      },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
-      // A picker's window inside a dialog: it caps at the window step, and a short dialog drops the inset, the headings and the scroll chain so the rows keep the room.
+      // A picker's window inside a dialog: it caps at the window step. A short dialog is one box with one scroller, so the
+      // window stops guessing at the chrome around it: the command box and its list take what the dialog leaves, down to
+      // one touch row, and the list drops the inset, the headings and the scroll chain so the rows keep the room.
       pickerWindow: {
         list: `
           max-block-(--height-picker-window)
-          dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
+          dialog-short:mx-(--border-width-rule) dialog-short:mbe-(--border-width-rule) dialog-short:flex-auto dialog-short:overflow-x-hidden
+          dialog-short:overscroll-auto dialog-short:p-0 dialog-short:max-block-none dialog-short:min-block-(--height-scroll-short)
           dialog-short:**:[[cmdk-group-heading]]:hidden
         `,
       },

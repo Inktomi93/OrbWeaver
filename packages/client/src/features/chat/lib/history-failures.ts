@@ -124,6 +124,16 @@ export function dismissHistoryFailure(state: HistoryFailures): HistoryFailures {
   return { ...state, press: false, offline: false, pinned: false, asked: false };
 }
 
+/** The reader pressed for older rows. A press the connection is already holding is heard again, in the same words. */
+export function pressAsked(state: HistoryFailures): HistoryFailures {
+  return { ...state, asked: true, announcement: state.offline ? state.announcement + 1 : state.announcement };
+}
+
+/** A press ended in neither a page nor the end of history: nothing rejected, so no failure reached the query's view. */
+export function pressLost(state: HistoryFailures, chatId: ChatId): HistoryFailures {
+  return state.chatId !== chatId || state.press ? state : failed(state, "press");
+}
+
 /** The state after one render's view; the same object when nothing changed. */
 export function observeHistoryFetch(previous: HistoryFailures, view: HistoryFetchView): HistoryFailures {
   if (previous.chatId !== view.chatId) {

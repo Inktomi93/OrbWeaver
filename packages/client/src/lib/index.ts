@@ -267,6 +267,6 @@ export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "./use-debounced-value.ts";
 export { useElapsedSeconds } from "./use-elapsed-seconds.ts";
-export { useFocusListArrival, useFocusOnMount, useFocusOnSwap, useFocusRoomArrival } from "./use-focus-on-mount.ts";
+export { useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";

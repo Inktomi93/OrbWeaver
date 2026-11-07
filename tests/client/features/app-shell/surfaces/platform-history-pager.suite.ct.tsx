@@ -278,7 +278,11 @@ for (const cell of [
         const { y } = await settledBox(reading);
         await earlierIn(list).dispatchEvent("click");
         await expect(list.getByRole("alert")).toBeInViewport({ ratio: 1 });
-        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        // The pinned failure covers the top of the port, so the reader's point in the row moves down by exactly the plate.
+        const plate = await settledBox(list.locator('[data-slot="message-list-leading-action"]'));
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y + Math.round(plate.height));
+        const held = await settledBox(reading);
+        expect(held.y + held.height).toBeGreaterThan(plate.y + plate.height);
         failing = false;
         const rows = await loadedRows(list);
         await earlierIn(list).dispatchEvent("click");
@@ -609,11 +613,10 @@ for (const cell of [
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight / 2;
       });
-      await settledReadingRow(list);
+      const before = await settledReadingRow(list);
       await earlierIn(list).dispatchEvent("click");
       const alert = list.getByRole("alert");
       await expect(alert).toBeInViewport({ ratio: 1 });
-      const before = await settledReadingRow(list);
       const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
       await (cell.coarse ? dismiss.tap() : dismiss.click());
       await expect(alert).toHaveCount(0);
@@ -803,6 +806,35 @@ for (const cell of [
         await expect(earlier).toBeFocused();
         await expect(earlier).toBeInViewport({ ratio: 1 });
       }
+    });
+
+    test("pinned by the keyboard at the end of history on a plain room, draws an edge between its status line and the rows", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await focusFromMidway(list);
+      while (!(await earlier.isDisabled())) {
+        const rows = await loadedRows(list);
+        await page.keyboard.press("Enter");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(earlier).not.toHaveAttribute("aria-busy", "true");
+      }
+      await list.evaluate((node) => {
+        node.scrollTop = node.scrollHeight / 2;
+      });
+      await expect(earlier).toBeInViewport({ ratio: 1 });
+      const pin = list.locator('[data-slot="message-list-leading-action"]');
+      expect(await pin.evaluate((node) => getComputedStyle(node).position)).toBe("sticky");
+      expect(await pin.evaluate((node) => getComputedStyle(node).boxShadow)).toContain("inset");
+      await page.screenshot({ path: test.info().outputPath("pinned-end-of-history.png") });
     });
 
     test("over a wallpaper rests on the reading plate", async ({ corpus, mount, page }) => {

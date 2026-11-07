@@ -186,6 +186,7 @@ export const BIOME_POLICY = {
       "!**/node_modules",
       "!**/.git",
       "!**/reports",
+      "!**/.stryker-tmp",
       "!**/coverage",
       "!playwright/.cache",
     ],

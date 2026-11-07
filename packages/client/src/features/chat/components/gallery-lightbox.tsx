@@ -104,7 +104,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       onOpenChangeComplete={onSettled}
     >
       {image === null ? null : (
-        <Stack gap="block" className="min-block-0">
+        <Stack gap="block" minHeight="shrinks">
           {/* The dialog hugs the frame: sized by height when height limits it (no grey bars), by the dialog's own
                 width otherwise, and never upscaled past the image. */}
           <Stack align="center" className="relative">

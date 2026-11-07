@@ -22,7 +22,7 @@ import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { deriveChatTitle, useFocusRoomArrival } from "#lib";
+import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
@@ -89,7 +89,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const bodyMounted: boolean = useDeferredValue(true, false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   // Gated on the body so this parent effect runs after the transcript's and the composer's own focus effects.
-  useFocusRoomArrival(surfaceRef, bodyMounted);
+  useFocusOnMount(surfaceRef, bodyMounted);
   const composerRef = useRef<HTMLDivElement>(null);
   useRoomEndWhileWriting(surfaceRef, composerRef);
 
@@ -175,7 +175,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           <ChatCharacterBar chatId={chatId} />
           {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can split it between reading
               and writing. */}
-          <Stack className="min-block-0" grow={true} gap="field" data-slot="chat-room-body">
+          <Stack minHeight="shrinks" grow={true} gap="field" data-slot="chat-room-body">
             {bodyMounted ? (
               <>
                 {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
@@ -297,7 +297,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
 function RoomTranscriptSkeleton(): ReactElement {
   return (
-    <Stack className="min-block-0" grow={true} data-slot="chat-room-mounting">
+    <Stack minHeight="shrinks" grow={true} data-slot="chat-room-mounting">
       <Track of={Stack} track="chat" plate="loading">
         <SkeletonRows count={3} />
       </Track>

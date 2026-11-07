@@ -32,7 +32,8 @@ function cachePlanForAction(policy: CachePolicy, action: CachePolicy["prefix"]["
     : null;
 }
 
-const ANTHROPIC_PROVIDER_NAME = "Anthropic";
+/** OpenRouter's name for Anthropic as a provider, the one `effectiveProviderRouting` pins a Claude model to. */
+export const ANTHROPIC_PROVIDER_NAME = "Anthropic";
 
 /** Is this connection's model Anthropic's? Read off `factsModel` through the family detector — the id the
  *  capability fold used — so a floating OpenRouter alias of a Claude model routes like the Claude id it names,

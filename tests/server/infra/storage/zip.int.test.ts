@@ -57,14 +57,19 @@ const ENTRIES = [
 const SOURCES = ["memory", "staged file"] as const;
 type Source = (typeof SOURCES)[number];
 
+type ExtractLimits = Pick<NonNullable<Parameters<typeof extractZip>[1]>, "maxTotalBytes" | "maxTotalDecompressedBytes">;
+
+const MISSING_PATH = "ENOENT";
+
 interface Extraction {
   readonly entries: readonly { readonly path: string; readonly bytes: readonly number[] }[] | null;
   /** The rejection kind, or null when the archive staged. */
   readonly refused: string | null;
   /** The rejection's whole message, or null when the archive staged. */
   readonly reason: string | null;
-  /** Files left under the staging root once the extraction settled and was disposed. */
-  readonly leftovers: number;
+  /** Every path left under the staging root once the extraction settled and was disposed, or null when the
+   *  extractor never created the root. */
+  readonly leftovers: readonly string[] | null;
 }
 
 async function packed(): Promise<Uint8Array> {
@@ -74,32 +79,40 @@ async function packed(): Promise<Uint8Array> {
   return new Uint8Array(await new Response(packZip(entries(), createTestLogger(), null)).arrayBuffer());
 }
 
-async function stagedFiles(root: string): Promise<number> {
-  const entries = await readdir(root, { recursive: true, withFileTypes: true }).catch(() => []);
-  return entries.filter((entry) => entry.isFile()).length;
+// Only a missing root reads as "never created"; any other read failure is the census failing, not an empty root.
+async function stagingLeftovers(root: string): Promise<readonly string[] | null> {
+  try {
+    return (await readdir(root, { recursive: true })).toSorted();
+  } catch (err) {
+    if (err instanceof Error && "code" in err && err.code === MISSING_PATH) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 /** Extract `archive` from the named source; a staged file is written to a scratch dir and opened read-only. */
-async function extract(source: Source, archive: Uint8Array, maxTotalBytes?: number): Promise<Extraction> {
+async function extract(source: Source, archive: Uint8Array, limits: ExtractLimits = {}): Promise<Extraction> {
   const dir = await mkdtemp(join(tmpdir(), "orb-zip-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const stagingRoot = join(dir, "stage");
-  const options = { stagingRoot, ...(maxTotalBytes === undefined ? {} : { maxTotalBytes }) };
   const upload = join(dir, "upload.zip");
   await writeFile(upload, archive);
   await using handle = await open(upload, "r");
-  try {
-    const staged = await extractZip(source === "memory" ? archive : handle, options);
-    try {
-      const entries = await Promise.all(staged.entries.map(async (entry) => ({ path: entry.path, bytes: Array.from(await entry.read()) })));
-      return { entries, refused: null, reason: null, leftovers: 0 };
-    } finally {
-      await staged.dispose();
-    }
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    return { entries: null, refused: REJECTION_KIND.exec(reason)?.groups?.["kind"] ?? reason, reason, leftovers: await stagedFiles(stagingRoot) };
-  }
+  const settled: Omit<Extraction, "leftovers"> = await extractZip(source === "memory" ? archive : handle, { stagingRoot, ...limits }).then(
+    async (staged) => ({
+      entries: await Promise.all(staged.entries.map(async (entry) => ({ path: entry.path, bytes: Array.from(await entry.read()) }))).finally(() =>
+        staged.dispose(),
+      ),
+      refused: null,
+      reason: null,
+    }),
+    (err: unknown) => {
+      const reason = err instanceof Error ? err.message : String(err);
+      return { entries: null, refused: REJECTION_KIND.exec(reason)?.groups?.["kind"] ?? reason, reason };
+    },
+  );
+  return { ...settled, leftovers: await stagingLeftovers(stagingRoot) };
 }
 
 function centralAt(archive: Uint8Array): number {
@@ -131,12 +144,13 @@ test.each(SOURCES)("an archive read from %s stages exactly the entries the write
     entries: ENTRIES.map((entry) => ({ path: entry.path, bytes: Array.from(entry.bytes) })),
     refused: null,
     reason: null,
-    leftovers: 0,
+    leftovers: [],
   });
 });
 
 test.each(SOURCES)("a hostile archive read from %s is refused with its kind and leaves nothing staged", async (source) => {
   const archive = await packed();
+  const [first, second] = ENTRIES;
   const cases = {
     truncated: extract(source, archive.subarray(0, archive.length - 1)),
     "central directory past the end": extract(source, withU32(archive, archive.length - EOCD_BYTES + EOCD_CD_OFFSET_AT, archive.length)),
@@ -144,7 +158,12 @@ test.each(SOURCES)("a hostile archive read from %s is refused with its kind and 
     // The second entry's data is followed by the central directory, so the inflated claim still lies inside the
     // archive: only the size bound, not the end of the file, can refuse it before its bytes are read.
     "more compressed bytes than any encoder writes": extract(source, withU32(archive, secondCentralAt(archive) + CENTRAL_COMPRESSED_AT, INFLATED_CLAIM)),
-    "over the total cap": extract(source, archive, archive.length - 1),
+    "over the total cap": extract(source, archive, { maxTotalBytes: archive.length - 1 }),
+    // The first entry fits the decompressed cap exactly, so it is staged to disk before the second trips it: the
+    // only case here that refuses after the staging directory exists.
+    "past the decompressed cap after the first entry is staged": extract(source, archive, { maxTotalDecompressedBytes: first.bytes.length }),
+    // Positive control for the case above: the same archive under a cap that holds both entries stages them.
+    "at the decompressed cap": extract(source, archive, { maxTotalDecompressedBytes: first.bytes.length + second.bytes.length }),
   };
   const outcomes: Record<string, Pick<Extraction, "refused" | "leftovers">> = {};
   for (const [name, settled] of Object.entries(cases)) {
@@ -152,14 +171,20 @@ test.each(SOURCES)("a hostile archive read from %s is refused with its kind and 
     outcomes[name] = { refused, leftovers };
   }
 
+  // A null census is a root the extractor never created: those archives are refused before staging starts.
   expect(outcomes).toEqual({
-    truncated: { refused: "malformed", leftovers: 0 },
-    "central directory past the end": { refused: "malformed", leftovers: 0 },
-    "a name that escapes the staging root": { refused: "zip-slip", leftovers: 0 },
-    "more compressed bytes than any encoder writes": { refused: "malformed", leftovers: 0 },
-    "over the total cap": { refused: "too-large", leftovers: 0 },
+    truncated: { refused: "malformed", leftovers: null },
+    "central directory past the end": { refused: "malformed", leftovers: null },
+    "a name that escapes the staging root": { refused: "zip-slip", leftovers: null },
+    "more compressed bytes than any encoder writes": { refused: "malformed", leftovers: null },
+    "over the total cap": { refused: "too-large", leftovers: null },
+    "past the decompressed cap after the first entry is staged": { refused: "bomb", leftovers: [] },
+    "at the decompressed cap": { refused: null, leftovers: [] },
   });
   expect((await cases["more compressed bytes than any encoder writes"]).reason).toMatch(`declares ${String(INFLATED_CLAIM)} compressed bytes`);
+  expect((await cases["past the decompressed cap after the first entry is staged"]).reason).toMatch(
+    `aggregate decompressed size exceeds ${String(first.bytes.length)} bytes`,
+  );
 });
 
 interface ForeignEntry {

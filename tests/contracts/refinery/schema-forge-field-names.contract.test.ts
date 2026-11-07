@@ -36,6 +36,7 @@ test("a designed __proto__ segment is dropped with a reason and never reshapes a
   const design: ForgeDesignEnvelope = { name: "vibe_scorer", description: "a readout", fields: [row("__proto__"), row("nest.__proto__.leaf"), row("kept")] };
   const { schema, dropped } = transpileForgeDesign(design, "score");
   expect(dropped.map((drop) => drop.path)).toEqual(["__proto__", "nest.__proto__.leaf"]);
+  expect(dropped.map((drop) => drop.reason)).toEqual(dropped.map(() => expect.stringMatching(/\S/u)));
   const properties = propertiesOf(schema);
   expect(Object.getPrototypeOf(properties)).toBe(Object.prototype);
   expect(Object.keys(properties)).not.toContain("nest");

@@ -16,6 +16,7 @@ import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { anthropicSse, anthropicTextReply, openAiServer, recordRequest, SLEEP_PROBE_SUFFIX, textMessage } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
+import { ANTHROPIC_PROVIDER_NAME } from "#inference/backends/wire/cache-control.ts";
 import { physicalSdkScenario } from "../backends/agent-sdk/regression-edge.fixtures.ts";
 import { anthropicOwnerDigest, createRuntimeRoot, generationCapability, observeRuntimeTimers, wireConnection } from "./runtime.fixtures.ts";
 
@@ -77,7 +78,8 @@ test("(1) an OpenRouter Claude summarize with no routing of its own is pinned to
     effort: "none",
     maxTokens: 128,
   });
-  expect(recorded[0]?.body["provider"]).toMatchObject({ ["allow_fallbacks"]: false });
+  // `order` alone leaves fallbacks on, so both halves of the pin are read.
+  expect(recorded[0]?.body["provider"]).toEqual({ order: [ANTHROPIC_PROVIDER_NAME], ["allow_fallbacks"]: false });
 });
 
 test("(2) an extras key the OpenRouter transport cannot take is named on the item's log, not dropped silently", async () => {
