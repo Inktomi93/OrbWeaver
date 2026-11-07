@@ -220,7 +220,7 @@ test("a class an arm of the element's own component writes is a recipe move; a c
   // A boolean axis owns its class, whatever the axis is called; a class one arm repeats beside others names no choice.
   expect(brief(named(classes, "truncate"))).toEqual(["class-utility", "recipe", "text.truncate"]);
   expect(named(classes, "truncate")?.match).toBe("text.truncate.true");
-  expect(named(classes, "line-clamp-2")).toBeUndefined();
+  expect(brief(named(classes, "line-clamp-2"))).toEqual(["class-utility", "decide", "part of: text.lines.2"]);
   expect(brief(named(classes, "w-[18px]"))).toEqual(["class-utility", "token", "new token: length 18px"]);
   // `flex` has no axis; a track formula, a visibility sentinel and the theme's px step are not hand-rolled values.
   expect(named(classes, "flex")).toBeUndefined();
@@ -341,7 +341,89 @@ test("a composed axis still owns a class it picks, so a class of the family show
   );
   plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./badge": "./src/primitives/badge/index.ts" } }));
   plantFile(root, "packages/ui/src/primitives/badge/index.ts", 'export { Badge } from "./badge.tsx";');
-  expect(census(root).hits.filter((hit) => hit.detail === "px-block")).toMatchObject([{ verdict: "decide", owner: "no axis: px-block on badge" }]);
+  expect(census(root).hits.filter((hit) => hit.detail === "px-block")).toMatchObject([{ verdict: "decide", owner: "new arm: badge.size" }]);
+});
+
+test("a step that writes fewer families stays on its axis, and a one-arm axis that touches the family never takes the row", ({ scratch }) => {
+  const root = plantDir(scratch, "swatch-size");
+  plant(root, { "components/uses.tsx": 'import { Swatch } from "@orb/ui/swatch";\nexport const A = () => <Swatch className="block-(--size-control-sm)" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/primitives/swatch/variants.ts",
+    "export const swatchVariants = tv({ variants: { running: { true: 'orb-hairline block-px', false: '' }, size: { dot: 'block-2 inline-2', line: 'block-1' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/swatch/swatch.tsx",
+    "export function Swatch({ running, size, className }) {\n  return <span className={swatchVariants({ running, size, className })} />;\n}",
+  );
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./swatch": "./src/primitives/swatch/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/swatch/index.ts", 'export { Swatch } from "./swatch.tsx";');
+  expect(census(root).hits.filter((hit) => hit.detail === "block-(--size-control-sm)")).toMatchObject([{ verdict: "decide", owner: "new arm: swatch.size" }]);
+});
+
+const PART_DOORS = ["one", "two", "three", "four"] as const;
+
+/** A Box door whose `scroll` arm writes `overflow-y-auto overscroll-contain relative`, and three more doors that each need `relative`. */
+function plantPartWorn(root: string, uses: string): void {
+  plant(root, { "components/uses.tsx": uses });
+  plantFile(
+    root,
+    "packages/ui/package.json",
+    JSON.stringify({ exports: Object.fromEntries(PART_DOORS.map((door) => [`./${door}`, `./src/primitives/${door}/index.ts`])) }),
+  );
+  for (const door of PART_DOORS) {
+    const arm = door === "one" ? "overflow-y-auto overscroll-contain relative" : "relative ring";
+    plantFile(root, `packages/ui/src/primitives/${door}/index.ts`, `export { Box } from "./box.tsx";`);
+    plantFile(root, `packages/ui/src/primitives/${door}/variants.ts`, `export const boxVariants = tv({ variants: { scroll: { y: '${arm}' } } });`);
+    plantFile(
+      root,
+      `packages/ui/src/primitives/${door}/box.tsx`,
+      "export function Box({ scroll, className }) {\n  return <div className={boxVariants({ scroll, className })} />;\n}",
+    );
+  }
+}
+
+test("two classes of an arm worn together are that arm, whatever they are, and a lone class of it counts when it carries the arm's meaning", ({ scratch }) => {
+  const root = plantDir(scratch, "part-worn");
+  plantPartWorn(
+    root,
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="overscroll-contain relative" />;\nexport const B = () => <Box className="overflow-y-auto" />;',
+  );
+  const rows = census(root).hits.filter((hit) => hit.owner === "part of: box.scroll.y");
+  expect(rows.map((hit) => hit.detail).toSorted(compare)).toEqual(["overflow-y-auto", "overscroll-contain", "relative"]);
+  expect(rows.every((hit) => hit.verdict === "decide")).toBe(true);
+});
+
+test("a lone class that many doors write is the mechanism they ride on and names no arm; the whole arm is the arm's own row", ({ scratch }) => {
+  const root = plantDir(scratch, "part-mechanism");
+  plantPartWorn(
+    root,
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="relative" />;\nexport const B = () => <Box className="overflow-y-auto overscroll-contain relative" />;',
+  );
+  const hits = census(root).hits;
+  expect(hits.filter((hit) => hit.owner.startsWith("part of"))).toEqual([]);
+  expect(hits.filter((hit) => hit.owner === "box.scroll").map((hit) => hit.line)).toEqual([3, 3, 3]);
+});
+
+test("a class under a min step beside its resting class is the max-step arm written from the other side", ({ scratch }) => {
+  const root = plantDir(scratch, "mirror");
+  plant(root, {
+    "components/uses.tsx":
+      'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="flex-col @cq-32:flex-row" />;\nexport const B = () => <Row className="@cq-32:flex-row" />;',
+  });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    "export const rowVariants = tv({ variants: { stackBelow: { 'cq-28': '@max-cq-28:flex-col', 'cq-32': '@max-cq-32:flex-col' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Row({ stackBelow, className }) {\n  return <div className={rowVariants({ stackBelow, className })} />;\n}",
+  );
+  const rows = census(root).hits.filter((hit) => hit.owner === "mirror of: row.stackBelow");
+  expect(rows.map((hit) => [hit.line, hit.detail])).toEqual([[2, "@cq-32:flex-row"]]);
 });
 
 test("a class held in a constant is judged on the element that wears it, and a plan leaves it for review", ({ scratch }) => {
@@ -656,6 +738,53 @@ const MIGRATING = [
   "  </>",
   ");",
 ].join("\n");
+
+/** A door whose wrapper hands `size` on inside `scale` and takes its own default for it, as Button does over ButtonCore. */
+function plantScaledButton(root: string, uses: string): void {
+  plant(root, { "components/uses.tsx": uses });
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/button/index.ts", 'export { Button } from "./button.tsx";');
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/variants.ts",
+    "export const buttonVariants = tv({ variants: { stretch: { row: 'flex-1 min-inline-0', line: 'px-field inline-full' }, size: { sm: 'px-row', md: 'px-block', lg: 'flex-none' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/core.tsx",
+    [
+      "export function ButtonCore(props) {",
+      "  const { className, scale, stretch } = props;",
+      "  return <button className={buttonVariants({ size: scale?.size, stretch, className })} />;",
+      "}",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/button.tsx",
+    'export function Button({ size = "md", ...rest }) {\n  return <ButtonCore {...rest} scale={{ size }} />;\n}',
+  );
+}
+
+test("a Button arm plans whole on a wrapper, and an arm with one refused class stays whole for review", ({ scratch }) => {
+  const root = plantDir(scratch, "whole-arm");
+  plantScaledButton(
+    root,
+    [
+      'import { Button } from "@orb/ui/button";',
+      'export const A = () => <Button className="flex-1 min-inline-0" />;',
+      'export const B = () => <Button className="px-field inline-full" />;',
+    ].join("\n"),
+  );
+  expect(migrate(root, "plan", "button.stretch").code).toBe(0);
+  const plan = planOf(root);
+  expect(plan.sites.map((site) => [site.line, site.token, site.value])).toEqual([
+    [2, "flex-1", "row"],
+    [2, "min-inline-0", "row"],
+  ]);
+  expect(plan.review.map((site) => site.token).toSorted(compare)).toEqual(["inline-full", "px-field"]);
+  expect(plan.review.find((site) => site.token === "inline-full")?.reason).toContain("moves whole");
+});
 
 test("a plan lists a row only when the arm writes exactly its class on a named component, and sends every other row to review", ({ scratch }) => {
   const root = plantDir(scratch, "migration-plan");

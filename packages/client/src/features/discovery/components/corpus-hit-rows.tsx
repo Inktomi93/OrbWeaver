@@ -78,7 +78,8 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
               {occurrences.map((segment, index) => (
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button
-                    className="justify-start max-inline-full"
+                    className="max-inline-full"
+                    justify="start"
                     variant="ghost"
                     ink="muted"
                     size="sm"

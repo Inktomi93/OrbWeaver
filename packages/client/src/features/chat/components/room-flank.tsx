@@ -61,14 +61,12 @@ export function FlankColumn({
       paddingBlockStart={flank.panelMode ? "clearance" : "block"}
       cap={flank.panelMode ? undefined : "sidebar"}
       width={flank.panelMode ? "sidebarSm" : undefined}
+      scroll={flank.panelMode ? "y" : undefined}
+      layer={overlaid ? "raised" : undefined}
       className={cn(
         "empty:hidden",
         flank.panelMode
-          ? cn(
-              "relative overflow-y-auto min-block-0",
-              !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
-              overlaid ? "z-(--z-raised)" : undefined,
-            )
+          ? cn("min-block-0", !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0")
           : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2",
       )}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
@@ -102,7 +100,7 @@ export function FlankEdge({
     return null;
   }
   return (
-    <Row className="absolute inset-e-0 inset-bs-0 z-(--z-raised)">
+    <Row className="absolute inset-e-0 inset-bs-0" layer="raised">
       <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} ref={controlRef} />
     </Row>
   );

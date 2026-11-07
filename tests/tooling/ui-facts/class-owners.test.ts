@@ -52,6 +52,25 @@ test("a class no forwarded axis writes has no owner", ({ scratch }) => {
   expect(ownerOf("elsewhere", "Row", "justify-end", [])).toBeNull();
 });
 
+test("a wrapper answers for the axes it hands on inside a carrying prop, and for no other the core computes", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  const square = ["shrink-0", "p-0"];
+  const wrap = ["py-tight", "whitespace-normal", "block-auto"];
+  expect(ownerOf("button", "Button", "p-0", square)).toEqual({ axis: "button.square", prop: "square", arm: "true" });
+  expect(ownerOf("button", "Button", "block-auto", wrap)).toEqual({ axis: "button.wrap", prop: "wrap", arm: "true" });
+  expect(ownerOf("button", "Button", "block-(--size-control-sm)", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
+  expect(ownerOf("button", "Button", "block-(--size-touch-target)", [])).toEqual({ axis: "button.size", prop: "size", arm: "chip" });
+  expect(ownerOf("button", "Button", "shadow-cta", [])).toBeNull();
+});
+
+test("a class under a container step no arm writes belongs to the ramp of that step's axis", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("layout", "Row", "@max-cq-48:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
+  expect(ownerOf("layout", "Row", "flex-col", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "hover:flex-col", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toBeNull();
+});
+
 test("an arm that writes a part inside the component owns nothing on its root", ({ scratch }) => {
   const ownerOf = owners(scratch);
   expect(ownerOf("layout", "Panel", "font-bold", [])).toBeNull();
@@ -74,7 +93,7 @@ test("the real Row owns each class it writes below a container step, on the step
   expect(ownerOf("layout", "Row", "@max-cq-32:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: "cq-32" });
   expect(ownerOf("layout", "Row", "@max-cq-28:items-stretch", [])).toEqual({ axis: "row.stretchBelow", prop: "stretchBelow", arm: "cq-28" });
   expect(ownerOf("layout", "Row", "@max-cq-64:justify-end", [])).toEqual({ axis: "row.endBelow", prop: "endBelow", arm: "cq-64" });
-  expect(ownerOf("layout", "Row", "@max-cq-20:flex-col", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "@max-cq-20:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
 });
 
 test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", () => {

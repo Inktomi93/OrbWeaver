@@ -51,7 +51,7 @@ export function CorpusHomeSkeleton(): ReactElement {
     <Stack aria-busy={true} data-slot="corpus-home-skeleton" gap="section">
       <Stack gap="tight">
         <Skeleton className="block-(--leading-micro) inline-1/6" />
-        <Skeleton className="block-(--size-avatar-md) inline-2/3" />
+        <Skeleton className="block-(--size-avatar-md)" variant="text" />
       </Stack>
       <Grid cols="leadEarly" gap="gutter">
         <Card className="min-inline-0">

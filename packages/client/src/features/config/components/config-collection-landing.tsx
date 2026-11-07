@@ -241,7 +241,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
         <Row align="center" className="flex-wrap" gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0"
+            className="flex-1 basis-(--width-field-floor) min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {

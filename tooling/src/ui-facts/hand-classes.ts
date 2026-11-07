@@ -2,7 +2,17 @@
 import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import { coveredJudgement, elementRefOf, kebab, newArmJudgement, undeclaredJudgement, writingAxis, ZERO_STEP } from "./hand-arms.ts";
+import {
+  coveredJudgement,
+  elementRefOf,
+  kebab,
+  mirrorJudgement,
+  newArmJudgement,
+  partArmJudgement,
+  undeclaredJudgement,
+  writingAxis,
+  ZERO_STEP,
+} from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -214,7 +224,11 @@ function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: 
     return null;
   }
   return (
-    newArmJudgement(elem, token, guarded, context.components) ?? undeclaredJudgement(elem, token, context.components) ?? sideInsetJudgement(elem, token, base)
+    mirrorJudgement(elem, token, siblings, context.components) ??
+    newArmJudgement(elem, token, guarded, context.components) ??
+    partArmJudgement(elem, token, siblings, context.components) ??
+    undeclaredJudgement(elem, token, context.components) ??
+    sideInsetJudgement(elem, token, base)
   );
 }
 

@@ -91,6 +91,7 @@ export interface BandProps
     | "focal"
     | "shape"
     | "selection"
+    | "justify"
     | "size"
     | "hiddenAt"
     | "touchFloor"
@@ -135,7 +136,7 @@ export interface BandProps
  *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
  *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
  *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = "min-inline-0 inline-full justify-start gap-tight px-tight";
+const BAND_CHASSIS = "min-inline-0 inline-full gap-tight px-tight";
 
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
@@ -151,6 +152,7 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
   return (
     <Button
       className={cn(BAND_CHASSIS, className) ?? ""}
+      justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}
       variant="ghost"

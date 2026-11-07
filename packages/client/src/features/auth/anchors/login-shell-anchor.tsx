@@ -53,7 +53,7 @@ function useLoginColorScheme(): void {
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
   useLoginColorScheme();
   return (
-    <Stack className="relative overflow-y-auto" height="viewport" data-testid={testId("loginPage")} ground="background">
+    <Stack height="viewport" scroll="y" data-testid={testId("loginPage")} ground="background">
       <Layer className="shrink-0 min-block-full">
         <LoginWeaveBackdrop />
         <Stack align="center" justify="start" padding="section">

@@ -40,6 +40,8 @@ export interface ComponentRecipe {
   readonly doorRefusals: ReadonlyMap<string, string>;
   /** Axis to the arm the door itself passes, or null for a value it computes; the caller's prop never reaches such an axis. */
   readonly chosen: ReadonlyMap<string, string | null>;
+  /** Axis to the prop that carries it: the door reads it as a member of that prop (`size: scale?.size`), so a wrapper hands it on inside that prop. */
+  readonly carried: ReadonlyMap<string, string>;
   /** The tables the door applies, as their exporting file and name, so a check can call the real recipes. */
   readonly applied: readonly TableRef[];
 }
@@ -197,6 +199,15 @@ const chosenIn = (object: ts.ObjectLiteralExpression | undefined): readonly (rea
       ? [[property.name.getText(), literalArm(unwrap(property.initializer))] as const]
       : [],
   );
+
+/** The axes a call reads as the same-named member of one identifier, with that identifier. */
+const carriedIn = (object: ts.ObjectLiteralExpression | undefined): readonly (readonly [string, string])[] =>
+  (object?.properties ?? []).flatMap((property) => {
+    const value = ts.isPropertyAssignment(property) ? unwrap(property.initializer) : undefined;
+    return value !== undefined && ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.name.text === property.name?.getText()
+      ? [[value.name.text, value.expression.text] as const]
+      : [];
+  });
 
 const firstFunction = (body: ts.Node): ts.SignatureDeclaration | undefined => {
   let found: ts.SignatureDeclaration | undefined;
@@ -453,6 +464,7 @@ function recipeOf(body: ts.Node, { index, stamped }: ReadContext, tables: Readon
     sideReads: new Set([...declared.keys()].filter((axis) => reads.has(axis))),
     doorRefusals,
     chosen: new Map([...chosen, ...paramEntries.filter(([, arm]) => arm === null)]),
+    carried: new Map(applied.flatMap(({ call }) => carriedIn(call?.arguments.find(ts.isObjectLiteralExpression)))),
     applied: [...new Map(applied.map(({ name, table }) => [name, { file: table.file, name }])).values()],
   };
 }
@@ -490,7 +502,30 @@ function wrapperRecipe(body: ts.Node, components: ReadonlyMap<string, ComponentR
     ),
   );
   const taken = [...destructuredNames(body)].filter((name) => !passedByName.has(name));
-  return { ...core, axes: new Map([...core.axes].filter(([axis]) => !taken.includes(axis))) };
+  const handed = handedInside(element, core);
+  const params = [...(paramDefaults(body) ?? [])].flatMap(([axis, arm]) => (arm === null ? [] : [[axis, arm] as const]));
+  return {
+    ...core,
+    axes: new Map([...core.declared].filter(([axis]) => handed.has(axis) || (core.axes.has(axis) && !taken.includes(axis)))),
+    chosen: new Map([...core.chosen].filter(([axis]) => !handed.has(axis))),
+    defaults: new Map([...core.defaults, ...params]),
+  };
+}
+
+/** The axes a wrapper hands on inside the prop that carries them (`scale={{ size, square }}`): the caller's own prop reaches each one. */
+function handedInside(element: ts.JsxSelfClosingElement, core: ComponentRecipe): ReadonlySet<string> {
+  return new Set(
+    element.attributes.properties.flatMap((attribute) => {
+      const value =
+        ts.isJsxAttribute(attribute) && attribute.initializer !== undefined && ts.isJsxExpression(attribute.initializer)
+          ? attribute.initializer.expression
+          : undefined;
+      const object = value === undefined ? undefined : unwrap(value);
+      return object !== undefined && ts.isObjectLiteralExpression(object)
+        ? [...forwardedBy(object)].filter((axis) => core.carried.get(axis) === attribute.name?.getText())
+        : [];
+    }),
+  );
 }
 
 const componentsOf = (inDoor: readonly Source[]): readonly (readonly [string, ts.Node])[] =>

@@ -76,7 +76,8 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
             <TooltipTrigger
               render={
                 <Button
-                  className="justify-start max-inline-full min-inline-0"
+                  className="max-inline-full min-inline-0"
+                  justify="start"
                   variant="ghost"
                   size="sm"
                   onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}

@@ -107,6 +107,8 @@ const PADDING_INLINE_END_NARROW = {
 // A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
 // parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent.
 const INDENT = { true: "ps-block", false: "" } as const;
+// The layer a box takes in its stacking context: `raised` floats over its siblings, `overlay` over the raised ones.
+const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A capped box centres in the room its cap leaves.
 const CENTRED = { true: "mx-auto", false: "" } as const;
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
@@ -293,6 +295,7 @@ export const stackVariants = tv({
     paddingInlineNarrow: PADDING_INLINE_NARROW,
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
+    layer: LAYER,
     reach: REACH,
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
@@ -416,6 +419,7 @@ export const rowVariants = tv({
     paddingInlineNarrow: PADDING_INLINE_NARROW,
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
+    layer: LAYER,
     reach: REACH,
     // `REACH` to a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps that inset as its own,
     // and a `foot` keeps the card's text inset, so its group ends at the card's corner.

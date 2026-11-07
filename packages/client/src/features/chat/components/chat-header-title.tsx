@@ -106,7 +106,8 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
         size="sm"
         // The date is visible inside the button, so the name carries it after the stable identity (WCAG 2.5.3).
         aria-label={renameChatButtonName(label, roomName, timeLib.formatDate(createdAt))}
-        className="shell-topbar-title-group shrink justify-start min-inline-0"
+        className="shell-topbar-title-group min-inline-0"
+        justify="start"
         ref={(node: HTMLButtonElement | null): void => {
           if (node !== null && restoreFocus.current) {
             restoreFocus.current = false;

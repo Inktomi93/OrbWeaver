@@ -90,7 +90,8 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
         renderItem={(gem, index): ReactElement => (
           <Stack gap="tight">
             <Button
-              className="items-start justify-start text-start inline-full"
+              className="items-start inline-full"
+              justify="start"
               variant="ghost"
               onClick={(): void => selectCorpusCharacter(gem.characterId)}
               size="sm"

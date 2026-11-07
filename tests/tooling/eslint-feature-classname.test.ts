@@ -154,6 +154,21 @@ test.for([
   ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
   ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
   ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-md)" />);\n`, "is a step `width` chooses among"],
+  [
+    "a square a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="shrink-0 p-0" />);\n',
+    "`square={true}`",
+  ],
+  [
+    "a wrap a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="py-tight whitespace-normal block-auto" />);\n',
+    "`wrap={true}`",
+  ],
+  [
+    "a size a Button's scale writes",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="block-(--size-control-sm)" />);\n',
+    '`size="sm"`',
+  ],
   ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
   ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-section" />);\n`, "`-mx-section` is `reach="],

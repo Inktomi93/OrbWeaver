@@ -133,8 +133,16 @@ interface ClassRead {
   readonly unread: boolean;
 }
 
+/** The value a member read names, `SIZES.sm` of a const object: an arm writes that member, never its siblings. */
+function memberOf(node: ts.Identifier, index: ScaleIndex, hops: number): ts.Expression | undefined {
+  const { parent } = node;
+  const object = ts.isPropertyAccessExpression(parent) && parent.expression === node ? objectOf(node, index, hops) : null;
+  const found = object?.properties.find((property) => property.name?.getText() === (parent as ts.PropertyAccessExpression).name.text);
+  return found !== undefined && ts.isPropertyAssignment(found) ? found.initializer : undefined;
+}
+
 function readName(node: ts.Identifier, index: ScaleIndex, hops: number): ClassRead {
-  const target = hops < MAX_HOPS ? resolveConst(node, index) : null;
+  const target = hops < MAX_HOPS ? (memberOf(node, index, hops) ?? resolveConst(node, index)) : null;
   return target === undefined || target === null ? { tokens: [], unread: true } : readClasses(target, index, hops + 1);
 }
 

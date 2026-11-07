@@ -44,7 +44,7 @@ export function PersonaAccountFoot(): ReactElement {
         <Button
           variant="ghost"
           size="sm"
-          className="justify-start"
+          justify="start"
           disabled={signingOut}
           data-testid={testId("accountLogout")}
           onClick={(): void => {

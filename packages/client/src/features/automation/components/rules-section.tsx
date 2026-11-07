@@ -64,7 +64,7 @@ function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
           <Card padding="none" key={index}>
             <Row align="center" className="min-block-(--size-control-sm)" gap="field" padding="block">
               <Stack className="min-inline-0" grow={true} gap="tight">
-                <Skeleton className="block-(--leading-label) inline-2/3" />
+                <Skeleton className="block-(--leading-label)" variant="text" />
                 <Skeleton className="block-(--leading-label) inline-full" />
                 <Skeleton className="block-(--leading-label) inline-1/2" />
               </Stack>

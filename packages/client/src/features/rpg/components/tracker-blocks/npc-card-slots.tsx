@@ -69,7 +69,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
                 type="button"
                 variant={option === kind ? "outline" : "ghost"}
                 size="sm"
-                className="justify-start"
+                justify="start"
                 onClick={(): void => {
                   if (option !== kind) {
                     onEditRelationshipKind(option);

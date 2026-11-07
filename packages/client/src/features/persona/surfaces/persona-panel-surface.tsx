@@ -238,7 +238,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
 function ManageDoor({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   const door = (
     <Button
-      className="justify-start"
+      justify="start"
       variant="ghost"
       size="sm"
       onClick={(): void => {

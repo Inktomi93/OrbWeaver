@@ -18,6 +18,10 @@ interface DeclaredAxis {
 
 const ELEMENT_ONLY_ATTRIBUTES: ReadonlySet<string> = new Set(["className", "key", "ref", "children"]);
 const MIN_FAMILY_CHOICES = 2;
+const ROOT_SLOT = "root";
+const MIN_STEP = /^@cq-(\d+):$/u;
+const MIN_PART_WORN = 2;
+const MECHANISM_DOORS = 4;
 /** A zero step is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it. */
 export const ZERO_STEP = /-0$/u;
 
@@ -73,15 +77,37 @@ const writesFamily = (arm: Arm, base: string): boolean => arm.tokens.some((token
 
 const coveredBy = (from: readonly string[], onto: readonly string[]): boolean => from.every((token) => onto.some((other) => sameFamily(token, other)));
 
+const plainArms = (arms: ArmClasses): readonly (readonly string[])[] =>
+  armsOf(arms)
+    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""))
+    .filter((tokens) => tokens.length > 0);
+
 /**
  * The writing arms are alternatives: each writes the same utility families. Arms that each compose a different set of classes are named
  * compositions, not a ramp, so a new class of the family is no arm of theirs. It decides that label alone: such an axis still picks its family.
  */
 function alternatives(arms: ArmClasses): boolean {
-  const plain = armsOf(arms)
-    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""))
-    .filter((tokens) => tokens.length > 0);
+  const plain = plainArms(arms);
   return plain.every((one) => coveredBy(one, plain[0] ?? []) && coveredBy(plain[0] ?? [], one));
+}
+
+/** One arm's families hold every other arm's, so a step that writes fewer of them (a bar's height alone beside squares) is still a step of this axis. */
+function nested(arms: ArmClasses): boolean {
+  const plain = plainArms(arms);
+  return plain.some((widest) => plain.every((one) => coveredBy(one, widest)));
+}
+
+const VARIANT_STEP = /\d+/gu;
+const variantStem = (token: string): string => baseOf(token).variants.replaceAll(VARIANT_STEP, "");
+
+/** Every arm writes the same class under one kind of variant and the steps differ, as `stackBelow` does: that class at another step is a step of this ramp. */
+function conditionalRamp(arms: ArmClasses, token: string): boolean {
+  const stem = variantStem(token);
+  const writing = armsOf(arms)
+    .flatMap((arm) => arm.tokens)
+    .filter((written) => variantStem(written) === stem && baseOf(written).base === baseOf(token).base);
+  const every = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  return stem !== "" && new Set(writing).size >= MIN_FAMILY_CHOICES && writing.length === every.flatMap((arm) => arm.tokens).length;
 }
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
@@ -132,13 +158,71 @@ export function writingAxis(elem: Elem | null, token: string, siblings: readonly
 /** The axis whose ramp a class of this family belongs on, whether or not an arm writes the class: what the census asks a new arm of and what the lint refuses. */
 export function axisChoosing(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
   const { base } = baseOf(token);
-  return ZERO_STEP.test(base) ? undefined : [...(recipe?.axes ?? [])].find(([, arms]) => picksFamily(arms, base) && alternatives(arms));
+  return ZERO_STEP.test(base)
+    ? undefined
+    : [...(recipe?.axes ?? [])].find(([, arms]) => (picksFamily(arms, base) && alternatives(arms)) || conditionalRamp(arms, token));
+}
+
+const doorsWriting = (token: string, components: ComponentTables): number =>
+  [...components.values()].filter((door) =>
+    [...door.values()].some((recipe) => [...recipe.declared.values()].some((arms) => armsOf(arms).some((arm) => arm.tokens.includes(token)))),
+  ).length;
+
+/**
+ * The arm a class is part of, when the element does not wear that arm whole. Two or more of an arm's classes worn together are that arm, whatever
+ * they are. A class alone counts only when it carries the arm's meaning, and it does unless {@link MECHANISM_DOORS} or more doors write it: a class
+ * that many unrelated primitives need, such as `relative` or `flex-1`, is the mechanism they ride on and names no arm. A zero step never reaches here.
+ */
+export function partArmJudgement(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
+  const worn = (arm: Arm): number => arm.tokens.filter((written) => written === token || siblings.includes(written)).length;
+  const rooted = [...(recipeOf(elem, components)?.axes ?? [])].flatMap(([axis, arms]) =>
+    [...arms]
+      .filter(([, arm]) => arm.tokens.length > 1 && arm.tokens.includes(token) && arm.slots.every((slot) => slot === ROOT_SLOT))
+      .map(([name, arm]) => ({ axis, name, arm })),
+  );
+  const [best] = rooted.toSorted((left, right) => worn(right.arm) - worn(left.arm));
+  if (elem === null || best === undefined || (worn(best.arm) < MIN_PART_WORN && doorsWriting(token, components) >= MECHANISM_DOORS)) {
+    return null;
+  }
+  const label = `${kebab(componentOf(elem))}.${best.axis}.${best.name}`;
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `part of: ${label}`,
+    reason: `${token} is part of ${label}, which writes ${best.arm.tokens.join(" ")}`,
+    keep: null,
+  };
+}
+
+/** A class under a container step that says the same as an arm written from the other side: `flex-col @cq-32:flex-row` is `@max-cq-32:flex-col`. */
+export function mirrorJudgement(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
+  const step = MIN_STEP.exec(baseOf(token).variants)?.[1];
+  const resting = step === undefined ? undefined : siblings.find((sibling) => baseOf(sibling).variants === "" && sameFamily(sibling, baseOf(token).base));
+  const mirror = resting === undefined ? undefined : `@max-cq-${step}:${resting}`;
+  const found =
+    mirror === undefined
+      ? undefined
+      : [...(recipeOf(elem, components)?.axes ?? [])].find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(mirror)));
+  if (elem === null || mirror === undefined || found === undefined) {
+    return null;
+  }
+  const axis = declaredAxis(elem, found[0], found[1]);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `mirror of: ${axis.label}`,
+    reason: `${resting} ${token} is ${mirror} written from the other side; ${axis.label} owns it`,
+    keep: null,
+  };
 }
 
 /** The verdict for a class of a family one of the element's axes picks within, when no arm writes the class itself; else null. */
 export function newArmJudgement(elem: Elem | null, token: string, guarded: boolean, components: ComponentTables): Judgement | null {
   const recipe = recipeOf(elem, components);
-  const found = axisChoosing(recipe, token) ?? [...(recipe?.axes ?? [])].find(([, arms]) => offersFamily(arms, baseOf(token).base));
+  const { base } = baseOf(token);
+  const axes = [...(recipe?.axes ?? [])];
+  const found =
+    axisChoosing(recipe, token) ?? axes.find(([, arms]) => picksFamily(arms, base) && nested(arms)) ?? axes.find(([, arms]) => offersFamily(arms, base));
   if (elem === null || found === undefined) {
     return null;
   }

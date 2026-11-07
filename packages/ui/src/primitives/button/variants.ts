@@ -48,6 +48,8 @@ export const buttonVariants = tv({
     // A button that is a row's door: it takes the room left beside its siblings and sets its label at the start.
     // `line` is a whole list line: the full width and the field inset, its text set at the start.
     stretch: { row: "flex-1 justify-start min-inline-0", line: "px-field text-start inline-full" },
+    // A label set at the line's start: the content packs to the start, and a label that wraps stays there.
+    justify: { start: "justify-start text-start" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
