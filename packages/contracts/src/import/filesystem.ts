@@ -19,7 +19,8 @@ export interface ImportDirectory extends AsyncDisposable {
    *  `ImportInfraFailureError` naming the dir and `readdir`. */
   readonly list: () => Promise<readonly FsDirEntry[]>;
   /** Null for a MISSING child, or one a file occupies: a profile may carry only one plane. A dangling link and an
-   *  infrastructure fault must reject, because reading either as absent drops the plane's data silently. */
+   *  infrastructure fault must reject, because reading either as absent drops the plane's data silently. A dangling
+   *  link at the top of a tree lists as `other`: it is no plane, and nothing opens it. */
   readonly openDirectory: (name: string) => Promise<ImportDirectory | null>;
   readonly readFile: (name: string) => Promise<Uint8Array>;
   readonly stat: (name: string) => Promise<{ readonly size: number }>;

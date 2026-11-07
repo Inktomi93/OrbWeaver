@@ -242,7 +242,8 @@ async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wra
   const files: StagedFile[] = [];
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
-    if (relTarget === STAGED_MANIFEST_FILE) {
+    // A case-insensitive disk holds both spellings at one name, and the manifest is written there last.
+    if (relTarget.toLowerCase() === STAGED_MANIFEST_FILE.toLowerCase()) {
       throw new TreeRejected(BAD_REQUEST, `reserved file name: ${relTarget}`);
     }
     await stagePart(stagedRoot, relTarget, part.bytes);

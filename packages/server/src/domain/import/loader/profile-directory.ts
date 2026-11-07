@@ -131,7 +131,8 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
 
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
  *  non-profile entry (a stray file, a `_cache` dir with no `characters/`) yields an empty collect and adds
- *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. */
+ *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. An `other` entry, such as a link
+ *  whose target is gone, may have been a profile, so the report names it. */
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCollected> {
   const { fs, signal } = deps;
   const bundles: CollectedCard[] = [];
@@ -174,6 +175,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   for (const ent of ((await root?.list()) ?? []).toSorted((a, b) => a.name.localeCompare(b.name))) {
     if (signal.aborted) {
       break;
+    }
+    if (ent.kind === "other") {
+      r.unhandled.push(ent.name);
     }
     await using profile = ent.kind === "directory" ? ((await root?.openDirectory(ent.name)) ?? null) : null;
     if (profile === null) {

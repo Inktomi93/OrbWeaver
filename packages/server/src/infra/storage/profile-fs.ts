@@ -115,22 +115,20 @@ function childOf(path: string, name: string): string {
   return join(path, name);
 }
 
-async function linkKind(path: string): Promise<FsEntry["kind"]> {
+async function linkKind(path: string, danglingKind: FsEntry["kind"]): Promise<FsEntry["kind"]> {
   try {
     return (await stat(path)).isDirectory() ? "directory" : "other";
   } catch (error) {
-    // A link with no target lists as a directory, so a collector that wants this plane opens it and gets the failure
-    // that names it. An entry nothing reads stays harmless. Any other fault is an infrastructure fault.
     if (isMissingFile(error) || errnoCode(error) === NOT_A_DIRECTORY_CODE) {
-      return "directory";
+      return danglingKind;
     }
     throw error;
   }
 }
 
-async function operatorEntryKind(path: string, entry: Dirent): Promise<FsEntry["kind"]> {
+async function operatorEntryKind(path: string, entry: Dirent, danglingKind: FsEntry["kind"]): Promise<FsEntry["kind"]> {
   if (entry.isSymbolicLink()) {
-    return await linkKind(join(path, entry.name));
+    return await linkKind(join(path, entry.name), danglingKind);
   }
   if (entry.isFile()) {
     return "file";
@@ -138,9 +136,15 @@ async function operatorEntryKind(path: string, entry: Dirent): Promise<FsEntry["
   return entry.isDirectory() ? "directory" : "other";
 }
 
-async function operatorDirectoryAt(path: string): Promise<ImportDirectory | null> {
+// Inside a profile a link with no target lists as a directory, so the collector that wants that plane opens it and gets
+// the failure that names it, and one nothing reads stays harmless. At the top of the tree the loader opens every
+// directory as a candidate profile, so a stray link there lists as `other` or it would fail the whole run.
+const PROFILE_DANGLING_KIND = "directory" satisfies FsEntry["kind"];
+const TREE_TOP_DANGLING_KIND = "other" satisfies FsEntry["kind"];
+
+async function operatorDirectoryAt(path: string, danglingKind: FsEntry["kind"]): Promise<ImportDirectory | null> {
   try {
-    return (await stat(path)).isDirectory() ? operatorDirectory(path) : null;
+    return (await stat(path)).isDirectory() ? operatorDirectory(path, danglingKind) : null;
   } catch (error) {
     if (!isMissingFile(error) && errnoCode(error) !== NOT_A_DIRECTORY_CODE) {
       throw error;
@@ -153,14 +157,16 @@ async function operatorDirectoryAt(path: string): Promise<ImportDirectory | null
   }
 }
 
-function operatorDirectory(path: string): ImportDirectory {
+function operatorDirectory(path: string, danglingKind: FsEntry["kind"]): ImportDirectory {
   return {
     path,
     list: async (): Promise<readonly FsEntry[]> => {
       const entries = await readdir(path, { withFileTypes: true });
-      return await Promise.all(entries.map(async (entry): Promise<FsEntry> => ({ name: entry.name, kind: await operatorEntryKind(path, entry) })));
+      return await Promise.all(
+        entries.map(async (entry): Promise<FsEntry> => ({ name: entry.name, kind: await operatorEntryKind(path, entry, danglingKind) })),
+      );
     },
-    openDirectory: (name): Promise<ImportDirectory | null> => operatorDirectoryAt(childOf(path, name)),
+    openDirectory: (name): Promise<ImportDirectory | null> => operatorDirectoryAt(childOf(path, name), PROFILE_DANGLING_KIND),
     readFile: async (name): Promise<Uint8Array> => {
       const child = childOf(path, name);
       await using handle = await openLeaf(child);
@@ -178,7 +184,7 @@ function operatorDirectory(path: string): ImportDirectory {
 /** The operator's ST profile tree at `root`. A directory link follows at any depth; a leaf is read without following one. */
 export function createOperatorImportPort(root: string): ImportFsPort {
   return {
-    openTree: (): Promise<ImportDirectory | null> => operatorDirectoryAt(root),
+    openTree: (): Promise<ImportDirectory | null> => operatorDirectoryAt(root, TREE_TOP_DANGLING_KIND),
     join: (...parts): string => join(...parts),
   };
 }
