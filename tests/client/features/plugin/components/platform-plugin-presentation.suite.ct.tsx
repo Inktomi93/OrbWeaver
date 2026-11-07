@@ -10,10 +10,11 @@ import {
   resolvePluginBoundTiles,
 } from "@orb/contracts/plugin";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowcaseBundle } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
 import { pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
@@ -173,6 +174,12 @@ for (const viewport of VIEWPORTS) {
       await expect(hub).toBeVisible();
       await expect(sort).toBeVisible();
       await expect(sfw).toBeVisible();
+      // The switch rides beside its label, not at the far end of the row.
+      const label = await body.getByText("SFW only", { exact: true }).boundingBox();
+      const toggle = await sfw.boundingBox();
+      const gap = (toggle?.x ?? Number.POSITIVE_INFINITY) - ((label?.x ?? 0) + (label?.width ?? 0));
+      expect(gap).toBeGreaterThanOrEqual(0);
+      expect(gap).toBeLessThanOrEqual(await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`, body));
       for (const control of [hub, sort, sfw]) {
         await expectContained(control, body);
       }

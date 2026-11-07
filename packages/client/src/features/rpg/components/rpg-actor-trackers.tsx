@@ -165,7 +165,7 @@ function ActorTrackerText({
   return (
     <Row gap="field" align="baseline" justify="between">
       <Row gap="field" align="center">
-        <Text as="span" voice="label">
+        <Text as="span" inset="control" voice="label">
           {def.label}
         </Text>
         {def.hint === "" ? null : <HintTrigger className="" hint={def.hint} subject={def.label} />}
