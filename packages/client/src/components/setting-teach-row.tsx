@@ -151,7 +151,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
       {/* `@cq-32:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
           narrow arm mints an implicit second column instead of stacking. */}
       <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
-        <Text as="span" cluster="field" voice="label">
+        <Text as="span" flow="clusterField" voice="label">
           {label}
           {annotation === null ? null : <HintTrigger hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />}
         </Text>

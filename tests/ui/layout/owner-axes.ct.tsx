@@ -86,14 +86,26 @@ test("minHeight and minWidth hold a box at the control it seats", async ({ mount
   expect(stackFloor).toBe(floor);
 });
 
-test("textAlign, inset and cluster set a run's lines, inset and glyph gap", async ({ mount }) => {
+test("textAlign, inset and flow set a run's lines, inset and place among its neighbours", async ({ mount }) => {
   const component = await mount<typeof OwnerAxesStory>(STORY);
-  const read = (name: string, property: "textAlign" | "paddingInlineStart" | "display" | "columnGap"): Promise<string> =>
+  const read = (name: string, property: "textAlign" | "paddingInlineStart" | "display" | "columnGap" | "alignItems"): Promise<string> =>
     component.locator(`[data-probe="${name}"]`).evaluate((element, key) => getComputedStyle(element)[key], property);
   expect(await read("text-end", "textAlign")).toBe("end");
   expect(await read("text-inset", "paddingInlineStart")).not.toBe("0px");
   expect(await read("text-cluster", "display")).toBe("inline-flex");
   expect(await read("text-cluster", "columnGap")).not.toBe("normal");
+  expect(await read("text-flow-block", "display")).toBe("block");
+  expect(await read("heading-baseline", "display")).toBe("flex");
+  expect(await read("heading-baseline", "alignItems")).toBe("baseline");
+  expect(await read("heading-baseline", "columnGap")).not.toBe("normal");
+});
+
+test("flow seats a bubble's body beside its portrait or runs it down the card", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const direction = (name: string): Promise<string> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element) => getComputedStyle(element).flexDirection);
+  expect(await direction("bubble-weld")).toBe("row");
+  expect(await direction("bubble-stack")).toBe("column");
 });
 
 test("grow gives a Separator and an Input the room left on their line", async ({ mount }) => {

@@ -203,12 +203,15 @@ export const textVariants = tv({
     width: WIDTH,
     textAlign: TEXT_ALIGN,
     inset: RUN_INSET,
-    // A run that holds a glyph or a chip beside its words, at an atom gap.
-    cluster: {
-      plain: "inline-flex items-center",
-      tight: "inline-flex items-center gap-tight",
-      field: "inline-flex items-center gap-field",
-      line: "flex gap-field",
+    // How the run sits among its neighbours: `block` takes a line of its own; a cluster holds a glyph or a chip beside its words at an atom gap;
+    // `lineField` and `baselineRow` are the same on a whole line, the marker beside its words and a heading beside its count.
+    flow: {
+      block: "block",
+      cluster: "inline-flex items-center",
+      clusterTight: "inline-flex items-center gap-tight",
+      clusterField: "inline-flex items-center gap-field",
+      lineField: "flex gap-field",
+      baselineRow: "flex items-baseline gap-row",
     },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).

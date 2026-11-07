@@ -4,6 +4,7 @@ import { Button } from "@orb/ui/button";
 import { InlineToken } from "@orb/ui/inline-token";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
+import { MessageBubble } from "@orb/ui/message-bubble";
 import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
@@ -91,10 +92,22 @@ export function OwnerAxesStory(): ReactElement {
       <Text data-probe="text-inset" inset="control">
         a
       </Text>
-      <Text data-probe="text-cluster" cluster="tight">
+      <Text data-probe="text-cluster" flow="clusterTight">
         <span data-probe="cluster-a">a</span>
         <span data-probe="cluster-b">b</span>
       </Text>
+      <Text as="span" data-probe="text-flow-block" flow="block">
+        a
+      </Text>
+      <Heading data-probe="heading-baseline" flow="baselineRow" level={2}>
+        a
+      </Heading>
+      <MessageBubble data-probe="bubble-weld" flow="weld" messageRole="assistant">
+        a
+      </MessageBubble>
+      <MessageBubble data-probe="bubble-stack" flow="stack" messageRole="assistant">
+        a
+      </MessageBubble>
       <Row style={{ inlineSize: WRAP_HOST_PX * 2 }}>
         <Separator data-probe="separator-grow" grow={true} />
         <Input data-probe="input-grow" grow={true} aria-label="x" />

@@ -67,7 +67,8 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a figure is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
-          className="flex items-baseline gap-row min-inline-0"
+          flow="baselineRow"
+          className="min-inline-0"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}

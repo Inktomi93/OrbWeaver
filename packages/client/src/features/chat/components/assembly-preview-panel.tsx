@@ -267,7 +267,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="code" className="relative block overflow-y-auto overscroll-contain max-block-(--height-scroll-sm)" whitespace="preWrap">
+      <Text voice="code" className="relative overflow-y-auto overscroll-contain max-block-(--height-scroll-sm)" flow="block" whitespace="preWrap">
         {text}
       </Text>
     </Card>

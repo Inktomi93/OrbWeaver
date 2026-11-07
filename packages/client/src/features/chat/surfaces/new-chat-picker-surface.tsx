@@ -179,8 +179,8 @@ export function NewChatPicker(): ReactElement {
       {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
   ) : null;
-  const blankAction = (placement: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
-    <Button {...placement} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
+  const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
+    <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
       <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
       {BLANK_CHAT_NAME}
     </Button>

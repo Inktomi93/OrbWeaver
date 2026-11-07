@@ -78,7 +78,7 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
               (never a tooltip). The server has already decided how much of it this viewer may read: the host
               gets the vehicle's own error, everyone else the bare summary. */}
           {failure === null ? null : (
-            <Text className="block" data-slot="turn-tool-calls-failure" voice="gloss">
+            <Text flow="block" data-slot="turn-tool-calls-failure" voice="gloss">
               {failure}
             </Text>
           )}
@@ -121,7 +121,7 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
       {call.issues.length === 0 ? null : (
         <Stack data-slot="turn-tool-call-issues" gap="tight">
           {keyedIssues(call.issues).map(({ key, issue }) => (
-            <Text className="block" key={key} voice="gloss">
+            <Text flow="block" key={key} voice="gloss">
               {issue}
             </Text>
           ))}
@@ -130,7 +130,7 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
       {/* #1690 — SAID, not silently empty. The server withholds args it could not belt for this viewer, and a
           reader who is told nothing about that reads the absence as "the model sent nothing". */}
       {withheld === null ? null : (
-        <Text className="block" data-slot="turn-tool-call-withheld" voice="gloss">
+        <Text flow="block" data-slot="turn-tool-call-withheld" voice="gloss">
           {WITHHELD_LABEL[withheld]}
         </Text>
       )}
