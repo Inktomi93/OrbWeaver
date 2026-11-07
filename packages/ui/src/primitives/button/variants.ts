@@ -18,10 +18,13 @@ import {
   HIDDEN_AT,
   HOVER_REVEAL,
   INKS,
+  MIN_HEIGHT,
+  MIN_WIDTH,
   PUSH,
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
+  SELF,
   TEXT_ALIGN,
   TONE_ARMS,
   TONE_OUTLINE,
@@ -105,6 +108,11 @@ export const buttonVariants = tv({
     // A label that wraps at spaces inside the nowrap base, on a box that keeps its own height: an inline action over a line of prose.
     whitespace: { normal: "whitespace-normal" },
     push: PUSH,
+    self: SELF,
+    minHeight: MIN_HEIGHT,
+    minWidth: MIN_WIDTH,
+    // A disabled control keeps the pointer, so the tooltip that says why it is disabled can open.
+    explainsDisabled: { true: "data-disabled:pointer-events-auto" },
     // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
     // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by
     // stylesheet order.

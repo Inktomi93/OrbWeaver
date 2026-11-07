@@ -91,7 +91,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             aria-label={CHAT_SEND_NAME}
             onClick={props.onSend}
             shape="pill"
-            className="data-disabled:pointer-events-auto"
+            explainsDisabled={true}
           >
             <Icon icon={Send} size="sm" />
           </GlyphButton>

@@ -8,6 +8,7 @@ import {
   CORNER,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
+  FILL,
   FLOOR,
   FOCUS_RING,
   GROUND,
@@ -278,7 +279,6 @@ const PINNED = {
 const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
 
 // `fill` takes the parent's whole block size.
-const FILL = { true: "block-full", false: "" } as const;
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";
@@ -513,6 +513,8 @@ export const sectionVariants = tv({
     cap: { reading: { root: CAP.reading } },
     width: { full: { root: WIDTH.full } },
     fill: { true: { root: "block-full" }, false: { root: "" } },
+    // A section whose only body is grafted in leaves the page with it, kicker and all.
+    hiddenAt: { emptyBody: { root: HIDDEN_AT.emptyBody } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
       true: { heading: "border-be border-border pbe-field" },

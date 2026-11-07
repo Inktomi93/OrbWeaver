@@ -57,7 +57,6 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { InlineList, Row, Stack } from "@orb/ui/layout";
-import { cn } from "@orb/ui/lib";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -224,13 +223,11 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
       // always fits where the tile fit, and only its caption pays for it (its `max-inline` clamps the captioned
       // cell width below, which is why the two can be spelled together).
-      className={
-        cn(
-          "shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)",
-          caption ? "inline-(--size-avatar-hero)" : undefined,
-          squeezed && "max-inline-(--size-control-md)",
-        ) ?? ""
-      }
+      minHeight="controlMd"
+      minWidth="controlMd"
+      width={caption ? "avatarHero" : undefined}
+      cap={squeezed ? "controlMd" : undefined}
+      className="shrink-0"
       data-face-key={faceKey(item)}
       data-face-squeezed={squeezed ? "" : undefined}
       variant="ghost"

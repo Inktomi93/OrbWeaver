@@ -576,6 +576,33 @@ function handedInside(wrapper: string, element: ts.JsxOpeningLikeElement, core: 
   );
 }
 
+/**
+ * A named component in its own door over a family core (`PictureButton` over `ButtonCore`): the recipe it applies itself, then every axis the core takes
+ * through its spread. The core's order leads, because the component's own table merges after the core's.
+ */
+function throughCore(own: ComponentRecipe | undefined, wrapped: ComponentRecipe): ComponentRecipe {
+  if (own === undefined) {
+    return wrapped;
+  }
+  const joined = <Value>(pick: (recipe: ComponentRecipe) => ReadonlyMap<string, Value>): ReadonlyMap<string, Value> =>
+    new Map([...pick(wrapped), ...pick(own)]);
+  return {
+    ...wrapped,
+    axes: joined(({ axes }) => axes),
+    declared: joined(({ declared }) => declared),
+    base: [...wrapped.base, ...own.base],
+    unread: new Set([...wrapped.unread, ...own.unread]),
+    defaults: joined(({ defaults }) => defaults),
+    compounds: [...wrapped.compounds, ...own.compounds],
+    compoundsUnread: wrapped.compoundsUnread || own.compoundsUnread,
+    doorClasses: joined(({ doorClasses }) => doorClasses),
+    sideReads: new Set([...wrapped.sideReads, ...own.sideReads]),
+    doorRefusals: joined(({ doorRefusals }) => doorRefusals),
+    chosen: joined(({ chosen }) => chosen),
+    applied: [...wrapped.applied, ...own.applied],
+  };
+}
+
 const componentsOf = (inDoor: readonly Source[]): readonly (readonly [string, ts.Node])[] =>
   inDoor.filter((candidate) => candidate.path.endsWith(".tsx")).flatMap((source) => (source.sf === null ? [] : componentsIn(source.sf)));
 
@@ -611,11 +638,25 @@ function doorComponents(inDoor: readonly Source[], context: ReadContext): Readon
 export function componentTables(root: string, sources: readonly Source[]): ComponentTables {
   const context: ReadContext = { index: scaleIndex(sources), stamped: stampedAxes(sources) };
   const result = new Map<string, ReadonlyMap<string, ComponentRecipe>>();
-  for (const [door, dir] of doorDirs(root)) {
-    const components = doorComponents(
-      sources.filter((source) => source.layer === "ui" && source.sf !== null && dirname(source.path) === dir),
-      context,
-    );
+  const inDoors = [...doorDirs(root)].map(
+    ([door, dir]) => [door, sources.filter((source) => source.layer === "ui" && source.sf !== null && dirname(source.path) === dir)] as const,
+  );
+  for (const [door, inDoor] of inDoors) {
+    const components = doorComponents(inDoor, context);
+    if (components.size > 0) {
+      result.set(door, components);
+    }
+  }
+  // A core carries axes in a prop for the named components over it, and those live in doors of their own.
+  const cores = new Map([...result.values()].flatMap((components) => [...components].filter(([, recipe]) => recipe.carried.size > 0)));
+  for (const [door, inDoor] of inDoors) {
+    const components = new Map(result.get(door));
+    for (const [name, body] of componentsOf(inDoor).filter(([declared]) => !cores.has(declared))) {
+      const wrapped = wrapperRecipe(name, body, cores);
+      if (wrapped !== undefined) {
+        components.set(name, throughCore(components.get(name), wrapped));
+      }
+    }
     if (components.size > 0) {
       result.set(door, components);
     }

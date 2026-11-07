@@ -75,7 +75,8 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       {empty || !windowed ? null : (
         <VirtualList
           aria-label={TAG_LIST_NAME}
-          className="flex-1 min-block-0"
+          className="min-block-0"
+          grow={true}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           fadeEdge={true}
           gapToken="field"
@@ -160,7 +161,7 @@ function LabelsPruneConfirm({
         hasUnused ? (
           <VirtualList
             aria-label="Tags to delete"
-            className="block-(--height-scroll-md)"
+            height="scrollMd"
             estimateSize={(): number => ESTIMATED_ROW_PX}
             getItemKey={(tag): string => tag.id}
             items={unused}

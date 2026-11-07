@@ -8,5 +8,7 @@ export const pictureButtonVariants = tv({
     // Whether the shared recipe paints a style. Unpainted, the button draws nothing at any state: the art stays the
     // affordance and dims a step on hover instead of gaining a tint.
     painted: { true: "", false: "cursor-pointer bg-transparent text-current hover:opacity-hover" },
+    // A tile with a caption under its picture: `start` sets the caption at the tile's start, and `centre` holds a lone mark in the middle of the tile.
+    caption: { start: "flex-col items-stretch gap-tight text-start", centre: "flex-col items-center justify-center gap-tight" },
   },
 });

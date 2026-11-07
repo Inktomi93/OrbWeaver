@@ -155,7 +155,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                 // and unusable by anyone. The name is the FULL name (the visible line clamps; the NAME never
                 // does), and the pitch rides `aria-describedby`, which is what a description is for.
                 aria-label={character.name}
-                className="flex-col items-stretch gap-tight text-start"
+                caption="start"
                 variant="ghost"
                 onClick={(): void => {
                   if (character.lastChatId !== null) {
@@ -228,7 +228,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
           );
         })}
       </Stack>
-      <PictureButton className="snap-start flex-col items-center justify-center gap-tight" variant="ghost" onClick={(): void => setActiveSection("characters")}>
+      <PictureButton caption="centre" className="snap-start" variant="ghost" onClick={(): void => setActiveSection("characters")}>
         <Icon icon={Users} size="lg" />
         <Text as="span" voice="promoted">
           All characters

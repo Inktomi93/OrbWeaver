@@ -168,7 +168,8 @@ export function CharacterLibraryBody({
     <Stack className="min-block-0" fill={true}>
       <VirtualList
         aria-label={ariaLabel}
-        className="flex-1 min-block-0"
+        className="min-block-0"
+        grow={true}
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="row"

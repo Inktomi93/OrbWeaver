@@ -222,15 +222,15 @@ function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | unde
   }, [failed, onFailedChange]);
 }
 
+const STICKY_TOP = "sticky inset-bs-0";
+
 /** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
  *  not a fixed size. With no image the Avatar's own fallback shows. The portrait opens full size through `view`;
  *  one whose image failed to load is plain paint with no tap target, like whisper's band and echo's tile.
- *  `stickyClassName` pins the portrait to the card's top: on the portrait itself unwrapped, on its button wrapped. */
+ *  It sticks to the card's top: the portrait itself unwrapped, its button wrapped. */
 export function PortraitAvatar({
   urlAt,
   view,
-  stickyClassName,
-  className,
   size,
   shape,
   aspect,
@@ -238,11 +238,10 @@ export function PortraitAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, AvatarLookKey> &
+}: Omit<AvatarProps, "className" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly urlAt: ((cssWidth: number) => string) | undefined;
     readonly view: ArtView | null;
-    readonly stickyClassName: string;
   }): ReactElement {
   const { attach, url, failed } = useSlotImage(urlAt);
   const tappable = view !== null && !failed;
@@ -256,7 +255,8 @@ export function PortraitAvatar({
       ring={ring}
       cardCorners={cardCorners}
       fade={fade}
-      className={cn(tappable ? undefined : stickyClassName, className) ?? ""}
+      width="ripplePortrait"
+      className={tappable ? "" : STICKY_TOP}
       {...(url === undefined || failed ? {} : { src: url })}
     />
   );
@@ -264,15 +264,14 @@ export function PortraitAvatar({
     return portrait;
   }
   return (
-    <ArtButton view={view} cardCorners={cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
+    <ArtButton view={view} cardCorners={cardCorners} className={`${STICKY_TOP} shrink-0`}>
       {portrait}
     </ArtButton>
   );
 }
 
 /** The gutter chip: the Avatar with its image, opening full size through `view`. A chip whose image failed to load
- *  keeps the Avatar's initials and drops the tap target, like the other styles' art. `layoutClassName` seats the chip on
- *  whichever element is outermost: the chip, or the button that opens it. */
+ *  keeps the Avatar's initials and drops the tap target, like the other styles' art. */
 export function ChipAvatar({
   src,
   view,

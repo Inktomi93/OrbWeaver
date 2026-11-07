@@ -22,11 +22,6 @@ import { MessageNumber } from "./message-metadata-row.tsx";
 // A chip in a `1fr` rail must hug the centred column's edge or it drifts to the far side of the margin.
 const RAIL_SELF = { none: undefined, leading: "railEnd", trailing: "railStart" } as const;
 
-// Ripple's portrait column: its width token, and its phone width below the row's `md` step.
-const PORTRAIT_WIDTH = "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
-// Ripple's portrait sticks to the top of its card; the portrait itself is the sticky item only when unwrapped.
-const STICKY_TOP = "sticky inset-bs-0";
-
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
 // outer edge (away from the bubble it welds to — mirrored for role==="user") so the inner edge sits
@@ -71,21 +66,28 @@ export function renderRowAvatar(args: {
     return stickyPortrait(args, target);
   }
   // The welded portrait spans the card and has no line to align to, so only the gutter chip clears the header's first line.
+  const chip = (
+    <ChipAvatar
+      size={args.avatarSize}
+      shape={args.avatarShape}
+      aspect={args.avatarAspect}
+      ring={args.avatarRing}
+      fallbackDelay={0}
+      hueSeed={args.attribution.hueSeed}
+      // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
+      {...avatarSrcProp(args.attribution.avatarHash)}
+      view={target === null ? null : artViewOf(target, args.artControl)}
+    >
+      {initialsFor(args.attribution.name)}
+    </ChipAvatar>
+  );
+  // A chip in the header line is that line's first child, so only a chip placed outside it takes a box of its own.
+  if (!args.alignToInsideHeader && args.gutterRail === "none") {
+    return chip;
+  }
   return (
     <Row align="start" paddingBlockStart={args.alignToInsideHeader ? "row" : undefined} self={RAIL_SELF[args.gutterRail]}>
-      <ChipAvatar
-        size={args.avatarSize}
-        shape={args.avatarShape}
-        aspect={args.avatarAspect}
-        ring={args.avatarRing}
-        fallbackDelay={0}
-        hueSeed={args.attribution.hueSeed}
-        // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
-        {...avatarSrcProp(args.attribution.avatarHash)}
-        view={target === null ? null : artViewOf(target, args.artControl)}
-      >
-        {initialsFor(args.attribution.name)}
-      </ChipAvatar>
+      {chip}
     </Row>
   );
 }
@@ -163,8 +165,6 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       fade={args.mirrored ? "start" : "end"}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
-      className={PORTRAIT_WIDTH}
-      stickyClassName={STICKY_TOP}
       urlAt={portraitSource(args.attribution.avatarHash)}
       view={target === null ? null : artViewOf(target, args.artControl)}
     >

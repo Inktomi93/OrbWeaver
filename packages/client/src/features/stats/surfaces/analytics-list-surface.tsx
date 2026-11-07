@@ -144,7 +144,7 @@ function LeaderboardBody({
   return (
     <VirtualList
       aria-label="Character leaderboard"
-      className="block-full"
+      fill={true}
       estimateSize={(): number => ESTIMATED_ROW_PX}
       fadeEdge={true}
       gapToken="row"

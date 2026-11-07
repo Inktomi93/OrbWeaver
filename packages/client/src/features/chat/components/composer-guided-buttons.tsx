@@ -38,8 +38,6 @@ import { useId } from "react";
 import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
-const ICON_CONTROL_CLASS = "shrink-0 data-disabled:pointer-events-auto";
-
 /** A guided control's glyph. A glyph whose closed paths are its silhouette fills solid when the control
  *  can steer; one that cannot fill (an open arc, a multi-path mask) takes the bold stroke instead, so the
  *  steer state is always a SHAPE change, never colour alone. */
@@ -96,7 +94,8 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
             data-testid={testId(buttonTestId)}
             onClick={disabled ? undefined : onFire}
             shape="pill"
-            className={ICON_CONTROL_CLASS}
+            className="shrink-0"
+            explainsDisabled={true}
             {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
           >
             <SteerGlyph icon={icon} steering={hasText && !disabled} />
@@ -251,7 +250,8 @@ export function ImpersonateGuidedButton({
                   glyph="lg"
                   focusableWhenDisabled={true}
                   shape="pill"
-                  className={ICON_CONTROL_CLASS}
+                  className="shrink-0"
+                  explainsDisabled={true}
                   {...(hasText && !disabled ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={DRAMA} steering={hasText && !disabled} />
@@ -311,7 +311,8 @@ export function ResponseGuidedButton({
               data-testid={testId("composerGuidedResponse")}
               onClick={idle ? (): void => onFire(null) : undefined}
               shape="pill"
-              className={ICON_CONTROL_CLASS}
+              className="shrink-0"
+              explainsDisabled={true}
               {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
             >
               <SteerGlyph icon={PLAY} steering={hasText} />
@@ -343,7 +344,8 @@ export function ResponseGuidedButton({
                   glyph="lg"
                   focusableWhenDisabled={disabledReason !== undefined}
                   shape="pill"
-                  className={ICON_CONTROL_CLASS}
+                  className="shrink-0"
+                  explainsDisabled={true}
                   {...(hasText ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))}
                 >
                   <SteerGlyph icon={PLAY} steering={hasText} />

@@ -1,0 +1,11 @@
+import { FILL, GROW, HEIGHT, SCROLLER, tv } from "#lib";
+
+// The list scrolls inside a bounded box: every axis here is one way to bound it, and the parent's own bound is the other.
+export const virtualListVariants = tv({
+  base: SCROLLER,
+  variants: {
+    fill: FILL,
+    grow: GROW,
+    height: { scrollMd: HEIGHT.scrollMd },
+  },
+});

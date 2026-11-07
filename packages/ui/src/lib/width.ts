@@ -35,6 +35,7 @@ export const CAP = {
   pane: "max-inline-(--container-cq-48)",
   paneSm: "max-inline-cq-24",
   avatarHero: "max-inline-(--size-avatar-hero)",
+  controlMd: "max-inline-(--size-control-md)",
   sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 
@@ -47,7 +48,11 @@ export const HEIGHT = {
   control: "block-(--size-control-sm)",
   controlMd: "block-(--size-control-md)",
   controlLg: "block-(--size-control-lg)",
+  scrollMd: "block-(--height-scroll-md)",
 } as const;
+
+/** The box takes its parent's whole block size. */
+export const FILL = { true: "block-full", false: "" } as const;
 
 /** The least block size a box holds, by what must fit in it: the control it seats, a scroll region's floor, or a named surface. */
 export const MIN_HEIGHT = {

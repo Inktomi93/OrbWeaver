@@ -1,13 +1,15 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, gapPxFor, SCROLL_EDGE_EPSILON_PX, SCROLLER } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor, SCROLL_EDGE_EPSILON_PX } from "#lib";
+import { virtualListVariants } from "./variants.ts";
 
 // TanStack's own default, made explicit.
 const OVERSCAN = 1;
 
-export interface VirtualListProps<T> {
+export interface VirtualListProps<T> extends VariantProps<typeof virtualListVariants> {
   readonly items: readonly T[];
   /**
    * Stable per-item key — MUST be id-based, never the index. Index keys break prepend stability
@@ -64,8 +66,8 @@ const EDGE_FADE = "data-more:mask-b-from-90%";
 /**
  * The `@tanstack/react-virtual` seal: a windowed list whose virtualizer config the call site
  * cannot get wrong (`directDomUpdates`/`containerRef`/`useFlushSync: false`/position-mode DOM
- * updates/measureElement + data-index wiring). The parent must give the list a bounded height via
- * `className` — an unbounded scroll element throws at mount.
+ * updates/measureElement + data-index wiring). `fill`, `grow`, `height` or the parent must bound the
+ * list's height: an unbounded scroll element throws at mount.
  */
 export function VirtualList<T>({
   items,
@@ -77,6 +79,9 @@ export function VirtualList<T>({
   resetScrollReady = true,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
+  fill,
+  grow,
+  height,
   className,
   "aria-label": ariaLabel,
   fadeEdge = false,
@@ -168,7 +173,7 @@ export function VirtualList<T>({
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
-      className={cn(SCROLLER, fadeEdge ? EDGE_FADE : undefined, className)}
+      className={virtualListVariants({ fill, grow, height, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
       data-slot="virtual-list-scroll"
       onScroll={(event): void => {
         if (fadeEdge) {

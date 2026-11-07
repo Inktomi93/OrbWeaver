@@ -376,7 +376,7 @@ function ChatRows({
         // `"<section> list"` the pane landmark used before #493 made it read its visible band). The RAIL
         // keeps "Chats" — it names the SECTION, which is what a nav button names.
         aria-label={CHAT_LIST_NAME}
-        className="block-full"
+        fill={true}
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="tight"

@@ -11,6 +11,7 @@ export const HIDDEN_AT = {
   fine: "pointer-fine:hidden",
   always: "hidden",
   empty: "empty:hidden",
+  emptyBody: "has-[[data-section-body]:empty]:hidden",
   print: "print:hidden",
   unlessPrint: "hidden print:block",
   dialogStacked: "dialog-stacked:hidden",

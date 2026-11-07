@@ -451,14 +451,14 @@ function HostControls({
         .filter((section) => section.when?.(state) ?? true)
         .map((section) => (
           <DisclosureSection
-            className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+            hiddenAt="emptyBody"
             defaultOpen={section.defaultOpen ?? CLOSED_BY_DEFAULT}
             keepMounted={true}
             key={section.id}
             kicker={section.kicker}
             sectionId={`graft:${section.id}`}
           >
-            <Stack className="contents" data-slot="chat-settings-graft-body">
+            <Stack className="contents" data-section-body={true} data-slot="chat-settings-graft-body">
               {section.body(state)}
             </Stack>
           </DisclosureSection>

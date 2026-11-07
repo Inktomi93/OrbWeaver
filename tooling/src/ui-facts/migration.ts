@@ -114,7 +114,9 @@ function refusal(hit: Hit, owner: string, tables: ComponentTables): string | nul
   if (!(writing.includes(hit.detail) && writing.every((written) => worn.has(written)))) {
     return `arm "${arm}" writes ${writing.join(" ")}, which the class string does not hold whole`;
   }
-  const sameClass = [...axis].filter(([, written]) => written.tokens.includes(hit.detail)).map(([name]) => name);
+  const sameClass = [...axis]
+    .filter(([, written]) => written.tokens.includes(hit.detail) && written.tokens.every((token) => worn.has(token)))
+    .map(([name]) => name);
   return sameClass.length === 1
     ? moveRefusal({ token: hit.detail, axis: propOf(owner), arm }, element, recipe)
     : `arms ${sameClass.join(", ")} all write ${hit.detail}`;

@@ -131,7 +131,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList
-              className="block-full"
+              fill={true}
               endApproachRows={collection.listProps.endApproachRows}
               estimateSize={(): number => ESTIMATED_ROW_PX}
               gapToken="tight"

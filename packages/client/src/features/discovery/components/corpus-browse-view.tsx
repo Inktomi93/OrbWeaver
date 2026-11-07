@@ -184,7 +184,7 @@ function BrowseRows({
     <Stack className="min-block-0" grow={true}>
       <VirtualList
         aria-label={CORPUS_DISTILLED_CATALOG_NAME}
-        className="block-full"
+        fill={true}
         endApproachRows={collection.listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         fadeEdge={true}
