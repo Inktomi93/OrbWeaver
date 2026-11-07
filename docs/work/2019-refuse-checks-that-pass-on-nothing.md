@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-07
 priority: P3
 area: tests
+lane: main
 plan: test-foundation
 ---
 
