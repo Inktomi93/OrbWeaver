@@ -14,6 +14,7 @@
 // real free port. The row carries the `dirty` key so `removeStageDir` is a plain rmSync with no git
 // bookkeeping, and the band table lives in a scratch home so the box's real bands are never touched.
 
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -23,6 +24,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
+import { captureProcessGroup } from "@orb/tooling/floor/process/proc";
 import type { EnsureStageOps, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { markStageSettled, markStageUnsettled, registerStageRunBinding } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
@@ -69,13 +71,51 @@ async function freePort(): Promise<number> {
   return port;
 }
 
+interface OwnedGroup extends AsyncDisposable {
+  readonly pid: number;
+}
+
+/** A detached child that leads its own process group. Disposal stops that group and awaits the child's exit, so a
+ *  case that throws reaps its plant exactly as a passing one does. A group the teardown under test already
+ *  stopped is not signalled again. */
+function ownGroup(child: ChildProcess): OwnedGroup {
+  const pid = spawnedPid(child);
+  const exited = new Promise<void>((resolve) => {
+    child.once("exit", () => {
+      resolve();
+    });
+  });
+  const group = captureProcessGroup(pid);
+  return {
+    pid,
+    [Symbol.asyncDispose]: async (): Promise<void> => {
+      if (child.exitCode === null && child.signalCode === null) {
+        group.signal("SIGTERM");
+      }
+      await exited;
+    },
+  };
+}
+
+/** Spawn `script` as a detached group leader, owned before `ready` runs, so a failed readiness check reaps it too.
+ *  Returns what `ready` reports, carrying the group's lifetime. */
+async function plantGroup<T extends object>(script: string, cwd: string, ready: (pid: number) => Promise<T>): Promise<T & OwnedGroup> {
+  await using construction = new AsyncDisposableStack();
+  const child = spawn(process.execPath, [script], { cwd, detached: true, stdio: "ignore" });
+  child.unref();
+  const pid = construction.use(ownGroup(child)).pid;
+  const planted = { ...(await ready(pid)), pid };
+  const lifetime = construction.move();
+  return { ...planted, [Symbol.asyncDispose]: (): Promise<void> => lifetime.disposeAsync() };
+}
+
 /** Plant a stage: a `.cache/snap-stage/dirty` dir, and a DETACHED node process group inside it holding the
  *  row's server port, and its vite port only when `vite` answers. That is the shape `stopStage`'s band check
  *  must kill — the two facts it fences on are the port being held and the holder being stage-rooted. */
 async function plantStage(
   scratch: string,
   vite: "answers" | "closed" = "closed",
-): Promise<{ readonly dir: string; readonly port: number; readonly vitePort: number; readonly pid: number }> {
+): Promise<{ readonly dir: string; readonly port: number; readonly vitePort: number } & OwnedGroup> {
   const dir = join(scratch, ".cache", "snap-stage", "dirty");
   mkdirSync(dir, { recursive: true });
   const port = await freePort();
@@ -86,14 +126,12 @@ async function plantStage(
     script,
     `for (const port of ${JSON.stringify(listening)}) require("node:http").createServer((_q,s)=>s.end("stage")).listen(port,"127.0.0.1");\n`,
   );
-  const child = spawn(process.execPath, [script], { cwd: dir, detached: true, stdio: "ignore" });
-  child.unref();
-  const pid = child.pid;
-  expect(pid, "the planted stage child must have a pid").toBeTypeOf("number");
-  expect(await until(() => !pidAlive(pid as number) || existsSync(script)), "the planted stage child started").toBe(true);
-  // Give it a beat to actually bind: `stopStage`'s band check reads the LISTENING socket, not the pid.
-  await sleep(500);
-  return { dir, port, vitePort, pid: pid as number };
+  return await plantGroup(script, dir, async (pid) => {
+    expect(await until(() => !pidAlive(pid) || existsSync(script)), "the planted stage child started").toBe(true);
+    // Give it a beat to actually bind: `stopStage`'s band check reads the LISTENING socket, not the pid.
+    await sleep(500);
+    return { dir, port, vitePort };
+  });
 }
 
 function plantRow(input: {
@@ -125,7 +163,7 @@ function plantRow(input: {
 test("a boot-dead stage this run BOOTED leaves zero stage processes behind", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "booted-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "booted"));
+  await using planted = await plantStage(join(scratch, "booted"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "booted") });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
@@ -147,7 +185,7 @@ test("a boot-dead stage this run BOOTED leaves zero stage processes behind", { t
 test("a boot-dead readiness failure never tears down a stage this run only REUSED", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "reused-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "reused"));
+  await using planted = await plantStage(join(scratch, "reused"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "reused") });
   writeBands(home, [row]);
   // PLANTED CONTROL: the identical failure, on a row this run did not build. #324's warm-across-runs rule.
@@ -161,13 +199,12 @@ test("a boot-dead readiness failure never tears down a stage this run only REUSE
     readBands(home).map((kept) => kept.band),
     "its row survives too",
   ).toStrictEqual([9]);
-  process.kill(planted.pid, "SIGTERM");
 });
 
 test("a booted stage whose server and vite answered after the first miss is kept WARMING, not torn down", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "warming-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "warming"), "answers");
+  await using planted = await plantStage(join(scratch, "warming"), "answers");
   const row = plantRow({ dir: planted.dir, port: planted.port, vitePort: planted.vitePort, checkout: join(scratch, "warming") });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
@@ -179,13 +216,12 @@ test("a booted stage whose server and vite answered after the first miss is kept
   expect(pidAlive(planted.pid), "the cold optimize is still finishing; killing the stage restarts it from nothing").toBe(true);
   expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
   expect(readStageReaps(home), "a kept stage is not a reap").toStrictEqual([]);
-  process.kill(planted.pid, "SIGTERM");
 });
 
 test("the warm retry that misses again tears the stage down, though that run only REUSED it", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "retry-miss-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "retry-miss"));
+  await using planted = await plantStage(join(scratch, "retry-miss"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-miss"), warming: true });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
@@ -201,7 +237,7 @@ test("the warm retry that misses again tears the stage down, though that run onl
 test("the warm retry that settles clears the warming mark and leaves the stage up", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "retry-ok-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "retry-ok"));
+  await using planted = await plantStage(join(scratch, "retry-ok"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "retry-ok"), warming: true });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: false, owner: row.checkout });
@@ -211,13 +247,12 @@ test("the warm retry that settles clears the warming mark and leaves the stage u
 
   expect(pidAlive(planted.pid)).toBe(true);
   expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([undefined]);
-  process.kill(planted.pid, "SIGTERM");
 });
 
 test("another checkout bound to a warming stage cannot tear it down, miss or settle", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "sibling-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "sibling"));
+  await using planted = await plantStage(join(scratch, "sibling"));
   const row = plantRow({ dir: planted.dir, port: planted.port, checkout: join(scratch, "sibling"), warming: true });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: false, owner: join(scratch, "another-checkout") });
@@ -234,7 +269,6 @@ test("another checkout bound to a warming stage cannot tear it down, miss or set
     readBands(home).map((kept) => kept.warming),
     "and its settle does not clear the owner's mark",
   ).toStrictEqual([{ since: WARMING_SINCE }]);
-  process.kill(planted.pid, "SIGTERM");
 });
 
 test("a first miss on a stage whose server answers but whose vite does not is still boot-dead, with no warming kept", { timeout: CASE_BUDGET_MS }, async ({
@@ -242,7 +276,7 @@ test("a first miss on a stage whose server answers but whose vite does not is st
 }) => {
   const home = join(scratch, "silent-home");
   mkdirSync(home, { recursive: true });
-  const planted = await plantStage(join(scratch, "silent"), "closed");
+  await using planted = await plantStage(join(scratch, "silent"), "closed");
   const row = plantRow({ dir: planted.dir, port: planted.port, vitePort: planted.vitePort, checkout: join(scratch, "silent") });
   writeBands(home, [row]);
   registerStageRunBinding({ row, home, booted: true, owner: row.checkout });
@@ -257,7 +291,7 @@ test("a first miss on a stage whose server answers but whose vite does not is st
 
 /** A stage whose server and vite ports both answer, run outside `.cache/snap-stage` so no teardown treats it as a
  *  stage group. A child process, because the health probes block this process's event loop. */
-async function plantAnsweringPair(scratch: string): Promise<{ readonly server: number; readonly vite: number; readonly pid: number }> {
+async function plantAnsweringPair(scratch: string): Promise<{ readonly server: number; readonly vite: number } & OwnedGroup> {
   const [server, vite] = [await freePort(), await freePort()];
   mkdirSync(scratch, { recursive: true });
   const script = join(scratch, "answer.cjs");
@@ -265,42 +299,37 @@ async function plantAnsweringPair(scratch: string): Promise<{ readonly server: n
     script,
     `for (const port of [${String(server)}, ${String(vite)}]) require("node:http").createServer((_q, s) => s.end("ok")).listen(port, "127.0.0.1");\n`,
   );
-  const child = spawn(process.execPath, [script], { detached: true, stdio: "ignore" });
-  child.unref();
-  const pid = spawnedPid(child);
-  for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
-    const answered = await Promise.all(
-      [server, vite].map((port) =>
-        fetch(`http://127.0.0.1:${String(port)}/`).then(
-          () => true,
-          () => false,
+  return await plantGroup(script, scratch, async () => {
+    for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
+      const answered = await Promise.all(
+        [server, vite].map((port) =>
+          fetch(`http://127.0.0.1:${String(port)}/`).then(
+            () => true,
+            () => false,
+          ),
         ),
-      ),
-    );
-    if (answered.every(Boolean)) {
-      return { server, vite, pid };
+      );
+      if (answered.every(Boolean)) {
+        return { server, vite };
+      }
+      await sleep(POLL_MS);
     }
-    await sleep(POLL_MS);
-  }
-  throw new Error("the planted pair never answered");
+    throw new Error("the planted pair never answered");
+  });
 }
 
 test("a stage answers only when its server and its vite both answer", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
-  const pair = await plantAnsweringPair(join(scratch, "answers"));
+  await using pair = await plantAnsweringPair(join(scratch, "answers"));
   const closed = await freePort();
-  try {
-    expect(stageAnswers({ server: pair.server, vite: pair.vite }), "the positive control: both halves answer").toBe(true);
-    expect(stageAnswers({ server: closed, vite: pair.vite }), "a vite with no server is a dead stage").toBe(false);
-    expect(stageAnswers({ server: pair.server, vite: closed }), "a server with no vite is a dead stage").toBe(false);
-  } finally {
-    process.kill(pair.pid, "SIGTERM");
-  }
+  expect(stageAnswers({ server: pair.server, vite: pair.vite }), "the positive control: both halves answer").toBe(true);
+  expect(stageAnswers({ server: closed, vite: pair.vite }), "a vite with no server is a dead stage").toBe(false);
+  expect(stageAnswers({ server: pair.server, vite: closed }), "a server with no vite is a dead stage").toBe(false);
 });
 
 test("a warming stage is reused by the --stage-db fresh, and rebuilt by an explicit --fresh", { timeout: CASE_BUDGET_MS }, async ({ scratch }) => {
   const home = join(scratch, "resume-home");
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
-  const pair = await plantAnsweringPair(join(scratch, "resume"));
+  await using pair = await plantAnsweringPair(join(scratch, "resume"));
   const source = "/box/prod.db";
   const sha = "0".repeat(40);
   const row: StageRow = {
@@ -318,14 +347,10 @@ test("a warming stage is reused by the --stage-db fresh, and rebuilt by an expli
     acquireStageBand: () => ({ allocation: { kind: "ours", band: row.band, row }, views: [] }),
     armStageKeeper: (_home, armed) => armed,
   };
-  try {
-    const resumed = ensureStage({ fresh: true, stageDb: source }, ops);
-    expect(resumed.startedAt, "the implied fresh keeps the stage that was warming").toBe(row.startedAt);
-    expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
-    // Same stage, same clone source, but the user asked for --fresh by name: the rebuild starts by stopping the
-    // stage, and the planted pair is not a stage group the stop may kill, so the rebuild refuses to proceed.
-    expect(() => ensureStage({ fresh: true, freshExplicit: true, stageDb: source }, ops)).toThrow("could not be replaced");
-  } finally {
-    process.kill(pair.pid, "SIGTERM");
-  }
+  const resumed = ensureStage({ fresh: true, stageDb: source }, ops);
+  expect(resumed.startedAt, "the implied fresh keeps the stage that was warming").toBe(row.startedAt);
+  expect(readBands(home).map((kept) => kept.warming)).toStrictEqual([{ since: WARMING_SINCE }]);
+  // Same stage, same clone source, but the user asked for --fresh by name: the rebuild starts by stopping the
+  // stage, and the planted pair is not a stage group the stop may kill, so the rebuild refuses to proceed.
+  expect(() => ensureStage({ fresh: true, freshExplicit: true, stageDb: source }, ops)).toThrow("could not be replaced");
 });
