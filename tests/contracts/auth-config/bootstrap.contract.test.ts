@@ -1,5 +1,7 @@
 import type { AuthConfig } from "@orb/contracts/auth-config";
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import type { AuthMode } from "@orb/contracts/identity";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 
@@ -54,6 +56,31 @@ test("every upload cap is required instead of silently restoring deployment defa
     const uploads = Object.fromEntries(Object.entries(WIRE.uploads).filter(([key]) => key !== field));
     expect(authConfigSchema.safeParse({ ...WIRE, uploads }).success, field).toBe(false);
   }
+});
+
+const LOGIN_FLAGS = [
+  { localEnabled: true, oidcEnabled: false },
+  { localEnabled: false, oidcEnabled: true },
+  { localEnabled: false, oidcEnabled: false },
+  { localEnabled: true, oidcEnabled: true },
+] as const;
+
+// The wire's sign-in flags for each mode: a password only on local, an identity provider only on oidc.
+const OFFERED_SIGN_IN: Record<AuthMode, (typeof LOGIN_FLAGS)[number]> = {
+  local: { localEnabled: true, oidcEnabled: false },
+  oidc: { localEnabled: false, oidcEnabled: true },
+  "single-user": { localEnabled: false, oidcEnabled: false },
+  "forward-header": { localEnabled: false, oidcEnabled: false },
+};
+
+test.each(AUTH_MODES)("the %s bootstrap admits only the sign-in that mode offers", (mode) => {
+  const admitted = LOGIN_FLAGS.filter((flags) => authConfigSchema.safeParse({ ...WIRE, mode, ...flags }).success);
+  expect(admitted).toEqual([OFFERED_SIGN_IN[mode]]);
+});
+
+test("a login that is not discreet keeps the default handle it prefills", () => {
+  const wire = { ...WIRE, discreetLogin: false, defaultHandle: "owner" };
+  expect(authConfigSchema.parse(wire)).toEqual(wire);
 });
 
 test("auth mode and discreet login restrict their correlated public fields", () => {

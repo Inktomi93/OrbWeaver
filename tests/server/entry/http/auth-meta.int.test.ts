@@ -9,6 +9,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import { forEachAuthMode } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { claimShareOwner, createServerHarness, readRelayStarts, relayExecutable, relayProgram } from "@orb/testkit/node/composed";
 import { describe } from "vitest";
@@ -83,6 +84,11 @@ describe("GET /api/auth/config", () => {
     const admitted = await root.http.request("/join/some-token");
     expect(admitted.status).toBe(302);
     expect(admitted.headers.get("location")).toBe("/?join=some-token");
+  });
+
+  // The route parses its own answer, so a sign-in flag that disagrees with the mode answers 500 instead of 200.
+  forEachAuthMode("serves the composed mode with the sign-in that mode offers", async ({ root }) => {
+    expect((await authConfig(root)).mode).toBe(root.mode);
   });
 });
 

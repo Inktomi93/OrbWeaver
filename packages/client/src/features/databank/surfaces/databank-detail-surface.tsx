@@ -128,7 +128,7 @@ function DatabankWelcome(): ReactElement {
   // error, or paused offline: `isLoading` is a read in flight). The
   // root persists across the read, so a section swap holds the outgoing view for it and shell/motion.css fades it in.
   return (
-    <Stack align="center" className="min-block-0" height="fill" justify="center" data-ready={census.isLoading ? "false" : "true"}>
+    <Stack align="center" minHeight="shrinks" height="fill" justify="center" data-ready={census.isLoading ? "false" : "true"}>
       {census.data === undefined && !census.isLoading ? (
         <QueryUnavailableState
           label="your databank"

@@ -22,7 +22,11 @@ export const dialogVariants = tv({
     // legible where an arm neutralising an inherited one is not.
     // The inline step queries and the `dialog-short` variant both read this box; its size container is primitives.css's rule.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
+    // A short dialog gives its inset and its heading gap back to its content, because its chrome is already most of the box.
+    popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE}
+      @max-cq-20:p-field
+      dialog-short:gap-row dialog-short:p-row
+      ${OVERLAY_MOTION.modalPopup}
     `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
     title: TITLE_STEP,

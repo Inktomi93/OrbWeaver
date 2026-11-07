@@ -94,7 +94,7 @@ function InsetPane({
  *  band + a scrolling body), so a reading-width clamp here would inset a full-page surface inside a gutter it did not ask for. */
 function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
   return (
-    <Stack className="min-block-0" height="fill" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+    <Stack minHeight="shrinks" height="fill" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
       {children}
     </Stack>
   );

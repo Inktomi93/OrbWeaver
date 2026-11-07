@@ -76,7 +76,7 @@ function ArchetypesBody(): ReactElement {
     // THE UN-RUN STATE: the invitation, and nothing that would read as a finding. Not the cluster knob
     // either — a control that re-clusters data the surface is refusing to show is a control over nothing.
     return (
-      <Stack className="relative min-block-0" gap="section" data-slot="archetypes-not-run">
+      <Stack className="relative" minHeight="shrinks" gap="section" data-slot="archetypes-not-run">
         <Text prose={true} cap="prose" voice="gloss">
           Archetypes need your characters sorted first. Start that in Explore.
         </Text>
@@ -88,7 +88,7 @@ function ArchetypesBody(): ReactElement {
   }
 
   return (
-    <Stack className="relative min-block-0" gap="section">
+    <Stack className="relative" minHeight="shrinks" gap="section">
       <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
 
       {/* ART FIRST, AND THAT IS THE DOOR'S DOING (side-eye corpus re-pass A7). This tab is the destination of
