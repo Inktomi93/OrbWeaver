@@ -38,6 +38,13 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   readonly params: z.ZodType<WorkloadParamsByKind[K]>;
   readonly lane: WorkloadLane;
   /**
+   * The lane for a row whose params change what its work is, e.g. a dry-run preview a person watches versus the
+   * import itself. The enqueue doors (`start`, `retry`) stamp its answer in place of {@link WorkloadContribution.lane},
+   * which still names the lane of a row whose params cannot be read (a poison retry). OMIT IT when every row of
+   * the kind belongs on one lane.
+   */
+  readonly laneFor?: (params: WorkloadParamsByKind[K]) => WorkloadLane;
+  /**
    * The ADMISSION sub-partition: what this kind's CONCURRENCY UNIT is, derived from the row's own params and
    * stamped into `workloads.admission_key` at the enqueue door. Two active rows of one kind collide only when
    * their keys match, so `index` returns its embed source (text + image reindex at once) and `databank-ingest`
