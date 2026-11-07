@@ -3,8 +3,8 @@
 import { subscribeKeyboardInset } from "#lib";
 
 /** The list's own attributes for "seated above the field" and "seated inside the band"; `variants.ts` keys its arms off them. */
-export const LIST_ABOVE_ATTRIBUTE = "data-above";
-export const LIST_INSIDE_ATTRIBUTE = "data-inside";
+const LIST_ABOVE_ATTRIBUTE = "data-above";
+const LIST_INSIDE_ATTRIBUTE = "data-inside";
 
 interface Band {
   readonly top: number;
@@ -33,7 +33,7 @@ export interface ListPlacement {
  * Below the field unless that is short and the side above holds more. A field taller than the band leaves neither
  * side a row, so the list lies over the field at the band's bottom edge, which is where a keyboard stops it.
  */
-export function placeList(field: Band, bounds: Band, size: ListSize): ListPlacement {
+function placeList(field: Band, bounds: Band, size: ListSize): ListPlacement {
   const { wanted, gap, row } = size;
   const below = bounds.bottom - field.bottom - gap;
   const above = field.top - bounds.top - gap;
