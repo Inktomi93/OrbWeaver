@@ -67,7 +67,6 @@ import {
   editSnapshot,
   fetchDebugErrors,
   fetchRpgTraces,
-  fetchWireCaptures,
   getConfigView,
   getGame,
   getTrackerView,
@@ -80,6 +79,7 @@ import {
   patchSheet,
   pinChatToLocalEngine,
   removeCharacter,
+  requireWireCaptures,
   restoreChatBinding,
   restoreCheckpoint,
   setChatBinding,
@@ -427,11 +427,8 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
-    const captures = await fetchWireCaptures(chatId);
-    expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.providerId === "vllm");
-    expect(turnCapture).toBeDefined();
-    const messages = pageArray(turnCapture?.body["messages"], "vllm wire capture messages");
+    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
+    const messages = pageArray(turnCapture.body["messages"], "vllm wire capture messages");
     const promptText = messages
       .map((m) => {
         const content = isPlainObject(m) ? m["content"] : undefined;

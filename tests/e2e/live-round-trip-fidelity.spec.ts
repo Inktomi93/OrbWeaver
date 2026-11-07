@@ -78,15 +78,15 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     const chatId = await startChat([characterId]);
     await sendTurn(chatId, PROBE);
 
-    const captures = await fetchWireCaptures(chatId, "vllm");
-    const wire = captures[0]?.body;
+    const read = await fetchWireCaptures(chatId, "vllm");
     // The AUTHORITATIVE fidelity harness is the deterministic int test — this @live leg only proves the seam
-    // works on a REAL stack turn. If WIRE_CAPTURE is not enabled on the operator-started stack the capture is
-    // empty; report the evidence as genuinely unavailable rather than passing without assertions.
-    test.skip(wire === undefined, "WIRE_CAPTURE not enabled on the live stack — the int test is the authoritative harness");
-    if (wire === undefined) {
+    // works on a REAL stack turn. An operator-started stack may run with WIRE_CAPTURE off; report that evidence as
+    // genuinely unavailable rather than passing without assertions. Enabled with no capture already failed the read.
+    test.skip(!read.enabled, read.enabled ? "" : read.skipReason);
+    if (!read.enabled) {
       throw new Error("Playwright conditional skip returned without stopping the test");
     }
+    const wire = read.captures[0].body;
 
     // FE — the preset resolves to completion (what the harness set).
     expect((await getActivePreset())?.config.namesBehavior).toBe("completion");

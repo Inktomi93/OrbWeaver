@@ -38,13 +38,13 @@ import {
   editMessage,
   editSnapshot,
   fetchDebugErrors,
-  fetchWireCaptures,
   getConfigView,
   getTrackerView,
   listCanon,
   mintFreshCharacter,
   pinChatToLocalEngine,
   removeCharacter,
+  requireWireCaptures,
   restoreChatBinding,
   revealHidden,
   sendGameSteerTurn,
@@ -366,11 +366,8 @@ test("P5 wand: a Plot-submenu game steer fires a real turn and resolves LIVE off
     // resolved against THIS game's live snapshot, not an empty string). The model's answer is irrelevant here.
     await sendGameSteerTurn(chatId, "twist");
 
-    const captures = await fetchWireCaptures(chatId);
-    expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.providerId === "vllm");
-    expect(turnCapture).toBeDefined();
-    const promptText = turnCapture === undefined ? "" : wireMessagesText(turnCapture);
+    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
+    const promptText = wireMessagesText(turnCapture);
     // The twist template's markers ("Story steer" heading + "complication" ask) reached the prompt…
     expect(promptText).toContain("Story steer");
     expect(promptText).toContain("complication");
