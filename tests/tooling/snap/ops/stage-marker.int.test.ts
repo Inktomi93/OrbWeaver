@@ -11,16 +11,17 @@
 //  • FOUR concurrent processes allocating through `withBandsLock` claim FOUR DISTINCT bands — and the
 //    positive control that makes that meaningful is that a single process claims band 0, so "distinct" is
 //    not being satisfied by an allocator that refuses everyone;
-//  • the LIVE-SESSION FENCE is exercised through the REAL registry: a child binds its session name onto a
-//    band row and registers a session whose daemon pid IS ALIVE (its own), and the row past its TTL still
-//    reads `live`; the same child with a DEAD daemon pid reads `stranded`. That is the binding
-//    ops/session-daemon.ts performs, not a hand-written `liveSessions` array;
+//  • the LIVE-USE guard is exercised through the REAL registry, census and evidence builder: a child
+//    (`_stage-sweep-child.ts`) binds its session name onto a band row and registers a session whose daemon
+//    pid IS ALIVE (its own), and the row past its TTL still reads `live`; the same child with a DEAD daemon
+//    pid reads `stranded`, and a running holder keeps it `live` with no session at all;
 //  • the legacy `active.json` migrates ONCE and is gone — and a second read does not resurrect it.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { REPO_ROOT } from "@orb/tooling/floor/artifacts/artifacts";
@@ -46,6 +47,7 @@ import {
   writeRow,
 } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import type { SweepChildMode, SweepChildReport } from "./_stage-sweep-child.ts";
 
 // Wall clock only — every arm asserts a STRUCTURAL fact (a file's contents, a band index, a verdict
 // string), so this file stays in the parallel lane and scales its budget rather than withholding.
@@ -105,19 +107,17 @@ async function runChild(child: {
   readonly home: string;
   readonly name: string;
   readonly body: string;
-  readonly env?: Readonly<Record<string, string>>;
   readonly args?: readonly string[];
 }): Promise<{ readonly stdout: string; readonly code: number | null }> {
   const path = join(child.home, `${child.name}.ts`);
   writeFileSync(path, child.body);
-  const res = await spawnNiced("node", [path, ...(child.args ?? [])], { env: child.env ?? {}, timeoutMs: CASE_BUDGET_MS });
+  const res = await spawnNiced("node", [path, ...(child.args ?? [])], { timeoutMs: CASE_BUDGET_MS });
   return { stdout: `${res.stdout}${res.stderr}`, code: res.code };
 }
 
 const MARKER_SRC = join(REPO_ROOT, "tooling/src/snap/ops/stage-marker.ts");
 const BANDS_SRC = join(REPO_ROOT, "tooling/src/snap/lib/stage-bands.ts");
 const PORTS_SRC = join(REPO_ROOT, "tooling/src/floor/host/ports.ts");
-const REGISTRY_SRC = join(REPO_ROOT, "tooling/src/snap/ops/session-registry.ts");
 
 // ── the table's shape ─────────────────────────────────────────────────────────────────────────────────
 
@@ -567,77 +567,38 @@ test("T4 — one vanished port marks the registered band dead with the operation
   expect(readBands(home).find((entry) => entry.band === 2)).toEqual(sibling);
 });
 
-// ── the LIVE-SESSION fence, through the real session registry ─────────────────────────────────────────
+// ── the LIVE-USE guard, through the real session registry, census and evidence builder ────────────────
 
-const FENCE_CHILD = (home: string, sessionHome: string, alive: boolean): string => `
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { bindSessionToBand, readBands, writeRow } from ${JSON.stringify(MARKER_SRC)};
-import { stageSweepVerdict } from ${JSON.stringify(BANDS_SRC)};
-import { liveSessionNames } from ${JSON.stringify(REGISTRY_SRC)};
+const SWEEP_CHILD = fileURLToPath(new URL("./_stage-sweep-child.ts", import.meta.url));
 
-const HOME = ${JSON.stringify(home)};
-const NAME = "p-live-lane";
-const FROZEN = ${FROZEN_AT_MS};
-// The daemon's own call: bind the session name onto the band row it drives. Binding is itself an
-// interaction, so it stamps the heartbeat — which would hide the very thing this arm measures. Re-age the
-// row afterwards so the ONLY thing that can save it is the session ref.
-bindSessionToBand(HOME, 0, NAME, new Date(FROZEN).toISOString());
-const bound = readBands(HOME).find((r) => r.band === 0);
-writeRow(HOME, { ...bound, lastUsedAt: new Date(FROZEN - 6 * 60 * 60 * 1000).toISOString() });
-// …and the registry row a live daemon would have written. A pid of 1 is alive but not ours; ${alive ? "this child's own pid IS the daemon" : "a pid nothing owns is DEAD"}.
-const daemonPid = ${alive ? "process.pid" : "2147483646"};
-writeFileSync(join(${JSON.stringify(sessionHome)}, NAME + ".json"), JSON.stringify({
-  v: 1, name: NAME, ownerCheckout: "/repo", daemonPid, pgid: daemonPid, socket: "/tmp/x.sock",
-  cdpEndpoint: null, slotDir: "/tmp/slot", binding: { kind: "stage", url: "http://localhost:5273" },
-  environment: {
-    viewport: { width: 1280, height: 720 },
-    device: null,
-    colorScheme: null,
-    reducedMotion: false,
-    contrast: null,
-    reducedTransparency: false,
-    deviceScaleFactor: null,
-  },
-  bootArgv: [], createdAt: new Date(FROZEN).toISOString(), lastUsedAt: new Date(FROZEN).toISOString(),
-  inflightOp: null, lastOp: null, ttlMs: 1800000, headless: true, calls: 0,
-}));
+/** Run the sweep child over a six-hour-idle row on band 0, from a stage-rooted cwd, and read its report. */
+async function sweepChild(label: string, mode: SweepChildMode): Promise<SweepChildReport> {
+  const home = scratchHome(label);
+  const sessionHome = scratchHome(`${label}-sessions`);
+  // The cwd is what makes the child's own pid a stage-rooted holder of the band it plants as bound.
+  const cwd = join(home, STAGE_ROOT_REL, "sweep-child");
+  mkdirSync(cwd, { recursive: true });
+  writeRow(home, row(0, { lastUsedAt: AGED_ISO, holders: [] }));
+  const child = await spawnNiced("node", [SWEEP_CHILD, home, mode, String(FROZEN_AT_MS)], {
+    cwd,
+    env: { [SESSION_HOME_KEY]: sessionHome },
+    timeoutMs: CASE_BUDGET_MS,
+  });
+  expect(child.code, child.stdout + child.stderr).toBe(0);
+  return JSON.parse(child.stdout) as SweepChildReport;
+}
 
-const row = readBands(HOME).find((r) => r.band === 0);
-const live = liveSessionNames("/repo");
-const verdict = stageSweepVerdict({
-  row,
-  bandBound: true,
-  bandIsStageRooted: true,
-  bandProcessAgeSeconds: null,
-  liveSessions: row.sessions.filter((n) => live.has(n)),
-  nowMs: FROZEN,
-}, 60 * 60 * 1000);
-console.log("BOUND " + row.sessions.join(","));
-console.log("VERDICT " + verdict);
-`;
-
-test("A STAGE WITH A LIVE SESSION SURVIVES ITS IDLE TTL — the binding, the registry and the fence, end to end", async () => {
-  const home = scratchHome("fence-live");
-  const sessionHome = scratchHome("fence-live-sessions");
-  // The row is SIX HOURS idle: nothing but the session ref can save it.
-  writeRow(home, row(0, { lastUsedAt: AGED_ISO }));
-  const child = await runChild({ home, name: "fence", body: FENCE_CHILD(home, sessionHome, true), env: { [SESSION_HOME_KEY]: sessionHome } });
-  expect(child.code, child.stdout).toBe(0);
-  // The daemon's bind really landed on the row…
-  expect(child.stdout).toContain("BOUND p-live-lane");
-  // …and the reaper leaves it standing. A reaper that eats a live stage is worse than no reaper.
-  expect(child.stdout).toContain("VERDICT live");
+test("A STAGE WITH A LIVE SESSION SURVIVES ITS IDLE TTL — the binding, the registry and the guard, end to end", async () => {
+  // The daemon's bind really landed on the row, and the reaper leaves it standing.
+  expect(await sweepChild("fence-live", "session-live")).toEqual({ sessions: ["p-live-lane"], verdict: "live" });
 });
 
 test("…and the SAME six-hour-idle row is STRANDED the moment that daemon is gone", async () => {
-  const home = scratchHome("fence-dead");
-  const sessionHome = scratchHome("fence-dead-sessions");
-  writeRow(home, row(0, { lastUsedAt: AGED_ISO }));
-  const child = await runChild({ home, name: "fence", body: FENCE_CHILD(home, sessionHome, false), env: { [SESSION_HOME_KEY]: sessionHome } });
-  expect(child.code, child.stdout).toBe(0);
-  expect(child.stdout).toContain("BOUND p-live-lane");
-  expect(child.stdout).toContain("VERDICT stranded");
+  expect(await sweepChild("fence-dead", "session-dead")).toEqual({ sessions: ["p-live-lane"], verdict: "stranded" });
+});
+
+test("a running holder keeps the same six-hour-idle row live with no session bound", async () => {
+  expect(await sweepChild("fence-holder", "holder-live")).toEqual({ sessions: [], verdict: "live" });
 });
 
 test("unbindSessionFromBand releases the fence without disturbing the row", () => {

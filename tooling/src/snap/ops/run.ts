@@ -46,7 +46,15 @@ import {
 } from "./report.ts";
 import { printArmSummaries } from "./report-summary-blocks.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, writeSnapDiagnosticEvidence } from "./run-bundle.ts";
-import { cascadeRuntimeFor, debuggingPortFor, finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import {
+  cascadeRuntimeFor,
+  debuggingPortFor,
+  finishSession,
+  launchSnapSession,
+  loadEmulationFor,
+  readSnapEnvironmentEvidence,
+  snapEnvironmentMismatchCount,
+} from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
@@ -287,7 +295,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["scale", scaleResultValue(opts, browserEnvironment)] as const,
       ["device", deviceResultValue(browserEnvironment)] as const,
       ["motion-evidence", motionResultValue(opts)] as const,
-      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)] as const,
+      ["throttle", throttleResultValue(loadEmulationFor(session))] as const,
       ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)] as const,
       ["files-driven", outcomes.reduce((count, outcome) => count + outcome.fileActions.reduce((files, action) => files + action.files, 0), 0)] as const,
       ["nav", navResultVerdict(totals.navigation, totals.navActions)] as const,

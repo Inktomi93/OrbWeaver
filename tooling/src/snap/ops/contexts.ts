@@ -38,7 +38,7 @@ import {
   sessionForEvidence,
 } from "./report.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs } from "./run-bundle.ts";
-import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { finishSession, launchSnapSession, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 
@@ -326,7 +326,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["json", manifestPath ?? "none"],
       ...ledger.some("shot", "crop"),
       ["motion-evidence", motionResultValue(opts)],
-      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
+      ["throttle", throttleResultValue(loadEmulationFor(session))],
       ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)],
       ["files-driven", outcomes.reduce((count, outcome) => count + outcome.fileActions.reduce((files, action) => files + action.files, 0), 0)],
       ["nav", navResultVerdict(totals.navigation, totals.navActions)],

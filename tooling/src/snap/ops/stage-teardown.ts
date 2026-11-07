@@ -41,7 +41,7 @@ import { missingLauncherRefusal, shortSha, stageBandEnv, stageLauncher, stageLau
 import { takeStageOutcome } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow, clearStageWarming, markStageWarming } from "./stage-marker.ts";
-import { pidIsStageRooted, processGroupTarget, stageHealthzOk, stageViteOk } from "./stage-probe.ts";
+import { pidIsStageRooted, processGroupTarget, stageAnswers } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 
@@ -260,7 +260,7 @@ export interface StageSettleDeps {
 }
 
 const LIVE_SETTLE_DEPS: StageSettleDeps = {
-  answers: (ports) => stageHealthzOk(ports.server) && stageViteOk(ports.vite),
+  answers: stageAnswers,
   nowIso: () => new Date().toISOString(),
 };
 
