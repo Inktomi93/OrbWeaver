@@ -2,16 +2,13 @@
 // @subject packages/server/src/domain/notifications/verbs/list.ts
 // @subject packages/server/src/domain/notifications/verbs/replay-since.ts
 import type { InboxView } from "@orb/contracts/notifications";
-import { closeDb } from "@orb/db";
 import type { Fixtures } from "@orb/testkit/node";
 import { freshCountedDb } from "@orb/testkit/node/composed";
 import { test as base, expect } from "../_fixtures.ts";
 
 const test = base.extend<{ counted: Awaited<ReturnType<typeof freshCountedDb>> } & Pick<Fixtures, "db">>({
   counted: async ({}, use): Promise<void> => {
-    await using lifetime = new AsyncDisposableStack();
-    const counted = await freshCountedDb();
-    lifetime.defer(() => closeDb(counted.db));
+    using counted = await freshCountedDb();
     await use(counted);
   },
   db: async ({ counted }, use): Promise<void> => {

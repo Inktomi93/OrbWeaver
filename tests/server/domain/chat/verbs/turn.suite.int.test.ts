@@ -1,5 +1,4 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -12,9 +11,10 @@ import {
 } from "@orb/testkit/node/composed";
 
 test("an established-room commit does not reload the full selected transcript to decide first-turn status", async () => {
-  const { db, queries } = await freshCountedDb();
+  using counted = await freshCountedDb();
+  const db = counted.db;
+  const queries = counted.queries;
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(db));
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,

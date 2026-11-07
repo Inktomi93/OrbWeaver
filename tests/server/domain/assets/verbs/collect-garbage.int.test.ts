@@ -14,7 +14,6 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_PROVIDER_ENDPOINT,
-  freshHeldDb,
   guestRunner,
   installGuest,
   makeAssetBytes,
@@ -291,8 +290,7 @@ test("a body quoting another owner's asset retains nothing, while the owner's ow
 });
 
 test("a reference written after the sweep's snapshot still wins the destructive edge, for each body and JSON source", async () => {
-  const { db, hold } = await freshHeldDb();
-  const box = await openBox(db);
+  const box = await openBox();
   const room = await openRoom(box, castId<CharacterHandle>("gc-race-room"));
   const plain = await say(box, room, { content: "The ledger, before the picture." });
   const late = {
@@ -316,7 +314,7 @@ test("a reference written after the sweep's snapshot still wins the destructive 
   for (const [source, write] of Object.entries(late)) {
     const target = await store(box, "attachment");
     await ageOnly(box, target);
-    const deletion = hold(ASSET_ROW_DELETE);
+    const deletion = box.hold(ASSET_ROW_DELETE);
     const sweeping = runScheduledGc(box);
     await deletion.reached;
     await write(target);
@@ -352,12 +350,11 @@ test("a co-member's quote keeps nothing once the owner's own attachment message 
 });
 
 test("a same-bytes upload indexed between the row delete and the unlink keeps its bytes", async () => {
-  const { db, hold } = await freshHeldDb();
-  const box = await openBox(db);
+  const box = await openBox();
   const bytes = makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset));
   const target = await store(box, "attachment", bytes);
   await ageOnly(box, target);
-  const recheck = hold(ASSET_HASH_LOOKUP);
+  const recheck = box.hold(ASSET_HASH_LOOKUP);
   const sweeping = runScheduledGc(box);
   const reachedRecheck = await Promise.race([recheck.reached.then(() => true), sweeping.then(() => false)]);
   if (!reachedRecheck) {

@@ -10,7 +10,6 @@ import {
   assertReferentialIntegrity,
   chatHandoffResumptions,
   chatLocks,
-  closeDb,
   createDb,
   detachWal,
   messages,
@@ -25,6 +24,8 @@ import { eq, isNotNull, sql } from "drizzle-orm";
 import { parseCorpusWire } from "../iso/corpus.ts";
 import { createCorpusCapsule, loadCorpusFixture, prepareCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe, CORPUS_OWNER_PASSWORD as OWNER_PASSWORD, CORPUS_PROVIDER_KEY as PROVIDER_KEY } from "./corpus-recipe.ts";
+import type { OwnedDb } from "./db.ts";
+import { ownDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import { NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
 import { createTestLogger } from "./test-logger.ts";
@@ -72,12 +73,13 @@ test("a completed migrated capsule closes its real producers before cloning scru
   const held = capsule.privateCaptures.chatLifecycle.held;
   expect(held.during?.locks.map((row) => row.chatId)).toEqual([held.room.chat.id]);
   expect(await openDescriptorsUnder(capsule.layout.root)).toEqual([]);
-  const source = await createDb(capsule.layout.databaseUrl);
-  let sourceMarker: Awaited<ReturnType<typeof source.all>>;
+  let sourceMarker: Awaited<ReturnType<OwnedDb["db"]["all"]>>;
   let sourceMessages: (typeof messages.$inferSelect)[];
   let sourceUsers: (typeof users.$inferSelect)[];
   let sourceSessions: (typeof sessions.$inferSelect)[];
-  try {
+  {
+    using opened = ownDb(await createDb(capsule.layout.databaseUrl));
+    const source = opened.db;
     await assertReferentialIntegrity(source);
     sourceMarker = await source.all(sql`PRAGMA user_version`);
     sourceMessages = await source.select().from(messages).orderBy(messages.id);
@@ -91,8 +93,6 @@ test("a completed migrated capsule closes its real producers before cloning scru
     expect(await source.select().from(pendingTurns)).toEqual([]);
     expect(await source.select().from(chatHandoffResumptions)).toEqual([]);
     expect((await detachWal(source)).sole).toBe(true);
-  } finally {
-    closeDb(source);
   }
   {
     const echoedSecret = capsule.privateCaptures.libraries.character.name;
@@ -134,8 +134,9 @@ test("a completed migrated capsule closes its real producers before cloning scru
     ...[chatLifecycle.held, chatLifecycle.aborted, chatLifecycle.handoff].map(({ invite }) => invite.tokenHash),
   ].filter((value) => value !== null);
   expect(privateValues.filter((value) => published.includes(value))).toEqual([]);
-  const clone = await createDb(fixture.layout.databaseUrl);
-  try {
+  {
+    using opened = ownDb(await createDb(fixture.layout.databaseUrl));
+    const clone = opened.db;
     await assertReferentialIntegrity(clone);
     expect(await clone.select().from(messages).orderBy(messages.id)).toEqual(sourceMessages);
     // Scrubbed: the clone carries no credential, session or password hash, and keeps the owner's row.
@@ -146,8 +147,6 @@ test("a completed migrated capsule closes its real producers before cloning scru
     // A physical clone control changes metadata only; it never fabricates domain canon or another graph.
     await clone.run(sql.raw(`PRAGMA user_version = ${CLONE_MARKER}`));
     expect(await clone.all(sql`PRAGMA user_version`)).not.toEqual(sourceMarker);
-  } finally {
-    closeDb(clone);
   }
   const ownerId = capsule.privateCaptures.baseline.ownerId;
   const hash = capsule.privateCaptures.libraries.asset.hash;
@@ -158,13 +157,12 @@ test("a completed migrated capsule closes its real producers before cloning scru
   await cloneCas.remove(ownerId, hash);
   expect(await cloneCas.exists(ownerId, hash)).toBe(false);
   expect(await sourceCas.verify(ownerId, hash)).toBe(true);
-  const unchanged = await createDb(capsule.layout.databaseUrl);
-  try {
+  {
+    using opened = ownDb(await createDb(capsule.layout.databaseUrl));
+    const unchanged = opened.db;
     expect(await unchanged.all(sql`PRAGMA user_version`)).toEqual(sourceMarker);
     expect(await unchanged.select().from(users).orderBy(users.id)).toEqual(sourceUsers);
     expect(await unchanged.select().from(sessions).orderBy(sessions.id)).toEqual(sourceSessions);
-  } finally {
-    closeDb(unchanged);
   }
   await fixture[Symbol.asyncDispose]();
   await expect(access(fixture.layout.root)).rejects.toMatchObject({ code: "ENOENT" });

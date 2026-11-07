@@ -8,11 +8,11 @@ import type { Task } from "@orb/contracts/inference";
 import { PLUGIN_PROVIDER_ID_PREFIX, RETIRED_TASKS } from "@orb/contracts/inference";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { closeDb, createDb, pluginProviderClaims, runMigrations } from "@orb/db";
+import { createDb, pluginProviderClaims, runMigrations } from "@orb/db";
 import { rehashPluginProviderDefinitionsOnBoot } from "@orb/server/entry/boot";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle, migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createServerHarness, makePluginBundle, migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { bootGrantFor } from "@orb/testkit/node/helpers";
 import { sql } from "drizzle-orm";
 
@@ -54,9 +54,8 @@ test("a tombstone stored before its task retired still refuses a changed definit
   timeout: PLUGIN_LIFECYCLE_TIMEOUT_MS,
 }, async () => {
   await using previous = await migrationsBefore(MIGRATION);
-  await using lifetime = new AsyncDisposableStack();
-  const db = await createDb(":memory:");
-  lifetime.defer(() => closeDb(db));
+  using opened = ownDb(await createDb(":memory:"));
+  const db = opened.db;
   await runMigrations(db, previous.path);
   // 0007 changes data only, so the harness runs on the chain before it and the planted tombstone is that chain's data.
   await using root = await createServerHarness({ db, startJobs: false, pluginSpawn: spawn });

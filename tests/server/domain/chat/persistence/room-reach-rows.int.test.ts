@@ -15,7 +15,8 @@ import { test } from "../../../entry/compose/room-reach.fixtures.ts";
 
 const heldDbTest = test.extend<{ heldDb: HeldDb }>({
   heldDb: async ({}, use): Promise<void> => {
-    await use(await freshHeldDb());
+    using held = await freshHeldDb();
+    await use(held);
   },
 });
 

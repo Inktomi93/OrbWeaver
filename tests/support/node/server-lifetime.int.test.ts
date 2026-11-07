@@ -2,7 +2,6 @@ import { access, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WORKLOAD_LANES } from "@orb/contracts/workloads";
-import { closeDb } from "@orb/db";
 import { toError } from "@orb/kit/error-message";
 import { sql } from "drizzle-orm";
 import { vi } from "vitest";
@@ -78,11 +77,11 @@ test("a rejected timer clear cannot strand supervised physical fetch cancellatio
 });
 
 test("failed job construction removes only its owned directory and timers while retaining the borrowed database", async () => {
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using owned = new AsyncDisposableStack();
   const parent = await mkdtemp(join(tmpdir(), "codex-compose-media-997-958-failed-"));
   owned.defer(() => rm(parent, { recursive: true, force: true }));
-  const db = await freshDb();
-  owned.defer(() => closeDb(db));
   const clock = createFrozenClock();
   // biome-ignore lint/nursery/useDisposables: ownership transfers to the root; failed job construction must dispose this exact scheduler.
   const timers = createControlledTimers(clock);
@@ -119,9 +118,7 @@ test("a physical directory-construction failure still disposes the timer transfe
 });
 
 test("service jobs start once and root disposal waits for every actual lane read after cancellation", async () => {
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   const gate = held.hold(/from "workloads".*"lane".*"scheduled_at"/u, WORKLOAD_LANES.length);
   let harness: ServerTestHarness | undefined;
   let disposing: Promise<void> | undefined;

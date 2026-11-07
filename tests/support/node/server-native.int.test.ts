@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import { closeDb } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { sql } from "drizzle-orm";
@@ -147,9 +146,7 @@ test("same-ID native roots singleflight their own listeners and out-of-order clo
 });
 
 test("native socket disposal joins the held actual room pump before closing ingress or its database", async () => {
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using harness = await createServerHarness({ db: held.db, env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" } });
   const caller = await harness.internalCallerFor(harness.ownerId);
   const chat = (await caller.chat.startChat({ characterIds: [] })).chat;
@@ -204,11 +201,11 @@ test("native socket disposal joins the held actual room pump before closing ingr
 });
 
 test("supplied persistent CAS and variants survive root disposal and remain readable by the next real graph", async () => {
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using callerResources = new AsyncDisposableStack();
   const directory = await mkdtemp(join(tmpdir(), "codex-compose-media-997-958-persistent-"));
   callerResources.defer(() => rm(directory, { recursive: true, force: true }));
-  const db = await freshDb();
-  callerResources.defer(() => closeDb(db));
   const casDir = join(directory, "cas");
   const variantDir = join(directory, "variants");
   await using first = await createServerHarness({ db, casDir, variantDir });

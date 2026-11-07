@@ -14,7 +14,7 @@ import {
   similarArtHitSchema,
   unifiedSearchResultSchema,
 } from "@orb/contracts/search";
-import { closeDb, createDb, localPath, optimizeDb, preCloseHousekeeping, runMigrations } from "@orb/db";
+import { createDb, localPath, optimizeDb, preCloseHousekeeping, runMigrations } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { cloneStageDb } from "@orb/tooling/snap";
@@ -41,7 +41,7 @@ import {
 import { captureCorpusSearchPublication, seedCorpusSearch, settleCorpusSearchImages } from "./corpus-search.ts";
 import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
-import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { ownDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
 import { seedRecallCorpusRows } from "./factories/rows/recall.ts";
@@ -310,8 +310,7 @@ test("settled search publication survives native authenticated clone reads and r
   const sourcePath = localPath(sourceLayout.databaseUrl);
   assert(sourcePath !== undefined);
   cloneStageDb(sourcePath, { databaseUrl: cloneLayout.databaseUrl, assetsDir: cloneLayout.assets });
-  const db = await createDb(cloneLayout.databaseUrl);
-  ownership.defer(() => closeDb(db));
+  const db = ownership.use(ownDb(await createDb(cloneLayout.databaseUrl))).db;
   const replay = replayCorpusSearchWire(produced.exchanges);
   await using clone = await createServerHarness({
     db,

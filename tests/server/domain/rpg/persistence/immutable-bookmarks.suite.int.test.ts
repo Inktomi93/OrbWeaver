@@ -8,7 +8,7 @@
 
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_LITE_TOOL_NAMES, RPG_NO_CHANGES_TOOL, RPG_SNAPSHOT_KIND } from "@orb/contracts/rpg";
-import { closeDb, messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
+import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
@@ -303,9 +303,8 @@ test("checkpoint writes and restores retain actual host and game authority witho
 });
 
 test("a held checkpoint commit serializes a competing hand edit through its new immutable head", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const wire = physicalScene();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
@@ -339,9 +338,8 @@ test("a held checkpoint commit serializes a competing hand edit through its new 
 });
 
 test("a real continuation overlaps the held bookmark without replacing its saved state or source variant identity", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const wire = physicalScene();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
@@ -392,9 +390,8 @@ test("a real continuation overlaps the held bookmark without replacing its saved
 });
 
 test("a held restore orders a competing hand gesture after its faithful narrator and snapshot batch", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const wire = physicalScene();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);

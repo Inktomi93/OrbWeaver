@@ -117,11 +117,8 @@ export const test = base.extend<Fixtures>({
   },
   db: async ({}, use): Promise<void> => {
     const { freshDb } = await import("./db.ts");
-    const { closeDb } = await import("@orb/db");
-    await using lifetime = new AsyncDisposableStack();
-    const db = await freshDb();
-    lifetime.defer(() => closeDb(db));
-    await use(db);
+    using fresh = await freshDb();
+    await use(fresh.db);
   },
   providerFetch: async ({}, use): Promise<void> => {
     await use(refusingFetch());

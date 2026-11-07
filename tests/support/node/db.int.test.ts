@@ -5,19 +5,24 @@
 // to the vitest timeout. Runs against the real proxied libSQL client — the same `LibSqlWrap` seam
 // production uses for OTel.
 
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Db } from "@orb/db";
-import { closeDb, createDb, runMigrations, users } from "@orb/db";
+import { createDb, runMigrations, users } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { freshCountedDb, freshDb, freshHeldDb, migrationsBeforeLatest, SHIPPED_MIGRATIONS } from "./db.ts";
+import type { OwnedDb } from "./db.ts";
+import { freshCountedDb, freshDb, freshHeldDb, migrationsBeforeLatest, ownDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { makeUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
+import { createServerHarness } from "./server.ts";
 
 const journalSchema = z.object({ entries: z.array(z.object({ tag: z.string() })) });
 const INSERT_SQL = /insert into/iu;
 const SELECT_SQL = /select/iu;
+const CLOSED_CLIENT = { cause: { code: "CLIENT_CLOSED" } };
 
 /** A short race against the gate's `reached` promise — the honest way to prove "this resolved" without
  *  actually waiting out a 5s vitest timeout when it doesn't. */
@@ -28,16 +33,70 @@ function raceTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIM
 
 // The scope's stack closes the handle the helper opened, so no case leaves a libSQL client behind.
 async function countedDb(resources: AsyncDisposableStack): Promise<Awaited<ReturnType<typeof freshCountedDb>>> {
-  const counted = await freshCountedDb();
-  resources.defer(() => closeDb(counted.db));
-  return counted;
+  return resources.use(await freshCountedDb());
 }
 
 async function heldDb(resources: AsyncDisposableStack): Promise<Awaited<ReturnType<typeof freshHeldDb>>> {
-  const held = await freshHeldDb();
-  resources.defer(() => closeDb(held.db));
-  return held;
+  return resources.use(await freshHeldDb());
 }
+
+const readUsers = (db: OwnedDb["db"]): Promise<unknown> => db.select().from(users);
+
+test("a held database refuses a read after its scope exits, on the normal path and after a throw", async () => {
+  const scopes = [freshDb, freshHeldDb, freshCountedDb];
+  for (const acquire of scopes) {
+    let escaped: OwnedDb["db"] | undefined;
+    {
+      using owned = await acquire();
+      escaped = owned.db;
+      // Positive control: the same read answers while the owner is in scope.
+      await expect(readUsers(escaped)).resolves.toEqual([]);
+    }
+    await expect(readUsers(escaped)).rejects.toMatchObject(CLOSED_CLIENT);
+  }
+
+  let thrown: OwnedDb["db"] | undefined;
+  const failingCase = async (): Promise<void> => {
+    using owned = await freshDb();
+    thrown = owned.db;
+    throw new Error("the case failed");
+  };
+  await expect(failingCase()).rejects.toThrow("the case failed");
+  assert(thrown !== undefined);
+  await expect(readUsers(thrown)).rejects.toMatchObject(CLOSED_CLIENT);
+});
+
+test("ownDb closes a createDb handle at scope exit", async () => {
+  let escaped: OwnedDb["db"] | undefined;
+  {
+    using owned = ownDb(await createDb(":memory:"));
+    escaped = owned.db;
+    await expect(escaped.run(sql`select 1`)).resolves.toBeDefined();
+  }
+  await expect(escaped.run(sql`select 1`)).rejects.toMatchObject(CLOSED_CLIENT);
+});
+
+test("a borrowed database outlives a refused root and closes with its owner", async () => {
+  const missingParent = join(tmpdir(), "orb-db-owner-missing", "parent");
+  let borrowed: OwnedDb["db"] | undefined;
+  {
+    using owned = await freshDb();
+    borrowed = owned.db;
+    await expect(createServerHarness({ db: owned.db, temporaryParentDir: missingParent })).rejects.toMatchObject({ code: "ENOENT" });
+    // The refused root borrowed it, so the owner's handle still answers.
+    await expect(readUsers(owned.db)).resolves.toEqual([]);
+  }
+  await expect(readUsers(borrowed)).rejects.toMatchObject(CLOSED_CLIENT);
+});
+
+test("a root's disposal leaves a borrowed database open for its owner", async () => {
+  using owned = await freshDb();
+  {
+    await using root = await createServerHarness({ db: owned.db });
+    await root.settleBackground();
+  }
+  expect(await readUsers(owned.db)).toHaveLength(1);
+});
 
 test("the chain cut before the latest migration drops exactly the newest journal entry", async () => {
   const tags = async (path: string): Promise<readonly string[]> => {
@@ -235,10 +294,8 @@ function differences(left: readonly string[], right: readonly string[]): readonl
 async function schemaPair(): Promise<{ readonly pushed: Db; readonly migrated: Db } & AsyncDisposable> {
   const stack = new AsyncDisposableStack();
   try {
-    const pushed = await freshDb();
-    stack.defer(() => closeDb(pushed));
-    const migrated = await createDb(":memory:");
-    stack.defer(() => closeDb(migrated));
+    const pushed = stack.use(await freshDb()).db;
+    const migrated = stack.use(ownDb(await createDb(":memory:"))).db;
     await runMigrations(migrated, SHIPPED_MIGRATIONS);
     const lifetime = stack.move();
     return { pushed, migrated, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };

@@ -5,7 +5,7 @@
 // Row builders stay FK-clean for persistence suites; root seeds return exactly what the production verbs wrote.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { chats, closeDb, messages, messageVariants } from "@orb/db";
+import { chats, messages, messageVariants } from "@orb/db";
 import { createIdSource } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -25,17 +25,14 @@ describe("rows — direct builders for persistence suites", () => {
   });
 
   test("seedMessageRow performs the D26 write on an empty database: slot, variant idx 0, then the selection pointer", async () => {
-    const db = await freshDb();
-    try {
-      const seeded = await seedMessageRow(db, { content: "hello there" });
-      const [slot] = await db.select().from(messages).where(eq(messages.id, seeded.id));
-      expect(slot?.selectedVariantId).toBe(seeded.variantId);
-      const [variant] = await db.select().from(messageVariants).where(eq(messageVariants.id, seeded.variantId));
-      expect(variant).toMatchObject({ messageId: seeded.id, idx: 0, content: "hello there" });
-      expect(await db.select().from(chats).where(eq(chats.id, seeded.chatId))).toHaveLength(1);
-    } finally {
-      closeDb(db);
-    }
+    using fresh = await freshDb();
+    const db = fresh.db;
+    const seeded = await seedMessageRow(db, { content: "hello there" });
+    const [slot] = await db.select().from(messages).where(eq(messages.id, seeded.id));
+    expect(slot?.selectedVariantId).toBe(seeded.variantId);
+    const [variant] = await db.select().from(messageVariants).where(eq(messageVariants.id, seeded.variantId));
+    expect(variant).toMatchObject({ messageId: seeded.id, idx: 0, content: "hello there" });
+    expect(await db.select().from(chats).where(eq(chats.id, seeded.chatId))).toHaveLength(1);
   });
 });
 

@@ -3,7 +3,7 @@
 // A retained card changing owner mid-turn has no verb that produces it as a race, so the owner column is moved directly.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { parseVariantMetadata } from "@orb/contracts/chat";
-import { characters, chatGenerationObservations, closeDb, messages, messageVariants, ownerStats } from "@orb/db";
+import { characters, chatGenerationObservations, messages, messageVariants, ownerStats } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { captureSdkSessionRows } from "@orb/testkit/node/rows";
@@ -49,9 +49,8 @@ test("a failed actual SDK terminal result retains paid facts without committing 
 });
 
 test.for(["cohort", "voice"] as const)("an actual paid SDK commit refuses stale retained %s without redirecting the paid facts", async (race) => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const fixture = ownership.use(await coreSdkRoom({ text: "A completed paid reply.", failed: false, cost: 0.125 }, { db: held.db }));
   const { h } = fixture;
   const a = await h.root.actor();

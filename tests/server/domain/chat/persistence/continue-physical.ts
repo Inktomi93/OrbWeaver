@@ -1,7 +1,7 @@
 // Native signed tool exchanges create the restore snapshot; the only extra seam is a held database driver.
 
 import type { TurnOutcome } from "@orb/contracts/chat";
-import { closeDb, messageVariants } from "@orb/db";
+import { messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { freshHeldDb } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
@@ -34,8 +34,8 @@ export interface SignedRoom extends AsyncDisposable {
  *  @remarks The guest host is a spawned process whose boot dominates a case's wall time under load. */
 export async function signedRoom(): Promise<SignedRoom> {
   await using construction = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  construction.defer(() => closeDb(held.db));
+  // biome-ignore lint/nursery/useDisposables: construction.use registers disposal; construction.move transfers it to the returned lifetime.
+  const held = construction.use(await freshHeldDb());
   const image = construction.use(await imageRoom([], true, { db: held.db }));
   const continuation = async (): Promise<SignedContinuation> => {
     const chat = await image.openChat(SIGNED_SCRIPT);

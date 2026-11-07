@@ -2,7 +2,7 @@
 // @subject tests/support/node/corpus-chat-wire.ts
 // @subject tests/support/node/corpus-imagery.ts
 
-import { assertReferentialIntegrity, closeDb } from "@orb/db";
+import { assertReferentialIntegrity } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
@@ -24,9 +24,7 @@ test("native chat lifecycle preserves imported canon, exact reactions/spend/refu
     images: [],
     completion: wire.completion,
   });
-  const heldDb = await freshHeldDb();
-  await using dbLifetime = new AsyncDisposableStack();
-  dbLifetime.defer(() => closeDb(heldDb.db));
+  using heldDb = await freshHeldDb();
   await using root = await createServerHarness({ db: heldDb.db, providerFetch: wire.wrap(physical.execute) });
   const actors = await seedCorpusActors(root);
   const result = await seedCorpusChatLifecycle(root, wire, actors.secondUserId, heldDb);

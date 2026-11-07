@@ -286,6 +286,22 @@ const EXTERNAL_MODULE_MOCK_RESTRICTION = {
     "Do not mock a module in tests. Pass the external edge through an injected seam on the production options (as buildConnector is on ScopedEgressOptions), or add one.",
 };
 
+// useDisposables judges a declaration, so an acquisition passed, awaited alone or read through a member escapes it.
+const OWNED_DB_MESSAGE =
+  "A test database has one owner. Write `using held = await freshDb()` before the graph that borrows it, or pass it to a stack's `.use(...)`; a fixture writes `using held` and then `await use(held)`.";
+const OWNED_DB_RESTRICTIONS = [
+  {
+    selector:
+      "CallExpression[callee.name=/^(freshDb|freshHeldDb|freshCountedDb)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression)",
+    message: OWNED_DB_MESSAGE,
+  },
+  {
+    selector:
+      "CallExpression[callee.name='ownDb']:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression):not(ReturnStatement > CallExpression)",
+    message: OWNED_DB_MESSAGE,
+  },
+];
+
 const FILESYSTEM_MODULE_MOCK_RESTRICTION = {
   selector: `${MOCK_CALL}:matches(${["fs", "node:fs", "fs/promises", "node:fs/promises"]
     .flatMap((module) => [
@@ -2221,7 +2237,7 @@ export default [
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
-    rules: { "no-restricted-syntax": restrictedSyntax(FILESYSTEM_MODULE_MOCK_RESTRICTION) },
+    rules: { "no-restricted-syntax": restrictedSyntax(FILESYSTEM_MODULE_MOCK_RESTRICTION, ...OWNED_DB_RESTRICTIONS) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
@@ -2233,7 +2249,12 @@ export default [
     // Tooling CLI subjects own process-environment inputs; inherited runner cleanup restores their stubs.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS),
+      "no-restricted-syntax": restrictedSyntax(
+        INTERNAL_MODULE_MOCK_RESTRICTION,
+        EXTERNAL_MODULE_MOCK_RESTRICTION,
+        ...TEST_ENVIRONMENT_RESTRICTIONS,
+        ...OWNED_DB_RESTRICTIONS,
+      ),
     },
   },
   {

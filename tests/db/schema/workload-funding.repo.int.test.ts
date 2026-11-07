@@ -1,9 +1,9 @@
 // @subject packages/db/src/schema/workloads.ts
-import { assertReferentialIntegrity, closeDb, createDb, runMigrations, users, workloads } from "@orb/db";
+import { assertReferentialIntegrity, createDb, runMigrations, users, workloads } from "@orb/db";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsBefore, ownDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
 import { eq, sql } from "drizzle-orm";
 
@@ -11,9 +11,8 @@ const FUNDER_MIGRATION = "0003_workload-funder";
 
 test("the forward migration retains history, recovers only owned funding, and clears deleted funding", async () => {
   await using previousChain = await migrationsBefore(FUNDER_MIGRATION);
-  await using lifetime = new AsyncDisposableStack();
-  const db = await createDb(":memory:");
-  lifetime.defer(() => closeDb(db));
+  using opened = ownDb(await createDb(":memory:"));
+  const db = opened.db;
   await runMigrations(db, previousChain.path);
   const ids = createIdSource(createSeededIds().next);
   const owner = await seedUser(db, {}, ids);

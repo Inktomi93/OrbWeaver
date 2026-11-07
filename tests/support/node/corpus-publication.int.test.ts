@@ -5,7 +5,6 @@ import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { closeDb } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
@@ -320,9 +319,7 @@ test("portable member snapshots retain held, completed and cancelled native mess
     images: [],
     completion: wire.completion,
   });
-  const heldDb = await freshHeldDb();
-  await using database = new AsyncDisposableStack();
-  database.defer(() => closeDb(heldDb.db));
+  using heldDb = await freshHeldDb();
   await using root = await createServerHarness({
     db: heldDb.db,
     secretBoxKey: SECRET_BOX_TEST_KEY,

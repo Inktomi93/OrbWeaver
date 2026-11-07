@@ -62,10 +62,12 @@ interface Rooted {
 
 async function rooted(stack: AsyncDisposableStack): Promise<Rooted> {
   let client: NativeDriver | undefined;
-  const db = await freshDb((opened) => {
-    client = opened;
-    return opened;
-  });
+  const db = stack.use(
+    await freshDb((opened) => {
+      client = opened;
+      return opened;
+    }),
+  ).db;
   const root = stack.use(await createServerHarness({ startJobs: false, pluginSpawn: spawn, db }));
   if (client === undefined) {
     throw new Error("the root's database never handed over its native client");

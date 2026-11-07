@@ -1,7 +1,7 @@
 // @subject tests/support/node/corpus-connection.ts
 // @subject tests/support/node/corpus-connection-wire.ts
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
-import { assertReferentialIntegrity, closeDb } from "@orb/db";
+import { assertReferentialIntegrity } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
@@ -194,9 +194,8 @@ test("native connection catalog, capability and account outputs retain real task
 });
 
 test("native connection corpus spends its recipes after legitimate memory and persisted hosted catalog hits", async () => {
-  await using database = new AsyncDisposableStack();
-  const db = await freshDb();
-  database.defer(() => closeDb(db));
+  using fresh = await freshDb();
+  const db = fresh.db;
   const wire = createCorpusConnectionWire();
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],

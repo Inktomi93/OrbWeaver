@@ -2,7 +2,6 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { ProviderId, Task } from "@orb/contracts/inference";
 import { declaredCapabilitySchema, TASKS, taskDef } from "@orb/contracts/inference";
 import type { LibSqlWrap } from "@orb/db";
-import { closeDb } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime, ProviderExecutor, Resolved } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -274,12 +273,11 @@ export const test = baseTest.extend<
     await use({ client: null });
   },
   db: async ({ fundingDriver }, use): Promise<void> => {
-    const db = await freshDb((client) => {
+    using fresh = await freshDb((client) => {
       fundingDriver.client = client;
       return client;
     });
-    await using lifetime = new AsyncDisposableStack();
-    lifetime.defer(() => closeDb(db));
+    const db = fresh.db;
     await use(db);
   },
   providerFetch: async ({ fundingProvider }, use): Promise<void> => {

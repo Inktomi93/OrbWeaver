@@ -2,7 +2,6 @@
 // @subject packages/server/src/domain/automation/service.ts
 import { setImmediate as physicalTurn } from "node:timers/promises";
 import { ruleRefusalReason } from "@orb/contracts/automation";
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
 import { enabledRule } from "../runtime.fixtures.ts";
@@ -24,9 +23,7 @@ test("a transform-only rule produces no manual fire and reports the public trans
 });
 
 test("a manual run raised while the bus dispatch holds a real variable write queues on the same owned lane", async () => {
-  const held = await freshHeldDb();
-  await using database = new AsyncDisposableStack();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ db: held.db });
   const principal = await root.principalFor(root.ownerId);
   const { chat } = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });

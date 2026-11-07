@@ -35,7 +35,8 @@ const FROZEN_NOW = 1_700_000_000_000;
 const SEED_SECRET = "seed-demo-test-session-secret-0000000000";
 
 test("seed:demo fails before mutation when a promised bundled asset is unavailable", async () => {
-  const db = await freshDb();
+  using fresh = await freshDb();
+  const db = fresh.db;
   const casDir = mkdtempSync(join(tmpdir(), "seed-demo-cas-"));
   const variantDir = mkdtempSync(join(tmpdir(), "seed-demo-var-"));
   onTestFinished(() => {
@@ -57,7 +58,8 @@ test("seed:demo fails before mutation when a promised bundled asset is unavailab
 });
 
 test("seed:demo populates the marquee demo shapes against a fresh db", async () => {
-  const db = await freshDb();
+  using fresh = await freshDb();
+  const db = fresh.db;
   const casDir = mkdtempSync(join(tmpdir(), "seed-demo-cas-"));
   const variantDir = mkdtempSync(join(tmpdir(), "seed-demo-var-"));
   onTestFinished(() => {

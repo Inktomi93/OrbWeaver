@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/rpg/verbs/journal/edit-journal-entry.ts
 // @subject packages/server/src/domain/rpg/persistence/journal.ts
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
-import { assertReferentialIntegrity, closeDb } from "@orb/db";
+import { assertReferentialIntegrity } from "@orb/db";
 import { seedCorpusRpg } from "./corpus-rpg.ts";
 import { freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
@@ -98,9 +98,8 @@ test("native journal edits retain, replace and empty custom labels while refusin
 });
 
 test("held real journal updates normalize against the current row rather than clobbering a competing kind change", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const root = ownership.use(await createServerHarness({ db: held.db }));
   const caller = await root.internalCallerFor(root.ownerId);
   const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });

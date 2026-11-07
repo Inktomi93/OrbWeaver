@@ -11,19 +11,18 @@ import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
-import { closeDb } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import type { AssetId, CharacterHandle, ChatId, MessageId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
-import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
+import type { HeldDb, ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   casOf,
   createCorpusProviderExecution,
   createServerHarness,
+  freshHeldDb,
   makeAssetBytes,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
@@ -43,6 +42,8 @@ export interface GcBox {
   readonly cas: ReturnType<typeof casOf>;
   readonly principal: Principal;
   readonly images: Uint8Array[];
+  /** The box's database hold, for a case that parks a statement mid-sweep. */
+  readonly hold: HeldDb["hold"];
 }
 
 export interface StoredRef {
@@ -53,11 +54,17 @@ export interface StoredRef {
 /** A box whose loopback HTTP requests act as its owner, so a suite can drive the export and import routes. */
 const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } } as const;
 
-/** One harness on a scratch CAS; a supplied db is closed after the harness that used it. The scripted provider
- *  answers only an image generation, with whatever bytes a test pushes into `images` first. Plugin guests run as
- *  real processes, and the cover host answers a guest's fetch with one image. */
-export async function openBox(db?: Db, options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"] } = {}): Promise<GcBox> {
+/** One harness on a scratch CAS over the box's own held database. The scripted provider answers only an image
+ *  generation, with whatever bytes a test pushes into `images` first. Plugin guests run as real processes, and the
+ *  cover host answers a guest's fetch with one image. */
+export async function openBox(options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"] } = {}): Promise<GcBox> {
+  // Registered before the first await: `onTestFinished` runs after the case's own scopes, so a failed open still closes.
+  const lifetime = new AsyncDisposableStack();
+  onTestFinished(() => lifetime.disposeAsync());
   const dir = await mkdtemp(join(tmpdir(), "orb-assets-gc-"));
+  lifetime.defer(() => rm(dir, { recursive: true, force: true }));
+  // biome-ignore lint/nursery/useDisposables: lifetime.use registers disposal; onTestFinished disposes the stack after the case.
+  const held = lifetime.use(await freshHeldDb());
   const casDir = join(dir, "cas");
   const images: Uint8Array[] = [];
   const wire = createCorpusProviderExecution({
@@ -75,31 +82,26 @@ export async function openBox(db?: Db, options: { readonly loopbackOwner?: boole
       ? new Response(Uint8Array.from(cover), { headers: { "content-type": PNG } })
       : await wire.execute(request);
   };
-  const root = await createServerHarness({
-    startJobs: false,
-    casDir,
-    providerFetch: network,
-    pluginSpawn: spawn,
-    networkExecution: {
-      fetch: network,
-      resolver: (host) => (host === COVER_HOST ? Promise.resolve([COVER_ADDRESS]) : Promise.reject(new Error(`unscripted DNS lookup: ${host}`))),
-    },
-    ...(db === undefined ? {} : { db }),
-    ...(options.loopbackOwner === true ? LOOPBACK_OWNER : {}),
-    ...(options.ids === undefined ? {} : { ids: options.ids }),
-  });
-  onTestFinished(async () => {
-    await root[Symbol.asyncDispose]();
-    if (db !== undefined) {
-      closeDb(db);
-    }
-    await rm(dir, { recursive: true, force: true });
-  });
+  const root = lifetime.use(
+    await createServerHarness({
+      db: held.db,
+      startJobs: false,
+      casDir,
+      providerFetch: network,
+      pluginSpawn: spawn,
+      networkExecution: {
+        fetch: network,
+        resolver: (host) => (host === COVER_HOST ? Promise.resolve([COVER_ADDRESS]) : Promise.reject(new Error(`unscripted DNS lookup: ${host}`))),
+      },
+      ...(options.loopbackOwner === true ? LOOPBACK_OWNER : {}),
+      ...(options.ids === undefined ? {} : { ids: options.ids }),
+    }),
+  );
   const principal = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   // A committed message resolves the room's chat connection even when nothing generates; nothing here calls it.
   await seedCorpusConnections(root, principal);
-  return { root, cas: casOf(root), principal, images };
+  return { root, cas: casOf(root), principal, images, hold: held.hold };
 }
 
 /** An asset a production writer stored on its own, resolved to the `(id, hash)` the sweep keys on. */

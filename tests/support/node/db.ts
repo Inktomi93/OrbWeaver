@@ -76,16 +76,28 @@ export async function migrationsBeforeLatest(): Promise<AsyncDisposable & { read
   return await migrationsBefore(latest);
 }
 
+/** A database with exactly one owner: disposing it closes the connection. Declare it with `using` before the graph
+ *  that borrows `db`, so the graph closes first. */
+export interface OwnedDb extends Disposable {
+  // Spelled through `closeDb` on purpose: a member typed `Db` by name hides `Disposable` from Biome's inference, and useDisposables goes silent on every acquisition.
+  readonly db: Parameters<typeof closeDb>[0];
+}
+
+/** Give a {@link createDb} handle its owner, in the same expression that opens it. */
+export function ownDb(db: Db): OwnedDb {
+  return { db, [Symbol.dispose]: () => closeDb(db) };
+}
+
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */
-export function freshDb(wrap?: LibSqlWrap): Promise<Db> {
+export function freshDb(wrap?: LibSqlWrap): Promise<OwnedDb> {
   return prepareFreshDb(wrap);
 }
 
-async function prepareFreshDb(wrap?: LibSqlWrap): Promise<Db> {
+async function prepareFreshDb(wrap?: LibSqlWrap): Promise<OwnedDb> {
   const db = await createDb(":memory:", wrap);
   try {
     await pushLiveSchema(db);
-    return db;
+    return ownDb(db);
   } catch (err) {
     closeDb(db);
     throw err;
@@ -109,8 +121,7 @@ export interface HeldStatement {
   readonly disarm: () => void;
 }
 
-export interface HeldDb {
-  readonly db: Db;
+export interface HeldDb extends OwnedDb {
   /** Hold the next `arrivals` statements whose SQL matches `pattern`. Only one hold may be armed at once. */
   readonly hold: (pattern: RegExp, arrivals?: number) => HeldStatement;
 }
@@ -126,8 +137,7 @@ export interface DbStatementHold extends Pick<HeldDb, "hold"> {
  */
 export async function freshHeldDb(): Promise<HeldDb> {
   const controller = createDbStatementHold();
-  const db = await prepareFreshDb(controller.wrap);
-  return { db, hold: controller.hold };
+  return { ...(await prepareFreshDb(controller.wrap)), hold: controller.hold };
 }
 
 /** Use the same physical statement fence with a migrated file DB or the fresh in-memory helper. */
@@ -168,7 +178,11 @@ export function createDbStatementHold(): DbStatementHold {
   };
 }
 
-export interface DbQueryCounter {
+export interface CountedDb extends OwnedDb {
+  readonly queries: DbQueryCounter;
+}
+
+interface DbQueryCounter {
   /** Statements issued since the last reset. `db.batch([...])` counts each statement. */
   readonly count: () => number;
   /** SQL texts in issue order — print these in the failure message when a budget trips. */
@@ -186,21 +200,20 @@ export interface DbQueryCounter {
  * as the OTel tracer at this seam): an interactive `client.transaction()` counts as ONE entry — inner
  * statements aren't individually visible. Domain code batches via `db.batch`, which counts per statement.
  */
-export async function freshCountedDb(): Promise<{ db: Db; queries: DbQueryCounter }> {
+export async function freshCountedDb(): Promise<CountedDb> {
   const log: string[] = [];
   const wrap: LibSqlWrap = (client) => countingClient(client, log);
-  const db = await prepareFreshDb(wrap);
-  log.length = 0; // the schema push isn't the test's budget
-  return {
-    db,
-    queries: {
-      count: (): number => log.length,
-      statements: (): readonly string[] => [...log],
-      reset: (): void => {
-        log.length = 0;
-      },
+  const queries: DbQueryCounter = {
+    count: (): number => log.length,
+    statements: (): readonly string[] => [...log],
+    reset: (): void => {
+      log.length = 0;
     },
   };
+  return await prepareFreshDb(wrap).then((owned) => {
+    queries.reset(); // the schema push isn't the test's budget
+    return { ...owned, queries };
+  });
 }
 
 // The instrumented method set — mirrors observability's wrapLibSqlClient exactly (the production seam).

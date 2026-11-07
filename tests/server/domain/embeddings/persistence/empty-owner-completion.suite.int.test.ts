@@ -9,17 +9,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
-import {
-  characterEmbeddings,
-  chatDigests,
-  chatParticipants,
-  chatSegments,
-  chats,
-  closeDb,
-  documentChunks,
-  embedGenerationTargets,
-  embedSpaceState,
-} from "@orb/db";
+import { characterEmbeddings, chatDigests, chatParticipants, chatSegments, chats, documentChunks, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -197,9 +187,8 @@ for (const change of ["start", "handoff", "binding-target", "user-config", "app-
         return { text: "The harbor witness preserves the orbital ledger.", toolCalls: [], usage: { promptTokens: 50, completionTokens: 15 } };
       },
     });
-    const held = await freshHeldDb();
+    using held = await freshHeldDb();
     await using resources = new AsyncDisposableStack();
-    resources.defer(() => closeDb(held.db));
     const root = resources.use(await createServerHarness({ db: held.db, providerFetch: physical.execute }));
     const owner = await enableOwner(root);
     const foreign = await root.principalFor((await root.actor()).id);
@@ -308,9 +297,8 @@ test("an atomic empty-owner receipt leaves no candidate for a later scope after 
       throw new Error("a fresh room must not summarize");
     },
   });
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using resources = new AsyncDisposableStack();
-  resources.defer(() => closeDb(held.db));
   const root = resources.use(await createServerHarness({ db: held.db, providerFetch: physical.execute }));
   const owner = await enableOwner(root, false);
   const gate = held.hold(/^update "embed_space_state"/u);

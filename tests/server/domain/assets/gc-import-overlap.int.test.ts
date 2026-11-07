@@ -11,7 +11,7 @@ import type { CharacterHandle, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { createQueueScanner, freshHeldDb } from "@orb/testkit/node/composed";
+import { createQueueScanner } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "./gc-box.ts";
 import { ageOnly, attach, aWeekAgo, dispatch, openBox, openRoom, stampEveryBlob, startGc, store, survives, workloadRow } from "./gc-box.ts";
 
@@ -34,7 +34,7 @@ interface Backup {
 /** A library export from another box whose one attachment is referenced only by a chat message. */
 async function backup(): Promise<Backup> {
   // Its own id band: asset ids are restored verbatim, and the target mints its own from the fixture band.
-  const source = await openBox(undefined, { loopbackOwner: true, ids: createSeededIds(SOURCE_ID_CURSOR) });
+  const source = await openBox({ loopbackOwner: true, ids: createSeededIds(SOURCE_ID_CURSOR) });
   const attachment = await store(source, "attachment");
   await attach(source, await openRoom(source, castId<CharacterHandle>(RESTORED_HANDLE)), attachment);
   const download = await source.root.http.request(EXPORT_ROUTE);
@@ -66,10 +66,9 @@ interface RestoreInFlight {
 /** A restore parked after its blobs landed and before any row references them, past the grace window. */
 async function restoreInFlight(): Promise<RestoreInFlight> {
   const { bundle, attachment } = await backup();
-  const { db, hold } = await freshHeldDb();
-  const target = await openBox(db, { loopbackOwner: true });
+  const target = await openBox({ loopbackOwner: true });
   const garbage = await store(target, "attachment");
-  const restoring = hold(CHARACTER_PLANE);
+  const restoring = target.hold(CHARACTER_PLANE);
   const restore = await uploadBundle(target, bundle);
   const restored = dispatch(target, restore);
   await restoring.reached;
@@ -109,11 +108,10 @@ test("a sweep due while a restore is still writing waits for it, and every resto
 
 test("a restore uploaded while the sweep is reclaiming waits for the sweep to finish", async () => {
   const { bundle, attachment } = await backup();
-  const { db, hold } = await freshHeldDb();
-  const target = await openBox(db, { loopbackOwner: true });
+  const target = await openBox({ loopbackOwner: true });
   const garbage = await store(target, "attachment");
   await ageOnly(target, garbage);
-  const reclaiming = hold(ASSET_ROW_DELETE);
+  const reclaiming = target.hold(ASSET_ROW_DELETE);
   const sweep = await startGc(target);
   const swept = dispatch(target, sweep);
   await reclaiming.reached;

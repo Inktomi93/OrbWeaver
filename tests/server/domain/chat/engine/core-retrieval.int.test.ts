@@ -1,7 +1,6 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
 import { createCharacterSchema } from "@orb/contracts/character";
-import { closeDb } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions, HeldStatement } from "@orb/testkit/node/composed";
 import {
@@ -130,9 +129,8 @@ test.for(RETRIEVAL_ROWS)("$label retain their real recall scope and warn once pe
 });
 
 test("one actual turn independently warns once for a degraded shared rerank and a later unavailable per-speaker index", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const h = ownership.use(await recallRoom(RETRIEVAL_ROWS[0].group, { server: { db: held.db } }));
   const bindings = await h.caller.connection.listBindings();
   const embed = bindings.find((binding) => binding.task === "embed")?.binding?.connectionId;

@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/persona/verbs/find-seeded-default.ts
 // @subject packages/server/src/domain/settings/verbs/seed-policy.ts
 
-import { closeDb, userSettings } from "@orb/db";
+import { userSettings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFindSeededDefault } from "@orb/server/domain/persona";
@@ -82,9 +82,8 @@ test("a lost persona latch heals only its own artifact and independently preserv
 });
 
 test("a real database refusal of the completion latch leaves pointers landed and the next process's seed completes it", async () => {
-  await using resources = new AsyncDisposableStack();
-  const db = await freshDb();
-  resources.defer(() => closeDb(db));
+  using fresh = await freshDb();
+  const db = fresh.db;
   await using root = await createServerHarness({ db, env: AUTOMATION_STACK });
   const { services } = root;
   const actor = await principal(root, (await root.actor()).id);

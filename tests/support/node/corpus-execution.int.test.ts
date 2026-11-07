@@ -2,7 +2,6 @@
 // @subject tests/support/node/server.ts
 import { once } from "node:events";
 import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
-import { closeDb } from "@orb/db";
 import { vi } from "vitest";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { freshCountedDb, freshHeldDb } from "./db.ts";
@@ -25,9 +24,7 @@ test("a caller execution scope permits native load beyond the helper default and
 }, async () => {
   const controller = new AbortController();
   const options = { startJobs: false, workloadExecutionSignal: controller.signal };
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   {
     await using root = await createServerHarness({ ...options, db: held.db });
     const caller = await root.internalCallerFor(root.ownerId);
@@ -73,9 +70,7 @@ test("caller cancellation during initial native load returns its reason while ba
 }, async () => {
   const controller = new AbortController();
   const options = { startJobs: false, workloadExecutionSignal: controller.signal };
-  await using database = new AsyncDisposableStack();
-  const held = await freshHeldDb();
-  database.defer(() => closeDb(held.db));
+  using held = await freshHeldDb();
   await using root = await createServerHarness({ ...options, db: held.db });
   const caller = await root.internalCallerFor(root.ownerId);
   const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
@@ -126,9 +121,7 @@ test("setup and repeated calls cannot renew an expired native caller timeout or 
   // Listen before setup: the timeout may fire while the root is still being built.
   const expired = once(workloadExecutionSignal, "abort");
   const options = { startJobs: false, workloadExecutionSignal };
-  await using database = new AsyncDisposableStack();
-  const counted = await freshCountedDb();
-  database.defer(() => closeDb(counted.db));
+  using counted = await freshCountedDb();
   await using root = await createServerHarness({ ...options, db: counted.db });
   const caller = await root.internalCallerFor(root.ownerId);
   const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });

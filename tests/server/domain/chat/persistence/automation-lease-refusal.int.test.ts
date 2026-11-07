@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatLocks, closeDb, messages, messageVariants } from "@orb/db";
+import { chatLocks, messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { HeldStatement } from "@orb/testkit/node/composed";
 import { freshHeldDb } from "@orb/testkit/node/composed";
@@ -14,9 +14,8 @@ import { enabledRule } from "../../automation/runtime.fixtures.ts";
 import { coreFrame, coreHttpRoom, coreSse } from "../engine/core-physical.ts";
 
 test("a real depth-two automation child refused by a peer lease closes its accepted slot with its own cascade depth", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   let boundary: HeldStatement | undefined;
   const counterReached = Promise.withResolvers<HeldStatement>();
   const h = ownership.use(

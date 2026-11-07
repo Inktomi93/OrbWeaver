@@ -8,7 +8,6 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { REATTRIBUTE_MESSAGES_MAX, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import { closeDb } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -252,9 +251,8 @@ test("a removed seat is no target until it is re-added, and a row can still leav
 });
 
 test("a seat removed between the gate and the write loses the race: no stamp, no event, and the retry names the seat", async () => {
-  const held = await freshHeldDb();
+  using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  ownership.defer(() => closeDb(held.db));
   const h = ownership.use(
     await createChatRoot({
       memoryEnabled: false,
