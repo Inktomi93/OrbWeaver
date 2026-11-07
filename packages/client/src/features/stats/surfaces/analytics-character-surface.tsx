@@ -112,7 +112,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
     <Stack gap="section">
       {/* The phone's topbar already carries the one Back (the Labels and Explore drill posture). */}
       {phone ? null : (
-        <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
+        <Button variant="ghost" size="sm" onClick={onBack} self="start">
           <Icon icon={ArrowLeft} size="sm" />
           {`Back to ${CORPUS_MODE_LABELS.insights}`}
         </Button>
@@ -187,7 +187,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Collapsible>
         <CollapsibleTrigger>Details</CollapsibleTrigger>
-        <CollapsiblePanel className="pbs-row">
+        <CollapsiblePanel offset="row">
           <Grid cols="cell" gap="block">
             <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
             <StatFigure label={LATENCY_LABELS.p50Ttft} value={formatMs(latency.p50TtftMs)} />

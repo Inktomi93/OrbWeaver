@@ -17,7 +17,7 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
             {entry.label}
           </Text>
           {entry.label === entry.id ? null : (
-            <Text as="span" className="break-all" clamp={2} voice="datumMono">
+            <Text as="span" wrap="all" clamp={2} voice="datumMono">
               {entry.id}
             </Text>
           )}

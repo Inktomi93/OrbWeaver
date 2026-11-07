@@ -36,7 +36,7 @@ export function LoginWeaveBackdrop(): ReactElement {
       hub={LOGIN_WEAVE_GEOMETRY.hub}
       seed={LOGIN_WEAVE_GEOMETRY.seed}
       interactive={true}
-      className="sticky inset-bs-0"
+      placed="pinned"
       viewport={true}
     />
   );

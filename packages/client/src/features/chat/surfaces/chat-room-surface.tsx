@@ -137,7 +137,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   );
 
   return (
-    <ThemeScope tokens={roomTheme ?? {}} className="contents">
+    <ThemeScope tokens={roomTheme ?? {}} box="contents">
       {/* DENSITY S6 (UI-Density-Law.md §3.1): the chat transcript AND the composer are both the
           INSTRUMENT tier, so the room declares it ONCE for the whole pane — the two are one continuous
           reading surface, and a second declaration would be the same-tier nesting the spec calls RED.

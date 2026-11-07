@@ -36,6 +36,8 @@ export const CAP = {
   paneSm: "max-inline-cq-24",
   avatarHero: "max-inline-(--size-avatar-hero)",
   controlMd: "max-inline-(--size-control-md)",
+  paneXs: "max-inline-cq-20",
+  available: "max-inline-(--available-width)",
   sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 
@@ -50,6 +52,20 @@ export const HEIGHT = {
   controlLg: "block-(--size-control-lg)",
   scrollMd: "block-(--height-scroll-md)",
 } as const;
+
+/** The most block size a box takes before it scrolls: a scroll region's step, what the popup's anchor leaves, or a pane's. */
+export const MAX_HEIGHT = {
+  scrollSm: "max-block-(--height-scroll-sm)",
+  scrollMd: "max-block-(--height-scroll-md)",
+  scrollLg: "max-block-(--height-scroll-lg)",
+  scrollMdWide: "max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)",
+  paneSm: "max-block-(--container-cq-24)",
+  available: "max-block-(--available-height)",
+  halfNarrow: "@max-cq-32:max-block-1/2",
+} as const;
+
+/** A picture's box, by what it stands for: its host's whole box, or the hero step on both sides. */
+export const PICTURE_SIZE = { fill: "block-full inline-full", hero: "block-(--size-avatar-hero) inline-(--size-avatar-hero)" } as const;
 
 /** The box takes its parent's whole block size. */
 export const FILL = { true: "block-full", false: "" } as const;

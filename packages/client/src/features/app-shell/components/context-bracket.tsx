@@ -153,7 +153,10 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           role="region"
           // The tab names its panel; with one meta tab there is no strip to name it, so the panel names itself.
           {...(tab.strip === "meta" && metaTabs.length <= 1 ? { "aria-label": tab.label } : { "aria-labelledby": cellDomId(tab.id) })}
-          className="relative flex-initial overflow-y-auto overscroll-contain p-row min-block-0"
+          grow="initial"
+          inset="row"
+          scroll="y"
+          className="min-block-0"
           ground={tab.opaque ? "sidebar" : "none"}
         >
           {visited.has(tab.id) ? tab.node : null}

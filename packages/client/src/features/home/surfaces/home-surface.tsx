@@ -241,7 +241,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       // finding as a verdict on the BAND as well as on the type step. See the band below
                       // for what that cost at 1920 and how the two separate (#833).
                       <Section aria-label={DOORWAY_GROUP_LABEL}>
-                        <Collapsible className="gap-block">
+                        <Collapsible>
                           {/* …AND THE BAND CAME BACK, HOSTING THE TRIGGER RATHER THAN REPLACING IT (#833,
                               side-eye HOME delta 2026-08-30). The clause above retired the kicker anatomy
                               on the reasoning that "a group you have to OPEN is a control, not a band" —
@@ -298,7 +298,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                               </Text>
                             </Badge>
                           </Row>
-                          <CollapsiblePanel>
+                          <CollapsiblePanel offset="block">
                             <Stack gap="block">
                               {doorways.map((entry) => (
                                 <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />

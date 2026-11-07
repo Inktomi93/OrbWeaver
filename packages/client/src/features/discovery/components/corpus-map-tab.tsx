@@ -77,7 +77,7 @@ function MapBody(): ReactElement {
             and the reason the plot answered nothing. `legend` is @orb/ui's, not this file's: ui owns the
             palette (so the swatch matches the plot by construction) and ui is the only painter. */}
         <Scatter
-          className="block-full inline-full"
+          size="fill"
           // The plot's own box, not the primitive's 320px default (P3-9): the frame is a flex column at the
           // wrapper's height, so a percentage height lets the canvas take everything the key does not.
           height="100%"

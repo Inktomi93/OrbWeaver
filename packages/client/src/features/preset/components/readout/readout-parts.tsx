@@ -181,7 +181,7 @@ export function EffectiveProfileFailure({ error, onRetry }: { readonly error: un
             </Text>
             {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
             reads as the band's own primary action rather than as the recovery for the line above it. */}
-            <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
+            <Button self="start" variant="outline" onClick={onRetry} size="sm" type="button">
               {DIALOG_VERBS.retry}
             </Button>
           </Stack>

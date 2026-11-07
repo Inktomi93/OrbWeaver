@@ -99,7 +99,7 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
           onValueChange={(next): void => setType(next as RpgJournalType)}
           // No height here: Select's default `layout="field"` arm already IS `h-(--size-control-sm)` (#169 — the
           // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
-          className="basis-1/3"
+          floor="third"
         />
       }
       actions={[{ key: "entry", label: "Add entry", onAdd: (title: string): void => onCreate({ type, title }) }]}

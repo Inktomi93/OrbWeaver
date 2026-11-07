@@ -1,5 +1,5 @@
 // 1-D magnitude skins. The danger state is a token swap (primary -> destructive intent), never a color calculation.
-import { CAPTION, FIELD_LABEL, FIELD_STACK, tv } from "#lib";
+import { CAPTION, FIELD_LABEL, FIELD_STACK, GROW, tv } from "#lib";
 
 export const meterVariants = tv({
   slots: {
@@ -114,6 +114,12 @@ export const RING_STROKE = {
   5: "text-track-5",
   6: "text-track-6",
 } as const;
+
+export const trackBarBoxVariants = tv({
+  variants: {
+    grow: GROW,
+  },
+});
 
 export const trackBarVariants = tv({
   slots: {

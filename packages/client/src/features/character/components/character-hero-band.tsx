@@ -259,7 +259,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // chat-recall-indicator.tsx carries it.) A ghost `InlineAction` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button variant="outline" shape="pill" size="sm" type="button">
-                  <ThemeScope className="shrink-0 block-(--size-glyph-xs) inline-(--size-glyph-xs)" tokens={cardTheme}>
+                  <ThemeScope box="glyph" tokens={cardTheme}>
                     <Swatch edge="outline" fill="primary" shape="pill" size="fill" />
                   </ThemeScope>
                   {/* The kicker register at its own weight. `interactiveKicker`, not `kicker`: this text is the

@@ -1,7 +1,13 @@
-import { FIELD_ROW, tv } from "#lib";
+import { FIELD_ROW, PICTURE_SIZE, tv } from "#lib";
 
 /** The scatter's DOM KEY — the readable half of a canvas plot: one row per category, swatch · name · count.
  *  Wrapping, because a key is chrome and must never take height from the plot it explains. */
+export const scatterBoxVariants = tv({
+  variants: {
+    size: { fill: PICTURE_SIZE.fill },
+  },
+});
+
 export const scatterLegendVariants = tv({
   slots: {
     root: "flex flex-wrap gap-x-block gap-y-tight",

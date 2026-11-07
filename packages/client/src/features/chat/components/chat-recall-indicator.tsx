@@ -170,7 +170,7 @@ function MemoryOffSummary({ onTurnOn }: { readonly onTurnOn: () => void }): Reac
   return (
     <Stack gap="field">
       <Text voice="gloss">Chat memory is off.</Text>
-      <Button className="self-start" variant="outline" onClick={onTurnOn} size="sm" type="button">
+      <Button self="start" variant="outline" onClick={onTurnOn} size="sm" type="button">
         Turn on
       </Button>
     </Stack>

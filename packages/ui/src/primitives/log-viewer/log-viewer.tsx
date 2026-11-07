@@ -1,12 +1,13 @@
 import type { ReactElement, UIEvent } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn, prefersReducedMotionNow } from "#lib";
 import { CopyButtonFallback, CopyButtonRoot, CopyButtonStatus, CopyButtonSubject, CopyButtonTrigger } from "#primitives/copy-button";
 import { CircleAlert, Icon, Info, TriangleAlert } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
 import { LENGTH_BASE_PX } from "#tokens";
-import { logViewerVariants } from "./variants.ts";
+import { logViewerBoxVariants, logViewerVariants } from "./variants.ts";
 
 const LOG_LINE_LEVELS = ["info", "warn", "error"] as const;
 export type LogLineLevel = (typeof LOG_LINE_LEVELS)[number];
@@ -73,7 +74,7 @@ const NEAR_BOTTOM_SLACK_PX = 4;
 // being flushed first.
 const VIRTUAL_TAIL_SLACK_PX = 80;
 
-export interface LogViewerProps {
+export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants> {
   readonly lines: readonly LogLine[];
   /** Cap the rendered window to the most recent N lines — a display cap; the caller owns the full log. */
   readonly maxLines?: number;
@@ -86,7 +87,7 @@ export interface LogViewerProps {
  * glyph+intent-token pair per line (never color alone). Virtualizes above `VIRTUALIZE_THRESHOLD`
  * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-(--height-scroll-md)`).
  */
-export function LogViewer({ lines, maxLines, className }: LogViewerProps): ReactElement {
+export function LogViewer({ lines, maxLines, maxHeight, className }: LogViewerProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Updated only from a real scroll event, never from the autoscroll effect — reflects "was the
   // reader at the bottom before this append". Starts true: an empty/short log begins pinned.
@@ -157,7 +158,12 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   return (
     // A failed copy's field takes the BODY's place, not a line in the toolbar: the root clips to its own
     // height, so a field added to the fixed toolbar would push the body out of view and be cut off itself.
-    <CopyButtonRoot className={cn(slots.root(), className)} data-slot="log-viewer-root" text={visible.map(textOf).join("\n")} what="log">
+    <CopyButtonRoot
+      className={cn(slots.root(), logViewerBoxVariants({ maxHeight, className }))}
+      data-slot="log-viewer-root"
+      text={visible.map(textOf).join("\n")}
+      what="log"
+    >
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
         {/* Status first: the toolbar is end-aligned, so its text grows leftward and the button never moves. */}
         <CopyButtonStatus />

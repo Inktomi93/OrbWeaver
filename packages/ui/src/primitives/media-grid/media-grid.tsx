@@ -1,10 +1,11 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent, ReactElement, Ref } from "react";
 import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
 import { ACCENT_AURA_PIGMENT, assertBoundedScrollHeight, cn, finePointerNow, gapPxFor, prefersReducedMotionNow } from "#lib";
 import { Check, Icon } from "#primitives/icons";
-import { mediaGridVariants } from "./variants.ts";
+import { mediaGridBoxVariants, mediaGridVariants } from "./variants.ts";
 
 const DEFAULT_MIN_CELL_WIDTH_PX = 96;
 const OVERSCAN = 2;
@@ -77,7 +78,7 @@ export interface MediaGridHandle {
   readonly focusItem: (id: MediaGridKey) => boolean;
 }
 
-export interface MediaGridProps<T extends MediaGridItem> {
+export interface MediaGridProps<T extends MediaGridItem> extends VariantProps<typeof mediaGridBoxVariants> {
   readonly items: readonly T[];
   /** Minimum cell width (px) the responsive column count is derived from. Default 96. */
   readonly minCellWidth?: number;
@@ -183,6 +184,8 @@ function MediaGridCell<T extends MediaGridItem>({
  * Keyboard: roving tabindex — ArrowLeft/Right ±1, ArrowUp/Down ±`columns`, Home/End to first/last.
  */
 export function MediaGrid<T extends MediaGridItem>({
+  width,
+  maxHeight,
   items,
   minCellWidth = DEFAULT_MIN_CELL_WIDTH_PX,
   gapToken,
@@ -347,7 +350,7 @@ export function MediaGrid<T extends MediaGridItem>({
       aria-colcount={columns}
       aria-label={ariaLabel}
       aria-rowcount={rowCount}
-      className={cn(slots.root(), className)}
+      className={cn(slots.root(), mediaGridBoxVariants({ width, maxHeight, className }))}
       data-slot="media-grid-root"
       onKeyDown={onGridKeyDown}
       ref={scrollRef}

@@ -37,7 +37,7 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
           prose token's contract names. The summary Text below takes `--reading-measure-prose` and the popup
           shrink-wraps to it. */}
       <PopoverPopup side="top" align="center">
-        <Stack gap="field" scroll="y" className="max-block-(--height-scroll-lg)">
+        <Stack gap="field" scroll="y" maxHeight="scrollLg">
           <Text as="span" voice="kicker">
             Compaction summary
           </Text>

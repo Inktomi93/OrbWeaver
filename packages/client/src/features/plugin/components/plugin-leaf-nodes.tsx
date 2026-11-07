@@ -264,11 +264,7 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   const media =
     url === undefined ? (
       // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
-      <Card
-        className={framed ? "flex flex-col items-center justify-center block-full inline-full" : "flex flex-col items-center justify-center"}
-        variant="outline"
-        dashed={true}
-      >
+      <Card centres={true} fill={framed} width={framed ? "full" : undefined} variant="outline" dashed={true}>
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Card>
     ) : (
@@ -393,7 +389,7 @@ function FormLeaf({
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
       <Button
-        className="self-start"
+        self="start"
         cap="fit"
         disabled={buttonDisabled(node, state)}
         variant={buttonVariant(node, primaryButton)}
@@ -436,7 +432,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button className="self-start" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
+        <Button self="start" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
           {node.label}
         </Button>
       }

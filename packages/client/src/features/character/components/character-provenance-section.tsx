@@ -58,7 +58,7 @@ function ProvenanceRow({ label, value }: { readonly label: string; readonly valu
   return (
     <Row gap="row" align="center" wrap={true}>
       <Text voice="kicker">{label}</Text>
-      <Text voice="datumMono" className="break-all">
+      <Text voice="datumMono" wrap="all">
         {value}
       </Text>
     </Row>

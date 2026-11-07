@@ -187,7 +187,7 @@ function RowMarkers({
  *  tree; the legend above the groups names them once in words. */
 function StageGlyphs({ placement }: { readonly placement: readonly (keyof typeof REGEX_PLACEMENT_GLYPHS)[] }): ReactElement {
   return (
-    <Row align="center" className="inline-flex" gap="tight">
+    <Row align="center" inline={true} gap="tight">
       {regexPlacementStages(placement).map((stage) => (
         <Icon icon={REGEX_PLACEMENT_GLYPHS[stage]} key={stage} label={REGEX_PLACEMENT_LABELS[stage]} size="xs" />
       ))}

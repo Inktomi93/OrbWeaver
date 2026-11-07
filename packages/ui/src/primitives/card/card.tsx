@@ -45,9 +45,32 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // to the card's own content, which takes any step through a Row or Stack. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, focusable, ownSlot } = props;
+  const {
+    className,
+    width,
+    cap,
+    fill,
+    centres,
+    shape,
+    elevated,
+    interactive,
+    nested,
+    padding,
+    tone,
+    variant,
+    dashed,
+    glow,
+    rail,
+    artDecoration,
+    focusable,
+    ownSlot,
+  } = props;
   const skin = cn(
     cardVariants({
+      width,
+      cap,
+      fill,
+      centres,
       shape,
       elevated,
       interactive,

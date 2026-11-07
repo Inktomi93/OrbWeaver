@@ -1,4 +1,4 @@
-import { COLOR_MOTION, OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, SCROLLER_Y, tv } from "#lib";
+import { CAP, COLOR_MOTION, OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, SCROLLER_Y, tv } from "#lib";
 
 // THE HIGHLIGHT NEEDS A REAL INDICATOR (side-eye 2026-08-08 P2). The fill swap alone was the whole cue:
 // `bg-accent` (oklch 0.285) over `bg-popover` (oklch 0.245) is a 1.13:1 step, with `outline-none` and no
@@ -84,4 +84,19 @@ export const menuVariants = tv({
     },
   },
   defaultVariants: { clamp: "viewport" },
+});
+
+export const menuItemBoxVariants = tv({
+  variants: {
+    cap: { paneXs: CAP.paneXs },
+    truncate: { true: "truncate" },
+    // A line per fact: a name over its detail.
+    stacked: { true: "flex-col items-start" },
+  },
+});
+
+export const menuPopupBoxVariants = tv({
+  variants: {
+    cap: { available: CAP.available },
+  },
 });

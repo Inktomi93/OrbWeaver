@@ -62,13 +62,7 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
   return (
     <Collapsible data-slot="turn-tool-calls">
       {/* Fine pointers retain the dense footer's text-height box; the native touch floor owns coarse height. */}
-      <CollapsibleTrigger
-        aria-label={`Game actions on this turn — ${summary}`}
-        className="self-start"
-        touchFloor="block"
-        size="text"
-        data-target-floor="sub-floor-ok"
-      >
+      <CollapsibleTrigger aria-label={`Game actions on this turn — ${summary}`} self="start" touchFloor="block" size="text" data-target-floor="sub-floor-ok">
         <Icon icon={warning ? CircleAlert : Dices} size="sm" {...(warning ? ({ tone: "warning" } as const) : ({ ink: "muted" } as const))} />
         <Text voice="code">{failure === null ? calls.length : VERDICT_LABEL.dropped}</Text>
       </CollapsibleTrigger>

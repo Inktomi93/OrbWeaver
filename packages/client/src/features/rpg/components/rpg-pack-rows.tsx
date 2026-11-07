@@ -84,7 +84,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
 // gives it the width the item's own words need, and the card is only as tall as those words. It keeps the
 // `rpg-pack-cell` owner-CSS hook as its own slot.
 const TILE_SLOT = "rpg-pack-cell";
-const TILE_BOX = "relative inline-full min-inline-0";
+const TILE_BOX = "relative min-inline-0";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
@@ -157,7 +157,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
 function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   if (edit === undefined) {
     return (
-      <Card className={TILE_BOX} ownSlot={TILE_SLOT} padding="none" shape="row">
+      <Card className={TILE_BOX} width="full" ownSlot={TILE_SLOT} padding="none" shape="row">
         <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
           <PackCellInk item={item} />
         </Row>
@@ -172,7 +172,16 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       unfenced. */}
       <PopoverTrigger
         render={
-          <Card aria-label={`Edit ${item.name}`} as="button" className={TILE_BOX} interactive={true} ownSlot={TILE_SLOT} padding="none" shape="row">
+          <Card
+            aria-label={`Edit ${item.name}`}
+            as="button"
+            className={TILE_BOX}
+            width="full"
+            interactive={true}
+            ownSlot={TILE_SLOT}
+            padding="none"
+            shape="row"
+          >
             <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
               <PackCellInk item={item} pinned={pinned} />
             </Row>

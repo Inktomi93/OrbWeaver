@@ -197,7 +197,7 @@ export function MasterDetail({
         // cover at column width fills the whole viewport and shoves the decision cluster below the fold,
         // which is the exact failure the detail stage exists to prevent. `object-contain` (the primitive's
         // default) keeps the ratio; the hero reads as a cover, not a wall.
-        <MessageMedia alt={stage.hero.alt ?? ""} className="max-block-(--height-scroll-lg)" media="image" src={{ kind: "asset", url: heroUrl }} />
+        <MessageMedia alt={stage.hero.alt ?? ""} maxHeight="scrollLg" media="image" src={{ kind: "asset", url: heroUrl }} />
       )}
       {title === undefined ? null : <Text voice="focal">{title}</Text>}
       {body}
@@ -237,7 +237,7 @@ export function SurfaceSearchBar({
   return (
     <Stack gap="field">
       <Row align="end" gap="field">
-        <Field className="grow" label={node.label}>
+        <Field grow="fill" label={node.label}>
           <Input
             onKeyDown={(event): void => {
               // Enter submits — a query box that only responds to a button is a search a keyboard user has to

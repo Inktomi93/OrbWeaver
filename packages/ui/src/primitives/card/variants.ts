@@ -1,4 +1,4 @@
-import { COLOR_MOTION, FOCUS_RING, TONE_ARMS, TONE_TINT_HOVER, tv } from "#lib";
+import { CAP, COLOR_MOTION, FILL, FOCUS_RING, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -14,6 +14,11 @@ const MEANING_EDGE = "border-tone-solid data-[tone=neutral]:border-tone-edge";
 export const cardVariants = tv({
   base: "rounded-base border p-block text-card-foreground",
   variants: {
+    width: WIDTH,
+    cap: CAP,
+    fill: FILL,
+    // A card that holds one mark in its middle.
+    centres: { true: "flex flex-col items-center justify-center" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
     // preview row): the control radius, because you operate it. The radius is re-declared in tiers.css, where the

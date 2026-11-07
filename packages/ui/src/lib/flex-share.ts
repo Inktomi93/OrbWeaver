@@ -9,11 +9,14 @@ export const GROW = {
   double: "flex-2",
   wide: "flex-1 @max-cq-28:flex-none",
   contentNarrow: "flex-auto @cq-28:flex-none",
+  initial: "flex-initial",
+  fill: "grow",
 } as const;
 export const FLOOR = {
   title: "basis-(--width-title-floor)",
   field: "basis-(--width-field-floor)",
   line: "basis-full",
+  third: "basis-1/3",
 } as const;
 
 /** The inline inset of a run set in line with the labels of the controls beside it. */
@@ -43,3 +46,6 @@ export const SELF = {
   railEnd: "@cq-56:justify-self-end",
   railStart: "@cq-56:justify-self-start",
 } as const;
+
+/** The box takes no pointer, so clicks fall through to what lies under it. */
+export const PASS_THROUGH = { true: "pointer-events-none", false: "" } as const;

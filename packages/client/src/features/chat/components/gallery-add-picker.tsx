@@ -183,7 +183,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
         ariaLabel={CHAT_GALLERY_IMAGES_NAME}
         gapToken="row"
         selection={{ selectedIds: selected, onToggle: toggle }}
-        className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
+        maxHeight="scrollMdWide"
         ref={gridRef}
       />
     );

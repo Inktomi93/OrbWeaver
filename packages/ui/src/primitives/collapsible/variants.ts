@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FIELD_LABEL, FOCUS_RING, OPEN_TURN, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { DISABLED_STATE, FIELD_LABEL, FLOOR, FOCUS_RING, GROW, OPEN_TURN, SELF, TEXT_ALIGN, TOUCH_FLOOR_AT_COARSE, tv, WIDTH } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -58,5 +58,24 @@ export const collapsibleVariants = tv({
   defaultVariants: {
     instant: false,
     size: "control",
+  },
+});
+
+export const collapsibleTriggerBoxVariants = tv({
+  variants: {
+    width: WIDTH,
+    self: SELF,
+    grow: GROW,
+    floor: FLOOR,
+    textAlign: TEXT_ALIGN,
+    // A disclosure that is a whole block of its parent keeps the block inset around its label.
+    inset: { block: "p-block" },
+  },
+});
+
+// The room between a disclosure and what it opens, inside the panel so a closed panel keeps none.
+export const collapsiblePanelBoxVariants = tv({
+  variants: {
+    offset: { row: "pbs-row", block: "pbs-block" },
   },
 });

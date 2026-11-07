@@ -98,7 +98,7 @@ export function CapabilityGate({ error, onRetry }: CapabilityGateProps): ReactEl
                 ? `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`
                 : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
             </Text>
-            <Button className="self-start" variant="outline" onClick={onRetry} size="sm" type="button">
+            <Button self="start" variant="outline" onClick={onRetry} size="sm" type="button">
               {DIALOG_VERBS.retry}
             </Button>
           </Stack>

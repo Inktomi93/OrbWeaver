@@ -85,7 +85,7 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
             same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
             it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
             unchanged) and inside the `ui-size-via-variant` seal. */}
-        <CollapsibleTrigger className="p-block inline-full" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
+        <CollapsibleTrigger inset="block" width="full" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" grow={true}>
             <Text voice="label">{label}</Text>
             <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>

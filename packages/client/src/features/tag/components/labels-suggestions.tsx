@@ -166,7 +166,8 @@ function SuggestionGroupBlock({
       {/* `w-fit`: the table is as wide as its two columns, so a name's verbs sit beside it instead of a pane-width away. */}
       <Table
         aria-label={`Characters suggested ${group.name}`}
-        className="inline-fit max-inline-full"
+        width="fit"
+        cap="fit"
         columns={columns}
         data={group.rows}
         defaultPagination={{ pageIndex: 0, pageSize: group.rows.length }}

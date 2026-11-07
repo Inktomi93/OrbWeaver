@@ -6,6 +6,7 @@ import {
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
   FIELD_LABEL,
+  FLOOR,
   FOCUS_RING,
   ITEM_ROW,
   OVERLAY_ARROW,
@@ -86,4 +87,10 @@ export const selectVariants = tv({
     strong: { true: { trigger: "font-semibold" } },
   },
   defaultVariants: { size: "sm", layout: "field" },
+});
+
+export const selectBoxVariants = tv({
+  variants: {
+    floor: FLOOR,
+  },
 });

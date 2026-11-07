@@ -287,7 +287,7 @@ function SourceTextBody({ documentId }: { readonly documentId: DocumentId }): Re
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
-    <ScrollArea className="max-block-(--height-scroll-lg)" wrapContent={true}>
+    <ScrollArea maxHeight="scrollLg" wrapContent={true}>
       <Text cap="prose" whitespace="preWrap" wrap="word" prose={true}>
         {query.data.extractedText ?? ""}
       </Text>

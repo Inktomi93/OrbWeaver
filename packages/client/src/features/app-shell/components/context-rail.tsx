@@ -135,7 +135,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={cn("grid grid-flow-col gap-tight min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            track="cells"
+            className={cn("min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
             fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
@@ -219,7 +220,7 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="self-stretch min-inline-0" grow={true} paddingInline="block">
+      <Row data-slot="context-tab-strip" align="center" className="min-inline-0" self="stretch" grow={true} paddingInline="block">
         <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
@@ -231,14 +232,16 @@ export function ContextHeaderTabs({
       data-slot="context-tab-strip"
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="relative self-stretch min-inline-0"
+      className="relative min-inline-0"
+      self="stretch"
       grow={true}
     >
       <TabsList
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row min-inline-0"
+        track="strip"
+        className="shell-context-tab-strip min-inline-0"
         fill={true}
         rule="none"
       >

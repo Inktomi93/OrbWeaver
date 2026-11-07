@@ -71,7 +71,7 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
   return (
     <Stack gap="row">
       <Row align="start" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
-        <Field className="grow min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
+        <Field grow="fill" className="min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
           <Textarea
             defaultValue={Object.entries(headers)
               .map(([name, value]) => `${name}: ${value}`)
@@ -82,7 +82,7 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
             rows={2}
           />
         </Field>
-        <Field className="grow min-inline-0" description="Comma-separated. We drop them before the request goes out." label="Don't send these fields">
+        <Field grow="fill" className="min-inline-0" description="Comma-separated. We drop them before the request goes out." label="Don't send these fields">
           <Input
             autoComplete="off"
             defaultValue={(transport?.excludeBody ?? []).join(", ")}

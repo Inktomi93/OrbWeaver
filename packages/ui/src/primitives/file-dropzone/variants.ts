@@ -1,4 +1,4 @@
-import { CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FOCUS_RING_HAS, tv } from "#lib";
+import { CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FOCUS_RING_HAS, HIDDEN_AT, tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on
@@ -33,5 +33,11 @@ export const fileDropzoneVariants = tv({
     error: `${FIELD_ROW} text-label leading-label text-destructive max-inline-full`,
     errorIcon: "shrink-0",
     errorText: "wrap-anywhere min-inline-0",
+  },
+});
+
+export const fileDropzoneBoxVariants = tv({
+  variants: {
+    hiddenAt: { always: HIDDEN_AT.always },
   },
 });

@@ -36,7 +36,7 @@ export const fieldVariants = tv({
     controlCol: "flex shrink-0 flex-col items-end gap-field",
   },
   variants: {
-    grow: { true: { root: GROW.true } },
+    grow: { true: { root: GROW.true }, fill: { root: GROW.fill } },
     cap: { paneSm: { root: CAP.paneSm } },
     // `content` sizes the field to its control, for fields that share a row at their own widths.
     width: { full: {}, content: { root: "inline-auto" } },

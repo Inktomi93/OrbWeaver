@@ -13,7 +13,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
-import { Grid, Stack } from "@orb/ui/layout";
+import { Contents, Grid, Stack } from "@orb/ui/layout";
 import { coarsePointerNow } from "@orb/ui/lib";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
@@ -112,7 +112,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
     // The swipe row bleeds through Home's page inset (`px-section`) to the screen edge, so a face runs off the screen
     // rather than being cut mid-page, and its scroll padding keeps a revealed face clear of that edge.
     <Grid
-      className={swipe ? "scroll-px-section" : undefined}
+      scrollInset={swipe ? "section" : undefined}
       reach={swipe ? "section" : undefined}
       cols={swipe ? "cellSwipe" : "cellFixed"}
       gap="row"
@@ -120,7 +120,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
       ref={shelfRef}
     >
       {/* `contents`: the faces are the list and the door is not one of them, yet all share the one row. */}
-      <Stack aria-label="Character quick-picks" className="contents" role="list">
+      <Contents aria-label="Character quick-picks" role="list">
         {shown.map((character) => {
           // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
           // caption copy, so a card with neither reads with one line instead of a lowercase slug. The name
@@ -227,7 +227,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
             </Stack>
           );
         })}
-      </Stack>
+      </Contents>
       <PictureButton caption="centre" className="snap-start" variant="ghost" onClick={(): void => setActiveSection("characters")}>
         <Icon icon={Users} size="lg" />
         <Text as="span" voice="promoted">

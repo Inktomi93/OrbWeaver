@@ -327,7 +327,7 @@ export function AppShell(): ReactElement {
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
       <ThemeFallbackReporters>
-        <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
+        <ThemeScope tokens={resolvedScopeTokens} box="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
           <PortalContainerContext value={portalRootRef}>
             {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
@@ -355,7 +355,7 @@ export function AppShell(): ReactElement {
               {/* The skip precedes navigation and targets whichever pane owns the main landmark.
                 Inverse sr-only avoids the reset that removes the revealed button's padding and height. */}
               <Button
-                className="not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)"
+                hiddenAt="untilFocus"
                 variant="outline"
                 onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
                 size="sm"

@@ -158,7 +158,8 @@ function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): React
   return (
     <MediaGrid
       ariaLabel="Background"
-      className="inline-full max-block-(--height-scroll-md)"
+      width="full"
+      maxHeight="scrollMd"
       items={tiles}
       minCellWidth={THUMB_WIDTH}
       selection={{

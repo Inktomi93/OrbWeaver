@@ -88,7 +88,7 @@ export function MessageEditTextarea({ message, moveNeighbours }: MessageEditText
     <Stack gap="field" data-slot="message-edit-textarea" width="full">
       <Textarea
         ref={textareaRef}
-        className="inline-full"
+        width="full"
         aria-label={MESSAGE_EDIT_NAME}
         value={text}
         onChange={(e): void => setMessageEditDraft(message.id, e.target.value)}

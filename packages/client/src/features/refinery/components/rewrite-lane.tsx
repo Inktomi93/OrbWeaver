@@ -172,14 +172,7 @@ export function RewriteLane({
   const provenance = provenanceOf(run);
   const settled = run !== null && run.stage === "rewrite";
   return (
-    <FocalSection
-      aria-label="Rewrite"
-      className="gap-row"
-      focal={focal}
-      data-focal={focal ? "true" : undefined}
-      data-lane="rewrite"
-      data-testid={testId("refineryRewriteLane")}
-    >
+    <FocalSection aria-label="Rewrite" focal={focal} data-focal={focal ? "true" : undefined} data-lane="rewrite" data-testid={testId("refineryRewriteLane")}>
       <Stack gap="row">
         <LaneBand kicker={provenance === null ? "2 · Rewrite" : `2 · Rewrite · ${provenance}`}>
           {settled ? (

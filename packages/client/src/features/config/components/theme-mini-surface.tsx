@@ -98,12 +98,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
   }
   const resolved = resolveThemeScopeTokens(theme, PREVIEW_DENSITY);
   return (
-    <ThemeScope
-      ambientAccent={resolved.ambientAccent}
-      ambientBackground={resolved.ambientBackground}
-      className="flex flex-col block-full inline-full"
-      tokens={resolved.tokens}
-    >
+    <ThemeScope ambientAccent={resolved.ambientAccent} ambientBackground={resolved.ambientBackground} box="fill" tokens={resolved.tokens}>
       <Stack width="full" fill={true} data-slot="theme-mini-surface">
         <MiniRoom />
       </Stack>

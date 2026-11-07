@@ -46,7 +46,7 @@ import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { InlineToken } from "@orb/ui/inline-token";
-import { Stack } from "@orb/ui/layout";
+import { Contents, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#components";
@@ -458,9 +458,9 @@ function HostControls({
             kicker={section.kicker}
             sectionId={`graft:${section.id}`}
           >
-            <Stack className="contents" data-section-body={true} data-slot="chat-settings-graft-body">
+            <Contents data-section-body={true} data-slot="chat-settings-graft-body">
               {section.body(state)}
-            </Stack>
+            </Contents>
           </DisclosureSection>
         ))}
     </Stack>

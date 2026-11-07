@@ -30,7 +30,8 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
     <Track
       of={RoomIsland}
       track="composer"
-      className="relative isolate flex-auto min-block-0"
+      grow="content"
+      className="relative isolate min-block-0"
       layout="stack"
       ownSlot="composer"
       {...dropTargetProps}

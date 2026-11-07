@@ -12,7 +12,7 @@ export interface SwatchProps extends ComponentProps<"span">, VariantProps<typeof
  *
  * Usage: `<Swatch fill="success" shape="pill" size="dot" />`
  */
-export function Swatch({ className, fill, shape, edge, size, grow, indeterminate, ...props }: SwatchProps): ReactElement {
+export function Swatch({ className, fill, shape, edge, size, grow, indeterminate, passThrough, centres, ...props }: SwatchProps): ReactElement {
   return (
     <span
       aria-hidden={true}
@@ -20,7 +20,7 @@ export function Swatch({ className, fill, shape, edge, size, grow, indeterminate
       data-slot="swatch"
       data-tone={SWATCH_FILL_TONE[fill ?? "none"] ?? undefined}
       {...props}
-      className={cn(swatchVariants({ fill, shape, edge, size, grow, indeterminate }), className)}
+      className={cn(swatchVariants({ fill, shape, edge, size, grow, indeterminate, passThrough, centres }), className)}
     />
   );
 }

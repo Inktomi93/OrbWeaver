@@ -47,7 +47,7 @@ export function ThemeFallbackNotice({ background, accent }: FallbackDraft): Reac
       <ToneFallbackReporterContext value={reportTone}>
         <InputBorderFallbackReporterContext value={reportEdge}>
           {/* Keyed by the draft, so a changed theme mounts a fresh scope whose reports replace the reset ones. */}
-          <ThemeScope key={draft} className="hidden" tokens={tokens}>
+          <ThemeScope key={draft} box="hidden" tokens={tokens}>
             {null}
           </ThemeScope>
         </InputBorderFallbackReporterContext>

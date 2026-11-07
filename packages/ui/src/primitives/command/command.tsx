@@ -15,7 +15,7 @@ import { cn, formatResultCount } from "#lib";
 import type { ButtonBaseProps, ButtonProps } from "#primitives/button";
 import { Button } from "#primitives/button";
 import { Icon, Search } from "#primitives/icons";
-import { commandVariants } from "./variants.ts";
+import { commandListBoxVariants, commandVariants } from "./variants.ts";
 
 const slots = commandVariants();
 
@@ -136,13 +136,22 @@ export function CommandInput({ expanded, ref, ...rest }: CommandInputProps): Rea
   );
 }
 
-export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommandList>, "className">, Pick<VariantProps<typeof commandVariants>, "listSize"> {
+export interface CommandListProps
+  extends Omit<ComponentProps<typeof BaseCommandList>, "className">,
+    Pick<VariantProps<typeof commandVariants>, "listSize">,
+    VariantProps<typeof commandListBoxVariants> {
   className?: string;
 }
 
 /** The scrollable listbox. Content-sized by default; bounded surfaces choose a declared list-size arm. */
-export function CommandList({ className, listSize, ...rest }: CommandListProps): ReactElement {
-  return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
+export function CommandList({ className, listSize, maxHeight, ...rest }: CommandListProps): ReactElement {
+  return (
+    <BaseCommandList
+      className={cn(commandVariants({ listSize }).list(), commandListBoxVariants({ maxHeight, className }))}
+      data-slot="command-list"
+      {...rest}
+    />
+  );
 }
 
 /**

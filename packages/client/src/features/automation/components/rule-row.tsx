@@ -257,7 +257,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
               triggers of the sibling sections never showed it. The accessible name COMPUTES from the
               trigger's own content, so it can never disagree with the visible summary (WCAG 2.5.3). */}
-          <CollapsibleTrigger className="flex-1 basis-(--width-title-floor) p-block text-start min-inline-0" size="control">
+          <CollapsibleTrigger grow={true} floor="title" inset="block" textAlign="start" className="min-inline-0" size="control">
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
                 behind the disclosure. */}

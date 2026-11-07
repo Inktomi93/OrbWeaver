@@ -1,4 +1,4 @@
-import { CAPTION, FIELD_ROW, FOCUS_RING, tv } from "#lib";
+import { CAP, CAPTION, FIELD_ROW, FOCUS_RING, tv, WIDTH } from "#lib";
 
 // The table skin — a hand-rolled data-grid (NO @tanstack/react-table: v8's useReactTable returns
 // an interior-mutable instance the React Compiler can only tolerate behind "use no memo", which
@@ -38,4 +38,12 @@ export const tableVariants = tv({
     },
   },
   defaultVariants: { align: "start", sortActive: false },
+});
+
+export const tableBoxVariants = tv({
+  variants: {
+    // A table as wide as its columns, inside its parent.
+    width: { fit: WIDTH.fit },
+    cap: { fit: CAP.fit },
+  },
 });

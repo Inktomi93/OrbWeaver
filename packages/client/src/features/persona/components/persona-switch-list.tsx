@@ -159,10 +159,10 @@ function SwitchRow({
     >
       {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}
-      <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
+      <Avatar passThrough={true} className="relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
-      <Text as="span" className="pointer-events-none relative" floor="title" truncate="fill" voice="label">
+      <Text as="span" passThrough={true} className="relative" floor="title" truncate="fill" voice="label">
         {persona.name}
       </Text>
       {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}

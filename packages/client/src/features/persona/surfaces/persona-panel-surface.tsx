@@ -107,12 +107,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
     <Popover>
       <PanelTrigger current={playing} />
       {/* aria-label names the popup dialog: it has no visible title element (the body opens with the head). */}
-      <PopoverPopup
-        aria-label="Account & personas"
-        align="end"
-        className="relative overflow-y-auto overscroll-contain inline-(--container-cq-24) max-block-(--available-height)"
-        side="right"
-      >
+      <PopoverPopup aria-label="Account & personas" align="end" width="stable" maxHeight="available" side="right">
         <PersonaPanelAnchor>{sections}</PersonaPanelAnchor>
       </PopoverPopup>
     </Popover>

@@ -1,4 +1,4 @@
-import { OVERLAY_ARROW, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, SCROLLER_Y, TITLE_STEP, tv } from "#lib";
+import { MAX_HEIGHT, OVERLAY_ARROW, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, SCROLLER_Y, TITLE_STEP, tv } from "#lib";
 
 /**
  * Slot classes for the popover stack (ui-package-design §5). Positioner carries `--z-popover`;
@@ -21,5 +21,11 @@ export const popoverVariants = tv({
     arrow: OVERLAY_ARROW,
     title: TITLE_STEP,
     description: POPUP_DESCRIPTION,
+  },
+});
+
+export const popoverPopupBoxVariants = tv({
+  variants: {
+    maxHeight: { available: MAX_HEIGHT.available },
   },
 });

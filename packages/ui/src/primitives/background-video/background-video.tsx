@@ -16,6 +16,7 @@ const getDocumentHidden = (): boolean => document.hidden;
 const getDocumentHiddenServer = (): boolean => false;
 
 export interface BackgroundVideoProps {
+  readonly size?: VariantProps<typeof backgroundVideoVariants>["size"];
   /** The video source URL (an owned same-origin blob for the background use). */
   readonly src: string;
   /** Force the STILL frame whatever the motion state. Resolved reduced motion (`usePrefersReducedMotion`: the app's
@@ -45,7 +46,7 @@ export interface BackgroundVideoProps {
  * `{ src, paused, fit, rounded, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
  * positioning/scrim/z-index live in the app-shell composite (ThemeBackgroundVideoLayer).
  */
-export function BackgroundVideo({ src, paused = false, fit, rounded, className }: BackgroundVideoProps): ReactElement {
+export function BackgroundVideo({ src, paused = false, fit, rounded, size, className }: BackgroundVideoProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const osReducedMotion = usePrefersReducedMotion();
   const hidden = useSyncExternalStore(subscribeVisibility, getDocumentHidden, getDocumentHiddenServer);
@@ -79,7 +80,7 @@ export function BackgroundVideo({ src, paused = false, fit, rounded, className }
       tabIndex={-1}
       data-slot="background-video"
       data-motion={animating ? "playing" : "still"}
-      className={cn(backgroundVideoVariants({ fit, rounded }), className)}
+      className={cn(backgroundVideoVariants({ fit, rounded, size }), className)}
       src={src}
       muted={true}
       loop={true}

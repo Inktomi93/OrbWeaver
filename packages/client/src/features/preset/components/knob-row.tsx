@@ -93,7 +93,7 @@ export interface KnobRowProps {
  *  name from its rail, the vertical one is the deck's own row rhythm. */
 export function KnobGrid({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Grid className="gap-x-row gap-y-tight" align="center" cols="knob">
+    <Grid gapInline="row" gapBlock="tight" align="center" cols="knob">
       {children}
     </Grid>
   );

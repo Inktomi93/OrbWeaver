@@ -19,8 +19,10 @@ import {
   HOVER_REVEAL,
   INERT_UNTIL_HOVER,
   INLINE_FIELD_ROW,
+  MAX_HEIGHT,
   MIN_HEIGHT,
   MIN_WIDTH,
+  PASS_THROUGH,
   PLACED,
   PUSH,
   READING_INSET,
@@ -141,7 +143,6 @@ const INDENT = { true: "ps-block", false: "" } as const;
 // The layer a box takes in its stacking context: `raised` floats over its siblings, `overlay` over the raised ones.
 const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A box laid over content that takes no pointer itself: clicks fall through to what lies under it, and only a child that asks for the pointer takes it.
-const PASS_THROUGH = { true: "pointer-events-none", false: "" } as const;
 // A capped box centres in the room its cap leaves.
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
 // pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed.
@@ -384,6 +385,7 @@ export const stackVariants = tv({
     push: PUSH,
     self: SELF,
     placed: PLACED,
+    maxHeight: MAX_HEIGHT,
     // The lines of the runs inside: `endWide` sets a figure's lines at the end once the container is wide enough to seat it beside its title.
     textAlign: { ...TEXT_ALIGN, endWide: "@cq-40:text-end" },
     order: ORDER,
@@ -413,6 +415,8 @@ export const rowVariants = tv({
     gapNarrow: GAP_NARROW,
     align: ALIGN,
     justify: JUSTIFY,
+    // The row sits inside a line of text, as wide as its content.
+    inline: { true: "inline-flex" },
     wrap: WRAP,
     stackBelow: STACK_BELOW,
     reverse: REVERSE,
@@ -425,6 +429,7 @@ export const rowVariants = tv({
     push: PUSH,
     self: SELF,
     placed: PLACED,
+    maxHeight: MAX_HEIGHT,
     order: ORDER,
     pinned: PINNED,
     fill: FILL,
@@ -546,6 +551,11 @@ export const gridVariants = tv({
   base: "grid",
   variants: {
     gap: GAP,
+    // The two axes of a grid are different jobs: `gapInline` separates its columns and `gapBlock` its rows.
+    gapInline: { row: "gap-x-row", block: "gap-x-block" },
+    gapBlock: { tight: "gap-y-tight", field: "gap-y-field" },
+    // A snapping track keeps its edge item clear of the scrollport's edge.
+    scrollInset: { section: "scroll-px-section" },
     cap: CAP,
     width: WIDTH,
     paddingInline: PADDING_INLINE,
@@ -799,6 +809,7 @@ export const containerVariants = tv({
   variants: {
     size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
     cap: CAP,
+    scroll: SCROLL,
     width: WIDTH,
     centred: CENTRED,
     grow: GROW,

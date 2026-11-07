@@ -2,8 +2,9 @@ import type { ScrollMode } from "@orb/kit/scroll-mode";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, SCROLLER, usePrefersReducedMotion } from "#lib";
+import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
 import { useScrollportSync, useTailRepin } from "./content-growth.ts";
 import { attachUserScrollInput, shouldAdjustForResizedItem, USER_SCROLL_YIELD_MS } from "./follow-yield.ts";
@@ -12,6 +13,7 @@ import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowKey, RowPlacement, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
+import { messageListVariants } from "./variants.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
@@ -53,7 +55,7 @@ export interface MessageListHandle {
   readonly revealIndex: (index: number) => boolean;
 }
 
-export interface MessageListProps<T> {
+export interface MessageListProps<T> extends VariantProps<typeof messageListVariants> {
   /** Accessible name for the live log region (for example, "Conversation messages" or "Log entries"). */
   readonly ariaLabel?: string;
   readonly items: readonly T[];
@@ -131,6 +133,8 @@ export function MessageList<T>({
   renderItem,
   leading,
   leadingAction,
+  fill,
+  paddingInlineNarrow,
   className,
   scrollContainerRef,
   ref,
@@ -611,7 +615,7 @@ export function MessageList<T>({
       // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
       aria-live="off"
       onScroll={onScrollTracked}
-      className={cn(SCROLLER, className)}
+      className={messageListVariants({ fill, paddingInlineNarrow, className })}
       data-slot="message-list-scroll"
     >
       {leading === undefined && leadingAction === undefined ? null : (

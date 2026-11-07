@@ -148,7 +148,7 @@ function BackgroundBody({
               const picked =
                 values.backgroundImageKind === "asset" ? values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId) : undefined;
               return picked === undefined ? null : (
-                <Button className="self-start" variant="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
+                <Button self="start" variant="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
                   <Icon icon={Trash} size="sm" />
                   {removeActionName(picked.name)}
                 </Button>
@@ -246,7 +246,8 @@ function BackgroundPickGrid({ form, values }: { readonly form: AutosaveSession<B
   return (
     <MediaGrid
       ariaLabel="Background image"
-      className="inline-full max-block-(--height-scroll-md)"
+      width="full"
+      maxHeight="scrollMd"
       items={tiles}
       minCellWidth={THUMB_WIDTH}
       selection={{

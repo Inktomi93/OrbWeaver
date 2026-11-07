@@ -144,7 +144,7 @@ export function themedColumnContent(tokens: ThemeScopeTokens | null, content: Re
     return content;
   }
   return (
-    <ThemeScope tokens={tokens} className="contents">
+    <ThemeScope tokens={tokens} box="contents">
       {content}
     </ThemeScope>
   );

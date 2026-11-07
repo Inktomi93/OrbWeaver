@@ -1,4 +1,4 @@
-import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, ROW_STRIP, tv } from "#lib";
+import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, tv } from "#lib";
 
 /**
  * Slot classes for the command seal (ui-package-design §9 command chunk). `root` is a
@@ -75,4 +75,10 @@ export const commandVariants = tv({
     },
   },
   defaultVariants: { listSize: "content" },
+});
+
+export const commandListBoxVariants = tv({
+  variants: {
+    maxHeight: MAX_HEIGHT,
+  },
 });

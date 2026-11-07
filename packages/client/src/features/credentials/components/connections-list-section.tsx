@@ -346,7 +346,7 @@ function ConnectionRow({
             >
               {sweepRoles.length === 0 ? null : (
                 <MenuItem
-                  className="flex-col items-start"
+                  stacked={true}
                   disabled={applyEverywhere.isPending}
                   onClick={(): void => {
                     const write = (): void => applyEverywhere.mutate({ connectionId: connection.id });
@@ -366,7 +366,7 @@ function ConnectionRow({
                 </MenuItem>
               )}
               {provider === null || addModel === null ? null : (
-                <MenuItem className="flex-col items-start" onClick={(): void => setAddModelOpen(true)}>
+                <MenuItem stacked={true} onClick={(): void => setAddModelOpen(true)}>
                   <Text voice="label" as="span" ink="inherit">
                     {addModelActionLabel(addModel)}
                   </Text>

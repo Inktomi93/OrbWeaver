@@ -51,8 +51,19 @@ function hostOf(url: string): string {
  * Renders an image / native audio / video with the external-load gate. Untrusted A/V is always
  * `controls` and never `autoplay` (non-overridable — an autoplaying untrusted element is a tracking beacon).
  */
-export function MessageMedia({ src, media, alt, dims, allowExternal = false, centred, fill, className, onActivate }: MessageMediaProps): ReactElement {
-  const box = messageMediaVariants({ centred, fill, className });
+export function MessageMedia({
+  src,
+  media,
+  alt,
+  dims,
+  allowExternal = false,
+  centred,
+  fill,
+  maxHeight,
+  className,
+  onActivate,
+}: MessageMediaProps): ReactElement {
+  const box = messageMediaVariants({ centred, fill, maxHeight, className });
   const isExternal = src.kind === "external";
   const blockedDataUri = isExternal && isDataUri(src.url);
   const mediaIdentity = `${src.kind}:${media}:${src.url}`;

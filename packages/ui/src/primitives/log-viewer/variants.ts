@@ -1,4 +1,4 @@
-import { FOCUS_RING_INSET, tv } from "#lib";
+import { FOCUS_RING_INSET, MAX_HEIGHT, tv } from "#lib";
 
 // The log-viewer skin (ui-package-design §6.1 item 12 — a read-only monospace panel; NOT the
 // code-editor seal). `level` tints a line's text; its glyph inherits the same color via
@@ -28,5 +28,11 @@ export const logViewerVariants = tv({
       warn: { line: "text-warning" },
       error: { line: "text-destructive" },
     },
+  },
+});
+
+export const logViewerBoxVariants = tv({
+  variants: {
+    maxHeight: MAX_HEIGHT,
   },
 });

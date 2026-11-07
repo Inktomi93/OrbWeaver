@@ -47,7 +47,7 @@ function ResumeSessions(): ReactElement | null {
     return null;
   }
   return (
-    <Card className="inline-full max-inline-(--reading-measure)">
+    <Card width="full" cap="reading">
       <Stack gap="row" padding="block">
         <Text voice="kicker">Continue a session</Text>
         <Stack gap="tight">

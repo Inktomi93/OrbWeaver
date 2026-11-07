@@ -64,10 +64,11 @@ export function FlankColumn({
       scroll={flank.panelMode ? "y" : undefined}
       layer={overlaid ? "raised" : undefined}
       hiddenAt="empty"
+      maxHeight={flank.panelMode ? undefined : "halfNarrow"}
       className={cn(
         flank.panelMode
           ? cn("min-block-0", !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0")
-          : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2",
+          : "relative @max-cq-32:overflow-y-auto @max-cq-32:pbs-0",
       )}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
       // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.

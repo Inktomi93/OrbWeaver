@@ -1,4 +1,24 @@
-import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, PUSH, RECEDED, RUN_INSET, SR_ONLY_AT, TEXT_ALIGN, TONE_TEXT, tv, WIDTH } from "#lib";
+import {
+  CAP,
+  FLOOR,
+  GROW,
+  HIDDEN_AT,
+  HOVER_CUE,
+  INKS,
+  MAX_HEIGHT,
+  PASS_THROUGH,
+  PULSE,
+  PUSH,
+  RECEDED,
+  RUN_INSET,
+  SCROLLER_Y,
+  SELF,
+  SR_ONLY_AT,
+  TEXT_ALIGN,
+  TONE_TEXT,
+  tv,
+  WIDTH,
+} from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -198,6 +218,10 @@ export const textVariants = tv({
     grow: GROW,
     floor: FLOOR,
     push: PUSH,
+    self: SELF,
+    scroll: { y: SCROLLER_Y },
+    passThrough: PASS_THROUGH,
+    maxHeight: { scrollSm: MAX_HEIGHT.scrollSm },
     // The widest the run grows: `prose` is a paragraph's measure, capped on the paragraph and never on the page.
     cap: CAP,
     width: WIDTH,
@@ -215,7 +239,7 @@ export const textVariants = tv({
     },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).
-    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },
+    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere", all: "break-all" },
     // `preWrap` keeps line breaks and runs of spaces in the string, for a value shown exactly as written; `nowrap` never breaks the run, `normal` wraps at spaces inside a nowrap host (a button).
     whitespace: { nowrap: "whitespace-nowrap", normal: "whitespace-normal", preWrap: "whitespace-pre-wrap" },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.

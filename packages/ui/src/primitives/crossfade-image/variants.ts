@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { PICTURE_SIZE, tv } from "#lib";
 
 // The crossfade-image skin — a `bg-muted` box (so a null/not-yet-loaded src still reads as a
 // placeholder, not a hole) housing two absolutely-positioned `<img>` layers stacked on top of each
@@ -15,6 +15,7 @@ export const crossfadeImageVariants = tv({
     fallback: "absolute inset-0 flex items-center justify-center text-muted-foreground block-full inline-full",
   },
   variants: {
+    size: { fill: { root: PICTURE_SIZE.fill }, hero: { root: PICTURE_SIZE.hero } },
     revealed: {
       false: { image: "opacity-0" },
     },

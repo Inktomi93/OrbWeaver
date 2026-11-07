@@ -28,7 +28,7 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
 
   return (
     <Row justify="center" aria-hidden={visible ? undefined : true} placed="footBand" passThrough={true} layer="overlay" data-slot="jump-to-latest">
-      <FloatingChip className="flex items-center inline-fit max-inline-full" presence={visible ? "shown" : "hidden"}>
+      <FloatingChip presence={visible ? "shown" : "hidden"}>
         <Button
           type="button"
           variant="ghost"

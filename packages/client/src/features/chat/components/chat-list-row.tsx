@@ -5,7 +5,7 @@
 
 import type { ChatSeatPortrait } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { Stack } from "@orb/ui/layout";
+import { Contents } from "@orb/ui/layout";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { PointerEvent, ReactElement } from "react";
 import { useEffect, useRef } from "react";
@@ -91,8 +91,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
     // ancestor chain whether or not an ancestor generates a box. `Stack` rather than a raw `<div>` because
     // feature code composes from `@orb/ui` primitives, and `setting-teach-row.tsx` is the ratified
     // precedent for hanging exactly this handler set on a layout primitive.
-    <Stack
-      className="contents"
+    <Contents
       onFocusCapture={(): void => warmRoom(chat.id)}
       onPointerDown={(): void => warmRoom(chat.id)}
       onPointerEnter={onPointerEnter}
@@ -129,6 +128,6 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         onSelect={onSelect}
         selected={selected}
       />
-    </Stack>
+    </Contents>
   );
 }

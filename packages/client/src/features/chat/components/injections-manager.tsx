@@ -174,7 +174,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
-                  <CollapsibleTrigger className="p-block inline-full" size="control">
+                  <CollapsibleTrigger inset="block" width="full" size="control">
                     <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches

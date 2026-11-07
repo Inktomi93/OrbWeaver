@@ -116,7 +116,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
       {resume}
       {/* THE LANDING'S JOB (header). Mounted open, first, and full-library — `CharacterPicker` walks the
           whole keyset now, so this is the same browse the characters section offers, not its first page. */}
-      <Card className="inline-full max-inline-(--reading-measure)">
+      <Card width="full" cap="reading">
         <Stack gap="row" padding="block">
           <Text voice="kicker">{starting ? "Opening the session…" : "Start from a character"}</Text>
           {/* THE LIST BOX IS RESERVED, NOT FLUID (side-eye 2026-08-19 P3: "+98px post-paint jump"). The

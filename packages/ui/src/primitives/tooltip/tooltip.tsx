@@ -10,9 +10,10 @@ import type {
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
 import { createContext, isValidElement, use, useEffect, useId, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
-import { tooltipVariants } from "./variants.ts";
+import { tooltipPopupBoxVariants, tooltipVariants } from "./variants.ts";
 
 const slots = tooltipVariants();
 
@@ -167,7 +168,7 @@ export function TooltipTrigger<Payload = unknown>({ "aria-describedby": callerDe
   return <BaseTooltip.Trigger aria-describedby={describedBy} {...(api === undefined ? {} : { [TOOLTIP_DESCRIBES_ATTRIBUTE]: api.decision })} {...props} />;
 }
 
-export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
+export interface TooltipPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof tooltipPopupBoxVariants> {
   className?: string;
   side?: BasePositionerProps["side"];
   align?: BasePositionerProps["align"];
@@ -178,7 +179,7 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** Bundles the at-rest `role="tooltip"` description node + Portal → Positioner → Popup. */
 export function TooltipPopup(props: TooltipPopupProps): ReactElement {
-  const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
+  const { className, passThrough, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
   const portalContainer = usePortalContainer();
   const api = use(TooltipDescriptionContext);
   const descriptionId = api?.descriptionId;
@@ -201,7 +202,12 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
         <BaseTooltip.Positioner align={align} className={slots.positioner()} data-slot="tooltip-positioner" side={side} sideOffset={sideOffset}>
           {/* `aria-hidden`: the same sentence is already in the tree above, and announcing it twice while
               the pointer rests on a control is worse than not painting it at all. */}
-          <BaseTooltip.Popup aria-hidden={true} className={slots.popup({ className })} data-slot="tooltip-popup" {...rest}>
+          <BaseTooltip.Popup
+            aria-hidden={true}
+            className={slots.popup({ className: tooltipPopupBoxVariants({ passThrough, className }) })}
+            data-slot="tooltip-popup"
+            {...rest}
+          >
             {children}
           </BaseTooltip.Popup>
         </BaseTooltip.Positioner>

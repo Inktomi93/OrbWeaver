@@ -40,7 +40,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
           {label}
         </Text>
       </Row>
-      <Row className="grow" gap="field" justify="end">
+      <Row grow="fill" gap="field" justify="end">
         <Button variant="outline" onClick={onDone} size="sm">
           {DIALOG_VERBS.done}
         </Button>

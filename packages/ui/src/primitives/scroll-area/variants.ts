@@ -1,4 +1,4 @@
-import { COLOR_MOTION, FOCUS_RING_INSET, tv } from "#lib";
+import { COLOR_MOTION, FOCUS_RING_INSET, GROW, MAX_HEIGHT, tv } from "#lib";
 
 /**
  * Slot classes for the scroll-area (ui-package-design §5). Base UI hands us hover/scroll state on
@@ -21,5 +21,13 @@ export const scrollAreaVariants = tv({
     thumb: `flex-1 rounded-full bg-muted-foreground ${COLOR_MOTION} hover:bg-foreground`,
     // The square where the two scrollbars meet — Base UI shows it only on both-axis overflow.
     corner: "bg-transparent",
+  },
+});
+
+export const scrollAreaBoxVariants = tv({
+  variants: {
+    grow: GROW,
+    // The viewport bounds the scroll, for an area that holds a list of its own height.
+    maxHeight: MAX_HEIGHT,
   },
 });

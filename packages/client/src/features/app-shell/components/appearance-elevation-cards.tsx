@@ -45,7 +45,7 @@ type Elevation = AppearanceSettings["elevation"];
  *  seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing at this size. */
 function FlatDiagram(): ReactElement {
   return (
-    <ThemePreviewPane fill="sidebar" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
+    <ThemePreviewPane fill="sidebar" shape="row" padding="none" holdsLine={true} height="strip" width="full" className="overflow-hidden">
       <Row grow={true} />
       <Row grow={true} divider="start" dividerTone="sidebar" dividerWeight="rule" />
       <Row grow="double" divider="start" dividerTone="sidebar" dividerWeight="rule" />
@@ -61,7 +61,7 @@ function FlatDiagram(): ReactElement {
  *  1.5:1 floor. The CT re-measures them from the rendered pixels rather than trusting this line. */
 function RampDiagram(): ReactElement {
   return (
-    <ThemePreviewPane fill="background" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
+    <ThemePreviewPane fill="background" shape="row" padding="none" holdsLine={true} height="strip" width="full" className="overflow-hidden">
       <Swatch grow={true} fill="step1" />
       <Swatch grow={true} fill="step2" />
       <Swatch grow="double" fill="step3" />
@@ -74,10 +74,10 @@ function RampDiagram(): ReactElement {
  *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
 function GlowDiagram(): ReactElement {
   return (
-    <ThemePreviewPane fill="background" shape="row" padding="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
+    <ThemePreviewPane fill="background" shape="row" padding="none" height="strip" width="full" className="overflow-hidden">
       <Row gap="row" width="full" fill={true} padding="row">
-        <ThemePreviewPane className="flex-1 block-3/4" padding="none" fill="sidebar" lifted={true} shape="inset" />
-        <ThemePreviewPane className="flex-2 block-3/4" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
+        <ThemePreviewPane grow={true} height="part" padding="none" fill="sidebar" lifted={true} shape="inset" />
+        <ThemePreviewPane grow="double" height="part" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
       </Row>
     </ThemePreviewPane>
   );

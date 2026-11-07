@@ -1,4 +1,4 @@
-import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, tv } from "#lib";
+import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, GROUND, GROW, SCROLLER_Y, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
@@ -135,3 +135,18 @@ export const tabsVariants = tv({
 
 /** The D336 tone the active cell and the top rule paint. */
 export const TABS_ACCENT_TONE = "primary" satisfies Tone;
+
+export const tabsListBoxVariants = tv({
+  variants: {
+    // How the list lays its tabs: `cells` an equal track per tab, `strip` one line that scrolls inside the row inset.
+    track: { cells: "grid grid-flow-col gap-tight", strip: "flex-nowrap overflow-x-auto px-row" },
+  },
+});
+
+export const tabsPanelBoxVariants = tv({
+  variants: {
+    grow: { initial: GROW.initial },
+    scroll: { y: SCROLLER_Y },
+    inset: { row: "p-row" },
+  },
+});

@@ -183,7 +183,7 @@ export function CharacterLibraryBody({
           itself on every page the tail-fetch pulls. This one is for the eye — it is the answer to "is the
           list still growing under me", which the top line was being read as and could not honestly be. */}
       {loadedProgress === null ? null : (
-        <Text aria-hidden={true} className="shrink-0 self-center" voice="gloss">
+        <Text aria-hidden={true} className="shrink-0" self="center" voice="gloss">
           {loadedProgress}
         </Text>
       )}

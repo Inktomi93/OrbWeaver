@@ -215,7 +215,7 @@ function OverviewBody(): ReactElement {
           </Text>
           <Collapsible>
             <CollapsibleTrigger>Details</CollapsibleTrigger>
-            <CollapsiblePanel className="pbs-row">
+            <CollapsiblePanel offset="row">
               <Stack gap="block">
                 <Grid cols="cell" gap="block">
                   <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(overview.avgGenMs)} />

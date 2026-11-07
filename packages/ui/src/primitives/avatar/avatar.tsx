@@ -35,6 +35,7 @@ export function Avatar(props: AvatarProps): ReactElement {
     ring,
     cardCorners,
     width,
+    passThrough,
     fade,
     hueSeed,
     fallbackDelay,
@@ -42,7 +43,7 @@ export function Avatar(props: AvatarProps): ReactElement {
     keepMounted,
     ...rest
   } = props;
-  const slots = avatarVariants({ size, shape, aspect, ring, cardCorners, fade, width });
+  const slots = avatarVariants({ size, shape, aspect, ring, cardCorners, fade, width, passThrough });
   const seed = hueSeed ?? alt;
   return (
     // STAMP SITE (#1097): the ROOT. `size` is the only stamped axis this recipe declares and the root is

@@ -31,7 +31,7 @@
 // sentinel tier) shared with every consumer, home-born name and all. `data-reserve-key` names which
 // surface a reserved box belongs to, for a test that holds several boundaries at once.
 
-import { Stack } from "@orb/ui/layout";
+import { Contents, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref, RefObject } from "react";
@@ -294,9 +294,9 @@ function RetriedFocus({
     (firstVisibleTabStop(root) ?? pad).focus({ preventScroll: true });
   }, [handoff, landing]);
   return (
-    <Stack className="contents" data-slot="query-boundary-settled" ref={rootRef}>
+    <Contents data-slot="query-boundary-settled" ref={rootRef}>
       {children}
-    </Stack>
+    </Contents>
   );
 }
 

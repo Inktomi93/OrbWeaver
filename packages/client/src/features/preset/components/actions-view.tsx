@@ -388,7 +388,7 @@ function MarkerCrossLink({
   // badge reads as a second, unlabelled control sitting next to it. `InlineAction` keeps the button a
   // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <InlineAction className="self-start" disabled={health === "absent"} variant="ghost" onClick={onClick} step="label" type="button">
+    <InlineAction self="start" disabled={health === "absent"} variant="ghost" onClick={onClick} step="label" type="button">
       <Badge tone={health === "healthy" ? "info" : "warning"} size="sm">
         {MARKER_HEALTH_LABEL[health]}
         <Icon icon={ExternalLink} size="xs" />

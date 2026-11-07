@@ -1,4 +1,4 @@
-import { COLOR_MOTION, CORNER, FOCUS_RING, SCROLLER, SELECTION_RING_SELECTED, tv } from "#lib";
+import { COLOR_MOTION, CORNER, FOCUS_RING, MAX_HEIGHT, SCROLLER, SELECTION_RING_SELECTED, tv, WIDTH } from "#lib";
 
 // The media-grid cell skin (ui-package-design §6.1 / work-order #6). Cells are square (aspect
 // reserved by the grid host, not by the image) so nothing shifts while thumbnails lazy-load. The
@@ -38,5 +38,12 @@ export const mediaGridVariants = tv({
     image: "aspect-square object-cover block-full inline-full",
     placeholder: "bg-muted block-full inline-full",
     selectedBadge: `${CORNER.badge} flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground`,
+  },
+});
+
+export const mediaGridBoxVariants = tv({
+  variants: {
+    width: { full: WIDTH.full },
+    maxHeight: MAX_HEIGHT,
   },
 });

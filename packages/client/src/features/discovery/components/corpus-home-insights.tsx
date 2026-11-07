@@ -109,7 +109,7 @@ function NeverPlayedList({
         ))}
       </Stack>
       {showAll || characters.length <= NEVER_PLAYED_HEAD ? null : (
-        <Button className="self-start" variant="ghost" onClick={(): void => setShowAll(true)} size="sm">
+        <Button self="start" variant="ghost" onClick={(): void => setShowAll(true)} size="sm">
           {`Show all ${formatCount(characters.length)}`}
         </Button>
       )}
@@ -215,7 +215,7 @@ function ModelEconomicsRead(): ReactElement | null {
         />
         <VirtualList
           aria-label="Model routes"
-          className="max-block-(--height-scroll-lg)"
+          maxHeight="scrollLg"
           estimateSize={(): number => ROW_ESTIMATE_PX}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
           items={routes}

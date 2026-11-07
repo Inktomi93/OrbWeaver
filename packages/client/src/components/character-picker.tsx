@@ -189,7 +189,7 @@ function CharacterPickerBody({
   return (
     <Command className="min-block-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList className={listClassName ?? "max-block-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
+      <CommandList {...(listClassName === undefined ? ({ maxHeight: "scrollLg" } as const) : { className: listClassName })} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
       </CommandList>

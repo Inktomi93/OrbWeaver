@@ -40,6 +40,10 @@ export function MessageBubble({
   share,
   corners,
   ownSlot = "card-root",
+  width,
+  gap,
+  minHeight,
+  self,
   className,
   style,
   ...rest
@@ -49,7 +53,12 @@ export function MessageBubble({
   const box = (
     <div
       {...rest}
-      {...variantProps(messageBubbleVariants, { messageRole, shape, padding, flow, receded, artDecoration, share, corners }, className, "neutral")}
+      {...variantProps(
+        messageBubbleVariants,
+        { messageRole, shape, padding, flow, receded, artDecoration, share, corners, width, gap, minHeight, self },
+        className,
+        "neutral",
+      )}
       style={{ ...boxStyle(scope), ...style }}
       data-padding={padding === "none" ? "none" : undefined}
       data-shape={shape === "bubble" ? "bubble" : undefined}

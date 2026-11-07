@@ -202,7 +202,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
         <Button
           aria-controls={previewId}
           aria-expanded={previewOpen}
-          className="self-start"
+          self="start"
           variant="outline"
           onClick={(): void => setPreviewOpen(!previewOpen)}
           size="sm"
@@ -348,7 +348,7 @@ function BudgetBar({
       {off ? (
         <Row className="min-inline-0" grow={true} />
       ) : (
-        <TrackBar accent={accent} className="flex-1 min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
+        <TrackBar accent={accent} grow={true} className="min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
       )}
       {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
           announces as "tilde em dash", which is not a cost. */}

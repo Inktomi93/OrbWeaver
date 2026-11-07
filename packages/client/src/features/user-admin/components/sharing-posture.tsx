@@ -138,7 +138,7 @@ export function SharingPosturePanel(): ReactElement {
       {/* The environment settings that change the mode live here, out of the way; the steps stay complete. */}
       <Collapsible>
         <CollapsibleTrigger>How to change sign-in mode</CollapsibleTrigger>
-        <CollapsiblePanel className="pbs-row">
+        <CollapsiblePanel offset="row">
           <Stack gap="tight">
             <ShareProse>
               The current mode is <ShareCode>{`${AUTH_MODE_KEY}=${view.mode}`}</ShareCode>. {sourceSentence(view.source, view.install)}

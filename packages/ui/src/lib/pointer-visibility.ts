@@ -11,6 +11,9 @@ export const HIDDEN_AT = {
   fine: "pointer-fine:hidden",
   always: "hidden",
   empty: "empty:hidden",
+  focusInFlow: "not-focus-visible:sr-only focus-visible:self-start",
+  // A skip link: out of sight until the keyboard reaches it, then pinned over the page's corner.
+  untilFocus: "not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)",
   emptyBody: "has-[[data-section-body]:empty]:hidden",
   print: "print:hidden",
   unlessPrint: "hidden print:block",

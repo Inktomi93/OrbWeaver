@@ -106,7 +106,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
   return (
     <Stack gap="section">
-      <Button variant="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
+      <Button variant="ghost" size="sm" onClick={onBack} self="start" ref={backRef}>
         <Icon icon={ArrowLeft} size="sm" />
         {`Back to ${CORPUS_MODE_LABELS.explore}`}
       </Button>

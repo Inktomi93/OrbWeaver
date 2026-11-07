@@ -1,10 +1,11 @@
-import { tv } from "#lib";
+import { GROW, tv } from "#lib";
 
 // An island that floats in a room's reading column (the composer, the band of controls above it): the card fill and
 // edge at the card radius and the field inset, with no shadow, because the room's art behind it is the lift.
 export const roomIslandVariants = tv({
   base: "rounded-card border border-tone-edge bg-card p-field text-card-foreground tone-host-card",
   variants: {
+    grow: GROW,
     // A bounded column surface passes its allocated height to shrinkable content.
     layout: { stack: "flex flex-col" },
     // A card that holds a text field is the field's edge, so it wears the form-control edge token at rest and the ring

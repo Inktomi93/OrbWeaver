@@ -20,7 +20,7 @@ export function SkipToFirstRow({
 }): ReactElement {
   return (
     <Button
-      className="not-focus-visible:sr-only focus-visible:self-start"
+      hiddenAt="focusInFlow"
       variant="outline"
       onClick={(): void => containerRef.current?.querySelector<HTMLElement>(FIRST_ROW)?.focus()}
       size="sm"

@@ -7,7 +7,6 @@ import { Stack } from "@orb/ui/layout";
 import { READING_INSET } from "@orb/ui/lib";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import type { ReactElement } from "react";
-import { cn } from "#lib";
 import type { BubbleBoxProps, MessageBoxProps, ReadingBoxProps } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 
@@ -20,8 +19,6 @@ function cornersFor(set: RowSkin["corners"], role: MessageRole): "card" | "speec
   }
   return set;
 }
-
-const ECHO_CARD_FLOOR = "min-block-(--immersive-echo-min-height)";
 
 export function MessageBox(props: MessageBoxProps): ReactElement {
   return props.box === "bubble" ? <BubbleCard {...props} /> : <ReadingBox {...props} />;
@@ -45,7 +42,10 @@ function BubbleCard({ role, shape, phoneCap, corners, editing, receded, position
       artDecoration={artDecoration}
       share={phoneCap}
       corners={cornersFor(corners, role)}
-      className={cn(inset ? "gap-row" : undefined, spansColumn ? "inline-full" : undefined, positioned && "relative", positioned && ECHO_CARD_FLOOR)}
+      gap={inset ? "row" : undefined}
+      width={spansColumn ? "full" : undefined}
+      minHeight={positioned ? "echoCard" : undefined}
+      className={positioned ? "relative" : undefined}
     >
       {children}
     </MessageBubble>

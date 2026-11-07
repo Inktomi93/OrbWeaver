@@ -4,6 +4,7 @@
 // Categories are pre-grouped by the caller; each takes its color from `useChartTheme().palette` by index
 // (ui owns the palette), so a custom theme retints the whole plot. `onPointClick` gets the point's `id`.
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { labelledValueTable } from "../chart/data-table.ts";
 import type { ChartEvent, OrbEChartsInstance } from "../chart/index.ts";
 import { Chart } from "../chart/index.ts";
@@ -12,9 +13,10 @@ import { useChartTheme } from "../chart/use-chart-theme.ts";
 import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
 import type { ScatterSeries } from "./option.ts";
 import { buildScatterOption, pointId } from "./option.ts";
-import { scatterLegendVariants } from "./variants.ts";
+import { scatterBoxVariants, scatterLegendVariants } from "./variants.ts";
 
 export interface ScatterProps {
+  readonly size?: VariantProps<typeof scatterBoxVariants>["size"];
   /** Points pre-grouped into categories — each takes a `useChartTheme().palette` stop by index. */
   readonly series: readonly ScatterSeries[];
   /** The chart's accessible name AND its visible heading. */
@@ -69,7 +71,7 @@ function ScatterLegend({
   );
 }
 
-export function Scatter({ series, label, legend = false, onPointClick, height, className, onChartReady }: ScatterProps): ReactElement {
+export function Scatter({ series, label, legend = false, onPointClick, height, size, className, onChartReady }: ScatterProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = series.every((cat) => cat.points.length === 0);
@@ -83,7 +85,7 @@ export function Scatter({ series, label, legend = false, onPointClick, height, c
 
   return (
     <LabeledChartFrame
-      className={className}
+      className={scatterBoxVariants({ size, className })}
       isEmpty={isEmpty}
       label={label}
       slot="scatter"

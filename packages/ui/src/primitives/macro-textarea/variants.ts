@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { MIN_HEIGHT, tv } from "#lib";
 
 // The macro-textarea skin. The textarea rides the shared textarea skin (composed via
 // `#primitives/textarea`, not reimplemented) with a monospace override so `{{macro}}` markers
@@ -46,5 +46,11 @@ export const macroTextareaVariants = tv({
     itemDescription: "truncate text-label leading-label text-muted-foreground",
     helper: "font-sans text-label leading-label text-muted-foreground",
     argHint: "font-sans text-label leading-label text-muted-foreground",
+  },
+});
+
+export const macroTextareaBoxVariants = tv({
+  variants: {
+    minHeight: { scrollSm: MIN_HEIGHT.scrollSm },
   },
 });

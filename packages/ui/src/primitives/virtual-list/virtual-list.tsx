@@ -82,6 +82,7 @@ export function VirtualList<T>({
   fill,
   grow,
   height,
+  maxHeight,
   className,
   "aria-label": ariaLabel,
   fadeEdge = false,
@@ -173,7 +174,7 @@ export function VirtualList<T>({
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
-      className={virtualListVariants({ fill, grow, height, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
+      className={virtualListVariants({ fill, grow, height, maxHeight, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
       data-slot="virtual-list-scroll"
       onScroll={(event): void => {
         if (fadeEdge) {

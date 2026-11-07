@@ -1,5 +1,5 @@
 import type { ToneStamp } from "#lib";
-import { GROW, SWATCH_LADDER_PIGMENT, tv } from "#lib";
+import { GROW, PASS_THROUGH, SWATCH_LADDER_PIGMENT, tv } from "#lib";
 import type { PigmentScope } from "#tokens";
 
 // A decorative mark that IS its colour: a palette sample, a presence dot, a preview's pane, a running hairline. The
@@ -7,6 +7,9 @@ import type { PigmentScope } from "#tokens";
 export const swatchVariants = tv({
   base: "block",
   variants: {
+    passThrough: PASS_THROUGH,
+    // A swatch that holds a glyph in its middle.
+    centres: { true: "flex items-center justify-center" },
     grow: GROW,
     // The running hairline is one device pixel tall; the caller sets only the inline length.
     indeterminate: { true: "orb-indeterminate-hairline block-px", false: "" },

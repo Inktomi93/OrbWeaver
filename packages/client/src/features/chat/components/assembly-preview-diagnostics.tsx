@@ -35,7 +35,7 @@ export function AssemblyPreviewDiagnostics({
 }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger className="inline-full">
+      <CollapsibleTrigger width="full">
         <Text voice="label">Diagnostics</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>

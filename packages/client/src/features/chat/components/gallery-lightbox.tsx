@@ -120,7 +120,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
                 width otherwise, and never upscaled past the image. */}
           <Stack align="center" className="relative">
             <Stack cap="fit" ref={frameRef} style={{ aspectRatio: aspect, width: frameWidth }}>
-              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" className="block-full inline-full" />
+              <CrossfadeImage src={blobUrl(image.hash)} alt={image.name} aspectRatio={aspect} fit="contain" size="fill" />
             </Stack>
           </Stack>
           {removal === undefined ? null : (

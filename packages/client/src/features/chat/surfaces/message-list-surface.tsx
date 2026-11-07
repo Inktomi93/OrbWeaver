@@ -456,7 +456,8 @@ function ChatThread({
           blockPaddingToken="block"
           // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
           // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
-          className="block-full @max-cq-28:px-tight"
+          fill={true}
+          paddingInlineNarrow="tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>

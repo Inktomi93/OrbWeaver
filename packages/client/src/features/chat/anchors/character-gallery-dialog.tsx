@@ -111,16 +111,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       />
     );
   }
-  return (
-    <MediaGrid
-      items={gridItems}
-      ariaLabel={galleryLabel}
-      gapToken="row"
-      onActivate={onActivate}
-      className="max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)"
-      ref={gridRef}
-    />
-  );
+  return <MediaGrid items={gridItems} ariaLabel={galleryLabel} gapToken="row" onActivate={onActivate} maxHeight="scrollMdWide" ref={gridRef} />;
 }
 
 export interface CharacterGalleryDialogProps {

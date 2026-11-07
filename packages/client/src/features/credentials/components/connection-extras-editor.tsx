@@ -134,7 +134,7 @@ function ExtraRowView({
   return (
     <Stack aria-label={`Extra request ${subject}`} data-slot="connection-extra-row" data-extra-key={key} gap="tight" role="group">
       <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
-        <Field className="grow min-inline-0" error={pasteError} label="Field">
+        <Field grow="fill" className="min-inline-0" error={pasteError} label="Field">
           <Input
             autoComplete="off"
             onBlur={onCommit}
@@ -147,7 +147,7 @@ function ExtraRowView({
             value={row.key}
           />
         </Field>
-        <Field className="grow min-inline-0" label="Value">
+        <Field grow="fill" className="min-inline-0" label="Value">
           <Textarea
             autoComplete="off"
             maxRows={8}

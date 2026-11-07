@@ -101,6 +101,8 @@ export const listRowVariants = tv({
     actions: "flex shrink-0 items-center justify-end gap-field",
   },
   variants: {
+    // A row whose body runs to several lines keeps its leading mark at the first.
+    align: { start: { root: "items-start" } },
     titleQualifierFace: {
       mono: {},
       body: { titleQualifier: "font-sans" },

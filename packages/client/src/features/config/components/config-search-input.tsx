@@ -229,7 +229,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </Tip>
         </Row>
         {expanded ? (
-          <CommandList className="max-block-(--container-cq-24)">
+          <CommandList maxHeight="paneSm">
             {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (

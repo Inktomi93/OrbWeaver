@@ -188,7 +188,7 @@ function FieldRowBody({ annotation, actions, details, children }: RowBodyProps &
         // `track`-aligned Field outside a real subgrid, where `grid-cols-subgrid` degrades to `none`: its
         // control column measured 58px and the number input inside it 0px.)
         <ConfigRowAnnotationProvider value={null}>
-          <Grid className="col-span-full grid-cols-subgrid gap-x-block gap-y-field min-inline-0" data-slot="setting-row-details">
+          <Grid gapInline="block" gapBlock="field" className="col-span-full grid-cols-subgrid min-inline-0" data-slot="setting-row-details">
             {details}
           </Grid>
         </ConfigRowAnnotationProvider>
@@ -255,7 +255,9 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
     // whether or not a rail exists; the owner's zero-shift bar). `col-span-full grid grid-cols-subgrid` is
     // the middle link of the section's subgrid chain.
     <CurrentGrid
-      className="group/setting relative col-span-full grid-cols-subgrid items-start gap-x-block"
+      align="start"
+      gapInline="block"
+      className="group/setting relative col-span-full grid-cols-subgrid"
       aria-current={isMatch ? "true" : undefined}
       data-modified={modified ? "" : undefined}
       data-search-match={isMatch ? "" : undefined}

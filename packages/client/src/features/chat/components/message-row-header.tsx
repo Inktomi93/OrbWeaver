@@ -63,7 +63,7 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
     );
   }
   return (
-    <ThemeScope tokens={attribution.tokens} className="contents">
+    <ThemeScope tokens={attribution.tokens} box="contents">
       <Text as="span" voice="label" ink="speaker" className="min-inline-0" wrap="word">
         {attribution.name}
       </Text>
@@ -112,7 +112,7 @@ function renderRowIdentity(args: {
         // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
         // name is the one datum whose size moves independently (`--appearance-reading-name-scale`, globals.css:795),
         // so centring it puts a scaled name off the line its own row sits on.
-        <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
+        <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
@@ -232,7 +232,7 @@ export function renderGhostNameRow(args: {
       identity={
         <Row gap="field" align="center" className="min-inline-0" wrap={true}>
           {args.chip}
-          <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
+          <Row gap="field" align="baseline" className="min-inline-0" data-slot="message-attribution">
             {renderAttributionName(attribution)}
           </Row>
         </Row>

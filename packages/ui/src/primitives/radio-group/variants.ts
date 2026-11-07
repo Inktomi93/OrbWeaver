@@ -1,4 +1,4 @@
-import { SELECTION_CONTROL, tv } from "#lib";
+import { SELECTION_CONTROL, tv, WIDTH } from "#lib";
 
 // Each item is a circle: bg-input/border-input-border at rest, primary fill + a light dot when selected.
 // SELECTION_CONTROL supplies the shared frame + state machine + the ::before touch-target hit area;
@@ -18,5 +18,11 @@ export const radioGroupVariants = tv({
     indicator: "group flex items-center justify-center",
     dot: "hidden rounded-full bg-primary-foreground block-field inline-field group-data-checked:block group-data-readonly:hidden",
     readOnlyIcon: "hidden text-primary-foreground group-data-readonly:block",
+  },
+});
+
+export const pickerItemBoxVariants = tv({
+  variants: {
+    width: { full: WIDTH.full },
   },
 });

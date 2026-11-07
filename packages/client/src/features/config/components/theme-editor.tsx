@@ -228,7 +228,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
                 </Text>
               </Stack>
             </MessageBubble>
-            <MessageBubble className="self-end" messageRole="user" shape="bubble">
+            <MessageBubble self="end" messageRole="user" shape="bubble">
               <Stack gap="field">
                 <Text as="span">Show me the oldest one.</Text>
               </Stack>
