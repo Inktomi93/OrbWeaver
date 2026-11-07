@@ -8,6 +8,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { isSeededGreetingRow } from "@orb/contracts/chat";
 import { messages, messageVariants, ownerStats } from "@orb/db";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -56,21 +57,19 @@ async function room(
   return { principal, card, chatId: started.chat.id, greeting };
 }
 
-function provider(): ReturnType<typeof createCorpusProviderExecution> {
-  let remaining = 1;
-  return createCorpusProviderExecution({
+function provider(): Disposable & ReturnType<typeof createCorpusProviderExecution> {
+  using construction = new DisposableStack();
+  const nextReply = construction.use(finiteReplies("greeting provenance physical", [GENERATED])).take;
+  const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     chatText: "",
-    completion: () => {
-      if (remaining-- !== 1) {
-        throw new Error("the greeting provenance physical reply script is exhausted");
-      }
-      return { text: GENERATED, toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } };
-    },
+    completion: () => ({ text: nextReply(), toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } }),
   });
+  const lifetime = construction.move();
+  return { ...execution, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 async function accounting(
@@ -149,7 +148,7 @@ test("a card edit after creation preserves the old greeting instead of destroyin
 
 for (const operation of ["duplicate", "repair", "reselect"] as const) {
   test(`a real generated ${operation} cannot become a card greeting in a room without a user turn`, async () => {
-    const physical = provider();
+    using physical = provider();
     await using root = await createServerHarness({ providerFetch: physical.execute });
     await seedCorpusActors(root);
     const { principal, chatId, greeting } = await room(root);

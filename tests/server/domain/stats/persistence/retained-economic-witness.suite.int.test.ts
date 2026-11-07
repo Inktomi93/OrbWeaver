@@ -9,6 +9,7 @@ import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { characterStats, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -42,26 +43,19 @@ for (const [operation, unselected] of [
     await using ownership = new AsyncDisposableStack();
     const roundEntered = Promise.withResolvers<void>();
     const roundReleased = Promise.withResolvers<void>();
-    let narrativeReplies = 1;
-    let roundReplies = 1;
+    const Narrative = "The paid narrative remains unchanged.";
+    using narrativePlan = finiteReplies("physical economic narrative", [Narrative]);
+    using roundPlan = finiteReplies("physical economic round", [RPG_NO_CHANGES_TOOL]);
     const physical = createCorpusProviderExecution({
       modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
       embedding: CORPUS_EMBEDDING_VECTOR,
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
       images: [],
-      chatText: "The paid narrative remains unchanged.",
-      completion: (body) => {
-        if (body.includes(REQUIRED_TOOL_CHOICE)) {
-          if (roundReplies-- !== 1) {
-            throw new Error("the physical economic round reply is exhausted");
-          }
-          return { text: "", toolCalls: [{ name: RPG_NO_CHANGES_TOOL, argumentsJson: "{}" }], usage: { promptTokens: 70, completionTokens: 15 } };
-        }
-        if (narrativeReplies-- !== 1) {
-          throw new Error("the physical economic narrative reply is exhausted");
-        }
-        return { text: "The paid narrative remains unchanged.", toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } };
-      },
+      chatText: Narrative,
+      completion: (body) =>
+        body.includes(REQUIRED_TOOL_CHOICE)
+          ? { text: "", toolCalls: [{ name: roundPlan.take(), argumentsJson: "{}" }], usage: { promptTokens: 70, completionTokens: 15 } }
+          : { text: narrativePlan.take(), toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } },
     });
     const root = ownership.use(
       await createServerHarness({

@@ -10,7 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import type { SignedRoom } from "./continue-physical.ts";
-import { signedRoom } from "./continue-physical.ts";
+import { SIGNED_NEXT_SCRIPT, signedRoom } from "./continue-physical.ts";
 
 const RESTORE_METHODS = ["undoContinue", "revertContinue"] as const;
 /** Competing turn and membership writes: a newer continuation, a swipe, the member leaving, a role change. */
@@ -76,9 +76,11 @@ export function registerRestoreRaces(method: (typeof RESTORE_METHODS)[number], r
     // Single-field competing writes discriminate every stored snapshot predicate independently.
     const competing: Record<RestoreRace, () => Promise<void>> = {
       continuation: async () => {
+        room.image.script(SIGNED_NEXT_SCRIPT);
         await h.root.services.chat.continueTurn({ ...args, intent: { replyMedia: "text+image", carryReasoning: "conversation" } });
       },
       selection: async () => {
+        room.image.script(SIGNED_NEXT_SCRIPT);
         await h.root.services.chat.swipe({ ...args, intent: { replyMedia: "text+image", carryReasoning: "conversation" } });
       },
       membership: async () => {

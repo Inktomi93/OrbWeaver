@@ -7,7 +7,7 @@ import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -55,7 +55,7 @@ export async function personaRoom(
     throw new Error("the canonical Anthropic provider has no endpoint");
   }
   const hostname = new URL(endpoint).hostname;
-  let next = 0;
+  const nextReply = construction.use(finiteReplies("persona physical", replies)).take;
   const corpus = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -79,11 +79,7 @@ export async function personaRoom(
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith("/messages")) {
           request.signal.throwIfAborted();
-          const text = replies[next++];
-          if (text === undefined) {
-            throw new Error("the persona physical reply plan is exhausted");
-          }
-          return reply(text, model);
+          return reply(nextReply(), model);
         }
         return await corpus.execute(request);
       },

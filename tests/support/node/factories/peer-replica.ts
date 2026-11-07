@@ -51,57 +51,51 @@ export async function seedPeerLease(root: ServerTestHarness, params: PeerLeasePa
     images: [],
   });
   const reached = Promise.withResolvers<void>();
-  const peer = await createServerHarness({
-    db: root.db,
-    ownerId: root.ownerId,
-    holder: params.holder,
-    clock: createFrozenClock(root.clock.now() + (params.aheadMs ?? 0)),
-    ids: createSeededIds(PEER_ID_CURSOR),
-    ...(params.secretBoxKey === undefined ? {} : { secretBoxKey: params.secretBoxKey }),
-    providerFetch: async (input, init): Promise<Response> => {
-      const request = new Request(input, init);
-      if (!isCompletion(request)) {
-        return await corpus.execute(request);
-      }
-      reached.resolve();
-      // Parked until the peer's own abort reaches the physical edge.
-      return await new Promise<never>((_resolve, reject) => {
-        request.signal.addEventListener("abort", () => reject(toError(request.signal.reason)), { once: true });
-      });
-    },
-  });
-  try {
-    const principal = await peer.principalFor(params.hostUserId);
-    const turn = peer.services.chat.forceCharacterTurn({ principal, chatId: params.chatId, characterId: params.characterId });
-    const settled = Promise.allSettled([turn]);
-    await Promise.race([
-      reached.promise,
-      turn.then(() => {
-        throw new Error("the peer replica's turn settled before it held the lease");
-      }),
-    ]);
-    let released: Promise<void> | undefined;
-    const letGo = (): Promise<void> => {
-      released ??= (async (): Promise<void> => {
-        await peer.services.chat.abort({ principal, chatId: params.chatId });
-        await settled;
-        await peer.settleBackground();
-      })();
-      return released;
-    };
-    return {
-      peer,
-      letGo,
-      [Symbol.asyncDispose]: async (): Promise<void> => {
-        try {
-          await letGo();
-        } finally {
-          await peer[Symbol.asyncDispose]();
+  await using construction = new AsyncDisposableStack();
+  const peer = construction.use(
+    await createServerHarness({
+      db: root.db,
+      ownerId: root.ownerId,
+      holder: params.holder,
+      clock: createFrozenClock(root.clock.now() + (params.aheadMs ?? 0)),
+      ids: createSeededIds(PEER_ID_CURSOR),
+      ...(params.secretBoxKey === undefined ? {} : { secretBoxKey: params.secretBoxKey }),
+      providerFetch: async (input, init): Promise<Response> => {
+        const request = new Request(input, init);
+        if (!isCompletion(request)) {
+          return await corpus.execute(request);
         }
+        reached.resolve();
+        // Parked until the peer's own abort reaches the physical edge.
+        return await new Promise<never>((_resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(toError(request.signal.reason)), { once: true });
+        });
       },
-    };
-  } catch (error) {
-    await peer[Symbol.asyncDispose]();
-    throw error;
-  }
+    }),
+  );
+  const principal = await peer.principalFor(params.hostUserId);
+  const turn = peer.services.chat.forceCharacterTurn({ principal, chatId: params.chatId, characterId: params.characterId });
+  const settled = Promise.allSettled([turn]);
+  await Promise.race([
+    reached.promise,
+    turn.then(() => {
+      throw new Error("the peer replica's turn settled before it held the lease");
+    }),
+  ]);
+  let released: Promise<void> | undefined;
+  const letGo = (): Promise<void> => {
+    released ??= (async (): Promise<void> => {
+      await peer.services.chat.abort({ principal, chatId: params.chatId });
+      await settled;
+      await peer.settleBackground();
+    })();
+    return released;
+  };
+  construction.defer(letGo);
+  const lifetime = construction.move();
+  return {
+    peer,
+    letGo,
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
+  };
 }

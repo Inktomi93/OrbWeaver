@@ -8,7 +8,8 @@ const ITEM = { systemPrompt: "Summarize.", userPrompt: "A long scene." } as cons
 
 test("an OpenRouter side-generation spells an explicit off as effort none on the wire", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const capability = generationCapability({ reasoning: { mode: "budget", enabled: true, effortLevels: ["high"] } });
   await root.app.runtime.executor.summarize({
     connection: await wireConnection(root, { task: "summarize", providerId: "openrouter", model: "vendor/budget-model", capability }),
@@ -21,7 +22,8 @@ test("an OpenRouter side-generation spells an explicit off as effort none on the
 
 test("an OpenRouter side-generation on an adaptive model sends the chosen effort verbatim", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const capability = generationCapability({ reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"] } });
   await root.app.runtime.executor.summarize({
     connection: await wireConnection(root, { task: "summarize", providerId: "openrouter", model: "anthropic/claude-sonnet-5", capability }),

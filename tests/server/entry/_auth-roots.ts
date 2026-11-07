@@ -76,6 +76,8 @@ export async function signedForwardRoot(rolePolicyConfig: SessionsRolePolicyConf
   readonly root: ServerTestHarness;
   readonly signedHeaders: (claims: Record<string, unknown>) => Promise<Record<string, string>>;
 }> {
-  const root = await createAuthModeRoot("forward-header", { rolePolicyConfig });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createAuthModeRoot("forward-header", { rolePolicyConfig }));
+  construction.move();
   return { root, signedHeaders: (claims) => forwardHeaders(root.issuer, claims) };
 }

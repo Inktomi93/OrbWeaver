@@ -20,9 +20,9 @@ interface TwoRooms extends AsyncDisposable {
   readonly reply: MessageView;
 }
 
-async function room(): Promise<TwoRooms> {
+async function room(replies: readonly string[] = ["victim canon"]): Promise<TwoRooms> {
   await using construction = new AsyncDisposableStack();
-  const h = construction.use(await textRoom(["victim canon", "Hi there"], { group: { output: "per-speaker", policy: "list" } }));
+  const h = construction.use(await textRoom(replies, { group: { output: "per-speaker", policy: "list" } }));
   await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: "claim victim" });
   const speaker = h.characters[0];
   if (speaker === undefined) {
@@ -98,7 +98,7 @@ test("continueTurn with a chat-B messageId is refused identically to a nonexiste
 });
 
 test("undoContinue with a chat-B messageId is refused no_continuation — B's real continuation stays intact", async () => {
-  await using f = await room();
+  await using f = await room(["victim canon", "Hi there"]);
   const continued = await f.h.root.services.chat.continueTurn({ principal: f.h.owner, chatId: f.h.chatId, messageId: f.reply.id });
   expect(continued.messages[0]?.content).toBe("victim canonHi there");
   const victim = await canon(f, f.h.chatId);

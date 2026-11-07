@@ -1,4 +1,5 @@
 // Explicit native finish frames distinguish capped responses from clean stops before the real auto-behavior loop.
+import { finiteReplies } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -17,7 +18,8 @@ export interface PhysicalReply extends Pick<TerminalFrameOptions, "finishReason"
 
 /** Supply only vendor response bytes, leaving continuation, reroll and terminal classification to production. */
 export async function followupRoom(replies: readonly PhysicalReply[], options: Omit<ChatRootOptions, "providerFetch"> = {}): Promise<ChatRoot> {
-  let next = 0;
+  await using construction = new AsyncDisposableStack();
+  const nextReply = construction.use(finiteReplies("explicit-terminal", replies)).take;
   const corpus = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -25,26 +27,27 @@ export async function followupRoom(replies: readonly PhysicalReply[], options: O
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  return await createChatRoot({
-    memoryEnabled: false,
-    ...options,
-    providerFetch: async (input, init) => {
-      const request = new Request(input, init);
-      if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
-        return await corpus.execute(request);
-      }
-      const reply = replies[next++];
-      if (reply === undefined) {
-        return Response.json({ error: { message: "the finite explicit-terminal supplier is exhausted", type: "invalid_request_error" } }, { status: 400 });
-      }
-      return new Response(
-        `${terminalSseLine({
-          ...(reply.finishReason === undefined ? {} : { finishReason: reply.finishReason }),
-          delta: { content: reply.text },
-          usage: { promptTokens: 4, completionTokens: 2 },
-        })}\n\ndata: [DONE]\n\n`,
-        { headers: { "content-type": "text/event-stream" } },
-      );
-    },
-  });
+  const h = construction.use(
+    await createChatRoot({
+      memoryEnabled: false,
+      ...options,
+      providerFetch: async (input, init) => {
+        const request = new Request(input, init);
+        if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
+          return await corpus.execute(request);
+        }
+        const reply = nextReply();
+        return new Response(
+          `${terminalSseLine({
+            ...(reply.finishReason === undefined ? {} : { finishReason: reply.finishReason }),
+            delta: { content: reply.text },
+            usage: { promptTokens: 4, completionTokens: 2 },
+          })}\n\ndata: [DONE]\n\n`,
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    }),
+  );
+  const lifetime = construction.move();
+  return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }

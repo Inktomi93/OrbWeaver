@@ -13,6 +13,7 @@ import { isConstraintViolation } from "@orb/db/query";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -42,37 +43,31 @@ interface FoldedScene extends Awaited<ReturnType<typeof seedCorpusActors>> {
   readonly snapshot: typeof rpgSnapshots.$inferSelect;
 }
 
-function physicalScene(quietSecond = false): ReturnType<typeof createCorpusProviderExecution> {
-  let calls = 0;
-  return createCorpusProviderExecution({
+const SCENE_REPLY = "The traveller studies the observatory.";
+
+const sceneCalls = (weather: string, recentEvent: string): { readonly name: string; readonly argumentsJson: string }[] => [
+  { name: RPG_LITE_TOOL_NAMES[2], argumentsJson: JSON.stringify({ location: "Model observatory", weather: { type: weather }, recentEvent }) },
+];
+
+function physicalScene(second?: "rain" | "quiet"): Disposable & ReturnType<typeof createCorpusProviderExecution> {
+  using construction = new DisposableStack();
+  const nextCalls = construction.use(
+    finiteReplies("checkpoint physical", [
+      sceneCalls("clear", "The traveller entered."),
+      ...(second === "rain" ? [sceneCalls("rain", "Rain reached the dome.")] : []),
+      ...(second === "quiet" ? [[{ name: RPG_NO_CHANGES_TOOL, argumentsJson: "{}" }]] : []),
+    ]),
+  ).take;
+  const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: "The traveller preserves the observatory ledger.",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
-    completion: () => {
-      calls += 1;
-      if (calls > 2) {
-        throw new Error("the checkpoint physical script has no additional model reply");
-      }
-      return {
-        text: "The traveller studies the observatory.",
-        toolCalls:
-          quietSecond && calls === 2
-            ? [{ name: RPG_NO_CHANGES_TOOL, argumentsJson: "{}" }]
-            : [
-                {
-                  name: RPG_LITE_TOOL_NAMES[2],
-                  argumentsJson: JSON.stringify({
-                    location: "Model observatory",
-                    weather: { type: calls === 1 ? "clear" : "rain" },
-                    recentEvent: calls === 1 ? "The traveller entered." : "Rain reached the dome.",
-                  }),
-                },
-              ],
-      };
-    },
+    completion: () => ({ text: SCENE_REPLY, toolCalls: nextCalls() }),
   });
+  const lifetime = construction.move();
+  return { ...execution, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 async function foldedScene(root: ServerTestHarness): Promise<FoldedScene> {
@@ -122,7 +117,7 @@ async function capturedRows(
 }
 
 test("a checkpoint freezes a real folded draft across host edits and continuation and restores its exact hand state", async () => {
-  const wire = physicalScene();
+  using wire = physicalScene("rain");
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -191,7 +186,7 @@ test("a checkpoint on a hand head saves a bookmark copy and leaves the hand row 
 });
 
 test("a real user-committed turn saves a bookmark copy off the ladder and preserves the source variant", async () => {
-  const wire = physicalScene(true);
+  using wire = physicalScene("quiet");
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -223,7 +218,7 @@ test("a real user-committed turn saves a bookmark copy off the ladder and preser
 });
 
 test("the database refuses a checkpoint that pins a turn or hand row and admits the same insert on a bookmark", async () => {
-  const wire = physicalScene();
+  using wire = physicalScene();
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const bookmark = await seedRpgCheckpointRows(root, { principal: scene.owner, chatId: scene.chatId, label: "Saved copy" });
@@ -259,7 +254,7 @@ test("the database refuses a checkpoint that pins a turn or hand row and admits 
 
 for (const table of [rpgSnapshots, rpgCheckpoints]) {
   test(`failed native ${getTableName(table)} insertion leaves neither bookmark snapshot nor checkpoint and releases the owner`, async () => {
-    const wire = physicalScene();
+    using wire = physicalScene();
     await using root = await createServerHarness({ providerFetch: wire.execute });
     const scene = await foldedScene(root);
     const params = { principal: scene.owner, chatId: scene.chatId };
@@ -278,7 +273,7 @@ for (const table of [rpgSnapshots, rpgCheckpoints]) {
 }
 
 test("checkpoint writes and restores retain actual host and game authority without a foreign mutation", async () => {
-  const wire = physicalScene();
+  using wire = physicalScene();
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -305,7 +300,7 @@ test("checkpoint writes and restores retain actual host and game authority witho
 test("a held checkpoint commit serializes a competing hand edit through its new immutable head", async () => {
   using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const wire = physicalScene();
+  using wire = physicalScene();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -340,7 +335,7 @@ test("a held checkpoint commit serializes a competing hand edit through its new 
 test("a real continuation overlaps the held bookmark without replacing its saved state or source variant identity", async () => {
   using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const wire = physicalScene();
+  using wire = physicalScene("rain");
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -392,7 +387,7 @@ test("a real continuation overlaps the held bookmark without replacing its saved
 test("a held restore orders a competing hand gesture after its faithful narrator and snapshot batch", async () => {
   using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
-  const wire = physicalScene();
+  using wire = physicalScene();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -427,7 +422,7 @@ test("a held restore orders a competing hand gesture after its faithful narrator
 });
 
 test("a native restore snapshot failure keeps both the narrator and saved state absent before a successful retry", async () => {
-  const wire = physicalScene();
+  using wire = physicalScene();
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -449,7 +444,7 @@ test("a native restore snapshot failure keeps both the narrator and saved state 
 });
 
 // The tail turn writes the model location, its swipe writes nothing, and the next turn changes only the weather.
-function tailSwipeScene(): ReturnType<typeof createCorpusProviderExecution> {
+function tailSwipeScene(): Disposable & ReturnType<typeof createCorpusProviderExecution> {
   const scene = (weather: string): { readonly name: string; readonly argumentsJson: string } => ({
     name: RPG_LITE_TOOL_NAMES[2],
     argumentsJson: JSON.stringify({ location: "Model observatory", weather: { type: weather }, recentEvent: "The traveller entered." }),
@@ -459,28 +454,25 @@ function tailSwipeScene(): ReturnType<typeof createCorpusProviderExecution> {
     [{ name: RPG_NO_CHANGES_TOOL, argumentsJson: "{}" }],
     [{ name: RPG_LITE_TOOL_NAMES[2], argumentsJson: JSON.stringify({ weather: { type: "rain" } }) }],
   ];
-  let calls = 0;
-  return createCorpusProviderExecution({
+  using construction = new DisposableStack();
+  const nextCalls = construction.use(finiteReplies("tail swipe", replies)).take;
+  const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     chatText: "The traveller preserves the observatory ledger.",
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
-    completion: () => {
-      const toolCalls = replies[calls];
-      calls += 1;
-      if (toolCalls === undefined) {
-        throw new Error("the tail swipe script has no additional model reply");
-      }
-      return { text: "The traveller studies the observatory.", toolCalls };
-    },
+    completion: () => ({ text: SCENE_REPLY, toolCalls: nextCalls() }),
   });
+  const lifetime = construction.move();
+  return { ...execution, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 type Ambient = Awaited<ReturnType<ServerTestHarness["services"]["rpg"]["getTrackerView"]>>["ambient"];
 
 async function tailSwipeStates(checkpoint: boolean): Promise<{ readonly head: Ambient; readonly swiped: Ambient; readonly next: Ambient }> {
-  await using root = await createServerHarness({ providerFetch: tailSwipeScene().execute });
+  using wire = tailSwipeScene();
+  await using root = await createServerHarness({ providerFetch: wire.execute });
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
   const ambient = async (): Promise<Ambient> => (await root.services.rpg.getTrackerView(params)).ambient;

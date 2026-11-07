@@ -19,7 +19,6 @@ import {
   embedSpaceState,
   localPath,
   plugins,
-  preCloseHousekeeping,
   rosterPresets,
   runMigrations,
   sessions,
@@ -53,7 +52,7 @@ import {
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
 } from "./corpus-provider.ts";
-import { SHIPPED_MIGRATIONS } from "./db.ts";
+import { ownFileDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { plantTrigger } from "./db-faults.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
@@ -149,86 +148,83 @@ async function sourceDataset(parent: string, withEmbeddings = false): Promise<So
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const db = await createDb(layout.databaseUrl);
-  try {
-    await runMigrations(db, SHIPPED_MIGRATIONS);
-    await using root = await createServerHarness({
-      db,
-      startJobs: false,
-      pluginSpawn: spawn,
-      providerFetch: physical.execute,
-      secretBoxKey: SECRET_BOX_TEST_KEY,
-      temporaryParentDir: parent,
-      casDir: layout.assets,
-      variantDir: layout.variants,
-      importStagingDir: layout.importStaging,
-      rolePolicyConfig: { [OWNER_HANDLES_KEY]: SOURCE_HANDLE, [DEFAULT_USER_HANDLE_KEY]: SOURCE_HANDLE },
-      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
-    });
-    const owner = await root.principalFor(root.ownerId);
-    await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: SOURCE_PASSWORD });
-    await root.services.credentials.add({ principal: owner, provider: "custom-openai", key: SOURCE_SECRET });
-    await root.app.sessions.create({ userId: owner.userId });
-    const card = await root.services.character.create({
-      principal: owner,
-      input: createCharacterSchema.parse({ handle: "retained-card", name: "Retained", description: "Original fixture text" }),
-    });
-    const other = await root.actor({ handle: brandedId("Handle").parse("foreign-surface-user") });
-    const foreign = await root.services.character.create({
-      principal: await root.principalFor(other.id),
-      input: createCharacterSchema.parse({ handle: "foreign-card", name: "Foreign", description: "Foreign fixture text" }),
-    });
-    const refinery = await root.services.refinery.startSession({ principal: owner, characterId: card.id });
-    const foreignRefinery = await root.services.refinery.startSession({ principal: await root.principalFor(other.id), characterId: foreign.id });
-    const tag = await root.services.tag.createTag({ principal: owner, input: { name: "Retained owner tag" } });
-    await root.services.tag.createTag({ principal: await root.principalFor(other.id), input: { name: "Foreign owner tag" } });
-    const installed = await root.services.plugin.install({
-      caller: owner,
-      bundle: makePluginBundle(CORPUS_PLUGIN_MANIFEST, 'orb.host(1).storage.set("marker", "retained");', root.clock.now()),
-      grant: ["storage.kv"],
-    });
-    await root.services.plugin.setEnabled({ caller: owner, pluginId: installed.id, enabled: true });
-    const bytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-    const asset = await root.app.assets.store({ principal: owner, bytes, mime: "image/png", kind: "gallery" });
-    // This source owner has removed the managed examples; a normal build must respect that decision.
-    await root.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
-    const cookie = await signInWithPassword(root, SOURCE_HANDLE, SOURCE_PASSWORD);
-    const address = await root.listen();
-    const admission = await fetch(`http://127.0.0.1:${address.port}/api/trpc/sessions.me`, { headers: { cookie } });
-    expect(admission.status).toBe(200);
-    expect(await admission.json()).toMatchObject({ result: { data: { userId: owner.userId } } });
-    await root.settleBackground();
-    if (withEmbeddings) {
-      await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
-      await seedCorpusConnections(root, owner);
-      await root.app.embeddings.embedCorpus({ ownerId: owner.userId, force: true, signal: new AbortController().signal });
-    }
-    await root.settleBackground();
-    const subjects = {
-      characters: await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, owner.userId)).orderBy(asc(characters.id)),
-      rosters: await db.select({ id: rosterPresets.id }).from(rosterPresets).where(eq(rosterPresets.ownerId, owner.userId)).orderBy(asc(rosterPresets.id)),
-      worldBooks: await db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, owner.userId)).orderBy(asc(worldBooks.id)),
-      assets: await db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, owner.userId)).orderBy(asc(assets.id)),
-      tags: await db.select({ id: tags.id }).from(tags).where(eq(tags.ownerId, owner.userId)).orderBy(asc(tags.id)),
-    };
-    return {
-      layout,
-      ownerId: owner.userId,
-      cardId: card.id,
-      foreignId: foreign.id,
-      pluginId: installed.id,
-      refineryId: refinery.id,
-      foreignRefineryId: foreignRefinery.id,
-      tagId: tag.id,
-      asset,
-      bytes,
-      subjects,
-      embeddingCount: (await db.select({ count: count() }).from(characterEmbeddings))[0]?.count ?? 0,
-      originalCharacters: await Promise.all(subjects.characters.map(({ id }) => root.services.character.get({ principal: owner, characterId: id }))),
-    };
-  } finally {
-    await preCloseHousekeeping(db);
+  await using held = ownFileDb(await createDb(layout.databaseUrl));
+  const db = held.db;
+  await runMigrations(db, SHIPPED_MIGRATIONS);
+  await using root = await createServerHarness({
+    db,
+    startJobs: false,
+    pluginSpawn: spawn,
+    providerFetch: physical.execute,
+    secretBoxKey: SECRET_BOX_TEST_KEY,
+    temporaryParentDir: parent,
+    casDir: layout.assets,
+    variantDir: layout.variants,
+    importStagingDir: layout.importStaging,
+    rolePolicyConfig: { [OWNER_HANDLES_KEY]: SOURCE_HANDLE, [DEFAULT_USER_HANDLE_KEY]: SOURCE_HANDLE },
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+  });
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: SOURCE_PASSWORD });
+  await root.services.credentials.add({ principal: owner, provider: "custom-openai", key: SOURCE_SECRET });
+  await root.app.sessions.create({ userId: owner.userId });
+  const card = await root.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: "retained-card", name: "Retained", description: "Original fixture text" }),
+  });
+  const other = await root.actor({ handle: brandedId("Handle").parse("foreign-surface-user") });
+  const foreign = await root.services.character.create({
+    principal: await root.principalFor(other.id),
+    input: createCharacterSchema.parse({ handle: "foreign-card", name: "Foreign", description: "Foreign fixture text" }),
+  });
+  const refinery = await root.services.refinery.startSession({ principal: owner, characterId: card.id });
+  const foreignRefinery = await root.services.refinery.startSession({ principal: await root.principalFor(other.id), characterId: foreign.id });
+  const tag = await root.services.tag.createTag({ principal: owner, input: { name: "Retained owner tag" } });
+  await root.services.tag.createTag({ principal: await root.principalFor(other.id), input: { name: "Foreign owner tag" } });
+  const installed = await root.services.plugin.install({
+    caller: owner,
+    bundle: makePluginBundle(CORPUS_PLUGIN_MANIFEST, 'orb.host(1).storage.set("marker", "retained");', root.clock.now()),
+    grant: ["storage.kv"],
+  });
+  await root.services.plugin.setEnabled({ caller: owner, pluginId: installed.id, enabled: true });
+  const bytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const asset = await root.app.assets.store({ principal: owner, bytes, mime: "image/png", kind: "gallery" });
+  // This source owner has removed the managed examples; a normal build must respect that decision.
+  await root.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
+  const cookie = await signInWithPassword(root, SOURCE_HANDLE, SOURCE_PASSWORD);
+  const address = await root.listen();
+  const admission = await fetch(`http://127.0.0.1:${address.port}/api/trpc/sessions.me`, { headers: { cookie } });
+  expect(admission.status).toBe(200);
+  expect(await admission.json()).toMatchObject({ result: { data: { userId: owner.userId } } });
+  await root.settleBackground();
+  if (withEmbeddings) {
+    await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
+    await seedCorpusConnections(root, owner);
+    await root.app.embeddings.embedCorpus({ ownerId: owner.userId, force: true, signal: new AbortController().signal });
   }
+  await root.settleBackground();
+  const subjects = {
+    characters: await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, owner.userId)).orderBy(asc(characters.id)),
+    rosters: await db.select({ id: rosterPresets.id }).from(rosterPresets).where(eq(rosterPresets.ownerId, owner.userId)).orderBy(asc(rosterPresets.id)),
+    worldBooks: await db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, owner.userId)).orderBy(asc(worldBooks.id)),
+    assets: await db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, owner.userId)).orderBy(asc(assets.id)),
+    tags: await db.select({ id: tags.id }).from(tags).where(eq(tags.ownerId, owner.userId)).orderBy(asc(tags.id)),
+  };
+  return {
+    layout,
+    ownerId: owner.userId,
+    cardId: card.id,
+    foreignId: foreign.id,
+    pluginId: installed.id,
+    refineryId: refinery.id,
+    foreignRefineryId: foreignRefinery.id,
+    tagId: tag.id,
+    asset,
+    bytes,
+    subjects,
+    embeddingCount: (await db.select({ count: count() }).from(characterEmbeddings))[0]?.count ?? 0,
+    originalCharacters: await Promise.all(subjects.characters.map(({ id }) => root.services.character.get({ principal: owner, characterId: id }))),
+  };
 }
 
 test("owner intake preserves original subjects and plugin consent, scrubs only cloned auth, and never edits source bytes", { tags: "slow" }, async () => {
@@ -261,15 +257,14 @@ test("owner intake preserves original subjects and plugin consent, scrubs only c
   expect(prepared.provenance.embeddings.prepared.counts.characters).toBeGreaterThan(0);
   expect(prepared.provenance.embeddings.prepared.generations).toContainEqual(expect.objectContaining({ ownerId: source.ownerId, task: "embed" }));
   expect(prepared.provenance.embeddings.prepared.spaces).toContainEqual(expect.objectContaining({ ownerId: source.ownerId, scope: "cards" }));
-  const clone = await createDb(prepared.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(prepared.layout.databaseUrl));
+    const clone = held.db;
     expect(await clone.select().from(userCredentials)).toEqual([]);
     expect(await clone.select().from(sessions)).toEqual([]);
     const cloneOwners = await clone.select({ id: users.id, passwordHash: users.passwordHash }).from(users).where(eq(users.id, source.ownerId));
     expect(cloneOwners).toEqual([{ id: source.ownerId, passwordHash: null }]);
     expect(await clone.select({ id: plugins.id, status: plugins.status }).from(plugins)).toEqual([{ id: source.pluginId, status: "enabled" }]);
-  } finally {
-    await preCloseHousekeeping(clone);
   }
   const clonedFiles = await readdir(prepared.layout.assets, { recursive: true });
   const assetFile = clonedFiles.find((path) => path.endsWith(source.asset.hash));
@@ -314,9 +309,10 @@ async function prepareManagedUpgrade(
   const { readShowcaseManifest } = await import("@orb/showcase-plugins");
   const shipped = await readShowcaseManifest("oracle-deck");
   assert(shipped !== null);
-  const db = await createDb(source.layout.databaseUrl);
   let installed: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["install"]>>;
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const db = held.db;
     await using root = await createServerHarness({ db, ownerId: source.ownerId, startJobs: false, temporaryParentDir: parent, casDir: source.layout.assets });
     const principal = await root.principalFor(source.ownerId);
     installed = await root.services.plugin.install({
@@ -336,8 +332,6 @@ async function prepareManagedUpgrade(
     } else if (fault === "subjects") {
       await plantTrigger(db, { ...UPGRADE_DRIFT, body: "DELETE FROM tags;" });
     }
-  } finally {
-    await preCloseHousekeeping(db);
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);
@@ -492,8 +486,9 @@ test("the walk lifts every windowed cap on its disposable copy while a default r
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const source = await sourceDataset(parent);
-  const sourceDb = await createDb(source.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const sourceDb = held.db;
     await using root = await createServerHarness({
       db: sourceDb,
       ownerId: source.ownerId,
@@ -505,8 +500,6 @@ test("the walk lifts every windowed cap on its disposable copy while a default r
       principal: await root.principalFor(source.ownerId),
       partial: { rateLimits: { authed: RATE_LIMIT_CAP_MIN, login: RATE_LIMIT_CAP_MIN } },
     });
-  } finally {
-    await preCloseHousekeeping(sourceDb);
   }
   const privateRoot = join(parent, "private");
   await mkdir(privateRoot, { mode: 0o700 });
@@ -570,11 +563,12 @@ test("an owner clone generates only through its disposable scripted connection a
   expect((await fetch(`${originalPeer.origin}/v1/models`)).status).toBe(200);
   expect(originalRequests).toBe(1);
   const source = await sourceDataset(parent, true);
-  const sourceDb = await createDb(source.layout.databaseUrl);
   let originalConnection: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["get"]>>;
   let originalBindings: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["listBindings"]>>;
   let originalAllowlist: Awaited<ReturnType<ServerTestHarness["services"]["settings"]["getAppSettings"]>>["privateEndpointAllowlist"];
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const sourceDb = held.db;
     await using root = await createServerHarness({
       db: sourceDb,
       ownerId: source.ownerId,
@@ -588,8 +582,6 @@ test("an owner clone generates only through its disposable scripted connection a
     originalConnection = await root.services.connection.update({ principal, connectionId: candidate.id, patch: { baseUrl: `${originalPeer.origin}/v1` } });
     originalBindings = await root.services.connection.listBindings({ principal });
     originalAllowlist = (await root.services.settings.getAppSettings({ principal })).privateEndpointAllowlist;
-  } finally {
-    await preCloseHousekeeping(sourceDb);
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);
@@ -754,8 +746,9 @@ test("owner intake refuses lost completed vectors and retains exact private pari
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const source = await sourceDataset(parent, true);
   expect(source.embeddingCount).toBeGreaterThan(0);
-  const db = await createDb(source.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const db = held.db;
     // A persisted source trigger fires only when the copied credential is scrubbed: this is a real SQLite mutation fault.
     await plantTrigger(db, {
       table: userCredentials,
@@ -764,8 +757,6 @@ test("owner intake refuses lost completed vectors and retains exact private pari
       name: "surface_embedding_loss",
       body: "DELETE FROM character_embeddings;",
     });
-  } finally {
-    await preCloseHousekeeping(db);
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);
@@ -792,9 +783,10 @@ test("owner intake pauses copied schedules through production while preserving t
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const source = await sourceDataset(parent);
-  const db = await createDb(source.layout.databaseUrl);
   let scheduleId: WorkloadScheduleId;
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const db = held.db;
     await using root = await createServerHarness({ db, ownerId: source.ownerId, startJobs: false, temporaryParentDir: parent });
     const caller = await root.principalFor(source.ownerId);
     const schedule = await root.services.workloads.createSchedule({
@@ -806,8 +798,6 @@ test("owner intake pauses copied schedules through production while preserving t
     });
     scheduleId = schedule.id;
     expect((await root.services.workloads.listSchedules({ caller })).map(({ id, enabled }) => ({ id, enabled }))).toEqual([{ id: schedule.id, enabled: true }]);
-  } finally {
-    await preCloseHousekeeping(db);
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);
@@ -816,13 +806,12 @@ test("owner intake pauses copied schedules through production while preserving t
   await mkdir(privateRoot, { mode: 0o700 });
   await using prepared = await prepareSurfaceData({ dataMode: "owner", privateRoot, ownerDataDirectory: source.layout.root, environment: LOCAL_ENVIRONMENT });
   expect(prepared.provenance.pausedSchedules).toEqual([{ id: scheduleId, ownerId: source.ownerId, kind: "reconcile-stats" }]);
-  const clone = await createDb(prepared.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(prepared.layout.databaseUrl));
+    const clone = held.db;
     expect(await clone.select({ id: workloadSchedules.id, enabled: workloadSchedules.enabled }).from(workloadSchedules)).toEqual([
       { id: scheduleId, enabled: false },
     ]);
-  } finally {
-    await preCloseHousekeeping(clone);
   }
   expect(await readFile(database)).toEqual(before);
 });
@@ -832,8 +821,9 @@ test("owner admission rejects resumable work and cleans copied data while retain
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
   const source = await sourceDataset(parent);
-  const db = await createDb(source.layout.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(source.layout.databaseUrl));
+    const db = held.db;
     await using root = await createServerHarness({ db, ownerId: source.ownerId, startJobs: false, temporaryParentDir: parent });
     const caller = await root.principalFor(source.ownerId);
     await root.services.workloads.start({
@@ -842,8 +832,6 @@ test("owner admission rejects resumable work and cleans copied data while retain
       mode: "singular",
       input: { kind: "reconcile-stats", params: {} },
     });
-  } finally {
-    await preCloseHousekeeping(db);
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);

@@ -5,7 +5,7 @@ import { ChatOperationError } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { TOOL_SIGNATURE } from "../engine/inline-image-physical.ts";
-import { signedContinuation } from "./continue-physical.ts";
+import { SIGNED_NEXT_SCRIPT, signedContinuation } from "./continue-physical.ts";
 
 test("a newer signed tool continuation fences a stale undo without changing its private snapshot, versions or events", async () => {
   await using f = await signedContinuation();
@@ -20,6 +20,7 @@ test("a newer signed tool continuation fences a stale undo without changing its 
   try {
     await gate.reached;
     gate.disarm();
+    f.image.script(SIGNED_NEXT_SCRIPT);
     await h.root.services.chat.continueTurn({
       principal: h.owner,
       chatId: f.chatId,

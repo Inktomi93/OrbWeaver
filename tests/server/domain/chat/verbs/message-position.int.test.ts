@@ -58,7 +58,7 @@ test("listMessages and getMessageWindow number across a delete's seq gap and acr
 });
 
 test("send, swipe, continue, undo and revert keep each row's number, on the page and in the durable replay", async () => {
-  await using h = await textRoom(["First reply.", "Second swipe.", " Continued.", "Later reply."]);
+  await using h = await textRoom(["First reply.", "Second swipe.", " Continued."]);
   const { chat } = h.root.services;
   const presence = new AbortController();
   await connectDevice(h.root, h.owner.userId, presence.signal);

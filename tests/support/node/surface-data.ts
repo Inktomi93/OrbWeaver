@@ -336,27 +336,25 @@ async function preparedEmbeddingPosture(layout: DataLayout): Promise<SurfaceEmbe
 }
 
 async function datasetInventory(layout: DataLayout, idleRequired: boolean): Promise<Pick<SurfaceDataProvenance, "owner" | "subjects" | "plugins">> {
-  const { createDb, pendingTurns, preCloseHousekeeping, users, workloads } = await import("@orb/db");
+  const { createDb, pendingTurns, users, workloads } = await import("@orb/db");
+  const { ownFileDb } = await import("./db.ts");
   const { ACTIVE_WORKLOAD_STATUSES } = await import("@orb/contracts/workloads");
   const { count, eq, inArray } = await import("drizzle-orm");
-  const db = await createDb(layout.databaseUrl);
-  try {
-    const owners = await db.select({ id: users.id, handle: users.handle, enabled: users.enabled }).from(users).where(eq(users.role, "owner"));
-    const owner = owners[0];
-    if (owners.length !== 1 || owner === undefined || !owner.enabled) {
-      throw new Error("Surface dataset requires its existing enabled singleton owner");
-    }
-    if (idleRequired) {
-      const active = await db.select({ count: count() }).from(workloads).where(inArray(workloads.status, ACTIVE_WORKLOAD_STATUSES));
-      const pending = await db.select({ count: count() }).from(pendingTurns);
-      if (active[0]?.count !== 0 || pending[0]?.count !== 0) {
-        throw new Error("Surface owner clone refuses unfinished work and pending turns");
-      }
-    }
-    return { owner: { userId: owner.id, handle: owner.handle }, subjects: await surfaceSubjects(db, owner.id), plugins: await pluginPosture(db) };
-  } finally {
-    await preCloseHousekeeping(db);
+  await using held = ownFileDb(await createDb(layout.databaseUrl));
+  const db = held.db;
+  const owners = await db.select({ id: users.id, handle: users.handle, enabled: users.enabled }).from(users).where(eq(users.role, "owner"));
+  const owner = owners[0];
+  if (owners.length !== 1 || owner === undefined || !owner.enabled) {
+    throw new Error("Surface dataset requires its existing enabled singleton owner");
   }
+  if (idleRequired) {
+    const active = await db.select({ count: count() }).from(workloads).where(inArray(workloads.status, ACTIVE_WORKLOAD_STATUSES));
+    const pending = await db.select({ count: count() }).from(pendingTurns);
+    if (active[0]?.count !== 0 || pending[0]?.count !== 0) {
+      throw new Error("Surface owner clone refuses unfinished work and pending turns");
+    }
+  }
+  return { owner: { userId: owner.id, handle: owner.handle }, subjects: await surfaceSubjects(db, owner.id), plugins: await pluginPosture(db) };
 }
 
 // Every case spends one owner's buckets on a disposable loopback copy, so the walk's own record lifts the windowed caps.
@@ -398,19 +396,17 @@ async function quietCopiedSchedules(
   runRoot: string,
   owner: SurfaceDataProvenance["owner"],
 ): Promise<SurfaceDataProvenance["pausedSchedules"]> {
-  const { createDb, preCloseHousekeeping } = await import("@orb/db");
+  const { createDb } = await import("@orb/db");
+  const { ownFileDb } = await import("./db.ts");
   const { createServerHarness } = await import("./server.ts");
-  const db = await createDb(layout.databaseUrl);
-  try {
-    await using root = await createServerHarness({ ...surfaceHarnessOptions({ layout, runRoot, owner }, "single-user"), db });
-    const schedules = (await root.services.workloads.listSchedules({ caller: null })).filter(({ enabled }) => enabled);
-    for (const schedule of schedules) {
-      await root.services.workloads.setScheduleEnabled({ caller: null, id: schedule.id, enabled: false });
-    }
-    return schedules.map(({ id, ownerId, kind }) => ({ id, ownerId, kind }));
-  } finally {
-    await preCloseHousekeeping(db);
+  await using held = ownFileDb(await createDb(layout.databaseUrl));
+  const db = held.db;
+  await using root = await createServerHarness({ ...surfaceHarnessOptions({ layout, runRoot, owner }, "single-user"), db });
+  const schedules = (await root.services.workloads.listSchedules({ caller: null })).filter(({ enabled }) => enabled);
+  for (const schedule of schedules) {
+    await root.services.workloads.setScheduleEnabled({ caller: null, id: schedule.id, enabled: false });
   }
+  return schedules.map(({ id, ownerId, kind }) => ({ id, ownerId, kind }));
 }
 
 async function privateFailure(runRoot: string, error: unknown, environment?: NodeJS.ProcessEnv): Promise<never> {
@@ -655,14 +651,14 @@ export async function openPreparedSurfaceRoot(prepared: PreparedSurfaceData, opt
   if (prepared.dataMode === "owner" && mode !== "single-user") {
     throw new Error("Surface owner clones preserve their accounts and admit only the loopback owner");
   }
-  const { createDb, preCloseHousekeeping } = await import("@orb/db");
+  const { createDb } = await import("@orb/db");
+  const { ownFileDb } = await import("./db.ts");
   const { createServerHarness } = await import("./server.ts");
   const { reactivatePluginsOnBoot } = await import("@orb/server/entry/boot");
   const { bootGrantFor } = await import("./boot-grant.ts");
   const { createSurfaceProvider } = await import("./surface-provider.ts");
   await using construction = new AsyncDisposableStack();
-  const db = await createDb(prepared.layout.databaseUrl);
-  construction.defer(() => preCloseHousekeeping(db));
+  const db = construction.use(ownFileDb(await createDb(prepared.layout.databaseUrl))).db;
   try {
     const provider = construction.use(await createSurfaceProvider(prepared.runRoot, prepared.dataMode));
     const root = construction.use(

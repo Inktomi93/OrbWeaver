@@ -63,7 +63,8 @@ async function askRoom(): Promise<AskRoom> {
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const h = await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn: spawn } });
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn: spawn } }));
   const member = await h.root.principalFor((await h.root.actor()).id);
   // The member can fund the room after a handoff, so a confirmed turn under either host is visible in canon.
   await seedCorpusConnections(h.root, member);
@@ -88,6 +89,11 @@ async function askRoom(): Promise<AskRoom> {
       }
     }
   };
+  construction.defer(async () => {
+    cancellation.abort();
+    await stream.return?.();
+  });
+  const lifetime = construction.move();
   return {
     h,
     member,
@@ -97,11 +103,7 @@ async function askRoom(): Promise<AskRoom> {
     nextRaised,
     nextAsk: async (): Promise<AutomationSuggestionId> => (await nextRaised()).suggestionId,
     assistantTurns: async (): Promise<number> => (await readRoomCanon(h.root, h.owner, h.chatId)).filter(({ role }) => role === "assistant").length,
-    [Symbol.asyncDispose]: async (): Promise<void> => {
-      cancellation.abort();
-      await stream.return?.();
-      await h[Symbol.asyncDispose]();
-    },
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
 

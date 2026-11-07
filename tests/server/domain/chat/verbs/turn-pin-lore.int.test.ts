@@ -28,7 +28,7 @@ const PINNED_LORE = "{{user}} keeps the ledger";
 const PINNED_RENDERED = "Ledgerkeeper keeps the ledger";
 const SEAT_LORE = "SEAT-PERSONA-LORE";
 const PIN_TITLE = "Pin probe";
-const REPLIES = Array.from({ length: 12 }, (_, i) => `reply ${i + 1}`);
+const REPLIES = Array.from({ length: 4 }, (_, i) => `reply ${i + 1}`);
 
 type Principal = ChatRoot["owner"];
 
@@ -92,7 +92,7 @@ async function inheritedPersonaBooks(h: ChatRoot, principal: Principal = h.owner
 }
 
 test("the pin's book feeds a turn whose speaker is another persona, in the wire, the trace, the preview and the rack", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 1));
   const pinned = await seatPersona(h, h.owner, "Ledgerkeeper", "The pinned persona.");
   await pinLore(h, h.owner, pinned.id, { content: PINNED_LORE });
   await pin(h, pinned.id);
@@ -111,7 +111,7 @@ test("the pin's book feeds a turn whose speaker is another persona, in the wire,
 });
 
 test("a pin whose owner left keeps its book for the host and a member, and a member's rack and preview stay closed", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 2));
   const carol = await invitePerson(h);
   await heldPinRoom(h);
   using _online = await hostOnline(h);
@@ -129,7 +129,7 @@ test("a pin whose owner left keeps its book for the host and a member, and a mem
 });
 
 test("a pin whose owner is disabled keeps its book, while a disabled seat's unpinned book drops", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const bob = await invitePerson(h);
   const dave = await invitePerson(h);
   const pinned = await seatPersona(h, bob, "Ledgerkeeper", "The persona the room is pinned to.");
@@ -146,7 +146,7 @@ test("a pin whose owner is disabled keeps its book, while a disabled seat's unpi
 });
 
 test("a pin seated as the speaker contributes each entry once", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 1));
   const persona = await seatPersona(h, h.owner, "Ledgerkeeper", "Pinned and seated.");
   await pinLore(h, h.owner, persona.id, { content: PINNED_LORE });
   await pin(h, persona.id);
@@ -157,7 +157,7 @@ test("a pin seated as the speaker contributes each entry once", async () => {
 });
 
 test("no pin adds nothing: an unseated persona's book stays out, and a re-pin moves the book in and out", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 1));
   const shelved = await seatPersona(h, h.owner, "Ledgerkeeper", "Not played, not pinned.");
   await pinLore(h, h.owner, shelved.id, { content: PINNED_LORE });
   await seatPersona(h, h.owner, "Wanderer", "The persona speaking now.");
@@ -173,7 +173,7 @@ test("no pin adds nothing: an unseated persona's book stays out, and a re-pin mo
 });
 
 test("a pin with no book adds nothing to the pool", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const bookless = await seatPersona(h, h.owner, "Ledgerkeeper", "A pin with no book.");
   await pin(h, bookless.id);
   const speaking = await seatPersona(h, h.owner, "Wanderer", "The persona speaking now.");
@@ -185,7 +185,7 @@ test("a pin with no book adds nothing to the pool", async () => {
 });
 
 test("a disabled entry, a detached book and a deleted book each leave the held pin's pool", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const { bob, pinned } = await heldPinRoom(h);
   const kept = await pinLore(h, bob, pinned, { content: "SECOND-PIN-ENTRY" });
   const third = await pinLore(h, bob, pinned, { content: "THIRD-PIN-ENTRY" });
@@ -206,7 +206,7 @@ test("a disabled entry, a detached book and a deleted book each leave the held p
 });
 
 test("deleting the pinned persona clears the pin and its book together", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const { bob, pinned } = await heldPinRoom(h);
   await h.root.services.persona.create({ principal: bob, input: createPersonaSchema.parse({ name: "Spare", description: "Keeps the delete legal." }) });
   expect((await previewOf(h)).text).toContain(PINNED_RENDERED);
@@ -215,7 +215,7 @@ test("deleting the pinned persona clears the pin and its book together", async (
 });
 
 test("the host's member-lore switch governs a member's pin as it governs a member's seat, and never the host's own pin", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 1));
   await heldPinRoom(h);
   await h.root.services.chat.setMemberPersonaLore({ principal: h.owner, chatId: h.chatId, enabled: false });
   expect((await previewOf(h)).activated).toEqual([]);
@@ -240,7 +240,7 @@ test("group rounds, a forced turn and an automation turn carry the held pin's bo
     createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "Aria is a warden of the ford." }),
     createCharacterSchema.parse({ handle: "kai", name: "Kai", description: "Kai is a wandering bard." }),
   ];
-  await using h = await textRoom(REPLIES, { characters, group: { output: "per-speaker", policy: "list" } });
+  await using h = await textRoom(REPLIES.slice(0, 4), { characters, group: { output: "per-speaker", policy: "list" } });
   await heldPinRoom(h);
 
   await send(h);
@@ -265,7 +265,7 @@ test("group rounds, a forced turn and an automation turn carry the held pin's bo
 });
 
 test("a fork carries the pin and so its book", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 2));
   await heldPinRoom(h);
   await send(h);
   const fork = await h.root.services.chat.forkChat({ principal: h.owner, chatId: h.chatId });
@@ -275,7 +275,7 @@ test("a fork carries the pin and so its book", async () => {
 });
 
 test("a keyword entry in the pin's book fires only on a scan hit", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 2));
   const pinned = await seatPersona(h, h.owner, "Ledgerkeeper", "The pinned persona.");
   await pinLore(h, h.owner, pinned.id, { content: "KEYED-PIN-ENTRY", keys: ["lantern"] });
   await pin(h, pinned.id);
@@ -288,7 +288,7 @@ test("a keyword entry in the pin's book fires only on a scan hit", async () => {
 });
 
 test("a held pin keeps the system blocks identical across senders; a re-pin is one change, then stable", async () => {
-  await using h = await personaRoom(REPLIES, { group: { output: "per-speaker", policy: "list" } });
+  await using h = await personaRoom(REPLIES.slice(0, 4), { group: { output: "per-speaker", policy: "list" } });
   const carol = await invitePerson(h);
   await heldPinRoom(h);
   const hostPersona = await seatPersona(h, h.owner, "Wanderer", "The host's seat.");
@@ -320,17 +320,17 @@ async function memberSendDrained(h: ChatRoot, between: () => Promise<void>): Pro
 }
 
 test("a deferred drain carries the held pin's book", async () => {
-  await using h = await textRoom(REPLIES, { group: { policy: "list", output: "per-speaker" } });
+  await using h = await textRoom(REPLIES.slice(0, 1), { group: { policy: "list", output: "per-speaker" } });
   expect(await memberSendDrained(h, () => Promise.resolve())).toContain(PINNED_RENDERED);
 });
 
 test("a deferred drain reads the pin at drain time, so a pin cleared while it waited sends no book", async () => {
-  await using h = await textRoom(REPLIES, { group: { policy: "list", output: "per-speaker" } });
+  await using h = await textRoom(REPLIES.slice(0, 1), { group: { policy: "list", output: "per-speaker" } });
   expect(await memberSendDrained(h, () => pin(h, null))).not.toContain(PINNED_RENDERED);
 });
 
 test("generate, continue and impersonate carry the held pin's book", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 4));
   await heldPinRoom(h);
   await send(h);
 
@@ -360,7 +360,7 @@ test.for([
   ["older", true],
   ["newer", false],
 ] as const)("a book the seat and a pin %s than it both hold renders against the seat", async ([, pinFirst]) => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom(REPLIES.slice(0, 1));
   const first = await seatPersona(h, h.owner, pinFirst ? "Pinned" : "Speaking", "The older persona.");
   const second = await seatPersona(h, h.owner, pinFirst ? "Speaking" : "Pinned", "The newer persona.");
   const [pinned, speaking] = pinFirst ? [first, second] : [second, first];
@@ -377,7 +377,7 @@ test.for([
 });
 
 test("a pin book joins the ordinary budget walk: a lower entry drops and the trace names it", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const lower = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Chat book" }) });
   const dropped = await h.root.services.worldInfo.createEntry({
     principal: h.owner,

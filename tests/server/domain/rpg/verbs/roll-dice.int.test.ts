@@ -26,18 +26,22 @@ interface Table extends AsyncDisposable {
 
 async function openTable(): Promise<Table> {
   let draws = 0;
-  const root = await createServerHarness({
-    random: () => {
-      draws += 1;
-      return 0.5;
-    },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      random: () => {
+        draws += 1;
+        return 0.5;
+      },
+    }),
+  );
   const { owner } = await seedCorpusActors(root);
   const caller = await root.internalCallerFor(owner.userId);
   const chatId = await seedRecallRoom(caller);
   await seedRpgGame(root, { principal: owner, chatId, mode: "lite", ruleset: "d20" });
   const config = await root.services.rpg.getConfigView({ principal: owner, chatId });
-  return { root, owner, chatId, config, caller, draws: () => draws, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  const lifetime = construction.move();
+  return { root, owner, chatId, config, caller, draws: () => draws, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 const REFUSED = [

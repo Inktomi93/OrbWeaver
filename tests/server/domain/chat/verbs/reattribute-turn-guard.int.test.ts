@@ -9,7 +9,7 @@ const ADA = createCharacterSchema.parse({ handle: "rturn-ada", name: "Ada Vane",
 const BEX = createCharacterSchema.parse({ handle: "rturn-bex", name: "Bex Orrin", description: "The second voice." });
 
 test("reattributeMessages refuses while a turn is in flight and leaves the voice alone, then re-voices once the turn ends", async () => {
-  const provider = textProvider(["The reply.", "The reply.", "The reply."]);
+  using provider = textProvider(["The reply.", "The reply."]);
   const arrived = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   // Only the chat completion is held, so the turn stays registered in the room until the test lets it finish.
@@ -19,7 +19,7 @@ test("reattributeMessages refuses while a turn is in flight and leaves the voice
       arrived.resolve();
       await release.promise;
     }
-    return await provider(request);
+    return await provider.execute(request);
   };
   await using h = await createChatRoot({
     memoryEnabled: false,

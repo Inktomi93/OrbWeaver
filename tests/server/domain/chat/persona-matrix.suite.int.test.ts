@@ -57,11 +57,11 @@ interface Room extends AsyncDisposable {
   readonly bob: ChatRoot["owner"];
 }
 
-async function roomFor(options: RoomOptions): Promise<Room> {
+async function roomFor(options: RoomOptions, calls: number): Promise<Room> {
   await using construction = new AsyncDisposableStack();
   const h = construction.use(
     await personaRoom(
-      Array.from({ length: 16 }, (_, index) => `reply ${index}`),
+      Array.from({ length: calls }, (_, index) => `reply ${index}`),
       {
         promptConfig: presetOf(options.namesBehavior ?? "default"),
         characters: (options.characters ?? ["aria"]).map((name) => createCharacterSchema.parse({ handle: name, name, description: "CARD_USER=<{{user}}>" })),
@@ -181,6 +181,8 @@ function assertNeverStep(step: never): never {
 
 interface Combo {
   readonly id: string;
+  /** Physical completions the steps really spend; the room's reply plan is exactly this long. */
+  readonly calls: number;
   readonly title: string;
   readonly room: RoomOptions;
   readonly setup: (room: Room) => Promise<readonly Step[]>;
@@ -190,6 +192,7 @@ const TWO_HUMAN_STEPS: readonly Step[] = [{ kind: "send", who: "alice" }, { kind
 const COMBOS: readonly Combo[] = [
   {
     id: "1a",
+    calls: 2,
     title: "solo, one persona, no swap",
     room: { bob: false },
     setup: async (room) => {
@@ -201,6 +204,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "1b",
+    calls: 2,
     title: "solo, mid-chat persona swap (anchor Alex, seat Steve)",
     room: { bob: false },
     setup: async (room) => {
@@ -213,6 +217,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "1c",
+    calls: 2,
     title: "solo, no anchor set",
     room: { bob: false },
     setup: async (room) => {
@@ -223,6 +228,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "2",
+    calls: 3,
     title: "two humans, own seat personas, anchor = host's persona",
     room: {},
     setup: async (room) => {
@@ -233,6 +239,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "3",
+    calls: 4,
     title: "two humans, host re-picks the anchor to Bob's persona mid-chat",
     room: {},
     setup: async (room) => {
@@ -249,6 +256,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "4",
+    calls: 2,
     title: "anchor persona whose owner LEFT the room (consent gate ⇒ no anchor)",
     room: {},
     setup: async (room) => {
@@ -260,6 +268,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "5",
+    calls: 3,
     title: "a human seated with NO persona (the kit floor)",
     room: {},
     setup: async (room) => {
@@ -271,6 +280,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "6b",
+    calls: 3,
     title: "two different personas with the same NAME",
     room: {},
     setup: async (room) => {
@@ -284,6 +294,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "7",
+    calls: 2,
     title: "explicit per-send personaId override",
     room: { bob: false },
     setup: async (room) => {
@@ -300,6 +311,7 @@ const COMBOS: readonly Combo[] = [
   ...(["merged", "scoped", "narrator"] as const).map(
     (mode): Combo => ({
       id: `8-${mode}`,
+      calls: mode === "narrator" ? 2 : 4,
       title: `group room (${mode}), two humans`,
       room: {
         characters: ["aria", "kai"],
@@ -319,6 +331,7 @@ const COMBOS: readonly Combo[] = [
   ...(["default", "content", "completion", "none"] as const).map(
     (mode): Combo => ({
       id: `9-${mode}`,
+      calls: 2,
       title: `names mode ${mode}, two humans`,
       room: { namesBehavior: mode },
       setup: async (room) => {
@@ -333,6 +346,7 @@ const COMBOS: readonly Combo[] = [
   ),
   {
     id: "11a",
+    calls: 3,
     title: "Bob's persona places its description at depth",
     room: {},
     setup: async (room) => {
@@ -346,6 +360,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "11b",
+    calls: 3,
     title: "Bob's persona opts its description out (placement none)",
     room: {},
     setup: async (room) => {
@@ -359,6 +374,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "12",
+    calls: 3,
     title: "three humans, each on their own persona (Cara joined after Bob)",
     room: {},
     setup: async (room) => {
@@ -371,6 +387,7 @@ const COMBOS: readonly Combo[] = [
   },
   {
     id: "13",
+    calls: 3,
     title: "Bob leaves mid-chat",
     room: {},
     setup: async (room) => {
@@ -387,6 +404,7 @@ const COMBOS: readonly Combo[] = [
   ...[false, true].map(
     (bobOffline): Combo => ({
       id: bobOffline ? "14b" : "14a",
+      calls: 3,
       title: `each human's persona carries its own book${bobOffline ? ", Bob offline" : ""}`,
       room: { bobOffline },
       setup: async (room) => {
@@ -404,6 +422,7 @@ const COMBOS: readonly Combo[] = [
   ),
   {
     id: "10",
+    calls: 2,
     title: "impersonate by Bob in an Alice-anchored room",
     room: {},
     setup: async (room) => {
@@ -467,7 +486,7 @@ function readRow(step: string, body: Parameters<typeof inputSystem>[0]): ReportR
 test("the current persona matrix runs all 23 combinations and writes its native-input report", { tags: "slow" }, async () => {
   const results: { combo: Combo; rows: ReturnType<typeof readRow>[] }[] = [];
   for (const combo of COMBOS) {
-    await using room = await roomFor(combo.room);
+    await using room = await roomFor(combo.room, combo.calls);
     const steps = await combo.setup(room);
     const rows: ReturnType<typeof readRow>[] = [];
     for (const step of steps) {

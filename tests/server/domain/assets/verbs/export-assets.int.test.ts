@@ -9,7 +9,7 @@ import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes, seedChatInvite, seedCorpusConnections, seedInvitedChatParticipant } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "../gc-box.ts";
-import { ageOnly, inlineImage, openBox, openRoom, runScheduledGc, say, store, survives } from "../gc-box.ts";
+import { ageOnly, BOTH_STORES, inlineImage, NEITHER_STORE, openBox, openRoom, runScheduledGc, say, store, storesOf } from "../gc-box.ts";
 
 interface Witness {
   readonly ref: StoredRef;
@@ -55,5 +55,5 @@ test("a co-member's quote exports nothing the sweep would reclaim, while the own
   // The export's verdict is the sweep's: the quoted blob is garbage, the owner's inline image is live.
   await ageOnly(box, quoted.ref, owned.ref);
   expect((await runScheduledGc(box)).status).toBe("succeeded");
-  expect({ quoted: await survives(box, quoted.ref), owned: await survives(box, owned.ref) }).toEqual({ quoted: false, owned: true });
+  expect({ quoted: await storesOf(box, quoted.ref), owned: await storesOf(box, owned.ref) }).toEqual({ quoted: NEITHER_STORE, owned: BOTH_STORES });
 });

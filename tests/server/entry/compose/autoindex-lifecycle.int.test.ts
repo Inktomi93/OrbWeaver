@@ -7,18 +7,15 @@ for (const enabled of [false, true]) {
     using fresh = await freshDb();
     const db = fresh.db;
     await using resources = new AsyncDisposableStack();
-    const first = await createServerHarness({ db, startJobs: false });
+    const first = resources.use(await createServerHarness({ db, startJobs: false }));
     const { ownerId, ids } = first;
-    try {
-      const principal = await first.principalFor(ownerId);
-      await first.services.settings.updateAppSettings({ principal, partial: { corpusAutoindex: enabled } });
-      await first.settleBackground();
-      for (const run of await first.services.workloads.list({ caller: principal, kind: "index", status: "queued" })) {
-        await first.services.workloads.cancel({ caller: principal, id: run.id });
-      }
-    } finally {
-      await first[Symbol.asyncDispose]();
+    const firstPrincipal = await first.principalFor(ownerId);
+    await first.services.settings.updateAppSettings({ principal: firstPrincipal, partial: { corpusAutoindex: enabled } });
+    await first.settleBackground();
+    for (const run of await first.services.workloads.list({ caller: firstPrincipal, kind: "index", status: "queued" })) {
+      await first.services.workloads.cancel({ caller: firstPrincipal, id: run.id });
     }
+    await first[Symbol.asyncDispose]();
 
     const root = resources.use(await createServerHarness({ db, ownerId, ids, startJobs: false }));
     const principal = await root.principalFor(ownerId);
