@@ -1,4 +1,4 @@
-import { CAP, COLOR_MOTION, FILL, FOCUS_RING, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
+import { CAP, COLOR_MOTION, FOCUS_RING, HEIGHT, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -16,7 +16,7 @@ export const cardVariants = tv({
   variants: {
     width: WIDTH,
     cap: CAP,
-    fill: FILL,
+    height: { fill: HEIGHT.fill },
     // A card that holds one mark in its middle.
     centres: { true: "flex flex-col items-center justify-center" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped

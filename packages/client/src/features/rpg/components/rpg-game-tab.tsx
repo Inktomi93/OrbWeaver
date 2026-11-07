@@ -30,7 +30,7 @@ import { useId, useState } from "react";
 import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
-import { setContextTab } from "#state";
+import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
@@ -421,7 +421,14 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
                 ? "Fill character scores in Status: roll 4d6 drop lowest, use the standard array, or enter them by hand."
                 : "Enter and edit character scores in Status. Customize stat definitions in Advanced."}
             </Text>
-            <Button variant="outline" size="sm" onClick={(): void => setContextTab("rpg.status")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(): void => {
+                requestRpgStatusSheet(state.chatId);
+                setContextTab("rpg.status");
+              }}
+            >
               Set character scores
             </Button>
           </>

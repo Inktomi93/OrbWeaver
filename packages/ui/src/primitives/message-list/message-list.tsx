@@ -133,7 +133,7 @@ export function MessageList<T>({
   renderItem,
   leading,
   leadingAction,
-  fill,
+  height,
   paddingInlineNarrow,
   className,
   scrollContainerRef,
@@ -615,7 +615,7 @@ export function MessageList<T>({
       // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
       aria-live="off"
       onScroll={onScrollTracked}
-      className={messageListVariants({ fill, paddingInlineNarrow, className })}
+      className={messageListVariants({ height, paddingInlineNarrow, className })}
       data-slot="message-list-scroll"
     >
       {leading === undefined && leadingAction === undefined ? null : (

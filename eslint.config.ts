@@ -591,13 +591,13 @@ const CLIENT_FORM_NAME_SYNTAX = {
   selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='form']:not(:has(> JSXAttribute[name.name=/^aria-label(?:ledby)?$/]))",
   message: "A <form> needs an accessible name: add aria-label, or aria-labelledby pointing at its visible heading.",
 };
-// The `orb-*-track` utilities are client-globals classes. They are spelled in the one file below that owns them, and every
-// carrier renders through the chat feature's `Track` component, so a copy cannot drift from the CSS that names it.
-const ORB_TRACK_CLASS_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx"];
-const ORB_TRACK_CLASS_PATTERN = String.raw`/\borb-[a-z]+-track\b/`;
-const ORB_TRACK_CLASS_SYNTAX = {
-  selector: `:matches(Literal[value=${ORB_TRACK_CLASS_PATTERN}], TemplateElement[value.raw=${ORB_TRACK_CLASS_PATTERN}])`,
-  message: "An orb-*-track class string belongs to its home file; render the carrier through the chat feature's `Track` component.",
+// A room's track is a stamp the client stylesheet keys on. It is written in the one file below, and every carrier renders through the chat
+// feature's `Track` component, so a copy cannot drift from the CSS that reads it.
+const TRACK_STAMP_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx"];
+const TRACK_STAMP_PATTERN = String.raw`/\bdata-track\b/`;
+const TRACK_STAMP_SYNTAX = {
+  selector: `:matches(JSXAttribute[name.name='data-track'], Literal[value=${TRACK_STAMP_PATTERN}], TemplateElement[value.raw=${TRACK_STAMP_PATTERN}])`,
+  message: "A `data-track` stamp belongs to its home file; render the carrier through the chat feature's `Track` component.",
 };
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
@@ -2078,11 +2078,11 @@ export default [
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX) } },
   {
     files: [CLIENT_SRC],
-    ignores: ORB_TRACK_CLASS_HOMES,
-    rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX, ORB_TRACK_CLASS_SYNTAX) },
+    ignores: TRACK_STAMP_HOMES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX, TRACK_STAMP_SYNTAX) },
   },
   {
-    files: ORB_TRACK_CLASS_HOMES,
+    files: TRACK_STAMP_HOMES,
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX) },
   },
   {
@@ -2175,7 +2175,7 @@ export default [
   {
     files: [CLIENT_SRC],
     plugins: { orb: localPlugin },
-    rules: { "orb/no-opaque-variant-spread": "error" },
+    rules: { "orb/no-opaque-variant-spread": "error", "orb/no-opaque-class-spread": "error" },
   },
   {
     files: [CLIENT_SRC],

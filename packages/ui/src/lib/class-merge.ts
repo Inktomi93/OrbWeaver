@@ -15,8 +15,8 @@
 //
 // Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
-import type { DefaultClassGroupIds } from "tailwind-merge";
-import { extendTailwindMerge, validators } from "tailwind-merge";
+import type { Config, DefaultClassGroupIds } from "tailwind-merge";
+import { extendTailwindMerge, getDefaultConfig, validators } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
 import { TOKENS } from "#tokens";
@@ -43,6 +43,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "ease",
   "opacity",
 ] as const;
+type CssMergeFamily = (typeof CSS_MERGE_FAMILY_NAMES)[number];
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
 // tailwind-merge cannot classify them: it reads `text-title` as a text COLOR (dropping the size beside
@@ -159,19 +160,84 @@ const THEME = {
   ease: EASE_SCALE,
 };
 
-const FAMILY_TOKEN_NAMES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, tokens: scaleOf(family) }));
+const SIZING_UTILITIES = [
+  "w",
+  "h",
+  "size",
+  "min-w",
+  "max-w",
+  "min-h",
+  "max-h",
+  "inline",
+  "block",
+  "min-inline",
+  "max-inline",
+  "min-block",
+  "max-block",
+  "basis",
+];
+const BORDER_UTILITIES = ["border", ...BORDER_WIDTH_SIDES.map((side) => `border-${side}`)];
 
-function hasFamilyToken(className: string, tokens: readonly string[]): boolean {
-  return tokens.some((token) => className.endsWith(`-${token}`));
+// Each family a theme key names answers with its own name, and every other key with nothing.
+const THEME_PROBE: Record<string, readonly string[]> = Object.fromEntries(CSS_MERGE_FAMILY_NAMES.map((family) => [family, [family]]));
+type ClassDefinitions = Config<string, string>["classGroups"][string];
+
+/** Every `[family, utility]` pair under a class group: the merger's own config says which utilities a theme feeds, so a new utility joins its family unlisted. */
+function themeFeeds(utility: string, definitions: ClassDefinitions): readonly (readonly [family: string, utility: string])[] {
+  return definitions.flatMap((definition) => {
+    if (typeof definition === "string") {
+      return [];
+    }
+    if (typeof definition === "function") {
+      return "isThemeGetter" in definition ? definition(THEME_PROBE).flatMap((family) => (typeof family === "string" ? [[family, utility] as const] : [])) : [];
+    }
+    return Object.entries(definition).flatMap(([key, nested]) => themeFeeds([utility, key].filter(Boolean).join("-"), nested));
+  });
+}
+
+// `leading` also takes the spacing theme as a bare number, but a line height is never a spacing class.
+const THEME_FEEDS = Object.values<ClassDefinitions>(getDefaultConfig().classGroups)
+  .flatMap((group) => themeFeeds("", group))
+  .filter(([family, utility]) => family !== "spacing" || utility !== "leading");
+
+/** The families no theme key feeds: their scales reach the merger as plain class groups here. */
+const UNTHEMED_UTILITIES: Partial<Record<CssMergeFamily, readonly string[]>> = {
+  "border-width": BORDER_UTILITIES,
+  "stroke-width": ["stroke"],
+  width: SIZING_UTILITIES,
+  size: SIZING_UTILITIES,
+  height: SIZING_UTILITIES,
+  opacity: ["opacity"],
+};
+
+/** A class belongs to a family only through a utility that family feeds: `flex-col` is no spacing class, though `col` is a spacing token. */
+const familyUtilities = (family: CssMergeFamily): readonly string[] => [
+  ...THEME_FEEDS.filter(([fed]) => fed === family).map(([, utility]) => utility),
+  ...(UNTHEMED_UTILITIES[family] ?? []),
+];
+
+const familyScale = (family: CssMergeFamily): readonly string[] => (family === "text" ? TYPE_SCALE : scaleOf(family));
+const FAMILY_SCALES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, utilities: familyUtilities(family), tokens: new Set(familyScale(family)) }));
+const FAMILY_OF_VARIABLE = new Map<string, CssMergeFamily>(
+  FAMILY_SCALES.flatMap(({ family, tokens }) => [...tokens].map((token) => [`--${family}-${token}`, family] as const)),
+);
+const VARIABLE_VALUE = /\((?:[a-z-]+:)?(--[^)]+)\)$/u;
+
+/** The token family a class draws on: its utility with a token of that family, or the family's own variable (`block-(--size-control-sm)`). */
+function familyOf(className: string): CssMergeFamily | undefined {
+  const base = baseUtility(className).replace(/^-/u, "");
+  const variable = VARIABLE_VALUE.exec(base)?.[1];
+  if (variable !== undefined) {
+    return FAMILY_OF_VARIABLE.get(variable);
+  }
+  return FAMILY_SCALES.find(({ utilities, tokens }) =>
+    utilities.some((utility) => base.startsWith(`${utility}-`) && tokens.has(base.slice(utility.length + 1))),
+  )?.family;
 }
 
 function conflictAxis(loser: string, winner: string): string {
-  for (const family of FAMILY_TOKEN_NAMES) {
-    if (hasFamilyToken(loser, family.tokens) || hasFamilyToken(winner, family.tokens)) {
-      return `orb:${family.family}`;
-    }
-  }
-  return "tailwind-core";
+  const family = familyOf(loser) ?? familyOf(winner);
+  return family === undefined ? "tailwind-core" : `orb:${family}`;
 }
 
 // CROSS-GROUP EVICTION — the #2450 defect made detectable (#2460).
@@ -201,10 +267,23 @@ const CORE_COLOR_NAMES = new Set(["current", "inherit", "transparent", "black", 
 const CORE_PALETTE_STEP = /^[a-z]+-\d{2,3}$/u;
 const COLOR_TOKEN_NAMES = new Set(scaleOf("color"));
 
+// A colon inside a value (`ring-(length:--border-width-rule)`, `has-[a:b]:flex`) belongs to the value, not to a modifier.
+function modifiersEnd(className: string): number {
+  let depth = 0;
+  let end = 0;
+  for (let index = 0; index < className.length; index += 1) {
+    const char = className.charAt(index);
+    depth += "([".includes(char) ? 1 : 0;
+    depth -= ")]".includes(char) ? 1 : 0;
+    end = char === ":" && depth === 0 ? index + 1 : end;
+  }
+  return end;
+}
+
 /** `hover:text-foreground/50!` → `text-foreground`: the merge groups a class by its base utility, so the
  *  modifier prefix, the important marker and the opacity postfix are all stripped before classification. */
 function baseUtility(className: string): string {
-  const afterModifiers = className.slice(className.lastIndexOf(":") + 1);
+  const afterModifiers = className.slice(modifiersEnd(className));
   const withoutImportant = afterModifiers.startsWith("!") ? afterModifiers.slice(1) : afterModifiers.replace(/!$/u, "");
   const slash = withoutImportant.indexOf("/");
   return slash === -1 ? withoutImportant : withoutImportant.slice(0, slash);

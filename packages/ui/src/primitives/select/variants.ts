@@ -13,6 +13,7 @@ import {
   OVERLAY_MOTION,
   POPUP_SURFACE,
   SCRIM,
+  TOUCH_TARGET_PSEUDO_STRETCH,
   tv,
 } from "#lib";
 
@@ -81,7 +82,14 @@ export const selectVariants = tv({
       field: { trigger: FIELD_CONTROL },
       // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
       hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
-      inline: { trigger: [FIELD_CONTROL_BOX, "border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0"] },
+      // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
+      inline: {
+        trigger: [
+          FIELD_CONTROL_BOX,
+          "relative border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0",
+          TOUCH_TARGET_PSEUDO_STRETCH,
+        ],
+      },
     },
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },

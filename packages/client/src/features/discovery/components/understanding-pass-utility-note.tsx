@@ -21,7 +21,7 @@ export function UnderstandingPassUtilityNote({
   }
   if (utility.kind === "ready") {
     return (
-      <Text data-slot="understanding-pass-utility" id={id} voice="gloss">
+      <Text cap="prose" data-slot="understanding-pass-utility" id={id} voice="gloss">
         {utility.readsImages
           ? `It runs on your helper model, ${utility.label}, which can also read pictures.`
           : `It runs on your helper model, ${utility.label}. Grouping by art needs a model that reads pictures, and this one can't.`}
@@ -30,7 +30,7 @@ export function UnderstandingPassUtilityNote({
   }
   return (
     <Row align="center" wrap={true} data-slot="understanding-pass-utility" gap="field">
-      <Text id={id} voice="gloss">
+      <Text cap="prose" id={id} voice="gloss">
         {utility.kind === "unset" ? "This needs a helper model — pick one in Model roles." : `Your helper model is set but not running: ${utility.cause}.`}
       </Text>
       <UtilityModelDoor />

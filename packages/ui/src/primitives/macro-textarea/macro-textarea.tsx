@@ -6,6 +6,7 @@ import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
 import type { MacroTrigger } from "./macro-textarea-logic.ts";
 import { computeMacroInsertion, detectTrigger } from "./macro-textarea-logic.ts";
+import { seatListbox } from "./macro-textarea-placement.ts";
 import { macroTextareaBoxVariants, macroTextareaVariants } from "./variants.ts";
 
 const slots = macroTextareaVariants();
@@ -116,9 +117,30 @@ function OptionContent({ suggestion }: { readonly suggestion: MacroSuggestion })
   );
 }
 
+function revealOption(option: HTMLElement | null): void {
+  option?.scrollIntoView({ block: "nearest" });
+}
+
 type SuggestionRow = { kind: "header"; label: string } | { kind: "item"; suggestion: MacroSuggestion; index: number };
 
-/** Groups adjacent same-category entries with a header, preserving the fuzzy search's relevance order. */
+/**
+ * Gathers each category into one run. Groups keep the order their best-ranked entry first appeared in, and
+ * entries keep their relevance order inside a group, so the list on screen and the highlight index agree.
+ */
+function groupByCategory(list: readonly MacroSuggestion[]): MacroSuggestion[] {
+  const groups = new Map<string | undefined, MacroSuggestion[]>();
+  for (const suggestion of list) {
+    const group = groups.get(suggestion.category);
+    if (group === undefined) {
+      groups.set(suggestion.category, [suggestion]);
+    } else {
+      group.push(suggestion);
+    }
+  }
+  return [...groups.values()].flat();
+}
+
+/** Puts a header before each run of one category; `list` is already grouped. */
 function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
   const rows: SuggestionRow[] = [];
   let lastCategory: string | undefined;
@@ -133,32 +155,35 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
 }
 
 /** The visible suggestion slice for the caret's trigger: no trigger ⇒ nothing; a bare `{{` ⇒ the head of the
- *  full list; a partial ⇒ the fuzzy hits. Pure + module-scope (the React Compiler caches the call site). */
+ *  full list; a partial ⇒ the fuzzy hits. Grouped by category, so index order is the order on screen. Pure +
+ *  module-scope (the React Compiler caches the call site). */
 function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly MacroSuggestion[]): MacroSuggestion[] {
   if (trigger === null) {
     return [];
   }
   const q = trigger.partial.trim();
   if (q.length === 0) {
-    return suggestions.slice(0, MAX_SUGGESTIONS);
+    return groupByCategory(suggestions.slice(0, MAX_SUGGESTIONS));
   }
   const hits = getMacroSearch(suggestions).search(q, { combineWith: "AND" });
   // Explicit projection rather than a blanket cast — MiniSearch hits also carry score/terms/match.
-  return hits.slice(0, MAX_SUGGESTIONS).map(
-    (h): MacroSuggestion => ({
-      name: h["name"] as string,
-      ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
-      ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
-      ...(Array.isArray(h["args"]) ? { args: h["args"].filter((arg): arg is string => typeof arg === "string") } : {}),
-      ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
-      ...(h["source"] !== undefined ? { source: h["source"] as string } : {}),
-    }),
+  return groupByCategory(
+    hits.slice(0, MAX_SUGGESTIONS).map(
+      (h): MacroSuggestion => ({
+        name: h["name"] as string,
+        ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
+        ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
+        ...(Array.isArray(h["args"]) ? { args: h["args"].filter((arg): arg is string => typeof arg === "string") } : {}),
+        ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
+        ...(h["source"] !== undefined ? { source: h["source"] as string } : {}),
+      }),
+    ),
   );
 }
 
 /**
  * A textarea that watches for `{{…` at the caret and pops a fuzzy-matching macro autocomplete
- * anchored beneath it. Selecting a macro inserts the full `{{name}}` form; parameterized macros
+ * anchored to it: below by default, above when the visual viewport leaves too little room below. Selecting a macro inserts the full `{{name}}` form; parameterized macros
  * insert the `{{base::}}` template with the caret left inside the closing braces plus an inline
  * `::`-arg hint; an entry carrying `insertTemplate` inserts that text verbatim (the block forms'
  * `{{if::}}{{/if}}` pair), caret at its `$0`. Hand-rolled combobox on the same textarea (not Base UI Autocomplete/cmdk, which
@@ -325,7 +350,7 @@ export function MacroTextarea({
         className={slots.textarea()}
       />
       {open ? (
-        <div aria-label="Macro suggestions" className={slots.listbox()} data-slot="macro-textarea-listbox" id={listboxId} role="listbox">
+        <div aria-label="Macro suggestions" className={slots.listbox()} data-slot="macro-textarea-listbox" id={listboxId} ref={seatListbox} role="listbox">
           {rowsList.map((row) =>
             row.kind === "header" ? (
               <div className={slots.groupLabel()} data-slot="macro-textarea-group-header" key={`header-${row.label}`} role="presentation">
@@ -339,6 +364,8 @@ export function MacroTextarea({
                 data-slot="macro-textarea-option"
                 id={optionId(row.index)}
                 key={row.suggestion.name}
+                // The list can be clamped to the room the viewport leaves, so the highlight must stay inside it.
+                ref={row.index === highlight ? revealOption : undefined}
                 // tabIndex=-1 keeps option rows out of the tab sequence (the textarea is the one
                 // tab stop; highlight moves via ArrowUp/Down) without affecting pointer activation.
                 tabIndex={-1}

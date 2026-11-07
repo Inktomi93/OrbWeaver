@@ -48,6 +48,7 @@ test.for([
   "no-overwritten-ref",
   "no-unresolved-style-spread",
   "no-opaque-variant-spread",
+  "no-opaque-class-spread",
   "ct-responder-reads-input",
   "surface-consumes-container",
   "anchor-provides-container",

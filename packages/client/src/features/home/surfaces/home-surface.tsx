@@ -148,7 +148,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
       <Stack
         scroll="y"
         paddingBlockEnd="gutter"
-        fill={true}
+        height="fill"
         paddingInline="section"
         paddingBlockStart="section"
         scrollFade="y"

@@ -60,9 +60,9 @@ export interface SliderProps<Value extends number | readonly number[] = number>
 /**
  * Single or range: pass a scalar for one thumb, or an array (`value={[lo, hi]}`) for a range.
  *
- * `tone` picks the KnobRow arm: `neutral` = EXPLICIT (a weight fill, no accent), `ghost` = INHERITED
- * (NO fill, muted thumb — the thumb still sits at the resolved effective value, so the datum is never
- * hidden, but a bare rail makes no magnitude claim about a value you did not set; §4.1).
+ * `tone` picks the KnobRow arm: `default` = EXPLICIT, `ghost` = INHERITED (NO fill, hollow thumb — the
+ * thumb still sits at the resolved effective value, so the datum is never hidden, but a bare rail makes no
+ * magnitude claim about a value you did not set; §4.1).
  */
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
   const { className, label, thumbLabels, thumbDescribedBy, thumbValueText, showValue = false, formatValue, tone, ...rootProps } = props;

@@ -188,6 +188,11 @@ test("with no helper model, the passes that call one send the reader to Model ro
     await expect(line).toHaveAttribute("data-pass-action", "pick-helper-model");
     await expect(line.getByRole("button", { name: "Open Model roles", exact: true })).toBeVisible();
   }
+  // The helper-model note runs to the prose measure, never the rail's whole width.
+  const note = page.locator('[data-slot="understanding-pass-utility"]').first();
+  await expect(note).toBeVisible();
+  const reading = await note.evaluate((node) => ({ cap: getComputedStyle(node.firstElementChild ?? node).maxWidth }));
+  expect(reading.cap).not.toBe("none");
   // The near-duplicate and keyword passes call no model, so a missing one does not hold them.
   await expect(passLine(rail, "Near-duplicates")).toHaveAttribute("data-pass-action", "run");
   await expect(passLine(rail, "Keywords")).toHaveAttribute("data-pass-action", "run");

@@ -109,7 +109,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
     // INSTRUMENT tier (UI-Density-Law.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
-      <Stack className="min-block-0" fill={true} gap="row">
+      <Stack className="min-block-0" height="fill" gap="row">
         {items.length > SEARCH_THRESHOLD || query !== "" ? (
           <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
         ) : null}
@@ -131,7 +131,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList
-              fill={true}
+              height="fill"
               endApproachRows={collection.listProps.endApproachRows}
               estimateSize={(): number => ESTIMATED_ROW_PX}
               gapToken="tight"

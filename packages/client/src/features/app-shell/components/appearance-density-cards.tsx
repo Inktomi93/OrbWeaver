@@ -30,7 +30,7 @@ type Density = AppearanceSettings["density"];
  *  what this box stamps). */
 function DensityDiagram({ tier }: { readonly tier: Density }): ReactElement {
   return (
-    <Stack width="full" fill={true} padding="tight" justify="center" data-density={tier} data-slot="density-preview" gap="row">
+    <Stack width="full" height="fill" padding="tight" justify="center" data-density={tier} data-slot="density-preview" gap="row">
       {["The first row", "A second row", "And a third"].map((line) => (
         <ThemePreviewPane key={line} fill="accent" shape="row" padding="none" className="min-inline-0">
           <Row align="center" className="min-inline-0" padding="field" gap="field">

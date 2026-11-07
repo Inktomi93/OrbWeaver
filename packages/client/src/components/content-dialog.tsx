@@ -8,7 +8,7 @@ import { DIALOG_VERBS } from "#lib";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 // The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.
-const POPUP_LOOK = ["size", "anchor", "keepMounted", "forceRender", "focusTarget", "spaced", "clearsClose", "stickyHeader"] as const;
+const POPUP_LOOK = ["size", "anchor", "className", "keepMounted", "forceRender", "focusTarget", "spaced", "clearsClose", "stickyHeader"] as const;
 type PopupLook = (typeof POPUP_LOOK)[number];
 
 // The way out, drawn by the composite so a caller's header or footer cannot lose it; touch has no Escape.

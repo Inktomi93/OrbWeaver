@@ -684,7 +684,7 @@ for (const cell of [
       const alert = list.getByRole("alert");
       await expect(alert).toBeInViewport({ ratio: 1 });
       const trackStart = await list
-        .locator(".orb-chat-track")
+        .locator('[data-track="chat"]')
         .first()
         .evaluate((track) => track.getBoundingClientRect().left);
       const start = (node: Element): number => node.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(node).paddingInlineStart);

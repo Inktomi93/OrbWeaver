@@ -80,6 +80,23 @@ test("back is keyboard operable and the host renders one optional action and its
   await expect(component.getByRole("heading", { level: 2 })).toHaveText("Chats");
 });
 
+const SHORT_BAND_TITLE = "Collection";
+
+test("a band short of room folds its actions into the overflow before it cuts the title", async ({ mount }) => {
+  const component = await mount<typeof ListPaneHeaderStory>("tests/client/components/_list-pane-header-stories/ListPaneHeaderStory", {
+    count: 1040,
+    title: SHORT_BAND_TITLE,
+    withAction: true,
+    extraActions: 2,
+    width: "18rem",
+  });
+  const title = component.getByText(SHORT_BAND_TITLE, { exact: true });
+  await expect(title).toBeVisible();
+  await expect.poll(() => title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  // The positive control: the actions really did overflow into the band's menu.
+  await expect(component.locator('[data-slot="list-pane-action"] button[aria-haspopup="menu"]')).toBeVisible();
+});
+
 test("in a constrained host the unscoped title keeps its width instead of yielding to the census", async ({ mount }) => {
   const component = await mount<typeof ListPaneHeaderStory>("tests/client/components/_list-pane-header-stories/ListPaneHeaderStory", {
     count: "0 of 11",
