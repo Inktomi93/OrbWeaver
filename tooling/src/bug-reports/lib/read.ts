@@ -11,6 +11,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { BUG_REPORT_DIR, bugReportIdOfStem } from "@orb/kit/bug-report";
+import { isMissingEntryError } from "../../floor/host/missing-entry.ts";
 import type { BugReportListing, BugReportSummary } from "../contract/index.ts";
 
 /** The absolute report directory for a checkout. One derivation — callers never join it themselves. */
@@ -172,11 +173,15 @@ export async function readBugReports(repoRoot: string, now: number): Promise<Bug
 async function listDir(dir: string): Promise<readonly string[] | null> {
   // an absent directory IS the answer here — it
   // becomes the listing's `missing: true` arm, which the formatter renders as a named empty naming the capture
-  // path. Ends if `missing` stops being rendered distinctly from "zero reports".
+  // path. Any other failure (a file in the directory's place, no permission) is not absence and propagates to the
+  // tool's failure boundary.
   try {
     return await readdir(dir);
-  } catch {
-    return null;
+  } catch (error) {
+    if (isMissingEntryError(error)) {
+      return null;
+    }
+    throw error;
   }
 }
 

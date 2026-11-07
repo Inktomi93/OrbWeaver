@@ -9,6 +9,7 @@ import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSy
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { emitLine } from "../cli/log.ts";
+import { isMissingEntryError } from "../host/missing-entry.ts";
 import type { PrunedRun, RetentionCandidate } from "./run-retention.ts";
 import { pidAlive, readPrunedRuns, recordPrunedRuns, selectPrunable } from "./run-retention.ts";
 
@@ -162,13 +163,16 @@ export function readMarker(dir: string): InflightMarker | null {
 }
 
 export function runDirs(root: string, instrument: string): readonly string[] {
-  // a missing or unreadable runs directory lists no slots; pruneRuns then deletes nothing and slotCensus is empty, which resolvePointer reports as a dangling pointer. Ends if a caller must tell a missing directory from an unreadable one.
+  // a missing runs directory lists no slots: nothing has run here. Any other read failure is not "no slots", so it propagates.
   try {
     return readdirSync(instrumentRunsDir(root, instrument), { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name);
-  } catch {
-    return [];
+  } catch (error) {
+    if (isMissingEntryError(error)) {
+      return [];
+    }
+    throw error;
   }
 }
 

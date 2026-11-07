@@ -78,6 +78,14 @@ test("an existing but EMPTY directory is still a named empty (not the same arm, 
   expect(res.stdout).toContain(join(scratch, "bug-reports"));
 });
 
+test("a regular file where the report directory belongs is a tool failure, never a named empty", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "bug-reports"), "not a directory", "utf8");
+  const res = await runCli("bug-reports", [], { cwd: scratch });
+  await expect(res).toExitWith(2);
+  expect(res.stderr).toContain("ENOTDIR");
+  expect(res.stdout).not.toContain("no bug reports yet");
+});
+
 test("lists NEWEST FIRST with the note, route, build identity and the truncation flag", async ({ runCli, scratch }) => {
   await plantReport(scratch, { id: "aaaa1111", capturedAt: "2026-09-01T08:00:00.000Z", note: "the oldest one", route: "/" });
   await plantReport(scratch, {

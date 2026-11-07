@@ -345,3 +345,26 @@ test("POSITIVE CONTROL: the same ring, the same aged slot, a PUBLISH — and it 
   expect(existsSync(join(base, "ancient-00"))).toBe(false);
   expect(A.prunedRuns(root, CLOSE_INSTRUMENT).map((r) => r.runId)).toEqual(["ancient-00"]);
 });
+
+// ── A SLOT LISTING FAILS LOUD: only an absent directory is "no slots" ────────────────────────────────
+
+test("a run ring that does not exist lists no slots", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/floor/artifacts/artifacts");
+  expect(A.abandonedRuns(root, "ringless")).toEqual([]);
+});
+
+test("a regular file where an instrument's run ring belongs is an error, not an empty ring", async ({ plantedTree }) => {
+  const root = await plantedTree({ "reports/runs/blocked": "not a directory" });
+  const A = await import("@orb/tooling/floor/artifacts/artifacts");
+  expect(() => A.abandonedRuns(root, "blocked")).toThrow(/ENOTDIR/u);
+});
+
+test("a regular file where reports/ belongs is an error, not a checkout with no published pointers", async ({ plantedTree }) => {
+  const missing = await plantedTree({});
+  const P = await import("@orb/tooling/floor/artifacts/artifact-pointer");
+  expect(P.publishedPointers(missing)).toEqual([]);
+
+  const blocked = await plantedTree({ reports: "not a directory" });
+  expect(() => P.publishedPointers(blocked)).toThrow(/ENOTDIR/u);
+});
