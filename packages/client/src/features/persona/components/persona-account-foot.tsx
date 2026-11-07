@@ -23,7 +23,7 @@ export function PersonaAccountFoot(): ReactElement {
   const [signingOut, setSigningOut] = useState(false);
 
   if (config.data === undefined || me.data === undefined) {
-    return <Skeleton className="block-(--size-control-md) inline-full" />;
+    return <Skeleton width="full" height="controlMd" />;
   }
 
   const { mode } = config.data;
@@ -35,7 +35,7 @@ export function PersonaAccountFoot(): ReactElement {
   return (
     <Stack gap="field" data-testid={testId("accountSurface")}>
       <Row gap="row" align="center">
-        <Text className="truncate min-inline-0" voice="label">
+        <Text truncate={true} voice="label">
           {handle === null ? "Signed in" : `Signed in as ${handle}`}
         </Text>
         {showRole ? <Badge>{role}</Badge> : null}
@@ -44,7 +44,7 @@ export function PersonaAccountFoot(): ReactElement {
         <Button
           variant="ghost"
           size="sm"
-          className="justify-start"
+          justify="start"
           disabled={signingOut}
           data-testid={testId("accountLogout")}
           onClick={(): void => {

@@ -141,13 +141,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
           <Text ink="muted" id={`${labelIdBase}-${axis}`} voice="gloss">
             {AXIS_LABEL[axis]}
           </Text>
-          <ToggleGroup
-            multiple={true}
-            value={[...selected]}
-            onValueChange={(next): void => setSelected(next)}
-            aria-labelledby={`${labelIdBase}-${axis}`}
-            className="flex-wrap"
-          >
+          <ToggleGroup multiple={true} value={[...selected]} onValueChange={(next): void => setSelected(next)} aria-labelledby={`${labelIdBase}-${axis}`}>
             {transformsByAxis(axis).map((t) => (
               <Toggle key={t.id} value={t.id} size="sm">
                 {t.label}
@@ -165,7 +159,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         aria-label="Greeting instructions"
       />
 
-      <Row className="flex-wrap" gap="field" align="center" justify="end">
+      <Row wrap={true} gap="field" align="center" justify="end">
         {isPending ? <WebSpinner size="sm" label="Generating…" /> : null}
         <Button ref={generateRef} variant="outline" size="sm" disabled={isPending} onClick={onGenerate}>
           <Icon icon={Sparkles} size="sm" />

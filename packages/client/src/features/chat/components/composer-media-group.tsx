@@ -140,7 +140,7 @@ function AttachMediaItem({
         // `hidden` (display:none) drops the whole picker from BOTH layout and the accessibility tree — the row
         // above is the only visible/announced control; a display:none file input still opens on a programmatic
         // .click() (Chromium) and accepts setInputFiles, so the upload + CT paths are unaffected.
-        className="hidden"
+        hiddenAt="always"
       />
     </>
   );

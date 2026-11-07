@@ -99,8 +99,8 @@ function TrackerRow({
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
     <DefRow slot="rpg-tracker-row">
-      <Row gap="field" align="center" className="flex-wrap">
-        <Row gap="field" align="center" touchFloor="block" className="flex-1 min-inline-(--width-title-floor)">
+      <Row gap="field" align="center" wrap={true}>
+        <Row gap="field" align="center" touchFloor="block" minWidth="title" grow={true}>
           {def.shape === "meter" ? (
             <TrackBar
               value={1}
@@ -119,11 +119,11 @@ function TrackerRow({
                 patch({ label: trimmed });
               }
             }}
-            className="flex-1 min-inline-0"
+            grow={true}
           />
         </Row>
         {def.shape === "meter" ? (
-          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap max-inline-full">
+          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0" wrap={true} cap="fit">
             <Text as="span" voice="gloss">
               default max
             </Text>
@@ -138,10 +138,9 @@ function TrackerRow({
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
               }}
-              className="px-field text-end"
+              textAlign="end"
               numeric={true}
               width="avatar-lg"
-              restClassName=""
             />
           </Row>
         ) : null}
@@ -163,7 +162,7 @@ function TrackerRow({
           </Tip>
         </Row>
       </Row>
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Badge size="sm">{def.shape}</Badge>
         <HintTrigger
           className=""
@@ -412,7 +411,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
           <Text voice="gloss">Freeform play needs no scores. Choose D20 above to add its attributes and dice.</Text>
         ) : (
           <>
-            <Row gap="field" className="flex-wrap">
+            <Row gap="field" wrap={true}>
               {config.statProfile.attributes.map((def) => (
                 <Badge key={def.key}>{def.label}</Badge>
               ))}

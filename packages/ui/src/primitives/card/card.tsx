@@ -41,13 +41,36 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // from three props any caller override can quietly break. The div arm stays: `interactive` is also used on
 // islands that carry their own `role` (a listbox option, a grid cell), where a `<button>` would be wrong.
 //
-// Island padding is resolved from the surface's tier by tiers.css (D7), so `padding` has one arm, `none`: the
-// island delegates its inset to its own content. `data-elevated`, `data-nested` and `data-padding` are the
+// Island padding is resolved from the surface's tier by tiers.css (D7); `padding="none"` delegates the inset
+// to the card's own content, which takes any step through a Row or Stack. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
-  const { className, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, focusable, ownSlot } = props;
+  const {
+    className,
+    width,
+    cap,
+    fill,
+    centres,
+    shape,
+    elevated,
+    interactive,
+    nested,
+    padding,
+    tone,
+    variant,
+    dashed,
+    glow,
+    rail,
+    artDecoration,
+    focusable,
+    ownSlot,
+  } = props;
   const skin = cn(
     cardVariants({
+      width,
+      cap,
+      fill,
+      centres,
       shape,
       elevated,
       interactive,
@@ -70,7 +93,7 @@ export function Card(props: CardProps): ReactElement {
   const marks = {
     "data-elevated": elevated === true ? "" : undefined,
     "data-nested": nested === true ? "" : undefined,
-    "data-padding": padding === "none" ? "none" : undefined,
+    "data-padding": padding === undefined || padding === "tier" ? undefined : padding,
     "data-shape": shape === undefined || shape === "island" ? undefined : shape,
     ...variantAttrs(cardVariants, { tone, variant }, tone ?? "neutral"),
   } as const;

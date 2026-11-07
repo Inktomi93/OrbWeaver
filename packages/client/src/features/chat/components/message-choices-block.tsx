@@ -76,7 +76,7 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
             disabled={disabled}
             aria-describedby={reason === undefined ? undefined : reasonId}
             data-testid={testId("messageChoiceOption")}
-            className="justify-start text-start"
+            justify="start"
             onClick={(): void => {
               if (choiceSend !== null && !choiceSend.busy) {
                 choiceSend.choose(option);

@@ -13,12 +13,11 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations.ts";
 import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows.tsx";
 
 const PICKER_PAGE_LIMIT = 100;
-const SEARCH_DEBOUNCE_MS = 250;
 const PICKER_SKELETON_ROWS = 3;
 
 export interface BookAttachmentsProps {

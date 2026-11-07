@@ -147,7 +147,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   return (
-    <Row align="center" className="flex-wrap" gap="field" justify="start">
+    <Row align="center" wrap={true} gap="field" justify="start">
       <Button
         aria-label={`Check ${plugin.name} for updates`}
         variant="outline"
@@ -166,7 +166,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       {verdict.kind === "available" ? (
         <Button
           aria-label={verdict.ariaLabel}
-          className="wrap-anywhere max-inline-full"
+          cap="fit"
           loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
           onClick={(): void => {
             // applyUpgrade already
@@ -236,8 +236,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
     // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
-    // a LEADING ACCENT RULE (the list-row ember-bar / rpg-hud-rail kicker grammar — `border-l-2` +
-    // `ps-block`), NOT a full bordered box. The full `/40` warning border shipped by the rework nested a
+    // a LEADING ACCENT RULE (the list-row ember-bar / rpg-hud-rail kicker grammar — `divider="start"` and
+    // `indent`), NOT a full bordered box. The full `/40` warning border shipped by the rework nested a
     // second box INSIDE the plugin's own Card border, and nested borders read cheap — tightest at ~390px,
     // where the two edges sit a handful of px apart (side-eye 2026-08-29 residual P3). A left rule carries
     // the same "attend to this" boundary with one edge, not two — at SOLID `border-l-warning`, not the box's
@@ -252,14 +252,14 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // never a fill"); its INPUT changed from a full box to a leading rule.
     <Stack
       aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
-      className="ps-block"
+      indent={true}
       divider="start"
       dividerWeight="rule"
       gap="block"
       role="alert"
       tone="warning"
     >
-      <Text className="max-inline-(--reading-measure-prose)" voice="promoted">
+      <Text cap="prose" voice="promoted">
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
@@ -268,7 +268,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           band; `--reading-measure-prose` (47ch) is the derived one (#1145) and rides the PARAGRAPH, since a
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
           own home (plugin-grant-list.tsx). */}
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {firstAsk
           ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
           : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}
@@ -290,7 +290,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       />
       {/* The roll-up line at the decision point (#1855: always the full declared set). */}
       {summary === null ? null : <Text voice="label">{summary}</Text>}
-      <Row className="flex-wrap" gap="field" justify="start">
+      <Row wrap={true} gap="field" justify="start">
         {/* THE ACTION NAMES ITS PLUGIN: several of these notices can share a screen, and an unnamed
             "Approve all" is how one plugin's permissions were granted to another. */}
         <Button variant="outline" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">

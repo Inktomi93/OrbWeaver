@@ -2,7 +2,7 @@ import type { FieldControlProps as BaseFieldControlProps } from "@base-ui/react/
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ComponentPropsWithRef, CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn, variantProps } from "#lib";
+import { cn, SCROLLER_Y, variantProps } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { useFieldSizingFallback } from "./use-field-sizing-fallback.ts";
 import { textareaVariants } from "./variants.ts";
@@ -36,6 +36,8 @@ function lineBoxHeight(lines: number, bare: boolean): string {
 }
 
 export function Textarea({
+  width,
+  grow,
   className,
   rows,
   maxRows,
@@ -85,11 +87,7 @@ export function Textarea({
           // The scroll is explicit rather than left to the UA default: `overflow: auto` is a textarea's
           // native behavior, but the skin is composed from utilities and a future `overflow-hidden` in the
           // shared FIELD_CONTROL would silently turn the cap into a CLIP — text gone with no scrollbar.
-          {...variantProps(
-            textareaVariants,
-            { size, chrome, face },
-            cn(maxRows === undefined ? undefined : "relative overflow-y-auto overscroll-contain", className),
-          )}
+          {...variantProps(textareaVariants, { size, chrome, face, width, grow }, cn(maxRows === undefined ? undefined : SCROLLER_Y, className))}
           data-slot="textarea-root"
           rows={rows}
           style={{ ...rowsFloor, ...rowsCeiling, ...style }}

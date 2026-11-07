@@ -48,7 +48,7 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
         step="label"
         data-slot="rpg-veiled-cue"
         onClick={(): void => revealContextPanel("rpg.status")}
-        className="px-field"
+        inset="control"
       >
         <Icon icon={EyeOff} size="xs" ink="accolade" />
         {/* The crown-gold tone sits on the text itself — the kicker voices carry their own muted colour, and

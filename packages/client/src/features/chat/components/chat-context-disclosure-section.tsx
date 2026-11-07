@@ -22,11 +22,12 @@ interface DisclosureSectionProps {
    *  unmounted wrapper answers "no wrapper", which would spend a kicker on a contributor that renders
    *  nothing — the exact orphan heading that collapse exists to prevent. */
   readonly keepMounted?: boolean;
-  readonly className?: string;
+  /** The section leaves the page when its grafted body renders nothing. */
+  readonly hiddenAt?: "emptyBody";
   readonly children: ReactNode;
 }
 
-export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted = false, className, children }: DisclosureSectionProps): ReactElement {
+export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted = false, hiddenAt, children }: DisclosureSectionProps): ReactElement {
   const open = useChatContextSectionOpen(sectionId, defaultOpen);
   return (
     <Collapsible
@@ -36,7 +37,7 @@ export function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted 
       }}
     >
       <Section
-        className={className}
+        hiddenAt={hiddenAt}
         kicker={
           <CollapsibleTrigger size="control">
             <Text as="span" voice="interactiveKicker">

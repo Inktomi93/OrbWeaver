@@ -16,9 +16,9 @@ import { findDuplicateMaps } from "./duplicates.ts";
 import type { ExceptionEntry } from "./exceptions.ts";
 import { isExcepted } from "./exceptions.ts";
 import { factsOf } from "./file-facts.ts";
+import type { NoRowUse } from "./hand-classes.ts";
 import type { Hit } from "./hand-model.ts";
 import { buildHandRolling } from "./hand-rolling.ts";
-import { staleScopes } from "./hand-scope.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
 import type { ShapeGroup } from "./shapes.ts";
@@ -54,6 +54,8 @@ export interface UiFacts {
   readonly composition: Composition;
   /** Every hand-written design value, class, style, pattern and constant, with the owner that would retire it. */
   readonly handRolling: readonly Hit[];
+  /** Class uses on `@orb/ui` elements in the client that no hit covers, by class and component. */
+  readonly noRow: readonly NoRowUse[];
   /** Rows of the token scope table that no token in the theme matches. */
   readonly staleScopes: readonly string[];
   readonly sections: readonly string[];
@@ -102,6 +104,7 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
   const declared = declaredVariants(root, sources);
   const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
+  const census = buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced });
   const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
   return {
     scanned: countFiles(sources, selection),
@@ -114,8 +117,9 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     shapes: findShapes(files),
     adoption: adoptionBySection(files),
     composition,
-    handRolling: buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced }),
-    staleScopes: staleScopes(tokens),
+    handRolling: census.hits,
+    noRow: census.noRow,
+    staleScopes: tokens.staleScopes,
     sections,
   };
 }

@@ -20,8 +20,8 @@ export interface RpgDoorwayLineProps {
 /** One quiet doorway: a muted sentence + an optional ghost action. */
 export function RpgDoorwayLine({ children, actionLabel, onAction }: RpgDoorwayLineProps): ReactElement {
   return (
-    <Row gap="field" align="baseline" className="flex-wrap" data-slot="rpg-doorway-line">
-      <Text as="span" voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+    <Row gap="field" align="baseline" wrap={true} data-slot="rpg-doorway-line">
+      <Text as="span" voice="gloss" prose={true} cap="prose">
         {children}
       </Text>
       {actionLabel === undefined || onAction === undefined ? null : (

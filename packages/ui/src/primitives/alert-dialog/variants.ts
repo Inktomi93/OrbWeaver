@@ -1,4 +1,4 @@
-import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
+import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, TITLE_STEP, tv } from "#lib";
 
 /**
  * Slot classes for the alert-dialog overlay stack (ui-package-design §5). COMPOSES dialog's shared
@@ -13,8 +13,8 @@ export const alertDialogVariants = tv({
     backdrop: SCRIM("modal"),
     viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto overscroll-contain p-gutter",
     popup: `${MODAL_SURFACE} max-inline-cq-24 ${OVERLAY_MOTION.modalPopup}`,
-    title: "text-title leading-title font-semibold",
-    description: "mbs-field text-body leading-body text-muted-foreground",
+    title: TITLE_STEP,
+    description: POPUP_DESCRIPTION,
     actions: "mbs-section flex items-center justify-end gap-row",
   },
 });

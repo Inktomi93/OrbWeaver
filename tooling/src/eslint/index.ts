@@ -56,7 +56,7 @@ import { anchorProvidesContainerRule, surfaceConsumesContainerRule } from "./ui-
 import { customPropertyDeclaredRule } from "./ui-custom-properties.ts";
 import type { DomLookupHome } from "./ui-dom.ts";
 import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
-import type { CandidatesToCss, ClassClassifier } from "./ui-feature-classname.ts";
+import type { CandidatesToCss, ClassClassifier, PropOwners } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
 import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { intentColorRecipeRule } from "./ui-intent-color.ts";
@@ -84,6 +84,7 @@ export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { domLookupRule } from "./ui-dom.ts";
+export type { PropOwner, PropOwners } from "./ui-feature-classname.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 export { DESTRUCTIVE_EXEMPT } from "./ui-feature-policy.ts";
 
@@ -138,6 +139,8 @@ export function createOrbPlugin(options: {
   candidatesToCss: CandidatesToCss;
   customProperties: CustomPropertyUses;
   classifyClass: ClassClassifier;
+  /** The prop of an `@orb/ui` component that writes a class, read from its tables (`classOwners` in ui-facts). */
+  propOwners: PropOwners;
   baseUiDoors: BaseUiDoors;
   domLookupHomes: readonly DomLookupHome[];
   /** The D336 tones that carry a base `--color-*` token, whose hand-written colour recipes are refused. */
@@ -156,7 +159,7 @@ export function createOrbPlugin(options: {
       "no-hand-built-shell-dom": restrictionRule({ selectors: shellDomSelectors(options.shellSlots) }),
       "appearance-name-in-manifest": appearanceNameRule(options.appearanceVocabulary),
       "custom-property-declared": customPropertyDeclaredRule(options.customProperties),
-      "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass),
+      "feature-classname-layout-only": featureClassNameLayoutOnlyRule(options.classifyClass, options.propOwners),
       "no-built-class-string": noBuiltClassStringRule,
       "text-voice-only": textVoiceOnlyRule,
       ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule] as const)),

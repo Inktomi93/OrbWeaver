@@ -1,4 +1,17 @@
-import { CONTROL_BLOCK, DISABLED_STATE, DISABLED_STATE_NATIVE, FIELD_CONTROL, FIELD_CONTROL_BOX, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, tv } from "#lib";
+import {
+  CONTROL_BLOCK,
+  DISABLED_STATE,
+  DISABLED_STATE_NATIVE,
+  FIELD_CONTROL,
+  FIELD_CONTROL_BOX,
+  FLOOR,
+  FOCUS_RING,
+  FOCUS_RING_DESTRUCTIVE,
+  GROW,
+  TEXT_ALIGN,
+  tv,
+  WIDTH,
+} from "#lib";
 
 // The text-input skin — the shared FIELD_CONTROL box at a control-scale height (the ≥44px law, §4b axis 3).
 export const inputVariants = tv({
@@ -48,10 +61,14 @@ export const inputVariants = tv({
     // className, which is why the shipped sites wrote `!w-*`.
     width: {
       full: "",
-      auto: "inline-auto",
+      auto: "field-sizing-content inline-auto max-inline-full min-inline-0",
       "avatar-md": "inline-(--size-avatar-md)",
       "avatar-lg": "inline-(--size-avatar-lg)",
+      controlCol: WIDTH.controlCol,
     },
+    grow: GROW,
+    floor: FLOOR,
+    textAlign: TEXT_ALIGN,
     // Tabular figures, for the edit twin of a numeric datum, so the typed digits keep the rest state's columns.
     numeric: {
       true: "tabular-nums",
@@ -61,6 +78,8 @@ export const inputVariants = tv({
     typeStep: { field: "", title: "text-title leading-title" },
     // The edit twin of an italic line (a character's thought) keeps the slant.
     italic: { true: "italic", false: "" },
+    // The field's text stops short of a glyph floating over its inline end, so a long value never runs under it.
+    clearsGlyph: { true: "pe-(--size-control-clearance)", false: "" },
   },
   defaultVariants: { size: "sm", layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
 });

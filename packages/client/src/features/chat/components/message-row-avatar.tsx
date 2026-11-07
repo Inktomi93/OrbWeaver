@@ -5,9 +5,9 @@ import { blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { cn, viewImageActionName } from "#lib";
+import { viewImageActionName } from "#lib";
 import type { ArtViewer } from "../hooks/art-viewer-context.tsx";
 import { artRequestWidth } from "../lib/art-decorations.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
@@ -19,14 +19,8 @@ import { ChipAvatar, FallbackLetter, PortraitAvatar } from "./art-slot.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageNumber } from "./message-metadata-row.tsx";
 
-// #1728 arm B — a chip in a `1fr` RAIL must hug the centred column's edge or it drifts to the far side of the margin.
-const RAIL_LEADING = "@cq-56:justify-self-end";
-const RAIL_TRAILING = "@cq-56:justify-self-start";
-
-// Ripple's portrait column: its width token, and its phone width below the row's `md` step.
-const PORTRAIT_WIDTH = "block-auto inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
-// Ripple's portrait sticks to the top of its card; the portrait itself is the sticky item only when unwrapped.
-const STICKY_TOP = "sticky inset-bs-0";
+// A chip in a `1fr` rail must hug the centred column's edge or it drifts to the far side of the margin.
+const RAIL_SELF = { none: undefined, leading: "railEnd", trailing: "railStart" } as const;
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
@@ -71,15 +65,8 @@ export function renderRowAvatar(args: {
   if (args.avatarTreatment === "sticky-portrait") {
     return stickyPortrait(args, target);
   }
-  // The welded portrait spans the card and has no line to align to — offset only the gutter chip, on whichever
-  // element is outermost: the chip, or the button that opens it.
-  const chipLayout =
-    cn(
-      args.alignToInsideHeader ? "mbs-row" : undefined,
-      args.gutterRail === "leading" ? RAIL_LEADING : undefined,
-      args.gutterRail === "trailing" ? RAIL_TRAILING : undefined,
-    ) ?? "";
-  return (
+  // The welded portrait spans the card and has no line to align to, so only the gutter chip clears the header's first line.
+  const chip = (
     <ChipAvatar
       size={args.avatarSize}
       shape={args.avatarShape}
@@ -90,16 +77,24 @@ export function renderRowAvatar(args: {
       // exactOptionalPropertyTypes idiom: OMIT the prop rather than pass `undefined` (`avatarSrcProp`).
       {...avatarSrcProp(args.attribution.avatarHash)}
       view={target === null ? null : artViewOf(target, args.artControl)}
-      layoutClassName={chipLayout}
     >
       {initialsFor(args.attribution.name)}
     </ChipAvatar>
+  );
+  // A chip in the header line is that line's first child, so only a chip placed outside it takes a box of its own.
+  if (!args.alignToInsideHeader && args.gutterRail === "none") {
+    return chip;
+  }
+  return (
+    <Row align="start" paddingBlockStart={args.alignToInsideHeader ? "row" : undefined} self={RAIL_SELF[args.gutterRail]}>
+      {chip}
+    </Row>
   );
 }
 
 // The portrait and its message number stick together as the row scrolls, at the portrait's own width, so the number wraps
 // beneath it instead of widening the column.
-const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0 inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)";
+const PORTRAIT_COLUMN = "sticky inset-bs-0 shrink-0";
 
 /** A welded portrait with the message number centred under it when the skin seats the number there (`RowSkin.numberPlacement`)
  *  and the reader shows it; the metadata row then leaves the number out. */
@@ -116,7 +111,7 @@ export function placePortraitNumber(args: {
   }
   return {
     welded: (
-      <Stack align="center" gap="field" className={PORTRAIT_COLUMN}>
+      <Stack align="center" gap="field" className={PORTRAIT_COLUMN} width="ripplePortrait">
         {portrait}
         <MessageNumber label={number} />
       </Stack>
@@ -170,8 +165,6 @@ function stickyPortrait(args: Parameters<typeof renderRowAvatar>[0], target: Vie
       fade={args.mirrored ? "start" : "end"}
       fallbackDelay={0}
       hueSeed={args.attribution.hueSeed}
-      className={PORTRAIT_WIDTH}
-      stickyClassName={STICKY_TOP}
       urlAt={portraitSource(args.attribution.avatarHash)}
       view={target === null ? null : artViewOf(target, args.artControl)}
     >

@@ -119,8 +119,8 @@ export function BootVeil(): ReactElement | null {
   const floorHeld = !(reduced || floorElapsed);
   return (
     <WeaveVeil open={!ready || floorHeld} onExited={(): void => setExited(true)} label="Loading orbweaver">
-      <WebWeave state="weaving" hub={BOOT_HUB} onPhaseChange={setPhase} className="absolute inset-0" />
-      <Stack justify="end" align="center" gap="row" padding="section" className="relative block-full inline-full">
+      <WebWeave state="weaving" hub={BOOT_HUB} onPhaseChange={setPhase} placed="veil" />
+      <Stack justify="end" align="center" gap="row" padding="section" className="relative" width="full" fill={true}>
         <Text voice="kicker" aria-hidden={true}>
           {PHASE_CAPTIONS[phase]}
         </Text>

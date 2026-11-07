@@ -4,7 +4,7 @@ import ts from "typescript";
 import type { ClassExpression } from "./class-expression.ts";
 import { classesIn, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Elem, Source } from "./source.ts";
-import { constInitializers, elementsOf, lineOf, visit } from "./source.ts";
+import { constInitializers, elementsOf, lineOf, unwrap, visit } from "./source.ts";
 import type { TokenNamespace } from "./tokens.ts";
 import { tailwindStepPx } from "./tokens.ts";
 
@@ -177,6 +177,10 @@ function isLabel(node: ts.Node, root: ts.Node): boolean {
   if (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) {
     return true;
   }
+  // The input of the helper a constant is initialised with (`scaleOf("shadow")`) is that helper's own argument; only a class joiner or a recipe makes a string class text.
+  if (parent === root && ts.isCallExpression(parent) && !classCallee(parent)) {
+    return true;
+  }
   if (!isRecipeRoot(root)) {
     return false;
   }
@@ -232,6 +236,7 @@ function piecesIn(root: ts.Node): readonly ClassPiece[] {
 }
 
 const CLASS_CONSTANT = /(?:CLASS|CLASSES|Class|Classes)$/u;
+const CLASS_PROPERTY = "className";
 // `className` on an element, and the `*ClassName` props a composite forwards to a part it renders.
 const CLASS_ATTRIBUTE = /^(?:className|[a-z][A-Za-z]*ClassName)$/u;
 
@@ -296,32 +301,90 @@ function importedConstants(path: string, sf: ts.SourceFile, known: ReadonlyMap<s
   return map;
 }
 
+/** An element whose `className` reads a class constant. */
+interface ConstantReader {
+  readonly elem: Elem;
+  /** The classes the attribute writes beside the constant. */
+  readonly beside: readonly string[];
+  /** The attribute applies the constant only when something else holds. */
+  readonly guarded: boolean;
+}
+
+/** The constants class contexts read, as `path#name`, and the elements that wear each. */
+export interface ClassConstants {
+  readonly names: ReadonlySet<string>;
+  readonly readers: ReadonlyMap<string, readonly ConstantReader[]>;
+}
+
+/** The identifiers of a `className` value, each with whether the attribute guards it. */
+function guardedNames(root: ts.Node): ReadonlyMap<string, boolean> {
+  const guards = new Map<string, boolean>();
+  visit(root, (node) => {
+    if (ts.isIdentifier(node) && namesIn(node.parent).has(node.text)) {
+      guards.set(node.text, (guards.get(node.text) ?? false) || isConditional(node, root));
+    }
+  });
+  return guards;
+}
+
 /**
  * The constants, as `path#name`, that a class context reads however they are named: in the file that declares them or in
- * a file that imports them by a relative path. Follows a constant into the constants it reads. Scope is not read.
+ * a file that imports them by a relative path, with the elements that wear them. Follows a constant into the constants it reads. Scope is not read.
  */
-export function referencedClassConstants(sources: readonly Source[]): ReadonlySet<string> {
+export function referencedClassConstants(sources: readonly Source[]): ClassConstants {
   const known = new Map(sources.flatMap((source) => (source.sf === null ? [] : [[source.path, source.sf] as const])));
   const imports = new Map<string, ReadonlyMap<string, string>>();
   const found = new Set<string>();
+  const readers = new Map<string, ConstantReader[]>();
   const queue: string[] = [];
-  const reach = (path: string, sf: ts.SourceFile, root: ts.Node): void => {
+  const keyOf = (path: string, sf: ts.SourceFile, name: string): string | undefined => {
     const brought = imports.get(path) ?? importedConstants(path, sf, known);
     imports.set(path, brought);
+    return constInitializers(sf).has(name) ? `${path}#${name}` : brought.get(name);
+  };
+  const wear = (key: string, reader: ConstantReader): void => {
+    const held = readers.get(key) ?? [];
+    // One component wears a constant once: a second use of it judges the same classes on the same axes.
+    if (!held.some(({ elem }) => elem.door === reader.elem.door && elem.tag === reader.elem.tag)) {
+      readers.set(key, [...held, reader]);
+    }
+  };
+  const reach = (path: string, sf: ts.SourceFile, root: ts.Node, wearers: readonly ConstantReader[]): void => {
     for (const name of namesIn(root)) {
-      const key = constInitializers(sf).has(name) ? `${path}#${name}` : brought.get(name);
-      if (key !== undefined && !found.has(key)) {
+      const key = keyOf(path, sf, name);
+      if (key === undefined) {
+        continue;
+      }
+      for (const wearer of wearers) {
+        wear(key, wearer);
+      }
+      if (!found.has(key)) {
         found.add(key);
         queue.push(key);
       }
     }
   };
+  const wornOn = (path: string, sf: ts.SourceFile, root: ts.Node, elem: Elem): void => {
+    const beside = piecesIn(root).flatMap((piece) => tokensOf(piece.node));
+    for (const [name, guarded] of guardedNames(root)) {
+      const key = keyOf(path, sf, name);
+      if (key !== undefined) {
+        wear(key, { elem, beside, guarded });
+      }
+    }
+  };
   for (const [path, sf] of known) {
+    const byOpening = openingsOf(sf);
     visit(sf, (node) => {
       const root = classRoot(path, sf, node, found);
-      if (root !== null) {
-        reach(path, sf, root);
+      if (root === null) {
+        return;
       }
+      const elem = styledElement(sf, node, byOpening);
+      if (elem !== null) {
+        wornOn(path, sf, root, elem);
+      }
+      reach(path, sf, root, []);
     });
   }
   for (const key of queue) {
@@ -329,10 +392,46 @@ export function referencedClassConstants(sources: readonly Source[]): ReadonlySe
     const sf = known.get(path);
     const init = sf === undefined ? undefined : constInitializers(sf).get(name);
     if (sf !== undefined && init !== undefined) {
-      reach(path, sf, init);
+      reach(path, sf, init, readers.get(key) ?? []);
     }
   }
-  return found;
+  return { names: found, readers };
+}
+
+const openingsOf = (sf: ts.SourceFile): ReadonlyMap<ts.Node, Elem> => new Map(elementsOf(sf).map((elem) => [elem.opening as ts.Node, elem] as const));
+
+// Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
+function styledElement(sf: ts.SourceFile, node: ts.Node, byOpening: ReadonlyMap<ts.Node, Elem>): Elem | null {
+  return ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
+}
+
+/** What a class piece sits in: the first expression of its root the reader could not open, and the spread that carries it. */
+interface PieceSource {
+  readonly opaque: string | null;
+  readonly spread: SpreadClass | null;
+}
+
+/** The `className` value an object spread onto an element carries, and whether a condition around the object guards it. */
+interface SpreadClass {
+  readonly value: ts.Expression;
+  readonly guarded: boolean;
+}
+
+/** The classes a spread writes, through an object literal, a same-file const, a ternary or `&&`. */
+function spreadClasses(sf: ts.SourceFile, expression: ts.Expression, guarded: boolean): readonly SpreadClass[] {
+  const node = unwrap(expression);
+  if (ts.isConditionalExpression(node)) {
+    return [...spreadClasses(sf, node.whenTrue, true), ...spreadClasses(sf, node.whenFalse, true)];
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    return spreadClasses(sf, node.right, true);
+  }
+  if (ts.isIdentifier(node)) {
+    const target = constInitializers(sf).get(node.text);
+    return target === undefined ? [] : spreadClasses(sf, target, guarded);
+  }
+  const held = ts.isObjectLiteralExpression(node) ? node.properties.find((property) => propertyName(property) === CLASS_PROPERTY) : undefined;
+  return held !== undefined && ts.isPropertyAssignment(held) ? [{ value: held.initializer, guarded }] : [];
 }
 
 /** What a `className` value writes. */
@@ -344,34 +443,69 @@ export function attributeClasses(value: ts.Node): ClassExpression {
 }
 
 /** Every class string a file writes: class attributes, `cn`/`tv` calls, `*Class` constants and the constants a class context reads. */
-export function classStringsOf(path: string, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly ClassString[] {
+export function classStringsOf(path: string, sf: ts.SourceFile, constants: ClassConstants): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], opaque: string | null): void => {
+  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], { opaque, spread }: PieceSource): void => {
     const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
       const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
-      out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaque });
+      const guarded = conditional || spread?.guarded === true;
+      out.push({
+        path,
+        line: lineOf(sf, node),
+        column,
+        tokens,
+        elem,
+        conditional: guarded,
+        plain: spread === null && ts.isStringLiteral(node),
+        rootTokens,
+        opaque,
+      });
     }
   };
-  const byOpening = new Map<ts.Node, Elem>();
-  for (const elem of elementsOf(sf)) {
-    byOpening.set(elem.opening, elem);
-  }
-  visit(sf, (node) => {
-    const root = classRoot(path, sf, node, referenced);
-    if (root === null) {
-      return;
+  // A constant is judged on each element that wears it. The string is not the attribute a rewrite edits, so it is never plain.
+  const wornBy = (pieces: readonly ClassPiece[], readers: readonly ConstantReader[]): void => {
+    const held = pieces.flatMap((piece) => tokensOf(piece.node));
+    for (const { node, conditional } of pieces) {
+      const tokens = tokensOf(node);
+      if (tokens.length > 0 && !emitted.has(node)) {
+        emitted.add(node);
+        const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
+        for (const { elem, beside, guarded } of readers) {
+          const rootTokens = [...new Set([...held, ...beside])];
+          out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional: conditional || guarded, plain: false, rootTokens, opaque: null });
+        }
+      }
     }
-    // Only `className` styles the element it is written on; a `*ClassName` prop styles a part inside a composite.
-    const elem = ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
+  };
+  const written = (root: ts.Node, elem: Elem | null, spread: SpreadClass | null = null): void => {
     const pieces = piecesIn(root);
     const read = elem === null ? null : attributeClasses(root);
     const rootTokens = [...new Set([...pieces.flatMap((piece) => tokensOf(piece.node)), ...(read === null ? [] : classesIn(read))])];
     for (const piece of pieces) {
-      emit(piece, elem, rootTokens, read === null ? null : opaqueIn(read));
+      emit(piece, elem, rootTokens, { opaque: read === null ? null : opaqueIn(read), spread });
     }
+  };
+  const byOpening = openingsOf(sf);
+  visit(sf, (node) => {
+    const root = classRoot(path, sf, node, constants.names);
+    if (root === null) {
+      return;
+    }
+    const name = declaredName(node);
+    const readers = name === null ? undefined : constants.readers.get(`${path}#${name}`);
+    if (readers !== undefined) {
+      wornBy(piecesIn(root), readers);
+      return;
+    }
+    written(root, styledElement(sf, node, byOpening));
   });
+  for (const elem of byOpening.values()) {
+    for (const spread of elem.spreads.flatMap((expression) => spreadClasses(sf, expression, false))) {
+      written(spread.value, elem, spread);
+    }
+  }
   return out;
 }

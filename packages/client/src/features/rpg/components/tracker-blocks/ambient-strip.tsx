@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, MapPin, X } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -78,7 +78,8 @@ function AmbientVocabPicker({
         aria-label={`${fieldLabel} value`}
         onClick={(): void => setOpen(true)}
         reserveEdge={true}
-        className="gap-0 px-field text-start"
+        inset="control"
+        textAlign="start"
       >
         <Text as="span" ink={empty ? "muted" : undefined} voice="label">
           {restText}
@@ -92,14 +93,14 @@ function AmbientVocabPicker({
     <Row
       gap="field"
       align="center"
-      className="flex-wrap"
+      wrap={true}
       onKeyDown={(e): void => {
         if (e.key === "Escape") {
           setOpen(false);
         }
       }}
     >
-      <Row gap="field" align="center" className="flex-wrap" role="group" aria-label={groupLabel}>
+      <Row gap="field" align="center" wrap={true} role="group" aria-label={groupLabel}>
         {vocab.map((label) => (
           <Button
             key={label}
@@ -146,24 +147,27 @@ function AmbientVocabPicker({
           like the chips under a wrapped `indoors` would still read to the EYE as a tenth one. A hairline
           above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
-        <Row divider="top" className="mbs-field basis-full pbs-field">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="justify-start inline-full"
-            aria-label={`Clear ${fieldLabel.toLowerCase()}`}
-            onClick={(): void => {
-              onPick(null);
-              setOpen(false);
-            }}
-          >
-            <Icon icon={X} size="xs" />
-            <Text as="span" ink="muted" voice="label">
-              {`Clear ${fieldLabel.toLowerCase()}`}
-            </Text>
-          </Button>
-        </Row>
+        <Stack floor="line" paddingBlockStart="field">
+          <Row divider="top" paddingBlockStart="field">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              width="full"
+              justify="start"
+              aria-label={`Clear ${fieldLabel.toLowerCase()}`}
+              onClick={(): void => {
+                onPick(null);
+                setOpen(false);
+              }}
+            >
+              <Icon icon={X} size="xs" />
+              <Text as="span" ink="muted" voice="label">
+                {`Clear ${fieldLabel.toLowerCase()}`}
+              </Text>
+            </Button>
+          </Row>
+        </Stack>
       )}
     </Row>
   );
@@ -183,7 +187,7 @@ function AmbientFieldControl({
 }): ReactElement {
   if (onEditField === undefined) {
     return (
-      <Text as="span" numeric={true} className="truncate" voice="label">
+      <Text as="span" numeric={true} truncate={true} voice="label">
         {value}
       </Text>
     );
@@ -209,9 +213,7 @@ function AmbientFieldControl({
       placeholder={UNSET_DATUM}
       onEdit={(next): void => onEditField(fieldKey, next)}
       // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
-      // compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full` + `min-w-0`
-      // keep a long location from overflowing the wrapping card (owner density ruling).
-      className="field-sizing-content max-inline-full min-inline-0"
+      // compact input and pairs pack 2+ per row, and a long location stays inside the wrapping card.
       width="auto"
     />
   );
@@ -222,7 +224,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (
     <Card>
-      <Row gap="block" align="center" className="flex-wrap" data-slot="ambient-strip">
+      <Row gap="block" align="center" wrap={true} data-slot="ambient-strip">
         <Icon icon={MapPin} size="sm" label="Scene" />
         {AMBIENT_FIELDS.map(({ key, label }) => {
           const value = values[key];

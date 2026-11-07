@@ -28,7 +28,7 @@ export function AdminCatalogSection({ anchorId }: { readonly anchorId: string })
     <Section container={true} divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text voice="gloss">Re-fetch the OpenRouter model catalog every OpenRouter connection browses. Runs live against the provider.</Text>
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <Button
             variant="outline"
             size="sm"
@@ -71,7 +71,7 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
     <Section container={true} divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index job).</Text>
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <Input
             aria-label="Character id"
             placeholder="character id"

@@ -79,7 +79,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
           {CHARACTER_ADD_TAG_NAME}
         </Button>
       </Row>
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {visible.length === 0 ? (
           // The house empty word (#502) — this row said "No tags" while the facet rows said "Add…" and the
           // CONTEXT card said "None", three vocabularies for one state inside one editor. The verb lives in

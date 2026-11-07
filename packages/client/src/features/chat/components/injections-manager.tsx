@@ -174,8 +174,8 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
-                  <CollapsibleTrigger className="p-block inline-full" size="control">
-                    <Row gap="field" align="center" justify="between" className="flex-1 min-inline-0">
+                  <CollapsibleTrigger inset="block" width="full" size="control">
+                    <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
                           no prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is
@@ -189,7 +189,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                           Not delivered — no content
                         </Badge>
                       ) : (
-                        <Text voice="gloss" className="truncate min-inline-0">
+                        <Text voice="gloss" truncate={true}>
                           {rowSummary(values)}
                         </Text>
                       )}
@@ -204,8 +204,8 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     // where its last line does. (Measured pre-fix: clientHeight 25 = one 13.125px line +
                     // pb-block; the report's "display: flow-root defeats the clamp" reading was wrong —
                     // `flow-root` is just Chrome's computed serialization of a blockified `-webkit-box`.)
-                    <Stack className="px-block pbe-block">
-                      <Text voice="gloss" className="line-clamp-1">
+                    <Stack paddingBlockEnd="block" paddingInline="block">
+                      <Text voice="gloss" clamp={1}>
                         {values.content}
                       </Text>
                     </Stack>
@@ -214,7 +214,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
               )}
             </form.Subscribe>
             <CollapsiblePanel>
-              <Stack gap="field" className="px-block pbe-block">
+              <Stack gap="field" paddingBlockEnd="block" paddingInline="block">
                 <form.AppField name="position">
                   {(field): ReactElement => <field.SelectField label="Position" items={POSITION_ITEMS} disabled={!isHost} />}
                 </form.AppField>
@@ -290,26 +290,26 @@ export function InjectionsSkeleton({ count, isHost }: InjectionsSkeletonProps): 
     <Stack aria-busy={true} gap="section">
       <Text voice="gloss">{injectionsIntro(isHost)}</Text>
       {count === 0 ? (
-        <Skeleton className="block-(--leading-label) inline-1/3" />
+        <Skeleton width="third" height="lineLabel" />
       ) : (
         <Stack gap="section">
           {rows.map((index) => (
             <Card padding="none" key={index}>
               {/* The trigger row: `min-h-(--size-control-sm)` + `p-block` is byte-for-byte the collapsed trigger's
                   box, so this bar is the height it stands in for at BOTH pointer classes. */}
-              <Row align="center" className="p-block min-block-(--size-control-sm)" gap="field" justify="between">
-                <Skeleton className="basis-1/3 block-(--leading-label)" />
-                <Skeleton className="flex-1 block-(--leading-label) min-inline-0" />
+              <Row align="center" minHeight="control" padding="block" gap="field" justify="between">
+                <Skeleton width="third" height="lineLabel" />
+                <Skeleton className="min-inline-0" grow={true} height="lineLabel" />
               </Row>
               {/* The one-line content excerpt. */}
-              <Row className="px-block pbe-block">
-                <Skeleton className="flex-1 block-(--leading-label)" />
+              <Row paddingBlockEnd="block" paddingInline="block">
+                <Skeleton grow={true} height="lineLabel" />
               </Row>
             </Card>
           ))}
         </Stack>
       )}
-      {isHost ? <Skeleton className="block-(--size-control-sm) inline-1/3" /> : null}
+      {isHost ? <Skeleton width="third" height="control" /> : null}
     </Stack>
   );
 }

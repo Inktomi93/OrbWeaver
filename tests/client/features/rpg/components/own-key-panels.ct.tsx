@@ -19,6 +19,7 @@ const DICE_STORY = "tests/client/features/rpg/components/_own-key-panels-stories
 /** The key the client mints from the host label: an inherited member of every plain object. */
 const INHERITED_KEY = "constructor";
 const LABEL = "Constructor";
+const TEXT_TRACKER = "Mood";
 const NPC_NAME = "Mira Vale";
 const TRACKER_MAX = 10;
 const TRACKER_VALUE = 3;
@@ -232,4 +233,31 @@ test("an attribute tile takes numbers only, steps by one on the arrow keys and s
   const { min, max } = room.profile.range;
   await expect(field).toHaveAccessibleDescription(`Between ${min} and ${max}`);
   await expect(field).toHaveAttribute("placeholder", `${min}–${max}`);
+});
+
+test("Status seats a text tracker's value at the end of the room its row leaves, and the status line at its own width", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const room = await gameRoom(root);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const config = await caller.rpg.getConfigView({ chatId: room.chatId });
+  const mood = rpgTrackerDefSchema.parse({ key: "mood", label: TEXT_TRACKER, shape: "text", write: "set", subject: "actor" });
+  await caller.rpg.updateConfig({ chatId: room.chatId, patch: { trackers: [...config.trackers, mood] } });
+  await routeTrpc(page, (await room.reads()).routes);
+  await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
+  const value = page.getByRole("button", { name: new RegExp(` ${TEXT_TRACKER} value$`, "u") }).first();
+  const label = page.getByText(TEXT_TRACKER, { exact: true }).first();
+  await expect(value).toBeVisible();
+  const placed = await value.evaluate((element) => {
+    const row = element.closest('[data-slot="tracker-value-rest"]')?.parentElement ?? element.parentElement;
+    return { rowEnd: row?.getBoundingClientRect().right, end: element.getBoundingClientRect().right, align: getComputedStyle(element).textAlign };
+  });
+  expect(placed.end).toBe(placed.rowEnd);
+  expect(placed.align).toBe("end");
+  expect((await value.boundingBox())?.width).toBeGreaterThan((await label.boundingBox())?.width ?? Number.POSITIVE_INFINITY);
+  const status = page.getByRole("button", { name: /Status line/u }).first();
+  const fit = await status.evaluate((element) => ({
+    own: element.getBoundingClientRect().width,
+    line: element.parentElement?.getBoundingClientRect().width ?? 0,
+  }));
+  expect(fit.own).toBeLessThan(fit.line);
 });

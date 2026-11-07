@@ -94,14 +94,14 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
         />
         <Stack gap="field">
           <MemoryUtilityStatus enabled={enabled} />
-          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          <Text voice="gloss" prose={true} cap="prose">
             {`${MEMORY_EXISTING_CHATS_NOTE} To build every chat now, run the Memory backfill job.`}
           </Text>
           {/* A cross-SURFACE pointer is a DOOR, not a sentence (side-eye 2026-08-08 P3): "run it under
               Settings → Jobs" named a place the reader then had to go find by hand. The `CarrierBody`
               grammar — ghost button + external-link glyph, riding a standing shell intent — is the repo's
               existing shape for exactly this, so it is reused rather than re-invented. */}
-          <Button className="self-start" variant="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+          <Button self="start" variant="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
             Go to Jobs
             <Icon icon={ExternalLink} size="xs" />
           </Button>
@@ -121,15 +121,15 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   }
   if (utility.kind === "ready") {
     return (
-      <Text data-slot="memory-utility-status" prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text data-slot="memory-utility-status" prose={true} cap="prose" voice="gloss">
         {enabled ? `Summaries run on your Utility model, ${utility.label}.` : "Memory is off for your account, so no chat is summarized."}
       </Text>
     );
   }
   const reason = utility.kind === "unset" ? "no Utility model is set" : `your Utility model is set but not running: ${utility.cause}`;
   return (
-    <Row align="center" className="flex-wrap" data-slot="memory-utility-status" gap="field">
-      <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
+    <Row align="center" wrap={true} data-slot="memory-utility-status" gap="field">
+      <Text prose={true} cap="prose" voice="gloss">
         {enabled ? `Summaries are paused: ${reason}.` : `Memory also needs a Utility model, and ${reason}.`}
       </Text>
       <UtilityModelDoor />

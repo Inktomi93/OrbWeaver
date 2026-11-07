@@ -132,7 +132,7 @@ export function CopyButtonRoot({ text, what, copiedHint, autoCopy = false, child
 }
 
 export interface CopyButtonTriggerProps
-  extends Omit<ButtonBaseProps, "aria-label" | "aria-labelledby" | "children" | "loading" | "onClick" | "variant" | "tone" | "ink" | "focal"> {
+  extends Omit<ButtonBaseProps, "aria-label" | "aria-labelledby" | "children" | "loading" | "onClick" | "variant" | "tone" | "ink" | "focal" | "stretch"> {
   /** Render the glyph alone, for a dense toolbar. The accessible name is the same either way. */
   readonly iconOnly?: boolean;
   /** A copy is a secondary action: the edge, or no edge in a dense toolbar. @defaultValue "outline" */

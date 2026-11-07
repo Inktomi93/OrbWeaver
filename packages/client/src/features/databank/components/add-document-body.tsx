@@ -124,7 +124,7 @@ export function AddDocumentBody(): ReactElement {
           empty, 15px in CONTENT) at the moment it matters most. `reading` is the voice minted for exactly
           this ("THE CONTENT ITSELF", text/variants.ts), and it is paired with the reading measure the
           voice's own doc requires, so the line does not run the width of the dialog. */}
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         {DATABANK_INGEST_GLOSS}
       </Text>
       <Stack gap="block">
@@ -155,7 +155,7 @@ export function AddDocumentBody(): ReactElement {
               placeholder="Search characters…"
             />
           ) : null}
-          <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+          <Text cap="prose" prose={true} voice="gloss">
             {scopeCopy[scope]}
           </Text>
         </Stack>
@@ -190,7 +190,7 @@ export function AddDocumentBody(): ReactElement {
             Each arm FILLS the reserved region (`flex-1`) and hangs its footer off the bottom (`mt-auto`),
             so the height is constant, the strip still holds one y, and the footer sits on the floor
             instead of floating above it. */}
-        <Stack className="min-block-(--height-scroll-lg)" gap="block">
+        <Stack minHeight="scrollLg" gap="block">
           {bodies[mode]}
         </Stack>
       </Stack>
@@ -248,7 +248,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
 
   return (
     // `flex-1` + the footer's `mt-auto`: the arm spends the region's reserved height (N-2).
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone
@@ -266,7 +266,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
           shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
           only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
           not part of the submit; it is owed by every arm. */}
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       </DialogFooter>
     </Stack>
@@ -304,14 +304,14 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
   };
 
   return (
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <Field label="Name">
         <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
       </Field>
       <Field label="Text">
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={!canCreate} loading={create.isPending} onClick={onSubmit} type="button">
           Add
@@ -373,7 +373,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
   const failureId = useId();
 
   return (
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement => (
@@ -412,7 +412,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
           ) : null
         }
       </form.Subscribe>
-      <DialogFooter className="mbs-auto">
+      <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (

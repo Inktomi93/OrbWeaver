@@ -293,13 +293,14 @@ export const registerApiRule: OrbRule = {
   },
 };
 
-const FLOORLESS_WRAP = /\bflex-wrap\b/u;
+// A wrap written on a Row's own prop or a class on any box.
+const FLOORLESS_WRAP = /\bflex-wrap\b|^<Row\b[\s\S]*?\swrap=(?:\{true\}|"cq-20")/u;
 
 // A row that floors its own block size seats its controls' hit areas: a token floor in its className, or the
-// `touchFloor="block"` prop, which spells the coarse floor.
+// `touchFloor="block"` or `minHeight` prop, which spell the coarse floor and the control floor.
 const FLOORLESS_ROW_FLOOR = /\bmin-block-\(--size-(?:touch-target|control-[a-z]+)\)|\bpointer-coarse:min-block-[^\s"'`]+/u;
 
-const FLOORLESS_ROW_TOUCH_FLOOR = /^touchFloor\s*=\s*(?:\{\s*)?["']block["']/u;
+const FLOORLESS_ROW_TOUCH_FLOOR = /^(?:touchFloor\s*=\s*(?:\{\s*)?["']block["']|minHeight\s*=\s*(?:\{\s*)?["']control(?:Md)?["'])/u;
 
 const FLOORLESS_STACK_CONTROL = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
 

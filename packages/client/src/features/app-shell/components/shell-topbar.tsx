@@ -123,9 +123,17 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
 }
 
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
-function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
+function TopbarTitle({
+  className,
+  truncate,
+  children,
+}: {
+  readonly className?: string;
+  readonly truncate?: boolean;
+  readonly children: ReactNode;
+}): ReactElement {
   return (
-    <Text className={className} voice="masthead">
+    <Text className={className} truncate={truncate} voice="masthead">
       {children}
     </Text>
   );
@@ -150,7 +158,9 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
           {wideIdentity(props)}
         </div>
         <div className="shell-topbar-identity" data-identity="narrow">
-          <TopbarTitle className="shell-topbar-title truncate">{props.screenTitle ?? props.title}</TopbarTitle>
+          <TopbarTitle className="shell-topbar-title" truncate={true}>
+            {props.screenTitle ?? props.title}
+          </TopbarTitle>
         </div>
       </div>
 

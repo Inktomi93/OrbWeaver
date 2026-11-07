@@ -1,4 +1,4 @@
-import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
+import { CAPTION, COLOR_MOTION, DISABLED_STATE_NATIVE, FIELD_LABEL, FIELD_STACK, FOCUS_RING, ROW_STRIP, tv } from "#lib";
 
 /**
  * Slot classes for the reveal-gate (ui-package-design §6.1 / work-order #17). This is a
@@ -8,11 +8,11 @@ import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
  */
 export const revealGateVariants = tv({
   slots: {
-    root: "flex flex-col gap-field",
-    placeholder: "flex items-center gap-row rounded-control border border-dashed border-border bg-muted p-row text-muted-foreground",
+    root: FIELD_STACK,
+    placeholder: `${ROW_STRIP} rounded-control border border-dashed border-border bg-muted p-row text-muted-foreground`,
     trigger: `
-      inline-flex cursor-pointer items-center gap-field rounded-control text-label leading-label font-medium text-foreground transition-colors
-      duration-(--motion-fast) ease-out-expo outline-none min-block-(--size-touch-target)
+      inline-flex cursor-pointer items-center gap-field rounded-control ${FIELD_LABEL} ${COLOR_MOTION}
+      outline-none min-block-(--size-touch-target)
       hover:text-primary
       ${DISABLED_STATE_NATIVE}
       ${FOCUS_RING}
@@ -21,8 +21,7 @@ export const revealGateVariants = tv({
     // already gave the user the result; this is a silent landing spot, not a control).
     content: "flex flex-col items-start gap-field outline-none",
     hideTrigger: `
-      inline-flex cursor-pointer items-center gap-field self-start text-label leading-label text-muted-foreground transition-colors duration-(--motion-fast)
-      ease-out-expo outline-none min-block-(--size-touch-target)
+      inline-flex cursor-pointer items-center gap-field self-start ${CAPTION} ${COLOR_MOTION} outline-none min-block-(--size-touch-target)
       hover:text-foreground
       ${DISABLED_STATE_NATIVE}
       ${FOCUS_RING}

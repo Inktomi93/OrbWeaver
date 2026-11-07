@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { ACCENT_HOVER, CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FIELD_STACK, FOCUS_RING, tv } from "#lib";
 
 // The inline (non-popover) listbox: an in-flow `role="listbox"` whose rows are `role="option"` buttons a
 // SEPARATE control drives via `aria-activedescendant` (the rows are never a tab stop — tabIndex=-1). The
@@ -7,18 +7,12 @@ import { ACCENT_HOVER, DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 // user sees on hover — never a bespoke highlight.
 export const optionStripVariants = tv({
   slots: {
-    listbox: "flex flex-col gap-field",
-    item: [
-      "flex items-center gap-field rounded-control px-block py-field text-start outline-none inline-full",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
-      ACCENT_HOVER,
-      FOCUS_RING,
-      DISABLED_STATE,
-    ],
+    listbox: FIELD_STACK,
+    item: [`${FIELD_ROW} rounded-control px-block py-field text-start outline-none inline-full`, COLOR_MOTION, ACCENT_HOVER, FOCUS_RING, DISABLED_STATE],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     body: "flex flex-1 items-center gap-field min-inline-0",
     label: "font-mono text-code leading-label-relaxed text-foreground",
-    description: "truncate text-label leading-label text-muted-foreground",
+    description: `truncate ${CAPTION}`,
   },
   variants: {
     highlighted: {

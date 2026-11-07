@@ -24,6 +24,13 @@ export const weaveGlyphVariants = tv({
 // It does NOT un-hide the art from assistive tech: there is nothing to
 // announce, no state to read and no keyboard path to the effect, so exposing a nameless canvas would
 // promise an affordance that does not exist. Ornament that answers a cursor is still ornament.
+// How the weave sits in its host: `veil` lies over the whole of it, and `pinned` stays at the top while the host scrolls.
+export const webWeaveBoxVariants = tv({
+  variants: {
+    placed: { veil: "absolute inset-0", pinned: "sticky inset-bs-0" },
+  },
+});
+
 export const webWeaveVariants = tv({
   slots: {
     root: "relative overflow-hidden block-full inline-full",
@@ -37,6 +44,8 @@ export const webWeaveVariants = tv({
       false: { root: "pointer-events-none" },
       true: { root: "pointer-events-auto" },
     },
+    // The web fills the viewport's own height, for a backdrop that sticks while the page scrolls over it.
+    viewport: { true: { root: "block-dvh" } },
   },
   defaultVariants: { interactive: false },
 });

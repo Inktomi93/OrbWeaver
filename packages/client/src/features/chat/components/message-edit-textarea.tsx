@@ -85,10 +85,10 @@ export function MessageEditTextarea({ message, moveNeighbours }: MessageEditText
     // read mode (`renderSingleBubble`'s reservation) and the editor FILLS it. Without it the `Textarea`'s
     // native `field-sizing: content` sizes to the raw text — which is exactly how a two-word reply's box
     // snapped 107px narrower the moment the reader clicked Edit.
-    <Stack gap="field" data-slot="message-edit-textarea" className="inline-full">
+    <Stack gap="field" data-slot="message-edit-textarea" width="full">
       <Textarea
         ref={textareaRef}
-        className="inline-full"
+        width="full"
         aria-label={MESSAGE_EDIT_NAME}
         value={text}
         onChange={(e): void => setMessageEditDraft(message.id, e.target.value)}

@@ -1,14 +1,18 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { AmbientScopeContext } from "#lib";
 import type { AmbientPalette, ThemeScopeTokens } from "./clamp.ts";
 import { clampThemeTokens } from "./clamp.ts";
 import { InputBorderFallbackReporterContext, ToneFallbackReporterContext } from "./tone-fallback.ts";
+import { themeScopeVariants } from "./variants.ts";
 
 export interface ThemeScopeProps {
   /** Raw override tokens (untrusted for a per-character theme). Every value is clamped at the boundary. */
   readonly tokens: ThemeScopeTokens;
   readonly children: ReactNode;
+  /** How the scope takes part in layout; with none it is a plain block. */
+  readonly box?: VariantProps<typeof themeScopeVariants>["box"];
   readonly className?: string;
   /**
    * The base surface this scope's output is painted on when `tokens` carries no `background` of its own
@@ -60,7 +64,7 @@ AmbientAccentContext.displayName = "AmbientAccentContext";
 
 // The ONLY sanctioned path for a ThemeOverride to reach the DOM — values are parsed + clamped by
 // clampThemeTokens, so a hostile `accent: "url(//x)"` is dropped, not applied.
-export function ThemeScope({ tokens, children, className, ambientBackground, ambientAccent }: ThemeScopeProps): ReactElement {
+export function ThemeScope({ tokens, children, box, className, ambientBackground, ambientAccent }: ThemeScopeProps): ReactElement {
   const inheritedBase = use(AmbientBaseContext);
   const inheritedAccent = use(AmbientAccentContext);
   // The shell hands the active app theme's base to the root scope, which carries that background itself when the theme is custom.
@@ -112,7 +116,12 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
             inside: scopeAmbient.inside,
           }}
         >
-          <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
+          <div
+            className={themeScopeVariants({ box, className })}
+            style={style}
+            data-slot="theme-scope"
+            {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}
+          >
             {children}
           </div>
         </AmbientScopeContext>

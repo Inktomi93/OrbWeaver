@@ -106,7 +106,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
       )}
       {isRoomTier && isHost ? (
         <>
-          <Button className="self-start" variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
+          <Button self="start" variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             <Icon icon={Plus} size="sm" />
             Attach a script
           </Button>

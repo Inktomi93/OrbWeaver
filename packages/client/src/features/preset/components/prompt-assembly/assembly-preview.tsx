@@ -87,7 +87,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
       <Stack gap="field">
         <Row gap="row" align="center">
           <Icon icon={MessagesSquare} size="sm" />
-          <Text className="flex-1" voice="kicker">
+          <Text grow={true} voice="kicker">
             Chat history
           </Text>
           {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
@@ -127,17 +127,8 @@ function SpliceView({
 /** One preview block — a click-through ghost Button of its name + macro-chipped display text. */
 function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      // `p-row` is LOAD-BEARING, not drift: it overrides the `sm` step's sealed `px-block` on purpose — this
-      // button wraps a multi-line block (kicker + body + cue) in a `flex-col`, so it needs top/bottom padding
-      // the horizontal-only `px-block` never carries; the fixed `h-(--size-control-sm)` this arm also sets is moot once
-      // the flex-col content grows the box past it.
-      className="flex-1 flex-col items-start gap-field p-row text-start min-inline-0"
-      onClick={(): void => onSelect(block.section.id)}
-    >
-      <Text voice="kicker" className="truncate">
+    <Button variant="outline" size="sm" stacked={true} stretch="row" onClick={(): void => onSelect(block.section.id)}>
+      <Text voice="kicker" truncate={true}>
         {block.name}
       </Text>
       <BlockBody block={block} />

@@ -41,7 +41,7 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
  *  says so (`RowSkin.numberPlacement`). */
 export function MessageNumber({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text as="span" ink="muted" voice="code" data-slot="message-metadata-id" className="text-center wrap-anywhere inline-full">
+    <Text as="span" ink="muted" voice="code" data-slot="message-metadata-id" width="full" textAlign="center" wrap="anywhere">
       {label}
     </Text>
   );
@@ -126,7 +126,7 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
   }
   return (
     // Below the bubble in every skin, outside any fill, so over a wallpaper it takes the chrome plate.
-    <Row gap="field" align="center" data-slot="message-metadata-row" plate="chrome" className="flex-wrap">
+    <Row gap="field" align="center" data-slot="message-metadata-row" plate="chrome" wrap={true}>
       {items.map((item, index) => (
         <Fragment key={item.key}>
           {index > 0 ? (

@@ -92,7 +92,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
     <Stack gap="row" {...(placeholder ? { "aria-busy": true, className: "relative" } : {})}>
       {/* The loading box keeps the button's row height without a second copy of its name. */}
       {placeholder ? (
-        <Row className="block-(--size-control-sm)" />
+        <Row height="control" />
       ) : (
         <Row>
           {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be
@@ -126,7 +126,8 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
           rather than narrowed: transcripts keep `--reading-measure`, teaching prose like this takes
           `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
       <Text
-        className={placeholder ? "invisible max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
+        cap="prose"
+        className={placeholder ? "invisible" : undefined}
         ink="muted"
         {...(placeholder ? { "aria-hidden": true } : {})}
         voice="gloss"
@@ -138,7 +139,7 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
         </Text>
         . You can't change the room later.
       </Text>
-      {placeholder ? <Skeleton className="absolute inset-0" /> : null}
+      {placeholder ? <Skeleton cover={true} /> : null}
     </Stack>
   );
 }

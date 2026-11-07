@@ -99,7 +99,7 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
           onValueChange={(next): void => setType(next as RpgJournalType)}
           // No height here: Select's default `layout="field"` arm already IS `h-(--size-control-sm)` (#169 — the
           // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
-          className="basis-1/3"
+          floor="third"
         />
       }
       actions={[{ key: "entry", label: "Add entry", onAdd: (title: string): void => onCreate({ type, title }) }]}
@@ -266,8 +266,8 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
             <Card key={mark.id}>
               <Row key={mark.id} gap="block" align="center" data-slot="rpg-mark-row">
                 <Icon icon={Pin} size="xs" ink="muted" />
-                <Stack gap="field" className="flex-1 min-inline-0">
-                  <Text as="span" voice="label" className="truncate">
+                <Stack gap="field" className="min-inline-0" grow={true}>
+                  <Text as="span" voice="label" truncate={true}>
                     {mark.label}
                   </Text>
                   <Row gap="field" align="baseline">

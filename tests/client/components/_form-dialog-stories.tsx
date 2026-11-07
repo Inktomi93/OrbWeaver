@@ -5,6 +5,18 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 
+/** The production dialog with its corner close, open from the start. */
+export function FormDialogCloseStory(): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="FormDialog" isolates="isolates the corner close from authenticated mutations">
+      <FormDialog closeButton={true} onOpenChange={setOpen} open={open} title="Closable form">
+        <Stack gap="block">Body</Stack>
+      </FormDialog>
+    </CtIsolation>
+  );
+}
+
 /** The production form composite, isolated from domain writes to test dismissal while submit is blocked. */
 export function FormDialogDismissalStory(): ReactElement {
   const [open, setOpen] = useState(false);

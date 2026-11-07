@@ -96,7 +96,7 @@ function NearestPairs(): ReactElement {
         {/* …and this list is the WHOLE graph above the threshold, which is why it can show pairs the
             duplicate sections above do not (P2-5). */}
         <Muted>Every pair above the threshold, ranked — not the near-duplicate pass's findings.</Muted>
-        <Row className="flex-wrap" gap="block">
+        <Row wrap={true} gap="block">
           <ParamSelect items={MIN_SIMILARITY_ITEMS} label="Min similarity" onValueChange={setMinSimilarity} value={minSimilarity} />
           <ParamSelect items={MAX_NODES_ITEMS} label="Max nodes" onValueChange={setMaxNodes} value={maxNodes} />
         </Row>

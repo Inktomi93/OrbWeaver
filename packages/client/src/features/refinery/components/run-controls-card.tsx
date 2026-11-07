@@ -82,7 +82,7 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
             value={guidanceDraft ?? guidance ?? ""}
           />
         </Field>
-        <Row align="center" className="flex-wrap" gap="row" justify="end">
+        <Row align="center" wrap={true} gap="row" justify="end">
           <Button disabled={running} variant="ghost" onClick={onManualOpen} size="sm">
             {REFINERY_HAND_EDIT_NAME}
           </Button>

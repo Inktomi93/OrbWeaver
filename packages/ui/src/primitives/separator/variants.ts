@@ -1,5 +1,5 @@
 import type { ToneStamp } from "#lib";
-import { tv } from "#lib";
+import { GROW, tv } from "#lib";
 
 /**
  * Separator skin — a token-colored hairline rule (`bg-border`, D43 §11.4). Orientation picks which
@@ -14,6 +14,8 @@ export const separatorVariants = tv({
     },
     // The rule in the primary ink at low strength: a boundary in a transcript that names a region (the context line).
     tone: { border: "", primary: "bg-tone-edge" },
+    // A rule that takes the room left beside a label.
+    grow: GROW,
   },
   defaultVariants: { orientation: "horizontal", tone: "border" },
 });

@@ -140,7 +140,7 @@ function ContextBody({ documentId }: { readonly documentId: DocumentId }): React
                 "Settings → Chat behavior → Databank" — beside an `openConfigTo` seam that lands on that
                 exact subcategory. A path a user has to retrace by hand is a control we declined to render. */}
             <Button
-              className="self-start"
+              self="start"
               variant="ghost"
               // The category + subcategory as LITERALS, the house spelling for a settings deep link
               // (`openConfigTo("workloads", "jobs")`, `openConfigTo("chat-behavior", "memory")`).

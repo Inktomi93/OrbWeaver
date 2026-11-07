@@ -72,7 +72,7 @@ export function MacroBrowser({ catalog }: MacroBrowserProps): ReactElement {
       </Section>
       <Section kicker="Flags">
         {/* Same paragraph cap as the macro glosses below, and for the same reason (#859 T-3). */}
-        <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+        <Text cap="prose" voice="gloss">
           A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
         </Text>
         <Stack gap="field">
@@ -82,7 +82,7 @@ export function MacroBrowser({ catalog }: MacroBrowserProps): ReactElement {
               <Badge tone={def.status === "implemented" ? "info" : "neutral"} variant={def.status === "implemented" ? "solid" : "soft"} size="sm">
                 {def.status}
               </Badge>
-              <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+              <Text cap="prose" voice="gloss">
                 {def.description}
               </Text>
             </Row>
@@ -138,7 +138,7 @@ function MacroRow({ macro }: { readonly macro: CatalogMacro }): ReactElement {
           past the 80-character ceiling, on eighteen rows at once. `--reading-measure-prose` is the house
           TEACHING measure and the cap `Text`'s own `voice` doc prescribes (`ui/text/variants.ts`); a reading
           line is capped on the paragraph, never on the pane. */}
-      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text cap="prose" voice="gloss">
         {meta.description}
         {signature === "" ? "" : ` — args: ${signature}`}
       </Text>

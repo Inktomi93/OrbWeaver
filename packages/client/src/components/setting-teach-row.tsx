@@ -120,15 +120,7 @@ function ModifiedMark({ modified }: { readonly modified: boolean }): ReactElemen
   }
   return (
     <>
-      <Row
-        divider="start"
-        dividerWeight="rule"
-        tone="primary"
-        receded={true}
-        aria-hidden={true}
-        className="absolute inset-y-tight -inset-s-row"
-        data-slot="setting-modified-rail"
-      />
+      <Row divider="start" dividerWeight="rule" tone="primary" receded={true} aria-hidden={true} placed="startRail" data-slot="setting-modified-rail" />
       <Text as="span" className="sr-only">
         Modified from its default.
       </Text>
@@ -151,7 +143,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
       {/* `@cq-32:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
           narrow arm mints an implicit second column instead of stacking. */}
       <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
-        <Text as="span" className="inline-flex items-center gap-field" voice="label">
+        <Text as="span" flow="clusterField" voice="label">
           {label}
           {annotation === null ? null : <HintTrigger hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />}
         </Text>
@@ -163,7 +155,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           `--reading-measure-prose` (#1145), because a `ch` resolves in the element's own font and the
           group's cap is computed at the label step, not at the gloss's 10.5px one. */}
       {annotation === null ? null : (
-        <Text className="col-span-full max-inline-(--reading-measure-prose) min-inline-0" data-slot="setting-row-gloss" voice="gloss">
+        <Text className="col-span-full min-inline-0" cap="prose" data-slot="setting-row-gloss" voice="gloss">
           {annotation.gloss}
         </Text>
       )}
@@ -196,7 +188,7 @@ function FieldRowBody({ annotation, actions, details, children }: RowBodyProps &
         // `track`-aligned Field outside a real subgrid, where `grid-cols-subgrid` degrades to `none`: its
         // control column measured 58px and the number input inside it 0px.)
         <ConfigRowAnnotationProvider value={null}>
-          <Grid className="col-span-full grid-cols-subgrid gap-x-block gap-y-field min-inline-0" data-slot="setting-row-details">
+          <Grid gapInline="block" gapBlock="field" className="col-span-full grid-cols-subgrid min-inline-0" data-slot="setting-row-details">
             {details}
           </Grid>
         </ConfigRowAnnotationProvider>
@@ -263,7 +255,9 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
     // whether or not a rail exists; the owner's zero-shift bar). `col-span-full grid grid-cols-subgrid` is
     // the middle link of the section's subgrid chain.
     <CurrentGrid
-      className="group/setting relative col-span-full grid-cols-subgrid items-start gap-x-block"
+      align="start"
+      gapInline="block"
+      className="group/setting relative col-span-full grid-cols-subgrid"
       aria-current={isMatch ? "true" : undefined}
       data-modified={modified ? "" : undefined}
       data-search-match={isMatch ? "" : undefined}

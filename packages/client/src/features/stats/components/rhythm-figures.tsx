@@ -6,6 +6,7 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { timeLib } from "#lib";
+import { APPROX_DATES_MARK } from "../lib/analytics-copy.ts";
 import { formatCompact } from "../lib/analytics-view-model.ts";
 import type { Rhythm } from "../lib/local-calendar-folds.ts";
 
@@ -14,7 +15,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
   return (
     <Section heading="Rhythm">
       <Stack gap="block">
-        <Row gap="block" className="flex-wrap">
+        <Row gap="block" wrap={true}>
           <StatFigure label="Active days" value={formatCompact(rhythm.activeDays)} />
           <StatFigure label="Longest streak" value={`${rhythm.longestStreakDays}d`} />
           {/* THE UNIT IS IN THE LABEL, THE DAY IS IN THE GLOSS (P3d). This tile printed a bare `260` under
@@ -26,7 +27,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
         <Text voice="gloss">
           {busiest === null
             ? "A day counts as active once you exchange a turn or open a chat in it."
-            : `Your busiest day was ${timeLib.formatDate(busiest.start)} — activity counts turns exchanged plus chats opened.`}
+            : `Your busiest day was ${busiest.approx ? APPROX_DATES_MARK : ""}${timeLib.formatDate(busiest.start)} — activity counts turns exchanged plus chats opened.`}
         </Text>
       </Stack>
     </Section>

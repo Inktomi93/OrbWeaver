@@ -77,11 +77,11 @@ function blockOf(review: ReviewEntry): CompareBlock {
       label,
       body: (
         <Stack gap="tight">
-          <Row align="center" className="flex-wrap" gap="field">
+          <Row align="center" wrap={true} gap="field">
             <RefineryChip tone="warn" wrap={true}>
               Changed since the session started
             </RefineryChip>
-            <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+            <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text
             </Text>
           </Row>
@@ -168,7 +168,8 @@ function QueueRow({
   return (
     <Row
       align="center"
-      className="flex-wrap py-field"
+      wrap={true}
+      paddingBlock="field"
       data-queue-state={state}
       divider={first ? undefined : "top"}
       data-testid={testId("refineryQueueRow")}
@@ -177,12 +178,12 @@ function QueueRow({
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
         // names line up in one column instead of the open row sitting 12px left of its siblings.
-        <Text className="flex-1 truncate px-block min-inline-0" voice="label">
+        <Text inset="blockInline" truncate="fill" voice="label">
           {label}
         </Text>
       ) : (
-        <Button className="flex-1 basis-auto justify-start max-inline-full min-inline-0" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
-          <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
+        <Button cap="fit" grow="content" stretch="row" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
+          <Text as="span" truncate={true} ink="inherit" voice="label">
             {label}
           </Text>
           <Text as="span" className="sr-only">

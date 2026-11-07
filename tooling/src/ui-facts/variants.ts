@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import ts from "typescript";
+import { isJoinerCall } from "./class-expression.ts";
 import type { FileFacts } from "./file-facts.ts";
 import type { Elem, Source } from "./source.ts";
 import { constInitializer, unwrap, visit } from "./source.ts";
@@ -47,8 +48,11 @@ export interface ValueList {
 const NO_ARMS: ArmClasses = new Map();
 const NO_WRITE: Arm = { tokens: [], slots: [], unread: false };
 
-/** Top-level exported object consts of the ui layer by name; null where two files export the same name. */
-export type ScaleIndex = ReadonlyMap<string, ts.ObjectLiteralExpression | null>;
+/** Top-level exported class text of the ui layer by name: a class string, a template, a table object or a class join. A recipe call (`tv`) is a table of its own, not text a file reads; null where two files export the same name. */
+export type ScaleIndex = ReadonlyMap<string, ts.Expression | null>;
+
+const holdsClassText = (init: ts.Expression): boolean =>
+  ts.isStringLiteralLike(init) || ts.isTemplateExpression(init) || ts.isObjectLiteralExpression(init) || isJoinerCall(init);
 
 function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expression])[] {
   return sf.statements
@@ -56,7 +60,7 @@ function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expre
     .flatMap((statement) =>
       statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
         ? statement.declarationList.declarations.flatMap((declaration) =>
-            ts.isIdentifier(declaration.name) && declaration.initializer !== undefined
+            ts.isIdentifier(declaration.name) && declaration.initializer !== undefined && holdsClassText(unwrap(declaration.initializer))
               ? [[declaration.name.text, unwrap(declaration.initializer)] as const]
               : [],
           )
@@ -64,13 +68,41 @@ function exportedConsts(sf: ts.SourceFile): readonly (readonly [string, ts.Expre
     );
 }
 
+const IMPORTED = new WeakMap<ts.SourceFile, ReadonlyMap<string, string>>();
+
+/** Local name to the name a file imports it as: only an import can bring a ui constant into another file, so a parameter or local that shares a name with one reads nothing. */
+function importedNames(sf: ts.SourceFile): ReadonlyMap<string, string> {
+  const cached = IMPORTED.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const names = new Map<string, string>();
+  for (const statement of sf.statements) {
+    const bindings = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : undefined;
+    for (const specifier of bindings !== undefined && ts.isNamedImports(bindings) ? bindings.elements : []) {
+      names.set(specifier.name.text, (specifier.propertyName ?? specifier.name).text);
+    }
+  }
+  IMPORTED.set(sf, names);
+  return names;
+}
+
+/** What a name stands for: a const of this file, else the one ui export the file imports under that name. */
+function resolveConst(node: ts.Identifier, index: ScaleIndex): ts.Expression | null | undefined {
+  const sf = node.getSourceFile();
+  const local = constInitializer(sf, node.text);
+  if (local !== null) {
+    return local;
+  }
+  const exported = importedNames(sf).get(node.text);
+  return exported === undefined ? undefined : index.get(exported);
+}
+
 export function scaleIndex(sources: readonly Source[]): ScaleIndex {
-  const index = new Map<string, ts.ObjectLiteralExpression | null>();
+  const index = new Map<string, ts.Expression | null>();
   for (const source of sources) {
     for (const [name, init] of source.layer === "ui" && source.sf !== null ? exportedConsts(source.sf) : []) {
-      if (ts.isObjectLiteralExpression(init)) {
-        index.set(name, index.has(name) ? null : init);
-      }
+      index.set(name, index.has(name) ? null : init);
     }
   }
   return index;
@@ -86,8 +118,8 @@ function objectOf(expression: ts.Expression, index: ScaleIndex, hops: number): t
     return null;
   }
   if (ts.isIdentifier(node)) {
-    const local = constInitializer(node.getSourceFile(), node.text);
-    return local === null ? (index.get(node.text) ?? null) : objectOf(local, index, hops + 1);
+    const target = resolveConst(node, index);
+    return target === undefined || target === null ? null : objectOf(target, index, hops + 1);
   }
   const first = ts.isCallExpression(node) ? node.arguments[0] : undefined;
   return first === undefined ? null : objectOf(first, index, hops + 1);
@@ -101,8 +133,24 @@ interface ClassRead {
   readonly unread: boolean;
 }
 
+/** The value a member read names, `SIZES.sm` of a const object or `INSET.plate.reach` down a chain of them: an arm writes that member, never its siblings. */
+function memberOf(node: ts.Identifier, index: ScaleIndex, hops: number): ts.Expression | undefined {
+  let reading: ts.Expression = node;
+  let value: ts.Expression | undefined;
+  while (ts.isPropertyAccessExpression(reading.parent) && reading.parent.expression === reading) {
+    const name = reading.parent.name.text;
+    const found = objectOf(value ?? node, index, hops)?.properties.find((property) => property.name?.getText() === name);
+    if (found === undefined || !ts.isPropertyAssignment(found)) {
+      return undefined;
+    }
+    value = found.initializer;
+    reading = reading.parent;
+  }
+  return value;
+}
+
 function readName(node: ts.Identifier, index: ScaleIndex, hops: number): ClassRead {
-  const target = hops < MAX_HOPS ? (constInitializer(node.getSourceFile(), node.text) ?? index.get(node.text)) : null;
+  const target = hops < MAX_HOPS ? (memberOf(node, index, hops) ?? resolveConst(node, index)) : null;
   return target === undefined || target === null ? { tokens: [], unread: true } : readClasses(target, index, hops + 1);
 }
 

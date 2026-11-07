@@ -88,7 +88,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
         </Row>
       }
       actions={
-        <Row className="flex-wrap" gap="field" align="center">
+        <Row wrap={true} gap="field" align="center">
           {revoked ? (
             <>
               <Button

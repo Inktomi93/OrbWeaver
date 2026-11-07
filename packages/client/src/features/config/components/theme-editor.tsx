@@ -106,7 +106,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
 
   return (
     <Stack gap="section">
-      <Row gap="field" align="center" className="justify-end">
+      <Row gap="field" align="center" justify="end">
         <AutosaveStatus state={isUnmintedDraft && status === "saved" ? "draft" : status} onRetry={retrySave} />
       </Row>
       <boundForm.AppField name="name">{(field): ReactElement => <field.TextField label={CONFIG_THEME_NAME_FIELD_NAME} />}</boundForm.AppField>
@@ -189,10 +189,10 @@ function ThemeableVarsReference(): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="kicker">Themeable variables</Text>
-      <Row gap="field" className="flex-wrap">
+      <Row gap="field" wrap={true}>
         {THEME_SCOPE_EMIT_VARS.map((name) => (
           <Card key={name} padding="none" variant="soft">
-            <Text as="span" voice="code" className="px-field" ink="muted">
+            <Text as="span" voice="code" inset="control" ink="muted">
               {name}
             </Text>
           </Card>
@@ -228,7 +228,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
                 </Text>
               </Stack>
             </MessageBubble>
-            <MessageBubble className="self-end" messageRole="user" shape="bubble">
+            <MessageBubble self="end" messageRole="user" shape="bubble">
               <Stack gap="field">
                 <Text as="span">Show me the oldest one.</Text>
               </Stack>

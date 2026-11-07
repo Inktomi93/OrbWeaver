@@ -73,7 +73,7 @@ function FitLine({ stagePre, contextTokens }: { stagePre: StagePreflightView; co
     // it fits, wrapped onto its own line where it does not. Same guarantee, paid for only where it is owed.
     // `voice="gloss"`, not `datum`: a budget advisory is the quiet line under the lane's NAME, in the muted ink,
     // never a foreground value that outranks the kicker naming the lane it belongs to.
-    <Text className="whitespace-nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
+    <Text whitespace="nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
       in ≈ {stagePre.inputEstimate}
       {contextTokens === null ? "" : ` / ${contextTokens}`} · out ≈ {stagePre.outputEstimate}
       {stagePre.maxOutputTokens === null ? "" : ` / ${stagePre.maxOutputTokens}`} tok ⚠
@@ -121,7 +121,7 @@ export function SessionPreflightWarn({
 
 /** The lane's running ornament — see the header for the reduced-motion contract it carries. */
 function RunningHairline(): ReactElement {
-  return <Swatch indeterminate={true} className="pointer-events-none" data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />;
+  return <Swatch indeterminate={true} passThrough={true} data-testid={testId("refineryLaneHairline")} fill="primaryFaint" shape="pill" />;
 }
 
 export function LaneRunControl({
@@ -158,11 +158,11 @@ export function LaneRunControl({
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a
           verb cannot share one line's slack there, and the verb is the thing that must never shrink under
           its own label (the run-bar overlap this exact pair produced at 3-pane width, side-eye P1). */}
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {/* Token arithmetic is shown only when it is the reason to act (this stage would not fit): on a run
             that fits, "in ≈ 517 / 1048576" is jargon with nothing to do about it. */}
         {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}
-        <Row className="flex-1 justify-end" gap="field">
+        <Row grow={true} justify="end" gap="field">
           {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
               A neutral outline takes its host's ink, so a non-focal lane's Run button would paint at the SAME ink
               as the one filled lane beside it on the canvas — the header's own "every other lane's stays

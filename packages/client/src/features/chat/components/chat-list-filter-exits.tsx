@@ -12,7 +12,7 @@ import type { FilterExit } from "../lib/chat-list-scope.ts";
  *  290px column on one line. */
 export function FilterExits({ exits }: { readonly exits: readonly FilterExit[] }): ReactElement {
   return (
-    <Row align="center" className="flex-wrap justify-center" gap="field">
+    <Row align="center" wrap={true} justify="center" gap="field">
       {exits.map((exit) => (
         <Button variant="outline" key={exit.key} onClick={exit.onClear} size="sm">
           {exit.label}

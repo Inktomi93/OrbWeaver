@@ -70,8 +70,8 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
 
   return (
     <Stack gap="row">
-      <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
-        <Field className="grow min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
+      <Row align="start" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
+        <Field grow="fill" className="min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
           <Textarea
             defaultValue={Object.entries(headers)
               .map(([name, value]) => `${name}: ${value}`)
@@ -82,7 +82,7 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
             rows={2}
           />
         </Field>
-        <Field className="grow min-inline-0" description="Comma-separated. We drop them before the request goes out." label="Don't send these fields">
+        <Field grow="fill" className="min-inline-0" description="Comma-separated. We drop them before the request goes out." label="Don't send these fields">
           <Input
             autoComplete="off"
             defaultValue={(transport?.excludeBody ?? []).join(", ")}
@@ -202,7 +202,7 @@ function PreviewResolution({
       {stated.map((key) => {
         const resolved = resolveDotPath(parsed.value, map[key] ?? "");
         return (
-          <Row align="center" className="flex-wrap" data-resolved-path={key} gap="field" key={key}>
+          <Row align="center" wrap={true} data-resolved-path={key} gap="field" key={key}>
             <Text voice="label">{RESPONSE_MAP_FIELDS[key]}</Text>
             <Text voice="gloss">→</Text>
             <Text voice="code">{resolved === undefined ? "nothing at that path" : JSON.stringify(resolved)}</Text>

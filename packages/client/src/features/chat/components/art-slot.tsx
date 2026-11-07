@@ -109,14 +109,16 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
 export function FallbackLetter({
   initials,
   className,
+  height,
   scale = "portrait",
 }: {
   readonly initials: string;
   readonly className: string;
+  readonly height?: "bandHead";
   readonly scale?: ComponentProps<typeof Text>["artScale"];
 }): ReactElement {
   return (
-    <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
+    <Stack align="center" aria-hidden="true" className={className} container="size" height={height} justify="center">
       <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
         {initials}
       </Text>
@@ -155,15 +157,14 @@ export function WhisperBand({
       featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens
       // it to 55% and keeps it at least a minimum tall. The image rests dimmed and a tap target brightens under the pointer.
-      className="
-        relative ms-auto inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
-        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
-      "
+      className="relative"
+      push="inlineEnd"
+      artPane="banner"
       ref={attach}
       style={style}
     >
       {band.image === undefined || failed ? (
-        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} scale="banner" />
+        <FallbackLetter className="absolute inset-x-0 inset-bs-0" height="bandHead" initials={band.fallback} scale="banner" />
       ) : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
@@ -191,11 +192,8 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
-      className={cn(
-        "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
-        tappable ? undefined : "pointer-events-none",
-        art.side === "left" ? "inset-s-0" : "inset-e-0",
-      )}
+      passThrough={!tappable}
+      className={cn("absolute inset-bs-0", art.side === "left" ? "inset-s-0" : "inset-e-0")}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
@@ -224,15 +222,15 @@ function useFailedReport(failed: boolean, onFailedChange: ArtFailedReport | unde
   }, [failed, onFailedChange]);
 }
 
+const STICKY_TOP = "sticky inset-bs-0";
+
 /** Ripple's portrait: the Avatar asking for its image at the width its slot renders at (times the pixel ratio),
  *  not a fixed size. With no image the Avatar's own fallback shows. The portrait opens full size through `view`;
  *  one whose image failed to load is plain paint with no tap target, like whisper's band and echo's tile.
- *  `stickyClassName` pins the portrait to the card's top: on the portrait itself unwrapped, on its button wrapped. */
+ *  It sticks to the card's top: the portrait itself unwrapped, its button wrapped. */
 export function PortraitAvatar({
   urlAt,
   view,
-  stickyClassName,
-  className,
   size,
   shape,
   aspect,
@@ -240,11 +238,10 @@ export function PortraitAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "width" | "passThrough" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly urlAt: ((cssWidth: number) => string) | undefined;
     readonly view: ArtView | null;
-    readonly stickyClassName: string;
   }): ReactElement {
   const { attach, url, failed } = useSlotImage(urlAt);
   const tappable = view !== null && !failed;
@@ -258,7 +255,8 @@ export function PortraitAvatar({
       ring={ring}
       cardCorners={cardCorners}
       fade={fade}
-      className={cn(tappable ? undefined : stickyClassName, className) ?? ""}
+      width="ripplePortrait"
+      className={tappable ? "" : STICKY_TOP}
       {...(url === undefined || failed ? {} : { src: url })}
     />
   );
@@ -266,19 +264,17 @@ export function PortraitAvatar({
     return portrait;
   }
   return (
-    <ArtButton view={view} cardCorners={cardCorners} className={cn(stickyClassName, "shrink-0") ?? ""}>
+    <ArtButton view={view} cardCorners={cardCorners} className={cn(STICKY_TOP, "shrink-0") ?? ""}>
       {portrait}
     </ArtButton>
   );
 }
 
 /** The gutter chip: the Avatar with its image, opening full size through `view`. A chip whose image failed to load
- *  keeps the Avatar's initials and drops the tap target, like the other styles' art. `layoutClassName` seats the chip on
- *  whichever element is outermost: the chip, or the button that opens it. */
+ *  keeps the Avatar's initials and drops the tap target, like the other styles' art. */
 export function ChipAvatar({
   src,
   view,
-  layoutClassName,
   size,
   shape,
   aspect,
@@ -286,11 +282,10 @@ export function ChipAvatar({
   cardCorners,
   fade,
   ...avatar
-}: Omit<AvatarProps, "className" | "src" | AvatarLookKey> &
+}: Omit<AvatarProps, "className" | "src" | "width" | "passThrough" | AvatarLookKey> &
   Pick<AvatarProps, Exclude<AvatarLookKey, "keepMounted">> & {
     readonly src?: string;
     readonly view: ArtView | null;
-    readonly layoutClassName: string;
   }): ReactElement {
   const { attach, failed } = useSlotImage(src === undefined ? undefined : (): string => src);
   const tappable = view !== null && !failed;
@@ -304,16 +299,11 @@ export function ChipAvatar({
       ring={ring}
       cardCorners={cardCorners}
       fade={fade}
-      className={tappable ? "" : layoutClassName}
       {...(src === undefined || failed ? {} : { src })}
     />
   );
   if (!tappable) {
     return chip;
   }
-  return (
-    <ArtButton view={view} className={layoutClassName}>
-      {chip}
-    </ArtButton>
-  );
+  return <ArtButton view={view}>{chip}</ArtButton>;
 }

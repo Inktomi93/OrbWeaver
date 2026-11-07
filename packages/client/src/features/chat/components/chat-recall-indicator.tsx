@@ -112,7 +112,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
               // The coarse INLINE touch floor (#875 F6): at rest this chip is glyph-only, so its `sm` height
               // floor left it 40px wide against the 44px short side — the fragment's note carries the
               // measurement.
-              className="shrink-0 whitespace-nowrap"
+              className="shrink-0"
               touchFloor="inline"
               data-recall-phase={phase}
             >
@@ -130,7 +130,7 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
           }
         />
         <PopoverPopup side="bottom" align="end">
-          <Stack gap="block" className="min-inline-(--width-popup-narrow)">
+          <Stack gap="block" minWidth="popupNarrow">
             <PopoverTitle>Memory recall</PopoverTitle>
             <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
           </Stack>
@@ -170,7 +170,7 @@ function MemoryOffSummary({ onTurnOn }: { readonly onTurnOn: () => void }): Reac
   return (
     <Stack gap="field">
       <Text voice="gloss">Chat memory is off.</Text>
-      <Button className="self-start" variant="outline" onClick={onTurnOn} size="sm" type="button">
+      <Button self="start" variant="outline" onClick={onTurnOn} size="sm" type="button">
         Turn on
       </Button>
     </Stack>

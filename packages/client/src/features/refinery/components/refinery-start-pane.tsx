@@ -47,13 +47,13 @@ function ResumeSessions(): ReactElement | null {
     return null;
   }
   return (
-    <Card className="inline-full max-inline-(--reading-measure)">
+    <Card width="full" cap="reading">
       <Stack gap="row" padding="block">
         <Text voice="kicker">Continue a session</Text>
         <Stack gap="tight">
           {active.map((session) => (
-            <Button className="justify-start" variant="outline" key={session.id} onClick={(): void => selectRefinerySession(session.id)} size="sm">
-              <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
+            <Button justify="start" variant="outline" key={session.id} onClick={(): void => selectRefinerySession(session.id)} size="sm">
+              <Text as="span" truncate={true} ink="inherit" voice="label">
                 {session.name ?? session.characterName}
               </Text>
               <Text as="span" ink="inherit" voice="gloss">

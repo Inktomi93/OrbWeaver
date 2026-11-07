@@ -62,12 +62,27 @@ const UA_RENDERED_INTERIOR: Record<NonNullable<InputProps["type"]>, boolean> = {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, size, layout, width, numeric, typeStep, italic, id, name, ...rest }: InputProps): ReactElement {
+export function Input({
+  className,
+  size,
+  layout,
+  width,
+  grow,
+  floor,
+  textAlign,
+  numeric,
+  typeStep,
+  italic,
+  clearsGlyph,
+  id,
+  name,
+  ...rest
+}: InputProps): ReactElement {
   const identity = useFieldIdentity(id, name);
   const uaInteriorUnset = rest.type !== undefined && UA_RENDERED_INTERIOR[rest.type] && rest.value === "";
   return (
     <BaseInput
-      {...variantProps(inputVariants, { size, layout, width, numeric, typeStep, italic }, className)}
+      {...variantProps(inputVariants, { size, layout, width, grow, floor, textAlign, numeric, typeStep, italic, clearsGlyph }, className)}
       data-slot="input-root"
       // The tier rule sets a field's type step unlayered, so a title-step field says so for tiers.css to keep it.
       data-type-step={typeStep === "title" ? "title" : undefined}

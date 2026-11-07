@@ -258,7 +258,7 @@ function DeepNarrative({
 
 function TagLine({ label, tags }: { readonly label: string; readonly tags: readonly string[] }): ReactElement {
   return (
-    <Row align="center" gap="field" className="flex-wrap">
+    <Row align="center" gap="field" wrap={true}>
       <Text voice="kicker">{label}</Text>
       {tags.length === 0 ? (
         <Text voice="gloss">—</Text>

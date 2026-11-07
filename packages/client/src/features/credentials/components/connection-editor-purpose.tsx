@@ -31,7 +31,7 @@ export function KindVerdict({
   const labelId = useId();
   return (
     <Stack data-slot="connection-kind-verdict" gap="tight">
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <Text id={labelId} voice="label">
           This looks like a {KIND_VERDICT_LABELS[kind]} model —
         </Text>
@@ -58,7 +58,7 @@ export function PurposeNotes({ notes }: { readonly notes: readonly string[] }): 
   return (
     <Stack data-slot="connection-purpose-notes" gap="tight">
       {notes.map((note) => (
-        <Text tone="warning" className="max-inline-(--reading-measure-prose)" key={note} prose={true} voice="gloss">
+        <Text tone="warning" cap="prose" key={note} prose={true} voice="gloss">
           {note}
         </Text>
       ))}
@@ -74,10 +74,10 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
   const cannot = badges.filter((badge) => !badge.ok);
   return (
     <Stack data-slot="connection-capability-rail" gap="tight">
-      <Row className="flex-wrap" gap="field">
+      <Row wrap={true} gap="field">
         {badges.map((badge) => (
           <Badge
-            className={badge.ok ? undefined : "@max-cq-32:hidden"}
+            hiddenAt={badge.ok ? undefined : "belowCq32"}
             key={badge.task}
             size="sm"
             tone={badge.ok ? "success" : "neutral"}
@@ -89,7 +89,7 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
         ))}
       </Row>
       {cannot.length === 0 ? null : (
-        <Text className="@cq-32:hidden" voice="gloss">
+        <Text hiddenAt="cq-32" voice="gloss">
           …and {String(cannot.length)} more it can't serve.
         </Text>
       )}

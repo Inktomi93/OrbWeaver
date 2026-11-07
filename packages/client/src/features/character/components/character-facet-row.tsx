@@ -63,7 +63,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       variant="outline"
       selection="rail"
       size="sm"
-      className="justify-start gap-row text-start inline-full min-inline-0"
+      className="min-inline-0"
+      justify="start"
+      width="full"
       onClick={(): void => onSelect(facet.id)}
     >
       {/* THE NAME IS THE LABEL, THE BODY IS A DESCRIPTION (side-eye 2026-08-18 P1-2). Both spans used to be
@@ -93,7 +95,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
             not a caption, so `interactiveKicker` (caps + tracked) is the wrong register for it; `prose`
             is the ratified lever for exactly this ("this text is sentences, not a label" — `variants.ts`),
             lifting the step to `label` (13px) while `gloss` keeps the family/weight/tracking/color. */}
-      <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} className="truncate">
+      <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} truncate={true}>
         {showsPreview ? preview : facet.subtitle}
       </Text>
 

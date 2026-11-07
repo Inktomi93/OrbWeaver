@@ -49,7 +49,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
 
   return (
     <PickerDialog title="New persona from a character" open={open} onOpenChange={onOpenChange}>
-      <Row gap="row" align="center" className="justify-between">
+      <Row gap="row" align="center" justify="between">
         <Text voice="label">{SWAP_LABEL}</Text>
         {/* Default ON: a card's description speaks about {{char}}; as a persona the same prose must
                 speak about {{user}} or every self-reference points at the wrong seat. */}

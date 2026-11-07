@@ -11,12 +11,24 @@ type ThemePreviewPaneProps = ComponentProps<"div"> &
  * scope, because the fill is a shell surface and not a tone. An island pane takes the card slot, so `tiers.css` resolves
  * its inset and radius from the surface's tier; a row or inset pane is its own box at every tier.
  */
-export function ThemePreviewPane({ fill, shape, padding, lifted, className, ...rest }: ThemePreviewPaneProps): ReactElement {
+export function ThemePreviewPane({
+  fill,
+  shape,
+  padding,
+  lifted,
+  width,
+  grow,
+  height,
+  placed,
+  holdsLine,
+  className,
+  ...rest
+}: ThemePreviewPaneProps): ReactElement {
   const slot = shape === undefined || shape === "island" ? { "data-slot": "card-root" } : { "data-slot": "theme-preview-pane" };
   return (
     <div
       {...rest}
-      {...variantProps(themePreviewPaneVariants, { fill, shape, padding, lifted }, className, "neutral")}
+      {...variantProps(themePreviewPaneVariants, { fill, shape, padding, lifted, width, grow, height, placed, holdsLine }, className, "neutral")}
       data-padding={padding === "none" ? "none" : undefined}
       {...slot}
     />

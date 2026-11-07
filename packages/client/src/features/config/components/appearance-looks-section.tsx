@@ -191,7 +191,7 @@ function LooksBody(): ReactElement {
           <SettingRowGroup>
             <SettingRow settingId="shipped-looks" span={true}>
               <Stack gap="field">
-                <Row align="center" className="justify-end" gap="row">
+                <Row align="center" justify="end" gap="row">
                   <FileTrigger
                     accept="application/json"
                     onFilesSelected={([file]): void => {
@@ -226,13 +226,13 @@ function LooksBody(): ReactElement {
                     <Row className="relative min-inline-0" key={theme.id}>
                       <RadioGroupPickerItem
                         art={<ThemeMiniSurface theme={theme} />}
-                        className="inline-full"
+                        width="full"
                         idPrefix={`${ids}-${theme.id}`}
                         label={theme.name}
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
-                      <ThemePreviewPane className="absolute inset-s-tight inset-bs-tight flex" padding="none" fill="translucent" shape="row">
+                      <ThemePreviewPane placed="cornerStart" holdsLine={true} padding="none" fill="translucent" shape="row">
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
                           onDelete={(): void => removeTheme.mutate({ id: theme.id })}

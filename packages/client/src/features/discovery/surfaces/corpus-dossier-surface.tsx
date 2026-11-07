@@ -106,7 +106,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
   return (
     <Stack gap="section">
-      <Button variant="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
+      <Button variant="ghost" size="sm" onClick={onBack} self="start" ref={backRef}>
         <Icon icon={ArrowLeft} size="sm" />
         {`Back to ${CORPUS_MODE_LABELS.explore}`}
       </Button>
@@ -126,7 +126,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
               up keeps `--reading-measure`, because the law's band is about BODY line length and a display
               line is not body copy. */}
           {dossier.elevatorPitch !== null ? (
-            <Text className="max-inline-(--reading-measure-prose)" ink="muted">
+            <Text cap="prose" ink="muted">
               {dossier.elevatorPitch}
             </Text>
           ) : null}
@@ -146,7 +146,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
             {/* THE SAME MEASURE CAP ITS SIBLINGS GOT (side-eye corpus re-pass #3, P3-E). This sentence was
                 the one paragraph on the surface that escaped the 65-75ch reading law — 78.6ch at
                 `max-width: none`, beside a pitch and a masthead headline that both carry the token. */}
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+            <Text cap="prose" voice="gloss">
               Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.
             </Text>
             <Button variant="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
@@ -173,7 +173,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       {dossier.tags.length > 0 ? (
         <Section heading="Facets">
-          <Row align="center" gap="field" className="flex-wrap">
+          <Row align="center" gap="field" wrap={true}>
             {dossier.tags.map((tag) => (
               <Badge key={tag} size="sm">
                 {tag}
@@ -246,7 +246,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                 rather than asserted, and the clause that existed only to pre-empt the contradiction
                 ("so it won't descend") is gone. The sentence keeps the part that is still information —
                 which of the two quantities each number is. */}
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+            <Text cap="prose" voice="gloss">
               Ranked by distinctive similarity; the percent beside each rank is plain card similarity.
             </Text>
             <Stack gap="row" role="list">

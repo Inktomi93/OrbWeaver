@@ -11,22 +11,22 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
   }
   const compacted = compactSummary !== null && compactSummary !== undefined && compactSummary.length > 0;
   return (
-    <Row gap="field" align="center" data-slot="context-boundary-divider" className="inline-full">
-      <Separator className="flex-1" tone="primary" />
+    <Row gap="field" align="center" data-slot="context-boundary-divider" width="full">
+      <Separator grow={true} tone="primary" />
       {/* The divider NAMES a region of the transcript ("everything below is in context") — the `kicker`
           voice, which is exactly the caps-micro-with-a-hairline shape this line was already assembling by
           hand. The noun is COMPACTION, never memory: compaction writes `chats.compactSummary`, its own
           summary — the Memory plane is a different subsystem (vocab repair, 2026-08-02). */}
       {/* On the reading plate (D144(b)): the line crosses the room's background art, and the numbers on it must read
           at AA whatever part of the photo sits behind them. The hairlines meet the plate, not the text. */}
-      <Row gap="field" align="center" plate="island" className="px-tight">
+      <Row gap="field" align="center" plate="island" paddingInline="tight">
         <Text voice="kicker" ink="inherit">
           {compacted ? "Older messages compacted into a summary" : "In context from here"}
           {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
         </Text>
         {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}
       </Row>
-      <Separator className="flex-1" tone="primary" />
+      <Separator grow={true} tone="primary" />
     </Row>
   );
 }

@@ -201,7 +201,7 @@ function GenerateRow({
           what this control is and told a sighted user nothing — three sentence-shaped options with no
           question above them. The Field label IS the question. `max-w-cq-24` caps the P1-3 squeeze at the
           source: an unbounded Select sized itself to its longest option label. */}
-      <Field className="flex-1 max-inline-cq-24 min-inline-0" label={FORGE_ARM_QUESTION}>
+      <Field grow={true} cap="paneSm" className="min-inline-0" label={FORGE_ARM_QUESTION}>
         <Select
           // The `aria-label` is the SAME STRING as the visible label, from one constant. It is kept
           // because `Field` associates through Base UI context at runtime, which the static a11y lint
@@ -259,7 +259,7 @@ function RefineRow({
 }): ReactElement {
   return (
     <>
-      <Field className="flex-1 min-inline-0" label="Refine the draft">
+      <Field grow={true} className="min-inline-0" label="Refine the draft">
         <Textarea defaultValue="" placeholder='e.g. "add a per-issue severity enum"' ref={instructionRef} rows={1} maxRows={6} />
       </Field>
       <Button

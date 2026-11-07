@@ -1,8 +1,9 @@
 import type { ScrollAreaRootProps as BaseRootProps, ScrollAreaViewportProps as BaseViewportProps } from "@base-ui/react/scroll-area";
 import { ScrollArea as BaseScrollArea } from "@base-ui/react/scroll-area";
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { scrollAreaVariants } from "./variants.ts";
+import { scrollAreaBoxVariants, scrollAreaVariants } from "./variants.ts";
 
 const slots = scrollAreaVariants();
 
@@ -10,9 +11,8 @@ export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "classN
   className?: string;
 }
 
-export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
+export interface ScrollAreaProps extends Omit<BaseRootProps, "className">, VariantProps<typeof scrollAreaBoxVariants> {
   className?: string;
-  viewportClassName?: string;
   /** Class for the sized `Content` wrapper (where `children` live). */
   contentClassName?: string;
   /**
@@ -39,13 +39,13 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
  * cannot be mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, viewportClassName, contentClassName, viewportProps, wrapContent = false, children, ...rest } = props;
+  const { className, grow, maxHeight, contentClassName, viewportProps, wrapContent = false, children, ...rest } = props;
   return (
-    <BaseScrollArea.Root className={slots.root({ className })} data-slot="scroll-area-root" {...rest}>
+    <BaseScrollArea.Root className={slots.root({ className: scrollAreaBoxVariants({ grow, className }) })} data-slot="scroll-area-root" {...rest}>
       <BaseScrollArea.Viewport
         {...viewportProps}
         className={slots.viewport({
-          className: cn(viewportClassName, viewportProps?.className),
+          className: scrollAreaBoxVariants({ maxHeight, className: viewportProps?.className }),
         })}
         data-slot="scroll-area-viewport"
       >

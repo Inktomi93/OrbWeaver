@@ -24,7 +24,7 @@ export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDialog.Trigger {...props} />;
 }
 
-export interface DialogPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof dialogVariants> {
+export interface DialogPopupProps extends Omit<BasePopupProps, "className">, Omit<VariantProps<typeof dialogVariants>, "footerPush" | "headerWrap"> {
   className?: string;
   /** Defaults to the themed portal root from context; an explicit node/ref overrides. */
   container?: BasePortalProps["container"];
@@ -74,6 +74,8 @@ export function DialogClose(props: BaseCloseProps): ReactElement {
 
 export interface DialogFooterProps extends Omit<ComponentProps<"div">, "className"> {
   className?: string;
+  /** The foot sets at the end of a body taller than its content. */
+  push?: "blockEnd";
 }
 
 /**
@@ -82,16 +84,18 @@ export interface DialogFooterProps extends Omit<ComponentProps<"div">, "classNam
  * dialog's Cancel/Confirm/Done row composes this rather than a Row.
  */
 export function DialogFooter(props: DialogFooterProps): ReactElement {
-  const { className, ...rest } = props;
-  return <div className={slots.footer({ className })} data-slot="dialog-footer" {...rest} />;
+  const { className, push, ...rest } = props;
+  return <div className={dialogVariants({ footerPush: push }).footer({ className })} data-slot="dialog-footer" {...rest} />;
 }
 
 export interface DialogHeaderProps extends ComponentProps<"header"> {
   /** The header stays in view while the body scrolls under it. */
   sticky?: boolean;
+  /** A title and actions that run out of room take a second line. */
+  wrap?: boolean;
 }
 
 /** Keeps the modal heading separate from the scrolling body. */
-export function DialogHeader({ className, sticky, ...rest }: DialogHeaderProps): ReactElement {
-  return <header className={dialogVariants({ stickyHeader: sticky }).header({ className })} data-slot="dialog-header" {...rest} />;
+export function DialogHeader({ className, sticky, wrap, ...rest }: DialogHeaderProps): ReactElement {
+  return <header className={dialogVariants({ stickyHeader: sticky, headerWrap: wrap }).header({ className })} data-slot="dialog-header" {...rest} />;
 }

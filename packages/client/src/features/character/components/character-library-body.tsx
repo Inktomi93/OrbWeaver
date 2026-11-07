@@ -96,7 +96,7 @@ export function CharacterLibraryBody({
       return (
         <EmptyState
           action={
-            <Row className="flex-wrap max-inline-full" gap="field">
+            <Row wrap={true} cap="fit" gap="field">
               <Button variant="outline" onClick={onClearSearch} size="sm">
                 Clear search
               </Button>
@@ -165,10 +165,11 @@ export function CharacterLibraryBody({
     // the pane announced "list, 1 item" (the inner list) and then "list, 11 items", and the outer container
     // failed `aria-required-children` on both axe and Lighthouse's agentic audit (agent-nav 50/100). The
     // label belongs on the element that actually holds the items.
-    <Stack className="block-full min-block-0">
+    <Stack className="min-block-0" fill={true}>
       <VirtualList
         aria-label={ariaLabel}
-        className="flex-1 min-block-0"
+        className="min-block-0"
+        grow={true}
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="row"
@@ -182,7 +183,7 @@ export function CharacterLibraryBody({
           itself on every page the tail-fetch pulls. This one is for the eye — it is the answer to "is the
           list still growing under me", which the top line was being read as and could not honestly be. */}
       {loadedProgress === null ? null : (
-        <Text aria-hidden={true} className="shrink-0 self-center" voice="gloss">
+        <Text aria-hidden={true} className="shrink-0" self="center" voice="gloss">
           {loadedProgress}
         </Text>
       )}

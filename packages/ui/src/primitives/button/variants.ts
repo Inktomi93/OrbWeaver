@@ -1,38 +1,46 @@
 import type { ClassValue, VariantProps } from "tailwind-variants";
 import {
+  CAP,
   CARD_CORNERS,
   CONTROL_INLINE,
+  CONTROL_INSET,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
-  CONTROL_SIZES,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
+  FLOOR,
   FOCUS_RING,
   FOCUS_RING_INSET,
   FOCUS_RING_NONE,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
+  GROW,
   HIDDEN_AT,
   HOVER_REVEAL,
   INKS,
+  MIN_HEIGHT,
+  MIN_WIDTH,
+  PUSH,
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
+  SELF,
+  TEXT_ALIGN,
   TONE_ARMS,
+  TONE_OUTLINE,
+  TONE_TINT_HOVER,
   TOUCH_FLOOR_AT_COARSE,
   tv,
+  WIDTH,
 } from "#lib";
 import type { Tone } from "#tokens";
 import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
 
 // The button family's one recipe: the fill style, tone and state axes every button paints through `ButtonCore`, plus
 // Button's own box, the D336 control scale. A box that is not a scale step is a named component with its own recipe
-// (`GlyphButton`, `InlineAction`, `PictureButton`), so neither `size` nor `variant` has a default here: a named
+// (`BandButton`, `GlyphButton`, `InlineAction`, `PictureButton`), so neither `size` nor `variant` has a default here: a named
 // component that passes neither draws no Button box and no Button style. `Button` resolves both defaults itself.
 // The size axis is the sole owner of Button's box: a call-site class cannot reliably beat a custom-token height.
-
-// The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
-const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
 
 export const buttonVariants = tv({
   base: [
@@ -47,6 +55,8 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
+    // A label set at the line's start: the content packs to the start, and a label that wraps stays there.
+    justify: { start: "justify-start text-start", between: "justify-between" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
@@ -58,7 +68,7 @@ export const buttonVariants = tv({
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
-      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER}`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER}`,
       ghost: `text-tone-text ${TONE_TINT_HOVER}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
@@ -79,7 +89,30 @@ export const buttonVariants = tv({
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
-    wrap: { true: "py-tight whitespace-normal block-auto", false: "" },
+    wrap: { true: `py-tight wrap-anywhere whitespace-normal block-auto ${CAP.fit}`, false: "" },
+    // MULTILINE, A LINE PER FACT: a block of lines in a start-aligned column. The height follows the lines, floored at the step's
+    // height (a compound below), and the row inset replaces the step's, so the lines sit level with the list that holds them.
+    stacked: { true: "flex-col items-start p-row block-auto", false: "" },
+    // Beside `stretch`, whose `line` arm writes the same step: a lone inset is this axis, and `stretch` adds its width and start to it.
+    inset: CONTROL_INSET,
+    // Declared after `size`, so the arm's own inset beats the step's. A button that is a row's door takes the room left beside its
+    // siblings. `line` is a whole list line with the field inset. Both set their label at the start and `line` takes the full width:
+    // `ButtonCore` resolves `justify` and `width` from the arm, so a call site names neither beside it.
+    stretch: { row: "flex-1 min-inline-0", line: "px-field" },
+    // The button's own inline size, where the parent's width is the whole line.
+    width: WIDTH,
+    cap: CAP,
+    grow: GROW,
+    floor: FLOOR,
+    textAlign: TEXT_ALIGN,
+    // A label that wraps at spaces inside the nowrap base, on a box that keeps its own height: an inline action over a line of prose.
+    whitespace: { normal: "whitespace-normal" },
+    push: PUSH,
+    self: SELF,
+    minHeight: MIN_HEIGHT,
+    minWidth: MIN_WIDTH,
+    // A disabled control keeps the pointer, so the tooltip that says why it is disabled can open.
+    explainsDisabled: { true: "data-disabled:pointer-events-auto" },
     // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
     // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by
     // stylesheet order.
@@ -135,14 +168,25 @@ export const buttonVariants = tv({
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
-  // A square's width and a wrap's floor are the scale step's own height; the other boxes take neither.
-  compoundVariants: CONTROL_SIZES.flatMap((size) => [
-    { size, square: true, class: CONTROL_INLINE[size] },
-    { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
-  ]),
+  // A square's width is the scale step's own height, and a wrapping or stacked box floors at it.
+  compoundVariants: [
+    { size: "chip", square: true, class: CONTROL_INLINE.chip },
+    { size: "sm", square: true, class: CONTROL_INLINE.sm },
+    { size: "md", square: true, class: CONTROL_INLINE.md },
+    { size: "lg", square: true, class: CONTROL_INLINE.lg },
+    { size: "chip", wrap: true, class: CONTROL_MIN_BLOCK.chip },
+    { size: "sm", wrap: true, class: CONTROL_MIN_BLOCK.sm },
+    { size: "md", wrap: true, class: CONTROL_MIN_BLOCK.md },
+    { size: "lg", wrap: true, class: CONTROL_MIN_BLOCK.lg },
+    { size: "chip", stacked: true, class: CONTROL_MIN_BLOCK.chip },
+    { size: "sm", stacked: true, class: CONTROL_MIN_BLOCK.sm },
+    { size: "md", stacked: true, class: CONTROL_MIN_BLOCK.md },
+    { size: "lg", stacked: true, class: CONTROL_MIN_BLOCK.lg },
+  ],
   defaultVariants: {
     square: false,
     wrap: false,
+    stacked: false,
     shape: "control",
     selection: "none",
     underline: "none",

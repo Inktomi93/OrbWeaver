@@ -35,7 +35,7 @@ import { AddRow, HintEditor, TrackerValue } from "./tracker-blocks/index.ts";
 export function DefRow({ slot, children }: { readonly slot: string; readonly children: ReactNode }): ReactElement {
   return (
     <Card ownSlot={slot} padding="none">
-      <Stack className="px-block py-row" gap="field" rows="control">
+      <Stack paddingBlock="row" paddingInline="block" gap="field" rows="control">
         {children}
       </Stack>
     </Card>
@@ -67,7 +67,7 @@ function AttributeRow({
               onCommit({ ...attr, label: trimmed });
             }
           }}
-          className="flex-1 min-inline-0"
+          grow={true}
         />
         <Badge size="sm">{attr.key}</Badge>
         <HintTrigger
@@ -112,10 +112,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: n, max: Math.max(n + 1, profile.range.max) } });
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
       <Text as="span" voice="gloss" aria-hidden={true}>
         –
@@ -131,10 +130,9 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
             onCommit({ ...profile, range: { min: profile.range.min, max: Math.max(profile.range.min + 1, n) } });
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
       <Text as="span" voice="gloss">
         on every sheet

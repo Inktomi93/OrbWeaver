@@ -46,7 +46,7 @@ import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { InlineToken } from "@orb/ui/inline-token";
-import { Stack } from "@orb/ui/layout";
+import { Contents, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#components";
@@ -451,16 +451,16 @@ function HostControls({
         .filter((section) => section.when?.(state) ?? true)
         .map((section) => (
           <DisclosureSection
-            className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+            hiddenAt="emptyBody"
             defaultOpen={section.defaultOpen ?? CLOSED_BY_DEFAULT}
             keepMounted={true}
             key={section.id}
             kicker={section.kicker}
             sectionId={`graft:${section.id}`}
           >
-            <Stack className="contents" data-slot="chat-settings-graft-body">
+            <Contents data-section-body={true} data-slot="chat-settings-graft-body">
               {section.body(state)}
-            </Stack>
+            </Contents>
           </DisclosureSection>
         ))}
     </Stack>

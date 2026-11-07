@@ -67,7 +67,8 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a figure is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
-          className="flex items-baseline gap-row min-inline-0"
+          flow="baselineRow"
+          className="min-inline-0"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
@@ -79,7 +80,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
               is the same spelling the accent half beside it already uses. */}
           {/* The title is what gives when the band is short: the census beside it keeps its width, since a figure cut
               to "10…" says nothing, while a cut name still reads as its pane. */}
-          <Text as="span" className="truncate" voice="masthead">
+          <Text as="span" truncate={true} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
@@ -107,7 +108,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
             // now that nothing in this cluster uppercases.
             // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
             // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <CountText className="shrink-0">{count}</CountText>
+            <CountText>{count}</CountText>
           )}
         </Heading>
       </Row>

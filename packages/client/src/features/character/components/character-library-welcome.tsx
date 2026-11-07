@@ -129,7 +129,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
     // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container className="relative overflow-y-auto overscroll-contain block-full">
+    <Container scroll="y" fill={true}>
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="avatar-row" />}
@@ -290,8 +290,10 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shelf === null ? null : <CharacterShelf door="open" faces={shelf.faces} label={shelf.label} legend={null} onOpen={selectCharacter} />}
-        <Card className="p-row max-inline-(--reading-measure-prose)" variant="outline" dashed={true} padding="none">
-          <Text voice="quiet">{FRESH_HINT}</Text>
+        <Card cap="prose" variant="outline" dashed={true} padding="none">
+          <Stack padding="row">
+            <Text voice="quiet">{FRESH_HINT}</Text>
+          </Stack>
         </Card>
       </Stack>
     </LandingFrame>
@@ -336,8 +338,8 @@ function ResumeArm({
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
-          <Stack className="pbs-row" divider="top">
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+          <Stack paddingBlockStart="row" divider="top">
+            <Text cap="prose" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>
           </Stack>
@@ -364,14 +366,14 @@ function LandingFrame({
   return (
     // THE SCROLL BOX AND ITS `Container` LIVE ABOVE THE BOUNDARY (#1748) — `character-library-welcome.tsx`'s
     // own header carries why. What is left here is the chrome the read authors: the lead, the doors, the shelves.
-    <Stack gap="section" className="py-section">
+    <Stack gap="section" paddingBlock="section">
       {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
             `justify=between`, the two buttons took ~250px of a 398px pane and squeezed "Pick up where you
-            left off" into a ~110px column eleven lines tall. `@max-cq-28:flex-col` is the `actionBar` recipe's
+            left off" into a ~110px column eleven lines tall. `stackBelow="cq-28"` is the `actionBar` recipe's
             own precedent for the same shape — a row that packs by FIT rather than by breakpoint arithmetic.
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
-      <Row align="start" className="@max-cq-28:flex-col" gap="section" justify="between">
-        <Stack className="flex-1 min-inline-0" gap="tight">
+      <Row align="start" gap="section" justify="between" stackBelow="cq-28">
+        <Stack className="min-inline-0" grow={true} gap="tight">
           <Heading level={1} voice="promoted">
             {title}
           </Heading>
@@ -380,7 +382,7 @@ function LandingFrame({
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
                 is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
                 of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
-          <Text className="max-inline-(--reading-measure-prose)" voice="quiet">
+          <Text cap="prose" voice="quiet">
             {gloss}
           </Text>
         </Stack>

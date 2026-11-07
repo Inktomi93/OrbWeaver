@@ -4,12 +4,13 @@ import { Field as BaseField } from "@base-ui/react/field";
 import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
 import { useId, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { HIDDEN_AT } from "#lib";
 import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
 import { Check, Icon, TriangleAlert, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
-import { fileDropzoneVariants } from "./variants.ts";
+import { fileDropzoneBoxVariants, fileDropzoneVariants } from "./variants.ts";
 
 /** A file dropped by a client-side pre-check: outside the `accept` vocabulary, or over `maxSizeBytes`. */
 export interface FileDropzoneRejection {
@@ -24,6 +25,7 @@ export interface FileDropzoneResult {
 }
 
 export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
+  readonly hiddenAt?: VariantProps<typeof fileDropzoneBoxVariants>["hiddenAt"];
   /**
    * The accepted-file vocabulary, in HTML `accept` grammar (suffix tokens, `family/*`, exact MIMEs). It is
    * BOTH the native picker-dialog filter and this primitive's own per-file gate: the attribute alone only
@@ -237,6 +239,7 @@ export function FileDropzone({
   subject,
   instructions,
   hint,
+  hiddenAt,
   className,
   // BOTH name attributes are destructured OUT of `rest` ON PURPOSE — `nameAttributes` composes them
   // explicitly instead of letting them ride the spread. Left in `rest` they would be uncombinable: JSX
@@ -333,7 +336,7 @@ export function FileDropzone({
     // biome-ignore lint/a11y/noStaticElementInteractions: see comment above the return.
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: see comment above the return.
     <div
-      className={slots.root({ className })}
+      className={slots.root({ className: fileDropzoneBoxVariants({ hiddenAt, className }) })}
       data-disabled={disabled ? "" : undefined}
       data-drag-over={dragOver ? "" : undefined}
       data-loading={loading ? "" : undefined}

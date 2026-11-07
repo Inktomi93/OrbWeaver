@@ -291,7 +291,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
               {/* Copied on arrival. A failed copy lands in this control's own status and field, inside the dialog:
                   a toast would paint under the modal backdrop, and the link is shown only once. */}
               <CopyButton autoCopy={true} copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link">
-                <Text voice="code" className="break-all">
+                <Text voice="code" wrap="all">
                   {mintedLink}
                 </Text>
               </CopyButton>
@@ -319,7 +319,7 @@ function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => 
           Only this computer
         </Badge>
       </Row>
-      <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+      <Text voice="gloss" prose={true} cap="prose">
         {isAdmin
           ? "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing, or open this app at an address they can reach."
           : "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, open this app at an address they can reach, or ask the owner to start sharing."}

@@ -150,13 +150,13 @@ function BoundText({
   const text = resolveString(value, state);
   if (voice === "gloss" || voice === "label") {
     return (
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice={voice}>
+      <Text cap="prose" prose={true} voice={voice}>
         {text}
       </Text>
     );
   }
   return (
-    <Text className="max-inline-(--reading-measure-prose)" prose={true}>
+    <Text cap="prose" prose={true}>
       {text}
     </Text>
   );
@@ -181,7 +181,7 @@ function DisplayLeaf({
   if (node.kind === "badge") {
     return (
       // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
-      <Badge className="whitespace-normal max-inline-full" tone={PLUGIN_BADGE_TONE[node.intent ?? "neutral"]} size="sm">
+      <Badge whitespace="normal" cap="fit" tone={PLUGIN_BADGE_TONE[node.intent ?? "neutral"]} size="sm">
         {resolveString(node.text, state)}
       </Badge>
     );
@@ -264,16 +264,12 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   const media =
     url === undefined ? (
       // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
-      <Card
-        className={framed ? "flex flex-col items-center justify-center block-full inline-full" : "flex flex-col items-center justify-center"}
-        variant="outline"
-        dashed={true}
-      >
+      <Card centres={true} fill={framed} width={framed ? "full" : undefined} variant="outline" dashed={true}>
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Card>
     ) : (
       // Keep the sealed owner-scoped media path, including its broken-media fallback and contain fit.
-      <MessageMedia alt={node.alt ?? ""} {...(framed ? { className: "block-full inline-full" } : {})} media="image" src={{ kind: "asset", url }} />
+      <MessageMedia alt={node.alt ?? ""} fill={framed} media="image" src={{ kind: "asset", url }} />
     );
   return node.aspect === undefined ? media : <AspectFrame aspect={node.aspect}>{media}</AspectFrame>;
 }
@@ -393,7 +389,8 @@ function FormLeaf({
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
       <Button
-        className="self-start wrap-anywhere max-inline-full"
+        self="start"
+        cap="fit"
         disabled={buttonDisabled(node, state)}
         variant={buttonVariant(node, primaryButton)}
         loading={submitting}
@@ -435,7 +432,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
+        <Button self="start" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
           {node.label}
         </Button>
       }

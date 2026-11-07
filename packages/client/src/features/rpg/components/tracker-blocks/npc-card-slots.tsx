@@ -48,7 +48,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
               // seed state ("+ relationship") keeps its own padding for a clickable text target.
               shape="pill"
-              className={badge === null ? "px-field" : ""}
+              inset={badge === null ? "control" : undefined}
             >
               {badge ?? (
                 <>
@@ -69,7 +69,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
                 type="button"
                 variant={option === kind ? "outline" : "ghost"}
                 size="sm"
-                className="justify-start"
+                justify="start"
                 onClick={(): void => {
                   if (option !== kind) {
                     onEditRelationshipKind(option);
@@ -90,9 +90,6 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
   }
   return <RelationshipBadge relationship={relationship} />;
 }
-
-const GUIDE_LINE = "wrap-break-word min-inline-0";
-const GUIDE_FIELD = "field-sizing-content wrap-break-word max-inline-full min-inline-0";
 
 interface NpcGuidesProps {
   readonly name: string;
@@ -124,7 +121,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" ink="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true}>
+            <Text as="span" ink="muted" italic={field === "thoughts"} className="min-inline-0" voice="gloss" prose={true} wrap="word">
               {text}
             </Text>
           ) : (
@@ -135,9 +132,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
               ink="muted"
               onEdit={(next): void => onEditGuide(field, next)}
               wrap={true}
-              className={GUIDE_FIELD}
               width="auto"
-              restClassName={GUIDE_LINE}
               italic={field === "thoughts"}
             />
           )}
@@ -163,7 +158,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
+      <Row gap="field" align="baseline" className="min-inline-0" grow={true} justify="end">
         <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
@@ -174,7 +169,6 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
           placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
-          className="field-sizing-content max-inline-full min-inline-0"
           width="auto"
         />
       </Row>
@@ -184,7 +178,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" ink="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
+    <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
       mood — {mood}
     </Text>
   );
@@ -287,7 +281,7 @@ export function NpcCard({
         />
         {meters}
         {fields === undefined || fields.length === 0 ? null : (
-          <Row gap="field" className="flex-wrap">
+          <Row gap="field" wrap={true}>
             {fields.map((field) => (
               <TrackerChip
                 key={field.name}

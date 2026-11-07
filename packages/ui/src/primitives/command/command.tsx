@@ -15,7 +15,7 @@ import { cn, formatResultCount } from "#lib";
 import type { ButtonBaseProps, ButtonProps } from "#primitives/button";
 import { Button } from "#primitives/button";
 import { Icon, Search } from "#primitives/icons";
-import { commandVariants } from "./variants.ts";
+import { commandListBoxVariants, commandVariants } from "./variants.ts";
 
 const slots = commandVariants();
 
@@ -29,6 +29,8 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
   onEscape?: () => void;
   /** The palette floats on its own and casts the overlay shadow. */
   elevated?: boolean;
+  /** The palette fills its parent's block extent. */
+  fill?: boolean;
 }
 
 /**
@@ -38,14 +40,14 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
  * `Command.Dialog` is skipped (a second modal implementation alongside our Base UI Dialog); a
  * future omni-bar composes `<Dialog><Command>…</Command></Dialog>` instead.
  */
-export function Command({ className, onEscape, onKeyDown, elevated, ...rest }: CommandProps): ReactElement {
+export function Command({ className, onEscape, onKeyDown, elevated, fill, ...rest }: CommandProps): ReactElement {
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     onKeyDown?.(event);
     if (event.key === "Escape") {
       onEscape?.();
     }
   };
-  return <BaseCommandRoot className={cn(commandVariants({ elevated }).root(), className)} data-slot="command-root" onKeyDown={handleKeyDown} {...rest} />;
+  return <BaseCommandRoot className={cn(commandVariants({ elevated, fill }).root(), className)} data-slot="command-root" onKeyDown={handleKeyDown} {...rest} />;
 }
 
 export interface CommandInputProps extends Omit<ComponentProps<typeof BaseCommandInput>, "className"> {
@@ -134,13 +136,22 @@ export function CommandInput({ expanded, ref, ...rest }: CommandInputProps): Rea
   );
 }
 
-export interface CommandListProps extends Omit<ComponentProps<typeof BaseCommandList>, "className">, Pick<VariantProps<typeof commandVariants>, "listSize"> {
+export interface CommandListProps
+  extends Omit<ComponentProps<typeof BaseCommandList>, "className">,
+    Pick<VariantProps<typeof commandVariants>, "listSize">,
+    VariantProps<typeof commandListBoxVariants> {
   className?: string;
 }
 
 /** The scrollable listbox. Content-sized by default; bounded surfaces choose a declared list-size arm. */
-export function CommandList({ className, listSize, ...rest }: CommandListProps): ReactElement {
-  return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
+export function CommandList({ className, listSize, maxHeight, ...rest }: CommandListProps): ReactElement {
+  return (
+    <BaseCommandList
+      className={cn(commandVariants({ listSize }).list(), commandListBoxVariants({ maxHeight, className }))}
+      data-slot="command-list"
+      {...rest}
+    />
+  );
 }
 
 /**

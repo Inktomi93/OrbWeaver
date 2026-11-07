@@ -201,12 +201,12 @@ function SectionHeader({
   return (
     // `data-slot`: the header's LINE COUNT and its doors' trailing edge are the properties the budget above
     // is about, so they need a handle a CT can measure.
-    <Row gap="field" align="center" className="flex-wrap" data-slot="members-section-header">
+    <Row gap="field" align="center" wrap={true} data-slot="members-section-header">
       <Text as="span" voice="kicker" id={labelId}>
         {kicker}
       </Text>
       {action === undefined ? null : (
-        <Row align="center" className="ms-auto" data-slot="members-section-doors">
+        <Row align="center" push="inlineEnd" data-slot="members-section-doors">
           {action}
         </Row>
       )}
@@ -344,10 +344,10 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
-    <Stack gap="row" className="block-full min-block-0" data-testid={testId("membersPanel")}>
+    <Stack gap="row" className="min-block-0" fill={true} data-testid={testId("membersPanel")}>
       {/* A members list scrolls vertically only, so the content wraps at the viewport width and a long member
           name truncates instead of busting the panel width. */}
-      <ScrollArea className="flex-1 min-block-0" contentClassName="inline-full" wrapContent={true}>
+      <ScrollArea grow={true} className="min-block-0" contentClassName="inline-full" wrapContent={true}>
         {/* THE ANNOUNCED COMPOSITE (#208 — see the header). `toolbar` + a vertical orientation is what the
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
             are the only route to the Character rows were undiscoverable by AT and by sighted keyboard users

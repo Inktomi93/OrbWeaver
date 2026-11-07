@@ -1,13 +1,15 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
-import { assertBoundedScrollHeight, cn, gapPxFor } from "#lib";
+import { assertBoundedScrollHeight, cn, gapPxFor, SCROLL_EDGE_EPSILON_PX } from "#lib";
+import { virtualListVariants } from "./variants.ts";
 
 // TanStack's own default, made explicit.
 const OVERSCAN = 1;
 
-export interface VirtualListProps<T> {
+export interface VirtualListProps<T> extends VariantProps<typeof virtualListVariants> {
   readonly items: readonly T[];
   /**
    * Stable per-item key — MUST be id-based, never the index. Index keys break prepend stability
@@ -58,16 +60,14 @@ export interface VirtualListProps<T> {
 }
 
 const DEFAULT_END_APPROACH_ROWS = 8;
-/** Sub-pixel slack for the at-the-bottom comparison — fractional row heights leave ~0.5px behind. */
-const EDGE_EPSILON_PX = 1;
 /** The fade itself, gated on the scroll-position attribute this primitive writes. */
 const EDGE_FADE = "data-more:mask-b-from-90%";
 
 /**
  * The `@tanstack/react-virtual` seal: a windowed list whose virtualizer config the call site
  * cannot get wrong (`directDomUpdates`/`containerRef`/`useFlushSync: false`/position-mode DOM
- * updates/measureElement + data-index wiring). The parent must give the list a bounded height via
- * `className` — an unbounded scroll element throws at mount.
+ * updates/measureElement + data-index wiring). `fill`, `grow`, `height` or the parent must bound the
+ * list's height: an unbounded scroll element throws at mount.
  */
 export function VirtualList<T>({
   items,
@@ -79,6 +79,10 @@ export function VirtualList<T>({
   resetScrollReady = true,
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
+  fill,
+  grow,
+  height,
+  maxHeight,
   className,
   "aria-label": ariaLabel,
   fadeEdge = false,
@@ -146,7 +150,7 @@ export function VirtualList<T>({
     if (el === null || !fadeEdge) {
       return;
     }
-    el.toggleAttribute("data-more", totalSize - el.scrollTop - el.clientHeight > EDGE_EPSILON_PX);
+    el.toggleAttribute("data-more", totalSize - el.scrollTop - el.clientHeight > SCROLL_EDGE_EPSILON_PX);
   }, [fadeEdge, totalSize]);
 
   // Reset a changed scope in place: remounting can expose fresh rows before the direct position owner runs.
@@ -170,12 +174,12 @@ export function VirtualList<T>({
     // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
-      className={cn("relative overflow-auto overscroll-contain", fadeEdge ? EDGE_FADE : undefined, className)}
+      className={virtualListVariants({ fill, grow, height, maxHeight, className: cn(fadeEdge ? EDGE_FADE : undefined, className) })}
       data-slot="virtual-list-scroll"
       onScroll={(event): void => {
         if (fadeEdge) {
           const el = event.currentTarget;
-          el.toggleAttribute("data-more", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_EPSILON_PX);
+          el.toggleAttribute("data-more", el.scrollHeight - el.scrollTop - el.clientHeight > SCROLL_EDGE_EPSILON_PX);
         }
       }}
       role="list"

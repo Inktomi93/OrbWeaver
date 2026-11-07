@@ -56,9 +56,9 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
  *  (#573 — the near-kicker class the owner ruled takes semibold rather than a fifteenth voice). */
 function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
-    <Row gap="row" align="center" className="flex-wrap">
+    <Row gap="row" align="center" wrap={true}>
       <Text voice="kicker">{label}</Text>
-      <Text voice="datumMono" className="break-all">
+      <Text voice="datumMono" wrap="all">
         {value}
       </Text>
     </Row>
@@ -74,7 +74,7 @@ function JsonViewer({ label, value }: { readonly label: string; readonly value: 
     <Collapsible>
       <CollapsibleTrigger>{label}</CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text as="div" voice="datumMono" className="relative overflow-auto overscroll-contain whitespace-pre-wrap">
+        <Text as="div" voice="datumMono" className="relative overflow-auto overscroll-contain" whitespace="preWrap">
           {JSON.stringify(value, null, 2)}
         </Text>
       </CollapsiblePanel>

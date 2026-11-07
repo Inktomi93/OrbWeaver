@@ -20,13 +20,13 @@ export function RemoteSourceIdentity({ kind, url, identity }: { readonly kind: "
       <Text prose={true} voice="gloss">
         {kind === "git" ? "Source repository" : "Source URL"}
       </Text>
-      <Text className="wrap-anywhere whitespace-pre-wrap min-inline-0" selectAll={true} voice="datumMono">
+      <Text className="min-inline-0" whitespace="preWrap" wrap="anywhere" selectAll={true} voice="datumMono">
         {url}
       </Text>
       <Text prose={true} voice="gloss">
         {identityLabel}
       </Text>
-      <Text className="wrap-anywhere whitespace-pre-wrap min-inline-0" selectAll={true} voice="datumMono">
+      <Text className="min-inline-0" whitespace="preWrap" wrap="anywhere" selectAll={true} voice="datumMono">
         {identity}
       </Text>
     </Stack>

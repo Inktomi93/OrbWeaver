@@ -10,7 +10,7 @@ import { useFieldControlDocksEnd, useFieldIdentity } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { createSelectOpeningObserver } from "./opening.ts";
-import { selectVariants } from "./variants.ts";
+import { selectBoxVariants, selectVariants } from "./variants.ts";
 
 // Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
@@ -120,6 +120,7 @@ function renderItems<Value>(items: SelectItems<Value>, idPrefix: string): ReactN
 }
 
 export interface SelectProps<Value = string, Multiple extends boolean = false> extends Omit<SelectRootProps<Value, Multiple>, "items"> {
+  readonly floor?: VariantProps<typeof selectBoxVariants>["floor"];
   /**
    * The options — flat (`{ label, value }[]`) or grouped (`{ label, items }[]`). `Select.Value`
    * renders the selected option's label(s) automatically (comma-joined when `multiple`).
@@ -189,6 +190,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
     items,
     placeholder,
     triggerRef: externalTriggerRef,
+    floor,
     className,
     size,
     layout,
@@ -277,7 +279,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
-            className={cn(slots.trigger({ size, layout, strong }), className)}
+            className={cn(slots.trigger({ size, layout, strong }), selectBoxVariants({ floor, className }))}
             data-slot="select-trigger"
             {...variantAttrs(selectVariants, { size, layout })}
             id={triggerId}

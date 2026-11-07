@@ -209,10 +209,10 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const rowGroups = groups.list().filter((group) => group.useSearchRows !== undefined && visible.has(group.id));
 
   return (
-    <Stack aria-label="Settings search" className="flex-1 min-inline-0" role="search">
+    <Stack aria-label="Settings search" className="min-inline-0" grow={true} role="search">
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
-          <Stack className="flex-1 min-inline-0">
+          <Stack className="min-inline-0" grow={true}>
             {/* The arrival focus lands on the active group's BAND, not on this box. */}
             <CommandInput aria-label="Search settings" expanded={expanded} onValueChange={setConfigSearchQuery} placeholder="Search settings…" value={query} />
           </Stack>
@@ -229,7 +229,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </Tip>
         </Row>
         {expanded ? (
-          <CommandList className="max-block-(--container-cq-24)">
+          <CommandList maxHeight="paneSm">
             {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (

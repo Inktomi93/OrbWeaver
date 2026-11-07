@@ -381,7 +381,8 @@ export function Composer({
               onPaste={mediaDrop.onPaste}
               disabled={sendMessage.isPending}
               chrome="bare"
-              className="flex-auto resize-none overflow-y-auto overscroll-contain px-0 min-inline-0"
+              grow="content"
+              className="resize-none overflow-y-auto overscroll-contain px-0 min-inline-0"
               maxRows={COMPOSER_MAX_ROWS}
               rows={1}
               size="compact"

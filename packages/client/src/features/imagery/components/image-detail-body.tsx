@@ -94,12 +94,12 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
         media="image"
         alt={subject.alt}
         {...(subject.dims === undefined ? {} : { dims: subject.dims })}
-        className="mx-auto"
+        centred={true}
       />
       <Section kicker="Details">
         <ProvenanceStrip assetId={subject.assetId} />
       </Section>
-      <Row className="flex-wrap" gap="field" justify="end">
+      <Row wrap={true} gap="field" justify="end">
         <Button variant="ghost" onClick={(): void => openImageEdit(subject)} type="button">
           <Icon icon={Pencil} size="sm" />
           Edit image

@@ -73,7 +73,7 @@ function OwnerBudgetBody(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+      <Text voice="gloss" prose={true} cap="prose">
         A safety limit across all of your library-wide rules together, so a rule that starts repeating cannot keep spending. Each rule also has its own per-hour
         limit.
       </Text>
@@ -84,7 +84,7 @@ function OwnerBudgetBody(): ReactElement {
       <SettingRowGroup>
         <SettingTrackRow>
           <Field label="Runs per hour" orientation="horizontal" description="Across every library-wide rule you have.">
-            <Stack className="inline-(--width-control-col) max-inline-full min-inline-0">
+            <Stack className="min-inline-0" width="controlCol" cap="fit">
               <NumberField
                 min={OWNER_CAP_MIN}
                 max={OWNER_CAP_MAX}
@@ -144,7 +144,7 @@ function OwnerRulesBody(): ReactElement {
           the library, not a room. */}
       <Text voice="gloss">These rules watch your library and act on their own — no chat has to be open.</Text>
       {rules.length === 0 ? (
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           Nothing is watching your library yet. Add a rule — illustrate a character when its card changes, for instance — and it starts off until you enable it.
         </Text>
       ) : null}

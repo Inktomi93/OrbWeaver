@@ -182,6 +182,7 @@
   --size-switch-track: round(up, max(4rem, 64px), 1px);
   --size-switch-track-height: round(up, max(2.75rem, 44px), 1px);
   --size-switch-inset: round(up, max(0.5625rem, 9px), 1px);
+  --size-media-spotlight: 6rem;
   --size-checkbox: round(up, 1.125rem, 1px);
   --size-slider-thumb: round(up, 1.5rem, 1px);
   --size-slider-inset: round(up, 0.75rem, 1px);
@@ -251,6 +252,7 @@
   --opacity-hover: 80%;
   --opacity-quiet: 90%;
   --opacity-resting: 80%;
+  --opacity-held: 90%;
   --opacity-grain: 4%;
   --stroke-width-icon-regular: 1.75px;
   --stroke-width-icon-bold: 2.5px;
@@ -355,6 +357,7 @@
   --aspect-portrait: 2 / 3;
   --aspect-banner: 3 / 1;
   --dimension-panel: clamp(17rem, 24vw, 26rem);
+  --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
   --dimension-panel-context: clamp(17rem, 30vw, 30rem);
   --reading-measure: 75ch;
   --reading-measure-prose: 47ch;
@@ -376,6 +379,7 @@
   --tracking-caps: 0.025em;
   --size-switch-thumb: calc(var(--size-switch-track-height) - 2 * var(--border-width-control) - 2 * var(--size-switch-inset));
   --size-combobox-chip-chip: calc(var(--size-touch-target) - 2 * var(--border-width-control) - 2 * var(--spacing-tight));
+  --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
   --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
@@ -900,4 +904,15 @@
 
 @utility tone-host-system-bubble {
   --tone-host: var(--color-system-bubble);
+}
+
+@layer ui {
+  [data-density] {
+    --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
+    --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
+    --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
+  }
 }

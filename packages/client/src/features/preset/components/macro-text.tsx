@@ -53,12 +53,11 @@ export interface MacroTextProps {
 
 /** Both arms preserve authored whitespace and break long unbroken tokens rather than overflowing. The quoted
  *  arm sets the run in a bordered, tinted card; the `bare` arm drops it. */
-const RUN = "wrap-break-word whitespace-pre-wrap";
 
 /** A template rendered as a template: prose as text, `{{macro}}` references as braced inline chips. */
 export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactElement {
   const run = (
-    <Text className={frame === "quoted" ? "p-row wrap-break-word whitespace-pre-wrap" : RUN} prose={true} voice="code">
+    <Text inset={frame === "quoted" ? "island" : undefined} whitespace="preWrap" prose={true} voice="code" wrap="word">
       {tokens.map(
         (token, i): ReactNode =>
           token.kind === "macro" ? (

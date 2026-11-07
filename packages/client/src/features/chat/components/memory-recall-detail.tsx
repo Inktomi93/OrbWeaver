@@ -25,7 +25,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
       <Text className="shrink-0" voice="label">
         {label}
       </Text>
-      <Text className="text-end wrap-break-word min-inline-0" voice="datum">
+      <Text className="min-inline-0" textAlign="end" wrap="word" voice="datum">
         {value}
       </Text>
     </Row>
@@ -73,7 +73,7 @@ export function MemoryRecallDetail({ recall }: { readonly recall: MemoryRecallSl
         {recall.queryText === null ? null : (
           <Stack gap="row">
             <Text voice="label">{recall.queryEmbedded ? "Query (embedded)" : "Query"}</Text>
-            <Text className="whitespace-pre-wrap" voice="code">
+            <Text whitespace="preWrap" voice="code">
               {recall.queryText}
             </Text>
           </Stack>

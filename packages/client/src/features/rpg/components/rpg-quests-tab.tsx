@@ -68,7 +68,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
         placeholder="description…"
         ink="muted"
         onEdit={(next): void => edit.onEditDescription(quest, next)}
-        className="inline-full"
+        width="full"
         voice="label"
       />
     );
@@ -97,7 +97,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
           {editable ? (
             <Checkbox checked={o.completed} onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next)} aria-label={`${o.text} — completed`} />
           ) : null}
-          <Text as="span" voice="label" ink={o.completed ? "muted" : undefined} strike={o.completed} className="flex-1 min-inline-0">
+          <Text as="span" voice="label" ink={o.completed ? "muted" : undefined} strike={o.completed} className="min-inline-0" grow={true}>
             {o.text}
           </Text>
           {editable ? (
@@ -120,7 +120,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               edit.onAddObjective(quest, trimmed);
             }
           }}
-          className="inline-(--width-control-col)"
+          width="controlCol"
         />
       ) : null}
     </Stack>
@@ -194,14 +194,14 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               tone={failed ? "destructive" : undefined}
             />
           ) : null}
-          <Stack gap="field" className="flex-1 min-inline-0">
+          <Stack gap="field" className="min-inline-0" grow={true}>
             <Row gap="block" align="baseline" justify="between">
               {edit === undefined || dim ? (
                 <Text as="span" voice="label" ink={dim ? "muted" : undefined} strike={dim}>
                   {quest.name}
                 </Text>
               ) : (
-                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="inline-full" />
+                <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} width="full" />
               )}
               <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
             </Row>

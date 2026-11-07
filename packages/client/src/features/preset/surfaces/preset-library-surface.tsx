@@ -207,7 +207,7 @@ function PresetList({
                 New preset
               </Button>
             ) : (
-              <Row align="center" className="flex-wrap" gap="field" justify="center">
+              <Row align="center" wrap={true} gap="field" justify="center">
                 <Button variant="outline" onClick={(): void => setPresetSearchQuery("")} size="sm">
                   Clear search
                 </Button>

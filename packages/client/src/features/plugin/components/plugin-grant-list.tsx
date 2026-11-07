@@ -204,7 +204,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
     // hit target. Nothing here is clickable, and a pointer cursor over a statement is the same false
     // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
     <Stack gap="tight">
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <Text id={nameId} voice="label">
           {copy.label}
         </Text>
@@ -242,11 +242,11 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
           — so 65ch reads 93-101 law characters and never satisfied the 65-75 band this comment used to claim
           it did. `--reading-measure-prose` (47ch) is the derived teaching/body measure (#1145), and it rides
           the PARAGRAPH because a `ch` resolves in the element's own font. */}
-      <Text className="max-inline-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
+      <Text cap="prose" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
       {roleUnset ? (
-        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {NO_IMAGE_MODEL_NOTE}
         </Text>
       ) : null}
@@ -261,9 +261,11 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
       {checked ? (
         <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
-        <Stack aria-hidden={true} className="shrink-0 inline-(--size-checkbox)" />
+        <Stack aria-hidden={true} className="shrink-0" width="checkbox" />
       )}
-      <Stack className="flex-1 min-inline-0">{labelBlock}</Stack>
+      <Stack className="min-inline-0" grow={true}>
+        {labelBlock}
+      </Stack>
     </Row>
   );
 }

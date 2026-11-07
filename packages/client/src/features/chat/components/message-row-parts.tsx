@@ -14,6 +14,7 @@ import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegis
 import { renderMessageForDisplay } from "#lib";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
+import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
 import { NO_MOVE_NEIGHBOURS } from "../lib/move-neighbours.ts";
@@ -26,7 +27,6 @@ import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageReasoning } from "./message-reasoning.tsx";
-import type { MessageBoxFacts } from "./message-row-bubble.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { SwipeCount, SwipeStrip } from "./swipe-strip.tsx";
@@ -144,7 +144,7 @@ export function themedColumnContent(tokens: ThemeScopeTokens | null, content: Re
     return content;
   }
   return (
-    <ThemeScope tokens={tokens} className="contents">
+    <ThemeScope tokens={tokens} box="contents">
       {content}
     </ThemeScope>
   );
@@ -185,15 +185,12 @@ export function renderRowBubble(args: {
   readonly artView: ArtView | null;
   readonly onArtFailed?: ArtFailedReport;
 }): ReactElement {
-  const facts: MessageBoxFacts = {
-    box: args.skin.box,
+  const facts = messageBoxFacts(args.skin, args.decoration, {
     role: args.role,
-    phoneCap: args.skin.phoneCap,
-    corners: args.skin.corners,
     lastRowFloor: args.lastRow && args.skin.lastRowFloor,
     editing: args.editing,
     receded: args.message.excludedFromPrompt,
-  };
+  });
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({
@@ -230,7 +227,6 @@ export function renderRowBubble(args: {
             {...facts}
             shape="stack"
             positioned={false}
-            artDecoration={args.decoration?.treatment}
           >
             <MessageContent
               content={paragraph}

@@ -12,7 +12,7 @@ export function AddConnectionFailure({ sentence, ref }: { readonly sentence: str
   return (
     <Row align="start" data-slot="add-connection-failure" gap="field" ref={ref} role="alert" tabIndex={-1}>
       <Icon className="shrink-0" icon={TriangleAlert} size="sm" tone="destructive" />
-      <Text tone="destructive" className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text tone="destructive" cap="prose" prose={true} voice="gloss">
         {sentence}
       </Text>
     </Row>
