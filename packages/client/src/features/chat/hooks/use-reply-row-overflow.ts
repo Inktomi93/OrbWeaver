@@ -14,11 +14,6 @@ type SeatSetter = (node: HTMLElement | null) => void;
 // Sub-pixel layout rounding must not flip a fit that holds.
 const FIT_EPSILON = 0.5;
 
-/** The props of one movable box: in flow, or kept mounted out of flow and unreachable while its action sits in the menu, so its width stays measurable. */
-export function replyBox(out: boolean): { readonly className: string; readonly outOfFlow: boolean; readonly inert: boolean } {
-  return { className: "shrink-0", outOfFlow: out, inert: out };
-}
-
 const gapOf = (element: HTMLElement): number => Number.parseFloat(getComputedStyle(element).columnGap) || 0;
 const widthOf = (element: HTMLElement): number => element.getBoundingClientRect().width;
 

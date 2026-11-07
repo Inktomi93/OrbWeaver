@@ -213,9 +213,9 @@ function FrameRow({
       // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
       // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
       width={chip && !pinned ? "fit" : undefined}
+      reverse={flip}
       className={cn(
         "flex-wrap",
-        flip && "flex-row-reverse",
         reachTrain && "self-stretch",
         chip && !pinned && "ms-auto",
         overlayClass,

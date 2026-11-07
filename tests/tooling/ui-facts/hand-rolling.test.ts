@@ -243,7 +243,7 @@ test("the owner comes from the element's own table, so an axis no census table n
   expect(brief(named(classes, "float-left"))).toEqual(["class-utility", "recipe", "stack.sway"]);
   // The merger puts float-none in the axis's family; no arm writes it.
   expect(brief(named(classes, "float-none"))).toEqual(["class-utility", "decide", "new arm: stack.sway"]);
-  expect(named(classes, "relative")).toBeUndefined();
+  expect(brief(named(classes, "relative"))).toEqual(["class-utility", "keep", "keep: containing-block"]);
 });
 
 test("a class in a lookup map or a helper argument is conditional: the prop would apply it in every state", ({ scratch }) => {
@@ -362,48 +362,116 @@ test("a step that writes fewer families stays on its axis, and a one-arm axis th
   expect(census(root).hits.filter((hit) => hit.detail === "block-(--size-control-sm)")).toMatchObject([{ verdict: "decide", owner: "new arm: swatch.size" }]);
 });
 
-const PART_DOORS = ["one", "two", "three", "four"] as const;
-
-/** A Box door whose `scroll` arm writes `overflow-y-auto overscroll-contain relative`, and three more doors that each need `relative`. */
-function plantPartWorn(root: string, uses: string): void {
+/** One door per entry: `Box` applies `axes` as its own table, and the table is all the door writes. */
+function plantBoxes(root: string, doors: Readonly<Record<string, string>>, uses: string): void {
   plant(root, { "components/uses.tsx": uses });
   plantFile(
     root,
     "packages/ui/package.json",
-    JSON.stringify({ exports: Object.fromEntries(PART_DOORS.map((door) => [`./${door}`, `./src/primitives/${door}/index.ts`])) }),
+    JSON.stringify({ exports: Object.fromEntries(Object.keys(doors).map((door) => [`./${door}`, `./src/primitives/${door}/index.ts`])) }),
   );
-  for (const door of PART_DOORS) {
-    const arm = door === "one" ? "overflow-y-auto overscroll-contain relative" : "relative ring";
+  for (const [door, axes] of Object.entries(doors)) {
+    const names = [...axes.matchAll(/(?:^|\}, )(?<axis>\w+):/gu)].map((match) => match.groups?.["axis"] ?? "").join(", ");
     plantFile(root, `packages/ui/src/primitives/${door}/index.ts`, `export { Box } from "./box.tsx";`);
-    plantFile(root, `packages/ui/src/primitives/${door}/variants.ts`, `export const boxVariants = tv({ variants: { scroll: { y: '${arm}' } } });`);
+    plantFile(root, `packages/ui/src/primitives/${door}/variants.ts`, `export const boxVariants = tv({ variants: { ${axes} } });`);
     plantFile(
       root,
       `packages/ui/src/primitives/${door}/box.tsx`,
-      "export function Box({ scroll, className }) {\n  return <div className={boxVariants({ scroll, className })} />;\n}",
+      `export function Box({ ${names}, className }) {\n  return <div className={boxVariants({ ${names}, className })} />;\n}`,
     );
   }
 }
 
-test("two classes of an arm worn together are that arm, whatever they are, and a lone class of it counts when it carries the arm's meaning", ({ scratch }) => {
+const SCROLL_DOOR = { one: "scroll: { y: 'overflow-y-auto overscroll-contain sticky' }" };
+
+test("a class of an arm is part of that arm when it tells the arm from its siblings, alone or worn with another", ({ scratch }) => {
   const root = plantDir(scratch, "part-worn");
-  plantPartWorn(
+  plantBoxes(
     root,
-    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="overscroll-contain relative" />;\nexport const B = () => <Box className="overflow-y-auto" />;',
+    SCROLL_DOOR,
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="overscroll-contain sticky" />;\nexport const B = () => <Box className="overflow-y-auto" />;',
   );
   const rows = census(root).hits.filter((hit) => hit.owner === "part of: box.scroll.y");
-  expect(rows.map((hit) => hit.detail).toSorted(compare)).toEqual(["overflow-y-auto", "overscroll-contain", "relative"]);
+  expect(rows.map((hit) => hit.detail).toSorted(compare)).toEqual(["overflow-y-auto", "overscroll-contain", "sticky"]);
   expect(rows.every((hit) => hit.verdict === "decide")).toBe(true);
 });
 
-test("a lone class that many doors write is the mechanism they ride on and names no arm; the whole arm is the arm's own row", ({ scratch }) => {
-  const root = plantDir(scratch, "part-mechanism");
-  plantPartWorn(
+test("a class every arm of an axis repeats names the axis and no arm, and the class that tells an arm apart is part of that arm", ({ scratch }) => {
+  const root = plantDir(scratch, "part-rides");
+  plantBoxes(
     root,
-    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="relative" />;\nexport const B = () => <Box className="overflow-y-auto overscroll-contain relative" />;',
+    { one: "corner: { start: 'absolute inset-s-row', end: 'absolute inset-e-row' }" },
+    'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="absolute" />;\nexport const B = () => <Box className="inset-s-row" />;',
   );
   const hits = census(root).hits;
+  expect(named(hits, "absolute")?.owner).toBe("rides on: box.corner");
+  expect(named(hits, "inset-s-row")?.owner).toBe("part of: box.corner.start");
+});
+
+test("an edit to one primitive removes no row on another, however many doors come to write the class", ({ scratch }) => {
+  const uses = 'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className="flex-col" />;';
+  const stacked = { one: "size: { stacked: 'flex-col items-start', band: 'gap-tight' }" };
+  const doors = {
+    two: "lay: { col: 'flex-col items-start', row: 'flex-row' }",
+    three: "lay: { col: 'flex-col ring', row: 'flex-row' }",
+    four: "lay: { col: 'flex-col p-row' }",
+  };
+  const before = plantDir(scratch, "door-count-before");
+  plantBoxes(before, { ...stacked, ...doors }, uses);
+  const after = plantDir(scratch, "door-count-after");
+  plantBoxes(after, { ...stacked, ...doors, five: "chip: { col: 'flex-col items-start' }" }, uses);
+  const rowsOf = (root: string): readonly string[] =>
+    census(root)
+      .hits.filter((hit) => hit.detail === "flex-col")
+      .map((hit) => hit.owner);
+  expect(rowsOf(before)).toEqual(["part of: box.size.stacked"]);
+  expect(rowsOf(after)).toEqual(rowsOf(before));
+});
+
+test("an arm that writes a part inside the component names no arm for a class on its root", ({ scratch }) => {
+  const root = plantDir(scratch, "part-slot");
+  plant(root, { "components/uses.tsx": 'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="sticky" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    "export const rowVariants = tv({ slots: { root: '', label: '' }, variants: { pin: { top: { label: 'sticky top-0' }, flat: 'block-full' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Row({ pin, className }) {\n  return <div className={rowVariants({ pin, className })} />;\n}",
+  );
+  expect(census(root).hits.filter((hit) => hit.detail === "sticky")).toEqual([]);
+});
+
+test("an axis that writes only a part inside the component chooses nothing on its root", ({ scratch }) => {
+  const root = plantDir(scratch, "slot-axis");
+  plant(root, { "components/uses.tsx": 'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="text-center" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    "export const rowVariants = tv({ slots: { root: '', label: '' }, variants: { edge: { start: { label: 'text-start' }, end: { label: 'text-end' } } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Row({ edge, className }) {\n  return <div className={rowVariants({ edge, className })} />;\n}",
+  );
+  expect(census(root).hits.filter((hit) => hit.detail === "text-center")).toEqual([]);
+});
+
+test("a containing block is a coded keep, on a primitive with no arm that writes it and on one with an arm that does", ({ scratch }) => {
+  const root = plantDir(scratch, "containing-block");
+  plantBoxes(root, SCROLL_DOOR, 'import { Box } from "@orb/ui/one";\nexport const A = () => <Box className={cn(open && "relative")} />;');
+  expect(census(root).hits.filter((hit) => hit.detail === "relative")).toMatchObject([{ verdict: "keep", keep: "containing-block" }]);
+});
+
+test("an arm worn whole is the arm's own row, never a part of it", ({ scratch }) => {
+  const root = plantDir(scratch, "part-whole");
+  plantBoxes(root, SCROLL_DOOR, 'import { Box } from "@orb/ui/one";\nexport const B = () => <Box className="overflow-y-auto overscroll-contain sticky" />;');
+  const hits = census(root).hits;
   expect(hits.filter((hit) => hit.owner.startsWith("part of"))).toEqual([]);
-  expect(hits.filter((hit) => hit.owner === "box.scroll").map((hit) => hit.line)).toEqual([3, 3, 3]);
+  expect(hits.filter((hit) => hit.owner === "box.scroll").map((hit) => hit.line)).toEqual([2, 2, 2]);
 });
 
 test("a class under a min step beside its resting class is the max-step arm written from the other side", ({ scratch }) => {
@@ -456,6 +524,105 @@ test("a different value of the family a steps ramp writes under the same step as
   expect(ownedRows.map((hit) => [hit.verdict, hit.owner])).toEqual([["recipe", "row.reverseBelow"]]);
 });
 
+test.for([
+  ["plain", "flex-col", "new arm: row.stackBelow"],
+  ["under a guard", '{cn(open && "flex-col")}', "new arm: row.stackBelow, conditional"],
+  ["at a min step", "@cq-32:flex-col", "new arm: row.stackBelow, conditional"],
+  ["reversed", "flex-col-reverse", "new axis beside: row.stackBelow"],
+  ["reversed under a step", "@max-cq-32:flex-col-reverse", "new axis beside: row.stackBelow"],
+] as const)("a class of the family a ramp writes only under a variant is that ramp's question when written %s", ([, written, owner], { scratch }) => {
+  const root = plantDir(scratch, "ramp-family");
+  const value = written.startsWith("{") ? written : `"${written}"`;
+  plantRestack(
+    root,
+    "stackBelow: { 'cq-28': '@max-cq-28:flex-col', 'cq-32': '@max-cq-32:flex-col' }",
+    "stackBelow",
+    `import { Row } from "@orb/ui/layout";\nexport const A = ({ open }) => <Row className=${value} />;`,
+  );
+  expect(census(root).hits.filter((hit) => hit.category === "class-utility")).toMatchObject([{ verdict: "decide", owner }]);
+});
+
+test("a class that evicts the base is the sibling built on it, and with no such sibling a row the lint leaves alone", ({ scratch }) => {
+  const root = plantDir(scratch, "against-base");
+  plant(root, {
+    "components/uses.tsx":
+      'import { Row, Stack } from "@orb/ui/layout";\nexport const A = () => <><Stack className="grid" /><Row className="inline-grid" /></>;',
+  });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    [
+      "export const rowVariants = tv({ base: 'flex', variants: { gap: { row: 'gap-row' } } });",
+      "export const stackVariants = tv({ base: 'flex', variants: { gap: { row: 'gap-row' } } });",
+      "export const gridVariants = tv({ base: 'grid', variants: { gap: { row: 'gap-row' } } });",
+    ].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    ["Row", "Stack", "Grid"]
+      .map((name) => `export function ${name}({ gap, className }) {\n  return <div className={${name.toLowerCase()}Variants({ gap, className })} />;\n}`)
+      .join("\n"),
+  );
+  const hits = census(root).hits;
+  expect(named(hits, "grid")?.owner).toBe("another primitive: grid on stack is grid");
+  expect(named(hits, "inline-grid")?.owner).toBe("against base: row writes flex");
+});
+
+test("a family only another door chooses is a row on any primitive of any door, and the summary states what the rows do not cover", ({ scratch }) => {
+  const root = plantDir(scratch, "other-door");
+  plant(root, {
+    "components/uses.tsx":
+      'import { Text } from "@orb/ui/text";\nexport const A = () => <><Text className="p-block" /><Text className="min-inline-0 shrink-0" /><Text className="min-inline-0" /></>;',
+  });
+  const { hits, markdown } = census(root);
+  expect(named(hits, "p-block")).toMatchObject({ verdict: "decide", owner: "no axis: p-block on text" });
+  expect(markdown).toContain("These rows do not cover 3 class uses on `@orb/ui` elements, 2 distinct classes");
+  expect(markdown).toContain("| min-inline-0 | 2 | 1 |");
+  expect(markdown).toContain("| Text | 3 | 2 |");
+  expect(markdown).toContain("| shrink-0 on Text | 1 | 1 |");
+});
+
+test("a class in a spread object is read on the element, and a guard around the object marks it conditional", ({ scratch }) => {
+  const root = plantDir(scratch, "spread-class");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      'const PROPS = { className: "justify-end" };',
+      "export const A = () => <Row {...PROPS} />;",
+      'export const B = ({ open }) => <Row {...(open ? { className: "justify-between items-baseline" } : {})} />;',
+    ].join("\n"),
+  });
+  const hits = census(root).hits;
+  expect(
+    hits
+      .filter((hit) => hit.owner.startsWith("row.justify"))
+      .map((hit) => `${hit.detail} ${hit.owner}`)
+      .toSorted(compare),
+  ).toEqual(["items-baseline row.justify, conditional", "justify-between row.justify, conditional", "justify-end row.justify"]);
+});
+
+test("a class on a wrapper is judged on the primitive it lands on, through a local component, an import and an index", ({ scratch }) => {
+  const root = plantDir(scratch, "wrappers");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      'import { Far } from "./far.tsx";',
+      'import { Near } from "./index.ts";',
+      "const Pass = ({ gap, ...rest }) => <Row gap={gap} {...rest} />;",
+      'export const A = () => <><Pass className="justify-end" /><Far className="p-block" /><Near className="p-row" /></>;',
+    ].join("\n"),
+    "components/far.tsx":
+      'import { Row } from "@orb/ui/layout";\nimport { cn } from "#lib";\nexport function Far({ className }) {\n  return <Row className={cn("flex-wrap", className)} />;\n}',
+    "components/index.ts": 'export { Near } from "./near.tsx";',
+    "components/near.tsx": 'import { Stack } from "@orb/ui/layout";\nexport function Near({ className }) {\n  return <Stack className={className} />;\n}',
+  });
+  const hits = census(root).hits;
+  expect(named(hits, "justify-end")).toMatchObject({ verdict: "decide", owner: "through pass: row.justify" });
+  expect(named(hits, "p-block")?.owner).toBe("through far: no axis: p-block on row");
+  expect(named(hits, "p-row")).toMatchObject({ verdict: "decide", owner: "through near: stack.padding" });
+});
+
 test("a ramp of different values takes a new value as a new arm, not as an axis beside it", ({ scratch }) => {
   const root = plantDir(scratch, "beside-values");
   plantRestack(
@@ -477,7 +644,7 @@ test("an arm of several families is a composition: it offers none of them as a c
     'import { Row } from "@orb/ui/layout";\nexport const A = () => <Row className="relative" />;\nexport const B = () => <Row className="p-row" />;',
   );
   const hits = census(root).hits;
-  expect(hits.filter((hit) => hit.detail === "relative")).toEqual([]);
+  expect(hits.filter((hit) => hit.detail === "relative" && hit.verdict !== "keep")).toEqual([]);
   expect(hits.filter((hit) => hit.detail === "p-row")).toMatchObject([{ verdict: "decide", owner: "new arm: row.inset" }]);
 });
 
@@ -1082,6 +1249,63 @@ test("two elements on one line are two sites, each judged by itself", ({ scratch
   expect(plan.review.map(({ token, reason }) => [token, reason])).toEqual([
     ["justify-end", "justify-center from the class string renders after the justify slot and conflicts with justify-end"],
   ]);
+});
+
+function planFor(root: string, owner: string): MigrationPlan {
+  migrate(root, "plan", owner);
+  return planOf(root);
+}
+
+const COMPOUND_DOOR = [
+  "export const pillVariants = tv({",
+  "  variants: {",
+  "    width: { full: 'inline-full', fit: 'inline-fit' },",
+  "    size: { chip: 'p-row', sm: 'p-block' },",
+  "    square: { true: 'shrink-0' },",
+  "  },",
+  "  compoundVariants: [",
+  "    { size: 'chip', square: true, class: 'inline-(--size-touch-target)' },",
+  "    { size: ['sm', 'chip'], width: 'fit', class: 'gap-row' },",
+  "    { size: 'sm', class: 'inline-(--size-control-sm)' },",
+  "  ],",
+  "  defaultVariants: { size: 'chip' },",
+  "});",
+].join("\n");
+
+function compoundPlan(scratch: string, name: string, attributes: string): MigrationPlan {
+  const root = plantDir(scratch, name);
+  plant(root, { "components/uses.tsx": `import { Pill } from "@orb/ui/text";\nexport const A = () => <Pill className="inline-full" ${attributes} />;` });
+  plantFile(root, "packages/ui/src/primitives/text/variants.ts", COMPOUND_DOOR);
+  plantFile(
+    root,
+    "packages/ui/src/primitives/text/text.tsx",
+    "export function Pill({ width, size, square, className }) {\n  return <i className={pillVariants({ width, size, square, className })} />;\n}",
+  );
+  return planFor(root, "pill.width");
+}
+
+test("a compound counts against a move only when its conditions can hold on the element's props", ({ scratch }) => {
+  expect(compoundPlan(scratch, "compound-off", 'size="chip"').sites).toHaveLength(1);
+  const fired = compoundPlan(scratch, "compound-on", 'size="chip" square={true}');
+  expect(fired.sites).toEqual([]);
+  expect(fired.review.map((site) => site.reason)).toEqual([expect.stringContaining("inline-(--size-touch-target) from a compound variant")]);
+  expect(compoundPlan(scratch, "compound-any", "size={size} square={square}").sites).toEqual([]);
+  expect(compoundPlan(scratch, "compound-default", "").sites).toHaveLength(1);
+  expect(compoundPlan(scratch, "compound-sm", 'size="sm"').sites).toEqual([]);
+});
+
+test("a compound that reads the moved axis refuses only when the move can reach it", ({ scratch }) => {
+  const off = compoundPlan(scratch, "reacts-off", 'size="sm" square={true}');
+  expect(off.review.map((site) => site.reason).join()).not.toContain("reacts to width");
+  const root = plantDir(scratch, "reacts-on");
+  plant(root, { "components/uses.tsx": 'import { Pill } from "@orb/ui/text";\nexport const A = () => <Pill className="inline-full" size="chip" />;' });
+  plantFile(root, "packages/ui/src/primitives/text/variants.ts", COMPOUND_DOOR.replace("width: 'fit'", "width: 'full'"));
+  plantFile(
+    root,
+    "packages/ui/src/primitives/text/text.tsx",
+    "export function Pill({ width, size, square, className }) {\n  return <i className={pillVariants({ width, size, square, className })} />;\n}",
+  );
+  expect(planFor(root, "pill.width").review.map((site) => site.reason)).toEqual([expect.stringContaining("reacts to width")]);
 });
 
 test("a move is allowed past an axis that writes before it, where the arm wins as the class did", ({ scratch }) => {

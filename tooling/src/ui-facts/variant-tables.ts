@@ -11,12 +11,14 @@ import { axesIn, classTokensOf, doorDirs, readClasses, scaleIndex } from "./vari
 const MAX_HOPS = 3;
 const CLASS_NAME = "className";
 const COMPOUND_LISTS = ["compoundVariants", "compoundSlots"] as const;
+// A `compoundSlots` entry names the slots it writes under this key, beside its conditions.
+const COMPOUND_SLOTS = "slots";
 const STAMP_TUPLE = "STAMPED_VARIANT_AXES";
 
 /** One `compoundVariants` entry. */
-interface Compound {
-  /** The axes its condition reads. */
-  readonly reads: readonly string[];
+export interface Compound {
+  /** Axis to the arms its condition accepts, or null for a condition the syntax cannot read. */
+  readonly conditions: ReadonlyMap<string, readonly string[] | null>;
   readonly tokens: readonly string[];
 }
 
@@ -25,6 +27,8 @@ export interface ComponentRecipe {
   readonly axes: ReadonlyMap<string, ArmClasses>;
   /** Every axis its tables declare, forwarded or not, in the order `tv()` writes them. */
   readonly declared: ReadonlyMap<string, ArmClasses>;
+  /** What the tables it applies write with no prop at all: the primitive it is. */
+  readonly base: readonly string[];
   /** The axes whose arm list the syntax could not fully read. */
   readonly unread: ReadonlySet<string>;
   /** Axis to the arm `defaultVariants` names. */
@@ -41,9 +45,15 @@ export interface ComponentRecipe {
   /** Axis to the arm the door itself passes, or null for a value it computes; the caller's prop never reaches such an axis. */
   readonly chosen: ReadonlyMap<string, string | null>;
   /** Axis to the prop that carries it: the door reads it as a member of that prop (`size: scale?.size`), so a wrapper hands it on inside that prop. */
-  readonly carried: ReadonlyMap<string, string>;
+  readonly carried: ReadonlyMap<string, CarriedAxis>;
   /** The tables the door applies, as their exporting file and name, so a check can call the real recipes. */
   readonly applied: readonly TableRef[];
+}
+
+interface CarriedAxis {
+  readonly prop: string;
+  /** The member of that prop the door reads the axis from. */
+  readonly member: string;
 }
 
 interface TableRef {
@@ -94,13 +104,31 @@ function compoundEntries(expression: ts.Expression, hops: number): readonly ts.O
 
 const isClassKey = (name: string): boolean => name === "class" || name === CLASS_NAME;
 
+/** The arm a condition value names, by the key the table writes: a string, a number or a boolean. */
+function conditionArm(expression: ts.Expression): string | null {
+  const value = unwrap(expression);
+  return ts.isNumericLiteral(value) ? value.text : literalArm(value);
+}
+
+/** The arms one condition accepts; a list accepts each of its members, and anything the syntax cannot name reads as null. */
+function conditionArms(property: ts.ObjectLiteralElementLike): readonly string[] | null {
+  const value = ts.isPropertyAssignment(property) ? unwrap(property.initializer) : undefined;
+  if (value === undefined) {
+    return null;
+  }
+  const arms = (ts.isArrayLiteralExpression(value) ? [...value.elements] : [value]).map(conditionArm);
+  return arms.includes(null) ? null : arms.flatMap((arm) => arm ?? []);
+}
+
 function compoundOf(entry: ts.ObjectLiteralExpression, index: ScaleIndex): Compound {
-  const names = entry.properties.flatMap((property) => (ts.isSpreadAssignment(property) ? [] : [property.name.getText()]));
+  const named = entry.properties.filter((property) => !ts.isSpreadAssignment(property));
+  const names = named.map((property) => property.name.getText());
   const tokens = names.filter(isClassKey).flatMap((name) => {
     const value = configProperty(entry, name);
     return value === undefined ? [] : classTokensOf(value, index, 0);
   });
-  return { reads: names.filter((name) => !isClassKey(name)), tokens };
+  const conditions = named.filter((property) => !isClassKey(property.name.getText()) && property.name.getText() !== COMPOUND_SLOTS);
+  return { conditions: new Map(conditions.map((property) => [property.name.getText(), conditionArms(property)])), tokens };
 }
 
 const compoundUnread = (entry: ts.ObjectLiteralExpression, index: ScaleIndex): boolean =>
@@ -160,7 +188,7 @@ function tablesIn(sf: ts.SourceFile, index: ScaleIndex, file: string): ReadonlyM
 }
 
 /** The exported or local components a file declares: an uppercase function, or an uppercase const holding a function. */
-function componentsIn(sf: ts.SourceFile): readonly (readonly [string, ts.Node])[] {
+export function componentsIn(sf: ts.SourceFile): readonly (readonly [string, ts.Node])[] {
   return sf.statements.flatMap((statement): readonly (readonly [string, ts.Node])[] => {
     if (ts.isFunctionDeclaration(statement) && statement.name !== undefined && COMPONENT_NAME.test(statement.name.text)) {
       return [[statement.name.text, statement]];
@@ -200,16 +228,16 @@ const chosenIn = (object: ts.ObjectLiteralExpression | undefined): readonly (rea
       : [],
   );
 
-/** The axes a call reads as the same-named member of one identifier, with that identifier. */
-const carriedIn = (object: ts.ObjectLiteralExpression | undefined): readonly (readonly [string, string])[] =>
+/** The axes a call reads as a member of one identifier, with that identifier and the member. */
+const carriedIn = (object: ts.ObjectLiteralExpression | undefined): readonly (readonly [string, CarriedAxis])[] =>
   (object?.properties ?? []).flatMap((property) => {
     const value = ts.isPropertyAssignment(property) ? unwrap(property.initializer) : undefined;
-    return value !== undefined && ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.name.text === property.name?.getText()
-      ? [[value.name.text, value.expression.text] as const]
+    return value !== undefined && ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)
+      ? [[property.name?.getText() ?? "", { prop: value.expression.text, member: value.name.text }] as const]
       : [];
   });
 
-const firstFunction = (body: ts.Node): ts.SignatureDeclaration | undefined => {
+export const firstFunction = (body: ts.Node): ts.SignatureDeclaration | undefined => {
   let found: ts.SignatureDeclaration | undefined;
   visit(body, (node) => {
     found ??= ts.isFunctionLike(node) ? node : undefined;
@@ -244,7 +272,7 @@ function readsPropsWhole(fn: ts.SignatureDeclaration, name: string): boolean {
  * The pattern a function takes its props through: its first parameter, or the destructuring of a first parameter named in its body
  * (`const { a, b, ...rest } = props`) when that is the only way the body holds the object whole.
  */
-function propsPattern(fn: ts.SignatureDeclaration | undefined): ts.ObjectBindingPattern | undefined {
+export function propsPattern(fn: ts.SignatureDeclaration | undefined): ts.ObjectBindingPattern | undefined {
   const name = fn?.parameters[0]?.name;
   if (fn === undefined || name === undefined) {
     return undefined;
@@ -453,6 +481,7 @@ function recipeOf(body: ts.Node, { index, stamped }: ReadContext, tables: Readon
   return {
     axes,
     declared,
+    base: applied.flatMap(({ table }) => table.base),
     unread,
     defaults: new Map([
       ...applied.flatMap(({ table }) => [...table.defaults]),
@@ -479,16 +508,26 @@ function destructuredNames(body: ts.Node): ReadonlySet<string> {
  * The recipe of a component that applies no table of its own and renders one component of its door with the rest of its props
  * (`<ButtonCore {...rest} />`): the rendered component's axes, less any the wrapper takes itself and does not hand on under their own name.
  */
-function wrapperRecipe(body: ts.Node, components: ReadonlyMap<string, ComponentRecipe>): ComponentRecipe | undefined {
-  const rendered: ts.JsxSelfClosingElement[] = [];
+function wrapperRecipe(wrapper: string, body: ts.Node, components: ReadonlyMap<string, ComponentRecipe>): ComponentRecipe | undefined {
+  const rendered: ts.JsxOpeningLikeElement[] = [];
   visit(body, (node) => {
-    if (ts.isJsxSelfClosingElement(node) && components.has(node.tagName.getText()) && node.attributes.properties.some(ts.isJsxSpreadAttribute)) {
+    if (
+      (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
+      components.has(node.tagName.getText()) &&
+      node.attributes.properties.some(ts.isJsxSpreadAttribute)
+    ) {
       rendered.push(node);
     }
   });
   const [element] = rendered;
   const core = element === undefined ? undefined : components.get(element.tagName.getText());
-  if (element === undefined || core === undefined || rendered.length !== 1) {
+  if (element === undefined || core === undefined) {
+    return undefined;
+  }
+  if (rendered.length !== 1) {
+    if (core.carried.size > 0) {
+      throw new Error(`${wrapper} renders ${element.tagName.getText()} more than once, so the axes it carries in a prop cannot be read`);
+    }
     return undefined;
   }
   const passedByName = new Set(
@@ -502,7 +541,7 @@ function wrapperRecipe(body: ts.Node, components: ReadonlyMap<string, ComponentR
     ),
   );
   const taken = [...destructuredNames(body)].filter((name) => !passedByName.has(name));
-  const handed = handedInside(element, core);
+  const handed = handedInside(wrapper, element, core);
   const params = [...(paramDefaults(body) ?? [])].flatMap(([axis, arm]) => (arm === null ? [] : [[axis, arm] as const]));
   return {
     ...core,
@@ -512,18 +551,27 @@ function wrapperRecipe(body: ts.Node, components: ReadonlyMap<string, ComponentR
   };
 }
 
-/** The axes a wrapper hands on inside the prop that carries them (`scale={{ size, square }}`): the caller's own prop reaches each one. */
-function handedInside(element: ts.JsxSelfClosingElement, core: ComponentRecipe): ReadonlySet<string> {
+/**
+ * The axes a wrapper hands on inside the prop that carries them (`scale={{ size, square }}`): the caller's own prop reaches each one. A carrying prop
+ * the syntax cannot open is a read failure: its axes would vanish from every tool with no row and no refusal.
+ */
+function handedInside(wrapper: string, element: ts.JsxOpeningLikeElement, core: ComponentRecipe): ReadonlySet<string> {
+  const carrying = new Set([...core.carried.values()].map(({ prop }) => prop));
   return new Set(
     element.attributes.properties.flatMap((attribute) => {
-      const value =
-        ts.isJsxAttribute(attribute) && attribute.initializer !== undefined && ts.isJsxExpression(attribute.initializer)
-          ? attribute.initializer.expression
-          : undefined;
+      const prop = attribute.name?.getText();
+      if (!ts.isJsxAttribute(attribute) || prop === undefined || !carrying.has(prop)) {
+        return [];
+      }
+      const value = attribute.initializer !== undefined && ts.isJsxExpression(attribute.initializer) ? attribute.initializer.expression : undefined;
       const object = value === undefined ? undefined : unwrap(value);
-      return object !== undefined && ts.isObjectLiteralExpression(object)
-        ? [...forwardedBy(object)].filter((axis) => core.carried.get(axis) === attribute.name?.getText())
-        : [];
+      if (object === undefined || !ts.isObjectLiteralExpression(object) || object.properties.some(ts.isSpreadAssignment)) {
+        throw new Error(
+          `${wrapper} hands ${prop} to ${element.tagName.getText()} in a shape the reader cannot open; write it as an object literal of its members`,
+        );
+      }
+      const members = forwardedBy(object);
+      return [...core.carried].filter(([, carried]) => carried.prop === prop && members.has(carried.member)).map(([axis]) => axis);
     }),
   );
 }
@@ -542,13 +590,13 @@ function doorComponents(inDoor: readonly Source[], context: ReadContext): Readon
   const components = new Map<string, ComponentRecipe>();
   for (const [name, body] of componentsOf(inDoor)) {
     const recipe = recipeOf(body, context, tables);
-    if (recipe.axes.size > 0) {
+    if (recipe.axes.size > 0 || recipe.carried.size > 0) {
       components.set(name, recipe);
     }
   }
   // A door export that wraps another component of the door (`Button` over `ButtonCore`) owns that component's axes.
   for (const [name, body] of componentsOf(inDoor).filter(([declared]) => !components.has(declared))) {
-    const wrapped = wrapperRecipe(body, components);
+    const wrapped = wrapperRecipe(name, body, components);
     if (wrapped !== undefined && wrapped.axes.size > 0) {
       components.set(name, wrapped);
     }

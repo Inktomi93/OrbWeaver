@@ -67,16 +67,22 @@ function reviewFirstWaiting(plugins: ExtensionsEmptyView["awaitingPlugins"]): vo
 /** Every non-page arm's frame, with the standard content inset, inside {@link PaneFrame}. */
 function InsetPane({
   children,
-  className,
+  paddingBlock,
   ready,
 }: {
   readonly children: ReactNode;
-  readonly className?: string;
+  readonly paddingBlock?: "section";
   /** `data-ready` for an arm with no skeleton while its first read is out; absent for an arm that never waits. */
   readonly ready?: boolean;
 }): ReactElement {
   return (
-    <Stack className={className} scroll="y" fill={true} paddingInline="section" {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}>
+    <Stack
+      scroll="y"
+      fill={true}
+      paddingBlock={paddingBlock}
+      paddingInline="section"
+      {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
+    >
       <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>
     </Stack>
   );
@@ -198,7 +204,7 @@ export function ExtensionsPageSurface(): ReactElement {
   let body: ReactElement;
   if (reviewed !== undefined) {
     body = (
-      <InsetPane className="py-section">
+      <InsetPane paddingBlock="section">
         <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
       </InsetPane>
     );

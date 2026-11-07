@@ -1,19 +1,11 @@
 // Hand-written class tokens: utilities a recipe prop or token already owns, Tailwind arbitrary values, repeated clusters and raw layout containers.
+
+import type { ForwardReader } from "./class-forwards.ts";
 import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import {
-  besideJudgement,
-  coveredJudgement,
-  elementRefOf,
-  kebab,
-  mirrorJudgement,
-  newArmJudgement,
-  partArmJudgement,
-  undeclaredJudgement,
-  writingAxis,
-  ZERO_STEP,
-} from "./hand-arms.ts";
+import type { Wearer } from "./hand-arms.ts";
+import { coveredJudgement, elementRefOf, homelessRow, kebab, ownerRow, wearerOf, writingAxis } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -43,13 +35,12 @@ const PREFIX_PROPERTY: readonly (readonly [RegExp, string])[] = [
 
 // The step every bare `border`, `border-s`, `divide-*` and `ring` compiles to, when the theme declares it.
 const DEFAULT_EDGE_TOKEN = "--border-width-default";
-// Padding on one inline edge: a box's axis, so on a primitive that is no box it has no owner and stays a row.
-const ONE_SIDED_INLINE = /^p[se]-/u;
 
 export interface ClassContext {
   readonly tokens: ValueTokens;
   readonly components: ComponentTables;
   readonly referenced: ClassConstants;
+  readonly forwards: ForwardReader;
 }
 
 const placeOf = (source: Source, line: number): Place => ({ path: source.path, line, section: source.section, layer: source.layer });
@@ -174,7 +165,7 @@ const FIXED: Readonly<Record<string, Judgement>> = {
 
 /** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
 function flaggedJudgement({ token, elem, guarded, siblings }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
-  const axis = writingAxis(elem, token, siblings, context.components);
+  const axis = writingAxis(wearerOf(elem), token, siblings, context.components);
   if (axis !== null) {
     return coveredJudgement(axis, token, guarded, siblings);
   }
@@ -214,37 +205,31 @@ interface UsedToken {
   readonly siblings: readonly string[];
 }
 
-/** A valid utility on a primitive: an arm of its own table writes it, a new arm would, or another component of the door owns the family. */
-function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: ClassContext): Judgement | null {
-  const axis = writingAxis(elem, token, siblings, context.components);
-  if (axis !== null) {
-    return coveredJudgement(axis, token, guarded, siblings);
-  }
-  const { base } = baseOf(token);
-  if (ZERO_STEP.test(base)) {
-    return null;
-  }
-  return (
-    mirrorJudgement(elem, token, siblings, context.components) ??
-    newArmJudgement(elem, token, guarded, context.components) ??
-    besideJudgement(elem, token, context.components) ??
-    partArmJudgement(elem, token, siblings, context.components) ??
-    undeclaredJudgement(elem, token, context.components) ??
-    sideInsetJudgement(elem, token, base)
-  );
+/** A valid utility on a primitive: an arm of its own table writes it, its door's tables name an owner, or the tables show it has no home here. */
+function wornJudgement(wearer: Wearer | null, { token, guarded, siblings }: UsedToken, context: ClassContext): Judgement | null {
+  const axis = writingAxis(wearer, token, siblings, context.components);
+  return axis === null
+    ? (ownerRow(wearer, { token, guarded, siblings }, context.components) ?? homelessRow(wearer, token, context.components))
+    : coveredJudgement(axis, token, guarded, siblings);
 }
 
-/** A side inset on a primitive whose door writes none: the box around it owns the inset. */
-function sideInsetJudgement(elem: Elem | null, token: string, base: string): Judgement | null {
-  if (elem?.kind !== "ui" || !ONE_SIDED_INLINE.test(base)) {
+/** A class written on a client component that hands its `className` on: judged on the primitive it lands on, and no move is proved through the wrapper. */
+function forwardedJudgement(used: UsedToken, path: string, context: ClassContext): Judgement | null {
+  const landed = used.elem === null ? [] : context.forwards(path, used.elem);
+  const found = landed.flatMap((landing) => {
+    const judgement = wornJudgement(landing, used, context);
+    return judgement === null || judgement.verdict === "keep" ? [] : [{ wearer: landing, judgement }];
+  })[0];
+  if (found === undefined) {
     return null;
   }
-  const component = kebab(elem.imported?.name ?? elem.tag);
+  const { wearer, judgement } = found;
+  const component = kebab(used.elem?.imported?.name ?? used.elem?.tag ?? "");
   return {
     verdict: "decide",
     match: null,
-    owner: `no axis: ${token} on ${component}`,
-    reason: `${component} is no layout box, so ${token} has no arm to move to; a box around it owns the inset`,
+    owner: `through ${component}: ${judgement.owner}`,
+    reason: `${component} hands its className to ${wearer.component}, where ${judgement.reason}`,
     keep: null,
   };
 }
@@ -299,13 +284,20 @@ function rawLayoutHit({ source, line, tokens, elem }: ClassUse): Hit | null {
       );
 }
 
+function usedJudgement(used: UsedToken, path: string, context: ClassContext): Judgement | null {
+  const fact = classifyToken(used.token);
+  if (fact !== null) {
+    return flaggedJudgement(used, fact, context);
+  }
+  return wearerOf(used.elem) === null ? forwardedJudgement(used, path, context) : wornJudgement(wearerOf(used.elem), used, context);
+}
+
 function tokenHits({ source, line, column, tokens, elem, guarded, plain, rootTokens, opaque }: ClassUse, context: ClassContext): readonly Hit[] {
   const out: Hit[] = [];
   for (const token of tokens) {
-    const fact = classifyToken(token);
     const peers = rootTokens.filter((written) => written !== token);
     const used: UsedToken = { token, elem, guarded, siblings: peers };
-    const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
+    const judgement = usedJudgement(used, source.path, context);
     if (judgement !== null) {
       const element = elementRefOf(elem, { plain, peers, opaque, column });
       out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, element));
@@ -378,16 +370,40 @@ function clusterHits(uses: readonly ClusterUse[]): readonly Hit[] {
     );
 }
 
-/** Every class-token, cluster and raw-container hit in the sources; clusters are counted across all of them. */
-export function classHits(sources: readonly Source[], context: ClassContext): readonly Hit[] {
+/** Class uses on one primitive that earned no row: what the census does not cover, so it can say so. */
+export interface NoRowUse {
+  readonly token: string;
+  readonly component: string;
+  readonly section: string;
+  readonly uses: number;
+}
+
+function noRowCount(use: ClassUse, rows: readonly Hit[], into: Map<string, NoRowUse>): void {
+  const wearer = wearerOf(use.elem);
+  if (wearer === null || use.source.layer !== "client") {
+    return;
+  }
+  const written = new Set(rows.map((hit) => hit.detail));
+  for (const token of use.tokens.filter((one) => !written.has(one))) {
+    const { section } = use.source;
+    const key = `${section} ${wearer.component} ${token}`;
+    into.set(key, { token, component: wearer.component, section, uses: (into.get(key)?.uses ?? 0) + 1 });
+  }
+}
+
+/** Every class-token, cluster and raw-container hit in the sources, and the class uses no row covers; clusters are counted across all of them. */
+export function classHits(sources: readonly Source[], context: ClassContext): { readonly hits: readonly Hit[]; readonly noRow: readonly NoRowUse[] } {
   const hits: Hit[] = [];
+  const noRow = new Map<string, NoRowUse>();
   const uses: ClusterUse[] = [];
   const clustered = new Set<string>();
   for (const source of sources) {
     for (const classString of source.sf === null ? [] : classStringsOf(source.path, source.sf, context.referenced)) {
       const use: ClassUse = { ...classString, source, guarded: classString.conditional };
       const layout = rawLayoutHit(use);
-      hits.push(...tokenHits(use, context), ...(layout === null ? [] : [layout]));
+      const rows = tokenHits(use, context);
+      noRowCount(use, rows, noRow);
+      hits.push(...rows, ...(layout === null ? [] : [layout]));
       // One string worn by several elements is one write: a repeat is the class set written again.
       const written = `${source.path}:${use.line}:${use.column}`;
       if (use.tokens.length >= CLUSTER_TOKENS && !clustered.has(written)) {
@@ -397,5 +413,5 @@ export function classHits(sources: readonly Source[], context: ClassContext): re
       }
     }
   }
-  return [...hits, ...clusterHits(uses)];
+  return { hits: [...hits, ...clusterHits(uses)], noRow: [...noRow.values()] };
 }

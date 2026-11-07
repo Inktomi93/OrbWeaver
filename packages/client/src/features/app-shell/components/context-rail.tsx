@@ -162,7 +162,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className="pointer-events-none absolute inset-y-0 inset-s-0"
+          className="absolute inset-y-0 inset-s-0"
+          passThrough={true}
           width="gutter"
           fade="start"
           fadeFrom={fill}
@@ -179,7 +180,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className="pointer-events-none absolute inset-y-0 inset-e-0"
+          className="absolute inset-y-0 inset-e-0"
+          passThrough={true}
           width="gutter"
           fade="end"
           fadeFrom={fill}

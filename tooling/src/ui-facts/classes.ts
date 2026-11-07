@@ -4,7 +4,7 @@ import ts from "typescript";
 import type { ClassExpression } from "./class-expression.ts";
 import { classesIn, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Elem, Source } from "./source.ts";
-import { constInitializers, elementsOf, lineOf, visit } from "./source.ts";
+import { constInitializers, elementsOf, lineOf, unwrap, visit } from "./source.ts";
 import type { TokenNamespace } from "./tokens.ts";
 import { tailwindStepPx } from "./tokens.ts";
 
@@ -236,6 +236,7 @@ function piecesIn(root: ts.Node): readonly ClassPiece[] {
 }
 
 const CLASS_CONSTANT = /(?:CLASS|CLASSES|Class|Classes)$/u;
+const CLASS_PROPERTY = "className";
 // `className` on an element, and the `*ClassName` props a composite forwards to a part it renders.
 const CLASS_ATTRIBUTE = /^(?:className|[a-z][A-Za-z]*ClassName)$/u;
 
@@ -404,6 +405,35 @@ function styledElement(sf: ts.SourceFile, node: ts.Node, byOpening: ReadonlyMap<
   return ts.isJsxAttribute(node) && node.name.getText(sf) === "className" ? (byOpening.get(node.parent.parent) ?? null) : null;
 }
 
+/** What a class piece sits in: the first expression of its root the reader could not open, and the spread that carries it. */
+interface PieceSource {
+  readonly opaque: string | null;
+  readonly spread: SpreadClass | null;
+}
+
+/** The `className` value an object spread onto an element carries, and whether a condition around the object guards it. */
+interface SpreadClass {
+  readonly value: ts.Expression;
+  readonly guarded: boolean;
+}
+
+/** The classes a spread writes, through an object literal, a same-file const, a ternary or `&&`. */
+function spreadClasses(sf: ts.SourceFile, expression: ts.Expression, guarded: boolean): readonly SpreadClass[] {
+  const node = unwrap(expression);
+  if (ts.isConditionalExpression(node)) {
+    return [...spreadClasses(sf, node.whenTrue, true), ...spreadClasses(sf, node.whenFalse, true)];
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    return spreadClasses(sf, node.right, true);
+  }
+  if (ts.isIdentifier(node)) {
+    const target = constInitializers(sf).get(node.text);
+    return target === undefined ? [] : spreadClasses(sf, target, guarded);
+  }
+  const held = ts.isObjectLiteralExpression(node) ? node.properties.find((property) => propertyName(property) === CLASS_PROPERTY) : undefined;
+  return held !== undefined && ts.isPropertyAssignment(held) ? [{ value: held.initializer, guarded }] : [];
+}
+
 /** What a `className` value writes. */
 export function attributeClasses(value: ts.Node): ClassExpression {
   const expression = ts.isJsxExpression(value) ? value.expression : value;
@@ -416,12 +446,23 @@ export function attributeClasses(value: ts.Node): ClassExpression {
 export function classStringsOf(path: string, sf: ts.SourceFile, constants: ClassConstants): readonly ClassString[] {
   const out: ClassString[] = [];
   const emitted = new Set<ts.Node>();
-  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], opaque: string | null): void => {
+  const emit = ({ node, conditional }: ClassPiece, elem: Elem | null, rootTokens: readonly string[], { opaque, spread }: PieceSource): void => {
     const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
       const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
-      out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional, plain: ts.isStringLiteral(node), rootTokens, opaque });
+      const guarded = conditional || spread?.guarded === true;
+      out.push({
+        path,
+        line: lineOf(sf, node),
+        column,
+        tokens,
+        elem,
+        conditional: guarded,
+        plain: spread === null && ts.isStringLiteral(node),
+        rootTokens,
+        opaque,
+      });
     }
   };
   // A constant is judged on each element that wears it. The string is not the attribute a rewrite edits, so it is never plain.
@@ -439,12 +480,12 @@ export function classStringsOf(path: string, sf: ts.SourceFile, constants: Class
       }
     }
   };
-  const written = (root: ts.Node, elem: Elem | null): void => {
+  const written = (root: ts.Node, elem: Elem | null, spread: SpreadClass | null = null): void => {
     const pieces = piecesIn(root);
     const read = elem === null ? null : attributeClasses(root);
     const rootTokens = [...new Set([...pieces.flatMap((piece) => tokensOf(piece.node)), ...(read === null ? [] : classesIn(read))])];
     for (const piece of pieces) {
-      emit(piece, elem, rootTokens, read === null ? null : opaqueIn(read));
+      emit(piece, elem, rootTokens, { opaque: read === null ? null : opaqueIn(read), spread });
     }
   };
   const byOpening = openingsOf(sf);
@@ -461,5 +502,10 @@ export function classStringsOf(path: string, sf: ts.SourceFile, constants: Class
     }
     written(root, styledElement(sf, node, byOpening));
   });
+  for (const elem of byOpening.values()) {
+    for (const spread of elem.spreads.flatMap((expression) => spreadClasses(sf, expression, false))) {
+      written(spread.value, elem, spread);
+    }
+  }
   return out;
 }

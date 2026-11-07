@@ -112,6 +112,8 @@ const PADDING_INLINE_END_NARROW = {
 const INDENT = { true: "ps-block", false: "" } as const;
 // The layer a box takes in its stacking context: `raised` floats over its siblings, `overlay` over the raised ones.
 const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
+// A box laid over content that takes no pointer itself: clicks fall through to what lies under it, and only a child that asks for the pointer takes it.
+const PASS_THROUGH = { true: "pointer-events-none", false: "" } as const;
 // A capped box centres in the room its cap leaves.
 const CENTRED = { true: "mx-auto", false: "" } as const;
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
@@ -174,9 +176,11 @@ const END_BELOW = {
   "cq-40": "@max-cq-40:justify-end",
   "cq-64": "@max-cq-64:justify-end",
 } as const;
-// `stackBelow`'s sibling: the row keeps its direction and reads from the end below the step, so a trailing control comes first
-// on screen while the DOM order stays the reading order.
-const REVERSE_BELOW = {
+// The row reads from its end, so a trailing control comes first on screen while the DOM order stays the reading order: at every width (`true`, a
+// mirrored speaker's row), or below a container step as `stackBelow`'s sibling.
+const REVERSE = {
+  true: "flex-row-reverse",
+  false: "",
   "cq-28": "@max-cq-28:flex-row-reverse",
   "cq-40": "@max-cq-40:flex-row-reverse",
   "cq-32": "@max-cq-32:flex-row-reverse",
@@ -278,7 +282,11 @@ export const stackVariants = tv({
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
     layer: LAYER,
+    passThrough: PASS_THROUGH,
     reach: REACH,
+    // A reading box keeps its element across the skins, so its flow is a choice here, not another primitive: `weld` seats the body beside its art, and
+    // `page` is the grid a pinned band stays pinned in.
+    readingFlow: { weld: "flex-row", page: "grid" },
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -348,7 +356,8 @@ export const stackVariants = tv({
     width: WIDTH,
     centred: CENTRED,
     fill: FILL,
-    height: HEIGHT,
+    // `bandHead` is the solid head of a feathered art band, above where the feather starts.
+    height: { ...HEIGHT, bandHead: "block-3/5" },
     grow: GROW,
     floor: FLOOR,
     order: ORDER,
@@ -379,7 +388,7 @@ export const rowVariants = tv({
     align: ALIGN,
     justify: JUSTIFY,
     stackBelow: STACK_BELOW,
-    reverseBelow: REVERSE_BELOW,
+    reverse: REVERSE,
     stretchBelow: STRETCH_BELOW,
     // `stretchBelow`'s mirror: a stacked row's children pack to the end, for a row that reads from the trailing edge.
     alignEndBelow: { "cq-28": "@max-cq-28:items-end" },
@@ -403,6 +412,7 @@ export const rowVariants = tv({
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     indent: INDENT,
     layer: LAYER,
+    passThrough: PASS_THROUGH,
     reach: REACH,
     // `REACH` to a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps that inset as its own,
     // and a `foot` keeps the card's text inset, so its group ends at the card's corner.

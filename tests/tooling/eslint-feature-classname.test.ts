@@ -186,7 +186,39 @@ test.for([
     'import { Text } from "@orb/ui/text";\nexport const T = (<Text className="basis-(--width-field-floor)" />);\n',
     '`floor="field"`',
   ],
-  ["a reversed row below a step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-row-reverse" />);\n`, '`reverseBelow="cq-32"`'],
+  ["a reversed row below a step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-row-reverse" />);\n`, '`reverse="cq-32"`'],
+  ["a reversed row", `${PRIMITIVES}export const T = (<Row className="flex-row-reverse" />);\n`, "`reverse={true}`"],
+  ["a stacked Row", `${PRIMITIVES}export const T = (<Row className="flex-col" />);\n`, "`flex-col` is a step `stackBelow`"],
+  ["a stacked Row under a guard", `${PRIMITIVES}export const T = (<Row className={cn(a && "flex-col")} />);\n`, "`stackBelow`"],
+  ["a stacked Row at a min step", `${PRIMITIVES}export const T = (<Row className="@cq-32:flex-col" />);\n`, "`stackBelow`"],
+  ["a reversed column on a Row", `${PRIMITIVES}export const T = (<Row className="flex-col-reverse" />);\n`, "no step of it"],
+  ["a row direction on a Stack", `${PRIMITIVES}export const T = (<Stack className="flex-row" />);\n`, '`readingFlow="weld"`'],
+  ["part of a pinned arm, its bleed", `${PRIMITIVES}export const T = (<Row className="-mbs-row" />);\n`, "is part of row.pinned.header"],
+  ["part of a pinned arm, its position", `${PRIMITIVES}export const T = (<Row className="sticky" />);\n`, "is what row.pinned rides on"],
+  ["a class beside a ramp, under its step", `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col-reverse" />);\n`, "no step of it"],
+  ["part of a Button step, its inset", 'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="px-field" />);\n', "is part of button."],
+  [
+    "part of a Button step, its direction",
+    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="flex-col" />);\n',
+    "is part of button.size.stacked",
+  ],
+  ["a side inset on a primitive that is no box", `${PRIMITIVES}export const T = (<Text className="pe-block" />);\n`, "a box around it owns the inset"],
+  [
+    "the resting class written from the other side of a step",
+    `${PRIMITIVES}export const T = (<Row className="flex-col @cq-32:flex-row" />);\n`,
+    "written from the other side",
+  ],
+  [
+    "a class through a same-file wrapper",
+    `${PRIMITIVES}const Pass = (props) => <Row {...props} />;\nexport const T = (<Pass className="justify-end" />);\n`,
+    '`justify-end` is `justify="end"`',
+  ],
+  [
+    "a class through a same-file wrapper declared below it",
+    `${PRIMITIVES}export const T = (<Pass className="justify-end" />);\nfunction Pass({ className }) { return <Row className={cn("min-inline-0", className)} />; }\n`,
+    '`justify-end` is `justify="end"`',
+  ],
+  ["a class in a plain object spread", `${PRIMITIVES}export const T = (<Row {...{ className: "justify-end" }} />);\n`, '`justify-end` is `justify="end"`'],
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
   ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
@@ -219,6 +251,12 @@ test.for([
   ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],
   ["an owned class on a component from another module", 'import { Row } from "./row.ts";\nexport const T = (<Row className="justify-end" />);\n'],
   ["an owned class on a member element", 'import { Dialog } from "@orb/ui/dialog";\nexport const T = (<Dialog.Title className="justify-end" />);\n'],
+  [
+    "a same-file wrapper that keeps the class to itself",
+    `${PRIMITIVES}const Pass = ({ className }) => <Row className="min-inline-0" title={className} />;\nexport const T = (<Pass className="justify-end" />);\n`,
+  ],
+  ["a containing block", `${PRIMITIVES}export const T = (<Stack className="relative" />);\n`],
+  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Text className="max-inline-(--reading-measure-prose)" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });
@@ -233,6 +271,9 @@ test.for([
   ["a function that builds the string", element("className={rowClass(size)}")],
   ["a function under an alternate class prop", element("restClassName={rowClass(size)}")],
   ["an imported class in a spread", `import { ROW } from "./row.ts";\n${element("{...{ className: ROW }}")}`],
+  ["a helper that returns a class", 'const box = () => ({ className: "justify-end" });\nexport const T = 1;\n'],
+  ["a helper that returns a class from a block", 'export function box(out) { return { className: "shrink-0", inert: out }; }\n'],
+  ["a helper that returns a held object", 'export function box() { const props = { restClassName: "flex" }; return props; }\n'],
 ] as const)("the built-string rule reports %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toHaveLength(1);
 });
@@ -242,6 +283,7 @@ test.for([
   ["a template without expressions", element("className={`flex gap-row`}")],
   ["cn over strings, a conditional and undefined", element('className={cn("flex", open ? "hidden" : undefined, { "min-inline-0": narrow })}')],
   ["a local constant", `const ROW = "flex gap-row";\n${element("className={ROW}")}`],
+  ["a helper that returns props with no class", "export const box = (out) => ({ inert: out, outOfFlow: out });\n"],
 ] as const)("the built-string rule passes %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toEqual([]);
 });

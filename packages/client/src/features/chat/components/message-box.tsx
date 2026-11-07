@@ -40,18 +40,12 @@ function BubbleCard({ role, shape, phoneCap, corners, editing, receded, position
       shape="bubble"
       messageRole={role}
       padding={inset ? undefined : "none"}
+      flow={weld ? "weld" : "stack"}
       receded={receded}
       artDecoration={artDecoration}
       share={phoneCap}
       corners={cornersFor(corners, role)}
-      className={cn(
-        "flex",
-        weld ? "flex-row items-start" : "flex-col",
-        inset ? "gap-row" : undefined,
-        spansColumn ? "inline-full" : undefined,
-        positioned && "relative",
-        positioned && ECHO_CARD_FLOOR,
-      )}
+      className={cn(inset ? "gap-row" : undefined, spansColumn ? "inline-full" : undefined, positioned && "relative", positioned && ECHO_CARD_FLOOR)}
     >
       {children}
     </MessageBubble>
@@ -72,6 +66,13 @@ const READING_INSET = {
   plate: { paddingInline: "section", paddingBlock: "row", paddingBlockStart: undefined, paddingInlineNarrow: undefined, paddingInlineEndNarrow: "block" },
   page: { paddingInline: "gutter", paddingBlock: undefined, paddingBlockStart: "row", paddingInlineNarrow: "tight", paddingInlineEndNarrow: undefined },
 } as const;
+
+function readingFlowOf(weld: boolean, overlayPage: boolean): "weld" | "page" | undefined {
+  if (weld) {
+    return "weld";
+  }
+  return overlayPage ? "page" : undefined;
+}
 
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
 function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, children }: ReadingBoxProps): ReactElement {
@@ -95,7 +96,8 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
       paddingInlineNarrow={boxInset?.paddingInlineNarrow}
       paddingInlineEndNarrow={boxInset?.paddingInlineEndNarrow}
       width="full"
-      className={cn(overlayPage ? "grid" : undefined, weld ? "flex-row" : undefined, floor ? PAGE_LAST_ROW_FLOOR : undefined, positioned && "relative")}
+      readingFlow={readingFlowOf(weld, overlayPage)}
+      className={cn(floor ? PAGE_LAST_ROW_FLOOR : undefined, positioned && "relative")}
     >
       {children}
     </Stack>

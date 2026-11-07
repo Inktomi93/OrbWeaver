@@ -41,6 +41,8 @@ export const KEEP_REASONS = {
   "vendor-override":
     "an important modifier inside `@orb/ui` beats a vendor library's inline style, which no variant can out-rank; the suppression at the site states the part",
   "dev-seed-data": "a value the dev seed writes into the app's own records is authored sample data, not paint the client draws",
+  "containing-block":
+    "`relative` makes the box the containing block of a positioned child: no value and no ramp, so a prop would be the class under another name (ui-and-client.md, Moving hand-written styling)",
   "owned-gradient":
     "a gradient the ui layer spells sits in the recipe arm or primitive rule that owns that look; a raw colour, length or alpha in its stops is a row of its own, and only a gradient written outside ui is unowned",
 } as const;

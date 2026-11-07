@@ -1,5 +1,6 @@
 // The hand-rolling census section: counts per category and per surface, the owners ranked by what they would retire, and the hits that stay.
 import type { UiFacts } from "./analysis.ts";
+import type { NoRowUse } from "./hand-classes.ts";
 import type { Category, Hit, KeepCode, Verdict } from "./hand-model.ts";
 import { CATEGORIES, KEEP_REASONS, VERDICTS } from "./hand-model.ts";
 import { groupBy, table } from "./markdown.ts";
@@ -77,6 +78,34 @@ function keepLines(hits: readonly Hit[]): string[] {
   return ["### Hits that stay", "", ...table(["keep", "hits", "surfaces", "why", "first sites"], rows)];
 }
 
+/** What the rows do not cover: class uses on primitives no judgement claims, by class and by component, so a clean row count cannot read as a clean tree. */
+function noRowLines(noRow: readonly NoRowUse[], limit: number): string[] {
+  const sum = (rows: readonly NoRowUse[]): number => rows.reduce((total, row) => total + row.uses, 0);
+  const byUses = (key: (row: NoRowUse) => string): readonly (readonly [string, number, number])[] =>
+    [...groupBy(noRow, key)]
+      .map(([name, rows]) => [name, sum(rows), rows.length] as const)
+      .toSorted((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .slice(0, limit);
+  return [
+    "### Class uses with no row",
+    "",
+    "The rule allows layout that no axis owns, so these can be sound. No row means no table claims the class, and nothing here has been judged.",
+    "",
+    ...table(
+      ["class", "uses", "components"],
+      byUses((row) => row.token),
+    ),
+    ...table(
+      ["component", "uses", "classes"],
+      byUses((row) => row.component),
+    ),
+    ...table(
+      ["class on component", "uses", "surfaces"],
+      byUses((row) => `${row.token} on ${row.component}`),
+    ),
+  ];
+}
+
 function listingLines(hits: readonly Hit[]): string[] {
   const out = ["### Every actionable hit, by owner", ""];
   for (const [owner, own] of ranked(hits.filter(actionable), (hit) => hit.owner)) {
@@ -95,11 +124,13 @@ function listingLines(hits: readonly Hit[]): string[] {
 /** The census section. A full listing prints every hit; the summary prints the ranking tops and leaves the hits to the JSON. */
 export function handRollingLines(facts: UiFacts, inScope: (section: string) => boolean, listing: boolean): string[] {
   const hits = facts.handRolling.filter((hit) => inScope(hit.section));
+  const noRow = facts.noRow.filter((row) => inScope(row.section));
   const limit = listing ? Number.POSITIVE_INFINITY : TOP;
   return [
     "## Hand-rolling census",
     "",
     `${hits.length} hits across the client and ui sources: ${count(hits, actionable)} to move (token, recipe, primitive or decide), ${count(hits, (hit) => !actionable(hit))} that stay.`,
+    `These rows do not cover ${noRow.reduce((total, row) => total + row.uses, 0)} class uses on \`@orb/ui\` elements, ${new Set(noRow.map((row) => row.token)).size} distinct classes that no table claims, nor anything under "What the census cannot see". A count of keeps says nothing about those.`,
     "Each hit names the token, recipe prop or primitive that owns it, or the one it asks for. Command: `pnpm ui-facts --only=hand-rolling` lists every hit.",
     "",
     ...categoryLines(hits),
@@ -107,6 +138,7 @@ export function handRollingLines(facts: UiFacts, inScope: (section: string) => b
     ...rankingLines(hits, limit),
     ...decisionLines(hits, limit),
     ...keepLines(hits),
+    ...noRowLines(noRow, limit),
     ...(facts.staleScopes.length === 0
       ? []
       : [

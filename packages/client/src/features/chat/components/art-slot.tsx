@@ -109,14 +109,16 @@ function ArtViewButton({ view, corner }: { readonly view: ArtView; readonly corn
 export function FallbackLetter({
   initials,
   className,
+  height,
   scale = "portrait",
 }: {
   readonly initials: string;
   readonly className: string;
+  readonly height?: "bandHead";
   readonly scale?: ComponentProps<typeof Text>["artScale"];
 }): ReactElement {
   return (
-    <Stack align="center" aria-hidden="true" className={className} container="size" justify="center">
+    <Stack align="center" aria-hidden="true" className={className} container="size" height={height} justify="center">
       <Text as="div" artScale={scale} tone="primary" ink="toneForeground" voice="monogram" solidLine={true}>
         {initials}
       </Text>
@@ -161,7 +163,7 @@ export function WhisperBand({
       style={style}
     >
       {band.image === undefined || failed ? (
-        <FallbackLetter className="absolute inset-x-0 inset-bs-0 block-3/5" initials={band.fallback} scale="banner" />
+        <FallbackLetter className="absolute inset-x-0 inset-bs-0" height="bandHead" initials={band.fallback} scale="banner" />
       ) : null}
       {tappable ? <ArtViewButton view={view} /> : null}
     </Stack>
@@ -189,7 +191,8 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
-      className={cn("absolute inset-bs-0", tappable ? undefined : "pointer-events-none", art.side === "left" ? "inset-s-0" : "inset-e-0")}
+      passThrough={!tappable}
+      className={cn("absolute inset-bs-0", art.side === "left" ? "inset-s-0" : "inset-e-0")}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}

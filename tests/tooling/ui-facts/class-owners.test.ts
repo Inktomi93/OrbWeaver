@@ -66,10 +66,27 @@ test("a wrapper answers for the axes it hands on inside a carrying prop, and for
 test("a class under a container step no arm writes belongs to the ramp of that step's axis", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", "@max-cq-48:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
-  expect(ownerOf("layout", "Row", "flex-col", [])).toBeNull();
-  expect(ownerOf("layout", "Row", "hover:flex-col", [])).toBeNull();
-  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toEqual({ axis: "row.reverseBelow", prop: "reverseBelow", arm: "cq-32" });
-  expect(ownerOf("layout", "Row", "@max-cq-48:flex-row-reverse", [])).toEqual({ axis: "row.reverseBelow", prop: "reverseBelow", arm: null });
+  expect(ownerOf("layout", "Row", "flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
+  expect(ownerOf("layout", "Row", "hover:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
+  expect(ownerOf("layout", "Row", "flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: "true" });
+  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: "cq-32" });
+  expect(ownerOf("layout", "Row", "@max-cq-48:flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: null });
+});
+
+test("every judgement that names a home answers the lint with the census's own row", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("layout", "Row", "-mbs-row", [])).toMatchObject({ axis: "part of: row.pinned.header", prop: null, arm: null });
+  expect(ownerOf("layout", "Row", "flex-col-reverse", [])).toMatchObject({ axis: "new axis beside: row.stackBelow" });
+  expect(ownerOf("text", "Text", "pe-block", [])).toMatchObject({ axis: "no axis: pe-block on text" });
+  expect(ownerOf("layout", "Stack", "flex-row-reverse", [])).toMatchObject({ axis: "no axis: flex-row-reverse on stack" });
+  expect(ownerOf("layout", "Row", "@cq-32:flex-row", ["flex-col"])).toMatchObject({ axis: "mirror of: row.stackBelow" });
+});
+
+test("a class the tables give no home is the census's row, not the lint's, and a coded keep is neither", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("text", "Text", "max-inline-(--reading-measure-prose)", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "relative", [])).toBeNull();
+  expect(ownerOf("button", "Button", "justify-between", [])).toBeNull();
 });
 
 test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", () => {
@@ -171,6 +188,89 @@ test("a class of a multi-class arm is owned when the element wears the whole arm
   expect(ownerOf("card", "Card", "ring-2", ["ring-2"])).toBeNull();
   expect(ownerOf("card", "Card", "ring-2", ["outline-none", "flex"])).toEqual({ axis: "card.focusable", prop: "focusable", arm: "true" });
   expect(ownerOf("card", "Card", "ring-2", ["flex"])).toBeNull();
+});
+
+const CARRYING_CORE = [
+  "export function ButtonCore(props) {",
+  "  const { scale, className, ...rest } = props;",
+  "  return <button {...rest} className={buttonVariants({ size: scale?.height, square: scale?.square, className })} />;",
+  "}",
+].join("\n");
+
+function carrierOwners(scratch: string, name: string, wrapper: string): ReturnType<typeof classOwners> {
+  const root = plantDir(scratch, name);
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts" } }));
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/variants.ts",
+    "export const buttonVariants = tv({ variants: { size: { sm: 'p-1', md: 'p-2' }, square: { true: 'shrink-0' } } });",
+  );
+  plantFile(root, "packages/ui/src/primitives/button/core.tsx", CARRYING_CORE);
+  plantFile(root, "packages/ui/src/primitives/button/button.tsx", wrapper);
+  return classOwners(root);
+}
+
+test("a wrapper answers for the member it hands on, under the member's own name, whatever the axis is called and however the element closes", ({ scratch }) => {
+  const ownerOf = carrierOwners(
+    scratch,
+    "carried-member",
+    ["export function Button({ height, square, ...rest }) {", "  return <ButtonCore {...rest} scale={{ height, square }}>x</ButtonCore>;", "}"].join("\n"),
+  );
+  expect(ownerOf("button", "Button", "p-1", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
+  expect(ownerOf("button", "Button", "shrink-0", [])).toEqual({ axis: "button.square", prop: "square", arm: "true" });
+});
+
+test("a member handed inside another carrying prop reaches no axis", ({ scratch }) => {
+  const root = plantDir(scratch, "carried-two");
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./button": "./src/primitives/button/index.ts" } }));
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/variants.ts",
+    "export const buttonVariants = tv({ variants: { size: { sm: 'p-1', md: 'p-2' }, square: { true: 'shrink-0' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/core.tsx",
+    "export function ButtonCore(props) {\n  const { scale, shape, className, ...rest } = props;\n  return <button {...rest} className={buttonVariants({ size: scale?.size, square: shape?.square, className })} />;\n}",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/button/button.tsx",
+    "export function Button({ size, square, ...rest }) {\n  return <ButtonCore {...rest} scale={{ size, square }} shape={{}} />;\n}",
+  );
+  const ownerOf = classOwners(root);
+  expect(ownerOf("button", "Button", "p-1", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
+  expect(ownerOf("button", "Button", "shrink-0", [])).toBeNull();
+});
+
+test("a member under another prop's name is no hand-on: the axis stays the wrapper's", ({ scratch }) => {
+  const ownerOf = carrierOwners(
+    scratch,
+    "carried-other",
+    ["export function Button({ height, ...rest }) {", "  return <ButtonCore {...rest} scale={{ height }} other={{ square: true }} />;", "}"].join("\n"),
+  );
+  expect(ownerOf("button", "Button", "p-1", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
+  expect(ownerOf("button", "Button", "shrink-0", [])).toBeNull();
+});
+
+test.for([
+  [
+    "a value the syntax cannot open",
+    "export function Button({ box, ...rest }) {\n  return <ButtonCore {...rest} scale={box} />;\n}",
+    "a shape the reader cannot open",
+  ],
+  [
+    "a spread inside the object",
+    "export function Button({ box, ...rest }) {\n  return <ButtonCore {...rest} scale={{ ...box }} />;\n}",
+    "a shape the reader cannot open",
+  ],
+  [
+    "two renders of the core",
+    "export function Button({ a, ...rest }) {\n  return a ? <ButtonCore {...rest} scale={{ a }} /> : <ButtonCore {...rest} />;\n}",
+    "more than once",
+  ],
+] as const)("a carrying prop handed on through %s is a table-read failure, not a silent loss of axes", ([, wrapper, words], { scratch }) => {
+  expect(() => carrierOwners(scratch, "carried-refused", wrapper)).toThrow(words);
 });
 
 test("a door export that wraps another component of its door answers for the axes it hands on, and not for the ones it takes", ({ scratch }) => {

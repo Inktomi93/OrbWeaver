@@ -54,7 +54,7 @@ import { useComposerFieldWrap } from "../hooks/use-composer-field-wrap.ts";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ReplyRowOverflowLevel } from "../hooks/use-reply-row-overflow.ts";
-import { replyBox, useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
+import { useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { CHAT_CONTINUE_REPLY_NAME } from "../lib/chat-surface-names.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -216,8 +216,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         <Row align="center" gap="glyph" className="shrink-0" ref={seatReplies}>
           <Row
             aria-label="Your message"
-            {...replyBox(level === 2)}
+            className="shrink-0"
             data-slot="composer-you-actions"
+            inert={level === 2}
+            outOfFlow={level === 2}
             divider="end"
             gap="glyph"
             paddingInlineEnd="field"
@@ -234,7 +236,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
           <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
-            <Row {...replyBox(level > 0)} ref={seatSwipe}>
+            <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatSwipe}>
               <GuidedIconButton
                 icon={{ glyph: RotateCcw, fills: false }}
                 label={swipeLabel}
@@ -257,7 +259,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
                 refusalStatedBy={offStatedBy}
               />
             </Row>
-            <Row {...replyBox(level > 0)} ref={seatContinuation}>
+            <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatContinuation}>
               <GuidedIconButton
                 icon={{ glyph: FastForward, fills: true }}
                 label={continueLabel}

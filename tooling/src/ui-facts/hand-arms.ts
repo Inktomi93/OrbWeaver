@@ -4,6 +4,7 @@ import ts from "typescript";
 import { sameFamily } from "./class-conflict.ts";
 import { baseOf } from "./classes.ts";
 import type { ClassPlace, ElementRef, Judgement } from "./hand-model.ts";
+import { keepJudgement } from "./hand-model.ts";
 import type { Elem } from "./source.ts";
 import { attrString } from "./source.ts";
 import type { ComponentRecipe, ComponentTables } from "./variant-tables.ts";
@@ -20,19 +21,42 @@ const ELEMENT_ONLY_ATTRIBUTES: ReadonlySet<string> = new Set(["className", "key"
 const MIN_FAMILY_CHOICES = 2;
 const ROOT_SLOT = "root";
 const MIN_STEP = /^@cq-(\d+):$/u;
-const MIN_PART_WORN = 2;
-const MECHANISM_DOORS = 4;
+// Padding on one inline edge: a box's axis, so on a primitive that is no box it has no owner and stays a row.
+const ONE_SIDED_INLINE = /^p[se]-/u;
 /** A zero step is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it. */
-export const ZERO_STEP = /-0$/u;
+const ZERO_STEP = /-0$/u;
 
 /** The name a component takes in an owner label. */
 export const kebab = (name: string): string => name.replaceAll(/([a-z0-9])([A-Z])/gu, "$1-$2").toLowerCase();
 
-/** The component an element renders, by the name its import exports: an aliased import still names its own table. */
-const componentOf = (elem: Elem): string => elem.imported?.name ?? elem.tag;
+/** The `@orb/ui` component a class is written on: what the census and the lint both judge a class against. */
+export interface Wearer {
+  readonly door: string;
+  readonly component: string;
+}
 
-const recipeOf = (elem: Elem | null, components: ComponentTables): ComponentRecipe | undefined =>
-  elem?.kind === "ui" && elem.door !== null ? components.get(elem.door)?.get(componentOf(elem)) : undefined;
+/** One class as an element writes it. */
+export interface WrittenClass {
+  readonly token: string;
+  /** A ternary or `&&` guards it. */
+  readonly guarded: boolean;
+  /** Every other class the same root writes. */
+  readonly siblings: readonly string[];
+}
+
+/** The primitive an element renders, by the name its import exports: an aliased import still names its own table. Null for any other element. */
+export const wearerOf = (elem: Elem | null): Wearer | null =>
+  elem?.kind === "ui" && elem.door !== null ? { door: elem.door, component: elem.imported?.name ?? elem.tag } : null;
+
+const recipeOf = (wearer: Wearer | null, components: ComponentTables): ComponentRecipe | undefined =>
+  wearer === null ? undefined : components.get(wearer.door)?.get(wearer.component);
+
+/** A slot-keyed arm lands on a part inside the component, so a className on the root never competes with it. */
+export const onRoot = (arm: Arm): boolean => arm.slots.length === 0 || arm.slots.includes(ROOT_SLOT);
+
+/** The axes that can write the element itself: the only ones a class on its root competes with. */
+const rootAxes = (recipe: ComponentRecipe | undefined): readonly (readonly [string, ArmClasses])[] =>
+  [...(recipe?.axes ?? [])].filter(([, arms]) => armsOf(arms).some(onRoot));
 
 /** The value of one attribute as the rewrite sees it: its text, `true` for a bare or literal flag, or null when the syntax cannot read it. */
 export function attributeValue(attribute: ts.JsxAttribute): string | null {
@@ -55,8 +79,8 @@ export function elementRefOf(elem: Elem | null, place: ClassPlace): ElementRef |
   return { source: elem.imported.source, name: elem.imported.name, carried: elem.carried, place, props: Object.fromEntries(props) };
 }
 
-const declaredAxis = (elem: Elem, axis: string, arms: ArmClasses): DeclaredAxis => {
-  const component = kebab(componentOf(elem));
+const declaredAxis = (wearer: Wearer, axis: string, arms: ArmClasses): DeclaredAxis => {
+  const component = kebab(wearer.component);
   return { label: `${component}.${axis}`, component, arms };
 };
 
@@ -64,12 +88,15 @@ const armsOf = (arms: ArmClasses): readonly Arm[] => [...arms.values()];
 const writesOnly = (arm: Arm, token: string): boolean => arm.tokens.length === 1 && arm.tokens[0] === token;
 
 /**
- * The axis chooses within the class's utility family: every arm that writes anything writes that family, under a variant or not, and the
- * unconditional choices do not all agree. A class every arm repeats, such as the `relative` an art axis needs, is what the axis rides on, not what it picks.
+ * The axis chooses within the class's utility family: every arm that writes anything writes that family, and the unconditional choices do not all
+ * agree. A steps ramp writes its one class only under a variant and chooses it too, so that class written plain, or under any other variant, is its
+ * step. A class every arm repeats is what the axis rides on, not what it picks.
  */
 function picksFamily(arms: ArmClasses, base: string): boolean {
   const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
-  return writing.every((arm) => writesFamily(arm, base)) && new Set(writtenChoices(arms, base).flat()).size >= MIN_FAMILY_CHOICES;
+  return (
+    writing.every((arm) => writesFamily(arm, base)) && (stepsRamp(arms)?.base === base || new Set(writtenChoices(arms, base).flat()).size >= MIN_FAMILY_CHOICES)
+  );
 }
 
 const unconditional = (token: string): string => token.slice(baseOf(token).variants.length);
@@ -100,23 +127,18 @@ function nested(arms: ArmClasses): boolean {
 const VARIANT_STEP = /\d+/gu;
 const variantStem = (token: string): string => baseOf(token).variants.replaceAll(VARIANT_STEP, "");
 
-/** An axis whose every arm writes the same class under one kind of variant and the steps differ, as `stackBelow` does: the stem and the class. */
+/** An axis whose every arm writes one class, under one kind of variant at different steps or with no variant at all, as `stackBelow` and `reverse` do. */
 function stepsRamp(arms: ArmClasses): { readonly stem: string; readonly base: string } | undefined {
   const written = armsOf(arms).flatMap((arm) => arm.tokens);
-  const [first] = written;
+  const stepped = written.filter((token) => variantStem(token) !== "");
+  const [first] = stepped;
   if (first === undefined) {
     return undefined;
   }
   const stem = variantStem(first);
   const { base } = baseOf(first);
-  const sameClass = written.every((token) => variantStem(token) === stem && baseOf(token).base === base);
-  return stem !== "" && sameClass && new Set(written).size >= MIN_FAMILY_CHOICES ? { stem, base } : undefined;
-}
-
-/** That class at another step of a steps ramp is a step of this ramp. */
-function conditionalRamp(arms: ArmClasses, token: string): boolean {
-  const ramp = stepsRamp(arms);
-  return ramp !== undefined && ramp.stem === variantStem(token) && ramp.base === baseOf(token).base;
+  const sameClass = written.every((token) => baseOf(token).base === base) && stepped.every((token) => variantStem(token) === stem);
+  return sameClass && new Set(stepped).size >= MIN_FAMILY_CHOICES ? { stem, base } : undefined;
 }
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
@@ -169,41 +191,58 @@ export function armWriting(arms: ArmClasses, token: string, siblings: readonly s
 }
 
 /** The axis that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is worn whole. Null when the element is not a primitive or no arm does. */
-export function writingAxis(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): DeclaredAxis | null {
-  const found = axisWriting(recipeOf(elem, components), token, siblings);
-  return elem === null || found === undefined ? null : declaredAxis(elem, found[0], found[1]);
+export function writingAxis(wearer: Wearer | null, token: string, siblings: readonly string[], components: ComponentTables): DeclaredAxis | null {
+  const found = axisWriting(recipeOf(wearer, components), token, siblings);
+  return wearer === null || found === undefined ? null : declaredAxis(wearer, found[0], found[1]);
 }
 
 /** The axis whose ramp a class of this family belongs on, whether or not an arm writes the class: what the census asks a new arm of and what the lint refuses. */
 export function axisChoosing(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
   const { base } = baseOf(token);
-  return ZERO_STEP.test(base)
-    ? undefined
-    : [...(recipe?.axes ?? [])].find(([, arms]) => (picksFamily(arms, base) && alternatives(arms)) || conditionalRamp(arms, token));
+  return ZERO_STEP.test(base) ? undefined : rootAxes(recipe).find(([, arms]) => picksFamily(arms, base) && alternatives(arms));
 }
 
-const doorsWriting = (token: string, components: ComponentTables): number =>
-  [...components.values()].filter((door) =>
-    [...door.values()].some((recipe) => [...recipe.declared.values()].some((arms) => armsOf(arms).some((arm) => arm.tokens.includes(token)))),
-  ).length;
+/** The class tells this arm from its siblings: an arm beside it does not write it, or the arm stands alone against the prop's absence. */
+const tellsArmsApart = (arms: ArmClasses, token: string): boolean => {
+  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  return writing.length === 1 || writing.some((arm) => !arm.tokens.includes(token));
+};
 
-/**
- * The arm a class is part of, when the element does not wear that arm whole. Two or more of an arm's classes worn together are that arm, whatever
- * they are. A class alone counts only when it carries the arm's meaning, and it does unless {@link MECHANISM_DOORS} or more doors write it: a class
- * that many unrelated primitives need, such as `relative` or `items-start`, is the mechanism they ride on and names no arm. A zero step never reaches here.
- */
-export function partArmJudgement(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
-  const worn = (arm: Arm): number => arm.tokens.filter((written) => written === token || siblings.includes(written)).length;
-  const rooted = [...(recipeOf(elem, components)?.axes ?? [])].flatMap(([axis, arms]) =>
-    [...arms]
-      .filter(([, arm]) => arm.tokens.length > 1 && arm.tokens.includes(token) && arm.slots.every((slot) => slot === ROOT_SLOT))
-      .map(([name, arm]) => ({ axis, name, arm })),
-  );
-  const [best] = rooted.toSorted((left, right) => worn(right.arm) - worn(left.arm));
-  if (elem === null || best === undefined || (worn(best.arm) < MIN_PART_WORN && doorsWriting(token, components) >= MECHANISM_DOORS)) {
+/** A class every arm of an axis writes beside others: alone it says the axis is wanted and names no arm of it, as `sticky` does for `pinned`. */
+function ridesJudgement(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
+  const found = rootAxes(recipeOf(wearer, components)).find(([, arms]) => {
+    const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+    return writing.length > 1 && writing.every((arm) => arm.tokens.length > 1 && arm.tokens.includes(token));
+  });
+  if (wearer === null || found === undefined) {
     return null;
   }
-  const label = `${kebab(componentOf(elem))}.${best.axis}.${best.name}`;
+  const axis = declaredAxis(wearer, found[0], found[1]);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `rides on: ${axis.label}`,
+    reason: `${token} is what ${axis.label} rides on, so it names no arm; the element wants an arm of ${axis.label} (arms: ${[...axis.arms.keys()].join(", ")})`,
+    keep: null,
+  };
+}
+
+/**
+ * The arm a class is part of, when the element does not wear that arm whole: the arm writes it beside other classes on the element itself, and
+ * the class tells that arm from its siblings. A zero step never reaches here.
+ */
+function partArmJudgement(wearer: Wearer | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
+  const worn = (arm: Arm): number => arm.tokens.filter((written) => written === token || siblings.includes(written)).length;
+  const rooted = rootAxes(recipeOf(wearer, components))
+    .filter(([, arms]) => tellsArmsApart(arms, token))
+    .flatMap(([axis, arms]) =>
+      [...arms].filter(([, arm]) => arm.tokens.length > 1 && arm.tokens.includes(token) && onRoot(arm)).map(([name, arm]) => ({ axis, name, arm })),
+    );
+  const [best] = rooted.toSorted((left, right) => worn(right.arm) - worn(left.arm));
+  if (wearer === null || best === undefined) {
+    return null;
+  }
+  const label = `${kebab(wearer.component)}.${best.axis}.${best.name}`;
   return {
     verdict: "decide",
     match: null,
@@ -214,18 +253,16 @@ export function partArmJudgement(elem: Elem | null, token: string, siblings: rea
 }
 
 /** A class under a container step that says the same as an arm written from the other side: `flex-col @cq-32:flex-row` is `@max-cq-32:flex-col`. */
-export function mirrorJudgement(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
+function mirrorJudgement(wearer: Wearer | null, token: string, siblings: readonly string[], components: ComponentTables): Judgement | null {
   const step = MIN_STEP.exec(baseOf(token).variants)?.[1];
   const resting = step === undefined ? undefined : siblings.find((sibling) => baseOf(sibling).variants === "" && sameFamily(sibling, baseOf(token).base));
   const mirror = resting === undefined ? undefined : `@max-cq-${step}:${resting}`;
   const found =
-    mirror === undefined
-      ? undefined
-      : [...(recipeOf(elem, components)?.axes ?? [])].find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(mirror)));
-  if (elem === null || mirror === undefined || found === undefined) {
+    mirror === undefined ? undefined : rootAxes(recipeOf(wearer, components)).find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(mirror)));
+  if (wearer === null || mirror === undefined || found === undefined) {
     return null;
   }
-  const axis = declaredAxis(elem, found[0], found[1]);
+  const axis = declaredAxis(wearer, found[0], found[1]);
   return {
     verdict: "decide",
     match: null,
@@ -236,16 +273,16 @@ export function mirrorJudgement(elem: Elem | null, token: string, siblings: read
 }
 
 /** The verdict for a class of a family one of the element's axes picks within, when no arm writes the class itself; else null. */
-export function newArmJudgement(elem: Elem | null, token: string, guarded: boolean, components: ComponentTables): Judgement | null {
-  const recipe = recipeOf(elem, components);
+function newArmJudgement(wearer: Wearer | null, token: string, guarded: boolean, components: ComponentTables): Judgement | null {
+  const recipe = recipeOf(wearer, components);
   const { base } = baseOf(token);
-  const axes = [...(recipe?.axes ?? [])];
+  const axes = rootAxes(recipe);
   const found =
     axisChoosing(recipe, token) ?? axes.find(([, arms]) => picksFamily(arms, base) && nested(arms)) ?? axes.find(([, arms]) => offersFamily(arms, base));
-  if (elem === null || found === undefined) {
+  if (wearer === null || found === undefined) {
     return null;
   }
-  const axis = declaredAxis(elem, found[0], found[1]);
+  const axis = declaredAxis(wearer, found[0], found[1]);
   return {
     verdict: "decide",
     match: null,
@@ -255,42 +292,74 @@ export function newArmJudgement(elem: Elem | null, token: string, guarded: boole
   };
 }
 
+/** The class is of the family a steps ramp writes under its variant. */
+function rampFamily(arms: ArmClasses, base: string): boolean {
+  const ramp = stepsRamp(arms);
+  return ramp !== undefined && sameFamily(base, ramp.base);
+}
+
 /**
- * A class of the same family as a steps ramp writes, under the same kind of variant, at another value (`@max-cq-32:flex-row-reverse` beside
- * `stackBelow`'s `@max-cq-32:flex-col`). It is no step of that ramp, whose meaning is the one class, so it asks for an axis of its own.
+ * A class of the family a steps ramp writes, at another value, plain or under a variant (`flex-col-reverse` beside `stackBelow`'s `@max-cq-32:flex-col`).
+ * It is no step of that ramp, whose meaning is the one class, so it asks for an axis of its own.
  */
-export function besideJudgement(elem: Elem | null, token: string, components: ComponentTables): Judgement | null {
+function besideJudgement(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
   const { base } = baseOf(token);
-  const found = [...(recipeOf(elem, components)?.axes ?? [])].find(([, arms]) => {
-    const ramp = stepsRamp(arms);
-    return ramp !== undefined && ramp.stem === variantStem(token) && ramp.base !== base && sameFamily(base, ramp.base);
-  });
-  if (elem === null || found === undefined) {
+  const found = rootAxes(recipeOf(wearer, components)).find(([, arms]) => rampFamily(arms, base));
+  if (wearer === null || found === undefined) {
     return null;
   }
-  const axis = declaredAxis(elem, found[0], found[1]);
+  const axis = declaredAxis(wearer, found[0], found[1]);
   return {
     verdict: "decide",
     match: null,
     owner: `new axis beside: ${axis.label}`,
-    reason: `${token} is ${base}, a different value of the family ${axis.label} writes under the same step, so no arm of it`,
+    reason: `${token} is ${base}, a different value of the family ${axis.label} writes, so no step of it`,
     keep: null,
   };
 }
 
-/**
- * The verdict for a class of a family another component of the door writes, on a component that declares no such axis: the hit stays,
- * with no arm to move it to. Null when the element is not a primitive or no component of its door writes the family.
- */
-export function undeclaredJudgement(elem: Elem | null, token: string, components: ComponentTables): Judgement | null {
-  const door = elem?.kind === "ui" && elem.door !== null ? components.get(elem.door) : undefined;
-  const base = baseOf(token).base;
-  const writer = [...(door?.values() ?? [])].flatMap((recipe) => [...recipe.axes]).find(([, arms]) => picksFamily(arms, base));
-  if (elem === null || door === undefined || writer === undefined) {
+/** What the component's own base writes that the class evicts: the class changes what the primitive is. */
+const baseEvicted = (recipe: ComponentRecipe | undefined, base: string): string | undefined =>
+  recipe?.base.find((written) => written !== base && sameFamily(written, base));
+
+/** A class that evicts the component's base and that a sibling of its door is built on: `grid` on a Stack is a Grid, so that sibling is the element. */
+function siblingBaseJudgement(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
+  const { base } = baseOf(token);
+  const held = baseEvicted(recipeOf(wearer, components), base);
+  const door = wearer === null ? undefined : components.get(wearer.door);
+  const sibling = held === undefined ? undefined : [...(door ?? [])].find(([, recipe]) => recipe.base.includes(base));
+  if (wearer === null || sibling === undefined) {
     return null;
   }
-  const component = kebab(componentOf(elem));
-  const own = door.get(componentOf(elem));
+  const component = kebab(wearer.component);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `another primitive: ${token} on ${component} is ${kebab(sibling[0])}`,
+    reason: `${token} overrides the ${held ?? ""} that ${component} is built on, and ${sibling[0]} is built on ${base}: that element is a ${sibling[0]}`,
+    keep: null,
+  };
+}
+
+const CONTAINING_BLOCK = "relative";
+
+/** A side inset on a primitive whose door writes none: the box around it owns the inset. */
+function sideInsetJudgement(wearer: Wearer | null, token: string): Judgement | null {
+  if (wearer === null || !ONE_SIDED_INLINE.test(baseOf(token).base)) {
+    return null;
+  }
+  const component = kebab(wearer.component);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `no axis: ${token} on ${component}`,
+    reason: `${component} is no layout box, so ${token} has no arm to move to; a box around it owns the inset`,
+    keep: null,
+  };
+}
+
+const noAxis = (wearer: Wearer, token: string, own: ComponentRecipe | undefined): Judgement => {
+  const component = kebab(wearer.component);
   return {
     verdict: "decide",
     match: null,
@@ -298,9 +367,59 @@ export function undeclaredJudgement(elem: Elem | null, token: string, components
     reason:
       own === undefined
         ? `${component} applies no tv() table in its own file, so no axis is read for ${token}`
-        : `no axis of ${component} chooses ${base} as a ramp (its axes: ${[...own.axes.keys()].join(", ")}), so ${token} has no arm to move to`,
+        : `no axis of ${component} chooses ${baseOf(token).base} as a ramp (its axes: ${[...own.axes.keys()].join(", ")}), so ${token} has no arm to move to`,
     keep: null,
   };
+};
+
+const doorPicks = (door: ReadonlyMap<string, ComponentRecipe> | undefined, base: string): boolean =>
+  [...(door?.values() ?? [])].some((recipe) => rootAxes(recipe).some(([, arms]) => picksFamily(arms, base) || rampFamily(arms, base)));
+
+/** The verdict for a class of a family a sibling in the element's own door chooses, on a component that declares no such axis: the sibling is the home. */
+function ownDoorJudgement(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
+  const door = wearer === null ? undefined : components.get(wearer.door);
+  return wearer !== null && doorPicks(door, baseOf(token).base) ? noAxis(wearer, token, door?.get(wearer.component)) : null;
+}
+
+/**
+ * The verdict for every class a door's table can name an owner for: what the lint refuses and the first thing the census reports. A class no arm
+ * writes is a new arm, the mirror of one, beside a ramp, part of an arm, against the base, or its door's sibling's. Null when the tables name nothing.
+ */
+export function ownerRow(wearer: Wearer | null, { token, guarded, siblings }: WrittenClass, components: ComponentTables): Judgement | null {
+  return ZERO_STEP.test(baseOf(token).base)
+    ? null
+    : (mirrorJudgement(wearer, token, siblings, components) ??
+        newArmJudgement(wearer, token, guarded, components) ??
+        besideJudgement(wearer, token, components) ??
+        (baseOf(token).base === CONTAINING_BLOCK ? keepJudgement("containing-block", token) : null) ??
+        partArmJudgement(wearer, token, siblings, components) ??
+        ridesJudgement(wearer, token, components) ??
+        siblingBaseJudgement(wearer, token, components) ??
+        sideInsetJudgement(wearer, token) ??
+        ownDoorJudgement(wearer, token, components));
+}
+
+/**
+ * The verdict for a class the tables show has no home here: it fights the component's base, or only another door's axes choose its family. The census
+ * shows the row and the lint stays out of it, because the tables name nothing to send the caller to.
+ */
+export function homelessRow(wearer: Wearer | null, token: string, components: ComponentTables): Judgement | null {
+  const { base } = baseOf(token);
+  if (wearer === null || ZERO_STEP.test(base)) {
+    return null;
+  }
+  const held = baseEvicted(recipeOf(wearer, components), base);
+  const component = kebab(wearer.component);
+  if (held !== undefined) {
+    return {
+      verdict: "decide",
+      match: null,
+      owner: `against base: ${component} writes ${held}`,
+      reason: `${token} overrides the ${held} that ${component} is built on; ${component} wants an axis for it`,
+      keep: null,
+    };
+  }
+  return [...components.values()].some((door) => doorPicks(door, base)) ? noAxis(wearer, token, recipeOf(wearer, components)) : null;
 }
 
 /** A class under a variant, a ternary or `&&` is a conditional use, so a new arm for it is a design call. */

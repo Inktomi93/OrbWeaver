@@ -93,12 +93,12 @@ function rewritten([was, is]: ElementProps, [wasClasses, isClasses]: ElementClas
  * reads a changed prop keeps them all, and the door's computed axes stop multiplying into a limit no move could meet.
  */
 function reaches(axis: string, recipe: ComponentRecipe, changed: ReturnType<typeof rewritten>): boolean {
-  const compounds = recipe.compounds.filter((compound) => compound.reads.includes(axis));
+  const compounds = recipe.compounds.filter((compound) => compound.conditions.has(axis));
   const written = [...[...(recipe.declared.get(axis)?.values() ?? [])].flatMap((arm) => arm.tokens), ...compounds.flatMap((compound) => compound.tokens)];
   return (
     changed.axes.has(axis) ||
     recipe.compoundsUnread ||
-    compounds.some((compound) => compound.reads.some((read) => changed.axes.has(read))) ||
+    compounds.some((compound) => [...compound.conditions.keys()].some((read) => changed.axes.has(read))) ||
     written.some((token) => changed.tokens.some((moved) => conflicts(token, moved)))
   );
 }
