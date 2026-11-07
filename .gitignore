@@ -45,6 +45,9 @@ coverage/
 
 # Tool output
 /reports/
+# Stryker's sandbox, and the per-worker setup files its runner writes to the working directory.
+.stryker-tmp/
+/stryker-setup-*.js
 
 # --- caches ---
 .turbo/
