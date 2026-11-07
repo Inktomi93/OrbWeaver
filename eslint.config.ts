@@ -376,10 +376,12 @@ const PORTABLE_PROCESS_SYNTAX = [
 ];
 
 // A walker segment is a template literal, which consumes a single backslash: `/\s+/` there emits `/s+/`, a regex over the
-// letter s. The selector writes the slash as \x2f because esquery's regex grammar ends at the first `/`.
+// letter s, and `\d` and `\w` fail the same way. The cooked text is what the page receives, so the selector reads it.
+// It writes the slash as \x2f because esquery's regex grammar ends at the first `/`.
 const WALKER_LETTER_REGEX_SYNTAX = {
-  selector: String.raw`TemplateElement[value.raw=/\x2fs[+*]\x2f/]`,
-  message: "A walker segment is a template literal: write the whitespace class as a double backslash, or the emitted regex matches the letter s.",
+  selector: String.raw`TemplateElement[value.cooked=/\x2f[sdwSDW][+*]\x2f/]`,
+  message:
+    "A walker segment is a template literal: write a character class with a double backslash (\\\\s, \\\\d, \\\\w), or the emitted regex matches the bare letter.",
 };
 
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
