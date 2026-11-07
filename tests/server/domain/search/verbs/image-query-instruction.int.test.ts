@@ -19,6 +19,7 @@ import {
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { SCOPE_INSTRUCTIONS } from "#server/domain/search/substrate/instructions.ts";
 
 const QUERY = "a silver-haired archivist";
 const RERANK_MODEL = modelIdSchema.parse("image-rerank-model");
@@ -133,11 +134,7 @@ test("a reranked image search leads the cross-encoder query with a scope instruc
   const plain = await imageSearch(false);
   const { rerankQueries, order } = await imageSearch(false, true);
   expect(rerankQueries).toHaveLength(1);
-  // One instruction line, then the query itself.
-  const [instruction = "", query, ...rest] = rerankQueries[0]?.split("\n") ?? [];
-  expect(instruction.length).toBeGreaterThan(0);
-  expect(query).toBe(QUERY);
-  expect(rest).toEqual([]);
+  expect(rerankQueries).toEqual([`${SCOPE_INSTRUCTIONS.images.rerank}\n${QUERY}`]);
   // The search returns the cross-encoder's order, not the pool's.
   expect(new Set(plain.order).size).toBe(AVATARS.length);
   expect(order).toEqual(plain.order.toReversed());
