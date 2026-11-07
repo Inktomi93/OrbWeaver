@@ -93,7 +93,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
       ) : (
         <Stack gap="block">
           {/* The portrait↔card cosine is spoken in WORDS here and in the dossier (`matchWord`), never as a bare percentage. */}
-          <Row gap="block" className="flex-wrap">
+          <Row gap="block" wrap={true}>
             <StatFigure label="Scored" value={report.count.toString()} />
             <StatFigure label="Mean fit" value={matchWord(report.mean)} />
             <StatFigure label="Median fit" value={matchWord(report.median)} />
@@ -156,7 +156,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
         </Text>
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>
-          <Row gap="block" className="flex-wrap">
+          <Row gap="block" wrap={true}>
             <ParamSelect label="Facet" value={facetKey} items={facetItems} onValueChange={onFacet} />
             <ParamSelect label="Value" value={value} items={valueItems} onValueChange={setValue} />
           </Row>

@@ -158,7 +158,7 @@ export function LaneRunControl({
       {/* WRAPS, and the verb keeps its content floor. The rails are 15rem/17rem wide: a fit readout and a
           verb cannot share one line's slack there, and the verb is the thing that must never shrink under
           its own label (the run-bar overlap this exact pair produced at 3-pane width, side-eye P1). */}
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {/* Token arithmetic is shown only when it is the reason to act (this stage would not fit): on a run
             that fits, "in ≈ 517 / 1048576" is jargon with nothing to do about it. */}
         {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}

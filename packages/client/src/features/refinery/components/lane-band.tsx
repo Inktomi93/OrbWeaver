@@ -38,7 +38,7 @@ export interface LaneBandProps {
 
 export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
   return (
-    <Row align="center" className="flex-wrap" data-testid={testId("refineryLaneBand")} gap="field">
+    <Row align="center" wrap={true} data-testid={testId("refineryLaneBand")} gap="field">
       <Heading level={3} voice="kicker">
         {kicker}
       </Heading>
@@ -83,7 +83,7 @@ export function LaneNotes({ viewingBack, iteration, behind, onBackToLatest }: La
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap" gap="field">
+    <Row align="center" wrap={true} gap="field">
       {viewingBack ? (
         <>
           <RefineryChip tone="warn">Viewing round {iteration ?? 0} · superseded</RefineryChip>

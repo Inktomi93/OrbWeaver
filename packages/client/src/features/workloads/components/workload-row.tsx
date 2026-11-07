@@ -107,7 +107,7 @@ function WorkloadRowBody({
         subtitleWrap={true}
         stackActions={true}
         actions={
-          <Row align="center" gap="row" className="flex-wrap" cap="fit">
+          <Row align="center" gap="row" wrap={true} cap="fit">
             {/* NEUTRAL, not warning (side-eye 2026-08-06 P3): `bulk` is the run's CATEGORY, not its health,
                 and the amber sat beside a green "Succeeded" telling two stories about one row. The queue-state
                 badges below already speak this vocabulary — a category badge is neutral, and colour on this

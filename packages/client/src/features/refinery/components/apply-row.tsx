@@ -32,7 +32,7 @@ export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRo
   const appliedNoteId = useId();
   const unsendable = acts.pending || keptAccepts.length === 0;
   return (
-    <Row align="center" className="flex-wrap" gap="row" justify="end">
+    <Row align="center" wrap={true} gap="row" justify="end">
       {completed ? (
         <Text id={appliedNoteId} voice="gloss">
           Applied. Run a stage to start another round.

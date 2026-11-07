@@ -124,7 +124,7 @@ export function ReactionPicker({
         // The TARGET row (B7/MR3): whole-message first (the default), then one chip per named line.
         // A wrapping rail like the grid below; `title` carries the line's text so same-name lines are
         // tellable apart without widening the chip.
-        <Row align="center" className="flex-wrap" gap="field">
+        <Row align="center" wrap={true} gap="field">
           <Toggle
             aria-label="React to the whole message"
             variant="outline"
@@ -154,7 +154,7 @@ export function ReactionPicker({
       {/* `wrap` is the grid: ten cells at a ≥44px coarse floor cannot hold one line on a phone, and a
               wrapping rail is what the chip box is FOR (the `chip` control step is one home with Button's,
               which is the wrapping-rail cell). */}
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {REACTION_EMOJIS.map((emoji) => (
           <Toggle
             aria-label={`React with ${emoji}`}

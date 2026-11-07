@@ -140,10 +140,10 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
               · below @cq-28 the controls cluster drops onto its own line under the identity block, so the
                 toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
-        <Stack className="pbe-block" divider="bottom" gap="tight">
+        <Stack paddingBlockEnd="block" divider="bottom" gap="tight">
           <Row align="start" gap="block" justify="between" stackBelow="cq-28" stretchBelow="cq-28">
             <Stack className="min-inline-0" grow={true} gap="tight">
-              <Row align="center" className="flex-wrap" gap="field">
+              <Row align="center" wrap={true} gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
                 <Badge tone={status.tone} size="sm">
                   {status.label}
@@ -159,7 +159,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               </Text>
               {plugin.lastError === null ? null : (
                 // The raw error is developer text; the card says it plainly and keeps the detail one press away.
-                <Row align="center" className="flex-wrap" gap="field">
+                <Row align="center" wrap={true} gap="field">
                   <Text tone="destructive" cap="prose" prose={true} voice="gloss">
                     {PLUGIN_ERROR_SENTENCE}
                   </Text>

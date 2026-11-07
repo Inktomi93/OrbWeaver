@@ -167,7 +167,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
       <Heading className="sr-only" level={3}>
         {CONNECTIONS_LIST_SUBCATEGORY.label}
       </Heading>
-      <Row gap="field" align="center" justify="between" className="flex-wrap">
+      <Row gap="field" align="center" justify="between" wrap={true}>
         <Text voice="quiet" cap="prose">
           One provider and one model per connection. Your roles use these connections in rooms you host and for your work outside rooms. Shared-room turns use
           the room host's connections.
@@ -407,7 +407,7 @@ function ConnectionBadges({
   readonly providerUnavailable: boolean;
 }): ReactElement {
   return (
-    <Row gap="field" align="center" className="flex-wrap">
+    <Row gap="field" align="center" wrap={true}>
       {providerUnavailable ? (
         <Badge tone="warning" size="sm">
           Provider unavailable

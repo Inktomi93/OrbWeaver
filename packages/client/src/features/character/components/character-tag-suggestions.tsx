@@ -47,7 +47,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
 
   const pending: readonly TagSuggestionView[] = suggestions;
   return (
-    <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
+    <Row gap="field" align="center" wrap={true} data-slot="character-tag-suggestions">
       {pending.length > 0 && (
         // A NAMED GROUP, NOT TEN LOOSE BUTTONS (side-eye 2026-09-02 F13). The strip announced as `paragraph:
         // Suggested` followed by `Accept x` / `Dismiss x` ×5 with nothing binding them: a screen-reader user
@@ -60,7 +60,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           role="group"
           gap="field"
           align="center"
-          className="flex-wrap"
+          wrap={true}
           data-slot="character-tag-suggestion-group"
         >
           {/* The visible kicker stays: the group's accessible name is for AT, this is the sighted label. */}

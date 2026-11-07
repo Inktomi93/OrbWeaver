@@ -110,7 +110,7 @@ function CharacterBarStrip({
     <Row
       gap="field"
       align="center"
-      className="flex-wrap"
+      wrap={true}
       paddingBlock="row"
       paddingInline="block"
       plate="band"

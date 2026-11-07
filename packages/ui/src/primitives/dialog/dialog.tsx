@@ -89,9 +89,11 @@ export function DialogFooter(props: DialogFooterProps): ReactElement {
 export interface DialogHeaderProps extends ComponentProps<"header"> {
   /** The header stays in view while the body scrolls under it. */
   sticky?: boolean;
+  /** A title and actions that run out of room take a second line. */
+  wrap?: boolean;
 }
 
 /** Keeps the modal heading separate from the scrolling body. */
-export function DialogHeader({ className, sticky, ...rest }: DialogHeaderProps): ReactElement {
-  return <header className={dialogVariants({ stickyHeader: sticky }).header({ className })} data-slot="dialog-header" {...rest} />;
+export function DialogHeader({ className, sticky, wrap, ...rest }: DialogHeaderProps): ReactElement {
+  return <header className={dialogVariants({ stickyHeader: sticky, headerWrap: wrap }).header({ className })} data-slot="dialog-header" {...rest} />;
 }

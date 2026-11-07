@@ -128,7 +128,7 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   }
   const reason = utility.kind === "unset" ? "no Utility model is set" : `your Utility model is set but not running: ${utility.cause}`;
   return (
-    <Row align="center" className="flex-wrap" data-slot="memory-utility-status" gap="field">
+    <Row align="center" wrap={true} data-slot="memory-utility-status" gap="field">
       <Text prose={true} cap="prose" voice="gloss">
         {enabled ? `Summaries are paused: ${reason}.` : `Memory also needs a Utility model, and ${reason}.`}
       </Text>

@@ -77,7 +77,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
       label,
       body: (
         <Stack gap="tight">
-          <Row align="center" className="flex-wrap" gap="field">
+          <Row align="center" wrap={true} gap="field">
             <RefineryChip tone="warn" wrap={true}>
               Changed since the session started
             </RefineryChip>
@@ -168,7 +168,7 @@ function QueueRow({
   return (
     <Row
       align="center"
-      className="flex-wrap"
+      wrap={true}
       paddingBlock="field"
       data-queue-state={state}
       divider={first ? undefined : "top"}

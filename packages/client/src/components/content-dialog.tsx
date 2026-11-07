@@ -47,7 +47,7 @@ export function ContentDialog({
   return (
     <Dialog {...root}>
       <DialogPopup {...popupProps} size={size} anchor={anchor} spaced={true}>
-        <DialogHeader className="flex-wrap">
+        <DialogHeader wrap={true}>
           <Row align="center" gap="row" className="min-inline-0" floor="title" grow={true}>
             {headerLeading}
             <DialogTitle {...titleProps}>{title}</DialogTitle>

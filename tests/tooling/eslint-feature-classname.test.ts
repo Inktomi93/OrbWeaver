@@ -241,7 +241,7 @@ test.for([
 });
 
 test.for([
-  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 flex-wrap" />);\n`],
+  ["a layout class no prop owns", `${PRIMITIVES}export const T = (<Row className="min-inline-0 shrink-0" />);\n`],
   ["an owned class under a viewport variant", `${PRIMITIVES}export const T = (<Row className="md:justify-end" />);\n`],
   ["an owned class in an alternate class prop", `${PRIMITIVES}export const T = (<Row restClassName="justify-end" />);\n`],
   ["an owned class on a local component that shadows the primitive", `${PRIMITIVES}export const T = ({ Row }) => (<Row className="justify-end" />);\n`],

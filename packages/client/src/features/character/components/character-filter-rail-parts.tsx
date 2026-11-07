@@ -150,7 +150,7 @@ export function TagVocabularyPanel({
         <Row
           aria-label="Tag filter vocabulary"
           aria-orientation="horizontal"
-          className="flex-wrap"
+          wrap={true}
           paddingInlineEnd="row"
           gap="tight"
           onFocus={roving.onFocus}

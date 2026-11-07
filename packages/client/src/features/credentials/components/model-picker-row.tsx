@@ -42,7 +42,7 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap min-inline-0 @cq-32:shrink-0" gap="field">
+    <Row align="center" className="min-inline-0 @cq-32:shrink-0" wrap={true} gap="field">
       {vision ? (
         <Badge tone="info" variant="solid" size="sm">
           Vision

@@ -189,7 +189,7 @@ function ThemeableVarsReference(): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="kicker">Themeable variables</Text>
-      <Row gap="field" className="flex-wrap">
+      <Row gap="field" wrap={true}>
         {THEME_SCOPE_EMIT_VARS.map((name) => (
           <Card key={name} padding="none" variant="soft">
             <Text as="span" voice="code" className="px-field" ink="muted">

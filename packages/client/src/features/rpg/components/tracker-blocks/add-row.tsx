@@ -72,7 +72,7 @@ export function AddRow({ ariaLabel, placeholder, actions, leading, trailing, pen
         />
         {trailing}
       </Row>
-      <Row gap="field" justify="end" className="flex-wrap">
+      <Row gap="field" justify="end" wrap={true}>
         {actions.map((action, i) => (
           <Button key={action.key} variant={action.variant ?? (i === 0 ? "solid" : "ghost")} size="sm" disabled={blocked} onClick={(): void => fire(action)}>
             {action.icon === undefined ? null : <Icon icon={action.icon} size="xs" />}

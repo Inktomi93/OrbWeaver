@@ -129,7 +129,7 @@ function ArtCliqueRow({ members }: { readonly members: readonly ArtCliqueMember[
       <Text as="span" voice="label">
         {`${members.length.toString()} cards share this portrait`}
       </Text>
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {shown.map((member) => (
           <Button variant="ghost" key={member.id} onClick={(): void => selectCorpusCharacter(member.id)} size="sm">
             {member.name}

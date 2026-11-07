@@ -131,7 +131,7 @@ function SuggestionGroupBlock({
   }
   return (
     <Stack gap="field" role="group" aria-label={`Suggested ${group.name}`}>
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <EditableTagChip tag={first} />
         <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
         <Button
@@ -178,7 +178,7 @@ function SuggestionGroupBlock({
 
 function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: TagSuggestionView; readonly groupName: string }): ReactElement {
   return (
-    <Row align="center" className="flex-wrap" gap="field">
+    <Row align="center" wrap={true} gap="field">
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
         className="min-inline-0"

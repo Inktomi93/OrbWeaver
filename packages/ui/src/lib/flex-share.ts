@@ -8,3 +8,6 @@ export const FLOOR = {
   field: "basis-(--width-field-floor)",
   line: "basis-full",
 } as const;
+
+/** Children that run out of room take a second line instead of squeezing: always, or only below a container step. */
+export const WRAP = { true: "flex-wrap", false: "", "cq-20": "@max-cq-20:flex-wrap" } as const;

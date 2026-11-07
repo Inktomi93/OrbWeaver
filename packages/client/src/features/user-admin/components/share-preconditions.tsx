@@ -133,7 +133,7 @@ function PreconditionList({
         ))}
       </Stack>
       <Stack gap="tight">
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <Button
             ref={startRef}
             type="button"
@@ -196,7 +196,7 @@ function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: Prec
   const badge = VERDICT_BADGE[row.verdict];
   return (
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Text voice="label">{PRECONDITION_LABEL[row.id]}</Text>
         <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
           {badge.label}
@@ -279,7 +279,7 @@ function SeatingFix({ off, onFix }: { readonly off: readonly SeatingSetting[]; r
   return (
     <Stack gap="tight">
       <ShareProse>{`Off now: ${seatingNames(off)}. ${seatingReasons(off)}`}</ShareProse>
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Button type="button" variant="outline" size="sm" onClick={onFix}>
           {seatingActionLabel(off)}
         </Button>

@@ -168,7 +168,7 @@ function ScheduleRow({
       subtitle={subtitleParts.join(" · ")}
       stackActions={true}
       actions={
-        <Row align="center" gap="row" className="flex-wrap" cap="fit">
+        <Row align="center" gap="row" wrap={true} cap="fit">
           {schedule.mode === "bulk" ? (
             <Badge tone="warning" variant="solid">
               Bulk

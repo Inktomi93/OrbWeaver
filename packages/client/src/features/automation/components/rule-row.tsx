@@ -251,7 +251,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
             and the one control a host needs WITHOUT opening the row sits beside it. The end inset supplies the
             padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" className="flex-wrap" paddingInlineEnd="block" gap="field">
+        <Row align="center" wrap={true} paddingInlineEnd="block" gap="field">
           {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line
@@ -298,8 +298,8 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
-          <Stack className="pbe-block" paddingInline="block" gap="field">
-            <Row align="center" className="flex-wrap" gap="field">
+          <Stack paddingBlockEnd="block" paddingInline="block" gap="field">
+            <Row align="center" wrap={true} gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
                 <Button variant="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>

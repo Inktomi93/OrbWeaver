@@ -53,7 +53,7 @@ export function ComposerAttachmentStrip({
     return null;
   }
   return (
-    <Track of={Row} track="composer" gap="field" align="center" data-slot="composer-attachments" className="flex-wrap">
+    <Track of={Row} track="composer" gap="field" align="center" data-slot="composer-attachments" wrap={true}>
       {attachments.map((attachment, index) => (
         <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => onRemove(index)} />
       ))}

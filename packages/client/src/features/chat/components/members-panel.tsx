@@ -201,7 +201,7 @@ function SectionHeader({
   return (
     // `data-slot`: the header's LINE COUNT and its doors' trailing edge are the properties the budget above
     // is about, so they need a handle a CT can measure.
-    <Row gap="field" align="center" className="flex-wrap" data-slot="members-section-header">
+    <Row gap="field" align="center" wrap={true} data-slot="members-section-header">
       <Text as="span" voice="kicker" id={labelId}>
         {kicker}
       </Text>

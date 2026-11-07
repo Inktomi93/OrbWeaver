@@ -124,7 +124,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
           }}
         >
           <Stack gap="block">
-            <Row align="center" className="flex-wrap" justify="between" gap="row">
+            <Row align="center" wrap={true} justify="between" gap="row">
               <TabsList aria-label="Filter jobs">
                 {WORKLOAD_FILTERS.map((id) => (
                   <TabsTab key={id} value={id}>

@@ -241,10 +241,10 @@ function IdentityBlock({
         {/* Flavor sits with the identity, ABOVE the volatile status line: who they are, then how they are. */}
         <SheetFlavor actor={actor} {...(onEditFlavor === undefined ? {} : { onEditFlavor })} />
         <StatusLine status={actor.volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <SheetLevel level={actor.sheet.level} {...(onEditLevel === undefined ? {} : { onEditLevel })} />
           {/* The story's own purse, named apart from any Coin tracker the host adds below: that one is a game stat. */}
-          <Row gap="field" align="center" className="flex-wrap" role="group" aria-label="Story currency">
+          <Row gap="field" align="center" wrap={true} role="group" aria-label="Story currency">
             <Text as="span" voice="gloss">
               Story currency
             </Text>

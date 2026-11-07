@@ -230,7 +230,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 AND `justify="start"`, NOT `between` — a cap alone would pay for the measure with a hand-span
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
-          <Row align="center" className="flex-wrap" gap="row" justify="start">
+          <Row align="center" wrap={true} gap="row" justify="start">
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               Use this after a settings change, or if search misses this document.
             </Text>

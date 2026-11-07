@@ -147,7 +147,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
         scroll="y"
-        className="pbe-gutter"
+        paddingBlockEnd="gutter"
         fill={true}
         paddingInline="section"
         paddingBlockStart="section"

@@ -218,7 +218,7 @@ export function RpgTakeoverHeader({
 
   if (ambientUnset) {
     return (
-      <Row gap="block" align="center" className="flex-wrap" data-slot="rpg-takeover-header">
+      <Row gap="block" align="center" wrap={true} data-slot="rpg-takeover-header">
         {stone}
         <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
@@ -228,7 +228,7 @@ export function RpgTakeoverHeader({
           </Text>
           {/* Cues and satellites share one wrapping row BESIDE the stone: with nothing to read above them
               they fit in the stone's own height, which is what makes the band a single row. */}
-          <Row gap="row" align="center" className="flex-wrap">
+          <Row gap="row" align="center" wrap={true}>
             {cues}
             {satellites}
           </Row>
@@ -239,7 +239,7 @@ export function RpgTakeoverHeader({
 
   return (
     <Stack gap="block" data-slot="rpg-takeover-header">
-      <Row gap="block" align="center" className="flex-wrap">
+      <Row gap="block" align="center" wrap={true}>
         {stone}
         <Stack gap="field" className="min-inline-0" floor="title" grow={true} cap="fit">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
@@ -250,7 +250,7 @@ export function RpgTakeoverHeader({
             {location || "No location set"}
           </Text>
           <BandWhen when={when} />
-          <Row gap="field" align="center" className="flex-wrap">
+          <Row gap="field" align="center" wrap={true}>
             {cues}
           </Row>
         </Stack>

@@ -193,7 +193,7 @@ export function NewChatPicker(): ReactElement {
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
       {intent?.temporary === true ? (
-        <Row align="center" className="flex-wrap" gap="field" padding="block">
+        <Row align="center" wrap={true} gap="field" padding="block">
           <Badge className="truncate max-inline-full">{TEMPORARY_CHAT_BADGE}</Badge>
           <Text ink="muted" voice="gloss" prose={true}>
             This room won't join your chats list, and you can't switch it later.
@@ -202,7 +202,7 @@ export function NewChatPicker(): ReactElement {
       ) : null}
       {hasRosters ? (
         // A short dialog spends no block inset on this row, or the pinned footer would lie over the list's one row.
-        <Row className="flex-wrap dialog-short:py-0 dialog-stacked:hidden" justify="end" padding="block">
+        <Row className="dialog-short:py-0 dialog-stacked:hidden" wrap={true} justify="end" padding="block">
           {rosterDoor}
         </Row>
       ) : null}
@@ -224,7 +224,7 @@ export function NewChatPicker(): ReactElement {
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row
         align="center"
-        className="flex-wrap"
+        wrap={true}
         data-slot="new-chat-actions"
         divider="top"
         gap="field"

@@ -204,7 +204,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
     // hit target. Nothing here is clickable, and a pointer cursor over a statement is the same false
     // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
     <Stack gap="tight">
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <Text id={nameId} voice="label">
           {copy.label}
         </Text>

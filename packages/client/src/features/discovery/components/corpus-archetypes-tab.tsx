@@ -228,7 +228,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
           quiet second-line voice and is cased like the sentence it is. */}
       {facets.length > 0 ? <Text voice="gloss">{sentenceCase(facets.join(" · "))}</Text> : null}
       {cluster.topTags.length > 0 ? (
-        <Row align="center" gap="field" className="flex-wrap">
+        <Row align="center" gap="field" wrap={true}>
           {cluster.topTags.map((tag) => (
             <Badge key={tag} size="sm">
               {tag}
@@ -270,7 +270,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               A `wrap`-sized ghost Button per name, not a link list: the same control the gem shelf and
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
-          <Row className="flex-wrap min-inline-0" grow={true} gap="tight">
+          <Row className="min-inline-0" wrap={true} grow={true} gap="tight">
             {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
               <Button variant="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
                 <Text as="span" truncate={true} ink="muted" voice="label">

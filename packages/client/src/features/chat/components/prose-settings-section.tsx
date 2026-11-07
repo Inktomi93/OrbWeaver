@@ -263,7 +263,7 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
         </Row>
       ) : null}
       {footer.stale ? (
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <Badge tone="warning" size="sm" className="whitespace-normal max-inline-full">
             The built-in wording was updated
           </Badge>

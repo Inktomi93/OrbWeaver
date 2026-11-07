@@ -147,7 +147,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   return (
-    <Row align="center" className="flex-wrap" gap="field" justify="start">
+    <Row align="center" wrap={true} gap="field" justify="start">
       <Button
         aria-label={`Check ${plugin.name} for updates`}
         variant="outline"
@@ -290,7 +290,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       />
       {/* The roll-up line at the decision point (#1855: always the full declared set). */}
       {summary === null ? null : <Text voice="label">{summary}</Text>}
-      <Row className="flex-wrap" gap="field" justify="start">
+      <Row wrap={true} gap="field" justify="start">
         {/* THE ACTION NAMES ITS PLUGIN: several of these notices can share a screen, and an unnamed
             "Approve all" is how one plugin's permissions were granted to another. */}
         <Button variant="outline" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">

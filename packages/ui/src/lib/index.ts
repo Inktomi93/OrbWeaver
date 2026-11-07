@@ -20,7 +20,7 @@ export type { CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 export { cssMergeTrace } from "./css-merge-trace.ts";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state.ts";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control.ts";
-export { FLOOR, GROW } from "./flex-share.ts";
+export { FLOOR, GROW, WRAP } from "./flex-share.ts";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,

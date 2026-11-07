@@ -108,10 +108,10 @@ export function PluginSurfaceShell({
   // INLINE chrome (U6, §5.4): the per-row transcript shape — same wall (glyph + name + named region), no box.
   if (chrome === "inline") {
     return (
-      <Row align="center" className="flex-wrap" gap="field" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
+      <Row align="center" wrap={true} gap="field" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         <Icon icon={Blocks} size="sm" />
         <Text voice="label">{pluginName}</Text>
-        <Row align="center" aria-label={regionName} className="flex-wrap" gap="tight" role="group">
+        <Row align="center" aria-label={regionName} wrap={true} gap="tight" role="group">
           {children}
         </Row>
       </Row>

@@ -193,7 +193,7 @@ function RowMeta({
   readonly descriptionId: string;
 }): ReactElement {
   return (
-    <Row gap="tight" align="center" className="flex-wrap min-inline-0 empty:hidden">
+    <Row gap="tight" align="center" className="min-inline-0 empty:hidden" wrap={true}>
       <LastSeen row={row} />
       <RowStateBadges row={row} />
       {responding ? (

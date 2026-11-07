@@ -305,7 +305,7 @@ export function ConditionChips({
     // The coarse floor again: with no chips yet this row is a bare text-height `+ condition`, whose touch
     // pseudo would swallow the status line ABOVE it. With chips it changes nothing — a chip already
     // carries `touchFloor="block"`, so the row is already ≥44 there.
-    <Row gap="field" touchFloor="block" className="flex-wrap" data-slot="rpg-conditions">
+    <Row gap="field" touchFloor="block" wrap={true} data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
         <RpgFieldLock
           field={subject === undefined ? "the conditions" : trackerFieldName("conditions", subject)}

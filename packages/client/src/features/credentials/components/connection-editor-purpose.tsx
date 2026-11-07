@@ -31,7 +31,7 @@ export function KindVerdict({
   const labelId = useId();
   return (
     <Stack data-slot="connection-kind-verdict" gap="tight">
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <Text id={labelId} voice="label">
           This looks like a {KIND_VERDICT_LABELS[kind]} model —
         </Text>
@@ -74,7 +74,7 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
   const cannot = badges.filter((badge) => !badge.ok);
   return (
     <Stack data-slot="connection-capability-rail" gap="tight">
-      <Row className="flex-wrap" gap="field">
+      <Row wrap={true} gap="field">
         {badges.map((badge) => (
           <Badge
             className={badge.ok ? undefined : "@max-cq-32:hidden"}

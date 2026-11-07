@@ -231,7 +231,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
 
   if (pending === "dismiss") {
     return (
-      <Row gap="field" align="center" justify="end" className="flex-wrap">
+      <Row gap="field" align="center" justify="end" wrap={true}>
         <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
           Forget {actor.name} and everything tracked on them?
         </Text>
@@ -246,7 +246,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
   }
   if (pending === "promote" && ref.kind === "npc") {
     return (
-      <Row gap="field" align="center" justify="end" className="flex-wrap">
+      <Row gap="field" align="center" justify="end" wrap={true}>
         {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
@@ -264,7 +264,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     );
   }
   return (
-    <Row gap="field" align="center" justify="end" className="flex-wrap">
+    <Row gap="field" align="center" justify="end" wrap={true}>
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (

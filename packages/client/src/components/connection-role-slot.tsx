@@ -187,7 +187,7 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
+    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" wrap={true}>
       <Row gap="field" align="start">
         <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
         <Stack gap="tight">
@@ -301,7 +301,7 @@ function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | nu
  *  the rebuild starting and failing are both announced. */
 function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbedderRebuild> }): ReactElement {
   return (
-    <Row role="status" gap="field" align="center" className="flex-wrap">
+    <Row role="status" gap="field" align="center" wrap={true}>
       {rebuild === null ? null : (
         <>
           <Text voice="gloss" as="span" data-rebuild={rebuild} cap="prose" tone={rebuild === "failed" ? "warning" : "info"}>
@@ -357,7 +357,7 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
  *  the rail exists to prevent, so it is never dropped for want of a verdict. */
 function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequirementVerdict[] }): ReactElement {
   return (
-    <Row gap="field" align="center" className="flex-wrap">
+    <Row gap="field" align="center" wrap={true}>
       <Text voice="gloss" as="span">
         Needs:
       </Text>

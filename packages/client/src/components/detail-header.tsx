@@ -32,7 +32,8 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
       <Row
         align="center"
         cap={step === "masthead" ? undefined : "fit"}
-        className={step === "masthead" ? "flex-wrap" : "flex-wrap min-inline-0"}
+        wrap={true}
+        className={step === "masthead" ? undefined : "min-inline-0"}
         grow={step === "masthead"}
         gap="field"
         justify="end"
@@ -41,10 +42,10 @@ export function DetailHeader({ title, step = "title", kicker, meta, actions, def
       </Row>
     );
   return (
-    <Row align="center" className="flex-wrap min-inline-0" gap="field" justify="between">
+    <Row align="center" className="min-inline-0" wrap={true} gap="field" justify="between">
       <Stack className="min-inline-0" floor="title" grow={true} gap="tight">
         {kicker === undefined ? null : <Text voice="kicker">{kicker}</Text>}
-        <Row align="baseline" className="flex-wrap min-inline-0" gap="row">
+        <Row align="baseline" className="min-inline-0" wrap={true} gap="row">
           {/* The visible name is hidden from assistive technology so the heading names the subject once. */}
           <Heading className="sr-only" level={2}>
             {title}

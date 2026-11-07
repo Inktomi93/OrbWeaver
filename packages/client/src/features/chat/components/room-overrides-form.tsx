@@ -96,14 +96,14 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           // CONTENT box while `overflow: hidden` clips at the PADDING box, so a `pb-block` on the clamped
           // element is ~12px of visible area below the clamp point that the clamped-away line 2 paints
           // into. The injections-manager site carries the full derivation.
-          <Stack className="pbe-block" paddingInline="block">
+          <Stack paddingBlockEnd="block" paddingInline="block">
             <Text voice="gloss" clamp={1}>
               {snippet}
             </Text>
           </Stack>
         ) : null}
         <CollapsiblePanel>
-          <Stack gap="field" className="pbe-block" paddingInline="block">
+          <Stack gap="field" paddingBlockEnd="block" paddingInline="block">
             {children}
             <Row align="center" gap="field">
               {disabled ? null : (

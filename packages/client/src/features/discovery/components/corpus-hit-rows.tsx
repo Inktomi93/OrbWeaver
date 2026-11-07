@@ -74,7 +74,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         {[...passages].map(([snippet, occurrences]) => (
           <Stack key={snippet} gap="tight">
             <Text voice="gloss">“{snippet}”</Text>
-            <Row className="flex-wrap" gap="field">
+            <Row wrap={true} gap="field">
               {occurrences.map((segment, index) => (
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button

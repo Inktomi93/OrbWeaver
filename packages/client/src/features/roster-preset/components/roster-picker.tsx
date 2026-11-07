@@ -100,7 +100,7 @@ function RosterRow(props: {
             {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>
-        <Row align="center" gap="tight" justify="end" className="shrink-0 flex-wrap">
+        <Row align="center" gap="tight" justify="end" className="shrink-0" wrap={true}>
           <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
             <Icon icon={MessagesSquare} size="sm" />
             Start

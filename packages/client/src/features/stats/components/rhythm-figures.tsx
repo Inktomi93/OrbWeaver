@@ -15,7 +15,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
   return (
     <Section heading="Rhythm">
       <Stack gap="block">
-        <Row gap="block" className="flex-wrap">
+        <Row gap="block" wrap={true}>
           <StatFigure label="Active days" value={formatCompact(rhythm.activeDays)} />
           <StatFigure label="Longest streak" value={`${rhythm.longestStreakDays}d`} />
           {/* THE UNIT IS IN THE LABEL, THE DAY IS IN THE GLOSS (P3d). This tile printed a bare `260` under

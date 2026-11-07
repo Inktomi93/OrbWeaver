@@ -130,7 +130,7 @@ export function CorpusBrowseView(): ReactElement {
 
   return (
     <Stack className="min-block-0" grow={true} data-testid={testId("corpusBrowseView")} gap="block">
-      <Row align="center" gap="field" className="flex-wrap">
+      <Row align="center" gap="field" wrap={true}>
         <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} />
         <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} />

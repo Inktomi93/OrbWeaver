@@ -58,7 +58,7 @@ export function UtilityPresetSelect(): ReactElement {
   );
 
   return (
-    <Row gap="field" align="start" justify="between" className="flex-wrap">
+    <Row gap="field" align="start" justify="between" wrap={true}>
       <Stack gap="tight">
         <Text voice="label">Utility preset</Text>
         <Text prose={true} voice="gloss" cap="prose">

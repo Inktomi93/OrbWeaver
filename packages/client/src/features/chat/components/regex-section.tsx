@@ -206,7 +206,7 @@ function memberChatTier(scripts: readonly RegexScriptRow[]): RegexTierGroupView 
 /** The one-line stage legend — the six placement glyphs named once, so the row strips are readable. */
 function StageLegend(): ReactElement {
   return (
-    <Row className="flex-wrap" gap="field">
+    <Row wrap={true} gap="field">
       {STAGE_LEGEND.map((placement) => (
         <Row align="center" gap="tight" key={placement}>
           <Icon icon={REGEX_PLACEMENT_GLYPHS[placement]} size="xs" />

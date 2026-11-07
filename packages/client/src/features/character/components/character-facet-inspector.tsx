@@ -205,7 +205,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
       <Section heading="Details">
         <form.Subscribe selector={(s): string => s.values.depthPromptText}>
           {(value): ReactElement => (
-            <Row gap="block" align="center" className="flex-wrap">
+            <Row gap="block" align="center" wrap={true}>
               <Text ink="muted" voice="datum">
                 {value.length} characters
               </Text>
@@ -245,7 +245,7 @@ function CountDetail({
     <Section heading="Details">
       <form.Subscribe selector={(s): string => s.values[name]}>
         {(value): ReactElement => (
-          <Row gap="block" align="center" className="flex-wrap">
+          <Row gap="block" align="center" wrap={true}>
             <Text ink="muted" voice="datum">
               {value.length} characters
             </Text>

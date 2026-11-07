@@ -231,7 +231,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Seati
           <ShareProse>{`Relay: ${RELAY_NAME[status.relay.relay]}. ${liveSentence(status.liveSocketCount)}`}</ShareProse>
         </Stack>
       )}
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         {view.phase === "stopped" ? (
           <Button ref={tryAgainRef} type="button" size="sm" loading={start.isPending} onClick={startSharing}>
             Try again
@@ -350,7 +350,7 @@ function BreakableUrl({ url }: { readonly url: string }): ReactNode {
 function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): ReactElement {
   return (
     <Stack gap="tight" data-share-notice="link-changed">
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Badge tone="warning" variant="solid">
           Link changed
         </Badge>

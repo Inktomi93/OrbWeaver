@@ -235,7 +235,7 @@ function StoryThemeDriftBody({
         <ParamToggle label="Level" onValueChange={(next): void => onLevelChange(next as ThemeLevel)} options={LEVEL_OPTIONS} value={level} />
         <Stack gap="row">
           {months.map(({ month, themes }) => (
-            <Row align="center" className="flex-wrap" gap="field" key={month.key}>
+            <Row align="center" wrap={true} gap="field" key={month.key}>
               <Text voice="kicker">{timeLib.formatMonthYear(month.start)}</Text>
               {themes.map((t) => (
                 <Badge key={t.clusterIdx} size="sm">

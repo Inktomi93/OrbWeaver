@@ -45,7 +45,7 @@ export function ShareIpCertificate({ mode, certificate }: ShareIpCertificateProp
   return (
     <Stack gap="field" data-ip-certificate-state={certificate.state}>
       {/* Announced as it changes; the card's own status row stays the one `status` role. */}
-      <Row gap="field" align="baseline" className="flex-wrap" aria-live="polite">
+      <Row gap="field" align="baseline" wrap={true} aria-live="polite">
         <Text voice="label">HTTPS at your public address</Text>
         <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
           {badge.label}
@@ -147,7 +147,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
       <form.AppField name="address">
         {(field): ReactElement => <field.TextField label="Public IP address" placeholder="the WAN address your router shows" autoComplete="off" />}
       </form.AppField>
-      <Row gap="field" align="end" className="flex-wrap">
+      <Row gap="field" align="end" wrap={true}>
         <form.AppField name="httpsPort">
           {(field): ReactElement => <field.NumberField label="https port on this machine" min={PORT_MIN} max={PORT_MAX} step={1} />}
         </form.AppField>

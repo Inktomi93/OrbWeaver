@@ -163,7 +163,7 @@ function CollectionControlRow({
   const filterRef = useRef<HTMLInputElement>(null);
   return (
     <Container width="full">
-      <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
+      <Row align="center" wrap={true} data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
         <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
           <Input
@@ -238,7 +238,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           }
         }}
       >
-        <Row align="center" className="flex-wrap" gap="field">
+        <Row align="center" wrap={true} gap="field">
           <Input
             aria-label={askName.fieldLabel}
             className="flex-1 basis-(--width-field-floor) min-inline-0"
@@ -253,7 +253,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             ref={nameRef}
             value={name}
           />
-          <Row className="shrink-0 flex-wrap" cap="fit" gap="field">
+          <Row className="shrink-0" wrap={true} cap="fit" gap="field">
             <Button disabled={trimmed === "" || pending} type="submit" {...(inBand ? { size: "sm" as const } : {})}>
               {DIALOG_VERBS.create}
             </Button>
@@ -344,8 +344,8 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
   return (
     <Stack data-slot="config-library-insights" gap="field">
       {insights.map((insight) => (
-        <Row align="center" className="flex-wrap min-inline-0" gap="field" key={insight.id}>
-          <Row align="center" className="flex-wrap min-inline-0" cap="fit" gap="field">
+        <Row align="center" className="min-inline-0" wrap={true} gap="field" key={insight.id}>
+          <Row align="center" className="min-inline-0" wrap={true} cap="fit" gap="field">
             <Text as="span" voice="kicker">
               {insight.label}
             </Text>

@@ -173,7 +173,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       {dossier.tags.length > 0 ? (
         <Section heading="Facets">
-          <Row align="center" gap="field" className="flex-wrap">
+          <Row align="center" gap="field" wrap={true}>
             {dossier.tags.map((tag) => (
               <Badge key={tag} size="sm">
                 {tag}

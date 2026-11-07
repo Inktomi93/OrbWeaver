@@ -56,7 +56,7 @@ export function CharacterProvenanceSection({ importedFrom, importHash, extension
  *  (#573 — the near-kicker class the owner ruled takes semibold rather than a fifteenth voice). */
 function ProvenanceRow({ label, value }: { readonly label: string; readonly value: string }): ReactElement {
   return (
-    <Row gap="row" align="center" className="flex-wrap">
+    <Row gap="row" align="center" wrap={true}>
       <Text voice="kicker">{label}</Text>
       <Text voice="datumMono" className="break-all">
         {value}

@@ -31,6 +31,26 @@ test.describe("Skeleton takes the size of the box it stands in for", () => {
   });
 });
 
+test("Row wrap takes a second line where the same children would overflow one", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const wrapped = await boxOf(component.locator('[data-probe="row-wrap"]'));
+  const unwrapped = await boxOf(component.locator('[data-probe="row-nowrap"]'));
+  expect(wrapped.height).toBe(unwrapped.height * 2);
+});
+
+test("paddingBlockEnd pads the block-end edge alone, at the ramp step", async ({ mount }) => {
+  const component = await mount<typeof OwnerAxesStory>(STORY);
+  const padding = (name: string): Promise<readonly [string, string]> =>
+    component.locator(`[data-probe="${name}"]`).evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.paddingBlockStart, style.paddingBlockEnd] as const;
+    });
+  const section = await padding("ref-pad-section");
+  const tight = await padding("ref-pad-tight");
+  expect(await padding("stack-pad-end")).toEqual(["0px", section[1]]);
+  expect(await padding("row-pad-end")).toEqual(["0px", tight[1]]);
+});
+
 test.describe("cap", () => {
   test("Text stops at the prose measure, in its own font", async ({ mount }) => {
     const component = await mount<typeof OwnerAxesStory>(STORY);

@@ -92,14 +92,14 @@ function AmbientVocabPicker({
     <Row
       gap="field"
       align="center"
-      className="flex-wrap"
+      wrap={true}
       onKeyDown={(e): void => {
         if (e.key === "Escape") {
           setOpen(false);
         }
       }}
     >
-      <Row gap="field" align="center" className="flex-wrap" role="group" aria-label={groupLabel}>
+      <Row gap="field" align="center" wrap={true} role="group" aria-label={groupLabel}>
         {vocab.map((label) => (
           <Button
             key={label}
@@ -221,7 +221,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
   const values: Readonly<Record<AmbientField, string | undefined>> = { location, date, timeOfDay, weather };
   return (
     <Card>
-      <Row gap="block" align="center" className="flex-wrap" data-slot="ambient-strip">
+      <Row gap="block" align="center" wrap={true} data-slot="ambient-strip">
         <Icon icon={MapPin} size="sm" label="Scene" />
         {AMBIENT_FIELDS.map(({ key, label }) => {
           const value = values[key];

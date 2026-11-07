@@ -286,7 +286,7 @@ function TagsSection({
   }
   return (
     <SectionShell icon={Tag} title="Tags">
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         {editableTags === null
           ? tags.map((tag) => (
               <Badge key={tag} size="sm">

@@ -248,7 +248,7 @@ function OverviewRow({
   const labelId = useId();
   return (
     <Stack aria-labelledby={labelId} data-slot="overview-row" gap="field" role="group">
-      <Row gap="block" align="baseline" className="flex-wrap" justify="between">
+      <Row gap="block" align="baseline" wrap={true} justify="between">
         {/* The grammar's name/value pair (#573): the row's own MUTED name rides className, because `tone`
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is a tabular figure and a `label` otherwise; both were spelled

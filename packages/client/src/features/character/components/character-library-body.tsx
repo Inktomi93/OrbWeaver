@@ -96,7 +96,7 @@ export function CharacterLibraryBody({
       return (
         <EmptyState
           action={
-            <Row className="flex-wrap" cap="fit" gap="field">
+            <Row wrap={true} cap="fit" gap="field">
               <Button variant="outline" onClick={onClearSearch} size="sm">
                 Clear search
               </Button>

@@ -120,7 +120,7 @@ export function TrackerGrantsEditor({
             const carried = carriedKeys.has(def.key);
             const outcomeId = `${outcomeIdBase}-${def.key}`;
             return (
-              <Row key={def.key} gap="field" align="center" className="flex-wrap" data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
+              <Row key={def.key} gap="field" align="center" wrap={true} data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
                 {/* A long host-authored label ellipsizes in this column, so it carries its full text on
                     `title` — the mouse-hover recovery a truncated datum owes the reader (side-eye P3). */}
                 <Text as="span" voice="label" truncate="fill" data-slot="rpg-tracker-grant-label">

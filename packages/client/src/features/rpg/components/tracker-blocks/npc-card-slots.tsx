@@ -286,7 +286,7 @@ export function NpcCard({
         />
         {meters}
         {fields === undefined || fields.length === 0 ? null : (
-          <Row gap="field" className="flex-wrap">
+          <Row gap="field" wrap={true}>
             {fields.map((field) => (
               <TrackerChip
                 key={field.name}

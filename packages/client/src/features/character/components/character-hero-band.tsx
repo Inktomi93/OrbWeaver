@@ -96,10 +96,10 @@ export function CharacterHeroBand({
   const previewPolicy = usePreviewRenderPolicy(detail);
   return (
     <Stack gap="section" data-slot="character-hero">
-      <Row align="start" gap="block" className="flex-wrap">
+      <Row align="start" gap="block" wrap={true}>
         <HeroPortrait detail={detail} trpc={trpc} />
         <Stack className="min-inline-0" grow={true} gap="field">
-          <Row align="center" gap="row" className="flex-wrap">
+          <Row align="center" gap="row" wrap={true}>
             <Stack className="min-inline-0" grow={true} gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
               <Text voice="datumMono" className={HERO_ECHO_CLASS} truncate={true}>
@@ -302,7 +302,7 @@ function HeroActions({
   readonly chatCount: number;
 }): ReactElement {
   return (
-    <Row gap="row" align="center" className="flex-wrap">
+    <Row gap="row" align="center" wrap={true}>
       <Button type="button" onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
         New chat

@@ -214,8 +214,8 @@ function FrameRow({
       // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
       width={chip && !pinned ? "fit" : undefined}
       reverse={flip}
+      wrap={true}
       className={cn(
-        "flex-wrap",
         reachTrain && "self-stretch",
         chip && !pinned && "ms-auto",
         overlayClass,

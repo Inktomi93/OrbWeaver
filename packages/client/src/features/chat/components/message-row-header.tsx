@@ -98,7 +98,8 @@ function renderRowIdentity(args: {
       stretchBelow={stackStamp && !mirrored ? "cq-28" : undefined}
       alignEndBelow={stackStamp && mirrored ? "cq-28" : undefined}
       reverse={mirrored}
-      className={cn("flex-wrap min-inline-0", stackStamp && STAMP_STACK)}
+      className={cn("min-inline-0", stackStamp && STAMP_STACK)}
+      wrap={true}
     >
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
@@ -118,7 +119,7 @@ function renderRowIdentity(args: {
     return cluster;
   }
   return (
-    <Row gap="field" align="center" reverse={mirrored} className="flex-wrap min-inline-0">
+    <Row gap="field" align="center" reverse={mirrored} className="min-inline-0" wrap={true}>
       {chip}
       {cluster}
     </Row>
@@ -225,7 +226,7 @@ export function renderGhostNameRow(args: {
   return (
     <NameRowFrame
       identity={
-        <Row gap="field" align="center" className="flex-wrap min-inline-0">
+        <Row gap="field" align="center" className="min-inline-0" wrap={true}>
           {args.chip}
           <Row gap="field" align="baseline" className="wrap-break-word min-inline-0" data-slot="message-attribution">
             {renderAttributionName(attribution)}

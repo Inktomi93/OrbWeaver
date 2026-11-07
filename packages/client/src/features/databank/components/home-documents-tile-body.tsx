@@ -126,7 +126,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             is answered by the hero itself: it is an ELEVATED, glowing island now rather than a form-tier
             box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
         {/* The two doors wrap: side by side they overrun a phone's column. */}
-        <Row className="flex-wrap" gap="field">
+        <Row wrap={true} gap="field">
           <Button variant="outline" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
             {DATABANK_ADD_FIRST_DOCUMENT_NAME}
@@ -157,7 +157,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       {/* The health line. It WRAPS rather than truncating: the chips are the part that matters (a
           `3 stalled` pushed off the end of a nowrap row is the one thing this tile exists to say), and a
           half-span tile at the one-column breakpoint has no width to spare. */}
-      <Row align="center" className="flex-wrap" gap="field" justify="between">
+      <Row align="center" wrap={true} gap="field" justify="between">
         <Text voice="datum">{bankHealthLine(health)}</Text>
         {health.attention.length === 0 ? null : (
           // The chip GROUP wraps too. Measured at the 390px host: a wrapping outer row is not enough,
@@ -167,7 +167,7 @@ export function HomeDocumentsTileBody(): ReactElement {
           //
           // A NAMED GROUP (side-eye 2026-08-08 P3): the chips are a set with a subject, and a bare run of
           // three pills announces as three unrelated words between the datum line and the list.
-          <Row align="center" aria-label="Ingest attention" className="flex-wrap" gap="field" justify="end" role="group">
+          <Row align="center" aria-label="Ingest attention" wrap={true} gap="field" justify="end" role="group">
             {health.attention.map((chip) => (
               // EVERY AGGREGATE IS A CONTROL (side-eye 2026-08-08 P2-a). The chip names documents you
               // cannot see from here; clicking it scopes the Databank list to exactly that phase and takes

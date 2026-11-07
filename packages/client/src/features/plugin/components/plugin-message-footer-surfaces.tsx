@@ -69,7 +69,7 @@ export function PluginMessageFooterSurfaces(): ReactElement | null {
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap" gap="block">
+    <Row align="center" wrap={true} gap="block">
       {visible.map((surface) => (
         <PluginSurfaceShell
           anchor="message-footer"

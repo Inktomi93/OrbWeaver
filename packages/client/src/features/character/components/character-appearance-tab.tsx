@@ -189,12 +189,12 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
           (character-options-tab), where the label + the three actions overflow one line and the last one
           clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
           editor. */}
-      <Row gap="field" align="center" className="flex-wrap" justify="between">
-        <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true} justify="between">
+        <Row gap="field" align="center" wrap={true}>
           <Text voice="label">Theme</Text>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         </Row>
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <StartFromThemeField onPick={startFromTheme} />
           {/* One subscription for both live-override readers: the promote payload IS the unsaved-latest
               blob (this cluster autosaves, so it is also what the card carries), and "nothing to promote"

@@ -193,7 +193,7 @@ export function SettingsPaneMatrixStory(): ReactElement {
 export function ListPageMatrixStory(): ReactElement {
   return (
     <CtIsolation subject="ListPage" isolates="The template renders the slots it is given and reads no application data.">
-      <Row className="flex-wrap" gap="block">
+      <Row wrap={true} gap="block">
         {TEMPLATE_CASES.map(({ caseId, theme, density }) => (
           <Cell caseId={caseId} density={density} key={caseId} theme={theme}>
             <ListPageCase aside={false} body="scroll" />

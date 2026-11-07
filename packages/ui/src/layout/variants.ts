@@ -27,6 +27,7 @@ import {
   tv,
   WALLPAPER_PLATE,
   WIDTH,
+  WRAP,
 } from "#lib";
 import { ART_DECORATION } from "../lib/art-decoration.ts";
 
@@ -78,6 +79,14 @@ const PADDING_BLOCK_START = {
   block: "pbs-block",
   section: "pbs-section",
   gutter: "pbs-gutter",
+} as const;
+const PADDING_BLOCK_END = {
+  tight: "pbe-tight",
+  field: "pbe-field",
+  row: "pbe-row",
+  block: "pbe-block",
+  section: "pbe-section",
+  gutter: "pbe-gutter",
 } as const;
 const PADDING_INLINE_START = {
   tight: "ps-tight",
@@ -261,6 +270,7 @@ export const stackVariants = tv({
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
     paddingBlockStart: PADDING_BLOCK_START,
+    paddingBlockEnd: PADDING_BLOCK_END,
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
@@ -372,6 +382,7 @@ export const rowVariants = tv({
     gapNarrow: { field: "@max-cq-28:gap-field" },
     align: ALIGN,
     justify: JUSTIFY,
+    wrap: WRAP,
     stackBelow: STACK_BELOW,
     reverse: REVERSE,
     stretchBelow: STRETCH_BELOW,
@@ -391,6 +402,7 @@ export const rowVariants = tv({
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
     paddingBlockStart: PADDING_BLOCK_START,
+    paddingBlockEnd: PADDING_BLOCK_END,
     paddingInlineStart: PADDING_INLINE_START,
     paddingInlineEnd: PADDING_INLINE_END,
     paddingInlineNarrow: PADDING_INLINE_NARROW,

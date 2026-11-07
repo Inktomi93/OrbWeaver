@@ -169,7 +169,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
               granted={[]}
               netHosts={state.preview.manifest.netHosts ?? []}
             />
-            <Row className="flex-wrap" gap="field" justify="start">
+            <Row wrap={true} gap="field" justify="start">
               <Button loading={distribute.isPending} onClick={onDistribute}>
                 Distribute to everyone
               </Button>

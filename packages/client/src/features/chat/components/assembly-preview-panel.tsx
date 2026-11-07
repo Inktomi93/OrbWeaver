@@ -228,15 +228,17 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
   }
   if (slice.text === "") {
     return (
-      <Text voice="gloss" className="block pbe-row">
-        Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
-      </Text>
+      <Stack paddingBlockEnd="row">
+        <Text voice="gloss">Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.</Text>
+      </Stack>
     );
   }
   return (
-    <Text voice="code" className="block pbe-row" whitespace="preWrap">
-      {slice.text}
-    </Text>
+    <Stack paddingBlockEnd="row">
+      <Text voice="code" whitespace="preWrap">
+        {slice.text}
+      </Text>
+    </Stack>
   );
 }
 
@@ -250,9 +252,11 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
         <SeriesRow label={part.label} value={groupThousands(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text voice="code" className="block pbe-row" whitespace="preWrap">
-          {part.text}
-        </Text>
+        <Stack paddingBlockEnd="row">
+          <Text voice="code" whitespace="preWrap">
+            {part.text}
+          </Text>
+        </Stack>
       </CollapsiblePanel>
     </Collapsible>
   );

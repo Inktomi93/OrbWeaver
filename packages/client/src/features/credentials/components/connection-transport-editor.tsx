@@ -202,7 +202,7 @@ function PreviewResolution({
       {stated.map((key) => {
         const resolved = resolveDotPath(parsed.value, map[key] ?? "");
         return (
-          <Row align="center" className="flex-wrap" data-resolved-path={key} gap="field" key={key}>
+          <Row align="center" wrap={true} data-resolved-path={key} gap="field" key={key}>
             <Text voice="label">{RESPONSE_MAP_FIELDS[key]}</Text>
             <Text voice="gloss">→</Text>
             <Text voice="code">{resolved === undefined ? "nothing at that path" : JSON.stringify(resolved)}</Text>

@@ -258,7 +258,7 @@ function PurseLine({
   }
   return (
     <Card>
-      <Row gap="field" align="center" className="flex-wrap" data-slot="rpg-purse-line">
+      <Row gap="field" align="center" wrap={true} data-slot="rpg-purse-line">
         <Icon icon={Coins} size="sm" label="Party purse" />
         {[...totals.entries()].map(([name, total]) => {
           const own = carried.find((c) => c.name === name)?.amount ?? 0;

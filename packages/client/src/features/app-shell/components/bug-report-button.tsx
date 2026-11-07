@@ -194,7 +194,7 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
           </RadioGroupItem>
         ))}
       </RadioGroup>
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Button type="button" size="sm" disabled={!hasNote || busy} onClick={prepare}>
           {status.kind === "preparing" ? "Preparing…" : "Prepare report"}
         </Button>
@@ -211,7 +211,7 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
             the file.
           </Text>
           <Textarea aria-label="Report to share" readOnly={true} rows={8} value={report.summary} />
-          <Row gap="field" align="center" className="flex-wrap">
+          <Row gap="field" align="center" wrap={true}>
             <Button type="button" size="sm" onClick={share}>
               Copy and open a GitHub issue
             </Button>

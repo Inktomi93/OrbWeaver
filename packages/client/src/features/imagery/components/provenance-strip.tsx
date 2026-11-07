@@ -42,7 +42,7 @@ function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElem
       <Text voice="reading" data-slot="provenance-prompt">
         {data.prompt}
       </Text>
-      <Row className="flex-wrap" gap="tight">
+      <Row wrap={true} gap="tight">
         <Badge size="sm">{data.model}</Badge>
         <Badge size="sm">{data.mode}</Badge>
         {data.edited ? <Badge size="sm">Edited</Badge> : null}

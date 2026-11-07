@@ -90,7 +90,7 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
             Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
           </Text>
         </Row>
-        <Row className="flex-wrap" gap="field">
+        <Row wrap={true} gap="field">
           <Button variant="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
             Keep
           </Button>

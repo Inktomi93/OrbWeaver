@@ -97,7 +97,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
           // keeps `shrink-0` so a measurement never breaks mid-number. At every width both facts are whole;
           // what varies is how many lines the row spends, which is the honest thing to trade.
           <Stack paddingBlock="field" data-slot="readiness-stage" divider="between" gap="tight" key={stage.id} role="listitem">
-            <Row align="center" className="flex-wrap" gap="row" justify="between">
+            <Row align="center" wrap={true} gap="row" justify="between">
               <Row className="min-inline-0" gap="field">
                 <Icon {...(stage.done ? ({ tone: "primary" } as const) : ({ ink: "muted" } as const))} icon={stage.done ? Check : Circle} size="xs" />
                 <Text as="span" className="min-inline-0" voice="label">
@@ -254,7 +254,7 @@ function ReadinessPassLine({ stage, passes }: ReadinessDoorProps): ReactElement 
   const action = passes.actionFor(stage);
   const Door = READINESS_DOORS[action];
   return (
-    <Row align="center" className="flex-wrap" data-pass-action={action} data-slot="readiness-pass" gap="field" justify="between">
+    <Row align="center" wrap={true} data-pass-action={action} data-slot="readiness-pass" gap="field" justify="between">
       <Text ink="muted" voice="gloss">
         {READINESS_PASSES[stage].needs}
       </Text>

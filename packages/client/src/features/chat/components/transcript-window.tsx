@@ -287,7 +287,7 @@ function AnchoredThread({
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
     <Stack className="min-block-0" fill={true} gap="field">
-      <Row className="flex-wrap print:hidden" gap="field">
+      <Row className="print:hidden" wrap={true} gap="field">
         <Button
           aria-describedby={pagingDescription}
           variant="ghost"

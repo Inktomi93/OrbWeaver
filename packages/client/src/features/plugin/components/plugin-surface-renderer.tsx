@@ -292,7 +292,7 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
   }
   if (node.kind === "row") {
     return (
-      <Row className="flex-wrap min-inline-0" gap={node.gap ?? "field"}>
+      <Row className="min-inline-0" wrap={true} gap={node.gap ?? "field"}>
         {renderChildren(node.children, depth, ctx).map((child) => (
           <Stack className="min-inline-0" cap="fit" key={child.key}>
             {child}

@@ -193,7 +193,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
     // INSTRUMENT tier (UI-Density-Law.md §3.1): the workbench is a cockpit you scan — three payloads per
     // glance — so its islands resolve the dense steps and its rails are kickers + hairlines, not boxes.
     <Surface tier="instrument">
-      <Stack className="pbe-gutter" paddingBlockStart="block" data-testid={testId("refineryContent")} gap="block">
+      <Stack paddingBlockEnd="gutter" paddingBlockStart="block" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
           // The live card took this session's commit: the server's lock, or an Apply this view just made. A copy

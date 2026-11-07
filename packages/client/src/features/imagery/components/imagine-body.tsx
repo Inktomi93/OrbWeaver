@@ -190,7 +190,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         {isExtraction ? (
           <Stack gap="tight">
             <DoubleSpendNotice blind={blindDoubleSpend} count={count} />
-            <Row align="center" className="flex-wrap" gap="field">
+            <Row align="center" wrap={true} gap="field">
               <Button disabled={busy} variant="outline" onClick={preview} size="sm" type="button">
                 Read the chat first
               </Button>
