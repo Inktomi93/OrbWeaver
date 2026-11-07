@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-06
+status: doing
+updated: 2026-11-07
 priority: P3
 area: plugin
+lane: wt/agent-a5e487c45520cd7c1
 plan: cross-surface-consistency
 ---
 
