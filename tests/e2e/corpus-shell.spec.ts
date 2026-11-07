@@ -101,7 +101,7 @@ function declaredStyle(attribute: string | null | undefined, property: string): 
 async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Promise<void> {
   // The script runs in the page, so it cannot close over the production key builder; its source travels with it.
   const install = ({ stored, name, version, rootId, trailName, activeUserKey, prefix }: BootScriptArgs, storageKey: typeof durableLocalStorageKey): void => {
-    // The store mints on the last-bound user's namespace when the device has met one (the fixture's earlier visit did).
+    // The store mints on the last-bound user's namespace when the device has met one, as the `page` fixture's visit does.
     const key = storageKey(prefix, localStorage.getItem(activeUserKey), name);
     if (stored === null) {
       localStorage.removeItem(key);
@@ -309,7 +309,7 @@ function focusOnContentAnchor(main: Locator): Promise<boolean> {
 test.describe("committed corpus shell", () => {
   test.skip(SELECTED_CORPUS_FIXTURE === undefined, "Requires the committed corpus");
 
-  test("a cold load moves focus nowhere and the first Tab reaches the skip link", { tag: "@smoke" }, async ({ page }) => {
+  test("a cold load moves focus nowhere and the first Tab reaches the skip link", { tag: "@smoke" }, async ({ coldPage: page }) => {
     // Every focus the boot makes, recorded from before the document's first script.
     await page.addInitScript(() => {
       const trail: string[] = [];
@@ -341,7 +341,7 @@ test.describe("committed corpus shell", () => {
     expect(before.has(APP_READY_ATTR)).toBe(false);
   });
 
-  test("a device that was never told anything replays the defaults and no theme", { tag: "@smoke" }, async ({ page }) => {
+  test("a device that was never told anything replays the defaults and no theme", { tag: "@smoke" }, async ({ coldPage: page }) => {
     await recordBoot(page, null);
     await openHome(page);
     const before = await htmlBeforeMount(page);
