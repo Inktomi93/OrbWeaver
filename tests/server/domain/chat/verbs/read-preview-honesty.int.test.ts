@@ -257,7 +257,7 @@ test("a narrator room and a per-speaker room each preview the prompt their own t
     createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "Aria is a warden of the ford." }),
     createCharacterSchema.parse({ handle: "kai", name: "Kai", description: "Kai is a wandering bard." }),
   ];
-  await using perSpeaker = await textRoom(["ok", "ok", "ok"], { characters });
+  await using perSpeaker = await textRoom(["ok", "ok"], { characters });
   await using narrator = await textRoom(["The ford is quiet."], { characters, group: { output: "narrator", policy: DEFAULT_GROUP_CONFIG.policy } });
   const narrated = (await preview(narrator)).prompt.static;
   const spoken = (await preview(perSpeaker)).prompt.static;

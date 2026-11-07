@@ -61,7 +61,8 @@ async function owners(providerFetch?: typeof fetch, jobs: Pick<ServerHarnessOpti
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const root = await createServerHarness({ pluginSpawn: spawn, providerFetch: providerFetch ?? provider.execute, ...jobs });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ pluginSpawn: spawn, providerFetch: providerFetch ?? provider.execute, ...jobs }));
   const { owner, secondUserId } = await seedCorpusActors(root);
   const stranger = await root.principalFor(secondUserId);
   const guest = async (who: Principal, slug: string): Promise<{ readonly pluginId: PluginId; readonly run: GuestRun }> => {
@@ -74,7 +75,8 @@ async function owners(providerFetch?: typeof fetch, jobs: Pick<ServerHarnessOpti
     await caller.connection.setBinding({ task: "summarize", connectionId: text.id, actor: { kind: "plugin-grant", pluginId } });
     return { pluginId, run: guestRunner({ root, caller: who, pluginId, chatId: null }) };
   };
-  return { root, owner, stranger, guest, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  const lifetime = construction.move();
+  return { root, owner, stranger, guest, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 async function ownAsset(root: ServerTestHarness, who: Principal): Promise<{ readonly assetId: AssetId; readonly bytes: Uint8Array }> {

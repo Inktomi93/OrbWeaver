@@ -9,7 +9,6 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { attachPersonaLore, invitePerson, seatPersona } from "../persona-cache-physical.ts";
 import { textRoom } from "../scenario-physical.ts";
 
-const REPLIES = ["ok"];
 const FOREIGN_ENTRY = "FOREIGN-BOOK-ENTRY";
 
 async function foreignBook(h: ChatRoot, principal: ChatRoot["owner"]): Promise<WorldBookId> {
@@ -27,7 +26,7 @@ async function junction(h: ChatRoot, personaId: PersonaId, worldBookId: WorldBoo
 }
 
 test("a junction row naming another owner's book stays out of a held pin's pool", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const bob = await invitePerson(h);
   const carol = await invitePerson(h);
   const pinned = await seatPersona(h, bob, "Ledgerkeeper", "The pinned persona.");
@@ -43,7 +42,7 @@ test("a junction row naming another owner's book stays out of a held pin's pool"
 });
 
 test("two seats cannot share an entry: a second seat's row on the first owner's book is refused by the owner match", async () => {
-  await using h = await textRoom(REPLIES);
+  await using h = await textRoom([]);
   const bob = await invitePerson(h);
   const carol = await invitePerson(h);
   const owning = await seatPersona(h, bob, "Owning", "Holds the book.");

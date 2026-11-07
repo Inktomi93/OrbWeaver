@@ -20,6 +20,7 @@ import {
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -37,21 +38,26 @@ import { eq } from "drizzle-orm";
 
 const INTENT = { maxContextTokens: 32_000, maxOutputTokens: 128 };
 
-function paidReplies(count = 1): ReturnType<typeof createCorpusProviderExecution> {
-  let remaining = count;
-  return createCorpusProviderExecution({
+const PAID_REPLY = "The paid ledger survived the accepted copy.";
+
+function paidReplies(count = 1): Disposable & ReturnType<typeof createCorpusProviderExecution> {
+  using construction = new DisposableStack();
+  const nextReply = construction.use(
+    finiteReplies(
+      "retained accounting physical",
+      Array.from({ length: count }, () => PAID_REPLY),
+    ),
+  ).take;
+  const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
     chatText: "",
-    completion: () => {
-      if (remaining-- <= 0) {
-        throw new Error("the retained accounting physical reply script is exhausted");
-      }
-      return { text: "The paid ledger survived the accepted copy.", toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } };
-    },
+    completion: () => ({ text: nextReply(), toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } }),
   });
+  const lifetime = construction.move();
+  return { ...execution, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 async function card(root: ServerTestHarness, principal: Principal, handle: CharacterHandle): ReturnType<ServerTestHarness["services"]["character"]["create"]> {
@@ -176,7 +182,7 @@ test("retained owners and owner-room inverse projections include departed charac
 });
 
 test("an accepted native copy handoff rebases exact retained cohorts and signed variant economics without changing variant identity", async () => {
-  const wire = paidReplies();
+  using wire = paidReplies();
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const actors = await seedCorpusActors(root);
   const nominee = await root.principalFor(actors.secondUserId);
@@ -240,8 +246,8 @@ test("an accepted native copy handoff rebases exact retained cohorts and signed 
 
 test("a stale voice owner refuses canon even when accepted copying preserves the exact retained owner cohort", async () => {
   using held = await freshHeldDb();
+  using wire = paidReplies();
   await using ownership = new AsyncDisposableStack();
-  const wire = paidReplies();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const actors = await seedCorpusActors(root);
   const nominee = await root.principalFor(actors.secondUserId);
@@ -313,8 +319,8 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
 for (const change of ["none", "source-variant"] as const) {
   test(`native continuation transfers paid facts only through retained generation first-write guards: ${change}`, async () => {
     using held = await freshHeldDb();
+    using wire = paidReplies(2);
     await using ownership = new AsyncDisposableStack();
-    const wire = paidReplies(2);
     const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
     const actors = await seedCorpusActors(root);
     const nominee = await root.principalFor(actors.secondUserId);
@@ -377,8 +383,8 @@ for (const change of ["none", "source-variant"] as const) {
 
 test("native continuation settles before handoff rebases its retained cohort and signed economics", async () => {
   using held = await freshHeldDb();
+  using wire = paidReplies(2);
   await using ownership = new AsyncDisposableStack();
-  const wire = paidReplies(2);
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const actors = await seedCorpusActors(root);
   const nominee = await root.principalFor(actors.secondUserId);

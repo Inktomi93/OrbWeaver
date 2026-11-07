@@ -3,6 +3,7 @@
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
+import { finiteReplies } from "../iso/finite-replies.ts";
 
 const objectBody = z.record(z.string(), jsonValueSchema);
 
@@ -37,21 +38,29 @@ function chunk(choice: Record<string, unknown>, usage?: Record<string, unknown>)
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-/** Answer `requests` chat calls from `reply`, streaming or not as the request asks; a further call throws. */
-export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<string, JsonValue>) => OpenAiReply, requests = 1): typeof fetch {
-  let remaining = requests;
-  return async (input, init): Promise<Response> => {
+export interface OpenAiServer extends Disposable {
+  readonly execute: typeof fetch;
+}
+
+/** Answer exactly `requests` chat calls from `reply`, streaming or not as the request asks; a further call throws and a call never made fails disposal. */
+export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<string, JsonValue>) => OpenAiReply, requests = 1): OpenAiServer {
+  using construction = new DisposableStack();
+  const nextResponder = construction.use(
+    finiteReplies(
+      "openai-compatible",
+      Array.from({ length: requests }, () => reply),
+    ),
+  ).take;
+  const execute: typeof fetch = async (input, init): Promise<Response> => {
     const request = new Request(input, init);
     if (request.url.endsWith(SLEEP_PROBE_SUFFIX)) {
       return Promise.resolve(Response.json({ ["is_sleeping"]: false }));
     }
-    if (remaining-- <= 0) {
-      throw new Error(`the openai-compatible script exhausted its replies: ${request.url}`);
-    }
+    const respond = nextResponder();
     const captured = await recordRequest(request);
     const { body } = captured;
     recorded.push(captured);
-    const answer = reply(body);
+    const answer = respond(body);
     if (answer.error !== undefined) {
       return Promise.resolve(Response.json({ error: { message: answer.error, code: answer.status } }, { status: answer.status ?? 400 }));
     }
@@ -75,4 +84,6 @@ export function openAiServer(recorded: RecordedRequest[], reply: (body: Record<s
     };
     return Promise.resolve(Response.json(completion));
   };
+  const lifetime = construction.move();
+  return { execute, [Symbol.dispose]: () => lifetime.dispose() };
 }

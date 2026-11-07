@@ -74,9 +74,33 @@ async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise
   return result.json;
 }
 
+const PROGRAMMING_ERRORS = [TypeError, RangeError, ReferenceError, SyntaxError];
+
+/** The error at the end of the `cause` chain: what the transport, or our own code, actually raised. */
+function rootCauseOf(error: unknown): unknown {
+  let current = error;
+  while (current instanceof Error && current.cause !== undefined) {
+    current = current.cause;
+  }
+  return current;
+}
+
+/**
+ * A request our own code broke is no evidence about the engine. The transport raises its refusals as system errors
+ * that carry a code (`ECONNREFUSED`), also beneath undici's `TypeError: fetch failed`; a programming error at the end
+ * of the chain carries none.
+ */
+function brokenBeforeTheWire(error: unknown): boolean {
+  const root = rootCauseOf(error);
+  if (!(root instanceof Error)) {
+    return false;
+  }
+  return PROGRAMMING_ERRORS.some((kind) => root instanceof kind) && !("code" in root && typeof root.code === "string");
+}
+
 /** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, `/models`
- *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; anything else → `unreachable`, carrying the
- *  status when the server answered. Upstream
+ *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; a failure of our own request → `unchecked`;
+ *  anything else → `unreachable`, carrying the status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
@@ -85,12 +109,15 @@ export async function probeOpenAiCompat(req: DiagnosticRequestCommon, deps: Diag
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
-    // the probe returns the failure as `revoked` or `unreachable` health with a sanitized reason at diagnostics.ts:93 and :96. Ends if the returned health stops carrying that disposition.
+    // the probe returns the failure as `revoked`, `unchecked` or `unreachable` health with a sanitized reason at diagnostics.ts:117 and :123. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
     if (httpStatus === HTTP_UNAUTHORIZED || httpStatus === HTTP_FORBIDDEN) {
       return { status: "revoked", checkedAt, reason };
+    }
+    if (brokenBeforeTheWire(err)) {
+      return { status: "unchecked", checkedAt, reason };
     }
     // A status means the server answered: up, but this request failed (a wrong path is a 404, not a dead box).
     return httpStatus === undefined ? { status: "unreachable", checkedAt, reason } : { status: "unreachable", checkedAt, reason, httpStatus };
@@ -139,7 +166,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
             })
           ).map((row) => bareCatalogEntry(row));
     return listingOf(models);
-    // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:144, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
+    // the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:171, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
     return failedListing(err, secrets);
   }

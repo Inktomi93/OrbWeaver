@@ -13,7 +13,21 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createQueueScanner } from "@orb/testkit/node/composed";
 import type { GcBox, StoredRef } from "./gc-box.ts";
-import { ageOnly, attach, aWeekAgo, dispatch, openBox, openRoom, stampEveryBlob, startGc, store, survives, workloadRow } from "./gc-box.ts";
+import {
+  ageOnly,
+  attach,
+  aWeekAgo,
+  BOTH_STORES,
+  dispatch,
+  NEITHER_STORE,
+  openBox,
+  openRoom,
+  stampEveryBlob,
+  startGc,
+  store,
+  storesOf,
+  workloadRow,
+} from "./gc-box.ts";
 
 const EXPORT_ROUTE = PORTABILITY_ROUTES.exportLibrary;
 const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;
@@ -100,10 +114,16 @@ test("a sweep due while a restore is still writing waits for it, and every resto
     sweepBesideRestore,
     restore: await restoreOutcome(target, restore),
     sweep: (await workloadRow(target, sweep)).status,
-    restoredAttachment: await survives(target, attachment),
-    // Positive control: the sweep that finally ran does reclaim, so the survival above is the exclusion's doing.
-    garbage: await survives(target, garbage),
-  }).toEqual({ sweepBesideRestore: "queued", restore: { status: "succeeded", failed: 0 }, sweep: "succeeded", restoredAttachment: true, garbage: false });
+    restoredAttachment: await storesOf(target, attachment),
+    // Positive control: the sweep that finally ran does reclaim, so the kept stores above are the exclusion's doing.
+    garbage: await storesOf(target, garbage),
+  }).toEqual({
+    sweepBesideRestore: "queued",
+    restore: { status: "succeeded", failed: 0 },
+    sweep: "succeeded",
+    restoredAttachment: BOTH_STORES,
+    garbage: NEITHER_STORE,
+  });
 });
 
 test("a restore uploaded while the sweep is reclaiming waits for the sweep to finish", async () => {
@@ -127,14 +147,14 @@ test("a restore uploaded while the sweep is reclaiming waits for the sweep to fi
     restoreBesideSweep,
     sweep: (await workloadRow(target, sweep)).status,
     restore: await restoreOutcome(target, restore),
-    restoredAttachment: await survives(target, attachment),
-    garbage: await survives(target, garbage),
+    restoredAttachment: await storesOf(target, attachment),
+    garbage: await storesOf(target, garbage),
   }).toEqual({
     restoreBesideSweep: { status: "queued", failed: undefined },
     sweep: "succeeded",
     restore: { status: "succeeded", failed: 0 },
-    restoredAttachment: true,
-    garbage: false,
+    restoredAttachment: BOTH_STORES,
+    garbage: NEITHER_STORE,
   });
 });
 

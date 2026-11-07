@@ -45,7 +45,8 @@ async function memoryWorld(): Promise<{
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const root = await createServerHarness({ providerFetch: wire.execute });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ providerFetch: wire.execute }));
   const owner = await root.principalFor(root.ownerId);
   const connections = await seedCorpusConnections(root, owner);
   const recall = await seedRecallCorpus(root, {
@@ -75,6 +76,7 @@ async function memoryWorld(): Promise<{
     input: { kind: "compute-themes", params: { k: 1 } },
   });
   await executeAdmitted(root, themes.id);
+  construction.move();
   return { root, chatId: recall.chatId };
 }
 

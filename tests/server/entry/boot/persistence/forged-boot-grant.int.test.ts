@@ -87,7 +87,8 @@ async function snapshotRows(db: Db): Promise<Record<string, unknown[]>> {
 
 // A root whose database holds a stale join floor the repair verb would clamp, so the control has a row to move.
 async function rootWithStaleSeat(): Promise<ServerHarness> {
-  const root = await createServerHarness();
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness());
   const chat = await seedChatRow(root.db);
   await root.db.insert(chatParticipants).values({
     id: root.ids.typeId(ID_PREFIX.chatParticipant),
@@ -99,6 +100,7 @@ async function rootWithStaleSeat(): Promise<ServerHarness> {
     joinSeq: 4,
   });
   await root.settleBackground();
+  construction.move();
   return root;
 }
 

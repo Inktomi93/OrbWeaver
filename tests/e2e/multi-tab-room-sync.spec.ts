@@ -22,17 +22,17 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import {
   assistantRows,
   characterChipNames,
   characterChips,
+  messageRow,
   openChatByTitle,
   openContextTab,
   openDetailPanel,
   openGroupBehaviorSection,
   openMemberRowMenu,
-  typeAndSend,
+  sendHeldTurn,
 } from "./support/chat-room.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SETTLE_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import type { GroupConfigInput } from "./support/trpc.ts";
@@ -175,12 +175,13 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
 
     // A unique body so `getByText` in tab B is unambiguous proof it received THIS message.
     const probe = `hub-probe-${Date.now()}`;
-    await typeAndSend(tabA.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), probe);
+    const held = await sendHeldTurn({ page: tabA, chatId: room.chatId }, probe);
 
     // The human line fans first (persistUserMessage emits `messageCommitted` before the AI round runs)…
-    await expect(tabB.getByText(probe).first()).toBeVisible({ timeout: WAIT_SETTLE_MS });
+    await expect(messageRow(tabB, held.userId)).toContainText(probe, { timeout: WAIT_SETTLE_MS });
     // …and then the character's turn lands in the passive tab's transcript too.
-    await expect.poll(async () => assistantRows(tabB).count(), { timeout: WAIT_LIVE_TURN_MS }).toBeGreaterThanOrEqual(1);
+    const { assistantId } = await held.awaitReply();
+    await expect(messageRow(tabB, assistantId)).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
 
     // Let the WHOLE round finish before teardown. An assistant ROW in the DOM appears while the reply is
     // still streaming, and tearing the room down mid-round makes the next `delta` chat_events insert violate

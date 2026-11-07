@@ -3,6 +3,7 @@
 // A character that joins mid-room and then speaks reaches the summarizer by display name, never by its id.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -19,7 +20,7 @@ const OPENING = "The lantern is lit above the bridge.";
 const JOINED = "The late witness answers from the far bank.";
 
 test("a block built after a just-joined character's first reply names both speakers by display name", async () => {
-  const replies = [OPENING, JOINED];
+  using plan = finiteReplies("joined speaker", [OPENING, JOINED]);
   const summaries: string[] = [];
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -29,11 +30,7 @@ test("a block built after a just-joined character's first reply names both speak
         summaries.push(body);
         return summaryReply({ anchor: "Bridge scene", facts: "The lantern is lit and a witness answers.", keywords: ["bridge"] });
       }
-      const reply = replies.shift();
-      if (reply === undefined) {
-        throw new Error("the scripted reply plan is exhausted");
-      }
-      return reply;
+      return plan.take();
     },
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
@@ -57,7 +54,6 @@ test("a block built after a just-joined character's first reply names both speak
   expect((await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: late.id })).aborted).toBe(false);
   await h.root.settleBackground();
 
-  expect(replies).toEqual([]);
   expect(summaries.length).toBeGreaterThan(0);
   for (const body of summaries) {
     expect(body).toContain(`${first.name}: ${OPENING}`);

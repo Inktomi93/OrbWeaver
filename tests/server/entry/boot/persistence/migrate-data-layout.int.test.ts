@@ -7,12 +7,12 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { basename, join, relative } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createDb, listBackupFiles, preCloseHousekeeping } from "@orb/db";
+import { createDb, listBackupFiles } from "@orb/db";
 import { migrateDataLayout } from "@orb/server/entry/boot";
 import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, LEGACY_ENTRIES } from "@orb/server/foundation/data-layout";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { createTestEnv, createTestLogger, ownDb } from "@orb/testkit/node/composed";
+import { createTestEnv, createTestLogger, ownDb, ownFileDb } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
@@ -130,12 +130,9 @@ async function plantLegacyTree(root: string, scratchParent: string): Promise<voi
 }
 
 async function probeValues(dbPath: string): Promise<readonly string[]> {
-  const db = await createDb(pathToFileURL(dbPath).href);
-  try {
-    return (await db.all<{ value: string }>(sql`SELECT value FROM probe ORDER BY value`)).map((row) => row.value);
-  } finally {
-    await preCloseHousekeeping(db);
-  }
+  await using held = ownFileDb(await createDb(pathToFileURL(dbPath).href));
+  const db = held.db;
+  return (await db.all<{ value: string }>(sql`SELECT value FROM probe ORDER BY value`)).map((row) => row.value);
 }
 
 /** The pre-move snapshots: complete db copies in the backup dir that are not a planted legacy backup. */

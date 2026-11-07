@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-11-07
 priority: P2
 area: testing
-lane: wt/agent-af0eb63da78e0d44e
+blocked: owner
 plan: test-foundation
 ---
 

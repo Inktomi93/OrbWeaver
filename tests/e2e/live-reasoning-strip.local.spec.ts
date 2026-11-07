@@ -104,7 +104,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 
-  const fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
+  await using fixture = await startFixtureProvider(E2E_RUN_PORTS.fixtureProvider, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
   // Fresh spec-owned character (idempotent across crashed runs).
@@ -196,6 +196,5 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   } finally {
     await host.trpc.character.remove.mutate({ characterId: character.id });
     await restoreProvider?.();
-    await fixture.close();
   }
 });

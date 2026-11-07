@@ -147,7 +147,7 @@ async function codeOf(attempt: Promise<unknown>): Promise<unknown> {
 
 test("the assembled-prompt inspectors are host-only, an outsider learns nothing, and member reads carry no card secrets", async () => {
   const card = createCharacterSchema.parse({ handle: "seraphine", name: "Seraphine", description: SECRET_DESCRIPTION, systemPrompt: SECRET_PROMPT });
-  await using h = await textRoom(["unused"], { characters: [card] });
+  await using h = await textRoom([], { characters: [card] });
   const member = await invitePerson(h);
   const stranger = await h.root.principalFor((await h.root.actor()).id);
   await h.root.services.chat.setGroupConfig({ principal: h.owner, chatId: h.chatId, config: { ...DEFAULT_GROUP_CONFIG, memberCardVisibility: "name-avatar" } });
@@ -178,7 +178,7 @@ test("the assembled-prompt inspectors are host-only, an outsider learns nothing,
 });
 
 test("a host cannot read another room's stored prompt by naming its variant, and the refusal matches an unknown id", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const mine = h.chatId;
   const other = (await h.root.services.chat.startChat({ principal: h.owner, characterIds: [], opening: "none" })).chat.id;
   const theirLine = (await h.root.services.chat.commitMessage({ principal: h.owner, chatId: other, content: "their line" })).messages[0];
@@ -207,7 +207,7 @@ test("a host cannot read another room's stored prompt by naming its variant, and
 });
 
 test("a non-participant gets a leak-free not-found on every room read, while the host and a member read the same room", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const member = await invitePerson(h);
   const stranger = await h.root.principalFor((await h.root.actor()).id);
   const line = await commit(h, h.owner, "hello");
@@ -238,7 +238,7 @@ test("a non-participant gets a leak-free not-found on every room read, while the
 });
 
 test("a member lists only the forks they also belong to: a fork grants no membership in its parent, nor the parent's in the fork", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const member = await invitePerson(h);
   await commit(h, h.owner, "a line to fork");
   const fork = await h.root.services.chat.forkChat({ principal: h.owner, chatId: h.chatId });
@@ -251,7 +251,7 @@ test("a member lists only the forks they also belong to: a fork grants no member
 });
 
 test("the library lists only the caller's rooms, hides archived and temporary ones, and names the caller's own role", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const other = await h.root.principalFor((await h.root.actor()).id);
   await seedCorpusConnections(h.root, other);
   // A room with no line is a husk the library never lists, so every room here carries one.
@@ -291,7 +291,7 @@ test("the library lists only the caller's rooms, hides archived and temporary on
 });
 
 test("search and count never reveal a hidden span or pre-join text a member may not read", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const member = await invitePerson(h);
   const floored = await invitePerson(h);
   await commit(h, h.owner, `The vault door is sealed. ${LIE}`);
@@ -311,7 +311,7 @@ test("search and count never reveal a hidden span or pre-join text a member may 
 });
 
 test("a joiner reads the whole history by default, a promoted host is never clamped, and a re-join floors at the latest join", async () => {
-  await using h = await textRoom(["unused"]);
+  await using h = await textRoom([]);
   const first = await commit(h, h.owner, "before anyone joined");
   const atJoin = await commit(h, h.owner, "the head when they join");
   const joiner = await invitePerson(h);

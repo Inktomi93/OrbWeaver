@@ -44,13 +44,11 @@ interface SlotRoom extends AsyncDisposable {
   readonly fault: ReturnType<typeof presetReadFault>;
 }
 
-async function room(): Promise<SlotRoom> {
+async function room(replies: readonly string[] = ["first"]): Promise<SlotRoom> {
   await using construction = new AsyncDisposableStack();
   const fault = presetReadFault();
   const db = construction.use(await freshDb(fault.wrap)).db;
-  const h = construction.use(
-    await textRoom(["first", "second"], { server: { db }, group: { output: "per-speaker", policy: "list", allowSelfResponses: true } }),
-  );
+  const h = construction.use(await textRoom(replies, { server: { db }, group: { output: "per-speaker", policy: "list", allowSelfResponses: true } }));
   const bindings = await h.root.services.connection.listBindings({ principal: h.owner });
   const connectionId = bindings.find(({ task }) => task === "chat")?.binding?.connectionId;
   if (connectionId === undefined || connectionId === null) {
@@ -119,7 +117,7 @@ const ACCEPTED: Record<Verb, (f: SlotRoom) => Omit<Extract<ChatBusEvent, { type:
 
 test("swipe: HAPPY: accepts with the REAL targetMessageId + the slot's speaker, before turnStarted", async () => {
   const verb = "swipe";
-  await using f = await room();
+  await using f = await room(["first", "second"]);
   await INVOKE[verb](f);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
   expect(f.events[0]).toMatchObject(ACCEPTED[verb](f));
@@ -155,7 +153,7 @@ test("swipe: LOCK CONTENTION (a turn already in flight) → the accepted slot CL
 
 test("continueTurn: HAPPY: accepts with the REAL targetMessageId before turnStarted", async () => {
   const verb = "continueTurn";
-  await using f = await room();
+  await using f = await room(["first", "second"]);
   await INVOKE[verb](f);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
   expect(f.events[0]).toMatchObject(ACCEPTED[verb](f));
@@ -191,7 +189,7 @@ test("continueTurn: LOCK CONTENTION → the accepted slot CLOSES with turnAborte
 
 test("generate: HAPPY: accepts a FRESH slot (no ghost target, no speaker yet) before turnStarted", async () => {
   const verb = "generate";
-  await using f = await room();
+  await using f = await room(["first", "second"]);
   await INVOKE[verb](f);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
   expect(f.events[0]).toMatchObject(ACCEPTED[verb](f));
@@ -220,7 +218,7 @@ test("generate: resolveTurnBase throws → the accepted slot CLOSES with turnAbo
 
 test("forceCharacterTurn: HAPPY: accepts with the FORCED speaker and no ghost target, before turnStarted", async () => {
   const verb = "forceCharacterTurn";
-  await using f = await room();
+  await using f = await room(["first", "second"]);
   await INVOKE[verb](f);
   expect(f.events.map(({ type }) => type)).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
   expect(f.events[0]).toMatchObject(ACCEPTED[verb](f));
@@ -255,7 +253,7 @@ test("forceCharacterTurn: LOCK CONTENTION → the accepted slot CLOSES with turn
 });
 
 test("send: a send refused on the LOCK closes its own accepted slot — driveRound SWALLOWS that refusal", async () => {
-  await using h = await textRoom(["never runs"], { group: { output: "per-speaker", policy: "list" } });
+  await using h = await textRoom([], { group: { output: "per-speaker", policy: "list" } });
   await using _lease = await holdLock(h);
   const events: ChatBusEvent[] = [];
   const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => events.push(event));

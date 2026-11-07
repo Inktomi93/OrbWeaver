@@ -10,7 +10,7 @@ import { textRoom } from "../scenario-physical.ts";
 import { muteBryn, room } from "./turn-target-authority.fixtures.ts";
 
 test("a MUTED-but-present member is still force-summonable (drives a turn voiced by them)", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   await muteBryn(f);
   const outcome = await f.h.root.services.chat.forceCharacterTurn({ principal: f.h.owner, chatId: f.h.chatId, characterId: f.bryn.id });
   expect(outcome.messages).toHaveLength(1);
@@ -18,7 +18,7 @@ test("a MUTED-but-present member is still force-summonable (drives a turn voiced
 });
 
 test("the SAME muted member is excluded from a `natural` auto-round (send picks only the enabled one)", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   await muteBryn(f);
   const outcome = await f.h.root.services.chat.send({ principal: f.h.owner, chatId: f.h.chatId, content: "hi all" });
   const assistants = outcome.messages.filter(({ role }) => role === "assistant");
@@ -27,14 +27,14 @@ test("the SAME muted member is excluded from a `natural` auto-round (send picks 
 });
 
 test("a member generating for a PRESENT character character succeeds (regression: the legitimate path stays open)", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   const outcome = await f.h.root.services.chat.generate({ principal: f.member, chatId: f.h.chatId, speakerCharacterId: f.bryn.id });
   expect(outcome.messages).toHaveLength(1);
   expect(outcome.messages[0]).toMatchObject({ role: "assistant", characterId: f.bryn.id });
 });
 
 test("a member generating for a PRESENT-but-MUTED character character succeeds (mute gates arbitration, not manual targeting)", async () => {
-  await using f = await room();
+  await using f = await room(["Hi there"]);
   await muteBryn(f);
   const outcome = await f.h.root.services.chat.generate({ principal: f.member, chatId: f.h.chatId, speakerCharacterId: f.bryn.id });
   expect(outcome.messages).toHaveLength(1);

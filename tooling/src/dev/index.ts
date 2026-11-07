@@ -3,7 +3,9 @@
 export type { DevChildName, DevLeaderHooks, DevParse, DevSpawnPlan, PortParse, ServerBootOutcome, WorkspacePackage } from "./contract/types.ts";
 export { awaitServerReady, HEALTHZ_POLL_MS, SERVER_HEALTHZ_BASE_MS } from "./lib/boot.ts";
 export {
+  builtClientLine,
   CLIENT_PACKAGE,
+  childExitLine,
   DEV_USAGE,
   devBannerLines,
   devChildEnv,
@@ -14,6 +16,8 @@ export {
   SERVER_PACKAGE,
   serverSpawnPlan,
   serverWatchRoots,
+  servesBuiltClient,
+  tailLines,
   VITE_API_TARGET_ENV,
   VITE_PORT_ENV,
   viteSpawnPlan,

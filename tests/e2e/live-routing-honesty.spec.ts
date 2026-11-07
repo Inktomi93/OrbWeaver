@@ -22,11 +22,10 @@ import process from "node:process";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { openNewestChat, sendHeldTurn, waitForStreamOpen } from "./support/chat-room.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
-import { getChatBindingRow, listCanon, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
+import { canonMessage, getChatBindingRow, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/chat/completions";
@@ -62,21 +61,16 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
   await waitForStreamOpen(page, chatId, since);
 
   const beforePosts = await genPostCount();
-  await typeAndSend(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME }), "Reply with exactly: routing-probe-ok");
+  const held = await sendHeldTurn({ page, chatId }, "Reply with exactly: routing-probe-ok");
 
-  // Wait for the ghost to RESOLVE into a durable reply (the greeting also matches a plain assistant-row
-  // wait, so gate on the ghost being GONE — that means the generated row committed).
+  // The ghost RESOLVES into a durable reply.
   await expect(page.locator('[data-slot="ghost-message-row"]')).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout: WAIT_LIVE_TURN_MS });
+  const { assistantId } = await held.awaitReply();
 
   // The local gen engine logged a message-POST for this turn (real local traffic).
   await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
 
-  // The new assistant canon row is stamped with the LOCAL model leaf — the "was actually used" proof. Poll
-  // canon: the durable commit can lag the ghost-gone frame by a tick.
-  await expect
-    .poll(async () => (await listCanon(chatId)).filter((c) => c.role === "assistant" && c.model !== null).at(-1)?.model ?? null, {
-      timeout: WAIT_SURFACE_MS,
-    })
-    .toBe(LOCAL_MODEL_LEAF);
+  // THIS turn's assistant row is stamped with the LOCAL model leaf — the "was actually used" proof.
+  expect((await canonMessage(chatId, assistantId))?.model).toBe(LOCAL_MODEL_LEAF);
 });

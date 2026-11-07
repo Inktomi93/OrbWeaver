@@ -28,7 +28,8 @@ async function send(
   options: { readonly params?: UserIntent; readonly history?: readonly ChatHistoryMessage[] } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({})) });
+  using server = openAiServer(recorded, () => ({}));
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
     api: "chat-completions",

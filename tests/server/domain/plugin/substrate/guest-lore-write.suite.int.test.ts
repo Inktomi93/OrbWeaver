@@ -52,7 +52,8 @@ async function loreRoom(pluginSpawn: ReturnType<typeof createPluginProcessEdge>[
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const h = await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn } });
+  await using construction = new AsyncDisposableStack();
+  const h = construction.use(await createChatRoot({ providerFetch: provider.execute, memoryEnabled: false, server: { pluginSpawn } }));
   const attached = (await h.caller.worldInfo.createBook({ input: { name: "Room lore" } })).id;
   const unattached = (await h.caller.worldInfo.createBook({ input: { name: "Another room's lore" } })).id;
   await h.caller.worldInfo.attachToChat({ chatId: h.chatId, bookId: attached });
@@ -60,6 +61,7 @@ async function loreRoom(pluginSpawn: ReturnType<typeof createPluginProcessEdge>[
     const pluginId = await installGuest(h.root, h.owner, { slug, capabilities: ["chat.read", "worldinfo.write"] }, LORE_OPS);
     return guestRunner({ root: h.root, caller: h.owner, pluginId, chatId: h.chatId });
   };
+  construction.move();
   return { h, attached, unattached, guest };
 }
 

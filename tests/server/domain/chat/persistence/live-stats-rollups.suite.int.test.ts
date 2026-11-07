@@ -6,7 +6,7 @@ import type { TurnOutcome } from "@orb/contracts/chat";
 import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { characterStats, chatGenerationObservations, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
-import { createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { createFrozenClock, finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -62,7 +62,7 @@ async function reasoningRoom(windows: readonly number[]): Promise<
 > {
   await using construction = new AsyncDisposableStack();
   const clock = createFrozenClock();
-  let reply = 0;
+  const nextWindow = construction.use(finiteReplies("physical reasoning", windows)).take;
   let reasoningSeen: PromiseWithResolvers<void> | undefined;
   const corpus = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -81,10 +81,7 @@ async function reasoningRoom(windows: readonly number[]): Promise<
         if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
           return await corpus.execute(request);
         }
-        const windowMs = windows[reply++];
-        if (windowMs === undefined) {
-          throw new Error("the physical reasoning replies are exhausted");
-        }
+        const windowMs = nextWindow();
         const seen = Promise.withResolvers<void>();
         reasoningSeen = seen;
         const onAbort = (): void => seen.reject(request.signal.reason);
@@ -163,7 +160,7 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
     { text: " and even more", usage: { promptTokens: 3, completionTokens: 8, cacheReadTokens: 1, cacheWriteTokens: 1 } },
     { text: "the user speaks next", usage: { promptTokens: 4, completionTokens: 6, cacheReadTokens: 0, cacheWriteTokens: 0 } },
   ];
-  let nextReply = 0;
+  using plan = finiteReplies("physical stats", replies);
   const endpoint = builtinProvider("openai")?.baseUrl;
   if (endpoint === undefined) {
     throw new Error("the canonical OpenAI provider has no fixed endpoint");
@@ -190,10 +187,7 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
       if (request.method !== "POST" || !new URL(request.url).pathname.endsWith("/chat/completions")) {
         return await corpus.execute(request);
       }
-      const reply = replies[nextReply++];
-      if (reply === undefined) {
-        throw new Error("the four physical stats replies are exhausted");
-      }
+      const reply = plan.take();
       return new Response(
         `data: {"choices":[{"delta":{"content":${JSON.stringify(reply.text)}}}]}\n\n${terminalSseLine({ usage: reply.usage })}\n\ndata: [DONE]\n\n`,
         { headers: { "content-type": "text/event-stream" } },
@@ -292,7 +286,6 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
   expect(live.owner[0]?.costUsd).toBeGreaterThan(0);
   expect(live.owner[0]?.cacheReadTokens).toBeGreaterThan(0);
   expect(live.owner[0]?.cacheWriteTokens).toBeGreaterThan(0);
-  expect(nextReply).toBe(4);
 });
 
 test("new-slot assistant WITH reasoning: the live model reasoning column equals a canon rebuild", async () => {

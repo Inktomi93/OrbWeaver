@@ -27,8 +27,7 @@ test("restart and a different retry caller preserve admitted funding and owned e
   const db = fresh.db;
   await using lifetime = new AsyncDisposableStack();
   const wire = physicalWire();
-  const root = await createServerHarness({ db, providerFetch: wire.execute });
-  lifetime.defer(() => root[Symbol.asyncDispose]());
+  const root = lifetime.use(await createServerHarness({ db, providerFetch: wire.execute }));
   const owner = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   await fundedOwner(root, owner);

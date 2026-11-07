@@ -33,11 +33,13 @@ interface Box extends AsyncDisposable {
 
 async function box(): Promise<Box> {
   let peer = LAN_PEER;
-  const root = await createServerHarness({ physicalPeer: () => peer, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ physicalPeer: () => peer, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } }));
   await root.services.admin.createUser({ principal: await root.principalFor(root.ownerId), handle: castId<Handle>(HANDLE), password: PASSWORD });
+  const lifetime = construction.move();
   return {
     root,
-    [Symbol.asyncDispose]: () => root[Symbol.asyncDispose](),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
     at: (next): void => {
       peer = next;
     },

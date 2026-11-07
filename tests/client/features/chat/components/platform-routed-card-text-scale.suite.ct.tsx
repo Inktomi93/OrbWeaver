@@ -35,28 +35,25 @@ interface CardRoom {
 
 /** A corpus room whose latest reply is spoken by a character that renders trusted HTML, rewritten to carry one card. */
 async function openCardRoom(): Promise<CardRoom> {
-  const root = await createCorpusHarness();
-  try {
-    const caller = await root.internalCallerFor(root.ownerId);
-    for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
-      const detail = await caller.chat.getChat({ chatId: row.id });
-      const trusted = new Set(
-        detail.participants.flatMap((seat) =>
-          seat.characterId !== null && seat.renderPolicy !== undefined && rendersTrustedHtml(seat.renderPolicy.htmlTrust) ? [seat.characterId] : [],
-        ),
-      );
-      const { messages } = await caller.chat.listMessages({ chatId: row.id });
-      const reply = messages.findLast((message) => message.role === "assistant" && message.characterId !== null && trusted.has(message.characterId));
-      if (reply !== undefined) {
-        await caller.chat.editMessage({ chatId: row.id, messageId: reply.id, content: CARD, timeZone: UTC_TIME_ZONE });
-        return { root, chatId: row.id };
-      }
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createCorpusHarness());
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const row of (await caller.chat.listChats({ limit: 100 })).items) {
+    const detail = await caller.chat.getChat({ chatId: row.id });
+    const trusted = new Set(
+      detail.participants.flatMap((seat) =>
+        seat.characterId !== null && seat.renderPolicy !== undefined && rendersTrustedHtml(seat.renderPolicy.htmlTrust) ? [seat.characterId] : [],
+      ),
+    );
+    const { messages } = await caller.chat.listMessages({ chatId: row.id });
+    const reply = messages.findLast((message) => message.role === "assistant" && message.characterId !== null && trusted.has(message.characterId));
+    if (reply !== undefined) {
+      await caller.chat.editMessage({ chatId: row.id, messageId: reply.id, content: CARD, timeZone: UTC_TIME_ZONE });
+      construction.move();
+      return { root, chatId: row.id };
     }
-    throw new Error("No corpus room has a reply from a character that renders trusted HTML");
-  } catch (error) {
-    await root[Symbol.asyncDispose]();
-    throw error;
   }
+  throw new Error("No corpus room has a reply from a character that renders trusted HTML");
 }
 
 /** Answer the card-frame mint and serve from the page with the root's own HTTP entry, under the viewer's session. */

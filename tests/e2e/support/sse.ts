@@ -36,6 +36,21 @@ export function readStreamEvent(value: StreamValue): Record<string, unknown> {
   return event;
 }
 
+/** This frame's visible text, when it is a text delta. A committed view or a reasoning delta is not delivered prose. */
+export function textDeltaOf(value: StreamValue): string | undefined {
+  const event = readStreamEvent(value);
+  if (event["type"] !== "delta") {
+    return undefined;
+  }
+  const delta = pageObject(event["delta"], "SSE delta");
+  return pageString(delta["kind"], "SSE delta kind") === "text" ? pageString(delta["text"], "SSE delta text") : undefined;
+}
+
+/** The text deltas a viewer received, joined. Replay may split or coalesce them, so a caller reads text, never a count. */
+export function deliveredText(values: readonly StreamValue[]): string {
+  return values.flatMap((value) => textDeltaOf(value) ?? []).join("");
+}
+
 function hasObservedValue(value: object): value is StreamValue {
   return "seq" in value && typeof value.seq === "number" && "event" in value && value.event !== undefined;
 }

@@ -4,11 +4,14 @@ import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, MAX_TCP_PORT } from "@orb/tooling/floor/host/ports";
 import type { WorkspacePackage } from "../../../../tooling/src/dev/index.ts";
 import {
+  childExitLine,
   devChildEnv,
   resolveVitePort,
   SERVER_PACKAGE,
   serverSpawnPlan,
   serverWatchRoots,
+  servesBuiltClient,
+  tailLines,
   VITE_API_TARGET_ENV,
   VITE_PORT_ENV,
 } from "../../../../tooling/src/dev/index.ts";
@@ -70,4 +73,23 @@ test("a server planned without watch carries no watch flag, so a source edit can
   expect(watched.some((arg) => arg.startsWith("--watch"))).toBe(true);
   expect(fixed.some((arg) => arg.startsWith("--watch"))).toBe(false);
   expect(fixed.at(-1)).toBe(watched.at(-1));
+});
+
+test("only a harness stack that names a built client skips vite", () => {
+  expect(servesBuiltClient({ e2eHarness: "on", clientDistDir: "/run/client" })).toBe(true);
+  // The dev-target drive boots the operator's own stack, whose origin is vite.
+  expect(servesBuiltClient({ e2eHarness: "on", clientDistDir: undefined })).toBe(false);
+  expect(servesBuiltClient({ e2eHarness: "on", clientDistDir: "" })).toBe(false);
+  expect(servesBuiltClient({ e2eHarness: "off", clientDistDir: "/run/client" })).toBe(false);
+});
+
+test("an unasked exit says why with the tail of the child's log, colour removed", () => {
+  const log = ["boot", "", "\u001B[31mError: Port 5173 is already in use\u001B[39m", "  ", "exit"].join("\n");
+  expect(tailLines(log, 2)).toEqual(["Error: Port 5173 is already in use", "exit"]);
+  expect(tailLines("", 2)).toEqual([]);
+  expect(childExitLine("vite", "code 1", tailLines(log, 2), "server")).toBe(
+    "dev: vite exited (code 1): Error: Port 5173 is already in use | exit; stopping server.",
+  );
+  expect(childExitLine("vite", "code 1", [], "server")).toBe("dev: vite exited (code 1); stopping server.");
+  expect(childExitLine("server", "code 1", [], null)).toBe("dev: server exited (code 1).");
 });

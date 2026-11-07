@@ -3,12 +3,12 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { createDb, hasPendingMigrations, localPath, preCloseHousekeeping, runMigrations } from "@orb/db";
+import { createDb, hasPendingMigrations, localPath, runMigrations } from "@orb/db";
 import { createIdSource } from "@orb/kit/ids";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage/cas";
 import { createSeededIds } from "@orb/testkit/iso";
-import { createTestLogger, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { createTestLogger, ownFileDb, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { seedUser } from "@orb/testkit/node/rows";
 import { expect, test } from "@orb/testkit/tooling";
 import { z } from "zod";
@@ -38,17 +38,14 @@ async function olderSource(
     await writeFile(join(migrations, "0000_baseline.sql"), `${await readFile(join(migrations, "0000_baseline.sql"), "utf8")}\n-- divergent fixture baseline\n`);
   }
   const layout = resolveDataLayout({ ["DATA_DIR"]: join(parent, "source") });
-  const source = await createDb(layout.databaseUrl);
-  try {
-    await runMigrations(source, migrations);
-    const user = await seedUser(source, { role: "owner", passwordHash: "opaque-source-bound-password-hash" }, createIdSource(createSeededIds().next));
-    const bytes = Buffer.from("existing synthetic asset bytes");
-    const asset = await createCas(layout.assets, createTestLogger()).putBytes(user.id, bytes, user.createdAt);
-    expect(await hasPendingMigrations(source, SHIPPED_MIGRATIONS)).toBe(true);
-    return { layout, user, bytes, asset };
-  } finally {
-    await preCloseHousekeeping(source);
-  }
+  await using held = ownFileDb(await createDb(layout.databaseUrl));
+  const source = held.db;
+  await runMigrations(source, migrations);
+  const user = await seedUser(source, { role: "owner", passwordHash: "opaque-source-bound-password-hash" }, createIdSource(createSeededIds().next));
+  const bytes = Buffer.from("existing synthetic asset bytes");
+  const asset = await createCas(layout.assets, createTestLogger()).putBytes(user.id, bytes, user.createdAt);
+  expect(await hasPendingMigrations(source, SHIPPED_MIGRATIONS)).toBe(true);
+  return { layout, user, bytes, asset };
 }
 
 test("a supported older source is migrated before current-schema scrubbing while preserving owner and assets", { tags: "slow" }, async ({ scratch }) => {
@@ -60,8 +57,9 @@ test("a supported older source is migrated before current-schema scrubbing while
   const before = await readFile(path);
   const target = resolveDataLayout({ ["DATA_DIR"]: join(scratch, "clone") });
   await cloneMigratedStageDb(path, { databaseUrl: target.databaseUrl, assetsDir: target.assets });
-  const clone = await createDb(target.databaseUrl);
-  try {
+  {
+    await using held = ownFileDb(await createDb(target.databaseUrl));
+    const clone = held.db;
     expect(await hasPendingMigrations(clone, SHIPPED_MIGRATIONS)).toBe(false);
     using native = new DatabaseSync(localPath(target.databaseUrl) ?? "");
     expect(native.prepare("SELECT id,handle,role,password_hash AS passwordHash FROM users").all()).toEqual([
@@ -69,8 +67,6 @@ test("a supported older source is migrated before current-schema scrubbing while
     ]);
     expect(native.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(Buffer.from(await createCas(target.assets, createTestLogger()).read(source.user.id, source.asset.hash)).equals(source.bytes)).toBe(true);
-  } finally {
-    await preCloseHousekeeping(clone);
   }
   expect((await readFile(path)).equals(before)).toBe(true);
 });

@@ -10,7 +10,7 @@ const ADA = createCharacterSchema.parse({ handle: "dup-ada", name: "Ada Vane", d
 const CONCURRENT_COPIES = 4;
 
 test("duplicateMessage refuses while a turn is in flight and writes nothing, then copies once the turn ends", async () => {
-  const provider = textProvider(["The reply."]);
+  using provider = textProvider(["The reply."]);
   const arrived = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   // Only the chat completion is held, so the turn stays registered in the room until the test lets it finish.
@@ -20,7 +20,7 @@ test("duplicateMessage refuses while a turn is in flight and writes nothing, the
       arrived.resolve();
       await release.promise;
     }
-    return await provider(request);
+    return await provider.execute(request);
   };
   await using h = await createChatRoot({ memoryEnabled: false, providerFetch });
   const { chat } = h.root.services;
@@ -52,7 +52,8 @@ test("duplicateMessage refuses while a turn is in flight and writes nothing, the
 }, 60_000);
 
 test("concurrent duplicates of one message each land on their own seq", async () => {
-  await using h = await createChatRoot({ memoryEnabled: false, providerFetch: textProvider(["unused"]) });
+  using provider = textProvider([]);
+  await using h = await createChatRoot({ memoryEnabled: false, providerFetch: provider.execute });
   const { chat } = h.root.services;
   const first = (await chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: "first" })).messages[0];
   if (first === undefined) {
@@ -69,9 +70,10 @@ test("concurrent duplicates of one message each land on their own seq", async ()
 test("a duplicated comment stays a comment and never reaches the prompt; a duplicated narrator row stays narrator", async () => {
   const aside = "an out-of-band aside the model must never see";
   const narration = "the group narrates";
+  using provider = textProvider(["The reply."]);
   await using h = await createChatRoot({
     memoryEnabled: false,
-    providerFetch: textProvider(["The reply."]),
+    providerFetch: provider.execute,
     characters: [ADA],
     transcript: [
       { role: "user", content: "a human line" },

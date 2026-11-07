@@ -179,14 +179,25 @@ export async function runScheduledGc(box: GcBox): ReturnType<ServerTestHarness["
   return await workloadRow(box, id);
 }
 
-export async function survives(box: GcBox, ref: StoredRef): Promise<boolean> {
-  return (await box.root.services.assets.assetCasRefById(ref.assetId)) !== undefined && (await box.cas.exists(box.root.ownerId, ref.hash));
+/** Where an asset still exists. The index row and the owner's CAS blob are separate stores, and a sweep must clear both. */
+export interface AssetStores {
+  readonly row: boolean;
+  readonly blob: boolean;
 }
 
-export async function survival(box: GcBox, refs: Readonly<Record<string, StoredRef>>): Promise<Record<string, boolean>> {
-  const out: Record<string, boolean> = {};
+export const BOTH_STORES: AssetStores = { row: true, blob: true };
+export const NEITHER_STORE: AssetStores = { row: false, blob: false };
+
+/** Read both stores every time, so a row-only deletion cannot pass as a reclaimed asset. */
+export async function storesOf(box: GcBox, ref: StoredRef): Promise<AssetStores> {
+  const [row, blob] = await Promise.all([box.root.services.assets.assetCasRefById(ref.assetId), box.cas.exists(box.root.ownerId, ref.hash)]);
+  return { row: row !== undefined, blob };
+}
+
+export async function storesOfEach(box: GcBox, refs: Readonly<Record<string, StoredRef>>): Promise<Record<string, AssetStores>> {
+  const out: Record<string, AssetStores> = {};
   for (const [name, ref] of Object.entries(refs)) {
-    out[name] = await survives(box, ref);
+    out[name] = await storesOf(box, ref);
   }
   return out;
 }

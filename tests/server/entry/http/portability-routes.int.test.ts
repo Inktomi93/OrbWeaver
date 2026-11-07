@@ -31,21 +31,25 @@ interface Box extends AsyncDisposable {
 
 /** A local box whose owner signs in over loopback and whose member signs in with a password. */
 async function box(): Promise<Box> {
-  const root = await createServerHarness({
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createServerHarness({
+      physicalPeer: () => "127.0.0.1",
+      startJobs: false,
+      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+    }),
+  );
   const member = await signedInMember(root, castId<Handle>("portability-member"));
   const run = root.runAdmittedWorkload;
   if (run === undefined) {
     throw new Error("the harness did not expose manual workload execution");
   }
+  const lifetime = construction.move();
   return {
     root,
     member,
     run: (id) => run(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS)),
-    [Symbol.asyncDispose]: () => root[Symbol.asyncDispose](),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
 }
 

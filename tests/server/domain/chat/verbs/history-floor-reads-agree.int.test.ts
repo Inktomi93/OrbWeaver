@@ -26,14 +26,16 @@ interface Room extends AsyncDisposable {
 }
 
 async function openRoom(): Promise<Room> {
-  const root = await createServerHarness({ startJobs: false, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ startJobs: false, env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } }));
   const { owner: host } = await seedCorpusActors(root);
   const character = await root.services.character.create({
     principal: host,
     input: createCharacterSchema.parse({ handle: "floor-warden", name: "Warden", description: "A warden of the room's ledgers." }),
   });
   const room = await root.services.chat.startChat({ principal: host, characterIds: [character.id], opening: "none" });
-  return { root, host, chatId: room.chat.id, [Symbol.asyncDispose]: () => root[Symbol.asyncDispose]() };
+  const lifetime = construction.move();
+  return { root, host, chatId: room.chat.id, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
 async function admit(room: Room, handle: string, visibility: JoinHistoryVisibility): Promise<Principal> {

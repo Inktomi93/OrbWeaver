@@ -45,13 +45,12 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
-import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
-import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
+import { messageRow, openContextTab, openNewestChat, sendAndAwaitReply } from "./support/chat-room.ts";
+import { hasRpgFlush, rpgRoundSettled, rpgTurnSettled } from "./support/rpg-settle.ts";
 import {
   CASE_LIVE_LOOP_MS,
   CASE_LIVE_TURN_MS,
   CASE_STREAM_MS,
-  WAIT_LIVE_TURN_MS,
   WAIT_RPG_ROUND_MS,
   WAIT_SETTLE_MS,
   WAIT_STREAM_MS,
@@ -68,7 +67,6 @@ import {
   editSnapshot,
   fetchDebugErrors,
   fetchRpgTraces,
-  fetchWireCaptures,
   getConfigView,
   getGame,
   getTrackerView,
@@ -81,6 +79,7 @@ import {
   patchSheet,
   pinChatToLocalEngine,
   removeCharacter,
+  requireWireCaptures,
   restoreChatBinding,
   restoreCheckpoint,
   setChatBinding,
@@ -417,25 +416,19 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     await openGamePanel(page);
 
     // The turn: one real Agent-SDK character turn.
-    const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
-    await expect(composer).toBeVisible();
-    await typeAndSend(composer, STATE_CHANGE_NARRATION);
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
+    const { assistantId } = await sendAndAwaitReply({ page, chatId }, STATE_CHANGE_NARRATION);
 
-    // HOP RESULT (the turn ran): a real assistant row streams back with non-empty content.
-    const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
-    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
+    // HOP RESULT (the turn ran): a new assistant row, never the seeded greeting, carries non-empty content.
+    await expect(messageRow(page, assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
 
     // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. On the local-engine
     // connection the backend is `vllm` (chat-completions), so the capture body is the openai-compat `messages` array
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
-    const captures = await fetchWireCaptures(chatId);
-    expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.providerId === "vllm");
-    expect(turnCapture).toBeDefined();
-    const messages = pageArray(turnCapture?.body["messages"], "vllm wire capture messages");
+    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
+    const messages = pageArray(turnCapture.body["messages"], "vllm wire capture messages");
     const promptText = messages
       .map((m) => {
         const content = isPlainObject(m) ? m["content"] : undefined;
@@ -518,19 +511,17 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
 
     await openNewestChat(page);
     await openGamePanel(page);
-    const composer = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME });
-    await typeAndSend(composer, STATE_CHANGE_NARRATION);
+    const { assistantId } = await sendAndAwaitReply({ page, chatId }, STATE_CHANGE_NARRATION);
+    await expect(messageRow(page, assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
 
-    const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
-    await expect(assistantRow.first()).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });
-    await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: WAIT_LIVE_TURN_MS });
-
-    // Poll the tracker until the flush barrier settles (the tool round is a post-commit call). The KEY
-    // invariant (the W1 canon-corruption backstop): whatever the tool round wrote, the snapshot read-back is
+    // The tool round is a post-commit call, so barrier on the flight recorder: this game's turn dispatched the round
+    // and the write boundary settled it. The roster exists before any round runs, so it can never be this barrier.
+    await expect.poll(async () => rpgRoundSettled(await fetchRpgTraces(chatId), "tool-round"), { timeout: WAIT_RPG_ROUND_MS, intervals: [1500] }).toBe(true);
+    // The KEY invariant (the W1 canon-corruption backstop): whatever the tool round wrote, the snapshot read-back is
     // WELL-FORMED — a getTrackerView that RESOLVES proves the assembled snapshot passed the contract validation
     // before insert; a corrupt row would throw here. A cheap round that writes nothing is an accepted 8B
     // ceiling, NOT a defect — so we assert well-formedness (resolves + roster intact), never a specific write.
-    await expect.poll(async () => (await getTrackerView(chatId)).actors.length, { timeout: WAIT_SETTLE_MS, intervals: [1500] }).toBeGreaterThan(0);
+    expect((await getTrackerView(chatId)).actors.length).toBeGreaterThan(0);
     const canon = await listCanon(chatId);
     expect(canon.some((m) => m.role === "assistant" && NON_WHITESPACE.test(m.content))).toBe(true);
     expect(await fetchDebugErrors()).toEqual([]);

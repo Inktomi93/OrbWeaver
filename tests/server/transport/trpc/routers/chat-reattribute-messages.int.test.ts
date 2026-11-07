@@ -62,8 +62,11 @@ async function roomOver(h: ChatRoot): Promise<Room> {
   };
 }
 
-async function room(options: RoomOptions = {}): Promise<Room> {
-  return await roomOver(await textRoom(["the next reply"], { characters: [ADA, BEX], transcript: TRANSCRIPT, ...options }));
+async function room(options: RoomOptions = {}, replies: readonly string[] = []): Promise<Room> {
+  await using construction = new AsyncDisposableStack();
+  const seeded = await roomOver(construction.use(await textRoom(replies, { characters: [ADA, BEX], transcript: TRANSCRIPT, ...options })));
+  construction.move();
+  return seeded;
 }
 
 async function stampOf(h: ChatRoot, messageId: MessageId, chatId: ChatId = h.chatId): Promise<CharacterId | null | undefined> {
@@ -206,7 +209,7 @@ test("an id from another chat refuses the whole set, in neither room does a row 
 });
 
 test("a row with no character voice to replace is refused by code, never by the attribution constraint", async () => {
-  await using h = await textRoom(["unused"], {
+  await using h = await textRoom([], {
     characters: [ADA, BEX],
     transcript: [
       { role: "user", content: "a human line" },
@@ -253,10 +256,11 @@ test("a removed seat is no target until it is re-added, and a row can still leav
 test("a seat removed between the gate and the write loses the race: no stamp, no event, and the retry names the seat", async () => {
   using held = await freshHeldDb();
   await using ownership = new AsyncDisposableStack();
+  const execute = ownership.use(textProvider([])).execute;
   const h = ownership.use(
     await createChatRoot({
       memoryEnabled: false,
-      providerFetch: textProvider([]),
+      providerFetch: execute,
       server: { db: held.db },
       characters: [ADA, BEX],
       transcript: TRANSCRIPT,
@@ -310,7 +314,7 @@ test("stamping a row with the voice it already has writes and emits nothing", as
 });
 
 test("a re-voice of a row under a member's floor reaches the host and never the floored member, live or replayed", async () => {
-  await using h = await textRoom(["unused"], { characters: [ADA, BEX], transcript: TRANSCRIPT, server: { env: LOCAL_ENV, secretBoxKey: SECRET_BOX_TEST_KEY } });
+  await using h = await textRoom([], { characters: [ADA, BEX], transcript: TRANSCRIPT, server: { env: LOCAL_ENV, secretBoxKey: SECRET_BOX_TEST_KEY } });
   const { firstReply, secondReply, bex } = await roomOver(h);
   const handle = castId<Handle>("reattr-floored");
   const password = "a-real-floored-password-through-production-login";
@@ -371,7 +375,7 @@ test("a re-voice of a row under a member's floor reaches the host and never the 
 });
 
 test("the next prompt labels the row with its new speaker", async () => {
-  await using seeded = await room({ group: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
+  await using seeded = await room({ group: { output: "per-speaker", cardScope: "scoped", policy: "list" } }, ["the next reply"]);
   const { h, secondReply, ada, bex } = seeded;
   await h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [secondReply], characterId: bex });
   const turn = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ada });

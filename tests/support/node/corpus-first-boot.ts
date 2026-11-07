@@ -8,14 +8,11 @@ import { createServerHarness } from "./server.ts";
 
 /** A fresh production root with the shipped palettes its normal boot installs. */
 export async function createFirstBootHarness(): Promise<ServerTestHarness> {
-  const root = await createServerHarness({ startJobs: false });
-  try {
-    await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
-    return root;
-  } catch (error) {
-    await root[Symbol.asyncDispose]();
-    throw error;
-  }
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(await createServerHarness({ startJobs: false }));
+  await seedThemes({ db: bootGrantFor(root.db), logger: root.logger, now: root.clock.now });
+  construction.move();
+  return root;
 }
 
 /** A server of its own: the corpus graph already holds a second account, connections and themes a first boot does not. */

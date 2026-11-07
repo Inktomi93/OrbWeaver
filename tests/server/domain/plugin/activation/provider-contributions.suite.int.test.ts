@@ -312,14 +312,15 @@ async function relayWorld(lifetime: AsyncDisposableStack): Promise<RelayWorld> {
     sent.push({ url: input instanceof Request ? input.url : String(input), authorization: headers.get("authorization") });
     return wire.execute(input, init);
   };
-  const root = await createServerHarness({
-    pluginSpawn: spawn,
-    providerFetch,
-    networkExecution: {
-      resolver: (host) => (host === RELAY_HOST ? Promise.resolve([RELAY_ADDRESS]) : Promise.reject(new Error(`unscripted address for ${host}`))),
-    },
-  });
-  lifetime.defer(() => root[Symbol.asyncDispose]());
+  const root = lifetime.use(
+    await createServerHarness({
+      pluginSpawn: spawn,
+      providerFetch,
+      networkExecution: {
+        resolver: (host) => (host === RELAY_HOST ? Promise.resolve([RELAY_ADDRESS]) : Promise.reject(new Error(`unscripted address for ${host}`))),
+      },
+    }),
+  );
   const installer = await owner(root);
   const stranger = await owner(root);
   const bundle = makePluginBundle(

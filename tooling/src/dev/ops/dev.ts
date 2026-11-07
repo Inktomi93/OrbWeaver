@@ -2,7 +2,7 @@
 // No shell, no bash and no POSIX binary: every spawn is node plus a JS file, and the terminal is the
 // supervisor. The server boots first and vite only once `/healthz` answers, so a client that answers means
 // the stack answers. The first child to exit, or any stop signal, stops both; the launcher exits after both.
-import { createWriteStream, readdirSync, readFileSync } from "node:fs";
+import { closeSync, createWriteStream, fstatSync, openSync, readdirSync, readFileSync, readSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -25,7 +25,10 @@ import type { DevChildName, DevLeaderHooks, WorkspacePackage } from "../contract
 import { awaitServerReady, SERVER_HEALTHZ_BASE_MS } from "../lib/boot.ts";
 import prettyOptions from "../lib/pino-pretty.json" with { type: "json" };
 import {
+  builtClientLine,
+  CLIENT_DIST_DIR_ENV,
   CLIENT_PACKAGE,
+  childExitLine,
   DEV_USAGE,
   devBannerLines,
   devChildEnv,
@@ -35,6 +38,8 @@ import {
   SERVER_PACKAGE,
   serverSpawnPlan,
   serverWatchRoots,
+  servesBuiltClient,
+  tailLines,
   VITE_PORT_ENV,
   viteSpawnPlan,
 } from "../lib/plan.ts";
@@ -46,6 +51,10 @@ const PACKAGES_DIR = join(REPO_ROOT, "packages");
 const STOP_GRACE_MS_BASE = 10_000;
 const STOP_GRACE_MS = budget(STOP_GRACE_MS_BASE);
 const PACKAGE_JSON = "package.json";
+const OTHER_CHILD = { server: "vite", vite: "server" } as const satisfies Record<DevChildName, DevChildName>;
+// A child's last words are a stack trace's tail or a one-line refusal; this much of its log holds either.
+const EXIT_REASON_LOG_BYTES = 16_384;
+const EXIT_REASON_LINES = 4;
 
 const packageJsonSchema = z.object({
   name: z.string(),
@@ -155,13 +164,32 @@ function armSupervision(): Supervision {
   };
 }
 
-/** Run both children until one exits or a stop signal arrives, then stop the other and wait for both. */
-async function superviseDev(supervision: Supervision, serverExit: Promise<Exited>, vite: FullPriorityChild): Promise<number> {
+/** The end of a child's log file, when this launcher writes one: a launcher on a terminal has already shown the reason. */
+function logReason(name: DevChildName, hooks: DevLeaderHooks): readonly string[] {
+  if (hooks.logs === undefined) {
+    return [];
+  }
+  const fd = openSync(name === "vite" ? hooks.logs.client : hooks.logs.server, "r");
+  try {
+    const size = fstatSync(fd).size;
+    const length = Math.min(size, EXIT_REASON_LOG_BYTES);
+    const tail = Buffer.alloc(length);
+    readSync(fd, tail, 0, length, size - length);
+    return tailLines(tail.toString("utf8"), EXIT_REASON_LINES);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Run the children until one exits or a stop signal arrives, then stop the other and wait for both. `vite` is null
+ *  when none was started. */
+async function superviseDev(supervision: Supervision, serverExit: Promise<Exited>, vite: FullPriorityChild | null, hooks: DevLeaderHooks): Promise<number> {
   // One wait() per child: a second call after the exit event has fired would never resolve.
-  const viteExit = vite.wait().then((exit): Exited => ({ name: "vite", exit }));
-  const first = await Promise.race([serverExit, viteExit]);
+  const viteExit = vite === null ? null : vite.wait().then((exit): Exited => ({ name: "vite", exit }));
+  const first = viteExit === null ? await serverExit : await Promise.race([serverExit, viteExit]);
   if (supervision.stop.signal === null) {
-    warn(`dev: ${first.name} exited (${first.exit.error?.message ?? `code ${childExitCode(first.exit)}`}); stopping the other child.`);
+    const survivor = viteExit === null ? null : OTHER_CHILD[first.name];
+    warn(childExitLine(first.name, first.exit.error?.message ?? `code ${childExitCode(first.exit)}`, logReason(first.name, hooks), survivor));
     // No console event reaches the survivor here, so on win32 this kill is TerminateProcess: the survivor gets no drain.
     supervision.stopAll("SIGTERM");
   }
@@ -228,6 +256,13 @@ async function runDevChildren(serverEnv: ServerEnv, vitePort: number, packages: 
     return boot === "timeout" ? EXIT.violations : exitCodeAfter(supervision, exit);
   }
 
+  // A Playwright-owned stack serves its built client from the server and drives that origin, so no vite has a reader.
+  const clientDistDir = processEnvValue(CLIENT_DIST_DIR_ENV);
+  if (servesBuiltClient({ e2eHarness: serverEnv.E2E_HARNESS, clientDistDir })) {
+    print(builtClientLine(clientDistDir ?? ""));
+    return await superviseDev(supervision, serverExit, null, hooks);
+  }
+
   const vitePlan = viteSpawnPlan({ nodePath: process.execPath, viteBin: resolveViteBin(client), client, env });
   const viteChild = spawnFullPriorityChild(vitePlan.command, vitePlan.args, {
     cwd: vitePlan.cwd,
@@ -241,7 +276,7 @@ async function runDevChildren(serverEnv: ServerEnv, vitePort: number, packages: 
   for (const line of devBannerLines({ vitePort, serverPort: serverEnv.PORT, authMode: serverEnv.AUTH_MODE })) {
     print(line);
   }
-  return await superviseDev(supervision, serverExit, viteChild);
+  return await superviseDev(supervision, serverExit, viteChild, hooks);
 }
 
 /** `pnpm dev`'s whole dispatch, and the leader body a detached supervisor runs. argv is without the

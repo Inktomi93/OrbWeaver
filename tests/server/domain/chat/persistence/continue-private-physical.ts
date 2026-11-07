@@ -23,9 +23,9 @@ const PRIVATE_SCRIPT = [
   [nativeText("Done.", "base-end-private")],
   [{ text: ADDITION_REASONING, thought: true, thoughtSignature: "addition-reason-private-signature" }, nativeText("A.", "a-private"), nativeTool()],
   [nativeText("A-end.", "a-end-private")],
-  [nativeText("B.", "b-private"), nativeTool()],
-  [nativeText("B-end.", "b-end-private")],
 ];
+
+const PRIVATE_NEXT_SCRIPT = [[nativeText("B.", "b-private"), nativeTool()], [nativeText("B-end.", "b-end-private")]];
 
 export interface PrivateContinuation {
   readonly image: Awaited<ReturnType<typeof imageRoom>>;
@@ -111,14 +111,18 @@ export async function privateRoom(): Promise<PrivateRoom> {
     if (slot === undefined) {
       throw new Error("the paid native generation produced no real assistant slot");
     }
-    const nextContinuation = async (): Promise<TurnOutcome> =>
+    const continueSlot = async (): Promise<TurnOutcome> =>
       await h.root.services.chat.continueTurn({
         principal: h.owner,
         chatId,
         messageId: slot.id,
         intent: INTENT,
       });
-    await nextContinuation();
+    const nextContinuation = async (): Promise<TurnOutcome> => {
+      image.script(PRIVATE_NEXT_SCRIPT);
+      return await continueSlot();
+    };
+    await continueSlot();
     await h.root.settleBackground();
     const continued = await h.root.db.select().from(messageVariants).where(eq(messageVariants.id, slot.selectedVariantId)).get();
     const baseTool = continued?.metadata?.continuationTools?.before[0];

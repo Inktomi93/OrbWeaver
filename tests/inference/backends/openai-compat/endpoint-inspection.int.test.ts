@@ -56,7 +56,8 @@ test("an Ollama row's test request takes the native route its chat turn takes, w
 
 test("a Custom row's test request takes /chat/completions with the row's own body, as its chat turn does", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: openAiServer(recorded, () => ({}), 2) });
+  using server = openAiServer(recorded, () => ({}), 2);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const connection = await wireConnection(root, {
     task: "chat",
     providerId: "custom-openai",

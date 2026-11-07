@@ -417,29 +417,27 @@ test("failed OIDC GC construction joins its held actual database sweep and retai
     return interval(tick, ms);
   });
   let settled = false;
-  const result = createServerHarness({
-    ownerId: null,
-    env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" } as const,
-    db: held.db,
-    clock,
-    timers,
-    oidc: SETTINGS,
-  }).then(
-    () => {
-      throw new Error("OIDC construction unexpectedly succeeded");
-    },
-    (error: unknown) => {
+  const refused = expect(
+    createServerHarness({
+      ownerId: null,
+      env: { [AUTH_MODE_KEY]: "oidc", [AUTH_FALLBACK_KEY]: "deny" } as const,
+      db: held.db,
+      clock,
+      timers,
+      oidc: SETTINGS,
+    }),
+  )
+    .rejects.toBe(failure)
+    .then(() => {
       settled = true;
-      return error;
-    },
-  );
+    });
   try {
     await gate.reached;
     expect(settled).toBe(false);
     expect(await held.db.all(sql`select 1 as live`)).toEqual([{ live: 1 }]);
   } finally {
     gate.release();
-    expect(await result).toBe(failure);
+    await refused;
   }
   expect(timers.pending()).toBe(0);
   expect(await held.db.all(sql`select 1 as retained`)).toEqual([{ retained: 1 }]);
