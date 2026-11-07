@@ -11,7 +11,9 @@ export interface ImportDriverDeps {
   readonly resolveOwnerPrincipal: ResolveHostPrincipalOp;
   readonly profile: (principal: Principal, args: Parameters<ImportWorkloadDeps["runProfileDirImport"]>[0]) => Promise<ImportReport>;
   readonly bundle: (args: Pick<BundleImportDeps, "ownerId" | "archive" | "signal" | "extractOptions">) => Promise<BundleImportReport>;
-  readonly staged: (args: Pick<StagedBundleImportDeps, "ownerId" | "signal"> & { readonly stagedPath: string }) => Promise<BundleImportReport>;
+  readonly staged: (
+    args: Pick<StagedBundleImportDeps, "ownerId" | "signal"> & { readonly stagedPath: string; readonly digest: string },
+  ) => Promise<BundleImportReport>;
   readonly writeReport: (markdown: string, generatedAt: number) => Promise<string>;
   readonly reconcileStats: ImportWorkloadDeps["reconcileImportStats"];
   readonly settleMemory: SettleImportMemory;

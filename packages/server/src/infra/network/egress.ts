@@ -33,7 +33,7 @@ import { createOwnedResponseBody } from "./response-body.ts";
 // non-safeFetch egress (provider calls, OIDC).
 //
 // DECLARED-INTENT AUTO-ALLOW, in TWO classes, both operator intent and neither ever attacker input:
-//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer host, read from the options' env record once per
+//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URL hosts, read from the options' env record once per
 //       egress (`shouldBlockEgress`). HOST-keyed, ANY PORT. Unchanged.
 //   (2) the deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the second block
 //       further down — inference program F12). Hosts, CIDRs, and OPTIONALLY host:PORT.
@@ -603,9 +603,9 @@ function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
   return allowlist;
 }
 
-/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read per egress for the connect gate
- *  and the write-time admission, so the two cannot disagree about a declared host. */
-function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "OIDC_ISSUER">): ReadonlySet<string> {
+/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URL hosts. One read per
+ *  egress for the connect gate and the write-time admission, so the two cannot disagree about a declared host. */
+function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): ReadonlySet<string> {
   const allowlist = new Set(
     (record.EGRESS_ALLOWLIST ?? "")
       .split(",")
@@ -620,6 +620,10 @@ function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "OIDC_ISSUER"
     } catch {
       // malformed issuer — env refinement would have caught it in oidc mode
     }
+  }
+  // A self-hosted identity provider sits on the LAN, and the operator named this host, as with the OIDC issuer.
+  if (record.FORWARD_AUTH_JWKS?.kind === "url") {
+    allowlist.add(record.FORWARD_AUTH_JWKS.url.hostname.toLowerCase());
   }
   return allowlist;
 }

@@ -33,6 +33,12 @@ export const ST_SECRETS_FILE = "secrets.json";
 /** The ST per-profile settings file — the one ST marker a profile always carries. */
 export const ST_SETTINGS_FILE = "settings.json";
 
+/** The file the server writes last into a staged tree, naming every staged file's hash. An upload may not claim it. */
+export const STAGED_MANIFEST_FILE = ".orb-staged-manifest.json";
+
+/** Why a run refuses an upload staged with no recorded digest: it cannot tell the bytes are what the server wrote. */
+export const STAGED_UPLOAD_OUTDATED = "This upload was staged before the server recorded its contents. Upload it again.";
+
 // The top-level profile entries the importer reads. Every other entry is reported, not imported.
 const ST_PROFILE_HANDLED_ENTRIES = [
   "characters",
@@ -137,7 +143,7 @@ export function chatDirCardCandidates(slug: string): string[] {
   return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }
 
-export type { ImportFsPort } from "./filesystem.ts";
+export type { ImportDirectory, ImportFsPort } from "./filesystem.ts";
 
 /** The sniff outcome: the importer to route to + the staging-path prefix that normalizes the tree, or a
  *  typed reject carrying the top-level names found (so the caller can tell the user what it saw). The importer consumes the classification before any staging write. */

@@ -15,13 +15,13 @@ import { vi } from "vitest";
 const KEY_HOST = new URL(ISSUER).hostname;
 const KEY_URL = new URL("jwks", ISSUER).href;
 
-function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
+function rootFor(execution: typeof fetch, source = KEY_URL): Promise<ServerTestHarness> {
   return createServerHarness({
     env: {
       [AUTH_MODE_KEY]: "forward-header",
       [AUTH_FALLBACK_KEY]: "deny",
       ["FORWARD_AUTH_VERIFY_JWT"]: "true",
-      ["FORWARD_AUTH_JWKS_ALLOWLIST"]: KEY_HOST,
+      ["FORWARD_AUTH_JWKS"]: source,
       ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
       ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },
@@ -40,7 +40,15 @@ function signedToken(issuer: Awaited<ReturnType<typeof createNativeIssuer>>, han
 }
 
 function headers(jwt: string): Headers {
-  return new Headers({ "x-authentik-jwt": jwt, "x-authentik-meta-jwks": KEY_URL });
+  return new Headers({ "x-authentik-jwt": jwt });
+}
+
+function verifierOf(root: ServerTestHarness): NonNullable<ServerTestHarness["app"]["forwardJwtVerifier"]> {
+  const { forwardJwtVerifier } = root.app;
+  if (forwardJwtVerifier === undefined) {
+    throw new Error("a root with FORWARD_AUTH_JWKS composes a verifier");
+  }
+  return forwardJwtVerifier;
 }
 
 test("actual signed-header verification uses the owning graph network execution", async () => {
@@ -76,9 +84,10 @@ test("actual graphs isolate same-URL signing keys and revoke held cached and lit
   await using second = await rootFor(secondExecution);
   const firstToken = await signedToken(firstIssuer, castId<Handle>("first-graph"));
   const secondToken = await signedToken(secondIssuer, castId<Handle>("second-graph"));
-  const firstKeys = await (await firstIssuer.fetch(KEY_URL)).text();
-  const held = first.app.forwardJwtVerifier;
-  const literal = { jwt: firstToken, metaJwks: firstKeys, allowlist: [KEY_HOST], issuer: ISSUER, audience: CLIENT_ID };
+  await using literal = await rootFor(firstExecution, await (await firstIssuer.fetch(KEY_URL)).text());
+  const heldRemote = verifierOf(first);
+  const heldLiteral = verifierOf(literal);
+  const firstArgs = { jwt: firstToken, issuer: ISSUER, audience: CLIENT_ID };
   const ambient = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("unowned ambient JWKS execution"));
   try {
     expect(authMeSchema.parse(await (await first.http.request("/api/auth/me", { headers: headers(firstToken) })).json())).toMatchObject({
@@ -89,13 +98,15 @@ test("actual graphs isolate same-URL signing keys and revoke held cached and lit
       authenticated: true,
       handle: "second-graph",
     });
-    expect(await held.verify(literal)).toMatchObject({ handle: "first-graph" });
+    expect(await heldRemote.verify(firstArgs)).toMatchObject({ handle: "first-graph" });
+    expect(await heldLiteral.verify(firstArgs)).toMatchObject({ handle: "first-graph" });
     expect(authMeSchema.parse(await (await first.http.request("/api/auth/me", { headers: headers(secondToken) })).json()).authenticated).toBe(false);
     expect(firstExecution).toHaveBeenCalledTimes(1);
     expect(secondExecution).toHaveBeenCalledTimes(1);
     await first[Symbol.asyncDispose]();
-    expect(await held.verify(literal)).toBeNull();
-    expect(await held.verify({ ...literal, metaJwks: KEY_URL })).toBeNull();
+    await literal[Symbol.asyncDispose]();
+    expect(await heldRemote.verify(firstArgs)).toBeNull();
+    expect(await heldLiteral.verify(firstArgs)).toBeNull();
     expect(authMeSchema.parse(await (await second.http.request("/api/auth/me", { headers: headers(secondToken) })).json()).authenticated).toBe(true);
     expect(firstExecution).toHaveBeenCalledTimes(1);
     expect(secondExecution).toHaveBeenCalledTimes(1);
@@ -136,10 +147,8 @@ test("graph disposal cancels and physically joins a key retrieval held by native
       ),
     );
   await using root = await rootFor(execution);
-  const pending = root.app.forwardJwtVerifier.verify({
+  const pending = verifierOf(root).verify({
     jwt: await signedToken(issuer, castId<Handle>("held-key-request")),
-    metaJwks: KEY_URL,
-    allowlist: [KEY_HOST],
     issuer: ISSUER,
     audience: CLIENT_ID,
   });

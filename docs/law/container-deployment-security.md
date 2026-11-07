@@ -20,7 +20,7 @@ This doc governs the shipped container: `Dockerfile`, `docker-compose.yaml` and 
 | `single-user` | a loopback peer, or a peer in `AUTH_FALLBACK_TRUSTED_PEERS`, on a request with no forwarding header | none | no; the port stays on `127.0.0.1` |
 | `local` | nobody | a handle and password; the first boot generates the password | yes |
 | `oidc` | nobody | the identity provider | yes |
-| `forward-header` | nobody | the auth proxy at the address in `FORWARD_AUTH_TRUSTED_PROXIES` | yes |
+| `forward-header` | nobody | a JWT signed by a key in `FORWARD_AUTH_JWKS`, or the auth proxy at the address in `FORWARD_AUTH_TRUSTED_PROXIES` | yes |
 
 ## The deployed surface
 

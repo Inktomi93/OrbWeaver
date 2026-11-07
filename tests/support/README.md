@@ -74,7 +74,7 @@ Use `@orb/testkit/node/auth` for any case that needs an authenticated request.
 | `single-user` | the owner's un-credentialed request from a loopback peer; a member gets the password route's answer |
 | `local` | `POST /api/auth/login` with the account's password |
 | `oidc` | the authorization-code flow against the scripted issuer; an unbound owner presents the boot claim code |
-| `forward-header` | the proxy's signed JWT headers for the account |
+| `forward-header` | the proxy's signed JWT header for the account |
 
 Branch a case on the capability, never on the mode name. `AUTH_MODE_CAPABILITIES` in [node/auth.ts](node/auth.ts) is the table:
 

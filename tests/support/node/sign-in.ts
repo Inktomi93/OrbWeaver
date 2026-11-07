@@ -16,7 +16,6 @@ const OIDC_SIGNED_IN_LOCATION = "/";
 // The browser origin `NATIVE_OIDC_SETTINGS.OIDC_REDIRECT_URIS` allowlists.
 const OIDC_ORIGIN_HOST = new URL(NATIVE_OIDC_SETTINGS.OIDC_REDIRECT_URIS).host;
 const FORWARD_JWT_HEADER = "x-authentik-jwt";
-const FORWARD_JWKS_HEADER = "x-authentik-meta-jwks";
 
 /** The product refused a sign-in: `status` is the HTTP answer, `location` an OIDC redirect's target. */
 export class SignInRefusal extends Error {
@@ -93,6 +92,5 @@ export async function signInWithOidc(root: HttpRoot, issuer: NativeIssuer, claim
 export async function forwardHeaders(issuer: NativeIssuer, claims: JWTPayload): Promise<Record<string, string>> {
   return {
     [FORWARD_JWT_HEADER]: await issuer.signedToken({ iss: ISSUER, aud: CLIENT_ID, ...claims }),
-    [FORWARD_JWKS_HEADER]: new URL("jwks", ISSUER).href,
   };
 }

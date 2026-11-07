@@ -1,49 +1,184 @@
+// The two `ImportFsPort` trees. A staged tree trusts only the manifest the server wrote; a link is never part of it.
+// ST_PROFILE_DIR has no writer to check against: it is operator configuration, so its links follow (docs/law/Tier-3-Infra.md).
+
 import type { Dirent } from "node:fs";
-import { readdir as readdirFs, stat as statFs } from "node:fs/promises";
-import { join } from "node:path";
-import type { ImportFsPort } from "@orb/contracts/import";
-import { errnoCode } from "#primitives/errno";
-import { readStorageFileNoFollow } from "./stage-dir.ts";
+import { lstat, readdir, stat } from "node:fs/promises";
+import { basename, join } from "node:path";
+import type { ImportDirectory, ImportFsPort } from "@orb/contracts/import";
+import { DomainOperationError } from "@orb/kit/errors";
+import { errnoCode, isMissingFile } from "#primitives/errno";
+import type { StagedFile, StagedManifest } from "./staged-manifest.ts";
+import { openLeaf, readVerified } from "./staged-manifest.ts";
 
-type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];
+type FsEntry = Awaited<ReturnType<ImportDirectory["list"]>>[number];
 
-function direntKind(e: Dirent): FsEntry["kind"] {
-  if (e.isFile()) {
-    return "file";
+const PATH_SEPARATOR = "/";
+const CURRENT_DIR = ".";
+const PARENT_DIR = "..";
+const MISSING_FILE_CODE = "ENOENT";
+const NOT_A_DIRECTORY_CODE = "ENOTDIR";
+
+/** An operator's leaf is no regular file. `code` makes the collector report it as a failed read, not a missing file. */
+class NotARegularFileError extends DomainOperationError {
+  constructor(path: string) {
+    super("import_not_a_regular_file", `not a regular file: ${path}`);
+    this.name = this.constructor.name;
   }
-  return e.isDirectory() ? "directory" : "other";
 }
 
-/** The fs codes that mean "this profile carries no such plane": the dir is not there (`ENOENT`), or the name
- *  is occupied by a FILE (`ENOTDIR`) — both are ABSENT, which is the port's documented `[]`. Every other code
- *  (`EACCES`, `EIO`, `ELOOP`, `EMFILE`, …) is an INFRASTRUCTURE fault: folding those into the same empty
- *  listing made an unreadable `characters/` read as "this profile has no characters" and imported a truncated
- *  profile while reporting success (#1469). */
-const ABSENT_DIR_CODES: ReadonlySet<string> = new Set(["ENOENT", "ENOTDIR"]);
+/** A plane an operator linked to a target that is not there. Reading on as an absent plane would drop its data silently. */
+class DanglingPlaneLinkError extends DomainOperationError {
+  constructor(path: string, options: ErrorOptions) {
+    super("import_dangling_plane_link", `this folder is a link to a target that does not exist: ${path}`);
+    this.name = this.constructor.name;
+    this.cause = options.cause;
+  }
+}
 
-/** The real node:fs `ImportFsPort` for the staged profile snapshot. `readdir` resolves `[]` for an ABSENT dir
- *  (the port contract — a profile may carry only one subdir) and REJECTS on an infrastructure fault. */
-export function createNodeFsImportPort(): ImportFsPort {
+/** A name a manifest never recorded. It reads as the collector's documented "missing" case, like an absent file on disk. */
+class NoSuchStagedFileError extends Error {
+  readonly code = MISSING_FILE_CODE;
+  constructor(path: string) {
+    super(`no such staged file: ${path}`);
+    this.name = this.constructor.name;
+  }
+}
+
+interface StagedNode {
+  readonly files: Map<string, StagedFile>;
+  readonly directories: Map<string, StagedNode>;
+}
+
+function emptyNode(): StagedNode {
+  return { files: new Map(), directories: new Map() };
+}
+
+function indexManifest(manifest: StagedManifest): StagedNode {
+  const root = emptyNode();
+  for (const file of manifest) {
+    const segments = file.path.split(PATH_SEPARATOR);
+    const leaf = segments.pop() ?? file.path;
+    let node = root;
+    for (const segment of segments) {
+      const child = node.directories.get(segment) ?? emptyNode();
+      node.directories.set(segment, child);
+      node = child;
+    }
+    node.files.set(leaf, file);
+  }
+  return root;
+}
+
+function stagedDirectory(root: string, node: StagedNode, path: string): ImportDirectory {
+  const fileNamed = (name: string): StagedFile => {
+    const file = node.files.get(name);
+    if (file === undefined) {
+      throw new NoSuchStagedFileError(join(path, name));
+    }
+    return file;
+  };
   return {
-    readdir: async (dir): Promise<readonly FsEntry[]> => {
-      // The catch is NARROWED to the two ABSENT
-      // codes and RE-THROWS everything else — an infra fault leaves as a rejection, which the collector
-      // wraps as `ImportInfraFailureError`. Ends if the port stops distinguishing absent from broken.
-      try {
-        const ents = await readdirFs(dir, { withFileTypes: true });
-        return ents.map((e): FsEntry => ({ name: e.name, kind: direntKind(e) }));
-      } catch (error) {
-        if (!ABSENT_DIR_CODES.has(errnoCode(error) ?? "")) {
-          throw error;
-        }
-        return [];
+    path,
+    list: (): Promise<readonly FsEntry[]> =>
+      Promise.resolve([
+        ...[...node.files.keys()].map((name): FsEntry => ({ name, kind: "file" })),
+        ...[...node.directories.keys()].map((name): FsEntry => ({ name, kind: "directory" })),
+      ]),
+    openDirectory: (name): Promise<ImportDirectory | null> => {
+      const child = node.directories.get(name);
+      return Promise.resolve(child === undefined ? null : stagedDirectory(root, child, join(path, name)));
+    },
+    readFile: async (name): Promise<Uint8Array> => await readVerified(root, fileNamed(name)),
+    stat: async (name): Promise<{ readonly size: number }> => await Promise.resolve({ size: fileNamed(name).size }),
+    [Symbol.asyncDispose]: (): Promise<void> => Promise.resolve(),
+  };
+}
+
+/**
+ * The staged tree at `root`, read through the manifest the server wrote. Listings come from the manifest, so nothing the
+ * disk says later adds a name, and every byte passes {@link readVerified}. The caller verified `manifest` against the
+ * digest its workload row carries.
+ */
+export function createStagedImportPort(root: string, manifest: StagedManifest): ImportFsPort {
+  const tree = indexManifest(manifest);
+  return {
+    openTree: (): Promise<ImportDirectory | null> => Promise.resolve(stagedDirectory(root, tree, root)),
+    join: (...parts): string => join(...parts),
+  };
+}
+
+function childOf(path: string, name: string): string {
+  // A climb or separator here would leave this directory, so only one plain entry name passes.
+  if (name === CURRENT_DIR || name === PARENT_DIR || name !== basename(name)) {
+    throw new Error(`not a single directory entry: ${name}`);
+  }
+  return join(path, name);
+}
+
+async function linkKind(path: string): Promise<FsEntry["kind"]> {
+  try {
+    return (await stat(path)).isDirectory() ? "directory" : "other";
+  } catch (error) {
+    // A link with no target lists as a directory, so a collector that wants this plane opens it and gets the failure
+    // that names it. An entry nothing reads stays harmless. Any other fault is an infrastructure fault.
+    if (isMissingFile(error) || errnoCode(error) === NOT_A_DIRECTORY_CODE) {
+      return "directory";
+    }
+    throw error;
+  }
+}
+
+async function operatorEntryKind(path: string, entry: Dirent): Promise<FsEntry["kind"]> {
+  if (entry.isSymbolicLink()) {
+    return await linkKind(join(path, entry.name));
+  }
+  if (entry.isFile()) {
+    return "file";
+  }
+  return entry.isDirectory() ? "directory" : "other";
+}
+
+async function operatorDirectoryAt(path: string): Promise<ImportDirectory | null> {
+  try {
+    return (await stat(path)).isDirectory() ? operatorDirectory(path) : null;
+  } catch (error) {
+    if (!isMissingFile(error) && errnoCode(error) !== NOT_A_DIRECTORY_CODE) {
+      throw error;
+    }
+    const entry = await lstat(path).catch(() => null);
+    if (entry?.isSymbolicLink() === true) {
+      throw new DanglingPlaneLinkError(path, { cause: error });
+    }
+    return null;
+  }
+}
+
+function operatorDirectory(path: string): ImportDirectory {
+  return {
+    path,
+    list: async (): Promise<readonly FsEntry[]> => {
+      const entries = await readdir(path, { withFileTypes: true });
+      return await Promise.all(entries.map(async (entry): Promise<FsEntry> => ({ name: entry.name, kind: await operatorEntryKind(path, entry) })));
+    },
+    openDirectory: (name): Promise<ImportDirectory | null> => operatorDirectoryAt(childOf(path, name)),
+    readFile: async (name): Promise<Uint8Array> => {
+      const child = childOf(path, name);
+      await using handle = await openLeaf(child);
+      if (!(await handle.stat()).isFile()) {
+        throw new NotARegularFileError(child);
       }
+      const data = await handle.readFile();
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     },
-    readFile: readStorageFileNoFollow,
-    stat: async (path): Promise<{ readonly size: number }> => {
-      const s = await statFs(path);
-      return { size: s.size };
-    },
+    stat: async (name): Promise<{ readonly size: number }> => ({ size: (await lstat(childOf(path, name))).size }),
+    [Symbol.asyncDispose]: (): Promise<void> => Promise.resolve(),
+  };
+}
+
+/** The operator's ST profile tree at `root`. A directory link follows at any depth; a leaf is read without following one. */
+export function createOperatorImportPort(root: string): ImportFsPort {
+  return {
+    openTree: (): Promise<ImportDirectory | null> => operatorDirectoryAt(root),
     join: (...parts): string => join(...parts),
   };
 }

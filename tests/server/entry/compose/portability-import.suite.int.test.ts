@@ -9,24 +9,90 @@
 // @subject packages/server/src/domain/import/verbs/settle-import-memory.ts
 // @subject packages/server/src/domain/import/verbs/import-library-emitter.ts
 // @subject packages/server/src/infra/storage/profile-fs.ts
+// @subject packages/server/src/infra/storage/staged-manifest.ts
 // @subject packages/server/src/infra/storage/report.ts
 // @subject packages/server/src/entry/compose/portability.ts
 // @subject packages/server/src/entry/compose/portability-runner.ts
 // @subject packages/server/src/entry/import/run-profile-dir-import.ts
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import type { WorkloadResultByKind } from "@orb/contracts/workloads";
+import type { Handle, WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
+import { strToU8, zipSync } from "fflate";
 import { vi } from "vitest";
+import { signedInMember } from "../_auth-roots.ts";
+
+// fflate's DOS date reads local time and throws near the epoch, so a mid-year stamp stays valid in every zone.
+const ZIP_MTIME = new Date("2025-07-01T12:00:00Z");
+const STAGED_FILE_CHANGED = "a staged file changed after the server wrote it";
 
 async function owners(harness: ServerTestHarness): Promise<readonly [Principal, Principal]> {
   const target = await harness.actor();
   return [await principal(harness, harness.ownerId), await principal(harness, target.id)];
+}
+
+/** A box whose target account uploads through the real routes, so a staged run reads what the routes recorded. */
+interface UploadBox extends AsyncDisposable {
+  readonly root: ServerTestHarness;
+  readonly source: Principal;
+  readonly target: Principal;
+  /** The request headers of the target account's own session. */
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+async function uploadBox(): Promise<UploadBox> {
+  const root = await createServerHarness({
+    physicalPeer: () => "127.0.0.1",
+    startJobs: false,
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+  });
+  const member = await signedInMember(root, castId<Handle>("portability-target"));
+  const headers = { [CSRF_HEADER]: "1", cookie: member.cookie };
+  // Default content seeds in the background after each account's first request, so a case's spies start after it.
+  await root.http.request(PORTABILITY_ROUTES.exportLibrary);
+  await root.http.request(PORTABILITY_ROUTES.exportLibrary, { headers });
+  await root.settleBackground();
+  return {
+    root,
+    source: await principal(root, root.ownerId),
+    target: await principal(root, member.id),
+    headers,
+    [Symbol.asyncDispose]: () => root[Symbol.asyncDispose](),
+  };
+}
+
+async function uploadedWorkload(response: Response): Promise<WorkloadId> {
+  expect(response.status).toBe(202);
+  return importStartedSchema.parse(await response.json()).workloadId;
+}
+
+/** Post one SillyTavern folder as the target account, under the wrapper a browser's folder picker sends. */
+async function uploadProfile(box: UploadBox, files: Readonly<Record<string, Uint8Array | string>>, dryRun = false): Promise<WorkloadId> {
+  const form = new FormData();
+  for (const [path, bytes] of Object.entries(files)) {
+    const relPath = `default-user/${path}`;
+    form.append(TREE_FILE_FIELD, new File([typeof bytes === "string" ? strToU8(bytes) : new Uint8Array(bytes)], relPath), relPath);
+  }
+  if (dryRun) {
+    form.append(TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE);
+  }
+  return await uploadedWorkload(await box.root.http.request(PORTABILITY_ROUTES.importTree, { method: "POST", headers: box.headers, body: form }));
+}
+
+async function ranRow(box: UploadBox, id: WorkloadId): ReturnType<ServerTestHarness["services"]["workloads"]["get"]> {
+  await box.root.runAdmittedWorkload?.(id, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+  return await box.root.services.workloads.get({ caller: box.target, id });
 }
 
 async function exportedFiles(stream: AsyncIterable<PortableFile>): Promise<PortableFile[]> {
@@ -71,51 +137,39 @@ test("portable owner binding refuses malformed cards before effects and content-
   expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id })).toBeNull();
 });
 
-test("the actual staged bundle isolates malformed cards, counts unsupported files and preserves per-owner idempotency", async ({
-  harness,
-  app,
-  importStagingDir,
-  clock,
-}) => {
-  const [source, target] = await owners(harness);
-  const character = await app.services.character.create({
+test("the actual staged bundle isolates malformed cards, counts unsupported files and preserves per-owner idempotency", async () => {
+  await using box = await uploadBox();
+  const { root, source, target } = box;
+  const character = await root.app.services.character.create({
     principal: source,
     input: createCharacterSchema.parse({ handle: "bundle-control", name: "Bundle control", description: "Bundle marker" }),
   });
-  const file = await app.exportService.exportCharacter({ principal: source, characterId: character.id });
+  const file = await root.app.exportService.exportCharacter({ principal: source, characterId: character.id });
   if (file === null) {
     throw new Error("the real owner export was refused");
   }
-  const token = "bundle-production-control";
-  const stage = async (): Promise<void> => {
-    const root = join(importStagingDir, target.userId, token);
-    await mkdir(join(root, "characters"), { recursive: true });
-    await writeFile(join(root, "characters", file.filename), file.bytes);
-    await writeFile(join(root, "characters", "malformed.png"), "not a card");
-    await writeFile(join(root, "unsupported.json"), "{}");
-  };
-  const run = async (): Promise<Awaited<ReturnType<(typeof app.workloadContributions)["import-bundle"]["run"]>>> => {
-    await stage();
-    return app.workloadContributions["import-bundle"].run(
-      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
-      { token, source: "dir" },
-      () => undefined,
-      new AbortController().signal,
+  const bundle = zipSync(
+    { [`characters/${file.filename}`]: file.bytes, "characters/malformed.png": strToU8("not a card"), "unsupported.json": strToU8("{}") },
+    { mtime: ZIP_MTIME },
+  );
+  const run = async (): Promise<Awaited<ReturnType<typeof ranRow>>> =>
+    await ranRow(
+      box,
+      await uploadedWorkload(await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: box.headers, body: Uint8Array.from(bundle) })),
     );
-  };
-  expect(await run()).toMatchObject({ imported: 1, failed: 1, skipped: 1, notes: [], memoryScope: null });
-  expect(await run()).toMatchObject({ imported: 1, failed: 1, skipped: 1, notes: [], memoryScope: null });
-  expect(await app.services.character.count({ principal: source })).toBe(1);
-  expect(await app.services.character.count({ principal: target })).toBe(1);
+  const outcome = { status: "succeeded", result: { imported: 1, failed: 1, skipped: 1, notes: [], memoryScope: null } };
+  const sourceCards = await root.app.services.character.count({ principal: source });
+  const targetCards = await root.app.services.character.count({ principal: target });
+  expect(await run()).toMatchObject(outcome);
+  expect(await run()).toMatchObject(outcome);
+  expect(await root.app.services.character.count({ principal: source })).toBe(sourceCards);
+  expect(await root.app.services.character.count({ principal: target })).toBe(targetCards + 1);
 });
 
-test("the real profile driver performs no dry-run writes and a real run writes one clock-consistent honest report", async ({
-  harness,
-  app,
-  importStagingDir,
-  clock,
-}) => {
-  const [source, target] = await owners(harness);
+test("the real profile driver performs no dry-run writes and a real run writes one clock-consistent honest report", async () => {
+  await using box = await uploadBox();
+  const { root, source, target } = box;
+  const { app, clock } = root;
   const character = await app.services.character.create({
     principal: source,
     input: createCharacterSchema.parse({ handle: "profile-control", name: "Profile control", description: "Profile marker" }),
@@ -124,34 +178,26 @@ test("the real profile driver performs no dry-run writes and a real run writes o
   if (file === null) {
     throw new Error("the real owner export was refused");
   }
-  const token = "profile-production-control";
-  const stage = async (): Promise<void> => {
-    const root = join(importStagingDir, target.userId, token, "profile");
-    await mkdir(join(root, "characters"), { recursive: true });
-    await writeFile(join(root, ST_SETTINGS_FILE), "{}");
-    await writeFile(join(root, "characters", file.filename), file.bytes);
-  };
-  const progress = vi.fn();
-  const run = async (dryRun: boolean): Promise<Awaited<ReturnType<(typeof app.workloadContributions)["import-st"]["run"]>>> => {
-    await stage();
-    return app.workloadContributions["import-st"].run(
-      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
-      { stagedDir: token, dryRun },
-      progress,
-      new AbortController().signal,
-    );
+  const tree = { [ST_SETTINGS_FILE]: "{}", [`characters/${file.filename}`]: file.bytes };
+  const run = async (dryRun: boolean): Promise<WorkloadResultByKind["import-st"]> => {
+    const row = await ranRow(box, await uploadProfile(box, tree, dryRun));
+    if (row.kind !== "import-st" || row.poison || row.result === null) {
+      throw new Error("the import has no canonical result");
+    }
+    return row.result;
   };
   const create = vi.spyOn(app.services.character, "create");
   const store = vi.spyOn(app.services.assets, "store");
+  const seeded = await app.services.character.count({ principal: target });
   const dry = await run(true);
   expect(dry).toMatchObject({ dryRun: true, changed: 1 });
   expect(dry).not.toHaveProperty("reportPath");
   expect(create).not.toHaveBeenCalled();
   expect(store).not.toHaveBeenCalled();
-  expect(await app.services.character.count({ principal: target })).toBe(0);
+  expect(await app.services.character.count({ principal: target })).toBe(seeded);
   const imported = await run(false);
   expect(imported).toMatchObject({ dryRun: false, changed: 1, failed: 0 });
-  expect(await app.services.character.count({ principal: target })).toBe(1);
+  expect(await app.services.character.count({ principal: target })).toBe(seeded + 1);
   expect(await run(false)).toMatchObject({ dryRun: false, changed: 0, failed: 0 });
   if (imported.reportPath === undefined) {
     throw new Error("the real run did not expose its written report");
@@ -163,73 +209,52 @@ test("the real profile driver performs no dry-run writes and a real run writes o
   expect(markdown).not.toContain("DRY RUN");
 });
 
-test("the composed profile reader admits an ordinary settings leaf but refuses another owner's settings symlink before parsing or writes", async ({
-  harness,
-  app,
-  importStagingDir,
-  clock,
-}) => {
-  const [source, target] = await owners(harness);
-  const token = "profile-settings-nofollow";
-  const root = join(importStagingDir, target.userId, token, "profile");
-  const settings = join(root, ST_SETTINGS_FILE);
-  const external = join(importStagingDir, source.userId, "external-settings.json");
+test("the composed profile reader admits an ordinary settings leaf but refuses another owner's settings symlink before parsing or writes", async () => {
+  await using box = await uploadBox();
+  const { root, source, target } = box;
+  const stagedRootOf = root.stagedImportsOf(target.userId);
+  const external = join(root.stagedImportsOf(source.userId), "external-settings.json");
   const privateSettings = '{"power_user":{"personas":{"private.png":"External private persona"}}}';
-  await mkdir(root, { recursive: true });
-  await mkdir(join(importStagingDir, source.userId), { recursive: true });
+  const tree = { [ST_SETTINGS_FILE]: '{"power_user":{"personas":{"allowed.png":"Allowed persona"}}}' };
+  await mkdir(root.stagedImportsOf(source.userId), { recursive: true });
   await writeFile(external, privateSettings);
-  await writeFile(settings, '{"power_user":{"personas":{"allowed.png":"Allowed persona"}}}');
-  const run = (): ReturnType<(typeof app.workloadContributions)["import-st"]["run"]> =>
-    app.workloadContributions["import-st"].run(
-      { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
-      { stagedDir: token },
-      () => undefined,
-      new AbortController().signal,
-    );
-  expect(await run()).toMatchObject({ changed: 1, failed: 0 });
-  expect((await app.services.persona.list({ principal: target })).map((persona) => persona.name)).toEqual(["Allowed persona"]);
-  await mkdir(root, { recursive: true });
+  expect(await ranRow(box, await uploadProfile(box, tree))).toMatchObject({ status: "succeeded", result: { changed: 1, failed: 0 } });
+  expect((await root.app.services.persona.list({ principal: target })).map((persona) => persona.name)).toEqual(["Allowed persona"]);
+
+  const id = await uploadProfile(box, tree);
+  const [token = ""] = await readdir(stagedRootOf);
+  const settings = join(stagedRootOf, token, "profile", ST_SETTINGS_FILE);
+  await rm(settings);
   await symlink(external, settings);
-  const [outcome] = await Promise.allSettled([run()]);
-  expect((await app.services.persona.list({ principal: target })).map((persona) => persona.name)).toEqual(["Allowed persona"]);
-  expect(outcome).toMatchObject({ status: "rejected", reason: { code: "import_infra_failure", operation: "readFile", cause: { code: "ELOOP" } } });
+
+  const refused = await ranRow(box, id);
+  expect(refused.status).toBe("failed");
+  expect(refused.error).toContain(STAGED_FILE_CHANGED);
+  expect((await root.app.services.persona.list({ principal: target })).map((persona) => persona.name)).toEqual(["Allowed persona"]);
   expect(await readFile(external, "utf8")).toBe(privateSettings);
 });
 
-async function importProfilePersonas(args: {
-  readonly importStagingDir: string;
-  readonly app: ServerTestHarness["app"];
-  readonly clock: { now: () => number };
-  readonly target: Principal;
-  readonly token: string;
-}): Promise<void> {
-  const { importStagingDir, app, clock, target, token } = args;
-  const root = join(importStagingDir, target.userId, token, "profile");
-  await mkdir(root, { recursive: true });
+async function importProfilePersonas(box: UploadBox): Promise<void> {
   const settings = { ["power_user"]: { personas: { "alpha.png": "Alpha", "beta.png": "Beta" }, ["default_persona"]: "beta.png" } };
-  await writeFile(join(root, ST_SETTINGS_FILE), JSON.stringify(settings));
-  await app.workloadContributions["import-st"].run(
-    { ownerId: target.userId, userId: target.userId, funderUserId: null, now: () => clock.now() },
-    { stagedDir: token },
-    () => undefined,
-    new AbortController().signal,
-  );
+  expect(await ranRow(box, await uploadProfile(box, { [ST_SETTINGS_FILE]: JSON.stringify(settings) }))).toMatchObject({ status: "succeeded" });
 }
 
-test("a profile import crowns its ST default persona when the owner has no default", async ({ harness, app, importStagingDir, clock }) => {
-  const [, target] = await owners(harness);
-  await importProfilePersonas({ importStagingDir, app, clock, target, token: "profile-default-fresh" });
-  const personas = await app.services.persona.list({ principal: target });
+test("a profile import crowns its ST default persona when the owner has no default", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  await importProfilePersonas(box);
+  const personas = await app.services.persona.list({ principal: box.target });
   const beta = personas.find((persona) => persona.name === "Beta");
-  const seeds = (await app.services.settings.getUserSettings({ principal: target })).config.seeds;
+  const seeds = (await app.services.settings.getUserSettings({ principal: box.target })).config.seeds;
   expect(beta).toBeDefined();
   expect(seeds.defaultPersonaId).toBe(beta?.id);
 });
 
-test("a profile import never overrides a default persona the owner already chose", async ({ harness, app, importStagingDir, clock }) => {
-  const [, target] = await owners(harness);
-  const chosen = await app.services.persona.create({ principal: target, input: { name: "Chosen", description: "The owner's own crown." } });
-  await app.services.settings.updateUserSettingsSection({ principal: target, input: { section: "seeds", patch: { defaultPersonaId: chosen.id } } });
-  await importProfilePersonas({ importStagingDir, app, clock, target, token: "profile-default-kept" });
-  expect((await app.services.settings.getUserSettings({ principal: target })).config.seeds.defaultPersonaId).toBe(chosen.id);
+test("a profile import never overrides a default persona the owner already chose", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  const chosen = await app.services.persona.create({ principal: box.target, input: { name: "Chosen", description: "The owner's own crown." } });
+  await app.services.settings.updateUserSettingsSection({ principal: box.target, input: { section: "seeds", patch: { defaultPersonaId: chosen.id } } });
+  await importProfilePersonas(box);
+  expect((await app.services.settings.getUserSettings({ principal: box.target })).config.seeds.defaultPersonaId).toBe(chosen.id);
 });

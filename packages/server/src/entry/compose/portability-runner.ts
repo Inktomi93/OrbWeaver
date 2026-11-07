@@ -37,7 +37,7 @@ import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
-import { createNodeFsImportPort, extractZip, stageDirectory, writeImportReportFile } from "#infra/storage";
+import { createOperatorImportPort, createStagedImportPort, extractZip, readStagedManifest, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
 import { runProfileDirImport } from "../import/index.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
@@ -153,21 +153,20 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   });
 
   const stagingRoot = deps.importStagingDir ?? DEFAULT_IMPORT_STAGING_DIR;
-  const fs = createNodeFsImportPort();
   const importWorkloads: ImportWorkloadDeps = {
     logger: deps.logger,
     stagingRoot,
-    stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
+    operatorImportPort: createOperatorImportPort(deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR),
+    stagedImportPort: async (root, digest) => createStagedImportPort(root, await readStagedManifest(root, digest)),
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
     compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion),
     ...createImportWorkloadDrivers({
       now,
       quiet: deps.quiet,
       resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
-      profile: (principal, { profileRoot, dryRun, signal, personaCollisions }) =>
+      profile: (principal, { fs, dryRun, signal, personaCollisions }) =>
         runProfileDirImport({
           fs,
-          profileRoot,
           principal,
           ...profileImport,
           importStandaloneLorebook: deps.importStandaloneLorebook,
@@ -186,7 +185,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           personaCollisions,
         }),
       bundle: (args) => runBundleImport({ ...args, registry: portability, extractArchive: extractZip }),
-      staged: async ({ stagedPath, ...args }) => importStagedArchive({ ...args, registry: portability, staged: await stageDirectory(stagedPath) }),
+      staged: async ({ stagedPath, digest, ...args }) =>
+        importStagedArchive({ ...args, registry: portability, staged: stageDirectory(stagedPath, await readStagedManifest(stagedPath, digest)) }),
       writeReport: (markdown, generatedAt) => writeImportReportFile(markdown, generatedAt, deps.importReportsDir),
       reconcileStats: reconcileImportStats,
       settleMemory: settleImportMemory,

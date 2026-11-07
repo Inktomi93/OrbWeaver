@@ -3,8 +3,8 @@
 // resolves a real principal, and role derivation + gating BITE at the wire. Deterministic (model-free), NOT
 // `@live`.
 //
-// The forward-header stack boots with FORWARD_AUTH_VERIFY_JWT=true + a non-empty JWKS allowlist; the actor
-// signs a JWT and rides its public JWKS as a request literal (the server verifies against it). The OWNER is
+// The forward-header stack boots with FORWARD_AUTH_VERIFY_JWT=true + the fixed pair's public half in
+// FORWARD_AUTH_JWKS; the actor signs a JWT with the private half. The OWNER is
 // the handle in OWNER_HANDLES, which this project PINS to `HARNESS_OWNER_HANDLE` ("owner", support/modes.ts);
 // any other handle → role=user. It used to be left unset and rely on `[DEFAULT_USER_HANDLE]` — which an
 // operator's `.env` silently overrode, making this file's owner case a latent red on their box.

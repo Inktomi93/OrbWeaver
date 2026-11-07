@@ -105,6 +105,10 @@ jobs:
         id: generated-freshness
         if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
         run: pnpm test:tools tests/tooling/generated-css-drift.repo.int.test.ts
+      - name: Staged import custody
+        id: staged-custody
+        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
+        run: pnpm test tests/server/domain/import/persistence/staged-custody.int.test.ts tests/server/infra/storage/zip.int.test.ts
       - name: Restore the Windows Defender scope
         if: always() && runner.os == 'Windows' && steps.defender.outcome == 'success'
         shell: pwsh

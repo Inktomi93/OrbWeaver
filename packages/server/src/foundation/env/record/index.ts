@@ -31,6 +31,7 @@ import { resolveBindPosture } from "../bind.ts";
 import { settingInstruction } from "../container.ts";
 import type { AllowedHostsInput, BindPostureInput, DiagnosticsPostureInput, OwnerFallbackCredentialInput, OwnerFallbackPeerInput } from "../contract.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "../fallback-peers.ts";
+import { operatorJwksSchema } from "../operator-jwks.ts";
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "../private-ranges.ts";
 import { EnvRefusedError } from "../refusal/index.ts";
 
@@ -48,6 +49,7 @@ export type {
 } from "../contract.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "../diagnostics.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "../fallback-peers.ts";
+export type { OperatorJwks } from "../operator-jwks.ts";
 export { parseTrustedPrivateRanges } from "../private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
@@ -121,11 +123,14 @@ function positiveSafeIntegerEnv(fallback: number): z.ZodDefault<z.ZodCodec<z.Zod
     .default(fallback);
 }
 
+/** The env keys the forward-header signed path cannot boot without. */
+const FORWARD_SIGNED_REQUIRED_ENV = ["FORWARD_AUTH_JWT_ISSUER", "FORWARD_AUTH_JWT_AUDIENCE"] as const;
+
 /** The env keys each AUTH_MODE cannot boot without (the superRefine's boot-fatality table). A mapped-type
  *  Record over `AUTH_MODES` — a fifth mode fails `tsc` here rather than silently requiring nothing. The
  *  two credential-less modes are `[]` on purpose: `single-user` needs none, and `forward-header`'s
- *  requirements are conditional (the signed path needs a JWKS source, which `infra/auth/config` resolves
- *  and fails CLOSED on) rather than hard-fatal at parse. */
+ *  requirements are conditional (the signed path needs `FORWARD_AUTH_JWKS` and fails CLOSED without it)
+ *  rather than hard-fatal at parse. */
 const AUTH_MODE_REQUIRED_ENV = {
   "single-user": [],
   // B4 — LOCAL_INITIAL_PASSWORD is NO LONGER required: a fresh local box seeds the owner row with a NULL
@@ -375,7 +380,7 @@ const envObjectSchema = z.object({
   LOCAL_INITIAL_PASSWORD: z.string().min(MIN_PASSWORD_LENGTH).optional(),
 
   // Required to enable the unsigned trusted-header path. Unset ⇒ that path is fail-closed (raw identity
-  // headers are rejected). The signed-JWT authentik path is unaffected.
+  // headers are rejected). The signed-JWT path reads FORWARD_AUTH_JWKS instead.
   FORWARD_AUTH_TRUSTED_PROXIES: z.string().optional(),
   FORWARD_AUTH_USER_HEADER: z.string().min(1).optional(),
   FORWARD_AUTH_GROUPS_HEADER: z.string().min(1).optional(),
@@ -409,12 +414,13 @@ const envObjectSchema = z.object({
   // Legacy role rederivation accepts trimmed true/1/yes, case-insensitively; sessions owns that normalization.
   RE_DERIVE_ROLE_ON_LOGIN: z.string().optional(),
 
-  // Verify the signed JWT against its JWKS. Falls back to network-isolation trust if the JWT is absent.
+  // Verify a forwarded JWT against FORWARD_AUTH_JWKS. A request with no JWT takes the unsigned trusted-proxy path.
   FORWARD_AUTH_VERIFY_JWT: envBool(true),
-  // A remote JWKS URL is always required https; if this allowlist is set its host must also be in it.
-  FORWARD_AUTH_JWKS_ALLOWLIST: z.string().optional(),
-  FORWARD_AUTH_JWT_ISSUER: z.string().optional(),
-  FORWARD_AUTH_JWT_AUDIENCE: z.string().optional(),
+  // The proxy's signing keys: an https URL or a JWKS JSON literal. Unset, every forwarded JWT is refused.
+  FORWARD_AUTH_JWKS: operatorJwksSchema.optional(),
+  // Both required with FORWARD_AUTH_JWKS: a token the same provider signed for another application must not sign in here.
+  FORWARD_AUTH_JWT_ISSUER: z.string().min(1).optional(),
+  FORWARD_AUTH_JWT_AUDIENCE: z.string().min(1).optional(),
 
   // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `<DATA_DIR>/secrets/credentials_key` is
   // generated on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.
@@ -514,6 +520,18 @@ function installKindOf(val: EnvObject, host: HostFacts): InstallKind {
   return val.ORB_CONTAINER || host.containerMarker ? "container" : "bare-metal";
 }
 
+/** The signed path skips the trusted-proxy gate, so the issuer and audience are what tie a token to this application. */
+function refuseUnboundSignedPath(val: EnvObject, ctx: z.RefinementCtx): void {
+  if (val.AUTH_MODE !== "forward-header" || !val.FORWARD_AUTH_VERIFY_JWT || val.FORWARD_AUTH_JWKS === undefined) {
+    return;
+  }
+  for (const key of FORWARD_SIGNED_REQUIRED_ENV) {
+    if (val[key] === undefined) {
+      ctx.addIssue({ code: "custom", path: [key], message: `${key} is required when FORWARD_AUTH_JWKS is set under AUTH_MODE=forward-header` });
+    }
+  }
+}
+
 /** The boot-fatal refusals. `envFileKeys` names the keys a loaded `.env` FILE declared (the launch-only refusal). */
 function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySet<string>, install: InstallKind): void {
   // Fail fast at boot if the selected mode lacks the credentials to run it — a misconfigured deploy must
@@ -529,6 +547,7 @@ function refineEnv(val: EnvObject, ctx: z.RefinementCtx, envFileKeys: ReadonlySe
       });
     }
   }
+  refuseUnboundSignedPath(val, ctx);
   // The INCOHERENT PAIR — same fail-fast class as the two blocks above, for the same reason: a deploy
   // must never silently degrade. `single-user` has NO credential but the owner fallback (its resolver
   // always returns null — infra/auth/modes/single-user.ts), and `infra/auth/resolve` tests

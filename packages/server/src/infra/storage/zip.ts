@@ -14,6 +14,7 @@ import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import { errnoCode } from "#primitives/errno";
 import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
+import { readVerified, stagedFileOf } from "./staged-manifest.ts";
 
 const SIG_LOCAL = 0x04_03_4b_50;
 const SIG_CENTRAL = 0x02_01_4b_50;
@@ -439,17 +440,6 @@ async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
-async function readStaged(path: string): Promise<Uint8Array> {
-  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
-  const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-  try {
-    const data = await handle.readFile();
-    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  } finally {
-    await handle.close();
-  }
-}
-
 async function stageRecords(dir: string, archive: ArchiveReader, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
   const entries: StagedEntry[] = [];
   let producedTotal = 0;
@@ -460,9 +450,10 @@ async function stageRecords(dir: string, archive: ArchiveReader, records: readon
       throw new ZipRejectedError("bomb", `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`);
     }
     // Staged filename is the entry INDEX, never the archive's own attacker-chosen path.
-    const stagedPath = join(dir, String(i));
-    await writeStaged(stagedPath, bytes);
-    entries.push({ path: rec.name, read: () => readStaged(stagedPath) });
+    const staged = stagedFileOf(String(i), bytes);
+    await writeStaged(join(dir, staged.path), bytes);
+    // Extraction and the reads share one process, so the record stays in memory, out of the staging namespace.
+    entries.push({ path: rec.name, read: () => readVerified(dir, staged) });
   }
   return entries;
 }
@@ -482,14 +473,11 @@ export async function extractZip(source: ZipSource, options?: ExtractOptions): P
 
   await mkdir(stagingRoot, { recursive: true });
   const dir = await mkdtemp(join(stagingRoot, ZIP_STAGING_PREFIX));
-  const dispose = (): Promise<void> => rm(dir, { recursive: true, force: true });
-  try {
-    const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);
-    return { entries, dispose };
-  } catch (err) {
-    await dispose();
-    throw err;
-  }
+  await using staging = new AsyncDisposableStack();
+  staging.defer(() => rm(dir, { recursive: true, force: true }));
+  const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);
+  const lifetime = staging.move();
+  return { entries, dispose: () => lifetime.disposeAsync() };
 }
 
 interface PackedCentral {
