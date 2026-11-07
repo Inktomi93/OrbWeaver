@@ -428,11 +428,13 @@ test("the ACME edge records object JSON but rejects malformed envelope, key and 
       body: JSON.stringify({ protected: encode(protectedHeader), payload: payload === null ? "" : encode(payload) }),
     });
   const header = { jwk: { crv: "P-256", kty: "EC", x: "x", y: "y" }, extraObservation: "retained" };
+  const accountMark = authority.requests.length;
   expect((await post("/new-account", header, { termsOfServiceAgreed: true })).status).toBe(201);
-  expect(authority.requests.at(-1)?.protectedHeader).toEqual(header);
+  expect(authority.requests.slice(accountMark)).toMatchObject([{ path: "/new-account", protectedHeader: header }]);
   expect((await post("/new-order", {}, { identifiers: [{ type: "ip", value: ADDRESS }], profile: "shortlived" })).status).toBe(201);
+  const orderMark = authority.requests.length;
   expect((await post("/order/1", {}, null)).status).toBe(200);
-  expect(authority.requests.at(-1)?.payload).toBeNull();
+  expect(authority.requests.slice(orderMark)).toMatchObject([{ path: "/order/1", payload: null }]);
 
   expect((await post("/new-account", [], {})).status).toBe(500);
   expect((await post("/new-account", { jwk: [] }, {})).status).toBe(500);

@@ -20,6 +20,9 @@ import { captureRpgSnapshot } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
+// Model requests the first case scripts: population, structured and tool resync, and the folded calls.
+const SCRIPTED_REQUESTS = 7;
+
 test("native model population, structured and required-tool resync, and changed folded calls retain their real planes and lineage", async () => {
   const wire = createCorpusRpgWire();
   const physical = createCorpusProviderExecution({
@@ -115,9 +118,10 @@ test("native model population, structured and required-tool resync, and changed 
     { type: "custom", label: "Expedition" },
   ]);
   expect(wire.remaining()).toBe(0);
-  expect(wire.requests).toHaveLength(7);
-  expect(physical.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(7);
-  const lastRequest = wire.requests.at(-1);
+  expect(wire.requests).toHaveLength(SCRIPTED_REQUESTS);
+  expect(physical.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(SCRIPTED_REQUESTS);
+  // The script's final request, pinned by position: a replay of the exhausted script must be refused.
+  const lastRequest = wire.requests[SCRIPTED_REQUESTS - 1];
   if (lastRequest === undefined) {
     throw new Error("native RPG physical script captured no model request");
   }

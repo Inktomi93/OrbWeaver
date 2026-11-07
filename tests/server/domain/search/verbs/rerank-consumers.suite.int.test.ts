@@ -5,7 +5,7 @@
 import { CHARACTER_LIST_MAX_LIMIT, createCharacterSchema } from "@orb/contracts/character";
 import { modelIdSchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { CharacterId, DocumentId } from "@orb/kit/ids";
-import { nonEmpty } from "@orb/testkit/iso";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -21,6 +21,7 @@ import {
   summaryReply,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { wireOf } from "../../chat/scenario-physical.ts";
 
 const RERANK_MODEL = modelIdSchema.parse("corpus-rerank");
 const WIDE_WINDOW_TOKENS = 2048;
@@ -258,13 +259,15 @@ async function rerankWorld(shape: Shape): Promise<RerankWorld> {
 }
 
 /** The foreground prompts the room's chat model actually received, newest last. */
-async function chatPrompts(h: ChatRoot): Promise<string[]> {
-  const bodies = await Promise.all(
-    h.requests
-      .filter((request) => request.method === "POST" && new URL(request.url).pathname === "/v1/chat/completions")
-      .map((request) => request.clone().text()),
+/** The serialized body of the act's newest chat turn, past any summarize request the act also made. */
+async function newestPrompt(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
+  const { bodies } = await wireOf(h, act);
+  return present(
+    bodies
+      .map((body) => JSON.stringify(body))
+      .filter((body) => !body.includes(SUMMARIZE_TRANSCRIPT_MARKER))
+      .at(-1),
   );
-  return bodies.filter((body) => !body.includes(SUMMARIZE_TRANSCRIPT_MARKER));
 }
 
 /** The block index production stored an arc's digest under, read back through the omnibox. */
@@ -281,12 +284,14 @@ async function recallTurn(world: RerankWorld): Promise<{ readonly admitted: read
   const { h } = world;
   const before = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
   const callsBefore = world.rerankCalls.length;
-  const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: QUERY, intent: TURN_INTENT });
-  expect(outcome.aborted).toBe(false);
+  const prompt = await newestPrompt(h, async () => {
+    const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: QUERY, intent: TURN_INTENT });
+    expect(outcome.aborted).toBe(false);
+  });
   const recalls = h.root.app.recallRecorder.recent({ chatId: h.chatId }).filter((record) => record.seq > before);
   expect(recalls).toHaveLength(1);
   const admitted = (recalls[0]?.trace.candidates ?? []).filter((candidate) => candidate.verdict === "admitted").map((candidate) => candidate.blockIdx);
-  return { admitted, rerankCalls: world.rerankCalls.length - callsBefore, prompt: (await chatPrompts(h)).at(-1) ?? "" };
+  return { admitted, rerankCalls: world.rerankCalls.length - callsBefore, prompt };
 }
 
 test.for(SHAPES)("memory recall reranks its digest arcs in mixC and keeps vector order in mixB (%s)", async (shape) => {
@@ -316,9 +321,10 @@ test.for(SHAPES)("the databank gather keeps the reranked chunk inside its k cut,
   await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "off" } } });
   for (const rerank of [true, false]) {
     await h.caller.settings.updateUserSettingsSection({ section: "databank", patch: { retrieval: { k: 1, minScore: 0, rerank } } });
-    const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: QUERY, intent: TURN_INTENT });
-    expect(outcome.aborted).toBe(false);
-    const prompt = (await chatPrompts(h)).at(-1) ?? "";
+    const prompt = await newestPrompt(h, async () => {
+      const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: QUERY, intent: TURN_INTENT });
+      expect(outcome.aborted).toBe(false);
+    });
     const kept = ARCS.filter((arc) => prompt.includes(tagOf("doc", arc)));
     expect(kept).toEqual(rerank ? [WANTED] : [ARCS[0]]);
     expect(prompt).not.toContain("doc-elsewhere.");

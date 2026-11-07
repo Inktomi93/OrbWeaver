@@ -18,12 +18,11 @@ import {
   inputSystemBlocks,
   invitePerson,
   personaAutoTurn,
-  personaInputs,
   personaRoom,
   seatPersona,
   withoutCacheDirective,
 } from "../persona-cache-physical.ts";
-import { quietOf, textRoom, wireOf, wireText } from "../scenario-physical.ts";
+import { MESSAGES_PATH, quietOf, textRoom, wireOf, wireText } from "../scenario-physical.ts";
 
 const PINNED_LORE = "{{user}} keeps the ledger";
 const PINNED_RENDERED = "Ledgerkeeper keeps the ledger";
@@ -302,13 +301,19 @@ test("a held pin keeps the system blocks identical across senders; a re-pin is o
   const hostPersona = await seatPersona(h, h.owner, "Wanderer", "The host's seat.");
   using _online = await hostOnline(h);
 
-  await send(h);
-  await send(h, carol, "Carol speaks.");
-  await pin(h, hostPersona.id);
-  await send(h);
-  await send(h, carol, "Carol speaks again.");
-
-  const [first, second, third, fourth] = (await personaInputs(h)).map((body) => JSON.stringify(inputSystemBlocks(body).map(withoutCacheDirective)));
+  const { bodies } = await wireOf(
+    h,
+    async () => {
+      await send(h);
+      await send(h, carol, "Carol speaks.");
+      await pin(h, hostPersona.id);
+      await send(h);
+      await send(h, carol, "Carol speaks again.");
+    },
+    MESSAGES_PATH,
+  );
+  expect(bodies).toHaveLength(4);
+  const [first, second, third, fourth] = bodies.map((body) => JSON.stringify(inputSystemBlocks(body).map(withoutCacheDirective)));
   expect(first).toContain(PINNED_RENDERED);
   expect(second).toBe(first);
   expect(third).not.toContain(PINNED_RENDERED);

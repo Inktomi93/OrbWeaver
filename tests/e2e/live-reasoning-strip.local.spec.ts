@@ -28,6 +28,7 @@ import { messageViewSchema } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { present } from "@orb/testkit/iso";
 import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
@@ -188,7 +189,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     expect(memberReplyCommit).toBeDefined();
     expect(memberReplyCommit?.reasoning ?? null).toBeNull();
     expect(memberReplyCommit?.content ?? "").toContain(FIXTURE_COVER_MARKER);
-    expect(memberReplyCommit?.content ?? "").not.toContain(FIXTURE_LIE_TRUTH);
+    expect(present(memberReplyCommit).content).not.toContain(FIXTURE_LIE_TRUTH);
 
     const hostReplyCommit = committedView(replyCommit(hostReplay));
     expect(hostReplyCommit?.reasoning ?? "").toContain(FIXTURE_LIE_TRUTH);

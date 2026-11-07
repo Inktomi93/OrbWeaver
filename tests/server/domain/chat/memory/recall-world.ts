@@ -6,6 +6,7 @@ import type { MemoryRecallCandidate, MemoryRecallSlice, MemoryRecallVerdict } fr
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
+import { present } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -21,6 +22,7 @@ import {
   summaryReply,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { wireOf } from "../scenario-physical.ts";
 
 const RERANK_MODEL = modelIdSchema.parse("corpus-rerank");
 const RERANK_WINDOW_TOKENS = 2048;
@@ -218,8 +220,7 @@ export interface RecallRun {
 /** Send one user line and read the single recall the turn recorded, with the prompt the chat model received. */
 export async function recallTurn(h: ChatRoot, content: string, intent: TurnIntent = TURN_INTENT): Promise<RecallRun> {
   const before = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
-  const requestsBefore = h.requests.length;
-  const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content, intent });
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content, intent }));
   expect(outcome.aborted).toBe(false);
   const recalls = h.root.app.recallRecorder.recent({ chatId: h.chatId }).filter((record) => record.seq > before);
   expect(recalls).toHaveLength(1);
@@ -227,13 +228,8 @@ export async function recallTurn(h: ChatRoot, content: string, intent: TurnInten
   if (trace === undefined) {
     throw new Error("the turn recorded no recall");
   }
-  const bodies = await Promise.all(
-    h.requests
-      .slice(requestsBefore)
-      .filter((request) => request.method === "POST" && new URL(request.url).pathname === "/v1/chat/completions")
-      .map((request) => request.clone().text()),
-  );
-  return { trace, prompt: bodies.filter((body) => !body.includes(SUMMARIZE_TRANSCRIPT_MARKER)).at(-1) ?? "" };
+  const prompts = bodies.map((body) => JSON.stringify(body)).filter((body) => !body.includes(SUMMARIZE_TRANSCRIPT_MARKER));
+  return { trace, prompt: present(prompts.at(-1)) };
 }
 
 export function admitted(trace: MemoryRecallSlice): readonly number[] {

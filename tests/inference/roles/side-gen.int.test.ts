@@ -9,7 +9,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { createControlledTimers, createFrozenClock } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
@@ -468,7 +468,8 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   timers.advance(50);
   expect(await outcome).toMatchObject({ kind: "server", retryable: true });
   expect(edge.children).toHaveLength(1);
-  expect(edge.children[0]?.exitCode ?? edge.children[0]?.signalCode ?? null).not.toBeNull();
+  const [child] = nonEmpty(edge.children);
+  expect(child.exitCode ?? child.signalCode ?? null).not.toBeNull();
   // The caller's own cancel inside the same window stays a non-retryable abort.
   const cancel = new AbortController();
   await using cancellationEdge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
@@ -492,7 +493,8 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   expect(await cancelled).toMatchObject({ kind: "aborted", retryable: false });
   expect(callerTimers.armed()).toEqual([]);
   expect(cancellationEdge.children).toHaveLength(1);
-  expect(cancellationEdge.children[0]?.exitCode ?? cancellationEdge.children[0]?.signalCode ?? null).not.toBeNull();
+  const [cancelledChild] = nonEmpty(cancellationEdge.children);
+  expect(cancelledChild.exitCode ?? cancelledChild.signalCode ?? null).not.toBeNull();
 });
 
 test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none", async () => {

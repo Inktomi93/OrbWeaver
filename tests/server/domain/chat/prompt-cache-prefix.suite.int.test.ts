@@ -21,11 +21,12 @@ import {
   messageText,
   nativeText,
   personaAutoTurn,
-  personaInputs,
   personaRoom,
   seatPersona,
   withoutCacheDirective,
 } from "./persona-cache-physical.ts";
+
+import { MESSAGES_PATH, wireOf } from "./scenario-physical.ts";
 
 const newChatMarker = resolveProseText("preset.format.newChatMarker", {});
 const CACHE_CARD = `aria the innkeeper\n${"A patient archivist catalogs the observatory's numbered books.\n".repeat(512)}`;
@@ -80,10 +81,15 @@ function personEntry(name: string, description: string): string {
 test("Alice to Bob to Alice keeps every native history row through the previous nonvacuous cache marker", async () => {
   await using room = await people(3);
   const { h, bob } = room;
-  await send(h, h.owner, "hello");
-  await send(h, bob, "hey");
-  await send(h, h.owner, "again");
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "hello");
+      await send(h, bob, "hey");
+      await send(h, h.owner, "again");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(3);
   const previous = inputMessages(inputs[1] ?? null);
   const marker = lastMarkedRow(previous);
@@ -105,9 +111,15 @@ test("a scoped room folds another character's line under its character name, nev
     characters: ["aria", "kai"].map((name) => createCharacterSchema.parse({ handle: name, name, description: CACHE_CARD })),
     group: { policy: "list", output: "per-speaker", cardScope: "scoped", allowSelfResponses: true },
   });
-  await send(room.h, room.h.owner, "hello");
-  await send(room.h, room.bob, "hey aria, kai");
-  const text = (await personaInputs(room.h)).flatMap(inputMessages).map(messageText).join("\n\n");
+  const { bodies } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      await send(room.h, room.bob, "hey aria, kai");
+    },
+    MESSAGES_PATH,
+  );
+  const text = bodies.flatMap(inputMessages).map(messageText).join("\n\n");
   expect(text).toMatch(/(?:^|\n\n)(?:aria|kai): r\d/u);
   expect(text).not.toMatch(/(?:Alice|Bob): (?:aria|kai): /u);
 });
@@ -118,9 +130,14 @@ test("names none labels both humans in a narrator room without labelling the nar
     group: { policy: "list", output: "narrator", allowSelfResponses: true },
     promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "none" },
   });
-  await send(room.h, room.h.owner, "hello");
-  await send(room.h, room.bob, "hey");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      await send(room.h, room.bob, "hey");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   const rows = inputMessages(inputs[1] ?? null);
   expect(messageText(rows[0] ?? null).endsWith("\n\nAlice: hello")).toBe(true);
@@ -136,9 +153,14 @@ test("solo second-call system and native history have the canonical golden shape
   });
   const alex = await seatPersona(h, h.owner, "Alex", "the user");
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: alex.id });
-  await send(h, h.owner, "hi");
-  await send(h, h.owner, "my name is Alex");
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "hi");
+      await send(h, h.owner, "my name is Alex");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   const system = `${DEFAULT_MARKER_TEMPLATES.main_prompt.replaceAll("{{char}}", "aria").replaceAll("{{user}}", "Alex")}\n\nthe user`;
   expect(inputSystem(inputs[0] ?? null)).toBe(system);
@@ -173,10 +195,15 @@ test("departed and unattributed assistant history keeps its exact labels across 
   }
   await h.root.services.chat.removeCharacterFromChat({ principal: h.owner, chatId: h.chatId, characterId: departed.id });
   await h.root.services.character.remove({ principal: h.owner, characterId: ghost.id });
-  for (const character of [aria, kai]) {
-    await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
-  }
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      for (const character of [aria, kai]) {
+        await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: character.id });
+      }
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   const first = inputMessages(inputs[0] ?? null).map(messageText);
   // The last row carries the per-speaker nudge, which differs per current speaker, so only its opening is pinned.
@@ -214,18 +241,22 @@ test("Alice to Bob to Alice preserves the actual cached history and anchor-bound
   const online = new AbortController();
   await connectDevice(h.root, h.owner.userId, online.signal);
   try {
-    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
-    await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "hey" });
-    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "again" });
-    await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: bobPersona.id });
-    await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "last" });
-    const inputs = await personaInputs(h);
+    const { bodies: inputs } = await wireOf(
+      h,
+      async () => {
+        await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
+        await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "hey" });
+        await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "again" });
+        await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: bobPersona.id });
+        await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "last" });
+      },
+      MESSAGES_PATH,
+    );
     expect(inputs).toHaveLength(4);
-    const first = inputs[0];
     const second = inputs[1];
     const third = inputs[2];
     const fourth = inputs[3];
-    if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
+    if (second === undefined || third === undefined || fourth === undefined) {
       throw new Error("the four real persona sends did not reach the provider");
     }
     const systems = inputs.map(inputSystem);
@@ -284,9 +315,14 @@ test("a solo human send and actual automation turn share the swapped-seat system
   const alex = await seatPersona(h, h.owner, "Alex", "ALEX-DESC");
   await seatPersona(h, h.owner, "Steve", "STEVE-DESC");
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: alex.id });
-  await send(h, h.owner, "hi");
-  await personaAutoTurn(h);
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "hi");
+      await personaAutoTurn(h);
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   expect(inputSystem(inputs[1] ?? null)).toBe(inputSystem(inputs[0] ?? null));
   expect(inputSystemBlocks(inputs[1] ?? null).map(withoutCacheDirective)).toEqual(inputSystemBlocks(inputs[0] ?? null).map(withoutCacheDirective));
@@ -306,9 +342,14 @@ test("an unstamped user row keeps its bytes and cache prefix between a human sen
   });
   const alex = await seatPersona(h, h.owner, "Alex", "ALEX-DESC");
   await h.root.services.chat.setChatAnchorPersona({ principal: h.owner, chatId: h.chatId, personaId: alex.id });
-  await send(h, h.owner, "hi");
-  await personaAutoTurn(h);
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "hi");
+      await personaAutoTurn(h);
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   const previous = inputMessages(inputs[0] ?? null);
   const next = inputMessages(inputs[1] ?? null);
@@ -322,13 +363,18 @@ test("an unstamped user row keeps its bytes and cache prefix between a human sen
 
 test("a real impersonate draft uses its requesting human while ordinary canon remains anchor voiced", async () => {
   await using room = await people(2);
-  await send(room.h, room.bob, "hello");
-  let draft = "";
-  for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room.bob, chatId: room.h.chatId })) {
-    draft += delta;
-  }
-  expect(draft).toBe("r2");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.bob, "hello");
+      let draft = "";
+      for await (const { delta } of room.h.root.services.chat.impersonateStream({ principal: room.bob, chatId: room.h.chatId })) {
+        draft += delta;
+      }
+      expect(draft).toBe("r2");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(2);
   expect(inputSystem(inputs[0] ?? null)).toContain("roleplay with Alice");
   expect(inputSystem(inputs[1] ?? null)).toContain("roleplay with Bob");
@@ -336,10 +382,15 @@ test("a real impersonate draft uses its requesting human while ordinary canon re
 
 test("Bob leaving removes only his people entry from the native system", async () => {
   await using room = await people(2);
-  await send(room.h, room.h.owner, "hello");
-  await room.h.root.services.chat.selfLeave({ principal: room.bob, chatId: room.h.chatId });
-  await send(room.h, room.h.owner, "alone now");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      await room.h.root.services.chat.selfLeave({ principal: room.bob, chatId: room.h.chatId });
+      await send(room.h, room.h.owner, "alone now");
+    },
+    MESSAGES_PATH,
+  );
   const systems = inputs.map(inputSystem);
   expect(systems[0]).toContain(personEntry("Bob", "BOB-DESC"));
   expect(systems[1]).toBe(systems[0]?.replace(`\n\n${personEntry("Bob", "BOB-DESC")}`, ""));
@@ -357,13 +408,18 @@ test("Bob leaving removes only his people entry from the native system", async (
 
 test("Bob going offline changes no native static byte and keeps his people entry", async () => {
   await using room = await people(2, { multiHuman: true });
-  await send(room.h, room.h.owner, "hello");
-  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
-  room.bobOnline.abort();
-  room.h.root.clock.advance(60_000);
-  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
-  await send(room.h, room.h.owner, "still here?");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
+      room.bobOnline.abort();
+      room.h.root.clock.advance(60_000);
+      expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
+      await send(room.h, room.h.owner, "still here?");
+    },
+    MESSAGES_PATH,
+  );
   const systems = inputs.map(inputSystem);
   expect(systems[0]).toContain(personEntry("Bob", "BOB-DESC"));
   expect(systems[1]).toBe(systems[0]);
@@ -374,9 +430,14 @@ test("each real member persona book resolves user and persona against its own ow
   await using room = await people(2);
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
-  await send(room.h, room.h.owner, "hello");
-  await send(room.h, room.bob, "hey");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      await send(room.h, room.bob, "hey");
+    },
+    MESSAGES_PATH,
+  );
   const systems = inputs.map(inputSystem);
   expect(systems[0]).toContain("Alice likes tea (ALICE-DESC)");
   expect(systems[0]).toContain("Bob hates spiders (BOB-DESC)");
@@ -392,13 +453,18 @@ test("Bob offline retains his persona lore and the exact native static block", a
   await using room = await people(2, { multiHuman: true });
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
-  await send(room.h, room.h.owner, "hello");
-  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
-  room.bobOnline.abort();
-  room.h.root.clock.advance(60_000);
-  expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
-  await send(room.h, room.h.owner, "still here?");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(true);
+      room.bobOnline.abort();
+      room.h.root.clock.advance(60_000);
+      expect(await isOnline(room.h.root, room.h.owner.userId, room.bob.userId)).toBe(false);
+      await send(room.h, room.h.owner, "still here?");
+    },
+    MESSAGES_PATH,
+  );
   const systems = inputs.map(inputSystem);
   expect(systems[0]).toContain("Bob hates spiders");
   expect(systems[1]).toBe(systems[0]);
@@ -410,10 +476,15 @@ test("Bob leaving withdraws his persona lore while Alice's real book stays", asy
   await using room = await people(2);
   await attachPersonaLore(room.h, room.h.owner, room.alicePersona.id, "{{user}} likes tea ({{persona}})");
   await attachPersonaLore(room.h, room.bob, room.bobPersona.id, "{{user}} hates spiders ({{persona}})");
-  await send(room.h, room.h.owner, "hello");
-  await room.h.root.services.chat.selfLeave({ principal: room.bob, chatId: room.h.chatId });
-  await send(room.h, room.h.owner, "alone now");
-  const inputs = await personaInputs(room.h);
+  const { bodies: inputs } = await wireOf(
+    room.h,
+    async () => {
+      await send(room.h, room.h.owner, "hello");
+      await room.h.root.services.chat.selfLeave({ principal: room.bob, chatId: room.h.chatId });
+      await send(room.h, room.h.owner, "alone now");
+    },
+    MESSAGES_PATH,
+  );
   const systems = inputs.map(inputSystem);
   expect(systems[0]).toContain("Bob hates spiders");
   expect(systems[1]).not.toContain("hates spiders");
@@ -465,8 +536,13 @@ async function placement(model: string, strict: boolean): Promise<JsonValue> {
     group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
     transcript: ["u1", "a1", "u2", "a2"].map((content, index) => ({ role: index % 2 === 0 ? ("user" as const) : ("assistant" as const), content })),
   });
-  await send(h, h.owner, "u3");
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "u3");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(1);
   return inputs[0] ?? null;
 }
@@ -552,8 +628,13 @@ test("an actual imported ST lorebook brackets the per-turn section at before-cha
     throw new Error("the native imported lorebook did not persist");
   }
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
-  await send(h, h.owner, "we reach the harbor at dusk");
-  const inputs = await personaInputs(h);
+  const { bodies: inputs } = await wireOf(
+    h,
+    async () => {
+      await send(h, h.owner, "we reach the harbor at dusk");
+    },
+    MESSAGES_PATH,
+  );
   expect(inputs).toHaveLength(1);
   const system = inputSystem(inputs[0] ?? null);
   expect(system).toContain("BEFORE LORE\n\n[MID]\n\nAFTER LORE");

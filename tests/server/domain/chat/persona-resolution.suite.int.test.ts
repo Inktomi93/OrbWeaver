@@ -10,7 +10,8 @@ import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { addPersona, connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
-import { inputMessages, inputSystem, invitePerson, messageText, personaInputs, personaRoom } from "./persona-cache-physical.ts";
+import { inputMessages, inputSystem, invitePerson, messageText, personaRoom } from "./persona-cache-physical.ts";
+import { MESSAGES_PATH, wireOf } from "./scenario-physical.ts";
 
 const VOICE_PROBE: PromptSection = {
   type: "literal",
@@ -36,12 +37,10 @@ function probe(text: string, key: string): string | null {
   return new RegExp(`${key}=<([^>]*)>`, "u").exec(text)?.[1] ?? null;
 }
 
-/** The system block and the history text of the newest native request. */
-async function newestInput(h: ChatRoot): Promise<{ readonly system: string; readonly history: string }> {
-  const body = (await personaInputs(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the room made no native request");
-  }
+/** The system block and the history text of the newest native request the act sent. */
+async function newestInput(h: ChatRoot, act: () => Promise<unknown>): Promise<{ readonly system: string; readonly history: string }> {
+  const { bodies } = await wireOf(h, act, MESSAGES_PATH);
+  const body = bodies.at(-1) ?? bodies[0];
   return { system: inputSystem(body), history: inputMessages(body).map(messageText).join("\n") };
 }
 
@@ -63,8 +62,7 @@ test("anchor and seat on one persona: the card and the prompt both name it", asy
   const alex = await addPersona(h, h.owner, "Alex", { description: "Alex is a doctor" });
   await seat(h, alex);
   await pin(h, alex);
-  await say(h, "hello");
-  const { system } = await newestInput(h);
+  const { system } = await newestInput(h, () => say(h, "hello"));
   expect(probe(system, "CARD_USER")).toBe("Alex");
   expect(probe(system, "PROMPT_USER")).toBe("Alex");
 });
@@ -75,13 +73,11 @@ test("a seat swap leaves the card on the anchor, moves the prompt to the seat, a
   const steve = await addPersona(h, h.owner, "Steve", { description: "Steve is a soldier" });
   await seat(h, alex);
   await pin(h, alex);
-  await say(h, "{{user}} waves");
-  const before = await newestInput(h);
+  const before = await newestInput(h, () => say(h, "{{user}} waves"));
   expect(probe(before.system, "PROMPT_USER")).toBe("Alex");
 
   await seat(h, steve);
-  await say(h, "Steve answers");
-  const { system, history } = await newestInput(h);
+  const { system, history } = await newestInput(h, () => say(h, "Steve answers"));
   expect(probe(system, "CARD_USER")).toBe("Alex");
   expect(probe(system, "PROMPT_USER")).toBe("Steve");
   // The earlier line carries Alex's stamp, so it keeps Alex even though Steve now holds the seat.
@@ -95,15 +91,13 @@ test("re-pinning the anchor moves the card's identity and drops the previous anc
   const steve = await addPersona(h, h.owner, "Steve", { description: "Steve is a mage" });
   await seat(h, steve);
   await pin(h, alex);
-  await say(h, "first");
-  const swapped = await newestInput(h);
+  const swapped = await newestInput(h, () => say(h, "first"));
   expect(probe(swapped.system, "CARD_USER")).toBe("Alex");
   // The anchor is not speaking, so its description still reaches the model; this is the positive control for the absence below.
   expect(swapped.system).toContain("my hair is brown");
 
   await pin(h, steve);
-  await say(h, "second");
-  const rePinned = await newestInput(h);
+  const rePinned = await newestInput(h, () => say(h, "second"));
   expect(probe(rePinned.system, "CARD_USER")).toBe("Steve");
   expect(rePinned.system).not.toContain("my hair is brown");
 });
@@ -114,8 +108,7 @@ test("a card's {{persona}} resolves the anchor's description, never the speaking
   const steve = await addPersona(h, h.owner, "Steve", { description: "a hardened soldier" });
   await seat(h, steve);
   await pin(h, alex);
-  await say(h, "hello");
-  const { system } = await newestInput(h);
+  const { system } = await newestInput(h, () => say(h, "hello"));
   expect(probe(system, "CARD_PERSONA")).toBe("a traveling doctor");
 });
 
@@ -152,12 +145,12 @@ test("in a two-human room each stored line resolves {{user}} to the persona it w
   await h.root.services.persona.setActivePersona({ principal: bob, chatId: h.chatId, personaId: juno });
   await pin(h, nova);
 
-  for (const speaker of [h.owner, bob]) {
-    const outcome = await h.root.services.chat.send({ principal: speaker, chatId: h.chatId, content: "{{user}} waves" });
-    expect(outcome.aborted).toBe(false);
-  }
-
-  const { history } = await newestInput(h);
+  const { history } = await newestInput(h, async () => {
+    for (const speaker of [h.owner, bob]) {
+      const outcome = await h.root.services.chat.send({ principal: speaker, chatId: h.chatId, content: "{{user}} waves" });
+      expect(outcome.aborted).toBe(false);
+    }
+  });
   // The host's line is not retargeted to the member's persona, nor the member's line to the anchor.
   expect(history.split("Nova waves").length - 1).toBe(1);
   expect(history.split("Juno waves").length - 1).toBe(1);

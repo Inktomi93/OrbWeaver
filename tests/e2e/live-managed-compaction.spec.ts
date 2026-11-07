@@ -27,6 +27,7 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList } from "./support/chat-room.ts";
@@ -129,7 +130,7 @@ test("managed compaction fires on the bound model, the divider carries the compa
     const stampedTurn = postCanon.findLast((m) => m.role === "assistant" && m.contextBoundaryMessageId !== null);
     // The tiny-ceiling turn stamped a boundary (its prompt excluded older turns), and that boundary is a REAL
     // mid-transcript row — not the greeting/first row — so covered turns fell out of the prompt.
-    expect(stampedTurn?.contextBoundaryMessageId ?? null).not.toBeNull();
+    expect(present(stampedTurn).contextBoundaryMessageId ?? null).not.toBeNull();
     const boundaryIdx = postCanon.findIndex((m) => m.id === stampedTurn?.contextBoundaryMessageId);
     expect(boundaryIdx).toBeGreaterThan(0);
   } finally {

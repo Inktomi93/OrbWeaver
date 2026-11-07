@@ -14,10 +14,11 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "#server/domain/chat/substrate/reaction-note.ts";
 import { coreProse } from "../engine/core-physical.ts";
-import { inputMessages, invitePerson, messageText, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
-import { textRoom, wireOf, wireText } from "../scenario-physical.ts";
+import { inputMessages, invitePerson, messageText, personaRoom, seatPersona } from "../persona-cache-physical.ts";
+import type { ProviderPath } from "../scenario-physical.ts";
+import { MESSAGES_PATH, textRoom, wireOf, wireText } from "../scenario-physical.ts";
 import { TAIL_ROSTER } from "./turn-lifetimes-roster.ts";
-import { turnRpgReply, turnRpgRoom, turnToolsRoom, turnWireBody } from "./turn-rpg-physical.ts";
+import { turnRpgReply, turnRpgRoom, turnToolsRoom } from "./turn-rpg-physical.ts";
 
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
@@ -35,8 +36,8 @@ async function send(h: ChatRoot): Promise<void> {
 }
 
 /** Every string of the newest request the act itself sent. */
-async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
-  const { bodies } = await wireOf(h, act);
+async function newestWire(h: ChatRoot, act: () => Promise<unknown>, path?: ProviderPath): Promise<string> {
+  const { bodies } = await wireOf(h, act, path);
   return wireText(bodies.at(-1) ?? bodies[0]);
 }
 
@@ -71,15 +72,13 @@ test("a host's rewrite of the teach is what the model reads, with {{user}} and {
     throw new Error("the persona room seated no character");
   }
 
-  await send(h);
-  const bare = wireText((await personaInputs(h)).at(-1) ?? null);
+  const bare = await newestWire(h, () => send(h), MESSAGES_PATH);
   expect(bare).toContain(framed(`Offer ${DEFAULT_PERSONA_NAME} three ways to answer ${character.name}.`, prose));
   expect(bare).not.toContain("{{user}}");
   expect(bare).not.toContain(CHOICES_TEACH);
 
   await seatPersona(h, h.owner, "Alex", "A traveller.");
-  await send(h);
-  const named = wireText((await personaInputs(h)).at(-1) ?? null);
+  const named = await newestWire(h, () => send(h), MESSAGES_PATH);
   expect(named).toContain(framed(`Offer Alex three ways to answer ${character.name}.`, prose));
 });
 
@@ -92,9 +91,9 @@ test("in a labelled multi-human room the teach never reads as part of the player
   await connectDevice(h.root, bob.userId, online.signal);
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
   await seatPersona(h, h.owner, "Alice", "A guide.");
-  const outcome = await h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "bob speaks" });
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "bob speaks" }), MESSAGES_PATH);
   expect(outcome.aborted).toBe(false);
-  const rows = inputMessages((await personaInputs(h)).at(-1) ?? null).map(messageText);
+  const rows = inputMessages(bodies.at(-1) ?? bodies[0]).map(messageText);
   const line = rows.find((row) => row.includes("bob speaks"));
   expect(line).toBeDefined();
   expect(line).not.toContain(CHOICES_TEACH);
@@ -255,13 +254,11 @@ test("a game's state block is accounted under its own budget source and reaches 
   expect(plainPreview.budget.sources.some((source) => source.source === "game-state")).toBe(false);
 });
 
-/** The tool declarations the newest provider request carried, one serialized declaration each. */
-async function declaredTools(h: ChatRoot): Promise<readonly string[]> {
-  const request = h.requests.findLast((candidate) => candidate.method === "POST" && new URL(candidate.url).pathname.endsWith("/chat/completions"));
-  if (request === undefined) {
-    throw new Error("the room made no chat-completions request");
-  }
-  const tools = (await turnWireBody(request))["tools"];
+/** The tool declarations the act's newest provider request carried, one serialized declaration each. */
+async function declaredTools(h: ChatRoot, act: () => Promise<unknown>): Promise<readonly string[]> {
+  const { bodies } = await wireOf(h, act);
+  const body = bodies.at(-1) ?? bodies[0];
+  const tools = body !== null && typeof body === "object" && !Array.isArray(body) ? body["tools"] : undefined;
   return Array.isArray(tools) ? tools.map((tool) => JSON.stringify(tool)) : [];
 }
 
@@ -290,8 +287,7 @@ test.for(REACT_ARMS)("the react tool: $title", async (arm) => {
   if (room.reactionsEnabled !== undefined) {
     await h.root.services.chat.setReactionsEnabled({ principal: h.owner, chatId: h.chatId, enabled: room.reactionsEnabled });
   }
-  await send(h);
-  const declared = (await declaredTools(h)).some((tool) => tool.includes(CHAT_REACT_TOOL_NAME));
+  const declared = (await declaredTools(h, () => send(h))).some((tool) => tool.includes(CHAT_REACT_TOOL_NAME));
   expect(declared).toBe(arm.attached);
 });
 
