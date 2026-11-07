@@ -91,3 +91,9 @@ export type OrbRule = RuleDefinition<RuleTypes> & Required<Pick<RuleDefinition<R
 export type OrbRuleContext = RuleContext<RuleTypes>;
 
 export type ChildNode = Exclude<TSESTree.Node, TSESTree.Program>;
+
+const ELEMENT_FACTORY_NAME = /^(?:createElement|cloneElement|jsxs?|jsxDEV)$/u;
+
+/** A call to React's element factory or the JSX runtime, however it is imported or namespaced: its second argument is the element's props. */
+export const isElementFactoryCall = (context: OrbRuleContext, call: TSESTree.CallExpression): boolean =>
+  ELEMENT_FACTORY_NAME.test(context.sourceCode.getText(call.callee).split(".").pop() ?? "");

@@ -4,6 +4,7 @@ import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { isElementFactoryCall } from "./syntax.ts";
 import { baseUiBindings } from "./ui-composition.ts";
 
 function nativeAliasFlag(symbol: ts.Symbol): boolean {
@@ -333,7 +334,7 @@ export const nativeTitleRule: OrbRule = {
         call.arguments[1] === object &&
         call.arguments[0]?.type === AST_NODE_TYPES.Literal &&
         typeof call.arguments[0].value === "string" &&
-        /^(?:createElement|cloneElement|jsxs?|jsxDEV)$/u.test(context.sourceCode.getText(call.callee).split(".").pop() ?? "")
+        isElementFactoryCall(context, call)
       );
     };
     const objectIsDomProps = (object: TSESTree.Node): boolean =>

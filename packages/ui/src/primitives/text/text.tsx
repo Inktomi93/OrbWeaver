@@ -25,7 +25,8 @@ const HEADING_SIZE_BY_LEVEL = {
 // The colour pair leaves the recipe's independent axes for `ToneInkSelection`, which makes them exclusive (D336).
 type TextAxes = Omit<VariantProps<typeof textVariants>, "tone" | "ink">;
 
-interface TextOwnProps extends ComponentProps<"p">, Omit<TextAxes, "hoverCue"> {
+// `hoverCue` and the line cap leave the recipe's independent axes for `TextCue` and `TextCap`, because one arm erases another axis.
+interface TextOwnProps extends ComponentProps<"p">, Omit<TextAxes, "hoverCue" | "clamp" | "lines"> {
   /** @defaultValue "p" — the body intrinsic to render. Headings use <Heading>, never `as="h1"`. */
   as?: TextElement;
 }
@@ -33,7 +34,10 @@ interface TextOwnProps extends ComponentProps<"p">, Omit<TextAxes, "hoverCue"> {
 // `nudge` makes the run `inline-block`, which the merger reads as the run's width: a named width beside it is erased.
 type TextCue = { hoverCue?: "lift" | undefined } | { hoverCue?: "nudge" | undefined; width?: undefined };
 
-export type TextProps = TextOwnProps & ToneInkSelection & TextCue;
+// `lines` caps the run at N lines and reserves them, and its `line-clamp` replaces the cap `clamp` wrote: a run takes one of the two.
+type TextCap = { clamp?: TextAxes["clamp"]; lines?: undefined } | { clamp?: undefined; lines?: TextAxes["lines"] };
+
+export type TextProps = TextOwnProps & ToneInkSelection & TextCue & TextCap;
 
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
@@ -147,12 +151,12 @@ export function Text({
   );
 }
 
-interface HeadingOwnProps extends ComponentProps<"h1">, TextAxes {
+interface HeadingOwnProps extends ComponentProps<"h1">, Omit<TextAxes, "hoverCue" | "clamp" | "lines"> {
   /** The heading rank 1-6 — REQUIRED, renders the matching real h1-h6 (no styled-div headings). */
   level: HeadingLevel;
 }
 
-export type HeadingProps = HeadingOwnProps & ToneInkSelection;
+export type HeadingProps = HeadingOwnProps & ToneInkSelection & TextCue & TextCap;
 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero.
  *  `voice="kicker"` is the section-NAME heading (the mocks' band label) — it keeps the document outline

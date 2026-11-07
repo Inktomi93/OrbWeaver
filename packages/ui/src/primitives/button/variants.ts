@@ -133,6 +133,12 @@ export const buttonVariants = tv({
     // its host's ink. An outline draws its own box, so it keeps its tone's text role.
     // Declared before `selection`, so a selected arm's own ink wins the merge.
     ink: INKS,
+    // A dotted underline marks an action that discloses more of the same view (show all tags), not one that leaves.
+    // Declared before `selection`, so the strike of a negated state replaces the underline and the state never rests on colour alone.
+    underline: { none: "", dotted: "underline decoration-dotted" },
+    // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
+    // Declared before `selection`, so a rail's own start edge replaces the reserved one.
+    reserveEdge: { true: "border border-transparent", false: "" },
     // THE SELECTION STATE LAYER. A tri-state filter (off → include → exclude → off) cannot be a Toggle: `aria-pressed`
     // has two values, and a third state announced through it would be a lie.
     //
@@ -160,10 +166,6 @@ export const buttonVariants = tv({
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },
 
-    // A dotted underline marks an action that discloses more of the same view (show all tags), not one that leaves.
-    underline: { none: "", dotted: "underline decoration-dotted" },
-    // A text-height control that swaps with an edit field reserves the field's 1px edge, so the swap does not shift.
-    reserveEdge: { true: "border border-transparent", false: "" },
     // The accent ring for the moment a change this control made has landed (a portrait just replaced).
     confirming: { true: "ring-(length:--border-width-rule) ring-accent", false: "" },
     // A disabled control that teaches by its label stays at full strength; its state reads from the copy beside it.

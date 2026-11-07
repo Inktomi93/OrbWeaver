@@ -1,5 +1,5 @@
 /**
- * A box laid out of its parent's flow, by what it is: the one home of `position` with its insets. `pinned` stays at the top of its scrollport; every
+ * A box a feature lays out of its parent's flow, by what it is: the one home of `position` with its insets for that box. `pinned` stays at the top of its scrollport; every
  * other arm sits in a positioned host. `fill` lies over the whole host, `topBand` across its head, `startEdge` and `endEdge` run its height at one side,
  * `flushStart` and `flushEnd` sit in a block-start corner with no inset, `lineEnd` at the inline end of its line, `startRail` a `row` step outside the
  * start edge, `footBand` across the foot a `block` step up, `cornerStart` a `tight` step in from the block-start, inline-start corner.

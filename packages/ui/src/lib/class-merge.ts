@@ -59,8 +59,15 @@ export const CSS_MERGE_FAMILY_NAMES = [
 // no field step at all and re-armed the iOS focus zoom this repo had already fixed once (#1868/#1872).
 // `Input` escaped only because its class lists carry no `text-<color>`. Deriving closes the class AND
 // registers `text.code-field` / `leading.code-field` without a second edit.
+// `--text-shadow-*` (`text-shadow-wordmark`) is Tailwind's text-shadow namespace and sits under `text.`, so the type scale is
+// every `text.` token but those: left in, a shadow reads as a font size and evicts the size and the leading beside it.
+const TEXT_SHADOW_PREFIX = "shadow-";
+const TEXT_TOKEN_NAMES = scaleOf("text");
+const TYPE_SCALE = TEXT_TOKEN_NAMES.filter((name) => !name.startsWith(TEXT_SHADOW_PREFIX));
+const TEXT_SHADOW_SCALE = TEXT_TOKEN_NAMES.filter((name) => name.startsWith(TEXT_SHADOW_PREFIX)).map((name) => name.slice(TEXT_SHADOW_PREFIX.length));
+
 const CUSTOM_CLASS_GROUPS = {
-  "font-size": [{ text: scaleOf("text") }],
+  "font-size": [{ text: TYPE_SCALE }],
   leading: [{ leading: scaleOf("leading") }],
   tracking: [{ tracking: scaleOf("tracking") }],
 };
@@ -148,6 +155,7 @@ const THEME = {
   aspect: ASPECT_SCALE,
   blur: BLUR_SCALE,
   shadow: SHADOW_SCALE,
+  "text-shadow": TEXT_SHADOW_SCALE,
   ease: EASE_SCALE,
 };
 

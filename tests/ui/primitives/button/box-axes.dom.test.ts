@@ -1,4 +1,4 @@
-// Button's own boxes: the `stacked` reshape, the BandButton box, the `width` axis, and `stretch` declared after `size` so its inset beats the step's.
+// Button's own boxes: the `stacked` reshape, the BandButton box, the `width` axis, `stretch` declared after `size` so its inset beats the step's, and the state axes that beat the resting strike and edge.
 import { expect, test } from "@orb/testkit/node";
 import { BandButton } from "@orb/ui/band-button";
 import { Button } from "@orb/ui/button";
@@ -66,3 +66,14 @@ test.for(Object.entries(STRETCHED))(
     expect(button({ justify: "start" })).toEqual(expect.arrayContaining(["justify-start", "text-start"]));
   },
 );
+
+test("a negated selection keeps its strike over a dotted underline, and a rail keeps its start edge over a reserved edge", () => {
+  const negated = button({ selection: "negated", underline: "dotted" });
+  expect(negated).toContain("line-through");
+  expect(negated).not.toContain("underline");
+  const rail = button({ selection: "rail", reserveEdge: true });
+  expect(rail).toEqual(expect.arrayContaining(["border", "border-s-rule"]));
+  // The positive controls: each axis alone writes its own class.
+  expect(button({ underline: "dotted" })).toContain("underline");
+  expect(button({ selection: "rail" })).not.toContain("border");
+});

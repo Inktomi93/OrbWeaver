@@ -19,9 +19,6 @@ import { CONTEXT_TOGGLE_MARKER, TopbarIconButton } from "./shell-topbar.tsx";
  *  word at every width (the pane's own band is the artifact's, and "Details" is the neutral label under
  *  it), while the two names cost a screen-reader user the ability to carry what they learned across a
  *  resize. So the phone spelling becomes the only spelling — the ruling's own criterion, applied once. */
-/** The shell's handle on this one control: `shell.css` sheds it while the sheet is open, and the shell hands
- *  focus back to it when the sheet closes. */
-
 export function ContextToggle(): ReactElement {
   const layout = useShellLayout();
   const collapsed = layout.contextMode === "collapsed";

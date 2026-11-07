@@ -265,11 +265,11 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
 const SCROLL = { y: SCROLLER_Y } as const;
 
-// A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
-// `floor="line"` basis gives way to its content's width.
 // `dialog-stacked` is two conditions, so it has no negation to hide under: this arm restores the display, and only a flex box can name it.
 const BOX_HIDDEN_AT = { ...HIDDEN_AT, unlessDialogStacked: "hidden dialog-stacked:flex" } as const;
 
+// A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
+// `floor="line"` basis gives way to its content's width.
 const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
 
 // `fill` takes the parent's whole block size.
@@ -451,6 +451,7 @@ export const rowVariants = tv({
     layer: LAYER,
     passThrough: PASS_THROUGH,
     reach: ROW_REACH,
+    // A row that must keep its element across a width step takes a grid's tracks; `display: grid` wins over the flex base.
     // Before `hiddenAt`, whose `hidden` beats the display a track set writes.
     tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
     hiddenAt: BOX_HIDDEN_AT,
@@ -473,7 +474,6 @@ export const rowVariants = tv({
     ground: GROUND,
     plate: WALLPAPER_PLATE,
     cardCorners: CARD_CORNERS,
-    // A row that must keep its element across a width step takes a grid's tracks; `display: grid` wins over the flex base.
   },
   compoundVariants: [...DIVIDER_RULE],
 });
