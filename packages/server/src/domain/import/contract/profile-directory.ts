@@ -26,9 +26,8 @@ type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) =
 type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | "mime" | "maxBytes">) => Promise<Pick<StoredAsset, "assetId" | "hash">>;
 
 export interface ProfileDirImportDeps {
+  /** The tree holding one subdir per ST user profile (the loader collects each subdir independently). */
   readonly fs: ImportFsPort;
-  /** The root holding one subdir per ST user profile (the loader collects each subdir independently). */
-  readonly profileRoot: string;
   readonly principal: Principal;
   readonly contextFor: (principal: Principal, store: StoreAvatarAsset) => ImportContextWiring;
   readonly storeAvatar: StoreAvatarAsset;

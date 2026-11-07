@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
+import type { WorkloadParamsByKind } from "@orb/contracts/workloads";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -67,12 +68,16 @@ async function upload(root: ServerTestHarness, bytes: Uint8Array, headers: Recor
   return importStartedSchema.parse(await response.json()).workloadId;
 }
 
-async function stagedToken(root: ServerTestHarness, id: WorkloadId, caller: UserId): Promise<string> {
+async function stagedParams(root: ServerTestHarness, id: WorkloadId, caller: UserId): Promise<WorkloadParamsByKind["import-bundle"]> {
   const workload = await root.services.workloads.get({ id, caller: await root.principalFor(caller) });
   if (workload.kind !== "import-bundle" || workload.poison) {
     throw new Error("the bundle upload left no typed import-bundle workload");
   }
-  return workload.params.token;
+  return workload.params;
+}
+
+async function stagedToken(root: ServerTestHarness, id: WorkloadId, caller: UserId): Promise<string> {
+  return (await stagedParams(root, id, caller)).token;
 }
 
 async function ownerLibrary(root: ServerTestHarness): Promise<Uint8Array> {
@@ -137,9 +142,9 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     await root.services.preset.create({ userId: member.id, name: "Private Preset", kind: "roleplay" });
     const exported = await root.http.request(EXPORT_ROUTE, { headers: { cookie: member.cookie } });
     const uploaderRun = await upload(root, new Uint8Array(await exported.arrayBuffer()), { cookie: member.cookie });
-    const token = await stagedToken(root, uploaderRun, member.id);
+    // The thief holds the handle and the digest, which the row shows its uploader and every admin.
     const theft = await root.services.workloads.start({
-      input: { kind: "import-bundle", params: { token } },
+      input: { kind: "import-bundle", params: await stagedParams(root, uploaderRun, member.id) },
       caller: await root.principalFor(root.ownerId),
       mode: "singular",
       ownerId: root.ownerId,

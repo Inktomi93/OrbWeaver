@@ -27,6 +27,7 @@ import {
   importStartedSchema,
   isStSecretsFile,
   PERSONA_COLLISION_FIELD,
+  STAGED_MANIFEST_FILE,
   TREE_DRY_RUN_FIELD,
   TREE_DRY_RUN_VALUE,
   TREE_FILE_FIELD,
@@ -48,6 +49,8 @@ import type { WorkloadService } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
+import type { StagedFile } from "#infra/storage";
+import { stagedFileOf, writeStagedManifest } from "#infra/storage";
 import { errnoCode } from "#primitives/errno";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
@@ -233,19 +236,27 @@ async function stagePart(stagedRoot: string, relTarget: string, bytes: Uint8Arra
   }
 }
 
-/** Stage every part under a fresh unique dir, normalizing paths by the sniffed `stagePrefix` + wrapper strip. */
-async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wrapper: string | null, stagePrefix: string): Promise<void> {
+/** Stage every part under a fresh unique dir, normalizing paths by the sniffed `stagePrefix` + wrapper strip, and
+ *  record each one's hash from the bytes in hand. The manifest goes last; its digest is what the run trusts. */
+async function stageTree(stagedRoot: string, parts: readonly UploadedFile[], wrapper: string | null, stagePrefix: string): Promise<string> {
+  const files: StagedFile[] = [];
   for (const part of parts) {
     const relTarget = stagePrefix + stripWrapper(part.relPath, wrapper);
+    // A case-insensitive disk holds both spellings at one name, and the manifest is written there last.
+    if (relTarget.toLowerCase() === STAGED_MANIFEST_FILE.toLowerCase()) {
+      throw new TreeRejected(BAD_REQUEST, `reserved file name: ${relTarget}`);
+    }
     await stagePart(stagedRoot, relTarget, part.bytes);
+    files.push(stagedFileOf(relTarget, part.bytes));
   }
+  return await writeStagedManifest(stagedRoot, files);
 }
 
 /** The workload the sniffed layout dispatches to (the token names the staged dir under the staging root). */
-function startInput(layout: "st" | "orb", token: string, fields: UploadFields): StartWorkloadInput {
+function startInput(layout: "st" | "orb", token: string, stagedDigest: string, fields: UploadFields): StartWorkloadInput {
   return layout === "st"
-    ? { kind: "import-st", params: { stagedDir: token, personaCollisions: fields.choices, ...(fields.dryRun ? { dryRun: true } : {}) } }
-    : { kind: "import-bundle", params: { token, source: "dir" } };
+    ? { kind: "import-st", params: { stagedDir: token, stagedDigest, personaCollisions: fields.choices, ...(fields.dryRun ? { dryRun: true } : {}) } }
+    : { kind: "import-bundle", params: { token, stagedDigest, source: "dir" } };
 }
 
 /** The review's per-collision choices off the commit form. Malformed ones reject the whole upload: a choice
@@ -318,12 +329,12 @@ async function stageUpload(
   const stagedRoot = join(staging.root, token);
   await mkdir(stagedRoot, { recursive: true });
   try {
-    await stageTree(stagedRoot, parts, wrapper, layout.stagePrefix);
+    const stagedDigest = await stageTree(stagedRoot, parts, wrapper, layout.stagePrefix);
+    return { stagedRoot, input: startInput(layout.kind, token, stagedDigest, fields) };
   } catch (err) {
     await rm(stagedRoot, { recursive: true, force: true });
     throw err;
   }
-  return { stagedRoot, input: startInput(layout.kind, token, fields) };
 }
 
 /** Map a caught upload failure to its typed response; rethrows an unexpected error to the app's onError. */

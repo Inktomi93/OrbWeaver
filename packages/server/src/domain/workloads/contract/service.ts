@@ -1,6 +1,7 @@
 // Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
 import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
+import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type {
   CancelWorkloadResult,
@@ -13,7 +14,7 @@ import type {
 } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { AuditEntry, Logger, TraceRing } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
@@ -51,6 +52,8 @@ export interface WorkloadServiceContext {
   readonly isAdmin: IsAdmin;
   /** The non-throwing owner test, for a read that must answer a non-owner exactly as it answers a missing row. */
   readonly isOwner: IsOwner;
+  /** Whether an account is the box owner, read off its row: a stored run has no Principal to ask, only an id. */
+  readonly isBoxOwner: (userId: UserId) => Promise<boolean>;
   /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
   readonly emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
@@ -70,6 +73,8 @@ export interface WorkloadRunnerDeps {
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
    *  domains' factories). Replaces the retired cross-feature `env` hub — the engine knows no domain. */
   readonly contributions: WorkloadContributions;
+  /** The runner judges an owner-only run before its body, so a row stored by any build answers to this. */
+  readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
   /** Suppress-and-drop audit writer; the engine emits `WORKLOAD_FAILED` on a terminal runtime failure. */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: Clock;
@@ -80,6 +85,14 @@ export interface WorkloadRunnerDeps {
    *  the same reason `now` is: a test ticks the lease through this seam instead of replacing the global
    *  clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. Production passes the root's `timers.interval`. */
   readonly scheduleInterval: TimerScheduler["interval"];
+}
+
+/** Who a run needs the box owner's authority from. `account` is required, so a `null` caller is judged, never skipped. */
+export interface RunAsker {
+  /** The person asking, or `null` for a schedule tick or a dispatched row. */
+  readonly caller: Principal | null;
+  /** The account the run answers to; `null` means no account does, which refuses. */
+  readonly account: UserId | null;
 }
 
 /**

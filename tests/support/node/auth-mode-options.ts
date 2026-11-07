@@ -60,7 +60,7 @@ const MODE_HARNESS: { readonly [Mode in AuthMode]: (issuer: NativeIssuer) => Mod
     env: {
       ...postureOf("forward-header"),
       ["FORWARD_AUTH_VERIFY_JWT"]: "true",
-      ["FORWARD_AUTH_JWKS_ALLOWLIST"]: ISSUER_HOST,
+      ["FORWARD_AUTH_JWKS"]: new URL("jwks", ISSUER).href,
       ["FORWARD_AUTH_JWT_ISSUER"]: ISSUER,
       ["FORWARD_AUTH_JWT_AUDIENCE"]: CLIENT_ID,
     },

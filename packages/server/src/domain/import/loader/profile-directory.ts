@@ -1,7 +1,7 @@
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
+import type { ImportDirectory, ImportFsPort, ImportPreview } from "@orb/contracts/import";
 import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -50,39 +50,47 @@ function stWallClockZone(deps: ProfileDirImportDeps): string {
 function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
   const accountedByPath = new Map<string, number>();
   let totalBytes = 0;
-  return {
-    ...fs,
-    readFile: async (path): Promise<Uint8Array> => {
-      const previousBytes = accountedByPath.get(path) ?? 0;
-      const declaredBytes = (await fs.stat(path)).size;
-      if (declaredBytes > IMPORT_TREE_MAX_FILE_BYTES) {
-        throw new ProfileImportLimitError(
-          "profile_file_too_large",
-          `profile file ${path} declares ${declaredBytes} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
-        );
-      }
-      const declaredIncrease = Math.max(0, declaredBytes - previousBytes);
-      if (totalBytes + declaredIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
-        throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
-      }
+  const limited = (dir: ImportDirectory | null): ImportDirectory | null => {
+    if (dir === null) {
+      return null;
+    }
+    return {
+      ...dir,
+      openDirectory: async (name): Promise<ImportDirectory | null> => limited(await dir.openDirectory(name)),
+      readFile: async (name): Promise<Uint8Array> => {
+        const path = fs.join(dir.path, name);
+        const previousBytes = accountedByPath.get(path) ?? 0;
+        const declaredBytes = (await dir.stat(name)).size;
+        if (declaredBytes > IMPORT_TREE_MAX_FILE_BYTES) {
+          throw new ProfileImportLimitError(
+            "profile_file_too_large",
+            `profile file ${path} declares ${declaredBytes} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
+          );
+        }
+        const declaredIncrease = Math.max(0, declaredBytes - previousBytes);
+        if (totalBytes + declaredIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
+          throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
+        }
 
-      const bytes = await fs.readFile(path);
-      if (bytes.length > IMPORT_TREE_MAX_FILE_BYTES) {
-        throw new ProfileImportLimitError(
-          "profile_file_too_large",
-          `profile file ${path} produced ${bytes.length} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
-        );
-      }
-      const observedBytes = Math.max(declaredBytes, bytes.length);
-      const observedIncrease = Math.max(0, observedBytes - previousBytes);
-      if (totalBytes + observedIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
-        throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
-      }
-      accountedByPath.set(path, observedBytes);
-      totalBytes += observedIncrease;
-      return bytes;
-    },
+        const bytes = await dir.readFile(name);
+        if (bytes.length > IMPORT_TREE_MAX_FILE_BYTES) {
+          throw new ProfileImportLimitError(
+            "profile_file_too_large",
+            `profile file ${path} produced ${bytes.length} bytes, over the ${IMPORT_TREE_MAX_FILE_BYTES} byte cap`,
+          );
+        }
+        const observedBytes = Math.max(declaredBytes, bytes.length);
+        const observedIncrease = Math.max(0, observedBytes - previousBytes);
+        if (totalBytes + observedIncrease > IMPORT_TREE_MAX_TOTAL_BYTES) {
+          throw new ProfileImportLimitError("profile_total_too_large", `profile files exceed the ${IMPORT_TREE_MAX_TOTAL_BYTES} byte aggregate cap`);
+        }
+        accountedByPath.set(path, observedBytes);
+        totalBytes += observedIncrease;
+        return bytes;
+      },
+    };
   };
+  return { ...fs, openTree: async (): Promise<ImportDirectory | null> => limited(await fs.openTree()) };
 }
 
 /** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
@@ -123,9 +131,10 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
 
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
  *  non-profile entry (a stray file, a `_cache` dir with no `characters/`) yields an empty collect and adds
- *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. */
+ *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. An `other` entry, such as a link
+ *  whose target is gone, may have been a profile, so the report names it. */
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCollected> {
-  const { fs, profileRoot, signal } = deps;
+  const { fs, signal } = deps;
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
@@ -162,14 +171,19 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     unhandledSettings: [],
     truncatedDirs: [],
   };
-  for (const ent of (await fs.readdir(profileRoot)).toSorted((a, b) => a.name.localeCompare(b.name))) {
+  await using root = await fs.openTree();
+  for (const ent of ((await root?.list()) ?? []).toSorted((a, b) => a.name.localeCompare(b.name))) {
     if (signal.aborted) {
       break;
     }
-    if (ent.kind !== "directory") {
+    if (ent.kind === "other") {
+      r.unhandled.push(ent.name);
+    }
+    await using profile = ent.kind === "directory" ? ((await root?.openDirectory(ent.name)) ?? null) : null;
+    if (profile === null) {
       continue;
     }
-    const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name), [], stWallClockZone(deps));
+    const result = await collectBundlesFromDir(fs, profile, [], stWallClockZone(deps));
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);

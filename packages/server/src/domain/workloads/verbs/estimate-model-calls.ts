@@ -9,14 +9,14 @@ import type { EstimateModelCallsParams, EstimateRetryModelCallsParams } from "..
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow, resolveRunOwner } from "../substrate/authorize.ts";
-import { admissionRefusal, countModelCalls, parseWorkloadInput } from "../substrate/params.ts";
+import { admissionRefusal, assertRunAuthority, countModelCalls, parseWorkloadInput, runAccount } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
 export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<WorkloadService, "estimateModelCalls" | "estimateRetryModelCalls"> {
   async function estimateModelCalls(params: EstimateModelCallsParams): Promise<ModelCallEstimate> {
     const contributions = ctx.getContributions();
-    const input = parseWorkloadInput(contributions, params.input);
+    const input = await parseWorkloadInput(ctx, { caller: params.caller, account: params.caller.userId }, params.input);
     const ownerId = resolveRunOwner(ctx.requireOwner, { ...params, ownerId: params.caller.userId }, input.kind);
     // A run `start` would turn away makes no calls, so the confirm must not quote some.
     if (params.assumeAdmitted !== true && (await admissionRefusal(contributions, input.kind, input.params, ownerId)) !== null) {
@@ -47,6 +47,12 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
     if (original.poison) {
       return { calls: null };
     }
+    await assertRunAuthority(
+      { contributions, isBoxOwner: ctx.isBoxOwner },
+      { caller: params.caller, account: runAccount(original) },
+      original.kind,
+      original.params,
+    );
     if ((await admissionRefusal(contributions, original.kind, original.params, original.ownerId)) !== null) {
       return { calls: 0 };
     }

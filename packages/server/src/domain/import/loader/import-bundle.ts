@@ -80,11 +80,12 @@ async function importEntity(
       break;
     }
     const path = `${entity.dir}${staged.filename}`;
+    // Outside the per-file isolation: a staged file that fails its custody check fails the whole run.
+    const bytes = await staged.read();
     // the catch pushes an `ok: false` outcome with the message onto
     // `outcomes`, which `importEntity` returns; `tally` counts it as `failed` in the `BundleImportReport`.
     // Ends if `outcomes` stops being returned or `tally` stops counting it.
     try {
-      const bytes = await staged.read();
       outcomes.push(fileOutcome(entity, path, await entity.importFile(ownerId, { filename: staged.filename, bytes })));
     } catch (err) {
       outcomes.push({

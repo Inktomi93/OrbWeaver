@@ -49,7 +49,7 @@ The app's outbound firewall refuses private addresses until the owner admits the
 PRIVATE_ENDPOINT_ALLOWLIST=host.docker.internal
 ```
 
-`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook.
+`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook. The OIDC issuer host and the `FORWARD_AUTH_JWKS` URL host need no entry.
 
 ### Your own vLLM
 
@@ -73,7 +73,7 @@ There is no server-wide switch. An Anthropic API key is a different thing: a met
 | `single-user` (default) | no login; whoever reaches the app from THIS machine is the owner | the port on `127.0.0.1` (the default) |
 | `local` | username + password stored by the app | nothing — the first boot generates the password and keeps it out of the log; read it with `docker compose exec orbweaver cat /app/data/secrets/initial_password`, or set `LOCAL_INITIAL_PASSWORD` |
 | `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
-| `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
+| `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — the proxy's exact address, or `FORWARD_AUTH_JWKS` if the proxy signs `X-authentik-jwt` with a published key |
 
 Every mode except `single-user` also needs `AUTH_FALLBACK=deny` and an empty `AUTH_FALLBACK_TRUSTED_PEERS=` beside
 `AUTH_MODE`: the shipped defaults grant the no-login owner, and the app refuses to boot a login mode with them.
@@ -105,6 +105,10 @@ the shipped ranges, so the app refuses `ORB_BIND=0.0.0.0` in this shape too.
 because a same-host proxy would turn every visitor into the owner.
 
 Under `forward-header`, end every tunnel or port-forward at your auth proxy, never at the app port: anything that reaches the app directly from a peer in `FORWARD_AUTH_TRUSTED_PROXIES` can set the identity header and sign in as anyone. For the same reason the Share card and `pnpm start --share` refuse to start a relay in this mode.
+
+Under `forward-header`, the signed path reads one header, `X-authentik-jwt`, and trusts only the keys in `FORWARD_AUTH_JWKS`: your proxy's JWKS https URL, or the key set as one line of JSON. The app reads no key from a request, and it refuses every JWT while this key is unset. `FORWARD_AUTH_JWT_ISSUER` and `FORWARD_AUTH_JWT_AUDIENCE` are required with it, and the app refuses to boot without them: they stop a token your identity provider signed for another application from signing in here. A token must also carry an expiry and an RS256 or ES256 signature.
+
+An authentik proxy provider sends `X-authentik-jwt`, but it signs that token with HS256 and its client secret, so its `jwks/` URL publishes no key the signed path can use. With authentik, set `FORWARD_AUTH_VERIFY_JWT=false` and set `FORWARD_AUTH_TRUSTED_PROXIES` to the exact address that connects to the app: the outpost in proxy mode, your reverse proxy in forward-auth mode. Left on, verification refuses every request that carries that header.
 
 Under `forward-header`, the proxy's handle for a user is that user's identity, and a handle in `OWNER_HANDLES` is the owner. Use this mode only with an identity provider whose registration is closed, or anyone who registers the owner's handle there becomes the owner here.
 
@@ -214,12 +218,13 @@ AUTH_FALLBACK=deny
 AUTH_FALLBACK_TRUSTED_PEERS=
 FORWARD_AUTH_USER_HEADER=Tailscale-User-Login
 FORWARD_AUTH_TRUSTED_PROXIES=172.18.0.1/32
+FORWARD_AUTH_VERIFY_JWT=false
 OWNER_HANDLES=you@example.com
 ```
 
 `FORWARD_AUTH_TRUSTED_PROXIES` is the one peer the app sees Serve's requests from: the gateway of this
 project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32` on bare metal.
-`OWNER_HANDLES` is your tailnet login. Two limits:
+Serve sends no JWT, so `FORWARD_AUTH_VERIFY_JWT=false` turns the signed path off. `OWNER_HANDLES` is your tailnet login. Two limits:
 
 - Any process on this machine can reach the app from that peer and send the header, so use this only on a
   machine whose local users you trust.

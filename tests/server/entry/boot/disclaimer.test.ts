@@ -36,6 +36,7 @@ function options(env: EnvInput, over: Partial<Options> = {}): Options {
     ownerPeerWarnings: NO_WARNINGS,
     diagnosticsWarnings: NO_WARNINGS,
     forwardHeaderUnsignedClosed: false,
+    forwardHeaderSignedClosed: false,
     secrets: {
       sessionSecret: { explicit: false, keyfile: "/data/secrets/session_secret" },
       credentialsKey: { explicit: true, keyfile: null },
@@ -113,10 +114,13 @@ test("break-glass is an exposure only for a login mode that also lets the owner 
   expect(securityLines(composeBootDisclaimer({ ...live, authMode: "single-user" satisfies AuthMode }))).toHaveLength(0);
 });
 
-test("a forward-header box with its unsigned path closed warns, but a closed door is not an exposure", () => {
-  const closed = composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }, { forwardHeaderUnsignedClosed: true }));
-  expect(closed.filter((line) => line.level === "warn")).toHaveLength(1);
-  expect(securityLines(closed)).toHaveLength(0);
-  const open = composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }));
-  expect(open.filter((line) => line.level === "warn")).toHaveLength(0);
-});
+test.for<keyof Pick<Options, "forwardHeaderUnsignedClosed" | "forwardHeaderSignedClosed">>(["forwardHeaderUnsignedClosed", "forwardHeaderSignedClosed"])(
+  "a forward-header box with %s warns, but a closed door is not an exposure",
+  (door) => {
+    const closed = composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }, { [door]: true }));
+    expect(closed.filter((line) => line.level === "warn")).toHaveLength(1);
+    expect(securityLines(closed)).toHaveLength(0);
+    const open = composeBootDisclaimer(options({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }));
+    expect(open.filter((line) => line.level === "warn")).toHaveLength(0);
+  },
+);

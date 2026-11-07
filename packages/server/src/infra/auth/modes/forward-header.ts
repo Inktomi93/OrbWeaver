@@ -1,5 +1,5 @@
-// AUTH_MODE=forward-header, behind authentik/authelia forward-auth. SIGNED path (JWT+JWKS present):
-// trusts claims cryptographically, skips the IP gate. UNSIGNED path: trusts raw identity headers, gated
+// AUTH_MODE=forward-header, behind authentik/authelia forward-auth. SIGNED path (JWT present): trusts claims
+// verified against the operator's FORWARD_AUTH_JWKS, skips the IP gate. UNSIGNED path: trusts raw identity headers, gated
 // fail-closed on an explicit FORWARD_AUTH_TRUSTED_PROXIES allowlist matched against the TCP peer IP (not
 // the spoofable X-Forwarded-For/X-Real-IP) — else any client reaching the socket could forge identity. A
 // present-but-invalid JWT never falls through to the unsigned path, and no refused identity reaches the owner fallback.
@@ -83,35 +83,24 @@ function emailFromHeader(name: string | undefined, headers: Headers): string | n
 }
 
 // A presented JWT is resolved or refused, never absent: every failure here, the verifier's `null` included, is REFUSED.
-async function resolveSignedJwt(jwt: string, metaJwks: string | null, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | IdentityRefused> {
-  if (metaJwks === null) {
-    // JWT without its JWKS is a stripped/spoofed request — reject, do not fall through.
-    securityEvent("jwt_no_jwks", {}, "security: forwarded JWT present without its JWKS — rejecting (possible stripped/spoofed request)", deps.log);
+async function resolveSignedJwt(jwt: string, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | IdentityRefused> {
+  if (deps.verifyForwardJwt === undefined) {
+    securityEvent("jwt_no_key_source", {}, "security: forwarded JWT presented but FORWARD_AUTH_JWKS is unset — rejecting forwarded identity", deps.log);
     return REFUSED;
   }
-  if (config.jwksAllowlist.length === 0) {
-    // No trusted key source — refuse the request-supplied JWKS entirely.
+  // The env record refuses this pairing at boot; a config built by hand reaches here, and it still refuses.
+  if (config.jwtIssuer === undefined || config.jwtAudience === undefined) {
     securityEvent(
-      "jwt_no_allowlist",
+      "jwt_no_audience_binding",
       {},
-      "security: JWT verification on but no JWKS allowlist/issuer configured — refusing the request-supplied JWKS",
+      "security: forwarded JWT presented with no issuer or audience configured — rejecting forwarded identity",
       deps.log,
     );
     return REFUSED;
   }
-  if (deps.verifyForwardJwt === undefined) {
-    securityEvent("jwt_no_verifier", {}, "security: JWT verification on but no verifier injected — rejecting forwarded identity", deps.log);
-    return REFUSED;
-  }
-  const claims = await deps.verifyForwardJwt.verify({
-    jwt,
-    metaJwks,
-    allowlist: config.jwksAllowlist,
-    ...(config.jwtIssuer !== undefined ? { issuer: config.jwtIssuer } : {}),
-    ...(config.jwtAudience !== undefined ? { audience: config.jwtAudience } : {}),
-  });
+  const claims = await deps.verifyForwardJwt.verify({ jwt, issuer: config.jwtIssuer, audience: config.jwtAudience });
   if (claims === null) {
-    // The verifier already emitted the security line naming why (verification, key set or claims).
+    // The verifier already emitted the security line naming why (verification or claims).
     return REFUSED;
   }
   if (claims.handle === undefined || claims.handle.length === 0) {
@@ -213,7 +202,7 @@ export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps:
     return Promise.resolve(jwt !== null || readUnsignedIdentity(headers, config) !== null ? REFUSED : null);
   }
   if (jwt !== null) {
-    return resolveSignedJwt(jwt, headers.get("x-authentik-meta-jwks"), config, deps);
+    return resolveSignedJwt(jwt, config, deps);
   }
   return Promise.resolve(resolveUnsignedHeader(headers, config, deps));
 }

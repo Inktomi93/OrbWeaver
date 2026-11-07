@@ -32,8 +32,8 @@ import { useWorkloadStream } from "../hooks/use-workload-stream.ts";
 import { friendlyWorkloadError } from "../lib/workloads-failure-copy.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 import {
+  canRetryWorkload,
   isActiveWorkloadStatus,
-  isRetryableWorkloadStatus,
   toProgressView,
   WORKLOAD_KIND_LABELS,
   WORKLOAD_STATUS_BADGE,
@@ -49,6 +49,7 @@ export interface WorkloadRowProps {
   readonly workload: WorkloadItem;
   /** The owning user's handle for a cross-owner view; `null` = the caller's own row (or unresolved). */
   readonly ownerHandle: string | null;
+  readonly viewerIsOwner: boolean;
   /** MAY return a promise (#1563b, widened #1632): it is this row's `ConfirmDialog.onConfirm`, which awaits
    *  it — the confirm holds open busy, closes on resolve, and stays open with the reason on rejection.
    *  `() => void` accepted an async handler anyway, so the declared type said the opposite of what happens. */
@@ -76,6 +77,7 @@ function ActiveWorkloadRow(props: WorkloadRowProps): ReactElement {
 function WorkloadRowBody({
   workload,
   ownerHandle,
+  viewerIsOwner,
   onCancel,
   onRetry,
   progress,
@@ -129,7 +131,7 @@ function WorkloadRowBody({
                 {DIALOG_VERBS.cancel}
               </Button>
             ) : null}
-            {isRetryableWorkloadStatus(workload.status) ? (
+            {canRetryWorkload(workload, viewerIsOwner) ? (
               <Button type="button" variant="outline" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
                 {DIALOG_VERBS.retry}
               </Button>

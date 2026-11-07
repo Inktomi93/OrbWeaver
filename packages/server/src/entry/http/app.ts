@@ -121,7 +121,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
       emitUserEvent: built.liveBuses.user.publishUserEvent,
       sessions: built.sessions,
       config: authConfig,
-      verifyForwardJwt: built.forwardJwtVerifier,
+      ...(built.forwardJwtVerifier === undefined ? {} : { verifyForwardJwt: built.forwardJwtVerifier }),
       ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput(deps.env)),
       relayedFallbackNotice: createRelayedFallbackNotice(now, deps.logger),
       relayHosts: deps.relayHosts,

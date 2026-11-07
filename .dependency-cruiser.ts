@@ -765,6 +765,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/workloads/lib/workloads-model.ts":
       "ASSET_KIND_ITEMS and WORKLOAD_KIND_LABELS: the job name and the asset kind names the schedule dialog's pickers print",
   },
+  "tests/client/features/workloads/components/operator-import-picker.ct.tsx": {
+    "packages/client/src/features/workloads/lib/workloads-model.ts": "WORKLOAD_KIND_LABELS: the job names the run and schedule pickers print",
+  },
   "tests/client/features/workloads/components/import-preview.ct.tsx": {
     "packages/client/src/features/workloads/lib/portability-model.ts": "IMPORT_PREVIEW_RETRY_NAME: the production name of the preview's retry control",
   },

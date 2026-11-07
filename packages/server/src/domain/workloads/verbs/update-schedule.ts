@@ -17,12 +17,13 @@ type MutablePatch = { -readonly [K in keyof SchedulePatch]: SchedulePatch[K] };
 
 /** Assemble the patch from the optional inputs + re-gate MODE support / bulk authority when the kind or mode
  *  changes. Split out so the verb body stays a flat load → check → write (cognitive-complexity budget). */
-function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadScheduleRow, params: UpdateScheduleParams): MutablePatch {
+async function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadScheduleRow, params: UpdateScheduleParams): Promise<MutablePatch> {
   const patch: MutablePatch = {};
   let effectiveKind = existing.kind;
   let effectiveMode = existing.mode;
   if (params.input !== undefined) {
-    const input = parseWorkloadInput(ctx.getContributions(), params.input);
+    // The schedule keeps its owner, so the tick judges that account whoever retunes it: refuse here what it would refuse.
+    const input = await parseWorkloadInput(ctx, { caller: params.caller, account: existing.ownerId }, params.input);
     effectiveKind = input.kind;
     patch.kind = input.kind;
     patch.params = input.params;
@@ -50,7 +51,7 @@ export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<Workload
     if (existing === null) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
-    const patch = resolveUpdatePatch(ctx, existing, params);
+    const patch = await resolveUpdatePatch(ctx, existing, params);
     const updated = await updateScheduleFields(ctx.db, params.id, patch, ctx.now());
     if (updated === null) {
       throw new DomainNotFoundError(ENTITY, params.id);

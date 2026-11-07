@@ -29,6 +29,29 @@ jobs:
       - id: sha
         name: Freeze the selected source revision
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  # Its own job: a step behind the static checks never starts when those reach the job's time cap.
+  staged-custody:
+    needs: [head]
+    name: staged custody (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.head.outputs.sha }}
+      - name: pnpm install
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled runs execute the frozen trusted main checkout.
+        with:
+          browsers: "false"
+      - name: Staged import custody
+        run: pnpm test tests/server/domain/import/persistence/staged-custody.int.test.ts tests/server/domain/import/persistence/staged-params-door.int.test.ts tests/server/infra/storage/zip.int.test.ts
   contributor:
     needs: [head]
     name: contributor (${{ matrix.os }})

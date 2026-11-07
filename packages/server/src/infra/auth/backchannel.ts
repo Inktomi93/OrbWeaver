@@ -50,7 +50,7 @@ function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
 export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"], log: Logger): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
-      const keyset = readKeyset(jwks, []);
+      const keyset = readKeyset(jwks);
       if (keyset === null) {
         // The key reader already emitted its own securityEvent for the rejection reason.
         return null;

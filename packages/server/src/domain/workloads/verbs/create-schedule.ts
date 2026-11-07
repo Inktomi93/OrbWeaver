@@ -2,7 +2,8 @@
 // the `StartWorkloadInput` (defense in depth, like `start`) + gates the MODE:
 //   1. MODE SUPPORT: the kind must support the requested mode (`WORKLOAD_KIND_MODES`) — else BAD_REQUEST.
 //   2. AUTHORITY: a `bulk` schedule requires the BOX OWNER (`requireOwner`); a `singular` schedule is any
-//      authed caller. A `null` caller is a TRUSTED system trigger (no gate).
+//      authed caller, unless the kind's `ownerOnly` says otherwise. A `null` caller is a TRUSTED system trigger
+//      (no bulk gate); `ownerOnly` still judges the schedule's owner.
 //   3. OWNER: singular/bulk stamp the caller's own id (a schedule row's owner is NOT NULL); a `null` caller
 //      stamps the explicit `ownerId` (BAD_REQUEST if that too is null — you can't mint an ownerless schedule).
 // The first run is one cadence-interval out (a fresh nightly schedule doesn't fire the instant it's created).
@@ -18,12 +19,12 @@ import { parseWorkloadInput } from "../substrate/params.ts";
 
 export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
   async function createSchedule(params: CreateScheduleParams): Promise<WorkloadScheduleRef> {
-    const input = parseWorkloadInput(ctx.getContributions(), params.input);
+    const ownerId = params.caller !== null ? params.caller.userId : params.ownerId;
+    const input = await parseWorkloadInput(ctx, { caller: params.caller, account: ownerId }, params.input);
     assertKindSupportsMode(input.kind, params.mode);
     if (params.mode === "bulk" && params.caller !== null) {
       ctx.requireOwner(params.caller);
     }
-    const ownerId = params.caller !== null ? params.caller.userId : params.ownerId;
     if (ownerId === null) {
       throw new DomainOperationError("owner_required", "a schedule must have an owner (no caller and no explicit ownerId)");
     }

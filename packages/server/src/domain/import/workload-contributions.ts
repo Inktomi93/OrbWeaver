@@ -2,13 +2,12 @@
 // Staged handles resolve beneath the row owner's namespace before reads and cleanup; a handle grants no authority.
 
 import type { Dirent } from "node:fs";
-import { constants as fsConstants } from "node:fs";
-import type { FileHandle } from "node:fs/promises";
-import { lstat, open, readdir, realpath, rm } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
-import type { ImportPreview } from "@orb/contracts/import";
+import { lstat, readdir, realpath, rm } from "node:fs/promises";
+import { basename, dirname, join, resolve, sep } from "node:path";
+import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
+import { STAGED_UPLOAD_OUTDATED } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress, WorkloadKind } from "@orb/contracts/workloads";
-import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
+import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams, readsOperatorTree } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
@@ -16,7 +15,7 @@ import { isStrictDescendant } from "@orb/kit/path-containment";
 import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import { ZIP_STAGING_PREFIX } from "#infra/storage";
+import { openVerifiedArchive, ZIP_STAGING_PREFIX } from "#infra/storage";
 import { isMissingFile } from "#primitives/errno";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
@@ -96,10 +95,14 @@ type ImportContributions = readonly [
  *
  * CONTAINMENT IS RESOLVED, NEVER STRING-MATCHED. A lexical `startsWith` says "inside the root" about a path
  * whose own components are symlinks pointing anywhere on the box — and `readFile` / the profile-tree walker
- * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root
+ * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root's PARENT
  * (the configured root may itself sit behind a link) and on the target, with the two required to agree.
  * "No writer of ours creates symlinks under the staging root" is not a containment argument either: the root
  * is operator-configurable (`IMPORT_STAGING_DIR`) and may point anywhere, including a shared directory.
+ *
+ * SECURITY: `stagingRoot` here is the OWNER'S folder, and a staging actor can replace that folder with a link. Its own
+ * realpath would then move both ends of the comparison together and the handle would resolve wherever the link
+ * points, so every read and every `rm` below would act there. The comparison anchors one level up for that reason.
  */
 async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
@@ -107,9 +110,11 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
   if (!isStrictDescendant(root, target, HOST_PATH)) {
     throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
-  const realRoot = await realpath(root).catch(() => {
-    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
-  });
+  const realRoot = await realpath(dirname(root))
+    .then((parent) => join(parent, basename(root)))
+    .catch(() => {
+      throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
+    });
   const realTarget = await realpath(target).catch(() => {
     throw new DomainOperationError("staged_path_missing", `staged handle names nothing under the staging root: ${stagedHandle}`);
   });
@@ -121,44 +126,26 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
   return target;
 }
 
-/**
- * Open a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
- * of {@link resolveStagedPath} atomic with the open, closing the window between the check and the open
- * (the same flag the zip stager's own reader carries). The caller owns the handle; the extractor reads the
- * archive through it by position, so a backup is never held in memory whole.
- *
- * `O_NOFOLLOW` is POSIX-only — on a platform where it is not a number (Windows), the flags would silently
- * collapse to plain `O_RDONLY` and this belt's no-symlink half would vanish without a sound. There the open
- * is unguarded, and the atomicity is recovered AFTER the fact instead: `fstat` the open handle and `lstat`
- * the path, and refuse when they don't name the same inode — a symlink swapped in between the resolve and
- * the open changes the path's own identity out from under the already-open fd.
- */
-async function openStagedFile(path: string): Promise<FileHandle> {
-  const noFollowFlag: number | undefined = fsConstants.O_NOFOLLOW;
-  if (typeof noFollowFlag === "number") {
-    // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
-    return await open(path, fsConstants.O_RDONLY | noFollowFlag);
-  }
-  const handle = await open(path, fsConstants.O_RDONLY);
-  try {
-    const [handleStat, pathStat] = await Promise.all([handle.stat(), lstat(path)]);
-    if (handleStat.dev !== pathStat.dev || handleStat.ino !== pathStat.ino) {
-      throw new DomainOperationError("staged_path_escape", `staged handle names a symlink: ${path}`);
-    }
-    return handle;
-  } catch (err) {
-    await handle.close();
-    throw err;
-  }
-}
-
 /** Import one staged backup ZIP through its open handle, closing the handle whatever the outcome. */
 async function importStagedZip(
   runBundleImport: ImportWorkloadDeps["runBundleImport"],
-  args: { readonly stagedPath: string; readonly ownerId: UserId; readonly stagingRoot: string; readonly signal: AbortSignal },
+  args: { readonly stagedPath: string; readonly digest: string; readonly ownerId: UserId; readonly stagingRoot: string; readonly signal: AbortSignal },
 ): Promise<BundleImportWorkloadResult> {
-  await using archive = await openStagedFile(args.stagedPath);
+  await using archive = await openVerifiedArchive(args.stagedPath, args.digest);
   return await runBundleImport({ archive, ownerId: args.ownerId, stagingRoot: args.stagingRoot, signal: args.signal });
+}
+
+/** The digest a staged run needs. A row queued before digests existed has none, and only a new upload can supply one. */
+function requireStagedDigest(digest: string | undefined): string {
+  if (digest === undefined) {
+    throw new DomainOperationError("staged_upload_outdated", STAGED_UPLOAD_OUTDATED);
+  }
+  return digest;
+}
+
+/** The tree one `import-st` run reads: the staged upload when the row names one, else the operator's profile directory. */
+async function profilePort(deps: ImportWorkloadDeps, stagedRoot: string | null, digest: string | undefined): Promise<ImportFsPort> {
+  return stagedRoot === null ? deps.operatorImportPort : await deps.stagedImportPort(stagedRoot, requireStagedDigest(digest));
 }
 
 /**
@@ -262,6 +249,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       lane: "sweep",
       // Every per-entity write is dedupe-gated, so a retry re-runs the whole loop safely.
       resume: "idempotent-restart",
+      admit: ({ params }) => Promise.resolve(params.stagedDir !== undefined && params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
+      ownerOnly: readsOperatorTree,
       releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.stagedDir),
       // Declared once: both staged kinds share this root, and the sweep reads the rows of both.
       sweepOnBoot: (active) => sweepStaging(deps, active),
@@ -276,11 +265,11 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the
         // staging root (throws on any traversal attempt, before any fs read); absent ⇒ the configured root.
         const ownerRoot = stagedOwnerRoot(deps.stagingRoot, targetOwnerId);
-        const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(ownerRoot, params.stagedDir) : deps.stProfileDir;
+        const stagedRoot = params.stagedDir === undefined ? null : await resolveStagedPath(ownerRoot, params.stagedDir);
         let result: Awaited<ReturnType<ImportWorkloadDeps["runProfileDirImport"]>>;
         try {
           result = await deps.runProfileDirImport({
-            profileRoot,
+            fs: await profilePort(deps, stagedRoot, params.stagedDigest),
             ownerId: targetOwnerId,
             dryRun,
             signal,
@@ -289,8 +278,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         } finally {
           // A folder-upload staging tree is owned by this run; remove it (success OR error) through the
           // contained-rm belt. The configured default profile dir is persistent and is NEVER removed here.
-          if (params.stagedDir !== undefined) {
-            await rmContained(ownerRoot, profileRoot);
+          if (stagedRoot !== null) {
+            await rmContained(ownerRoot, stagedRoot);
           }
         }
         await settleImportRun({
@@ -334,6 +323,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       lane: "sweep",
       // The entity descriptors dedupe on re-import, so a retry is safe.
       resume: "idempotent-restart",
+      admit: ({ params }) => Promise.resolve(params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
       releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.token),
       run: async (ctx, params, report, signal): Promise<BundleImportWorkloadResult> => {
         const targetOwnerId = ctx.ownerId;
@@ -344,10 +334,11 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         const ownerRoot = stagedOwnerRoot(deps.stagingRoot, targetOwnerId);
         const stagedPath = await resolveStagedPath(ownerRoot, params.token);
         try {
+          const digest = requireStagedDigest(params.stagedDigest);
           const report_ =
             params.source === "dir"
-              ? await deps.runStagedDirImport({ stagedPath, ownerId: targetOwnerId, signal })
-              : await importStagedZip(deps.runBundleImport, { stagedPath, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
+              ? await deps.runStagedDirImport({ stagedPath, digest, ownerId: targetOwnerId, signal })
+              : await importStagedZip(deps.runBundleImport, { stagedPath, digest, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
           // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {

@@ -2,7 +2,7 @@
 
 import type { FileHandle } from "node:fs/promises";
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
-import type { ImportPreview, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportFsPort, ImportPreview, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
@@ -50,11 +50,13 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   readonly logger: Logger;
   /** The staging root the HTTP upload routes wrote under — every staged handle resolves strictly inside it. */
   readonly stagingRoot: string;
-  /** The ST profile directory `import-st` reads when the row carries no `stagedDir` override. */
-  readonly stProfileDir: string;
+  /** The operator's ST profile directory, which `import-st` reads when the row carries no `stagedDir` override. */
+  readonly operatorImportPort: ImportFsPort;
+  /** The staged tree at `root`, which reads only bytes that hash to the manifest `digest` vouches for. */
+  readonly stagedImportPort: (root: string, digest: string) => Promise<ImportFsPort>;
   /** The ST profile-directory bulk loop (personas first, then per-bundle character + chats). */
   readonly runProfileDirImport: (args: {
-    profileRoot: string;
+    fs: ImportFsPort;
     ownerId: UserId;
     dryRun: boolean;
     signal: AbortSignal;
@@ -64,7 +66,7 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
    *  read by position and closed by the caller. */
   readonly runBundleImport: (args: { archive: FileHandle; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */
-  readonly runStagedDirImport: (args: { stagedPath: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
+  readonly runStagedDirImport: (args: { stagedPath: string; digest: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op
    *  the portability descriptors take — one slice, one home. */
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;

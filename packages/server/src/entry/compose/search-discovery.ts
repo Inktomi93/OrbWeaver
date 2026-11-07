@@ -114,6 +114,7 @@ export interface SearchDiscoveryComposeDeps {
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
+  readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
@@ -341,6 +342,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newScheduleId: minter(ID_PREFIX.workloadSchedule, deps.idSource),
     requireOwner,
     isOwner,
+    isBoxOwner: deps.isBoxOwner,
     isAdmin,
     emitUserEvent: deps.emitUserEvent,
   });

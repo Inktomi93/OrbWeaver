@@ -67,6 +67,14 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    */
   readonly admit?: (args: { readonly ownerId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<string | null>;
   /**
+   * Whether this run reaches something only the box owner may reach, whatever the row's owner. Every door a person
+   * calls refuses anyone else before anything is stored or counted, schedules included, so this is authority and never
+   * an {@link WorkloadContribution.admit} precondition. A system trigger is judged too: the tick against the schedule's
+   * owner, and the runner against the row before its body, so a stored run refuses whatever build stored it. OMIT IT
+   * when any authed caller may run the kind on their own data.
+   */
+  readonly ownerOnly?: (params: WorkloadParamsByKind[K]) => boolean;
+  /**
    * How many Utility-model calls a run over this scope would make, counted by the owning domain WITHOUT running
    * or writing anything, so a person confirms a library-wide paid run knowing its size. `ownerId` is the row's
    * enumeration scope (`null` = the bulk pass) and `funderUserId` is whose Utility model the run would spend.

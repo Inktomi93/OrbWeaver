@@ -158,6 +158,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
                     <LaneGroups
                       rows={rows}
                       ownerHandleFor={ownerHandleFor}
+                      viewerIsOwner={isOwner}
                       onCancel={(workloadId): void => cancelWorkload.mutate({ id: workloadId })}
                       onRetry={retry}
                     />
@@ -193,11 +194,13 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
 function LaneGroups({
   rows,
   ownerHandleFor,
+  viewerIsOwner,
   onCancel,
   onRetry,
 }: {
   readonly rows: readonly WorkloadItem[];
   readonly ownerHandleFor: (workload: WorkloadItem) => string | null;
+  readonly viewerIsOwner: boolean;
   readonly onCancel: (id: WorkloadItem["id"]) => void;
   readonly onRetry: (workload: WorkloadItem) => void;
 }): ReactElement {
@@ -213,6 +216,7 @@ function LaneGroups({
               key={workload.id}
               workload={workload}
               ownerHandle={ownerHandleFor(workload)}
+              viewerIsOwner={viewerIsOwner}
               onCancel={(): void => onCancel(workload.id)}
               onRetry={(): void => onRetry(workload)}
             />

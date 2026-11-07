@@ -3,22 +3,29 @@
 
 import type { AssetKind } from "@orb/contracts/assets";
 import { ASSET_KINDS } from "@orb/contracts/assets";
-import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
-import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_LANES } from "@orb/contracts/workloads";
+import type { IndexSource, WireWorkloadKind, WorkloadKind, WorkloadLane, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
+import {
+  ACTIVE_WORKLOAD_STATUSES,
+  INDEX_SOURCES,
+  OPERATOR_TREE_WORKLOAD_KIND,
+  ROUTE_STARTED_WORKLOAD_KIND,
+  readsOperatorTree,
+  WORKLOAD_KIND_MODES,
+  WORKLOAD_KINDS,
+  WORKLOAD_LANES,
+} from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
 export type WorkloadProgressView = Readonly<{ pct: NonNullable<WorkloadProgress["pct"]> | null; label: NonNullable<WorkloadProgress["message"]> | null }>;
 
 /** The kinds the run dialog offers: singular-capable + built (not a stub). Every `singular: true` mode is
- *  already `stub: false` by construction, so the filter only needs `.singular`. */
-export const RUNNABLE_WORKLOAD_KINDS: readonly WorkloadKind[] = WORKLOAD_KINDS.filter(
-  (kind) =>
-    WORKLOAD_KIND_MODES[kind].singular &&
-    // import-bundle is singular+built but route-started (mints its own staging token) — never a user run.
-    kind !== "import-bundle",
+ *  already `stub: false` by construction, so the filter only needs `.singular`. A route-started kind is singular and
+ *  built, but its route mints its params, so it is never a user run. */
+export const RUNNABLE_WORKLOAD_KINDS: readonly WireWorkloadKind[] = WORKLOAD_KINDS.filter(
+  (kind): kind is WireWorkloadKind => WORKLOAD_KIND_MODES[kind].singular && kind !== ROUTE_STARTED_WORKLOAD_KIND,
 );
 
 // Owner-only maintenance kinds: built, bulk-capable, not singular (a deployment-wide sweep, no per-user target).
@@ -68,6 +75,9 @@ const MAINTENANCE_KIND_OPTIONS: SelectItems = WORKLOAD_KINDS.filter((kind) => MA
   label: WORKLOAD_KIND_LABELS[kind],
 }));
 
+// The server refuses a member this kind: it reads the operator's tree, and a member's own folder goes through the upload route.
+const MEMBER_KIND_OPTIONS: SelectItems = RUNNABLE_KIND_OPTIONS.filter((option) => option.value !== OPERATOR_TREE_WORKLOAD_KIND);
+
 /** The grouped (owner) kind-picker items; the maintenance group is omitted when empty. */
 const OWNER_KIND_ITEMS: SelectItems =
   MAINTENANCE_KIND_OPTIONS.length === 0
@@ -77,9 +87,9 @@ const OWNER_KIND_ITEMS: SelectItems =
         { label: "Maintenance (all deployments)", items: MAINTENANCE_KIND_OPTIONS },
       ];
 
-/** The kind-picker's items for a viewer — a non-owner sees the flat runnable list, the owner sees the grouped list. */
+/** The kind-picker's items for a viewer — a non-owner sees the flat list of kinds they may run, the owner sees the grouped list. */
 export function workloadKindItems(viewerIsOwner: boolean): SelectItems {
-  return viewerIsOwner ? OWNER_KIND_ITEMS : RUNNABLE_KIND_OPTIONS;
+  return viewerIsOwner ? OWNER_KIND_ITEMS : MEMBER_KIND_OPTIONS;
 }
 
 /** The `index` kind's source picker (text / image / all — what to reindex). */
@@ -150,9 +160,16 @@ export function isActiveWorkloadStatus(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
 }
 
-/** A terminal-failure-ish status — Retry is offered exactly here. */
-export function isRetryableWorkloadStatus(status: WorkloadStatus): boolean {
+/** A terminal-failure-ish status: the only rows Retry can apply to. */
+function isRetryableWorkloadStatus(status: WorkloadStatus): boolean {
   return status === "failed" || status === "cancelled" || status === "worker_died";
+}
+
+/** Whether a viewer gets Retry on a row. The server refuses anyone but the box owner a run of the operator's tree, and that
+ *  refusal would read as a conflict. A poison row's params cannot be read, so it stays the repair path. */
+export function canRetryWorkload(workload: inferOutput<Trpc["workloads"]["list"]>[number], viewerIsOwner: boolean): boolean {
+  const operatorRun = workload.kind === OPERATOR_TREE_WORKLOAD_KIND && !workload.poison && readsOperatorTree(workload.params);
+  return isRetryableWorkloadStatus(workload.status) && (viewerIsOwner || !operatorRun);
 }
 
 export const WORKLOAD_FILTERS = ["all", "running", "recent", "failed"] as const;
@@ -221,12 +238,12 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD
 };
 
 /** Narrow a form-string kind to a runnable (singular-capable) contract kind. */
-export function isRunnableWorkloadKind(value: string): value is WorkloadKind {
+export function isRunnableWorkloadKind(value: string): value is WireWorkloadKind {
   return (RUNNABLE_WORKLOAD_KINDS as readonly string[]).includes(value);
 }
 
 /** Narrow a form-string kind to any kind the dialog can start — runnable OR owner-only maintenance. */
-export function isStartableWorkloadKind(value: string): value is WorkloadKind {
+export function isStartableWorkloadKind(value: string): value is WireWorkloadKind {
   return isRunnableWorkloadKind(value) || isMaintenanceWorkloadKind(value);
 }
 
@@ -288,7 +305,7 @@ type RunScopeKey = (typeof RUN_SCOPE_KEYS)[number];
 export type WorkloadRunRequestScope = Pick<StartWorkloadWire, RunScopeKey> & Pick<EstimateWorkloadWire, RunScopeKey>;
 
 /** Assemble the wire `start.input` for a kind — the params object carries only the kind's own tunable. */
-export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): StartWorkloadWire["input"] {
+export function buildStartInput(kind: WireWorkloadKind, values: WorkloadRunValues): StartWorkloadWire["input"] {
   const shape = WORKLOAD_PARAM_SHAPE_BY_KIND[kind];
   let params: Record<string, unknown> = {};
   if (shape === "force" && values.force) {

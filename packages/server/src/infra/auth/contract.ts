@@ -28,8 +28,6 @@ export interface AuthConfig {
    *  loopback-only gate #298 f2 established. Distinct from `forwardTrustedProxies`, which gates who may
    *  ASSERT an identity in a header; this one gates who IS the owner without asserting anything. */
   fallbackTrustedPeers: readonly string[];
-  /** JWKS-URL host allowlist; empty means fail-closed at the resolver. */
-  jwksAllowlist: readonly string[];
   jwtIssuer?: string;
   jwtAudience?: string;
 }
@@ -111,15 +109,14 @@ export interface ForwardJwtClaims extends Pick<ResolvedIdentity, "externalId" | 
   handle: ResolvedIdentity["handle"] | undefined;
 }
 
+// SECURITY: no key input. The verifier holds the operator's key source, so a request can name no key, set or URL.
 export interface ForwardJwtVerifyArgs {
   jwt: string;
-  metaJwks: string;
-  allowlist: readonly string[];
-  issuer?: string;
-  audience?: string;
+  issuer: string;
+  audience: string;
 }
 
-// Returns null on any JWKS-build/signature/shape failure (fail-closed).
+// Returns null on any signature/shape failure (fail-closed).
 export interface ForwardJwtVerifier {
   verify: (args: ForwardJwtVerifyArgs) => Promise<ForwardJwtClaims | null>;
 }
@@ -215,9 +212,14 @@ export type OidcSettings = Pick<
 
 export type JwksKeySet = ReturnType<typeof createLocalJWKSet> | ReturnType<typeof createRemoteJWKSet>;
 
-/** One configured verifier's native key-set cache; physical HTTP belongs to its injected graph transport. */
+/** The issuer key reader back-channel logout uses; physical HTTP belongs to its injected graph transport. */
 export interface JwksReader extends Disposable {
-  readonly jwksFor: (metaJwks: string, allowlist: readonly string[]) => JwksKeySet | null;
+  readonly jwksFor: (jwksUri: string) => JwksKeySet | null;
+}
+
+/** The forward-header key set one graph holds from its operator source; null once that graph is disposed. */
+export interface OperatorKeys extends Disposable {
+  readonly keys: () => JwksKeySet | null;
 }
 
 /** The subject a validated `logout_token` names — `sub` (the stable external id we key sessions on) and/or

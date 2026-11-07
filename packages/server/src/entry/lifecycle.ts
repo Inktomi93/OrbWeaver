@@ -618,6 +618,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerPeerWarnings: ownerFallbackPeerWarnings(ownerPeers),
       diagnosticsWarnings: diagnosticsPostureWarnings(diagnostics),
       forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && trustedProxiesOf(env).length === 0,
+      forwardHeaderSignedClosed: env.AUTH_MODE === "forward-header" && env.FORWARD_AUTH_VERIFY_JWT && env.FORWARD_AUTH_JWKS === undefined,
       secrets: bootSecretProvenance({ ...secretLocation, sessionSecret: env.SESSION_SECRET, credentialsKey: env.CREDENTIALS_KEY }),
     })) {
       const fields = { bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };

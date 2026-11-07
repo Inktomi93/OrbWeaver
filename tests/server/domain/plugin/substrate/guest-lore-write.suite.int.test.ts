@@ -20,15 +20,22 @@ import {
   guestRunner,
   installGuest,
 } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { bridgeRequest, createPluginProcessEdge, hasOperation } from "../../../infra/plugin-host/process-runtime.fixtures.ts";
 
 const LORE_OPS = {
   lore: "(h, room, a) => h.worldInfo.upsertEntry(room, a.entry)",
   fill: "async (h, room, a) => { for (let i = 0; i < a.count; i += 1) { await h.worldInfo.upsertEntry(room, { ...a.entry, entryKey: a.prefix + i }); } }",
+  burst:
+    "async (h, room, a) => (await Promise.allSettled(a.keys.map((entryKey) => h.worldInfo.upsertEntry(room, { ...a.entry, entryKey })))).map((r) => r.status === 'fulfilled' ? 'written' : r.reason.message)",
 } as const;
 const VARIABLE = "tension";
 const LIVE_TEMPLATE = `{{setvar::${VARIABLE}::99}}The tension rises.`;
 const ASK_WAIT_MS = 20_000;
+const WRITTEN = "written";
+// Each burst stays under the membrane's concurrent host-call cap, and two of them overrun the room left in the book.
+const OVERLAP_BURST = 24;
+const OVERLAP_ROOM = 20;
 
 interface LoreRoom {
   readonly h: ChatRoot;
@@ -68,6 +75,10 @@ const entryOf = (bookId: WorldBookId, entryKey: string, contentTemplate: string)
 
 async function entriesOf(h: ChatRoot, bookId: WorldBookId): ReturnType<ChatRoot["caller"]["worldInfo"]["listEntries"]> {
   return await h.caller.worldInfo.listEntries({ bookId });
+}
+
+function burstOutcomes(burst: unknown): readonly string[] {
+  return z.object({ ok: z.literal(true), value: z.array(z.string()) }).parse(burst).value;
 }
 
 async function runtimeVariables(h: ChatRoot): Promise<Record<string, string>> {
@@ -204,4 +215,43 @@ test("a plugin's entries in one book stop at the ceiling, while updates and othe
   const contents = (await entriesOf(h, room.attached)).map(({ content }) => content);
   expect(contents).toHaveLength(PLUGIN_LORE_ENTRIES_PER_BOOK_MAX + 2);
   expect(contents).toEqual(expect.arrayContaining(["Updated.", "Another plugin."]));
+});
+
+test("overlapping writes in one invocation stop at the ceiling, refuse by name and still update an owned entry", { tags: ["slow"] }, async () => {
+  const room = await loreRoom();
+  await using h = room.h;
+  const run = await room.guest("burst-writer");
+  const entry = entryOf(room.attached, "unused", "Filled.");
+  expect(await run("fill", { entry, prefix: "e", count: PLUGIN_LORE_ENTRIES_PER_BOOK_MAX - 1 })).toEqual({ ok: true, value: null });
+
+  const burst = await run("burst", { entry, keys: ["e0", "late-a", "late-b", "late-c"] });
+
+  const refusals = burstOutcomes(burst).filter((outcome) => outcome !== WRITTEN);
+  expect(refusals).toHaveLength(2);
+  for (const refusal of refusals) {
+    expect(refusal).toContain(`already owns ${String(PLUGIN_LORE_ENTRIES_PER_BOOK_MAX)} entries`);
+  }
+  expect(await entriesOf(h, room.attached)).toHaveLength(PLUGIN_LORE_ENTRIES_PER_BOOK_MAX);
+});
+
+test("overlapping invocations of one plugin stop at the ceiling, while another plugin's write beside them lands", { tags: ["slow"] }, async () => {
+  const room = await loreRoom();
+  await using h = room.h;
+  const run = await room.guest("overlap-writer");
+  const other = await room.guest("overlap-neighbour");
+  const entry = entryOf(room.attached, "unused", "Filled.");
+  const filled = PLUGIN_LORE_ENTRIES_PER_BOOK_MAX - OVERLAP_ROOM;
+  expect(await run("fill", { entry, prefix: "e", count: filled })).toEqual({ ok: true, value: null });
+  const keysFor = (side: string): string[] => Array.from({ length: OVERLAP_BURST }, (_, index) => `${side}-${String(index)}`);
+
+  const [left, right, neighbour] = await Promise.all([
+    run("burst", { entry, keys: keysFor("left") }),
+    run("burst", { entry, keys: keysFor("right") }),
+    other("lore", { entry: { ...entry, entryKey: "neighbour" } }),
+  ]);
+
+  const written = [left, right].flatMap((burst) => burstOutcomes(burst)).filter((outcome) => outcome === WRITTEN);
+  expect(written).toHaveLength(OVERLAP_ROOM);
+  expect(neighbour).toEqual({ ok: true, value: null });
+  expect(await entriesOf(h, room.attached)).toHaveLength(PLUGIN_LORE_ENTRIES_PER_BOOK_MAX + 1);
 });

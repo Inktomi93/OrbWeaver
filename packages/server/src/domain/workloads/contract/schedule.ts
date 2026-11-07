@@ -1,7 +1,8 @@
 // domain/workloads/contract/schedule — schedule verb argument + result + row shapes. The time dimension
 // over the queue: a workload_schedule row auto-enqueues a workload on its cadence. Every verb carries
-// caller: Principal | null (null = trusted system trigger, no gate); a non-null caller is IDOR-scoped to
-// their own ownerId unless admin; a bulk schedule requires the box owner.
+// caller: Principal | null (null = trusted system trigger, no caller gate; a kind's `ownerOnly` still judges the
+// schedule's owner); a non-null caller is IDOR-scoped to their own ownerId unless admin; a bulk schedule requires
+// the box owner.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ScheduleCadence, StartWorkloadInput, StartWorkloadOp, WorkloadKind, WorkloadMode, WorkloadScheduleRef } from "@orb/contracts/workloads";

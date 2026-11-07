@@ -63,7 +63,12 @@ export function chatOf(text: string): string {
 export const CHAT = chatOf("Aria greets you.");
 export const WORLD = '{"entries":{"0":{"uid":0,"key":["eldoria"],"comment":"Eldoria","content":"A forest.","order":100}}}';
 
-export async function post(root: ServerTestHarness, files: Files, dryRunFields: readonly (string | File)[]): Promise<Response> {
+export async function post(
+  root: ServerTestHarness,
+  files: Files,
+  dryRunFields: readonly (string | File)[],
+  headers: Readonly<Record<string, string>> = CSRF_HEADERS,
+): Promise<Response> {
   const form = new FormData();
   for (const [path, bytes] of Object.entries(files)) {
     const relPath = `${WRAPPER}/${path}`;
@@ -72,7 +77,7 @@ export async function post(root: ServerTestHarness, files: Files, dryRunFields: 
   for (const value of dryRunFields) {
     form.append(TREE_DRY_RUN_FIELD, value);
   }
-  return await root.http.request(PORTABILITY_ROUTES.importTree, { method: "POST", headers: CSRF_HEADERS, body: form });
+  return await root.http.request(PORTABILITY_ROUTES.importTree, { method: "POST", headers, body: form });
 }
 
 /** Post the folder and stop at the admitted row: nothing has read the staged tree yet. */

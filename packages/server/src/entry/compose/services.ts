@@ -147,7 +147,7 @@ import {
 } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
-import { createForwardJwtVerifier, createJwksReader, createPasswordHasher } from "#infra/auth";
+import { createForwardJwtVerifier, createOperatorKeys, createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
@@ -162,7 +162,7 @@ import { createScopedTimers } from "#infra/timers";
 import type { ServiceJobs } from "#transport/jobs";
 import type { ContextForRequest, LiveBuses, Services, SocketRegistry } from "#transport/trpc";
 import { createContext, createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
-import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
+import { createBoxOwnerRead, createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
 import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
 import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
 import { createUserContentSeeder } from "../boot/seed-user-content.ts";
@@ -331,7 +331,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly workloadEvents: WorkloadProgressBus;
   readonly liveBuses: LiveBuses;
   readonly egress: ScopedEgress;
-  readonly forwardJwtVerifier: ForwardJwtVerifier;
+  /** Absent without `FORWARD_AUTH_JWKS`: no operator keys means the signed path refuses every JWT. */
+  readonly forwardJwtVerifier: ForwardJwtVerifier | undefined;
   readonly services: Services;
   /** The tRPC context over this graph's handles; the HTTP mount and any in-process caller bind their request facts to it. */
   readonly trpcContext: ContextForRequest;
@@ -498,7 +499,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
   );
   egressLifetime = egress;
-  const forwardJwtVerifier = createForwardJwtVerifier(resources.use(createJwksReader(egress.configuredEndpointFetch, deps.logger)).jwksFor, deps.logger);
+  const operatorJwks = deps.env.FORWARD_AUTH_JWKS;
+  const forwardJwtVerifier =
+    operatorJwks === undefined
+      ? undefined
+      : createForwardJwtVerifier(resources.use(createOperatorKeys(operatorJwks, egress.configuredEndpointFetch)).keys, deps.logger);
   const {
     db,
     now,
@@ -726,6 +731,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // home, never stamped). The binder every seam receives: the runtime's per-funder fold over
   // `connection_bindings` (§7.1) under that user's own Principal.
   const resolveFunderPrincipal = createHostPrincipalResolver(sessions);
+  const isBoxOwner = createBoxOwnerRead(sessions);
   const roleClientsFor = async (funderUserId: UserId, actor?: BindingActor): Promise<RoleClientsWithSignal> =>
     runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId), actor);
   const resolveEmbeddingConnection = createResolveEmbeddingConnection(runtime, resolveFunderPrincipal);
@@ -862,6 +868,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     getContributions: getWorkloadContributions,
+    isBoxOwner,
     isMemoryEnabled: (ownerId) => isMemoryEnabledBinding.read().isMemoryEnabled(ownerId),
     emptyMemoryScope: (ownerId) => emptyMemoryScope(ownerId),
   });
@@ -1522,6 +1529,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     contributions: workloadContributions,
+    isBoxOwner,
     audit,
     services,
     ownerId: deps.ownerId ?? null,
