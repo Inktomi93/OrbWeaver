@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-07
 priority: P1
 area: security
+lane: main
 plan: test-foundation
 ---
 
