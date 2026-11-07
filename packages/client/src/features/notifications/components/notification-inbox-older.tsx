@@ -43,7 +43,7 @@ export function InboxLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoadM
 }
 
 /** The dismissed list's id, so the toggle at the top of the inbox can name what it opens at the foot. */
-export const DISMISSED_ROWS_ID = "inbox-dismissed-rows";
+const DISMISSED_ROWS_ID = "inbox-dismissed-rows";
 
 /** What the dismissed list says when it is empty. A plugin's standing consent ask is not listed here, and a reader who
  *  just dismissed one must not be told nothing was. */

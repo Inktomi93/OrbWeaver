@@ -309,6 +309,43 @@ test("the count, size and negative on chat.generateImage reach the provider requ
   expect(warned).toEqual([]);
 });
 
+test("an images API that takes the count and returns fewer pictures tells the room, and the pictures it did return are posted", async () => {
+  using wire = physicalExecution([]);
+  let pixels: Uint8Array = new Uint8Array();
+  await using root = await createServerHarness({
+    startJobs: false,
+    secretBoxKey: Buffer.alloc(32, 3),
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      if (request.method === "POST" && new URL(request.url).pathname.endsWith("/images/generations")) {
+        return Response.json({ created: 0, data: [{ ["b64_json"]: Buffer.from(pixels).toString("base64") }] });
+      }
+      return await wire.execute(request);
+    },
+  });
+  const room = await policyRoom(root);
+  pixels = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
+  const warned: string[] = [];
+  using subscription = new DisposableStack();
+  subscription.defer(
+    root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+      if (event.chatId === room.chat.id && event.type === "warning") {
+        warned.push(event.code);
+      }
+    }),
+  );
+  const caller = await root.internalCallerFor(room.member.userId);
+  const request = { chatId: room.chat.id, mode: "free", prompt: "The orbital loom.", gallery: false, timeZone: UTC_TIME_ZONE } as const;
+  await caller.chat.generateImage({ ...request, n: 2 });
+  expect(warned).toEqual([WARNING_CODE.imageCountDropped]);
+  expect(await root.services.assets.listOwned({ principal: room.host, kind: "generated", limit: 10 })).toHaveLength(1);
+
+  // One picture asked for and one returned is the honoured case: nothing to say.
+  warned.length = 0;
+  await caller.chat.generateImage({ ...request, n: 1 });
+  expect(warned).toEqual([]);
+});
+
 test("a chat-completions image wire warns of the count and size it dropped, a default size stays quiet, and a rule-fired picture warns the same", async () => {
   using wire = physicalExecution([]);
   let pixels: Uint8Array = new Uint8Array();

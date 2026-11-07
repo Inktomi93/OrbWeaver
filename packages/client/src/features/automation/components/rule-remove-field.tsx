@@ -32,7 +32,10 @@ export function RuleRemoveField({ name, value, onRemove, focus }: RuleRemoveFiel
     <DestructiveAction
       confirm={{ confirmLabel: "Remove", description: "What you wrote here leaves this rule. This can't be undone.", title: `Remove ${name}?` }}
       finalFocus={focus.finalFocus}
-      onConfirm={remove}
+      onConfirm={(): void => {
+        focus.confirmed();
+        remove();
+      }}
       trigger={
         <Button variant="ghost" justify="start">
           Remove {name}

@@ -290,6 +290,8 @@ test.describe("rule editor field rows", () => {
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
     await remove.click();
     await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    // The empty removal above opened no confirm, so it must not decide where this Cancel leaves focus.
+    await expect(remove).toBeFocused();
     await expect(field).toHaveValue("extra fingers");
     await remove.click();
     await confirm.getByRole("button", { name: "Remove", exact: true }).click();

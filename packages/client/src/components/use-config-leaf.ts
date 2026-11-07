@@ -40,7 +40,7 @@ export interface ConfigLeafReading {
 }
 
 /** What the caller does once a Reset, or the Undo it offered, has landed. */
-export interface ResetFollowUp {
+interface ResetFollowUp {
   readonly onReset?: () => void;
   readonly onUndone?: () => void;
 }

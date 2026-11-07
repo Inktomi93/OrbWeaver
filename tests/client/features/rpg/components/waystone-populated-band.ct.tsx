@@ -140,6 +140,7 @@ test("the populated band's stone, promoted layers and satellite figures meet the
 
   expect(report.stoneWhole).toBe(true);
   for (const entry of report.transforms) {
+    expect(entry.transform).toBe("none");
     expect(entry.translate).toBe("none");
     expect(entry.scale).toBe("none");
   }
