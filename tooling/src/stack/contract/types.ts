@@ -314,20 +314,23 @@ export interface StartInvocation {
 
 export type StartParse = { readonly ok: true; readonly invocation: StartInvocation } | { readonly ok: false; readonly error: string };
 
-/** One launch of the server, rebuilt from `.env` on every supervised respawn (lib/start-plan.ts `startLaunch`). */
-export interface StartLaunch {
-  readonly plan: ProdSpawnPlan;
-  /** The auth mode the server boots in, for the banner. */
-  readonly mode: string;
-  /** The single-user `AUTH_FALLBACK=owner` fill is on the child env. */
-  readonly fallbackFilled: boolean;
-}
+/** One launch of the server, rebuilt from `.env` on every supervised respawn (lib/start-plan.ts `startLaunch`), or the
+ *  refusal of a `--share` this box cannot serve, with the sentence to print. Only `launch` carries a plan, so a caller
+ *  reaches a spawn only by narrowing past the refusal. */
+export type StartLaunch =
+  | { readonly kind: "refused"; readonly reason: string }
+  | {
+      readonly kind: "launch";
+      readonly plan: ProdSpawnPlan;
+      /** The auth mode the server boots in, for the banner. */
+      readonly mode: string;
+      /** The single-user `AUTH_FALLBACK=owner` fill is on the child env. */
+      readonly fallbackFilled: boolean;
+    };
 
-/** One supervised spawn: the plan, and the port the server answers `/healthz` and the app on. */
-export interface StartSpawn {
-  readonly plan: ProdSpawnPlan;
-  readonly port: number;
-}
+/** One supervised spawn: the plan, and the port the server answers `/healthz` and the app on; or the launch's refusal,
+ *  which stops the supervisor. */
+export type StartSpawn = Extract<StartLaunch, { readonly kind: "refused" }> | { readonly kind: "launch"; readonly plan: ProdSpawnPlan; readonly port: number };
 
 /** Whether an invocation opens the app in the default browser (lib/start-plan.ts `startBrowser`). `refused` is a
  *  setting that is neither `on` nor `off`: nothing opens, and the reason is printed once. */
@@ -340,7 +343,7 @@ export type SupervisedChild = Pick<FullPriorityChild, "kill" | "wait">;
 export interface StartSupervisorDeps {
   /** The once-per-invocation pass before the loop (setup, build, bundle check): an exit code stops the launch. */
   readonly prepare: () => Promise<number | null>;
-  /** Re-read `.env` and build this spawn's plan; called once per spawn. */
+  /** Re-read `.env` and build this spawn's plan, or the refusal that ends the launch; called once per spawn. */
   readonly launch: () => StartSpawn;
   readonly spawn: (plan: ProdSpawnPlan) => SupervisedChild;
   /** Registers a process signal handler (`process.on` in a live launcher). */
