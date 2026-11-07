@@ -75,7 +75,7 @@ export function BoundColorField(props: BoundColorFieldProps): ReactElement {
         />
         {/* aria-hidden: the value is the CONTROL's own state, and the trigger already carries the field's
             accessible name — announcing the string again would read the colour twice per field. */}
-        <Text aria-hidden={true} as="span" className="truncate" voice="gloss">
+        <Text aria-hidden={true} as="span" truncate={true} voice="gloss">
           {readout}
         </Text>
       </Row>

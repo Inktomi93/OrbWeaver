@@ -240,6 +240,7 @@ export const TOKENS = {
   "opacity.hover": { cssVar: "--opacity-hover", value: "80%" },
   "opacity.quiet": { cssVar: "--opacity-quiet", value: "90%" },
   "opacity.resting": { cssVar: "--opacity-resting", value: "80%" },
+  "opacity.held": { cssVar: "--opacity-held", value: "90%" },
   "opacity.grain": { cssVar: "--opacity-grain", value: "4%" },
   "stroke-width.icon-regular": { cssVar: "--stroke-width-icon-regular", value: "1.75px" },
   "stroke-width.icon-bold": { cssVar: "--stroke-width-icon-bold", value: "2.5px" },

@@ -63,7 +63,17 @@ const writesOnly = (arm: Arm, token: string): boolean => arm.tokens.length === 1
  */
 function picksFamily(arms: ArmClasses, base: string): boolean {
   const written = writtenChoices(arms, base);
-  return written.every((family) => family.length > 0) && new Set(written.flat()).size >= MIN_FAMILY_CHOICES;
+  return written.every((family) => family.length > 0) && new Set(written.flat()).size >= MIN_FAMILY_CHOICES && alternatives(arms);
+}
+
+const coveredBy = (from: readonly string[], onto: readonly string[]): boolean => from.every((token) => onto.some((other) => sameFamily(token, other)));
+
+/** The writing arms are alternatives: each writes the same utility families. Arms that each compose a different set of classes are named compositions, not a ramp. */
+function alternatives(arms: ArmClasses): boolean {
+  const plain = armsOf(arms)
+    .filter((arm) => arm.tokens.length > 0)
+    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""));
+  return plain.every((one) => coveredBy(one, plain[0] ?? []) && coveredBy(plain[0] ?? [], one));
 }
 
 /** Each writing arm's classes in the family. An unconditional class only: an arm under a variant is not the axis's own choice. */
@@ -78,12 +88,36 @@ function offersFamily(arms: ArmClasses, base: string): boolean {
   return written.length === 1 && arms.size > 1 && (written[0]?.length ?? 0) > 0;
 }
 
-/** The axis that owns the class: an arm writes it alone, or writes it as the axis's choice in its family. Null when the element is not a primitive or no arm does. */
-export function writingAxis(elem: Elem | null, token: string, components: ComponentTables): DeclaredAxis | null {
-  const axes = [...(recipeOf(elem, components)?.axes ?? [])];
-  const found =
+/** The arm lists more than one class and the element wears every one of them: the arm is what they write together. */
+const wornWhole = (arm: Arm, token: string, siblings: readonly string[]): boolean =>
+  arm.tokens.length > 1 && arm.tokens.includes(token) && arm.tokens.every((written) => written === token || siblings.includes(written));
+
+/**
+ * The axis of a component's recipe that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is a
+ * multi-class arm whose every class the element wears (`siblings` are the classes written beside it).
+ */
+export function axisWriting(recipe: ComponentRecipe | undefined, token: string, siblings: readonly string[]): readonly [string, ArmClasses] | undefined {
+  const axes = [...(recipe?.axes ?? [])];
+  return (
     axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token));
+    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token)) ??
+    axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings)))
+  );
+}
+
+/** The arm of an axis that writes the class: one that writes it alone, else one the element wears whole, else the first that lists it. */
+export function armWriting(arms: ArmClasses, token: string, siblings: readonly string[]): readonly [string, Arm] | undefined {
+  const all = [...arms];
+  return (
+    all.find(([, candidate]) => writesOnly(candidate, token)) ??
+    all.find(([, candidate]) => wornWhole(candidate, token, siblings)) ??
+    all.find(([, candidate]) => candidate.tokens.includes(token))
+  );
+}
+
+/** The axis that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is worn whole. Null when the element is not a primitive or no arm does. */
+export function writingAxis(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): DeclaredAxis | null {
+  const found = axisWriting(recipeOf(elem, components), token, siblings);
   return elem === null || found === undefined ? null : declaredAxis(elem, found[0], found[1]);
 }
 
@@ -129,19 +163,18 @@ export function undeclaredJudgement(elem: Elem | null, token: string, components
   };
 }
 
-/** An arm writes one unconditional class; a class under a variant, a ternary or `&&` is a conditional use. */
+/** A class under a variant, a ternary or `&&` is a conditional use, so a new arm for it is a design call. */
 const conditionalMark = (token: string, guarded: boolean): string => (guarded || baseOf(token).variants !== "" ? ", conditional" : "");
 
 /** The recipe verdict for a class an arm of the axis writes, naming the slots when the arm is slot-keyed. */
-export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boolean): Judgement {
-  const arms = [...axis.arms];
-  const [arm, written] = arms.find(([, candidate]) => writesOnly(candidate, token)) ??
-    arms.find(([, candidate]) => candidate.tokens.includes(token)) ?? ["", null];
+export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boolean, siblings: readonly string[]): Judgement {
+  const [arm, written] = armWriting(axis.arms, token, siblings) ?? ["", null];
   const slots = written === null || written.slots.length === 0 ? "" : ` in slots ${written.slots.join(", ")}`;
   return {
     verdict: "recipe",
     match: `${axis.label}.${arm}`,
-    owner: `${axis.label}${conditionalMark(token, guarded)}`,
+    // An arm that writes the variant-prefixed class whole applies the same variant, so the prefix leaves the move exact; only a guard conditions it.
+    owner: `${axis.label}${guarded ? ", conditional" : ""}`,
     reason: `arm "${arm}" of ${axis.label} writes ${token}${slots}`,
     keep: null,
   };

@@ -265,7 +265,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
             Select what scored under {LOW_SCORE_BAR}
           </Button>
         ) : null}
-        <Row className="flex-1" gap="row" justify="end">
+        <Row grow={true} gap="row" justify="end">
           <DialogClose
             render={
               <Button variant="ghost" size="sm">

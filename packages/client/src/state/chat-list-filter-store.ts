@@ -26,7 +26,7 @@ export interface ChatListCharacterFilter {
 // A census that ignores the filters beside it is not a fact about anything the reader can see.
 //
 // The RAW typed search is what is stored, not the debounced one: the field is controlled off it, and a
-// consumer that turns it into a QUERY damps it with the shared `CHAT_LIST_SEARCH_DEBOUNCE_MS`
+// consumer that turns it into a QUERY damps it with the shared `SEARCH_DEBOUNCE_MS`
 // (`features/chat/lib/chat-list-scope.ts`) — one damper constant, applied by each consumer, rather than a
 // second stored copy that could disagree with the field.
 interface ChatListFilterState {

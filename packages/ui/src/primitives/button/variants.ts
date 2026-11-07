@@ -4,7 +4,7 @@ import {
   CONTROL_INLINE,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
-  CONTROL_SIZES,
+  CORNER,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
@@ -19,6 +19,8 @@ import {
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
   TONE_ARMS,
+  TONE_OUTLINE,
+  TONE_TINT_HOVER,
   TOUCH_FLOOR_AT_COARSE,
   tv,
 } from "#lib";
@@ -30,9 +32,6 @@ import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
 // (`GlyphButton`, `InlineAction`, `PictureButton`), so neither `size` nor `variant` has a default here: a named
 // component that passes neither draws no Button box and no Button style. `Button` resolves both defaults itself.
 // The size axis is the sole owner of Button's box: a call-site class cannot reliably beat a custom-token height.
-
-// The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
-const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
 
 export const buttonVariants = tv({
   base: [
@@ -47,6 +46,10 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
+    corner: CORNER,
+    // A button that is a row's door: it takes the room left beside its siblings and sets its label at the start.
+    // `line` is a whole list line: the full width and the field inset, its text set at the start.
+    stretch: { row: "flex-1 justify-start min-inline-0", line: "px-field text-start inline-full" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
@@ -58,7 +61,7 @@ export const buttonVariants = tv({
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
-      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER}`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER}`,
       ghost: `text-tone-text ${TONE_TINT_HOVER}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
@@ -136,10 +139,16 @@ export const buttonVariants = tv({
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
   // A square's width and a wrap's floor are the scale step's own height; the other boxes take neither.
-  compoundVariants: CONTROL_SIZES.flatMap((size) => [
-    { size, square: true, class: CONTROL_INLINE[size] },
-    { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
-  ]),
+  compoundVariants: [
+    { size: "chip", square: true, class: CONTROL_INLINE.chip },
+    { size: "sm", square: true, class: CONTROL_INLINE.sm },
+    { size: "md", square: true, class: CONTROL_INLINE.md },
+    { size: "lg", square: true, class: CONTROL_INLINE.lg },
+    { size: "chip", wrap: true, class: CONTROL_MIN_BLOCK.chip },
+    { size: "sm", wrap: true, class: CONTROL_MIN_BLOCK.sm },
+    { size: "md", wrap: true, class: CONTROL_MIN_BLOCK.md },
+    { size: "lg", wrap: true, class: CONTROL_MIN_BLOCK.lg },
+  ],
   defaultVariants: {
     square: false,
     wrap: false,

@@ -133,7 +133,7 @@ function ExtraRowView({
 
   return (
     <Stack aria-label={`Extra request ${subject}`} data-slot="connection-extra-row" data-extra-key={key} gap="tight" role="group">
-      <Row align="end" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
+      <Row align="end" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
         <Field className="grow min-inline-0" error={pasteError} label="Field">
           <Input
             autoComplete="off"
@@ -158,7 +158,7 @@ function ExtraRowView({
             value={row.value}
           />
         </Field>
-        <Row className="shrink-0 @max-cq-32:justify-end" gap="field">
+        <Row className="shrink-0" endBelow="cq-32" gap="field">
           <Button
             aria-label={key === "" ? "Remove this field" : `Remove the ${key} field`}
             disabled={busy}

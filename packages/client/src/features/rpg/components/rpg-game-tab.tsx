@@ -100,7 +100,7 @@ function TrackerRow({
   return (
     <DefRow slot="rpg-tracker-row">
       <Row gap="field" align="center" className="flex-wrap">
-        <Row gap="field" align="center" touchFloor="block" className="flex-1 min-inline-(--width-title-floor)">
+        <Row gap="field" align="center" touchFloor="block" className="min-inline-(--width-title-floor)" grow={true}>
           {def.shape === "meter" ? (
             <TrackBar
               value={1}
@@ -123,7 +123,7 @@ function TrackerRow({
           />
         </Row>
         {def.shape === "meter" ? (
-          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap max-inline-full">
+          <Row gap="field" align="baseline" touchFloor="block" className="shrink-0 flex-wrap" cap="fit">
             <Text as="span" voice="gloss">
               default max
             </Text>

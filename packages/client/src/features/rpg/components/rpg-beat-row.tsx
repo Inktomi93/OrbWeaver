@@ -185,7 +185,7 @@ function BeatBodyEditor({
               size="text"
               render={
                 <InlineAction variant="ghost" step="label" className="px-field text-start whitespace-normal max-inline-full min-inline-0">
-                  <Text as="span" voice="label" className="wrap-break-word min-inline-0">
+                  <Text as="span" voice="label" className="min-inline-0" wrap="word">
                     {restText}
                   </Text>
                 </InlineAction>

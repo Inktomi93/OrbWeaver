@@ -4,7 +4,6 @@
 
 import type { StackProps } from "@orb/ui/layout";
 import { Stack, Surface } from "@orb/ui/layout";
-import { cn } from "@orb/ui/lib";
 import type { ComponentProps, ReactElement } from "react";
 
 const EDITOR_KINDS = ["form", "instrument"] as const;
@@ -29,14 +28,10 @@ export function EditorPage({ kind = "form", inset = "none", gap, padding, focusT
         {...stack}
         gap={gap}
         padding={padding}
+        paddingBlock={inset === "none" ? undefined : inset}
         focusTarget={focusTarget}
-        className={cn(
-          kind === "form"
-            ? "mx-auto inline-full max-inline-(--width-content-col) min-inline-0 @cq-64:max-inline-(--width-content-col-wide)"
-            : "mx-auto inline-full max-inline-(--width-content-col) min-inline-0",
-          inset === "block" ? "py-block" : undefined,
-          inset === "section" ? "py-section" : undefined,
-        )}
+        cap={kind === "form" ? "columnWide" : "column"}
+        className="mx-auto inline-full min-inline-0"
       />
     </Surface>
   );

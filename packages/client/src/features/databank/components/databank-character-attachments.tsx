@@ -121,9 +121,9 @@ function MutationRetry({ copy, onRetry }: { readonly copy: string; readonly onRe
 
 function CharacterDoor({ id, name }: { readonly id: CharacterId; readonly name: string }): ReactElement {
   return (
-    <Button className="flex-1 justify-start min-inline-0" variant="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
+    <Button stretch="row" variant="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
       <Icon icon={Users} size="xs" />
-      <Text ink="inherit" as="span" className="truncate min-inline-0" voice="label">
+      <Text ink="inherit" as="span" truncate={true} voice="label">
         {name}
       </Text>
     </Button>

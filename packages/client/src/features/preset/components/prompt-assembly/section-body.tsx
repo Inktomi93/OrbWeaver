@@ -145,7 +145,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCop
       </Button>
       <div hidden={!open} id={bodyId}>
         {open ? (
-          <Text className="whitespace-pre-wrap" voice="gloss">
+          <Text whitespace="preWrap" voice="gloss">
             {detail.text}
           </Text>
         ) : null}

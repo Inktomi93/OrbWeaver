@@ -410,7 +410,7 @@ function EditorTier({
             </Badge>
           )}
           {kicker === undefined ? null : (
-            <Text className="truncate min-inline-0" voice="gloss">
+            <Text truncate={true} voice="gloss">
               {kicker}
             </Text>
           )}

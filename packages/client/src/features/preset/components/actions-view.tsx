@@ -243,8 +243,8 @@ function TemplateCluster({
   if (filtering) {
     return (
       <Stack gap="tight">
-        <Row align="center" className="px-field" gap="tight">
-          <Text as="span" className="truncate" voice="kicker">
+        <Row align="center" paddingInline="field" gap="tight">
+          <Text as="span" truncate={true} voice="kicker">
             {cluster.label}
           </Text>
           <Text as="span" voice="datum">

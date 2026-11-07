@@ -189,7 +189,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
           (character-options-tab), where the label + the three actions overflow one line and the last one
           clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
           editor. */}
-      <Row gap="field" align="center" className="flex-wrap justify-between">
+      <Row gap="field" align="center" className="flex-wrap" justify="between">
         <Row gap="field" align="center" className="flex-wrap">
           <Text voice="label">Theme</Text>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
@@ -375,7 +375,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
           <MenuItem key={theme.id} onClick={(): void => onPick(theme)}>
             <Row align="center" gap="field" className="min-inline-0">
               <ThemeSwatchStrip tokens={theme.override} />
-              <Text ink="inherit" as="span" className="truncate min-inline-0">
+              <Text ink="inherit" as="span" truncate={true}>
                 {theme.name}
               </Text>
             </Row>

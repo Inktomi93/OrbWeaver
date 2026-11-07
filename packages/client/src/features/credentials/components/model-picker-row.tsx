@@ -10,10 +10,10 @@ import { formatContextLength, formatPromptPrice, hasTools, hasVision } from "../
 
 export function ModelPickerRow({ entry, picked, current }: { readonly entry: PickerEntry; readonly picked: boolean; readonly current: boolean }): ReactElement {
   return (
-    <Container className="flex-1 min-inline-0">
-      <Row align="start" className="@max-cq-32:flex-col" gap="row">
-        <Stack className="flex-1 min-inline-0 @max-cq-32:inline-full" gap="field">
-          <Text as="span" className="line-clamp-2 wrap-break-word min-inline-0" ink="inherit">
+    <Container className="min-inline-0" grow={true}>
+      <Row align="start" gap="row" stackBelow="cq-32">
+        <Stack className="min-inline-0 @max-cq-32:inline-full" grow={true} gap="field">
+          <Text as="span" className="line-clamp-2 min-inline-0" wrap="word" ink="inherit">
             {entry.label}
           </Text>
           {entry.label === entry.id ? null : (

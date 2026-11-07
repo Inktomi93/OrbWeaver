@@ -185,7 +185,8 @@ function runNowRefusal(rule: Rule): string | null {
  *  overflow menu carrying the two actions that are not free (Run now — it spends) and not reversible
  *  (Delete — behind the composite's confirm). Then the last dry-run verdict and the collapsible fire log. */
 export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
-  const closedGloss = useMobileViewport() ? "line-clamp-2" : "block truncate";
+  const mobile = useMobileViewport();
+  const closedGloss = mobile ? "line-clamp-2" : "block";
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRuleEnabled({ trpc, invalidation });
@@ -261,13 +262,13 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             {/* THE CLOSED FACE — the whole of what a rule IS at a glance: its name, what it does, and when it
                 last ran. It is the row's own name/gloss/state trio, standing ALONE while the actions wait
                 behind the disclosure. */}
-            <Stack className="flex-1 min-inline-0" gap="tight">
-              <Text className="wrap-anywhere" voice="promoted">
+            <Stack className="min-inline-0" grow={true} gap="tight">
+              <Text wrap="anywhere" voice="promoted">
                 {rule.name}
               </Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
                   Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
-              <Text className={open ? undefined : closedGloss} prose={true} voice="gloss">
+              <Text className={open ? undefined : closedGloss} prose={true} truncate={!(open || mobile)} voice="gloss">
                 {ruleGloss(rule)}
               </Text>
               {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host
@@ -292,7 +293,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* Both `Button` styles this row uses take their host ink; in a prose panel Test and the ghost overflow
             trigger would both resolve to the muted ink and erase the three-weights reading of the row. */}
         <CollapsiblePanel holds="controls">
-          <Stack className="px-block pbe-block" gap="field">
+          <Stack className="pbe-block" paddingInline="block" gap="field">
             <Row align="center" className="flex-wrap" gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (

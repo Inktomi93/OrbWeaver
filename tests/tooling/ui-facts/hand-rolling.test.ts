@@ -5,10 +5,10 @@ import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { Hit } from "../../../tooling/src/ui-facts/hand-model.ts";
 import { byPlace } from "../../../tooling/src/ui-facts/hand-model.ts";
-import { staleScopes } from "../../../tooling/src/ui-facts/hand-scope.ts";
 import { runUiFacts } from "../../../tooling/src/ui-facts/index.ts";
 import type { MigrationPlan } from "../../../tooling/src/ui-facts/migration.ts";
 import { loadValueTokens } from "../../../tooling/src/ui-facts/tokens.ts";
+import { plantTheme } from "./_theme.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../../..");
 const THEME = [
@@ -25,6 +25,11 @@ const THEME = [
   "}",
   "",
 ].join("\n");
+// The two theme tokens above that name one purpose, as tokens.json declares them.
+const THEME_PURPOSES = {
+  "opacity-receded": "one meaning of an element's opacity",
+  "border-width-control": "a named edge weight",
+};
 const UI_PACKAGE = JSON.stringify({
   exports: { "./layout": "./src/layout/index.ts", "./text": "./src/primitives/text/index.ts", "./button": "./src/primitives/button/index.ts" },
 });
@@ -69,7 +74,7 @@ const FEATURE = "packages/client/src/features/probe";
 function plant(root: string, files: Readonly<Record<string, string>>): void {
   plantFile(root, "tooling/src/ui-facts/exceptions.json", EXCEPTIONS);
   plantFile(root, "packages/ui/package.json", UI_PACKAGE);
-  plantFile(root, "packages/ui/src/styles/theme.css", THEME);
+  plantTheme(root, THEME, THEME_PURPOSES);
   plantFile(root, "packages/ui/src/layout/variants.ts", LAYOUT_VARIANTS);
   plantFile(root, "packages/ui/src/layout/components.tsx", LAYOUT_COMPONENTS);
   plantFile(root, "packages/ui/src/primitives/text/variants.ts", TEXT_VARIANTS);
@@ -264,7 +269,7 @@ test("a bare edge is a keep once the theme declares the default step; with none 
   const uses = 'export const A = () => <><span className="border" /><span className="border-s" /><span className="ring" /></>;';
   const withDefault = plantDir(scratch, "edges-default");
   plant(withDefault, { "components/uses.tsx": uses });
-  plantFile(withDefault, "packages/ui/src/styles/theme.css", THEME.replace("--z-modal", "--border-width-default: 1px;\n  --z-modal"));
+  plantTheme(withDefault, THEME.replace("--z-modal", "--border-width-default: 1px;\n  --z-modal"), THEME_PURPOSES);
   const kept = census(withDefault).hits.filter((hit) => hit.category === "class-utility");
   expect(kept.map((hit) => [hit.detail, hit.keep])).toEqual([
     ["border", "token-utility"],
@@ -290,6 +295,35 @@ test("a keyframe waypoint keeps its literal opacity, and the same number outside
     [3, "keyframe-waypoint", "keep"],
     [7, null, "decide"],
   ]);
+});
+
+test("a rule inside a cascade layer is read, and a 1 beside a star is a unit cast, not a length", ({ scratch }) => {
+  const root = plantDir(scratch, "layered");
+  plant(root, {
+    "styles/probe.css": "@layer ui {\n  .a {\n    opacity: 0.35;\n    margin-block-start: calc(var(--dial) * 1rem);\n    border-width: 1px;\n  }\n}\n",
+  });
+  const rows = census(root).hits.map((hit) => [hit.line, hit.keep, hit.verdict]);
+  expect(rows).toEqual([
+    [3, null, "token"],
+    [4, "unit-cast", "keep"],
+    [5, null, "decide"],
+  ]);
+});
+
+test("two arms that each compose a different set of classes are not a ramp, so a class of the family they share is no new arm", ({ scratch }) => {
+  const root = plantDir(scratch, "composed-arms");
+  plant(root, { "components/uses.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const A = () => <Stack className="inline-full" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    "export const stackVariants = tv({ variants: { pane: { portrait: 'aspect-portrait inline-4 max-block-full', banner: 'inline-1/2 min-block-8' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Stack({ pane, className }) {\n  return <div className={stackVariants({ pane, className })} />;\n}",
+  );
+  expect(census(root).hits.filter((hit) => hit.detail === "inline-full")).toEqual([]);
 });
 
 test("an alpha named for an opacity step stays visible beside a numbered one", ({ scratch }) => {
@@ -323,8 +357,28 @@ test("constants that share a number and name different things are keeps, until a
   expect(brief(named(census(root).hits, "LIVE_POLL_MS = 5000ms"))).toEqual(["repeated-constant", "decide", "constant: 5000ms poll"]);
 });
 
-test("every token scope row matches a token in the real theme", () => {
-  expect(staleScopes(loadValueTokens(REPO_ROOT))).toEqual([]);
+test("every orb.purpose in the real tokens.json covers a token the real theme declares", () => {
+  expect(loadValueTokens(REPO_ROOT).staleScopes).toEqual([]);
+});
+
+test("a purpose in tokens.json scopes its group and a token under it, and a purpose nothing declares is stale", ({ scratch }) => {
+  const root = plantDir(scratch, "purposes");
+  plantFile(root, "packages/ui/src/styles/theme.css", ":root {\n  --size-dot: 8px;\n  --spacing-row: 8px;\n}\n");
+  plantFile(
+    root,
+    "packages/ui/src/tokens/tokens.json",
+    JSON.stringify({
+      size: { $extensions: { "orb.purpose": "a component's own dimension" }, dot: { $value: "0.5rem" } },
+      spacing: { row: { $value: "0.5rem" }, gone: { $value: "1rem", $extensions: { "orb.purpose": "outlived" } } },
+      $extensions: { "orb.cssValues": {} },
+    }),
+  );
+  const tokens = loadValueTokens(root);
+  expect(tokens.all.map((token) => [token.name, token.scope])).toEqual([
+    ["--size-dot", "a component's own dimension"],
+    ["--spacing-row", null],
+  ]);
+  expect(tokens.staleScopes).toEqual(["spacing.gone"]);
 });
 
 test("a recipe class under a ternary, `&&` or a variant is marked conditional, since a codemod must skip it", ({ scratch }) => {
@@ -557,17 +611,15 @@ test("a plan lists a row only when the arm writes exactly its class on a named c
   const { code, printed } = migrate(root, "plan");
   const plan = planOf(root);
   expect(code).toBe(0);
-  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 2 for review");
+  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 1 for review");
   // The alias is planned under the name its import exports, with the specifier a rewrite must prove.
   expect(plan.sites.map(({ line, source, name, token, prop, value }) => [line, source, name, token, prop, value])).toEqual([
     [4, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
     [5, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
   ]);
-  // The conditional site is a different owner and never appears; the arm that writes two classes and the carrier go to review.
-  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([
-    [6, 'arm "between" writes justify-between items-baseline, which is not exactly justify-between'],
-    [8, "the class is written on a carrier that renders Row"],
-  ]);
+  // The conditional site is a different owner and never appears; the carrier goes to review. The `between` arm composes two classes, so
+  // the axis is no ramp of alternatives and its lone class (line 6) is owned by nothing.
+  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([[8, "the class is written on a carrier that renders Row"]]);
 });
 
 test("a boolean arm plans its prop as a JSX expression", ({ scratch }) => {
@@ -577,6 +629,89 @@ test("a boolean arm plans its prop as a JSX expression", ({ scratch }) => {
   });
   expect(migrate(root, "plan", "text.truncate").code).toBe(0);
   expect(planOf(root).sites.map(({ prop, value }) => [prop, value])).toEqual([["truncate", "{true}"]]);
+});
+
+test("a class with a variant prefix moves to the arm that writes it whole, and one no arm writes is not planned as the plain class", ({ scratch }) => {
+  const root = plantDir(scratch, "prefixed-token");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      "export const A = () => (",
+      "  <>",
+      '    <Row className="@max-cq-64:justify-end" />',
+      '    <Row className="hover:justify-end" />',
+      '    <Row className="@max-cq-64:justify-end hover:justify-end" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    ["export const rowVariants = tv({", "  variants: { justify: { end: 'justify-end' }, endBelow: { 'cq-64': '@max-cq-64:justify-end' } },", "});"].join("\n"),
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    ["export function Row({ justify, endBelow, className }) {", "  return <div className={rowVariants({ justify, endBelow, className })} />;", "}"].join("\n"),
+  );
+  migrate(root, "plan", "row.endBelow");
+  const plan = planOf(root);
+  expect(plan.sites.map(({ line, token, prop, value }) => [line, token, prop, value])).toEqual([
+    [4, "@max-cq-64:justify-end", "endBelow", "cq-64"],
+    [6, "@max-cq-64:justify-end", "endBelow", "cq-64"],
+  ]);
+  expect(plan.review).toEqual([]);
+});
+
+test("a gradient, a vendor override, an SVG radius, a native control value and dev seed data are kept where their home owns them, and undecided anywhere else", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "placed-keeps");
+  const probe = ['export const A = () => <div className="bg-linear-to-r via-60%" />;', 'export const B = () => <div className="translate-none!" />;'].join(
+    "\n",
+  );
+  plant(root, { "components/probe.tsx": probe, "styles/probe.css": "[data-slot='stars'] circle {\n  r: 1.05px;\n}\n" });
+  plantFile(root, "packages/ui/src/primitives/probe/probe.tsx", probe);
+  plantFile(root, "packages/ui/src/primitives/probe/probe.css", ".orb-probe {\n  background: linear-gradient(to right, red, blue);\n}\n");
+  plantFile(root, "packages/ui/src/primitives/probe/native.ts", 'export const FALLBACK_NATIVE_HEX = "#808080";\nexport const FALLBACK_HEX = "#818181";');
+  plantFile(root, "packages/client/src/dev/seed.ts", 'export const SEED = { color: "#e05a5a" };');
+  const { hits } = census(root);
+  const at = (path: string, detail: string): readonly unknown[] => {
+    const hit = hits.find((candidate) => candidate.path.endsWith(path) && candidate.detail.includes(detail));
+    return [hit?.verdict, hit?.keep];
+  };
+  expect(at("packages/ui/src/primitives/probe/probe.tsx", "bg-linear-to-r")).toEqual(["keep", "owned-gradient"]);
+  expect(at("packages/ui/src/primitives/probe/probe.css", "linear-gradient")).toEqual(["keep", "owned-gradient"]);
+  expect(at("components/probe.tsx", "bg-linear-to-r")).toEqual(["decide", null]);
+  expect(at("packages/ui/src/primitives/probe/probe.tsx", "translate-none!")).toEqual(["keep", "vendor-override"]);
+  expect(at("components/probe.tsx", "translate-none!")).toEqual(["decide", null]);
+  expect(at("styles/probe.css", "r: 1.05px")).toEqual(["keep", "svg-geometry"]);
+  expect(at("native.ts", "#808080")).toEqual(["keep", "dom-api-literal"]);
+  expect(at("native.ts", "#818181")[0]).toBe("token");
+  expect(at("dev/seed.ts", "#e05a5a")).toEqual(["keep", "dev-seed-data"]);
+});
+
+test("an arm of several classes plans each of them when the class string holds all, and none when a class is missing", ({ scratch }) => {
+  const root = plantDir(scratch, "multi-class-arm");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      "export const A = () => (",
+      "  <>",
+      '    <Row className="justify-between items-baseline x" />',
+      '    <Row className="items-baseline" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  migrate(root, "plan", "row.justify");
+  const plan = planOf(root);
+  expect(plan.sites.map(({ line, token, value }) => [line, token, value])).toEqual([
+    [4, "items-baseline", "between"],
+    [4, "justify-between", "between"],
+  ]);
+  expect(plan.review).toEqual([]);
 });
 
 test("an empty plan fails when the census ranks rows under the owner or nothing declares it, and is clean only when no row is left", ({ scratch }) => {
@@ -850,8 +985,13 @@ const SHUT_DOORS: readonly (readonly [string, string, string])[] = [
   ],
   [
     "Whole",
-    "function Whole(props) { const { justify, className } = props; return <div data-j={props.justify} className={fooVariants({ justify, className })} />; }",
+    "function Whole(props) { const { justify, className } = props; return <div data-j={describe(props)} className={fooVariants({ justify, className })} />; }",
     "the door takes its props whole, so its reads of them are not visible",
+  ],
+  [
+    "Named",
+    "function Named(props) { const { justify, className } = props; return <div data-j={props.justify} className={fooVariants({ justify, className })} />; }",
+    "the door reads justify beyond the recipe, so the prop does more than write justify-end",
   ],
   [
     "Peeks",
@@ -946,7 +1086,7 @@ test("a proof passes when every remaining row has a reason, and fails on a row n
     ),
   });
   expect(migrate(root, "prove")).toMatchObject({ code: 0 });
-  expect(migrate(root, "prove").printed).toContain("2 remain, 0 without a reason");
+  expect(migrate(root, "prove").printed).toContain("1 remain, 0 without a reason");
   // A row the plan listed and the codemod skipped is explained only by the skip it recorded.
   plant(root, { "components/uses.tsx": MIGRATING });
   const unexplained = migrate(root, "prove");

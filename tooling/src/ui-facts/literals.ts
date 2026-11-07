@@ -1,5 +1,5 @@
 // The literal values a CSS value holds, read from the css-tree AST: what each one is, so a token can be asked whether it holds it.
-import type { CssNode, FunctionNode } from "@eslint/css-tree";
+import type { CssNode, FunctionNode, ListItem } from "@eslint/css-tree";
 import { generate, parse, walk } from "@eslint/css-tree";
 
 const REM_PX = 16;
@@ -12,7 +12,7 @@ export const VALUE_KINDS = ["length", "measure", "duration", "opacity", "z", "we
 export type ValueKind = (typeof VALUE_KINDS)[number];
 
 /** Kinds that are CSS structure or have no token family: they are classified, never matched. */
-const STRUCTURAL_KINDS = ["zero", "relative", "angle", "derived", "mechanism", "gradient", "floor"] as const;
+const STRUCTURAL_KINDS = ["zero", "relative", "angle", "derived", "mechanism", "gradient", "floor", "unit"] as const;
 type StructuralKind = (typeof STRUCTURAL_KINDS)[number];
 
 export type LitKind = ValueKind | StructuralKind;
@@ -149,6 +149,15 @@ function holdsLiteral(value: CssNode): boolean {
   return found;
 }
 
+const isMultiply = (node: CssNode | undefined): boolean => node?.type === "Operator" && node.value === "*";
+
+/** A `1<unit>` beside a `*` is a unit, not a length: it turns a unitless dial into the length the dial means. */
+function isUnitCast(node: CssNode & { value: string }, item: ListItem<CssNode> | undefined): boolean {
+  const near = (step: ListItem<CssNode> | null | undefined): CssNode | undefined => (step?.data.type === "WhiteSpace" ? step.prev?.data : step?.data);
+  const after = (step: ListItem<CssNode> | null | undefined): CssNode | undefined => (step?.data.type === "WhiteSpace" ? step.next?.data : step?.data);
+  return Number(node.value) === 1 && (isMultiply(near(item?.prev)) || isMultiply(after(item?.next)));
+}
+
 /** Every literal a property's value writes, in source order. Mechanism properties and shadows read as one literal each. */
 export function litsOf(property: string | null, value: CssNode): readonly Lit[] {
   const name = property?.toLowerCase() ?? null;
@@ -161,7 +170,11 @@ export function litsOf(property: string | null, value: CssNode): readonly Lit[] 
   }
   const out: Lit[] = [];
   walk(value, {
-    enter(node): symbol | undefined {
+    enter(node, item): symbol | undefined {
+      if (node.type === "Dimension" && isUnitCast(node, item)) {
+        out.push(lit("unit", `${round(Number(node.value))}${node.unit.toLowerCase()}`, `${node.value}${node.unit}`));
+        return undefined;
+      }
       if (node.type === "Function") {
         const found = functionLit(node);
         if (found !== null) {

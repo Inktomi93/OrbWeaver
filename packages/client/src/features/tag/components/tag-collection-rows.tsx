@@ -54,7 +54,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const empty = filtered.length === 0;
   const filterMiss = empty && needle !== "";
   return (
-    <Stack className="flex-1 min-block-0" gap="tight">
+    <Stack className="min-block-0" grow={true} gap="tight">
       {filterMiss ? (
         <Stack align="start" gap="field">
           <Text role="status" voice="gloss">

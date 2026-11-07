@@ -91,8 +91,8 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
   return <RelationshipBadge relationship={relationship} />;
 }
 
-const GUIDE_LINE = "wrap-break-word min-inline-0";
-const GUIDE_FIELD = "field-sizing-content wrap-break-word max-inline-full min-inline-0";
+const GUIDE_LINE = "min-inline-0";
+const GUIDE_FIELD = "wrap-break-word";
 
 interface NpcGuidesProps {
   readonly name: string;
@@ -124,7 +124,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" ink="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true}>
+            <Text as="span" ink="muted" italic={field === "thoughts"} className={GUIDE_LINE} voice="gloss" prose={true} wrap="word">
               {text}
             </Text>
           ) : (
@@ -163,7 +163,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
     // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="flex-1 justify-end min-inline-0">
+      <Row gap="field" align="baseline" className="min-inline-0" grow={true} justify="end">
         <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
@@ -174,7 +174,6 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
           placeholder={UNSET_DATUM}
           onEdit={onEditMood}
           wrap={true}
-          className="field-sizing-content max-inline-full min-inline-0"
           width="auto"
         />
       </Row>
@@ -184,7 +183,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" ink="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
+    <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
       mood — {mood}
     </Text>
   );

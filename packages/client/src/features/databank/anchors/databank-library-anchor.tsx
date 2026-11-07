@@ -14,7 +14,7 @@ export interface DatabankLibraryAnchorProps {
 /** Provide the `databank-library` container box the library surface consumes. */
 export function DatabankLibraryAnchor({ children }: DatabankLibraryAnchorProps): ReactElement {
   return (
-    <Container className="block-full" name="databank-library">
+    <Container fill={true} name="databank-library">
       {children}
     </Container>
   );

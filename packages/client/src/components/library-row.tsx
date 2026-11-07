@@ -163,7 +163,8 @@ function clusterSpacers(rendered: number, reserved: number): readonly ReactEleme
   return Array.from({ length: Math.max(0, Math.min(reserved, CLUSTER_SLOTS) - rendered) }, (_unused, at) => (
     <Row
       aria-hidden={true}
-      className="shrink-0 block-(--size-control-md) inline-(--size-control-md)"
+      className="shrink-0 inline-(--size-control-md)"
+      height="controlMd"
       data-slot="library-row-cluster-spacer"
       key={`cluster-spacer-${String(at)}`}
     />

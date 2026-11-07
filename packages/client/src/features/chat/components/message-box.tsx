@@ -3,11 +3,11 @@
 // density tier map.
 
 import type { MessageRole } from "@orb/kit/message-role";
-import type { StackProps } from "@orb/ui/layout";
 import { Stack } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { cn } from "#lib";
+import type { BubbleBoxProps, MessageBoxProps, ReadingBoxProps } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 
 const MESSAGE_BUBBLE_SLOT = "message-bubble";
@@ -20,45 +20,15 @@ function cornersFor(set: RowSkin["corners"], role: MessageRole): "card" | "speec
   return set;
 }
 
-// The plate column is inset a section from its gutter; on a phone its trailing edge takes a block, which leaves flat the
-// 32px more reading width than Moonlit that the small avatar chip buys.
-const PLATE_INSET = "px-section py-row @max-cq-28:pe-block";
-// The page is inset the gutter, with no block-end inset: the next page runs on. On a phone it keeps a tight inset, as
-// stock SillyTavern's document does, so the page keeps its reading width.
-const PAGE_INSET = "px-gutter pbs-row @max-cq-28:px-tight";
 const PAGE_LAST_ROW_FLOOR = "min-block-(--immersive-document-last-row-min-height)";
 const ECHO_CARD_FLOOR = "min-block-(--immersive-echo-min-height)";
-
-/** The box's arrangement: `stack` lays the content out at the row gap on the box's own inset; `bare` (whisper's band
- *  above its inset stack) and `weld` (ripple's portrait beside its inset stack) hand the inset to their own content. */
-const BOX_SHAPES = ["stack", "bare", "weld"] as const;
-type BoxShape = (typeof BOX_SHAPES)[number];
-
-export interface MessageBoxProps {
-  readonly box: RowSkin["box"];
-  readonly role: MessageRole;
-  readonly shape: BoxShape;
-  readonly phoneCap: boolean;
-  /** `RowSkin.corners`. */
-  readonly corners: RowSkin["corners"];
-  /** The transcript's last row of a skin with a floor (`RowSkin.lastRowFloor`). */
-  readonly lastRowFloor: boolean;
-  /** EDIT mode: the box stops hugging and fills the column the row holds open (`MessageRow`'s reservation). */
-  readonly editing: boolean;
-  /** Hide-from-AI: the row stays visible and recedes, because the toggle holds it out of assembly only. */
-  readonly receded: boolean;
-  /** Echo's art tile is positioned against the box. */
-  readonly positioned: boolean;
-  readonly artDecoration?: StackProps["artDecoration"];
-  readonly children: ReactNode;
-}
 
 export function MessageBox(props: MessageBoxProps): ReactElement {
   return props.box === "bubble" ? <BubbleCard {...props} /> : <ReadingBox {...props} />;
 }
 
 // The filled skins: the role's bubble card, which floats without a shadow at every elevation.
-function BubbleCard({ role, shape, phoneCap, corners, editing, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
+function BubbleCard({ role, shape, phoneCap, corners, editing, receded, positioned, artDecoration, children }: BubbleBoxProps): ReactElement {
   const weld = shape === "weld";
   const inset = shape === "stack";
   // An illustrated or striped card spans its column up to the bubble cap, so card widths do not jump between a short
@@ -97,28 +67,25 @@ function readingInk(box: RowSkin["box"], role: MessageRole): "prose" | "muted" |
 }
 
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
-function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, artDecoration, children }: MessageBoxProps): ReactElement {
+function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, children }: ReadingBoxProps): ReactElement {
   const page = box === "page";
   const inset = shape === "stack";
-  const plateInset = inset && !page;
-  const pageInset = inset && page;
   const floor = page && lastRowFloor;
   const overlayPage = page && !lastRowFloor;
   const weld = shape === "weld";
   return (
     <Stack
       data-slot={MESSAGE_BUBBLE_SLOT}
+      align={weld ? "start" : undefined}
       gap={inset ? "row" : undefined}
       plate="reading"
       ink={readingInk(box, role)}
       receded={receded}
-      artDecoration={artDecoration}
+      readingInset={inset ? box : undefined}
       className={cn(
         "inline-full",
         overlayPage ? "grid" : undefined,
-        weld ? "flex-row items-start" : undefined,
-        plateInset ? PLATE_INSET : undefined,
-        pageInset ? PAGE_INSET : undefined,
+        weld ? "flex-row" : undefined,
         floor ? PAGE_LAST_ROW_FLOOR : undefined,
         positioned && "relative",
       )}

@@ -270,11 +270,11 @@ function PickerRow({
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
       <Row align="center" className="min-inline-0" receded={attached && !script.enabled} gap="field">
-        {reserveGrip ? <Row aria-hidden={true} className="shrink-0 block-(--size-control-sm) inline-(--size-control-sm)" /> : null}
+        {reserveGrip ? <Row aria-hidden={true} className="shrink-0 inline-(--size-control-sm)" height="control" /> : null}
         <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-inline-0">
           <Row align="center" className="min-inline-0" gap="field">
-            <Text className="truncate">{name}</Text>
+            <Text truncate={true}>{name}</Text>
             {/* IT NAMES ITS OWN SUBJECT. "off" said which of the row's two switches it meant only to
                 someone who already knew; this says the whole fact — the script is disabled in the LIBRARY,
                 so attaching it here changes nothing until you enable it there. */}

@@ -527,19 +527,20 @@
     }
   }
 
-  /* The typing dots pulse in turn; the reduced-motion floor freezes each at its resting, nonzero opacity. */
+  /* The typing dots pulse in turn; the reduced-motion floor freezes each at its resting, nonzero opacity: the faint step,
+   * chrome that only hints at itself. */
   @keyframes orb-typing-dot {
     0%,
     60%,
     100% {
-      opacity: 0.35;
+      opacity: var(--opacity-faint);
     }
     30% {
       opacity: 1;
     }
   }
   .orb-typing-dot {
-    opacity: 0.35;
+    opacity: var(--opacity-faint);
     animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
   }
   /* The stagger divides the one shared period rather than minting durations. */

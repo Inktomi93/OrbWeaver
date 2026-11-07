@@ -22,7 +22,7 @@ import { Card } from "@orb/ui/card";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -43,7 +43,7 @@ const QUEST_TYPE_RE = /quest/i;
  *  one fewer column and a taller popover at coarse. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" touchFloor="gap" className="flex-wrap max-inline-(--width-control-col)">
+    <Row gap="field" touchFloor="gap" className="flex-wrap" cap="control">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Tip key={name} text={`${itemName}: use the ${name} icon`}>
           {/* eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes. */}
@@ -85,7 +85,6 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
 // `rpg-pack-cell` owner-CSS hook as its own slot.
 const TILE_SLOT = "rpg-pack-cell";
 const TILE_BOX = "relative inline-full min-inline-0";
-const TILE_INSET = "px-row py-field";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · the PINNED tell · where it's kept. Shared by both
  *  arms. `pinned` is the per-item pin's grid half: the tile is itself a Button (the editor's trigger), so it
@@ -97,18 +96,20 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} className="absolute inset-e-field inset-bs-field" tone="primary">
-          ●
-        </Text>
+        <Corner>
+          <Text as="span" voice="gloss" aria-hidden={true} tone="primary">
+            ●
+          </Text>
+        </Corner>
       ) : null}
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" ink="muted" className="shrink-0" />
-      <Stack gap="field" className="flex-1 min-inline-0">
+      <Stack gap="field" className="min-inline-0" grow={true}>
         <Row gap="field" align="baseline" className="min-inline-0">
           {/* The NAME is the datum and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
           {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
               recedes to `gloss` like its ×N and location has no head to read first. */}
-          <Text as="span" voice="label" className="flex-1 wrap-break-word min-inline-0">
+          <Text as="span" voice="label" className="flex-1 min-inline-0" wrap="word">
             {item.name}
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
@@ -131,7 +132,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             Model-authored free text with no length contract: it wraps; empty ⇒ nothing (the editor is where
             an unset location gets filled in, and it says so with a placeholder). */}
         {item.location === "" ? null : (
-          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
+          <Text as="span" voice="gloss" className="min-inline-0" wrap="word">
             {item.location}
           </Text>
         )}
@@ -139,7 +140,7 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
             TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
             the tile keeps its one-line density for the items the story hasn't described. */}
         {item.description === "" ? null : (
-          <Text as="span" voice="gloss" className="wrap-break-word min-inline-0">
+          <Text as="span" voice="gloss" className="min-inline-0" wrap="word">
             {item.description}
           </Text>
         )}
@@ -155,7 +156,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
   if (edit === undefined) {
     return (
       <Card className={TILE_BOX} ownSlot={TILE_SLOT} padding="none" shape="row">
-        <Row align="center" className={TILE_INSET} gap="field">
+        <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
           <PackCellInk item={item} />
         </Row>
       </Card>
@@ -170,7 +171,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       <PopoverTrigger
         render={
           <Card aria-label={`Edit ${item.name}`} as="button" className={TILE_BOX} interactive={true} ownSlot={TILE_SLOT} padding="none" shape="row">
-            <Row align="center" className={TILE_INSET} gap="field">
+            <Row align="center" gap="field" paddingBlock="field" paddingInline="row">
               <PackCellInk item={item} pinned={pinned} />
             </Row>
           </Card>
@@ -223,7 +224,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
     <Card>
       <Row gap="field" align="center" data-slot="rpg-pack-row">
         <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
-        <Stack gap="field" className="flex-1 min-inline-0">
+        <Stack gap="field" className="min-inline-0" grow={true}>
           <Row gap="field" align="baseline" className="min-inline-0">
             <ItemName item={item} {...(edit === undefined ? {} : { edit })} />
             <ItemQuantity item={item} {...(edit === undefined ? {} : { edit })} />

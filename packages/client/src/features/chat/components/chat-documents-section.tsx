@@ -223,7 +223,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
         // siblings (Field overrides, Macro picks, the host band) cannot. Without a cap of its own a
         // twenty-document room pushed every later section below the fold of the tab's scroller.
         // `overscroll-contain` keeps a flick inside the rack from chaining into the tab behind it.
-        <Stack className="relative overflow-y-auto overscroll-contain max-block-(--height-scroll-lg)" gap="tight">
+        <Stack scroll="y" className="max-block-(--height-scroll-lg)" gap="tight">
           {rows.map((row) => (
             <ActiveDocumentRow
               document={row}
@@ -298,7 +298,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   // rule, applied to a raw ListRow): only SOME rows are detachable, so without it the eye —
                   // the column a host scans this rack down — lands at two different x's row to row. Empty
                   // and aria-hidden: this is layout, never a disabled affordance.
-                  <Row aria-hidden={true} className="shrink-0 block-(--size-control-md) inline-(--size-control-md)" />
+                  <Row aria-hidden={true} className="shrink-0 inline-(--size-control-md)" height="controlMd" />
                 )}
               </>
             ),

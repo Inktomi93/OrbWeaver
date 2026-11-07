@@ -177,6 +177,10 @@ function isLabel(node: ts.Node, root: ts.Node): boolean {
   if (ts.isElementAccessExpression(parent) && parent.argumentExpression === node) {
     return true;
   }
+  // The input of the helper a constant is initialised with (`scaleOf("shadow")`) is that helper's own argument; only a class joiner or a recipe makes a string class text.
+  if (parent === root && ts.isCallExpression(parent) && !classCallee(parent)) {
+    return true;
+  }
   if (!isRecipeRoot(root)) {
     return false;
   }

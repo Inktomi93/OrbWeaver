@@ -196,11 +196,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
-        <Stack className="flex-1 min-inline-0">
-          <Text className="truncate" voice="label">
+        <Stack className="min-inline-0" grow={true}>
+          <Text truncate={true} voice="label">
             {current?.name ?? "No persona set"}
           </Text>
-          <Text className="truncate" voice="gloss">
+          <Text truncate={true} voice="gloss">
             {headGloss(state)}
           </Text>
         </Stack>
@@ -222,7 +222,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
   };
   return (
     <Stack gap="field" align="start">
-      <Text className={expanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"} data-slot="persona-who-description" ref={measure} voice="gloss">
+      <Text className={expanded ? undefined : "line-clamp-3"} data-slot="persona-who-description" whitespace="preWrap" ref={measure} voice="gloss">
         {text}
       </Text>
       {clamped ? (

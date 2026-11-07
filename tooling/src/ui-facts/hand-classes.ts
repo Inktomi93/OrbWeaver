@@ -4,7 +4,7 @@ import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.
 import { clusterKey, proposeName } from "./classify.ts";
 import { coveredJudgement, elementRefOf, newArmJudgement, undeclaredJudgement, writingAxis } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
+import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
 import { lit, valueStringLits } from "./literals.ts";
 import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
@@ -148,7 +148,7 @@ const FIXED: Readonly<Record<string, Judgement>> = {
   "tw-important": {
     verdict: "decide",
     match: null,
-    owner: "decide: an important modifier needs a variant",
+    owner: IMPORTANT_OWNER,
     reason: "an important modifier fights a primitive; no variant owns the need yet",
     keep: null,
   },
@@ -159,15 +159,15 @@ const FIXED: Readonly<Record<string, Judgement>> = {
     reason: "a viewport breakpoint variant is a container-query variant (@cq-*)",
     keep: null,
   },
-  "tw-gradient": { verdict: "decide", match: null, owner: "decide: gradient has no owner", reason: "no token or primitive owns gradients", keep: null },
+  "tw-gradient": { verdict: "decide", match: null, owner: GRADIENT_OWNER, reason: "no token or primitive owns gradients", keep: null },
   "tw-clip": { verdict: "decide", match: null, owner: "decide: clip-path has no owner", reason: "no token or primitive owns clip paths", keep: null },
 };
 
 /** The verdict for a class token the audit flags; an arm of the element's primitive that writes it wins over a token. */
-function flaggedJudgement({ token, elem, guarded }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
-  const axis = writingAxis(elem, token, context.components);
+function flaggedJudgement({ token, elem, guarded, siblings }: UsedToken, fact: TokenFact, context: ClassContext): Judgement {
+  const axis = writingAxis(elem, token, siblings, context.components);
   if (axis !== null) {
-    return coveredJudgement(axis, token, guarded);
+    return coveredJudgement(axis, token, guarded, siblings);
   }
   const fixed = FIXED[fact.kind];
   if (fixed !== undefined) {
@@ -201,13 +201,15 @@ interface UsedToken {
   readonly token: string;
   readonly elem: Elem | null;
   readonly guarded: boolean;
+  /** Every other class the same root writes. */
+  readonly siblings: readonly string[];
 }
 
 /** A valid utility on a primitive: an arm of its own table writes it, a new arm would, or another component of the door owns the family. */
-function ownedJudgement({ token, elem, guarded }: UsedToken, context: ClassContext): Judgement | null {
-  const axis = writingAxis(elem, token, context.components);
+function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: ClassContext): Judgement | null {
+  const axis = writingAxis(elem, token, siblings, context.components);
   if (axis !== null) {
-    return coveredJudgement(axis, token, guarded);
+    return coveredJudgement(axis, token, guarded, siblings);
   }
   const { base } = baseOf(token);
   if (ZERO_STEP.test(base)) {
@@ -273,10 +275,10 @@ function tokenHits({ source, line, column, tokens, elem, guarded, plain, rootTok
   const out: Hit[] = [];
   for (const token of tokens) {
     const fact = classifyToken(token);
-    const used: UsedToken = { token, elem, guarded };
+    const peers = rootTokens.filter((written) => written !== token);
+    const used: UsedToken = { token, elem, guarded, siblings: peers };
     const judgement = fact === null ? ownedJudgement(used, context) : flaggedJudgement(used, fact, context);
     if (judgement !== null) {
-      const peers = rootTokens.filter((written) => written !== token);
       const element = elementRefOf(elem, { plain, peers, opaque, column });
       out.push(hitOf(placeOf(source, line), { category: "class-utility", where: "class", detail: token }, judgement, element));
     }

@@ -57,7 +57,7 @@ function FootRow({
     return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" className={FOOT_CARD} />;
   }
   if (edge === "plate") {
-    return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap px-field" />;
+    return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap" paddingInline="field" />;
   }
   return <Row {...props} align={align} justify={justify} gap={gap} className={FOOT_INSIDE} />;
 }
@@ -158,7 +158,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
         count={
           // A VALUE you read — the `datum` voice, whose tabular figures stop the count nudging the chevron as
           // it ticks (UI-Density-Law.md §2.3). The position and nothing else: owner ruling, a label is noise.
-          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" ink="muted">
+          <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" whitespace="nowrap" ink="muted">
             {current} / {total}
           </Text>
         }
@@ -193,7 +193,7 @@ export function SwipeStrip({ message, foot }: SwipeStripProps): ReactElement {
 export function SwipeCount({ current, total, foot }: { readonly current: number | null; readonly total: number; readonly foot: SwipeFoot }): ReactElement {
   return (
     <FootRow edge={foot.edge} align="center" justify="end" data-slot="swipe-count">
-      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" className="whitespace-nowrap" ink="muted">
+      <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" whitespace="nowrap" ink="muted">
         {current ?? "—"} / {total}
       </Text>
       <Text as="span" className="sr-only">

@@ -38,15 +38,8 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
   useFocusOnMount(surfaceRef, true, false);
 
   return (
-    <Stack
-      align="center"
-      className="relative justify-center overflow-y-auto overscroll-contain block-full min-block-0"
-      focusTarget={true}
-      padding="section"
-      ref={surfaceRef}
-      tabIndex={-1}
-    >
-      <Stack className="inline-full max-inline-(--width-shell-content)" gap="section">
+    <Stack align="center" scroll="y" fill={true} justify="center" focusTarget={true} padding="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="inline-full" cap="shell" gap="section">
         <EmptyState
           action={
             <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>

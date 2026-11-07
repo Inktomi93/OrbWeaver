@@ -82,7 +82,19 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
       similarity: pair.similarity,
     });
   }
-  expect(result.reads.facets).toEqual({ genres: result.reads.catalog.genres, tones: result.reads.catalog.tones });
+  const settingCounts = Object.entries(Object.groupBy(result.summaries, (row) => row.setting ?? "")).flatMap(([value, rows]) =>
+    value === "" ? [] : [{ value, count: rows?.length ?? 0 }],
+  );
+  expect(settingCounts.length).toBeGreaterThan(0);
+  expect(result.reads.facets).toEqual({
+    genres: result.reads.catalog.genres,
+    tones: result.reads.catalog.tones,
+    settings: expect.arrayContaining(settingCounts),
+  });
+  expect(result.reads.facets.settings).toHaveLength(settingCounts.length);
+  for (const item of result.reads.browse.items) {
+    expect(item.setting).toBe(result.summaries.find((row) => row.characterId === item.characterId)?.setting ?? null);
+  }
   expect(result.reads.catalog.topTags).toContainEqual(expect.objectContaining({ tag: "loom" }));
   expect(result.reads.graph.nodes).toContainEqual(expect.objectContaining({ characterId: result.comparisonCard.id, name: result.comparisonCard.name }));
   expect(result.reads.graph.edges.some((edge) => edge.source === result.comparisonCard.id || edge.target === result.comparisonCard.id)).toBe(true);

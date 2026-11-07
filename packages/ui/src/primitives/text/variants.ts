@@ -182,12 +182,19 @@ export const textVariants = tv({
     lines: {
       2: "line-clamp-2 whitespace-normal orb-lines-2",
     },
-    // ONE LINE, CLIPPED WITH AN ELLIPSIS (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`). It
-    // does not shrink the box: a flex child that must give way beside a sibling still adds its own `min-inline-0`.
+    // ONE LINE, CLIPPED WITH AN ELLIPSIS (`overflow: hidden; text-overflow: ellipsis; white-space: nowrap`). The
+    // clip makes the box a scroll container, so as a flex or grid child it already shrinks to zero and needs no
+    // `min-inline-0`. `fill` is the line that takes the rest of a row and gives way to its siblings.
     truncate: {
       true: "truncate",
+      fill: "flex-1 truncate",
       false: "",
     },
+    // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
+    // the box is sized to its content (a path or an address in a narrow cell).
+    wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },
+    // `preWrap` keeps line breaks and runs of spaces in the string, for a value shown exactly as written; `nowrap` never breaks the run, `normal` wraps at spaces inside a nowrap host (a button).
+    whitespace: { nowrap: "whitespace-nowrap", normal: "whitespace-normal", preWrap: "whitespace-pre-wrap" },
     // Colour by meaning (D336): a feature picks the meaning, never a colour class. Unset keeps each voice's own ink.
     tone: TONE_TEXT,
     // A struck-through line: a cancelled quest, a disabled prompt section. Not colour, so it pairs with any tone.

@@ -114,11 +114,11 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
-                <Stack className="flex-1 min-inline-0" gap="tight">
+                <Stack className="min-inline-0" grow={true} gap="tight">
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a
                       nowrap line inside a `-webkit-box` clamp overflows its cell with NO ellipsis at all
                       (measured on the quick-picks shelf — a long character name ran over its neighbour). */}
-                  <Text ink="inherit" as="span" className="block truncate" voice="label">
+                  <Text ink="inherit" as="span" className="block" truncate={true} voice="label">
                     {gem.name}
                   </Text>
                   {/* TWO LINES, AND BOTH READABLE (side-eye corpus re-pass 2026-08-19, B1). All three
@@ -139,7 +139,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   <Text as="span" className="block text-pretty" lines={2} prose={true} voice="gloss">
                     {gemMagnitudes(gem)}
                   </Text>
-                  <Text as="span" className="block truncate" prose={true} voice="gloss">
+                  <Text as="span" className="block" truncate={true} prose={true} voice="gloss">
                     {gemLastOpened(gem)}
                   </Text>
                 </Stack>

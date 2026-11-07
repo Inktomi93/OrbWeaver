@@ -1,12 +1,12 @@
 // 1-D magnitude skins. The danger state is a token swap (primary -> destructive intent), never a color calculation.
-import { tv } from "#lib";
+import { CAPTION, FIELD_LABEL, FIELD_STACK, tv } from "#lib";
 
 export const meterVariants = tv({
   slots: {
-    root: "flex flex-col gap-field",
+    root: FIELD_STACK,
     header: "flex items-center justify-between gap-block",
-    label: "text-label leading-label font-medium text-foreground",
-    value: "text-label leading-label text-muted-foreground tabular-nums",
+    label: FIELD_LABEL,
+    value: `${CAPTION} tabular-nums`,
   },
   variants: {
     kind: {

@@ -4,5 +4,5 @@ const spreadLast = <Row className="justify-end" {...props} />;
 const lookup = <Row className={{ open: "justify-end", closed: "" }[state]} />;
 const helper = <Row className={pick("justify-end", "flex-wrap")} />;
 const list = <Row className={["justify-end", "flex-wrap"].join(" ")} />;
-const joined = <Row className={cn(extra)} justify="end" />;
+const joined = <Row className={extra} justify="end" />;
 export { spreadFirst, spreadLast, lookup, helper, list, joined };

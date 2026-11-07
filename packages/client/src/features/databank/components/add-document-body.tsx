@@ -248,7 +248,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
 
   return (
     // `flex-1` + the footer's `mt-auto`: the arm spends the region's reserved height (N-2).
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone
@@ -304,7 +304,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
   };
 
   return (
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <Field label="Name">
         <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
       </Field>
@@ -373,7 +373,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
   const failureId = useId();
 
   return (
-    <Stack className="flex-1" gap="block">
+    <Stack grow={true} gap="block">
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement => (

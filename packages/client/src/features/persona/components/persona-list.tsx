@@ -163,13 +163,13 @@ function PersonaHeader({
   readonly onFromCharacter: () => void;
 }): ReactElement {
   return (
-    <Row gap="row" align="center" className="flex-wrap justify-between">
+    <Row gap="row" align="center" className="flex-wrap" justify="between">
       {/* A caps-micro band name: `kicker`. */}
       <Text voice="kicker">Your personas</Text>
       {/* Exactly ONE primary (New); Import and From-character sit beside it as ghost icons — the preset
           band's grammar. `square` (not `sm`) so the icon-only triggers keep the token-driven coarse
           floor, and each tooltip is the SAME string as the aria-label so the two can't drift. */}
-      <Row gap="field" align="center" className="flex-wrap justify-end">
+      <Row gap="field" align="center" className="flex-wrap" justify="end">
         <Tip text={FROM_CHARACTER_LABEL}>
           <Button aria-label={FROM_CHARACTER_LABEL} variant="ghost" onClick={onFromCharacter} square={true}>
             <Icon icon={Drama} size="sm" />

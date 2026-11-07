@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, OPEN_TURN, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { DISABLED_STATE, FIELD_LABEL, FOCUS_RING, OPEN_TURN, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 
 /**
  * Slot classes for the collapsible (ui-package-design §5). The panel animates its own height off
@@ -11,7 +11,7 @@ export const collapsibleVariants = tv({
     // `group` so the baked chevron can rotate off Base UI's `data-panel-open` on the trigger (the accordion
     // precedent). A consumer that renders its OWN chevron/icon in the trigger opts out via `chevron={false}`.
     root: "flex flex-col",
-    trigger: `group inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}
+    trigger: `group inline-flex cursor-pointer items-center gap-field ${FIELD_LABEL} outline-none ${DISABLED_STATE} ${FOCUS_RING}
     `,
     chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
     // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —

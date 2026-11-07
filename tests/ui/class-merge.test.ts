@@ -153,3 +153,11 @@ test("optical stroke widths override width steps without evicting stroke color",
   expect(cn("stroke-primary", "stroke-icon-regular")).toBe("stroke-primary stroke-icon-regular");
   expect(cn("stroke-icon-regular", "stroke-primary")).toBe("stroke-icon-regular stroke-primary");
 });
+
+test("a shadow token and a stock shadow step are one axis, and a shadow colour survives beside either", () => {
+  expect(cn("shadow-overlay", "shadow-none")).toBe("shadow-none");
+  expect(cn("shadow-none", "shadow-overlay")).toBe("shadow-overlay");
+  expect(cn("shadow-glow", "shadow-overlay")).toBe("shadow-overlay");
+  expect(cn("hover:shadow-none", "hover:shadow-overlay")).toBe("hover:shadow-overlay");
+  expect(cn("shadow-overlay", "shadow-primary")).toBe("shadow-overlay shadow-primary");
+});

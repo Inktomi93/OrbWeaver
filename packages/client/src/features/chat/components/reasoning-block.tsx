@@ -31,9 +31,9 @@ import { Markdown } from "@orb/ui/markdown";
 import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useElapsedSeconds } from "#lib";
 
-const TICK_MS = 1000;
 // Fallback pace when smooth-streaming is on but no explicit cps was passed (matches the contract default,
 // same as the ghost body's DEFAULT_SMOOTH_STREAM_CPS). The `UserSettings.chat.smoothStreamCps` pref
 // overrides it via the `smoothStreamCps` prop; `smoothStream` off ⇒ pacing is skipped entirely.
@@ -71,17 +71,9 @@ export function ReasoningBlock({
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   autoCollapse = true,
 }: ReasoningBlockProps): ReactElement {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const elapsedSeconds = useElapsedSeconds(thinking);
   // null = no manual toggle yet; once clicked this pins to the user's choice for this row's life.
   const [override, setOverride] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!thinking) {
-      return;
-    }
-    const id = setInterval(() => setElapsedSeconds((seconds) => seconds + 1), TICK_MS);
-    return (): void => clearInterval(id);
-  }, [thinking]);
 
   // The auto arm: open while thinking, and — when the user has NOT turned auto-collapse off — collapse the
   // instant the answer lands (`thinking` false). `autoCollapse` OFF holds the trace open after the answer
