@@ -101,7 +101,7 @@ function isBarrel(path: string): boolean {
 }
 
 function counted(path: string, tracked: ReadonlySet<string>): boolean {
-  return tracked.has(path) && SOURCE_FILE.test(path) && !GENERATED_FILE.test(path) && !COMPOSITION_FILE.test(path) && !isBarrel(path);
+  return tracked.has(path) && SOURCE_FILE.test(path) && !GENERATED_FILE.test(path) && !isBarrel(path);
 }
 
 function record(row: Row, commit: Commit, lines: number, limits: { readonly wide: number; readonly recentFrom: string }): void {
@@ -201,7 +201,13 @@ function main(): void {
   const recentFrom = new Date(Date.now() - RECENT_DAYS * DAY_MS).toISOString().slice(0, "yyyy-mm-dd".length);
   const commits = readHistory(values.since);
   const rows = tally(commits, Number(values.wide), recentFrom)
-    .filter((row) => row.path.startsWith(values.path) && row.commits >= minimum && row.size >= minimumLines)
+    .filter(
+      (row) =>
+        row.path.startsWith(values.path) &&
+        row.commits >= minimum &&
+        row.size >= minimumLines &&
+        !(values.sort === "defect" && COMPOSITION_FILE.test(row.path)),
+    )
     .toSorted((a, b) => rank(b) - rank(a))
     .slice(0, Number(values.top));
   process.stdout.write(values.json ? `${JSON.stringify(rows)}\n` : `${String(commits.length)} commits, sorted by ${values.sort}\n${table(rows)}\n`);
