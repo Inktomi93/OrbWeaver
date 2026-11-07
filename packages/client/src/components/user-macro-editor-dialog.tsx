@@ -22,7 +22,6 @@ import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { DialogBody, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -31,7 +30,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
-import { FormDialog } from "./form-dialog.tsx";
+import { DismissDialog } from "./form-dialog.tsx";
 import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog never
@@ -98,7 +97,9 @@ export function UserMacroEditorDialog<TValues extends UserMacrosFormValues>(prop
 // TanStack form instances are invariant in their value type; the generic signature proves the bound `userMacros[*]` paths exist.
 export function UserMacroEditorDialog({ form, index, onClose, suggestions }: UserMacroEditorDialogProps): ReactElement {
   return (
-    <FormDialog
+    <DismissDialog
+      dismissLabel={DIALOG_VERBS.done}
+      dismissPrimary={true}
       open={true}
       onOpenChange={(next): void => {
         if (!next) {
@@ -142,12 +143,8 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
             <field.SwitchField label="Strict args" description="A call violating the declared args renders empty (never best-effort)." />
           )}
         </form.AppField>
-
-        <DialogFooter>
-          <DialogClose render={<Button>{DIALOG_VERBS.done}</Button>} />
-        </DialogFooter>
       </DialogBody>
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

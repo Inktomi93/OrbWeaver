@@ -6,7 +6,6 @@ import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
 import type { CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ImagePlus, Images } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -20,7 +19,6 @@ import { useRef, useState } from "react";
 import { PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS } from "#lib";
 import { GalleryAddPicker } from "../components/gallery-add-picker.tsx";
 import { GalleryLightbox } from "../components/gallery-lightbox.tsx";
 import { GalleryLoadMore } from "../components/gallery-load-more.tsx";
@@ -194,21 +192,12 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         titleProps={{ ref: headingRef, tabIndex: -1 }}
         bodyContainer={true}
         headerActions={
-          <Row align="center" className="shrink-0" wrap={true} cap="fit" gap="row">
-            {galleryEmpty && scope === "everywhere" ? null : (
-              <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
-                <Icon icon={ImagePlus} size="sm" />
-                Add images
-              </Button>
-            )}
-            <DialogClose
-              render={
-                <Button variant="ghost" size="sm">
-                  {DIALOG_VERBS.close}
-                </Button>
-              }
-            />
-          </Row>
+          galleryEmpty && scope === "everywhere" ? null : (
+            <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
+              <Icon icon={ImagePlus} size="sm" />
+              Add images
+            </Button>
+          )
         }
       >
         {scopes === null && galleryEmpty ? null : (

@@ -17,6 +17,7 @@ import { DIALOG_VERBS, testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
 import { REFINERY_EDIT_SCOPE_NAME } from "../lib/refinery-names.ts";
 import { NEW_GREETING_LABEL, slotLabelOf } from "../lib/render-plan.ts";
+import { APPLIED_KIND_WORD } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
@@ -85,7 +86,7 @@ export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEdit
       <Stack gap="tight">
         {applied.map((ref) => (
           <Row align="center" gap="row" key={refKeyOf(ref)}>
-            <RefineryChip tone="good">{ref.kind}</RefineryChip>
+            <RefineryChip tone="good">{APPLIED_KIND_WORD[ref.kind]}</RefineryChip>
             <Text voice="label">{targetOf(ref)}</Text>
           </Row>
         ))}

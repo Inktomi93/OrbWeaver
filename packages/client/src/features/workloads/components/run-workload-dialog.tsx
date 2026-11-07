@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { z } from "zod";
-import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -66,15 +66,9 @@ export interface RunWorkloadDialogProps {
 
 export function RunWorkloadDialog({ open, onOpenChange, viewerIsOwner, users, dependencyCandidates }: RunWorkloadDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Runs a background job over your own library. It queues immediately; progress shows live in the list."
-      onOpenChange={onOpenChange}
-      open={open}
-      testKey="runWorkloadDialog"
-      title="Run a job"
-    >
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
       <RunWorkloadFormBody dependencyCandidates={dependencyCandidates} onDone={(): void => onOpenChange(false)} users={users} viewerIsOwner={viewerIsOwner} />
-    </FormDialog>
+    </FormDialogRoot>
   );
 }
 
@@ -139,7 +133,20 @@ function RunWorkloadFormBody({
   const kindItems = workloadKindItems(viewerIsOwner);
 
   return (
-    <Stack gap="block">
+    <FormDialogPopup
+      description="Runs a background job over your own library. It queues immediately; progress shows live in the list."
+      submit={{
+        label: start.isPending ? "Starting…" : RUN_LABEL,
+        disabled: start.isPending,
+        testKey: "runWorkloadSubmit",
+        onSubmit: (): void => {
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
+        },
+      }}
+      testKey="runWorkloadDialog"
+      title="Run a job"
+    >
       <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
@@ -214,16 +221,7 @@ function RunWorkloadFormBody({
           Couldn't start the workload. A run of that kind may already be active.
         </Text>
       )}
-      <FormSubmitButton
-        disabled={start.isPending}
-        label={start.isPending ? "Starting…" : RUN_LABEL}
-        onSubmit={(): void => {
-          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
-        }}
-        testKey="runWorkloadSubmit"
-      />
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
-    </Stack>
+    </FormDialogPopup>
   );
 }

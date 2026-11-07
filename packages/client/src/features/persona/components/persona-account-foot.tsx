@@ -5,13 +5,13 @@
 // hard-redirect; the auth reads and the sign-out mechanics all live below the feature tier, which is what
 // lets persona render identity without a cross-feature reach into auth).
 
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { StatusChip, USER_ROLE_STATUS } from "#components";
 import { signOut, useAuthConfig, useAuthMe } from "#data";
 import { notify, testId } from "#lib";
 
@@ -38,7 +38,7 @@ export function PersonaAccountFoot(): ReactElement {
         <Text truncate={true} voice="label">
           {handle === null ? "Signed in" : `Signed in as ${handle}`}
         </Text>
-        {showRole ? <Badge>{role}</Badge> : null}
+        {showRole ? <StatusChip status={role} vocabulary={USER_ROLE_STATUS} /> : null}
       </Row>
       {canLogout ? (
         <Button

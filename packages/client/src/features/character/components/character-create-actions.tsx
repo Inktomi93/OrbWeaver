@@ -18,7 +18,6 @@
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -84,6 +83,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       description="Give them a name and a one-line description — you can flesh out the rest in the editor."
       onOpenChange={onOpenChange}
       open={open}
+      submit={{ label: DIALOG_VERBS.create, disabled: incomplete || create.isPending, onSubmit: onCreate }}
       title={CHARACTER_NEW_NAME}
     >
       <Stack gap="field">
@@ -135,12 +135,6 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           A name and a description are both required.
         </Text>
       ) : null}
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={incomplete || create.isPending} onClick={onCreate}>
-          {DIALOG_VERBS.create}
-        </Button>
-      </DialogFooter>
     </FormDialog>
   );
 }

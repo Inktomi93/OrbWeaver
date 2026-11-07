@@ -34,29 +34,6 @@ async function findings(rule: string, source: string, path = FEATURE): Promise<r
   return found.filter(({ ruleId }) => ruleId === rule);
 }
 
-const DISMISS = "orb/dialog-needs-dismiss";
-
-test.for([
-  ["a form dialog with no close, cancel or submit", '<FormDialog title="A" open={true} onOpenChange={f}><Field /></FormDialog>'],
-  ["a content dialog with only a confirm button", '<ContentDialog title="A" open={true} onOpenChange={f}><Button>Save</Button></ContentDialog>'],
-] as const)("%s is a finding", async ([, jsx]) => {
-  expect(await findings(DISMISS, `export const A = () => ${jsx};`)).toHaveLength(1);
-});
-
-test.for([
-  ["a dismissLabel", '<FormDialog title="A" dismissLabel="Close"><Field /></FormDialog>'],
-  ["a submit footer", '<FormDialog title="A" submit={s}><Field /></FormDialog>'],
-  ["a FormSubmitButton", '<FormDialog title="A"><FormSubmitButton label="Save" /></FormDialog>'],
-  ["a DialogClose", '<ContentDialog title="A"><DialogClose render={<Button>Later</Button>} /></ContentDialog>'],
-  ["a Cancel button", '<ContentDialog title="A"><Button>Cancel</Button></ContentDialog>'],
-  ["a Cancel button by shared verb", '<FormDialog title="A"><Button>{DIALOG_VERBS.cancel}</Button></FormDialog>'],
-  ["forwarded props", "<ContentDialog {...props} />"],
-  ["a mounted Body component that owns the footer", '<FormDialog title="A"><EditorBody onDone={f} /></FormDialog>'],
-  ["a built-in dismiss", '<ConfirmDialog title="A" />'],
-] as const)("%s is a dismiss path", async ([, jsx]) => {
-  expect(await findings(DISMISS, `export const A = () => ${jsx};`)).toEqual([]);
-});
-
 const FACTORY = "orb/mutation-factory-in-hooks-file";
 const FACTORY_CALL = "export const useA = createEntityMutation({ options: (trpc) => trpc.a.mutationOptions() });";
 
@@ -98,11 +75,14 @@ test.for([
 });
 
 test.for([
-  ["a ConfirmDialog trigger", '<ConfirmDialog title="t" trigger={<Button>Delete</Button>} />'],
+  ["a controlled ConfirmDialog", '<><Button>Delete</Button><ConfirmDialog title="t" open={open} onOpenChange={setOpen} /></>'],
+  ["a DestructiveAction trigger", "<DestructiveAction confirm={copy} trigger={<Button>Delete</Button>} />"],
   ["an Undo action", "<><Button>Remove</Button>{notify({ action: { label: 'Undo' } })}</>"],
   ["an inline Keep step", "<Row><Button>Keep</Button><Button>Dismiss</Button></Row>"],
   ["an inline Cancel step", "<Row><Button>Cancel</Button><Button>Delete</Button></Row>"],
   ["an inline Cancel step by shared verb", "<Row><Button>{DIALOG_VERBS.cancel}</Button><Button>Delete</Button></Row>"],
+  ["an inline Cancel step in a dialog close", "<Row><DialogClose render={<Button>Cancel</Button>} /><Button>Delete</Button></Row>"],
+  ["an inline verb step in a dialog close", "<Row><AlertDialogClose render={<Button>{DIALOG_VERBS.cancel}</Button>} /><Button>Delete</Button></Row>"],
   ["an editing dialog", "<><FormDialog title='t' dismissLabel='Close' /><Button>Remove</Button></>"],
   ["a search clear", "<Button>Clear search</Button>"],
   ["a non-destructive verb", "<Button>Save</Button>"],
@@ -112,8 +92,19 @@ test.for([
 
 test("a listed exempt file passes with a bare Delete", async () => {
   expect(
-    await findings(DESTRUCTIVE, "export const A = () => <Button>Remove</Button>;", "packages/client/src/features/automation/components/rule-image-fields.tsx"),
+    await findings(DESTRUCTIVE, "export const A = () => <Button>Remove</Button>;", "packages/client/src/features/persona/components/persona-room-block.tsx"),
   ).toEqual([]);
+});
+
+test.for(["Dialog", "DialogPopup"] as const)("a feature cannot reach the raw %s", async (part) => {
+  expect(await findings("orb/dialog-via-composite", `import { ${part} } from "@orb/ui/dialog";`)).toHaveLength(1);
+});
+
+const REQUIRED_DIALOG = 'import { RequiredFormDialog } from "#components";';
+
+test("the forced dialog is the first-run ask's alone", async () => {
+  expect(await findings("orb/required-dialog-home", REQUIRED_DIALOG)).toHaveLength(1);
+  expect(await findings("orb/required-dialog-home", REQUIRED_DIALOG, "packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx")).toEqual([]);
 });
 
 const LIBRARY_ROW = "orb/library-surface-row";

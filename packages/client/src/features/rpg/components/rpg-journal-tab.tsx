@@ -41,7 +41,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { DestructiveAction, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -282,11 +282,13 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
                   </Row>
                 </Stack>
                 {state.isHost ? (
-                  <ConfirmDialog
-                    title={`Restore "${mark.label}"?`}
-                    description="The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since."
-                    confirmLabel={DIALOG_VERBS.restore}
-                    confirmTone="primary"
+                  <DestructiveAction
+                    confirm={{
+                      title: `Restore "${mark.label}"?`,
+                      description: "The game state rolls forward from this mark as a new current snapshot. The chronicle keeps everything since.",
+                      confirmLabel: DIALOG_VERBS.restore,
+                      confirmTone: "primary",
+                    }}
                     confirmLoading={restoreCheckpoint.isPending}
                     onConfirm={(): void => {
                       restoreCheckpoint.mutate({ chatId: state.chatId, checkpointId: mark.id });

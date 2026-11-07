@@ -5,7 +5,7 @@
 // happened, the only open question is where it lands; dismissing (Esc/backdrop) takes the primary arm, which
 // is also exactly what the old silent behavior did.
 //
-// Two phases in one FormDialog (G24 — never a raw Dialog root): the CHOICE, then the new fork's NAME (its
+// Two phases in one DismissDialog (G24 — never a raw Dialog root): the CHOICE, then the new fork's NAME (its
 // Back returns to the choice rather than closing, so a mis-click can't silently retarget the editor). The
 // name field is pre-filled with the suggestion and mounts focused — the rename-dialog prompt shape.
 
@@ -16,7 +16,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { FormDialog } from "#components";
+import { DismissDialog } from "#components";
 
 export interface PresetForkChoiceDialogProps {
   readonly open: boolean;
@@ -50,7 +50,8 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
   }, [naming]);
 
   return (
-    <FormDialog
+    <DismissDialog
+      closeButton={true}
       onOpenChange={(next): void => {
         if (!next) {
           // Esc / the backdrop: the edit still has to land somewhere — take the primary arm.
@@ -104,6 +105,6 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
           <Text voice="gloss">{`Either way this edit is saved — "${forkName}" is just the copy it would join.`}</Text>
         </Stack>
       )}
-    </FormDialog>
+    </DismissDialog>
   );
 }

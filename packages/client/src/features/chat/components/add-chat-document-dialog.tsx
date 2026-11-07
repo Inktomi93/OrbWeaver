@@ -35,7 +35,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
@@ -77,7 +77,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
   };
 
   return (
-    <FormDialog
+    <DismissDialog
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
       description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
@@ -92,7 +92,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
       {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody activeIds={activeIds} failure={failure} isOwned={attach.isPending} onAttach={attachDocument} />
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

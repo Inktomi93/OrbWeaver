@@ -26,7 +26,7 @@ import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { DestructiveAction, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
@@ -239,11 +239,13 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
       <Row gap="field" align="center">
         <Text voice="gloss">{footer.isDefault ? "Using the built-in wording" : "Customized"}</Text>
         {footer.isDefault ? null : (
-          <ConfirmDialog
-            confirmLabel="Reset to built-in"
-            description="Your wording for this slot is replaced by the built-in text."
+          <DestructiveAction
+            confirm={{
+              confirmLabel: "Reset to built-in",
+              description: "Your wording for this slot is replaced by the built-in text.",
+              title: "Reset to the built-in wording?",
+            }}
             onConfirm={onUseDefault}
-            title="Reset to the built-in wording?"
             trigger={
               <Button variant="ghost" size="sm">
                 Reset to built-in

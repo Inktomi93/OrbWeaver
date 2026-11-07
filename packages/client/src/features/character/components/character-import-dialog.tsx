@@ -9,7 +9,7 @@
 import type { CardImportResult } from "@orb/contracts/import";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
-import { FormDialog } from "#components";
+import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter } from "#state";
@@ -80,13 +80,13 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
   return (
     // IT HAS A VISIBLE EXIT (side-eye 2026-08-30 rail-characters P2, #842). The dialog carried ZERO buttons
     // besides the file input on both the desktop and the 430px coarse arm — Escape worked, and touch has no
-    // Escape. `dismissLabel` is the FormDialog footer for a dialog with no confirm to pair a Cancel with
+    // Escape. `dismissLabel` is the DismissDialog footer for a dialog with no confirm to pair a Cancel with
     // (the drop IS the act; there is nothing to submit), matching the sibling New-character dialog's exit.
     //
     // AND IT SAYS ITS ONE FACT ONCE. It used to state the accepted formats THREE times in a 250px dialog
     // with one control — the description, the dropzone's instruction and the dropzone's hint. The
     // INSTRUCTION is the one a user acts on, so it carries the formats; the other two stand down.
-    <FormDialog
+    <DismissDialog
       arriveOnTitle={true}
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
@@ -100,6 +100,6 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />
-    </FormDialog>
+    </DismissDialog>
   );
 }

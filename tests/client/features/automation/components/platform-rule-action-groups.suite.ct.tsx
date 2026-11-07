@@ -250,6 +250,53 @@ test.describe("rule editor field rows", () => {
     expect(await ink(warning)).not.toBe(await ink(outputs.getByText("Outputs", { exact: true })));
   });
 
+  test("a filled rule field asks before its text goes, and an empty one leaves on the press", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    await caller.automation.updateRule({
+      ...automationRuleEditableSchema.strip().parse(captured),
+      trigger: automationTriggerFor("character.updated"),
+      actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
+      ruleId: captured.id,
+      timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+    });
+    const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const add = editor.getByRole("button", { name: "Add negative prompt", exact: true });
+    const remove = editor.getByRole("button", { name: "Remove negative prompt", exact: true });
+    const field = editor.getByRole("textbox", { name: "Negative prompt", exact: true });
+    const confirm = page.getByRole("alertdialog", { name: "Remove negative prompt?", exact: true });
+
+    await add.click();
+    await remove.click();
+    await expect(confirm).toHaveCount(0);
+    await expect(add).toBeVisible();
+
+    await add.click();
+    await field.fill("extra fingers");
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
+    await remove.click();
+    await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(field).toHaveValue("extra fingers");
+    await remove.click();
+    await confirm.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(add).toBeVisible();
+    await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).not.toMatchObject({ negative: "extra fingers" });
+  });
+
   test("the image action's negative prompt and size controls drive the saved rule", async ({ mount, page }) => {
     const size = SIZE_PRESET_NAMES[2];
     await using root = await createCorpusHarness();

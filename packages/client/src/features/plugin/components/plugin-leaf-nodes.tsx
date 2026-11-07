@@ -422,20 +422,27 @@ function ConfirmButtonLeaf({
     setConfirmation({ actionId, open: false });
   }
   return (
-    <ConfirmDialog
-      // A new publication may reuse this tree position for a different action, not its consent.
-      open={confirmation.actionId === node.actionId && confirmation.open}
-      onOpenChange={(open): void => setConfirmation({ actionId: node.actionId, open })}
-      confirmLabel={node.label}
-      description={node.confirmBody ?? ""}
-      finalFocus={confirmTrigger}
-      onConfirm={(): void => submit(node.actionId)}
-      title={node.confirmTitle}
-      trigger={
-        <Button self="start" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
-          {node.label}
-        </Button>
-      }
-    />
+    <>
+      <Button
+        self="start"
+        ref={confirmTrigger}
+        tone="destructive"
+        loading={submitting}
+        size="sm"
+        wrap={true}
+        onClick={(): void => setConfirmation({ actionId: node.actionId, open: true })}
+      >
+        {node.label}
+      </Button>
+      <ConfirmDialog
+        confirmLabel={node.label}
+        description={node.confirmBody ?? ""}
+        title={node.confirmTitle}
+        open={confirmation.actionId === node.actionId && confirmation.open}
+        onOpenChange={(open): void => setConfirmation({ actionId: node.actionId, open })}
+        finalFocus={confirmTrigger}
+        onConfirm={(): void => submit(node.actionId)}
+      />
+    </>
   );
 }

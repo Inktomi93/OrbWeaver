@@ -17,15 +17,13 @@
 // four of its six tests timed out against the overlay for a day before anything named the file).
 
 import type { PersonaId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog } from "#components";
+import { RequiredFormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
@@ -179,13 +177,9 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   };
 
   return (
-    // Forced-open: onOpenChange is deliberately inert, the only way out is creating the persona.
-    <FormDialog
+    <RequiredFormDialog
       description="Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
-      onOpenChange={(): void => {
-        // Ignored by design.
-      }}
-      open={true}
+      submit={{ label: submitLabel, disabled: !canSubmit, testKey: "firstRunPersonaCreate", onSubmit: (): void => void submit().catch(globalThis.reportError) }}
       testKey="firstRunPersonaDialog"
       title="Who are you in the story?"
     >
@@ -196,11 +190,6 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       <Field label="Description" description="Optional — how characters should picture you.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
-      <DialogFooter>
-        <Button disabled={!canSubmit} data-testid={testId("firstRunPersonaCreate")} onClick={(): void => void submit().catch(globalThis.reportError)}>
-          {submitLabel}
-        </Button>
-      </DialogFooter>
-    </FormDialog>
+    </RequiredFormDialog>
   );
 }

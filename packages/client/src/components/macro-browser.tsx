@@ -11,6 +11,13 @@ import type { ReactElement } from "react";
 import type { CatalogMacro, MacroCatalog, MacroPlane } from "#lib";
 import { macroSourceLabel } from "#lib";
 import { openInstalledPlugin, selectPreset, setActiveSection } from "#state";
+import type { StatusVocabulary } from "./status-chip.tsx";
+import { StatusChip } from "./status-chip.tsx";
+
+const FLAG_STATUS: StatusVocabulary<(typeof MACRO_FLAG_DEFS)[number]["status"]> = {
+  implemented: { label: "Implemented", tone: "info" },
+  reserved: { label: "Reserved", tone: "neutral" },
+};
 
 export interface MacroBrowserProps {
   readonly catalog: MacroCatalog;
@@ -79,9 +86,7 @@ export function MacroBrowser({ catalog }: MacroBrowserProps): ReactElement {
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
             <Row key={def.key} gap="field" align="center">
               <code>{def.char}</code>
-              <Badge tone={def.status === "implemented" ? "info" : "neutral"} variant={def.status === "implemented" ? "solid" : "soft"} size="sm">
-                {def.status}
-              </Badge>
+              <StatusChip size="sm" status={def.status} vocabulary={FLAG_STATUS} />
               <Text cap="prose" voice="gloss">
                 {def.description}
               </Text>

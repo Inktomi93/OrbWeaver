@@ -11,7 +11,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { DestructiveAction, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
@@ -105,12 +105,14 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
  *  Dialog). Uncontrolled trigger: no per-row open state to manage. */
 function RestoreConfirm({ onConfirm }: { readonly onConfirm: () => void | Promise<void> }): ReactElement {
   return (
-    <ConfirmDialog
-      confirmTone="primary"
-      confirmLabel={DIALOG_VERBS.restore}
-      description="This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it."
+    <DestructiveAction
+      confirm={{
+        confirmTone: "primary",
+        confirmLabel: DIALOG_VERBS.restore,
+        description: "This replaces the character's current card with this snapshot. Your current state is snapshotted first, so you can undo it.",
+        title: CHARACTER_RESTORE_SNAPSHOT_TITLE,
+      }}
       onConfirm={onConfirm}
-      title={CHARACTER_RESTORE_SNAPSHOT_TITLE}
       trigger={<Button variant="ghost">{DIALOG_VERBS.restore}</Button>}
     />
   );

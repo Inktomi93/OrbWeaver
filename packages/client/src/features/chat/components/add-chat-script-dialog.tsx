@@ -27,7 +27,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
@@ -48,7 +48,8 @@ export function AddChatScriptDialog({ chatId, open, onOpenChange, attachedIds }:
   // The dialog stays open while an attach is in flight, so the picker that states its failure is still mounted to say it.
   const ownedRef = useRef(false);
   return (
-    <FormDialog
+    <DismissDialog
+      closeButton={true}
       description="Its rules run on this room's prompts, in the order the section shows — and only here. A script stays in your library; detaching it from this chat leaves every other chat alone."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
@@ -61,7 +62,7 @@ export function AddChatScriptDialog({ chatId, open, onOpenChange, attachedIds }:
       {/* The picker reads inside its own boundary: the dialog frame paints at once and the candidate list fills in, so opening the
           picker never blanks the panel behind it through a shared suspense boundary. */}
       <PickerBody attachedIds={attachedIds} chatId={chatId} onClose={(): void => onOpenChange(false)} ownedRef={ownedRef} />
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

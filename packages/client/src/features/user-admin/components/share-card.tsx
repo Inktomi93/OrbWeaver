@@ -3,7 +3,7 @@
 // Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
 import type { CookieAuthMode, RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
-import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { CopyButton } from "@orb/ui/copy-button";
@@ -11,7 +11,8 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { ConfirmDialog, QueryBoundary, useFirstBootBox } from "#components";
+import type { StatusVocabulary } from "#components";
+import { ConfirmDialog, DestructiveAction, QueryBoundary, StatusChip, useFirstBootBox } from "#components";
 import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -28,10 +29,14 @@ const SHARE_CARD_TITLE = "Share over the internet";
 
 type ShareView = ReturnType<typeof shareView>;
 
-const PHASE_BADGE: Record<(typeof SHARE_PHASES)[number], { readonly label: string; readonly tone: "success" | "info" | "neutral" | "destructive" }> = {
+const PUBLIC_STATUS = "public";
+
+const PHASE_BADGE: StatusVocabulary<(typeof SHARE_PHASES)[number] | typeof PUBLIC_STATUS> = {
   off: { label: "Not sharing", tone: "neutral" },
   starting: { label: "Starting", tone: "info" },
   up: { label: "Sharing", tone: "success" },
+  // An oidc box needs no relay: the badge names what it already is.
+  [PUBLIC_STATUS]: { label: "Public", tone: "success" },
   restarting: { label: "Down", tone: "destructive" },
   stopped: { label: "Down", tone: "destructive" },
 };
@@ -45,9 +50,6 @@ const PHASE_FOCUS: Record<(typeof SHARE_PHASES)[number], "stop" | "tryAgain" | n
   restarting: "stop",
   stopped: "tryAgain",
 };
-
-// An oidc box needs no relay: the badge names what it already is.
-const PUBLIC_BADGE = { label: "Public", tone: "success" } as const;
 
 const RELAY_NAME: Record<ShareRelayKind, string> = {
   quick: "Cloudflare quick tunnel",
@@ -177,16 +179,13 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Seati
   // An oidc box is public already, and a relay's random name can never sign anyone in through its identity provider:
   // the card names the box's own address and offers no relay (the server refuses one too).
   const publicOnly = authConfig?.mode === "oidc" && status.relay.state === "off";
-  const badge = publicOnly ? PUBLIC_BADGE : PHASE_BADGE[view.phase];
 
   return (
     <Stack gap="field" data-share-state={status.relay.state} data-share-phase={view.phase}>
       {publicOnly ? null : <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>}
       {/* Baseline, not center: at phone width the sentence runs to several lines, and the badge labels its first. */}
       <Row gap="field" align="baseline" role="status" aria-live="polite">
-        <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
-          {badge.label}
-        </Badge>
+        <StatusChip status={publicOnly ? PUBLIC_STATUS : view.phase} vocabulary={PHASE_BADGE} />
         <ShareProse>
           {publicOnly ? "Friends sign in at this server's own address through your identity provider, so invite them there." : stateSentence(view)}
         </ShareProse>
@@ -383,10 +382,12 @@ function SignEveryoneOut(): ReactElement {
   const nobody = members.length === 0;
   return (
     <>
-      <ConfirmDialog
-        title="Sign everyone out?"
-        description={`Every session of the ${String(members.length)} other ${members.length === 1 ? "account" : "accounts"} ends on every device, and their open tabs disconnect. They can sign in again. Your own session stays.`}
-        confirmLabel="Sign everyone out"
+      <DestructiveAction
+        confirm={{
+          title: "Sign everyone out?",
+          description: `Every session of the ${String(members.length)} other ${members.length === 1 ? "account" : "accounts"} ends on every device, and their open tabs disconnect. They can sign in again. Your own session stays.`,
+          confirmLabel: "Sign everyone out",
+        }}
         onConfirm={(): Promise<void> => Promise.all(members.map((member) => revoke.mutateAsync({ userId: member.id }))).then(() => undefined)}
         trigger={
           <Button type="button" variant="outline" size="sm" disabled={nobody} focusableWhenDisabled={true} aria-describedby={nobody ? describedId : undefined}>

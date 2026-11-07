@@ -23,7 +23,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, useOpenRequests, viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
@@ -136,11 +136,11 @@ function RecallIndicatorBody({ chatId, viewerIsHost, memory }: ChatRecallIndicat
           </Stack>
         </PopoverPopup>
       </Popover>
-      <FormDialog dismissLabel={DIALOG_VERBS.close} onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
+      <DismissDialog dismissLabel={DIALOG_VERBS.close} onOpenChange={setDialogOpen} open={dialogOpen} size="sm" title="Memory recall">
         <Stack gap="block">
           <RecallPanel chatId={chatId} memory={memory} recall={recall} viewerIsHost={viewerIsHost} />
         </Stack>
-      </FormDialog>
+      </DismissDialog>
     </>
   );
 }

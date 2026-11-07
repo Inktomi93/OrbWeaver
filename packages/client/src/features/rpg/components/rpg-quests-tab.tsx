@@ -28,7 +28,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, Tip } from "#components";
+import { DestructiveAction, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
@@ -131,10 +131,12 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
  *  Marks precedent), never a bare destructive click. Offered on settled cards too (archive clearing). */
 function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; readonly onDelete: (quest: RpgQuestView) => void }): ReactElement {
   return (
-    <ConfirmDialog
-      title={`Delete "${quest.name}"?`}
-      description="The quest and its objectives leave the game state for good. The chronicle keeps whatever already happened in the story."
-      confirmLabel="Delete"
+    <DestructiveAction
+      confirm={{
+        title: `Delete "${quest.name}"?`,
+        description: "The quest and its objectives leave the game state for good. The chronicle keeps whatever already happened in the story.",
+        confirmLabel: "Delete",
+      }}
       onConfirm={(): void => onDelete(quest)}
       trigger={
         <GlyphButton aria-label={`Delete quest: ${quest.name}`} variant="ghost" glyph="sm">

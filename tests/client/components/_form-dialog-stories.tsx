@@ -1,4 +1,4 @@
-import { FormDialog, FormSubmitButton } from "@orb/client/components";
+import { DismissDialog, FormDialog, FormDialogPopup, FormDialogRoot } from "@orb/client/components";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -10,9 +10,9 @@ export function FormDialogCloseStory(): ReactElement {
   const [open, setOpen] = useState(true);
   return (
     <CtIsolation subject="FormDialog" isolates="isolates the corner close from authenticated mutations">
-      <FormDialog closeButton={true} onOpenChange={setOpen} open={open} title="Closable form">
+      <DismissDialog closeButton={true} onOpenChange={setOpen} open={open} title="Closable form">
         <Stack gap="block">Body</Stack>
-      </FormDialog>
+      </DismissDialog>
     </CtIsolation>
   );
 }
@@ -28,12 +28,47 @@ export function FormDialogDismissalStory(): ReactElement {
         Open form
       </Button>
       <output aria-label="Submissions">{submissions}</output>
-      <FormDialog finalFocus={trigger} onOpenChange={setOpen} open={open} title="Incomplete form">
-        <Stack gap="block">
-          <input aria-label="Required value" />
-          <FormSubmitButton disabled={true} label="Save" onSubmit={(): void => setSubmissions((count) => count + 1)} testKey="adminCreateUserSubmit" />
-        </Stack>
+      <FormDialog
+        finalFocus={trigger}
+        onOpenChange={setOpen}
+        open={open}
+        submit={{ label: "Save", disabled: true, testKey: "adminCreateUserSubmit", onSubmit: (): void => setSubmissions((count) => count + 1) }}
+        title="Incomplete form"
+      >
+        <input aria-label="Required value" />
       </FormDialog>
+    </CtIsolation>
+  );
+}
+
+function DraftBody({ onSaved }: { readonly onSaved: (draft: string) => void }): ReactElement {
+  const [draft, setDraft] = useState("");
+  return (
+    <FormDialogPopup submit={{ label: "Keep draft", disabled: draft === "", onSubmit: (): void => onSaved(draft) }} title="Draft form">
+      <input aria-label="Scratch note" onChange={(event): void => setDraft(event.target.value)} value={draft} />
+    </FormDialogPopup>
+  );
+}
+
+/** A body that holds its own form state above the popup, the shape every form-body dialog takes. */
+export function FormDialogBodyStateStory(): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [saved, setSaved] = useState("");
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <CtIsolation subject="FormDialogRoot" isolates="isolates the per-open body lifetime from authenticated mutations">
+      <Button onClick={(): void => setOpen(true)} ref={trigger}>
+        Open draft
+      </Button>
+      <output aria-label="Committed note">{saved}</output>
+      <FormDialogRoot onOpenChange={setOpen} open={open}>
+        <DraftBody
+          onSaved={(draft): void => {
+            setSaved(draft);
+            setOpen(false);
+          }}
+        />
+      </FormDialogRoot>
     </CtIsolation>
   );
 }

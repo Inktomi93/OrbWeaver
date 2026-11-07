@@ -9,12 +9,11 @@
 // dialog's shape map.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
-import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
@@ -44,29 +43,17 @@ export interface EditScheduleDialogProps {
 
 export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: CreateScheduleDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
-      onOpenChange={onOpenChange}
-      open={open}
-      testKey="createScheduleDialog"
-      title="Create a schedule"
-    >
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
       <ScheduleFormBody onDone={(): void => onOpenChange(false)} viewerIsOwner={viewerIsOwner} />
-    </FormDialog>
+    </FormDialogRoot>
   );
 }
 
 export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule }: EditScheduleDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Retune this recurring job: change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
-      onOpenChange={onOpenChange}
-      open={open}
-      testKey="editScheduleDialog"
-      title="Edit schedule"
-    >
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
       <ScheduleFormBody onDone={(): void => onOpenChange(false)} schedule={schedule} viewerIsOwner={viewerIsOwner} />
-    </FormDialog>
+    </FormDialogRoot>
   );
 }
 
@@ -131,7 +118,24 @@ function ScheduleFormBody({
   const submitLabel = isPending ? pendingLabel : idleLabel;
 
   return (
-    <Stack gap="block">
+    <FormDialogPopup
+      description={
+        isEdit
+          ? "Retune this recurring job: change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
+          : "Runs a background job on a recurring cadence. Each run queues automatically and shows in the Jobs list."
+      }
+      submit={{
+        label: submitLabel,
+        disabled: isPending,
+        testKey: isEdit ? "editScheduleSubmit" : "createScheduleSubmit",
+        onSubmit: (): void => {
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
+        },
+      }}
+      testKey={isEdit ? "editScheduleDialog" : "createScheduleDialog"}
+      title={isEdit ? "Edit schedule" : "Create a schedule"}
+    >
       <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
       <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label="Runs" items={CADENCE_ITEMS} />}</form.AppField>
       <WorkloadParamFields form={form} />
@@ -156,16 +160,7 @@ function ScheduleFormBody({
           {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}
-      <FormSubmitButton
-        disabled={isPending}
-        label={submitLabel}
-        onSubmit={(): void => {
-          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
-        }}
-        testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
-      />
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
-    </Stack>
+    </FormDialogPopup>
   );
 }

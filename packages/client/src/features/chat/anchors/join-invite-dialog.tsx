@@ -12,7 +12,7 @@
 // until spent/expired).
 
 import { Button } from "@orb/ui/button";
-import { DialogDescription, DialogFooter } from "@orb/ui/dialog";
+import { DialogDescription } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
@@ -88,6 +88,14 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
 
   return (
     <FlowDialog
+      dismiss={{ at: "footer", label: state.kind === "ready" ? "Not now" : DIALOG_VERBS.close, ...(state.kind === "invalid" ? { control: primaryRef } : {}) }}
+      footer={
+        state.kind === "ready" ? (
+          <Button disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
+            {redeem.isPending ? "Joining…" : "Join chat"}
+          </Button>
+        ) : undefined
+      }
       title="Join a chat"
       open={true}
       onOpenChange={(next): void => {
@@ -98,7 +106,8 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
       popupProps={{
         "data-testid": testId("joinInviteDialog"),
         ref: popupRef,
-        initialFocus: primaryRef,
+        // The loading stage holds only the dismiss, so the popup takes focus until the primary action mounts.
+        initialFocus: popupRef,
         onFocus: (event): void => {
           // Base UI can deliver its queued popup focus after the preview has already mounted the action.
           if (event.target === event.currentTarget) {
@@ -108,16 +117,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
       }}
     >
       {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
-      {state.kind === "invalid" ? (
-        <>
-          <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
-          <DialogFooter>
-            <Button variant="outline" onClick={onDone} ref={primaryRef}>
-              {DIALOG_VERBS.close}
-            </Button>
-          </DialogFooter>
-        </>
-      ) : null}
+      {state.kind === "invalid" ? <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription> : null}
       {state.kind === "ready" ? (
         <>
           <DialogDescription>{inviteRoomSentence(state.preview)}</DialogDescription>
@@ -126,14 +126,6 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
               {state.preview.modeLabel}
             </Text>
           </Stack>
-          <DialogFooter>
-            <Button variant="ghost" onClick={onDone}>
-              Not now
-            </Button>
-            <Button disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
-              {redeem.isPending ? "Joining…" : "Join chat"}
-            </Button>
-          </DialogFooter>
         </>
       ) : null}
     </FlowDialog>

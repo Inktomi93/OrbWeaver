@@ -21,6 +21,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
+import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import type { AutosaveSession } from "#forms/editor";
@@ -50,15 +51,15 @@ const POSITION_ITEMS: SelectItems = PERSONA_DESCRIPTION_POSITIONS.map((value) =>
 
 export interface PersonaEditorProps {
   readonly persona: PersonaDetail;
-  /** Opens the row's delete confirm (the tier-2 ConfirmDialog the row already owns). An always-visible
+  /** Runs once the editor's Delete is confirmed. An always-visible
    *  way out of the create-on-click flow: "New persona" instantly persists a row, so the freshly-opened
    *  autosave editor must offer an explicit discard — the row's own delete is hover-revealed only. */
-  readonly onRequestDelete: () => void;
+  readonly onDelete: () => void | Promise<void>;
 }
 
 // The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body).
 //  Mounted through the D78 session boundary (`PersonaForm`), which owns the persona.id key.
-function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactElement {
+function PersonaEditor({ persona, onDelete }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
@@ -72,14 +73,14 @@ function PersonaEditor({ persona, onRequestDelete }: PersonaEditorProps): ReactE
 
   return (
     <PersonaForm entityId={persona.id} serverValues={personaFormFromEntity(persona)} save={save}>
-      {(session): ReactElement => <PersonaEditorBody session={session} persona={persona} onRequestDelete={onRequestDelete} />}
+      {(session): ReactElement => <PersonaEditorBody session={session} persona={persona} onDelete={onDelete} />}
     </PersonaForm>
   );
 }
 
 /** The editor inside its named, bordered row panel. Focus lands on it only on a pending request from the
  *  switcher's Edit door (mounting or already mounted); a chevron expand leaves focus where it is. */
-export function PersonaEditorRegion({ persona, subject, onRequestDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
+export function PersonaEditorRegion({ persona, subject, onDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
   const regionRef = useRef<HTMLDivElement>(null);
   const request = usePersonaEditorFocusRequest();
   useEffect(() => {
@@ -90,7 +91,7 @@ export function PersonaEditorRegion({ persona, subject, onRequestDelete }: Perso
   }, [request, persona.id]);
   return (
     <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
-      <PersonaEditor persona={persona} onRequestDelete={onRequestDelete} />
+      <PersonaEditor persona={persona} onDelete={onDelete} />
     </Card>
   );
 }
@@ -98,11 +99,11 @@ export function PersonaEditorRegion({ persona, subject, onRequestDelete }: Perso
 interface PersonaEditorBodyProps {
   readonly session: AutosaveSession<PersonaFormValues>;
   readonly persona: PersonaDetail;
-  readonly onRequestDelete: () => void;
+  readonly onDelete: () => void | Promise<void>;
 }
 
 /** The form-bearing persona details body — remounted per persona by the boundary's keyed Session. */
-function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorBodyProps): ReactElement {
+function PersonaEditorBody({ session, persona, onDelete }: PersonaEditorBodyProps): ReactElement {
   const { form } = session;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -226,10 +227,20 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
           <Icon icon={Download} size="sm" />
           Export
         </Button>
-        <Button variant="ghost" size="sm" onClick={onRequestDelete}>
-          <Icon icon={Trash} size="sm" />
-          Delete
-        </Button>
+        <DestructiveAction
+          confirm={{
+            confirmLabel: "Delete",
+            description: <>This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>,
+            title: "Delete this persona?",
+          }}
+          onConfirm={onDelete}
+          trigger={
+            <Button variant="ghost" size="sm">
+              <Icon icon={Trash} size="sm" />
+              Delete
+            </Button>
+          }
+        />
       </Row>
     </Stack>
   );

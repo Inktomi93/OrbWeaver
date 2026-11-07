@@ -13,6 +13,7 @@ import { RuleAnalysisFields } from "./rule-analysis-fields.tsx";
 import { RuleCharacterField } from "./rule-character-field.tsx";
 import { RuleImageFields } from "./rule-image-fields.tsx";
 import { RuleLoreFields, RuleReplyFields } from "./rule-list-action-fields.tsx";
+import { RuleRemoveField } from "./rule-remove-field.tsx";
 import { RuleToolFields } from "./rule-tool-fields.tsx";
 
 const RECIPIENT_LABELS = {
@@ -75,9 +76,7 @@ export function RuleActionFields({
                 ) : (
                   <Stack gap="tight">
                     <field.MacroField label="Value template" suggestions={[]} />
-                    <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                      Remove value template
-                    </Button>
+                    <RuleRemoveField name="value template" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
                   </Stack>
                 )
               }
@@ -144,9 +143,7 @@ export function RuleActionFields({
               ) : (
                 <Stack gap="tight">
                   <field.MacroField label="Turn guidance" suggestions={[]} />
-                  <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                    Remove turn guidance
-                  </Button>
+                  <RuleRemoveField name="turn guidance" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
                 </Stack>
               )
             }
@@ -170,9 +167,7 @@ export function RuleActionFields({
               ) : (
                 <Stack gap="tight">
                   <field.MacroField label="Background guidance" suggestions={[]} />
-                  <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                    Remove background guidance
-                  </Button>
+                  <RuleRemoveField name="background guidance" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
                 </Stack>
               )
             }

@@ -5,11 +5,8 @@
 // current name/description (seed) + `onSave`; local state is committed on submit. Used both for RENAME (from
 // the library row kebab) and for editing the open book's header in CONTENT.
 
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -41,6 +38,14 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
 
   return (
     <FormDialog
+      submit={{
+        label: DIALOG_VERBS.save,
+        disabled: !canSave,
+        onSubmit: (): void => {
+          onSave({ name: trimmedName, description: description.trim() });
+          onOpenChange(false);
+        },
+      }}
       onOpenChange={(next): void => {
         // Re-seed on each open so a cancelled edit doesn't carry into the next open.
         if (next) {
@@ -52,37 +57,18 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
       open={open}
       title={WORLD_INFO_BOOK_DETAILS_NAME}
     >
-      <form
-        aria-label={WORLD_INFO_BOOK_DETAILS_NAME}
-        onSubmit={(event): void => {
-          event.preventDefault();
-          if (canSave) {
-            onSave({ name: trimmedName, description: description.trim() });
-            onOpenChange(false);
-          }
-        }}
-      >
-        <Stack gap="block">
-          <Field label="Name">
-            <Input
-              value={name}
-              onValueChange={setName}
-              placeholder="Book name"
-              // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog opens on an explicit action; its name field takes focus
-              autoFocus={true}
-            />
-          </Field>
-          <Field label="Description" description="An optional note for the library — never injected.">
-            <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
-          </Field>
-          <DialogFooter>
-            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-            <Button type="submit" disabled={!canSave}>
-              {DIALOG_VERBS.save}
-            </Button>
-          </DialogFooter>
-        </Stack>
-      </form>
+      <Field label="Name">
+        <Input
+          value={name}
+          onValueChange={setName}
+          placeholder="Book name"
+          // eslint-disable-next-line jsx-a11y/no-autofocus -- the dialog opens on an explicit action; its name field takes focus
+          autoFocus={true}
+        />
+      </Field>
+      <Field label="Description" description="An optional note for the library — never injected.">
+        <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
+      </Field>
     </FormDialog>
   );
 }

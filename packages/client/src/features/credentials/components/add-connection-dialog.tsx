@@ -6,7 +6,7 @@ import { WebSpinner } from "@orb/ui/spinner";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
-import { FormDialog, QueryBoundary, useSetBinding } from "#components";
+import { DismissDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useSuspenseQuery } from "#data";
 import { CHAT_ROLE_DOOR } from "#lib";
@@ -67,7 +67,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     changeOpen(false);
   };
   return (
-    <FormDialog
+    <DismissDialog
       anchor="top"
       finalFocus={(): HTMLElement | false | null => (closeTarget.chat ? false : returnFocus.current)}
       onOpenChangeComplete={(next): void => {
@@ -112,7 +112,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
           />
         )}
       </QueryBoundary>
-    </FormDialog>
+    </DismissDialog>
   );
 }
 

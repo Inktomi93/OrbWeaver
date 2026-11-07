@@ -5,7 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { DialogClose, DialogHeader } from "@orb/ui/dialog";
+import { DialogHeader } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
@@ -204,15 +204,7 @@ function DialogModal({
       popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
       bodyFocusTarget={true}
       bodyProps={{ ref: bodyRef, tabIndex: -1 }}
-      headerActions={
-        <DialogClose
-          render={
-            <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>
-              <Icon icon={X} size="sm" />
-            </Button>
-          }
-        />
-      }
+      dismiss={{ at: "header", glyph: true }}
     >
       {body}
     </FlowDialog>

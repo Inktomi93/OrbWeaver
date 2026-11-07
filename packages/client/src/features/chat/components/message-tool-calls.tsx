@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import type { ReactElement, ReactNode } from "react";
 import { use } from "react";
-import { ConfirmDialog } from "#components";
+import { DestructiveAction } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
@@ -47,10 +47,12 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
       <Button variant="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
         {hidden ? "Show to AI" : "Hide from AI"}
       </Button>
-      <ConfirmDialog
-        title="Delete this tool call?"
-        description="The prose stays. This removes the card and its future prompt replay, not the tool's effects."
-        confirmLabel="Delete"
+      <DestructiveAction
+        confirm={{
+          title: "Delete this tool call?",
+          description: "The prose stays. This removes the card and its future prompt replay, not the tool's effects.",
+          confirmLabel: "Delete",
+        }}
         trigger={
           <Button variant="ghost" size="sm">
             Delete tool call

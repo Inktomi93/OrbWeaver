@@ -85,7 +85,19 @@ function copyCells(text: string, line: number): Record<string, { readonly value:
 
 const BUTTON_TAGS = new Set(["Button", "GlyphButton", "InlineAction", "PictureButton", "MenuItem", "DropdownMenuItem"]);
 const CHIP_TAGS = new Set(["Badge", "RefineryChip", "InlineToken", "FloatingChip"]);
-const DIALOG_TAGS = new Set(["FormDialog", "ContentDialog", "ViewerDialog", "PickerDialog", "FlowDialog", "ConfirmDialog", "Dialog", "AlertDialog"]);
+const DIALOG_TAGS = new Set([
+  "FormDialog",
+  "FormDialogPopup",
+  "DismissDialog",
+  "RequiredFormDialog",
+  "ContentDialog",
+  "ViewerDialog",
+  "PickerDialog",
+  "FlowDialog",
+  "ConfirmDialog",
+  "Dialog",
+  "AlertDialog",
+]);
 const LABEL_PROPS = ["confirmLabel", "cancelLabel", "dismissLabel"];
 const WORD_MAP = /(?:WORD|LABEL|COPY)S?$/u;
 
@@ -186,9 +198,6 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
     }
     for (const prop of LABEL_PROPS) {
       add("button-label", attrString(elem.attrs.get(prop)), elem.line);
-    }
-    if (elem.tag === "FormSubmitButton") {
-      add("button-label", attrString(elem.attrs.get("label")), elem.line);
     }
   }
   return out;

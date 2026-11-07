@@ -1,6 +1,9 @@
 // The accessible names the chat list, composer, gallery picker and message confirms print. A zero-import leaf, so a spec's
 // node side reads them without loading the component graph.
 
+/** The verb on a room override's clear control and its confirm. */
+export const OVERRIDE_CLEAR_VERB = "Clear";
+
 /** The chat list search box's clear button. */
 export const CHAT_CLEAR_SEARCH_NAME = "Clear the search";
 
