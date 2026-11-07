@@ -1,7 +1,7 @@
 // The endpoint REACHABILITY probe + the wake slice (§8.1, §4). Every `auth: endpoint` row alike: a cached
-// `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, the
-// `isSleepingPath` read says `asleep`. Before each task the backend asks `asleep` afresh and, when it is, `wake` POSTs
-// `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
+// `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, an
+// `isSleepingPath` read that answers truthy says `asleep`, and one that does not answer says nothing. Before each
+// task the backend asks `asleep` afresh and, when it is, `wake` POSTs `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
 import { toError } from "@orb/kit/error-message";
@@ -63,17 +63,28 @@ async function readJson(
   }
 }
 
+/** Whether the server says it sleeps. The sleep route is optional evidence: a server or proxy that does not serve it
+ *  is not asleep, and only the model list can call that server down. */
+async function readsSleeping(deps: ReachabilityDeps, target: ProbeTarget, sleepPath: string, signal: AbortSignal | undefined): Promise<boolean> {
+  // a sleep read the server does not answer is `false`: `probeOnce` then asks the model list, and `wakeBeforeSend` in openai-compat/index.ts lets the task run, where it meets the same server and rejects with its own classified ProviderError. A cancel is rethrown here as `wakeAborted`. Ends if a caller needs the read's own failure.
+  try {
+    return readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, sleepPath), label: "sleep probe" }, signal));
+  } catch (err) {
+    if (signal?.aborted === true) {
+      throw wakeAborted(err);
+    }
+    return false;
+  }
+}
+
 async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget, signal?: AbortSignal): Promise<Reachability> {
   try {
-    if (
-      target.sleepPath !== undefined &&
-      readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, target.sleepPath), label: "sleep probe" }, signal))
-    ) {
+    if (target.sleepPath !== undefined && (await readsSleeping(deps, target, target.sleepPath, signal))) {
       return "asleep";
     }
     await readJson(deps, target, { url: openAiPath(target.baseUrl, "/models"), label: "reachability probe" }, signal);
     return "up";
-    // every probe failure is the returned `down` state, which the availability fold in resolve/availability.ts maps to `endpoint-unreachable`; reachability is advisory and never authorizes a request. Ends if callers need the failure cause.
+    // a model list that does not answer is the returned `down` state, which the availability fold in resolve/availability.ts maps to `endpoint-unreachable`; reachability is advisory and never authorizes a request. Ends if callers need the failure cause.
   } catch {
     return "down";
   }
@@ -152,17 +163,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     cache.delete(baseUrl);
   };
 
-  const asleep = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
-    // a sleep read the server does not answer is `false`, and `wakeBeforeSend` in openai-compat/index.ts then lets the task run: the task meets the same server and rejects with its own classified ProviderError. A cancel is rethrown here as `wakeAborted`. Ends if a caller needs the read's own failure.
-    try {
-      return readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, target.sleepPath), label: "sleep probe" }, signal));
-    } catch (err) {
-      if (signal?.aborted === true) {
-        throw wakeAborted(err);
-      }
-      return false;
-    }
-  };
+  const asleep = (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => readsSleeping(deps, target, target.sleepPath, signal);
 
   const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
