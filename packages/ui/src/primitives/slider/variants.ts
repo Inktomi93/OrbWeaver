@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FIELD_LABEL, FIELD_STACK, FOCUS_RING_HAS, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The slider skin. The control row is h-(--size-control-sm) so the drag surface meets the ≥44px touch
@@ -7,10 +7,10 @@ import type { Tone } from "#tokens";
 // the track (it is the fill, and wants the rail's clip); the thumbs are the track's SIBLINGS.
 export const sliderVariants = tv({
   slots: {
-    root: `flex flex-col gap-field inline-full ${DISABLED_STATE}`,
+    root: `${FIELD_STACK} inline-full ${DISABLED_STATE}`,
     header: "flex items-baseline justify-between gap-row inline-full",
-    label: "text-label leading-label font-medium text-foreground",
-    value: "text-label leading-label text-muted-foreground tabular-nums",
+    label: FIELD_LABEL,
+    value: `${CAPTION} tabular-nums`,
     // `relative` is LOAD-BEARING, not decoration: the thumbs are siblings of the track (slider.tsx —
     // inside the CLIPPING track they rendered as 6px slivers), and Base UI positions each thumb
     // `position:absolute` against its nearest positioned ancestor. The Control's content box is the
@@ -104,3 +104,8 @@ export const sliderVariants = tv({
 
 /** The D336 tone the track's invalid tint paints; the valid track reads no tone role. */
 export const SLIDER_INVALID_TONE = "destructive" satisfies Tone;
+
+// A cluster that ends where the slider's rail ends. The rail is inset by half a thumb (`control` above), so a value that is to share
+// its outer edge takes the same inset. That is the knob grid folded (`Grid cols="knob"`, below the `cq-32` container step): the cluster
+// rides the name's line, and the row reads from its end so the reset slot falls inboard of the number instead of past the rail.
+export const SLIDER_RAIL_END = "flex flex-row items-center justify-end gap-field @max-cq-32:me-(--size-slider-inset) @max-cq-32:flex-row-reverse";

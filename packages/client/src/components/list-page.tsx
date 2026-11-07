@@ -10,7 +10,7 @@ import { SkipToFirstRow } from "./skip-to-first-row.tsx";
 
 /** The one element a LIST pane scrolls in: the `ListPage` body, or the rows under a `bounded` body. */
 export function ListScrollBox({ gap, ...props }: Omit<ComponentProps<"div">, "className"> & { readonly gap?: StackProps["gap"] }): ReactElement {
-  return <Stack {...props} gap={gap} className="relative flex-1 overflow-y-auto overscroll-contain min-block-0" data-slot="library-list-scroll" />;
+  return <Stack {...props} gap={gap} scroll="y" grow={true} data-slot="library-list-scroll" />;
 }
 
 /** `scroll`: the body is the scroll box. `bounded`: the body is a bounded column whose rows or VirtualList scroll
@@ -60,8 +60,10 @@ export function ListPage({
         {...data}
         data-list-page={body}
         {...(label === undefined ? {} : { "aria-label": label, role: "region" })}
-        className={body === "pane" ? "relative overflow-y-auto overscroll-contain block-full min-block-0" : "block-full min-block-0"}
+        className="min-block-0"
+        fill={true}
         focusTarget={true}
+        scroll={body === "pane" ? "y" : undefined}
         gap="row"
         onKeyDown={onKeyDown}
         ref={ref}
@@ -69,13 +71,13 @@ export function ListPage({
       >
         {skipTo === undefined ? null : <SkipToFirstRow containerRef={ref}>{skipTo}</SkipToFirstRow>}
         {lead}
-        <Row align="center" className="flex-wrap" gap="field">
-          <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
+        <Row align="center" wrap={true} gap="field">
+          <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
             <ListSearch>{search}</ListSearch>
           </Row>
           {/* The aside wraps as one cluster at the row's end, so the search keeps its floor and a control never strands alone. */}
           {searchAside === undefined ? null : (
-            <Row align="center" className="ms-auto shrink-0" gap="field">
+            <Row align="center" className="shrink-0" push="inlineEnd" gap="field">
               {searchAside}
             </Row>
           )}
@@ -84,7 +86,7 @@ export function ListPage({
         {body === "pane" ? children : null}
         {body === "scroll" ? <ListScrollBox>{children}</ListScrollBox> : null}
         {body === "bounded" ? (
-          <Stack className="flex-1 min-block-0" data-slot="library-list-bounded">
+          <Stack className="min-block-0" grow={true} data-slot="library-list-bounded">
             {children}
           </Stack>
         ) : null}

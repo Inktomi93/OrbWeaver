@@ -1,10 +1,13 @@
 import {
   ACCENT_HOVER,
+  COLOR_MOTION,
   CONTROL_MIN_BLOCK,
   DISABLED_STATE_NATIVE,
+  FIELD_STACK,
   FOCUS_RING,
   FOCUS_RING_BARE,
   FOCUS_RING_WITHIN,
+  INLINE_FIELD_ROW,
   ITEM_ROW,
   OVERLAY_ARROW,
   OVERLAY_MOTION,
@@ -18,13 +21,13 @@ export const comboboxVariants = tv({
   slots: {
     inputGroup: [
       "relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
     ],
     chips: "contents",
     chip: [
-      "inline-flex items-center gap-field rounded-full bg-secondary ps-block pe-field text-label leading-label text-secondary-foreground outline-none",
+      `${INLINE_FIELD_ROW} rounded-full bg-secondary ps-block pe-field text-label leading-label text-secondary-foreground outline-none`,
       FOCUS_RING,
       "data-disabled:opacity-disabled",
     ],
@@ -41,10 +44,10 @@ export const comboboxVariants = tv({
     positioner: "z-(--z-popover) outline-none",
     popup: [POPUP_SURFACE, "inline-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
-    list: "flex flex-col gap-field",
+    list: FIELD_STACK,
     // Grouped suggestions — same spellings as the autocomplete seal's group/groupLabel, since the two
     // listbox popups must not drift into two different grouped looks.
-    group: "flex flex-col gap-field",
+    group: FIELD_STACK,
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,
     empty: "px-block py-field text-body leading-body text-muted-foreground",

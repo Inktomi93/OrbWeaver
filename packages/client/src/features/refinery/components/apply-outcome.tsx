@@ -126,7 +126,7 @@ function OutcomeActions({
     );
   }
   return (
-    <Row className="flex-wrap" gap="row" justify="end">
+    <Row wrap={true} gap="row" justify="end">
       {recovery === null ? null : (
         <Button disabled={recovery.pending} variant="outline" onClick={recovery.onPress} size="sm">
           Discard the refused {recovery.refused === 1 ? "field" : "fields"} and{" "}

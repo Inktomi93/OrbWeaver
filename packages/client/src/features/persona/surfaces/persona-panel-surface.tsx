@@ -107,12 +107,7 @@ function PanelBody({ presentation }: PersonaPanelSurfaceProps): ReactElement {
     <Popover>
       <PanelTrigger current={playing} />
       {/* aria-label names the popup dialog: it has no visible title element (the body opens with the head). */}
-      <PopoverPopup
-        aria-label="Account & personas"
-        align="end"
-        className="relative overflow-y-auto overscroll-contain inline-(--container-cq-24) max-block-(--available-height)"
-        side="right"
-      >
+      <PopoverPopup aria-label="Account & personas" align="end" width="stable" maxHeight="available" side="right">
         <PersonaPanelAnchor>{sections}</PersonaPanelAnchor>
       </PopoverPopup>
     </Popover>
@@ -196,11 +191,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
         <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="md" {...avatarSrc}>
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
-        <Stack className="flex-1 min-inline-0">
-          <Text className="truncate" voice="label">
+        <Stack className="min-inline-0" grow={true}>
+          <Text truncate={true} voice="label">
             {current?.name ?? "No persona set"}
           </Text>
-          <Text className="truncate" voice="gloss">
+          <Text truncate={true} voice="gloss">
             {headGloss(state)}
           </Text>
         </Stack>
@@ -209,6 +204,8 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
     </Stack>
   );
 }
+
+const DESCRIPTION_LINES = 3;
 
 /** Three lines of the description, with "More" only when the text is actually clamped. */
 function ClampedDescription({ text }: { readonly text: string }): ReactElement {
@@ -222,7 +219,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
   };
   return (
     <Stack gap="field" align="start">
-      <Text className={expanded ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"} data-slot="persona-who-description" ref={measure} voice="gloss">
+      <Text clamp={expanded ? undefined : DESCRIPTION_LINES} data-slot="persona-who-description" whitespace="preWrap" ref={measure} voice="gloss">
         {text}
       </Text>
       {clamped ? (
@@ -238,7 +235,7 @@ function ClampedDescription({ text }: { readonly text: string }): ReactElement {
 function ManageDoor({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   const door = (
     <Button
-      className="justify-start"
+      justify="start"
       variant="ghost"
       size="sm"
       onClick={(): void => {

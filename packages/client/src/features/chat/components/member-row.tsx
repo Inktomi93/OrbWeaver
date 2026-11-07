@@ -73,7 +73,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       tabIndex={tabIndex}
       aria-label={rowAccessibleName(row)}
       {...(responding ? { "aria-describedby": descriptionId } : {})}
-      className="flex-1 justify-start min-inline-0"
+      stretch="row"
       wrap={true}
       ref={(el: HTMLButtonElement | null): void => {
         bodyRef.current = el;
@@ -100,14 +100,8 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
       {/* The name owns its line. Last seen and the chips share a wrapping line below it, because beside the name
           each `shrink-0` chip takes its width from the only thing that can give, and the name reaches zero. */}
-      <Stack className="flex-1 text-start min-inline-0">
-        <Text
-          as="span"
-          voice="label"
-          data-slot="member-name"
-          ink={row.kind === "character" && row.disabled ? "muted" : undefined}
-          className="truncate min-inline-0"
-        >
+      <Stack className="min-inline-0" textAlign="start" grow={true}>
+        <Text as="span" voice="label" data-slot="member-name" ink={row.kind === "character" && row.disabled ? "muted" : undefined} truncate={true}>
           {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
               an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
               carries a handle at all, so the suffix has nothing to come back from. */}
@@ -173,7 +167,8 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
   }
   return (
     <Swatch
-      className="shrink-0 block-(--size-dot) inline-(--size-dot)"
+      className="shrink-0"
+      size="dot"
       data-online={online}
       data-slot="member-presence"
       // The SHAPE channel: the online dot is filled, and the offline one is an unfilled ring of the same box —
@@ -198,7 +193,7 @@ function RowMeta({
   readonly descriptionId: string;
 }): ReactElement {
   return (
-    <Row gap="tight" align="center" className="flex-wrap min-inline-0 empty:hidden">
+    <Row gap="tight" align="center" className="min-inline-0" hiddenAt="empty" wrap={true}>
       <LastSeen row={row} />
       <RowStateBadges row={row} />
       {responding ? (

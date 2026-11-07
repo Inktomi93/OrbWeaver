@@ -1,4 +1,4 @@
-import { MODAL_SURFACE, OVERLAY_MOTION, SCRIM, tv } from "#lib";
+import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_STEP, tv, WRAP } from "#lib";
 
 // Wide data pickers use a field inset to retain narrow-screen reading width; lg keeps its usual modal gutter.
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
@@ -25,8 +25,8 @@ export const dialogVariants = tv({
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE} @max-cq-20:p-field ${OVERLAY_MOTION.modalPopup}
     `,
     header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
-    title: "text-title leading-title font-semibold",
-    description: "mbs-field text-body leading-body text-muted-foreground",
+    title: TITLE_STEP,
+    description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
     footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
@@ -38,9 +38,15 @@ export const dialogVariants = tv({
     clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
     // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
     focusTarget: { true: { title: "outline-none" }, false: {} },
+    // A title that must hold one line beside the dialog's actions.
+    truncate: { true: { title: "truncate" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through.
-    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) bg-card" } },
+    stickyHeader: { true: { header: "sticky inset-bs-0 z-(--z-raised) mbe-block bg-card" } },
+    // The foot sets at the end of a tall body: only the block-end arm has a caller, so it is the only arm.
+    footerPush: { blockEnd: { footer: PUSH.blockEnd } },
+    // A title and actions that run out of room take a second line.
+    headerWrap: { true: { header: WRAP.true } },
     size: {
       sm: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-sm)" },
       md: { viewport: VIEWPORT_GUTTER, popup: "max-inline-(--width-dialog-md)" },

@@ -51,7 +51,7 @@ export function ParamToggle({
   readonly onValueChange: (value: string) => void;
 }): ReactElement {
   return (
-    <Row align="center" gap="field" className="flex-wrap">
+    <Row align="center" gap="field" wrap={true}>
       <Text voice="kicker">{label}</Text>
       <ToggleGroup
         aria-label={label}

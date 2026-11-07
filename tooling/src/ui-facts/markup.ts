@@ -1,9 +1,8 @@
 // A and B sites in TS and TSX: hand-rolled class tokens, inline styles, inline svg and raw intrinsics.
 import ts from "typescript";
-import { classifyToken, classStringsOf } from "./classes.ts";
+import type { ClassConstants, Elem, Source } from "../eslint/index.ts";
+import { attrString, classifyToken, classStringsOf, elementsOf, lineOf } from "../eslint/index.ts";
 import type { Site } from "./sites.ts";
-import type { Elem, Source } from "./source.ts";
-import { attrString, elementsOf, lineOf } from "./source.ts";
 
 const INTRINSIC_KIND: Readonly<Record<string, string>> = {
   button: "raw-button",
@@ -123,7 +122,7 @@ function styleSites(source: Source, sf: ts.SourceFile, elem: Elem): readonly Sit
   return out;
 }
 
-function classSites(source: Source, sf: ts.SourceFile, referenced: ReadonlySet<string>): readonly Site[] {
+function classSites(source: Source, sf: ts.SourceFile, referenced: ClassConstants): readonly Site[] {
   const out: Site[] = [];
   for (const classString of classStringsOf(source.path, sf, referenced)) {
     const cluster = classString.tokens.length >= CLUSTER_TOKENS ? classString.tokens.join(" ") : null;
@@ -138,7 +137,7 @@ function classSites(source: Source, sf: ts.SourceFile, referenced: ReadonlySet<s
 }
 
 /** Every A and B site in one TS or TSX file. */
-export function scanMarkup(source: Source, referenced: ReadonlySet<string>): readonly Site[] {
+export function scanMarkup(source: Source, referenced: ClassConstants): readonly Site[] {
   const sf = source.sf;
   if (sf === null) {
     return [];

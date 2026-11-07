@@ -202,7 +202,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
         <Button
           aria-controls={previewId}
           aria-expanded={previewOpen}
-          className="self-start"
+          self="start"
           variant="outline"
           onClick={(): void => setPreviewOpen(!previewOpen)}
           size="sm"
@@ -332,7 +332,7 @@ function BudgetBar({
   const off = !section.enabled;
   return (
     <Button variant="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" selection={selected ? "on" : "none"}>
-      <Text ink="inherit" className="flex-1 truncate text-start min-inline-0" strike={off} voice="label">
+      <Text ink="inherit" textAlign="start" truncate="fill" strike={off} voice="label">
         {sectionName(section)}
       </Text>
       {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
@@ -346,9 +346,9 @@ function BudgetBar({
           meaning here: the struck name and the struck, zeroed cost. F-26's ruling holds — the off row stays
           IN the budget list; what it loses is a meter that was saying nothing about it. */}
       {off ? (
-        <Row className="flex-1 min-inline-0" />
+        <Row className="min-inline-0" grow={true} />
       ) : (
-        <TrackBar accent={accent} className="flex-1 min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
+        <TrackBar accent={accent} grow={true} className="min-inline-0" max={max} value={drawnTokens(tokens ?? 0, max)} />
       )}
       {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
           announces as "tilde em dash", which is not a cost. */}

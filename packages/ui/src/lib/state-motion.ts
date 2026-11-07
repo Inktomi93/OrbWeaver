@@ -4,6 +4,9 @@
  *  When reduced motion resolves on, the motion floor stills it and the label carries the state. */
 export const PULSE = "animate-pulse";
 
+/** A colour that eases on the fast step: a control's hover, press and selection ink, on the standard ease. */
+export const COLOR_MOTION = "transition-colors duration-(--motion-fast) ease-out-expo";
+
 /** A disclosure chevron's half turn while the nearest `group` ancestor's panel is open (a collapsible trigger
  *  stamps `data-panel-open`), so the glyph says which way the section is. */
 export const OPEN_TURN = "transition-transform duration-(--motion-base) ease-out-expo group-data-panel-open:rotate-180";

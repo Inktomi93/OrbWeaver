@@ -50,13 +50,7 @@ export function TypedModelField({
           <Text as="span" voice="label">
             Model
           </Text>
-          <Text
-            className="max-inline-(--reading-measure-prose)"
-            tone={view.warns ? "warning" : undefined}
-            data-slot="model-picker-notice"
-            prose={true}
-            voice="gloss"
-          >
+          <Text cap="prose" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
             {notice}
           </Text>
           {error === null ? null : (

@@ -37,9 +37,9 @@ const RETURN_SPEED_FRAC = 0.45;
 const ALERT_TURN_RATE = 0.3;
 const RUN_TURN_RATE = 0.35;
 const REST_TURN_RATE = 0.1;
-/** Her resting bob (shared spelling with the non-interactive rest pose). */
-const REST_BOB_PX = 0.9;
-const REST_BOB_HZ = 0.0009;
+/** Her resting bob amplitude (px) and rate (per ms); the non-interactive rest pose in `web-weave-spider.ts` reads the same pair. */
+export const REST_BOB_PX = 0.9;
+export const REST_BOB_HZ = 0.0009;
 
 interface PreyPosition {
   x: number;

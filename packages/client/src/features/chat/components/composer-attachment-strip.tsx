@@ -23,16 +23,9 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
         // A muted first-frame/loop thumb (#317) — BackgroundVideo bakes the policy (muted, no controls,
         // aria-hidden, reduced-motion stills to the first frame); the remove button carries the file name
         // for the accessibility tree, mirroring the image arm's alt.
-        <BackgroundVideo src={attachment.url} rounded="base" className="block-(--size-avatar-hero) inline-(--size-avatar-hero)" />
+        <BackgroundVideo src={attachment.url} rounded="base" size="hero" />
       ) : (
-        <CrossfadeImage
-          src={attachment.url}
-          alt={`Attachment preview: ${attachment.file.name}`}
-          aspectRatio={1}
-          fit="cover"
-          rounded="base"
-          className="block-(--size-avatar-hero) inline-(--size-avatar-hero)"
-        />
+        <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" rounded="base" size="hero" />
       )}
       <Button type="button" variant="ghost" square={true} aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
         <Icon icon={X} size="sm" />
@@ -53,7 +46,7 @@ export function ComposerAttachmentStrip({
     return null;
   }
   return (
-    <Track of={Row} track="composer" gap="field" align="center" data-slot="composer-attachments" className="flex-wrap">
+    <Track of={Row} track="composer" gap="field" align="center" data-slot="composer-attachments" wrap={true}>
       {attachments.map((attachment, index) => (
         <AttachmentPreview key={attachment.url} attachment={attachment} onRemove={(): void => onRemove(index)} />
       ))}

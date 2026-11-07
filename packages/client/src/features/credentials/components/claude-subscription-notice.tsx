@@ -9,13 +9,13 @@ import { CLAUDE_SUBSCRIPTION_NOTICE } from "../lib/add-connection-form-model.ts"
 export function ClaudeSubscriptionNotice(): ReactElement {
   return (
     <Stack data-slot="claude-subscription-notice" gap="tight">
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {CLAUDE_SUBSCRIPTION_NOTICE.runtime}
       </Text>
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {CLAUDE_SUBSCRIPTION_NOTICE.extraUsage}
       </Text>
-      <Text tone="warning" className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text tone="warning" cap="prose" prose={true} voice="gloss">
         {CLAUDE_SUBSCRIPTION_NOTICE.terms}
       </Text>
     </Stack>

@@ -349,7 +349,7 @@ function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; read
       <Row
         aria-label={collapsed ? undefined : group.disclosureLabel}
         aria-labelledby={collapsed ? disclosureId : undefined}
-        className="flex-wrap"
+        wrap={true}
         gap="field"
         hidden={collapsed && !expanded}
         id={regionId}
@@ -375,7 +375,7 @@ function ControlChips({ controls, consumer }: { readonly controls: readonly Chat
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="block">
+    <Row align="center" wrap={true} data-slot="chat-control-chips" gap="block">
       {groupChips(chips).map((group) => (
         <ControlChipGroup consumer={consumer} group={group} key={group.disclosureLabel === undefined ? "unlabeled" : `labeled:${group.disclosureLabel}`} />
       ))}

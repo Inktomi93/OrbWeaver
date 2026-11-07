@@ -24,7 +24,6 @@ import {
   useSectionRegistry,
 } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
-import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
 import { PanelChrome } from "../components/panel-chrome.tsx";
@@ -35,7 +34,7 @@ import type { SectionContextHostProps } from "../components/section-context-host
 import { SectionContextHeader, SectionContextHost } from "../components/section-context-host.tsx";
 import { SectionPlaceholder } from "../components/section-placeholder.tsx";
 import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
-import { LIST_TOGGLE_MARKER, ShellTopbar } from "../components/shell-topbar.tsx";
+import { CONTEXT_TOGGLE_MARKER, LIST_TOGGLE_MARKER, ShellTopbar } from "../components/shell-topbar.tsx";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer.tsx";
 import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-layer.tsx";
 import { ThemeFallbackReporters } from "../components/theme-fallback-reporters.tsx";
@@ -327,7 +326,7 @@ export function AppShell(): ReactElement {
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
       <ThemeFallbackReporters>
-        <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
+        <ThemeScope tokens={resolvedScopeTokens} box="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
           <PortalContainerContext value={portalRootRef}>
             {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
@@ -355,7 +354,7 @@ export function AppShell(): ReactElement {
               {/* The skip precedes navigation and targets whichever pane owns the main landmark.
                 Inverse sr-only avoids the reset that removes the revealed button's padding and height. */}
               <Button
-                className="not-focus-visible:sr-only focus-visible:absolute focus-visible:inset-s-row focus-visible:inset-bs-row focus-visible:z-(--z-overlay)"
+                hiddenAt="untilFocus"
                 variant="outline"
                 onClick={(): void => (layout.listIsPrimaryContent ? listPaneRef : mainRef).current?.focus()}
                 size="sm"

@@ -121,7 +121,7 @@ function RailBrand({
           </Button>
         }
       />
-      <TooltipPopup className="pointer-events-none" side="right">
+      <TooltipPopup passThrough={true} side="right">
         {entry.label}
       </TooltipPopup>
     </Tooltip>

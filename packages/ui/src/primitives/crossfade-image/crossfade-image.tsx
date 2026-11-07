@@ -1,10 +1,12 @@
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { usePrefersReducedMotion } from "#lib";
 import { Icon, ImageOff } from "#primitives/icons";
 import { crossfadeImageVariants } from "./variants.ts";
 
 export interface CrossfadeImageProps {
+  readonly size?: VariantProps<typeof crossfadeImageVariants>["size"];
   /** The image to display. `null` renders no image but still reserves the aspect box. */
   readonly src: string | null;
   readonly alt: string;
@@ -47,7 +49,7 @@ function initialLayers(src: string | null): Layers {
  * the component. Reduced motion therefore mounts the new layer already revealed with no under-layer at
  * all. A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
-export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded, className }: CrossfadeImageProps): ReactElement {
+export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded, size, className }: CrossfadeImageProps): ReactElement {
   const reduced = usePrefersReducedMotion();
   // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
@@ -78,7 +80,7 @@ export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded
     return (): void => cancelAnimationFrame(frame);
   }, [layers.top]);
 
-  const slots = crossfadeImageVariants({ fit, rounded });
+  const slots = crossfadeImageVariants({ fit, rounded, size });
   const overrideStyle = durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
 
   const topIsBroken = layers.top !== null && layers.top.key === brokenKey;

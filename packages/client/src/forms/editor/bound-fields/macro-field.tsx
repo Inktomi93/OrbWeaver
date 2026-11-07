@@ -20,8 +20,8 @@ export interface MacroFieldProps extends BoundFieldShellProps {
    *  growing, so a long value cannot push this field's own counter/error off the fold. */
   readonly maxRows?: number;
   readonly disabled?: boolean;
-  /** Extra classes forwarded to the macro editor's root footprint (e.g. a taller min-height). */
-  readonly className?: string;
+  /** The least height of the box, for a body that is the point of its form. */
+  readonly minHeight?: "scrollSm";
   /** Native character cap (see `MacroTextareaProps.maxLength`) — blocks typing/paste past the limit, and
    *  deliberately leaves an already-over-cap STORED value rendered in full for the caller to refuse. */
   readonly maxLength?: number;
@@ -31,7 +31,7 @@ export interface MacroFieldProps extends BoundFieldShellProps {
 }
 
 export function MacroField(props: MacroFieldProps): ReactElement {
-  const { className } = props;
+  const { minHeight } = props;
   const { field, fieldProps } = useBoundField<string>(props);
   return (
     <Field {...fieldProps}>
@@ -45,7 +45,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
         disabled={props.disabled ?? false}
         helper={
           props.showTokenCount === true ? (
-            <Text as="span" className="block text-end" ink="muted" voice="datum">
+            <Text as="span" flow="block" textAlign="end" ink="muted" voice="datum">
               ~{estimateTokens(field.state.value)} tokens
             </Text>
           ) : undefined
@@ -59,7 +59,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
         {...(props.rows === undefined ? {} : { rows: props.rows })}
         {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
         {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
-        {...(className === undefined ? {} : { className })}
+        {...(minHeight === undefined ? {} : { minHeight })}
       />
     </Field>
   );

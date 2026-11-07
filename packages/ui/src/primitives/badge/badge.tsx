@@ -17,13 +17,26 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  *
  * A chip inside a run of prose is an `InlineToken`; a childless "something is here" circle is an `IndicatorDot`.
  */
-export function Badge({ className, variant, tone, size, touchFloor, face, sentenceCase, ...props }: BadgeProps): ReactElement {
+export function Badge({
+  className,
+  variant,
+  tone,
+  size,
+  touchFloor,
+  flush,
+  cap,
+  hiddenAt,
+  whitespace,
+  face,
+  sentenceCase,
+  ...props
+}: BadgeProps): ReactElement {
   // The className, the axis stamp and the D336 tone scope, from ONE selection object.
   return (
     <span
       data-slot="badge"
       {...props}
-      {...variantProps(badgeVariants, { variant, tone, size, touchFloor, face, sentenceCase }, className, tone ?? "neutral")}
+      {...variantProps(badgeVariants, { variant, tone, size, touchFloor, flush, cap, hiddenAt, whitespace, face, sentenceCase }, className, tone ?? "neutral")}
     />
   );
 }

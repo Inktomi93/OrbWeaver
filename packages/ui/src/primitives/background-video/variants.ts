@@ -1,8 +1,9 @@
-import { tv } from "#lib";
+import { PICTURE_SIZE, tv } from "#lib";
 
 export const backgroundVideoVariants = tv({
   base: "block block-full inline-full",
   variants: {
+    size: PICTURE_SIZE,
     // How the frame fills its box: `cover` and `contain` verbatim, `stretch` fills both axes, `center` paints the
     // natural size centred.
     fit: {

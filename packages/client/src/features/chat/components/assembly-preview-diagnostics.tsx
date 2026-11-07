@@ -35,7 +35,7 @@ export function AssemblyPreviewDiagnostics({
 }): ReactElement {
   return (
     <Collapsible>
-      <CollapsibleTrigger className="inline-full">
+      <CollapsibleTrigger width="full">
         <Text voice="label">Diagnostics</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
@@ -49,7 +49,7 @@ export function AssemblyPreviewDiagnostics({
                     voice="code"
                     // biome-ignore lint/suspicious/noArrayIndexKey: injection rows render controlled text only, with no row-local state or interactive descendants.
                     key={index}
-                    className="whitespace-pre-wrap"
+                    whitespace="preWrap"
                   >
                     [{injection.role} @ depth {injection.depth}] {injection.content}
                   </Text>
@@ -330,7 +330,7 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
         {label}
       </Text>
       {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
-      <Text className="text-end wrap-break-word min-inline-0" voice="datum">
+      <Text className="min-inline-0" textAlign="end" wrap="word" voice="datum">
         {value}
       </Text>
     </Row>

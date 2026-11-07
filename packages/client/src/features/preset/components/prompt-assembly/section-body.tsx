@@ -39,7 +39,6 @@ type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
 const BODY_ROWS = 8;
 /** A min-height floor — the Textarea's `field-sizing: content` otherwise collapses `rows` to ~2 lines. */
-const BODY_MIN_H = "min-block-(--height-scroll-sm)";
 /** The one ghost/reset sentence, shared by every authored body so the grammar reads identically. */
 const GHOST_PLACEHOLDER_HINT = "Leave it empty and the built-in default rides — clearing the field IS the reset.";
 
@@ -61,7 +60,7 @@ export function SectionBody({ form, section, index, presetId }: SectionBodyProps
       <PresetMacroSuggestions form={form} presetId={presetId}>
         {(suggestions): ReactElement => (
           <form.AppField name={`sections[${index}].content`}>
-            {(field): ReactElement => <field.MacroField className={BODY_MIN_H} label="Text" rows={BODY_ROWS} suggestions={suggestions} />}
+            {(field): ReactElement => <field.MacroField minHeight="scrollSm" label="Text" rows={BODY_ROWS} suggestions={suggestions} />}
           </form.AppField>
         )}
       </PresetMacroSuggestions>
@@ -95,7 +94,7 @@ function TemplatedMarkerBody({ form, section, index, presetId }: SectionBodyProp
         {(suggestions): ReactElement => (
           <MacroTextarea
             aria-label="Template"
-            className={BODY_MIN_H}
+            minHeight="scrollSm"
             // The empty string is NOT a stored state (§5.2a): clearing the field writes `undefined`, which
             // is exactly "the built-in default rides".
             onChange={(next): void => form.setFieldValue(name, next === "" ? undefined : next)}
@@ -131,21 +130,13 @@ function TemplateNoteDetail({ detail }: { readonly detail: NonNullable<MarkerCop
   const [open, setOpen] = useState(false);
   return (
     <Stack gap="tight">
-      <Button
-        aria-controls={bodyId}
-        aria-expanded={open}
-        className="gap-tight self-start"
-        variant="ghost"
-        onClick={(): void => setOpen((prev) => !prev)}
-        size="sm"
-        type="button"
-      >
+      <Button aria-controls={bodyId} aria-expanded={open} self="start" variant="ghost" onClick={(): void => setOpen((prev) => !prev)} size="sm" type="button">
         <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
         {detail.label}
       </Button>
       <div hidden={!open} id={bodyId}>
         {open ? (
-          <Text className="whitespace-pre-wrap" voice="gloss">
+          <Text whitespace="preWrap" voice="gloss">
             {detail.text}
           </Text>
         ) : null}
@@ -182,7 +173,7 @@ function CarrierBody({
           <Stack className="min-inline-0" gap="tight">
             <Text voice="label">{attribution.sentence}</Text>
             {manage === undefined ? null : (
-              <Button className="self-start" variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
+              <Button self="start" variant="ghost" onClick={(): void => openConfigTo(manage.collection)} size="sm" type="button">
                 {manage.label}
                 <Icon icon={ExternalLink} size="xs" />
               </Button>

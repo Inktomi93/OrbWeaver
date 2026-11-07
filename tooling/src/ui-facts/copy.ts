@@ -1,9 +1,9 @@
 // Area D: the copy strings per kind, as cohorts keyed on case, ellipsis and closing period.
 import ts from "typescript";
+import type { FileFacts } from "../eslint/index.ts";
+import { attrString, childrenText, constInitializer, lineOf, unwrap, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
-import type { FileFacts } from "./file-facts.ts";
-import { attrString, childrenText, constInitializer, lineOf, unwrap, visit } from "./source.ts";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "of", "to", "in", "on", "for", "and", "or", "with", "from", "by", "at", "as"]);
 

@@ -441,6 +441,8 @@ const TEST_CONSTANT_HOMES = {
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME and TAG_FILTER_NAME: the Labels finder's list and filter names",
   "packages/client/src/features/stats/lib/analytics-names.ts": "ANALYTICS_SEARCH_NAME: the Insights leaderboard list's search name",
+  "packages/client/src/features/stats/lib/analytics-copy.ts":
+    "APPROX_DATES_MARK and APPROX_DATES_NOTE: the mark and note Insights prints for approximate message dates",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/state/durable-local-keys.ts":

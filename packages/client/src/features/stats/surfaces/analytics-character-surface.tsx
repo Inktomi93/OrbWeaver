@@ -50,13 +50,13 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full min-block-0" focusTarget={true} data-testid={testId("analyticsCharacterSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" fill={true} focusTarget={true} data-testid={testId("analyticsCharacterSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller. */}
-      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
+      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="analytics-content">
         <QueryBoundary
           resetKeys={[characterId]}
           fallback={<SkeletonRows count={3} shape="datum" />}
@@ -112,7 +112,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
     <Stack gap="section">
       {/* The phone's topbar already carries the one Back (the Labels and Explore drill posture). */}
       {phone ? null : (
-        <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
+        <Button variant="ghost" size="sm" onClick={onBack} self="start">
           <Icon icon={ArrowLeft} size="sm" />
           {`Back to ${CORPUS_MODE_LABELS.insights}`}
         </Button>
@@ -187,7 +187,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Collapsible>
         <CollapsibleTrigger>Details</CollapsibleTrigger>
-        <CollapsiblePanel className="pbs-row">
+        <CollapsiblePanel offset="row">
           <Grid cols="cell" gap="block">
             <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
             <StatFigure label={LATENCY_LABELS.p50Ttft} value={formatMs(latency.p50TtftMs)} />

@@ -1,12 +1,9 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
-import { DESTRUCTIVE_EXEMPT } from "../eslint/index.ts";
+import type { Elem, FileFacts } from "../eslint/index.ts";
+import { attrString, buttonWithText, childrenText, DESTRUCTIVE_EXEMPT, firstLine, hasAny, insideTag } from "../eslint/index.ts";
 import type { Cell, Cohort, Member } from "./compare.ts";
 import { NOT_APPLICABLE } from "./compare.ts";
-import type { FileFacts } from "./file-facts.ts";
-import { buttonWithText, firstLine, hasAny, insideTag } from "./file-facts.ts";
-import type { Elem } from "./source.ts";
-import { attrString, childrenText } from "./source.ts";
 
 const cell = (value: string, line: number): Cell => ({ value, line });
 const yesNo = (flag: boolean): string => (flag ? "yes" : "no");

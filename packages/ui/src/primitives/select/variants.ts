@@ -1,8 +1,12 @@
 import {
+  CAPTION,
+  COLOR_MOTION,
   CONTROL_BLOCK,
   DISABLED_STATE,
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
+  FIELD_LABEL,
+  FLOOR,
   FOCUS_RING,
   ITEM_ROW,
   OVERLAY_ARROW,
@@ -15,17 +19,17 @@ import {
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
-    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
+    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
     trigger: [
       "flex cursor-pointer items-center justify-between gap-row select-none",
-      "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
+      `${COLOR_MOTION} hover:bg-accent`,
       "outline-none",
       FOCUS_RING,
       DISABLED_STATE,
     ],
     // The selected-value text stays ONE line (the app-wide single-line trigger convention) — `min-w-0` lets the
     // flex child shrink so `truncate` can ellipsize a long option label instead of wrapping to two lines.
-    value: "truncate text-start min-inline-0",
+    value: "truncate text-start",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
     // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
@@ -48,7 +52,7 @@ export const selectVariants = tv({
     // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the
     // popup's intrinsic width: the labels and the trigger size the popup, and the description fills what they
     // give it, so a one-line gloss cannot stretch the popup over the transcript.
-    itemDescription: "text-label leading-label text-muted-foreground contain-inline-size",
+    itemDescription: `${CAPTION} contain-inline-size`,
     itemIndicator: "flex shrink-0 text-primary",
     arrow: OVERLAY_ARROW,
     separator: "-mx-field my-field bg-border block-px",
@@ -64,21 +68,29 @@ export const selectVariants = tv({
       md: { trigger: CONTROL_BLOCK.md },
       lg: { trigger: CONTROL_BLOCK.lg },
     },
-    // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name, same two arms). `field` is the form
-    // control: the full FIELD_CONTROL chrome at the sealed control height. `inline` is the IDENTITY-LINE
-    // trigger — a name/datum that happens to open a menu, so it wears the text itself (content width,
-    // text-height, no box) and the popup is the affordance.
+    // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name; Input has no `hug`). `field` is the form
+    // control: the full FIELD_CONTROL chrome at the sealed control height. `hug` is that chrome at its value's width.
+    // `inline` is the IDENTITY-LINE trigger — a name/datum that happens to open a menu, so it wears the text itself
+    // (content width, text-height, no box) and the popup is the affordance.
     //
-    // Both arms live here rather than at the call site because the chrome they swap is custom-token
+    // The arms live here rather than at the call site because the chrome they swap is custom-token
     // (`h-(--size-control-sm)`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.
     layout: {
       field: { trigger: FIELD_CONTROL },
+      // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
+      hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
       inline: { trigger: [FIELD_CONTROL_BOX, "border-transparent bg-transparent px-field py-0 text-label leading-label block-auto inline-auto min-block-0"] },
     },
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },
   },
   defaultVariants: { size: "sm", layout: "field" },
+});
+
+export const selectBoxVariants = tv({
+  variants: {
+    floor: FLOOR,
+  },
 });

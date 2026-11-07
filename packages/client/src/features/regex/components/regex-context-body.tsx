@@ -184,7 +184,7 @@ function AttachmentList({
             // preset name must clip inside it rather than push the list past its own edge.
             <Row align="center" className="min-inline-0" gap="field" key={row.id}>
               <Icon icon={glyph} size="xs" />
-              <Text as="span" className="truncate">
+              <Text as="span" truncate={true}>
                 {row.name}
               </Text>
             </Row>
@@ -230,7 +230,7 @@ function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Rea
               // 320px context column, so the datum that must never wrap is the short one.
               <Row align="center" className="min-inline-0" gap="field" key={room.id}>
                 <Icon icon={MessagesSquare} size="xs" />
-                <Text as="span" className="truncate">
+                <Text as="span" truncate={true}>
                   {title}
                 </Text>
                 <Text as="span" className="shrink-0" voice="datum">

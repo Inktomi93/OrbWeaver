@@ -146,7 +146,7 @@ function ImageryTemplatesBody({
   return (
     <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           How each image-generation mode builds its prompt. Leave a field blank to use the built-in default (shown as the placeholder). Your opening line still
           gets the composition prefix the size defaults expect.
         </Text>

@@ -1,4 +1,4 @@
-import { OVERLAY_ARROW, OVERLAY_MOTION, tv } from "#lib";
+import { OVERLAY_ARROW, OVERLAY_MOTION, PASS_THROUGH, tv } from "#lib";
 
 /**
  * Slot classes for the tooltip stack (ui-package-design §5). Positioner carries `--z-tooltip`
@@ -20,5 +20,11 @@ export const tooltipVariants = tv({
       ${OVERLAY_MOTION.anchoredPopup}
     `,
     arrow: OVERLAY_ARROW,
+  },
+});
+
+export const tooltipPopupBoxVariants = tv({
+  variants: {
+    passThrough: PASS_THROUGH,
   },
 });

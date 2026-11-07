@@ -47,7 +47,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
 
   const pending: readonly TagSuggestionView[] = suggestions;
   return (
-    <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
+    <Row gap="field" align="center" wrap={true} data-slot="character-tag-suggestions">
       {pending.length > 0 && (
         // A NAMED GROUP, NOT TEN LOOSE BUTTONS (side-eye 2026-09-02 F13). The strip announced as `paragraph:
         // Suggested` followed by `Accept x` / `Dismiss x` ×5 with nothing binding them: a screen-reader user
@@ -60,7 +60,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           role="group"
           gap="field"
           align="center"
-          className="flex-wrap"
+          wrap={true}
           data-slot="character-tag-suggestion-group"
         >
           {/* The visible kicker stays: the group's accessible name is for AT, this is the sighted label. */}
@@ -131,7 +131,7 @@ function SuggestionChip({
   const name = tag.name;
   return (
     // Each control already owns its padding and touch box; outer gaps prevent neighboring chips from packing.
-    <Badge variant="outline" size="sm" className="gap-0 p-0">
+    <Badge variant="outline" size="sm" flush={true}>
       {/* THE LABEL RIDES THE `label` VOICE, NOT `gloss` (side-eye 2026-08-30 rail-characters P3, #843).
           `gloss` is the MICRO step (10.5px) — correct for the `Suggested` kicker, which is a footnote, and
           below the 11px functional floor for a CONTROL'S OWN LABEL. `design-audit` fired
@@ -139,9 +139,9 @@ function SuggestionChip({
           easy to mis-dismiss: the BUTTON computes 13px, the span inside it computed 10.5. The chip stays
           the quietest thing on the editor by the means CD3 actually names — no fill, a hairline outline —
           which this does not touch. */}
-      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="max-inline-full min-inline-0" onClick={onAccept}>
+      <Button type="button" size="sm" variant="ghost" aria-label={`Accept ${name}`} className="min-inline-0" cap="fit" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
-        <Text ink="inherit" as="span" voice="label" className="truncate min-inline-0">
+        <Text ink="inherit" as="span" voice="label" truncate={true}>
           {name}
         </Text>
       </Button>

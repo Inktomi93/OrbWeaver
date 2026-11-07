@@ -1,4 +1,4 @@
-import { FOCUS_RING, TONE_ARMS, tv } from "#lib";
+import { CAP, COLOR_MOTION, FILL, FOCUS_RING, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
 import { ART_DECORATION } from "../../lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
@@ -14,6 +14,11 @@ const MEANING_EDGE = "border-tone-solid data-[tone=neutral]:border-tone-edge";
 export const cardVariants = tv({
   base: "rounded-base border p-block text-card-foreground",
   variants: {
+    width: WIDTH,
+    cap: CAP,
+    fill: FILL,
+    // A card that holds one mark in its middle.
+    centres: { true: "flex flex-col items-center justify-center" },
     // THE BOX SHAPE: a bordered, rounded, filled Row or Stack is a Card. `island` is grouped
     // content inside a surface. `row` is one operable or listed row drawn as its own box (a pack item, a mini
     // preview row): the control radius, because you operate it. The radius is re-declared in tiers.css, where the
@@ -74,8 +79,8 @@ export const cardVariants = tv({
       false: "",
     },
     // The one padding arm: the island delegates its inset to its own content (a collapse row's trigger, so the
-    // whole closed row is one tap target). `tier` is the resolved tier step; a feature never picks a value.
-    // The `p-0` utility loses to the tier rule inside a Surface, so `data-padding` re-declares it in tiers.css.
+    // whole closed row is one tap target). `tier` is the resolved tier step.
+    // A padding utility loses to the tier rule inside a Surface, so `data-padding` re-declares `none` in tiers.css.
     padding: {
       tier: "",
       none: "p-0",
@@ -83,8 +88,8 @@ export const cardVariants = tv({
     // An operable card follows the user's elevation and takes the tone's pressed tint on hover and press.
     interactive: {
       true: `
-        cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo
-        hover:bg-tone-tint-active hover:text-tone-text-on-tint
+        cursor-pointer ${COLOR_MOTION}
+        ${TONE_TINT_HOVER}
         focus-visible:outline-none
         active:bg-tone-tint-active active:text-tone-text-on-tint
         in-data-[elevation=glow]:shadow-overlay

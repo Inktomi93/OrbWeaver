@@ -70,21 +70,22 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         subtitleWrap={true}
         meta={rank.toString()}
       />
-      <Stack className="ps-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
+      <Stack indent={true} gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {[...passages].map(([snippet, occurrences]) => (
           <Stack key={snippet} gap="tight">
             <Text voice="gloss">“{snippet}”</Text>
-            <Row className="flex-wrap" gap="field">
+            <Row wrap={true} gap="field">
               {occurrences.map((segment, index) => (
                 <Tip key={segment.source.rowId} text={roomNumberingHint(chatSubtitle(segment.chatTitle, hit.name))}>
                   <Button
-                    className="justify-start max-inline-full"
+                    cap="fit"
+                    justify="start"
                     variant="ghost"
                     ink="muted"
                     size="sm"
                     onClick={(): void => selectCorpusArtifact({ kind: "scene", hit: segment, characterName: hit.name, rank })}
                   >
-                    <Text as="span" className="truncate min-inline-0" ink="muted" voice="label">
+                    <Text as="span" truncate={true} ink="muted" voice="label">
                       {chatSubtitle(segment.chatTitle, hit.name)}
                       {occurrences.filter((candidate) => candidate.chatId === segment.chatId).length > 1 ? ` · occurrence ${index + 1}` : ""}
                     </Text>

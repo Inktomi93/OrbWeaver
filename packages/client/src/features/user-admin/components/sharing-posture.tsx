@@ -110,7 +110,7 @@ function TargetBlock({ mode, install, shareRefusal }: TargetBlockProps): ReactEl
       <Text voice="label">{`${mode}: ${MODE_NAME[mode]}`}</Text>
       <ShareProse>{shareSentence(shareRefusal)}</ShareProse>
       <CopyButton text={text} what={`the ${mode} lines`}>
-        <Text voice="code" className="wrap-anywhere whitespace-pre-wrap min-inline-0">
+        <Text voice="code" className="min-inline-0" whitespace="preWrap" wrap="anywhere">
           {text}
         </Text>
       </CopyButton>
@@ -138,7 +138,7 @@ export function SharingPosturePanel(): ReactElement {
       {/* The environment settings that change the mode live here, out of the way; the steps stay complete. */}
       <Collapsible>
         <CollapsibleTrigger>How to change sign-in mode</CollapsibleTrigger>
-        <CollapsiblePanel className="pbs-row">
+        <CollapsiblePanel offset="row">
           <Stack gap="tight">
             <ShareProse>
               The current mode is <ShareCode>{`${AUTH_MODE_KEY}=${view.mode}`}</ShareCode>. {sourceSentence(view.source, view.install)}

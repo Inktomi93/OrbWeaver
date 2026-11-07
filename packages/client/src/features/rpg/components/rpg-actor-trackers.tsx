@@ -175,7 +175,8 @@ function ActorTrackerText({
         display={display}
         placeholder={UNSET_DATUM}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
-        className="flex-1 text-end min-inline-0"
+        grow={true}
+        textAlign="end"
       />
     </Row>
   );
@@ -253,7 +254,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="truncate px-field">
+      <Text as="span" voice="gloss" inset="control" truncate={true}>
         {status}
       </Text>
     );
@@ -269,7 +270,6 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
         placeholder="Add status"
         ink="muted"
         onEdit={edit.onEditStatus}
-        className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
         voice="label"
       />
@@ -306,7 +306,7 @@ export function ConditionChips({
     // The coarse floor again: with no chips yet this row is a bare text-height `+ condition`, whose touch
     // pseudo would swallow the status line ABOVE it. With chips it changes nothing — a chip already
     // carries `touchFloor="block"`, so the row is already ≥44 there.
-    <Row gap="field" touchFloor="block" className="flex-wrap" data-slot="rpg-conditions">
+    <Row gap="field" touchFloor="block" wrap={true} data-slot="rpg-conditions">
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
         <RpgFieldLock
           field={subject === undefined ? "the conditions" : trackerFieldName("conditions", subject)}
@@ -350,7 +350,7 @@ export function ConditionChips({
               onAdd(trimmed);
             }
           }}
-          className="inline-(--width-control-col)"
+          width="controlCol"
         />
       )}
     </Row>

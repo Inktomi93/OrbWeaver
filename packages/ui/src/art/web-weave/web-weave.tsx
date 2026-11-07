@@ -1,3 +1,4 @@
+import type { VariantProps } from "tailwind-variants";
 // WebWeave — the brand web, woven live on canvas.
 // The thin DOM half: geometry is `web-weave-geometry.ts` (pure, seeded), painting is
 // `web-weave-render.ts` (stateless painters); this file owns the clock, the canvas, the rAF loop,
@@ -34,7 +35,7 @@ import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import type { PigmentScope } from "#tokens";
 import { PIGMENTS } from "#tokens";
-import { webWeaveVariants } from "./variants.ts";
+import { webWeaveBoxVariants, webWeaveVariants } from "./variants.ts";
 import { AMBIENT_FRAME_MS, PREY_SETTLE_TAIL_MS, weaveIsQuiet } from "./web-weave-cadence.ts";
 import type { CharacterPreset } from "./web-weave-character.ts";
 import { CALM_CHARACTER } from "./web-weave-character.ts";
@@ -73,6 +74,7 @@ interface FrameMotion {
 }
 
 export interface WebWeaveProps {
+  readonly placed?: VariantProps<typeof webWeaveBoxVariants>["placed"];
   /** @defaultValue "settled" */
   state?: WeaveState;
   /** Deterministic build seed — the same seed weaves the same web. @defaultValue 7 */
@@ -87,6 +89,8 @@ export interface WebWeaveProps {
    *  investigate (weave-lab §2/§5). Takes pointer events; the art stays `aria-hidden` either way —
    *  it announces nothing and has no keyboard path, so there is nothing to expose. @defaultValue false */
   interactive?: boolean;
+  /** Fill the viewport's height instead of the host's. @defaultValue false */
+  viewport?: boolean;
   className?: string;
 }
 
@@ -146,9 +150,11 @@ export function WebWeave({
   dim = 1,
   onPhaseChange,
   interactive = false,
+  viewport = false,
+  placed,
   className,
 }: WebWeaveProps): ReactElement {
-  const slots = webWeaveVariants({ interactive });
+  const slots = webWeaveVariants({ interactive, viewport });
   const reduced = usePrefersReducedMotion();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -417,7 +423,7 @@ export function WebWeave({
       data-slot="web-weave"
       data-pigment={WEB_WEAVE_PIGMENT}
       data-weave-state={state}
-      className={cn(slots.root(), className)}
+      className={cn(slots.root(), webWeaveBoxVariants({ placed, className }))}
     >
       <div data-slot="web-weave-glow" className={slots.glow()} style={glowPosition} />
       <canvas ref={canvasRef} data-slot="web-weave-canvas" className={slots.canvas()} />

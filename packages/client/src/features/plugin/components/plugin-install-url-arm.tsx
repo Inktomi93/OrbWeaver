@@ -43,7 +43,7 @@ export function PluginInstallUrlArm({
         Paste a link to a plugin .zip. It's fetched on the server, and you confirm what it asks for the same way as a file.
       </Text>
       <Row align="end" gap="field">
-        <Stack className="flex-1">
+        <Stack grow={true}>
           <Field label="Plugin URL">
             <Input
               disabled={disabled}

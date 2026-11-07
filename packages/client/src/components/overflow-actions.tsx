@@ -22,7 +22,6 @@ import { Menu, MenuItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTri
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { OverflowMenuForm } from "#lib";
-import { cn } from "#lib";
 
 /** The topbar trail's trigger name; the list band's is {@link BAND_OVERFLOW_LABEL}, so a rotor tells two rows apart. */
 export const TRAIL_OVERFLOW_LABEL = "More top bar actions";
@@ -147,19 +146,18 @@ function roomFor(root: HTMLElement): { readonly room: number; readonly gap: numb
   return { room: content - floors - between * Math.max(0, boxes - 1), gap: between };
 }
 
-const OUT_OF_FLOW = "invisible absolute pointer-events-none";
-
 export interface OverflowActionsProps {
   readonly actions: readonly OverflowAction[];
   /** The trigger's accessible name. */
   readonly label: string;
-  readonly className?: string;
+  /** The row is the topbar's trail, the owner-CSS hook the shell lays out. */
+  readonly topbarTrail?: boolean;
   readonly gap?: "row" | "field";
   /** The row's `data-slot`; each caller spells its own literal so the owner-CSS surface harvest sees it. */
   readonly slot: string;
 }
 
-export function OverflowActions({ actions, label, className, gap = "row", slot }: OverflowActionsProps): ReactElement {
+export function OverflowActions({ actions, label, topbarTrail = false, gap = "row", slot }: OverflowActionsProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -271,7 +269,8 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
   return (
     <Row
       align="center"
-      className={cn("min-inline-(--size-control-md)", className) ?? ""}
+      minWidth="controlMd"
+      className={topbarTrail ? "shell-topbar-trail" : ""}
       data-empty={empty ? "" : undefined}
       data-slot={slot}
       gap={gap}
@@ -284,10 +283,12 @@ export function OverflowActions({ actions, label, className, gap = "row", slot }
         return (
           <Row
             align="center"
-            className={cn("shrink-0 empty:hidden", shown ? undefined : OUT_OF_FLOW) ?? ""}
+            className="shrink-0"
+            hiddenAt="empty"
             data-overflowed={shown ? undefined : ""}
             inert={!shown}
             key={action.id}
+            outOfFlow={!shown}
             ref={(element): (() => void) | undefined => {
               if (element === null) {
                 return undefined;

@@ -34,10 +34,10 @@ export function RpgCardRow({ card, onOpen }: RpgCardRowProps): ReactElement {
       size="sm"
       aria-label={`Open card: ${label}, ${turnStamp(card.createdAt)}${card.origin === "lenient" ? `, ${LENIENT_NOTE}` : ""}`}
       onClick={(): void => onOpen(card.key)}
-      className="px-field text-start inline-full"
+      stretch="line"
       data-slot="rpg-card-row"
     >
-      <Text ink="inherit" as="span" voice="label" className="flex-1 truncate min-inline-0">
+      <Text ink="inherit" as="span" voice="label" truncate="fill">
         ✦ {label}
       </Text>
       {card.origin === "lenient" ? (

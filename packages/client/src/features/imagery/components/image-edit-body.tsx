@@ -117,7 +117,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           media="image"
           alt={subject.alt}
           {...(subject.dims === undefined ? {} : { dims: subject.dims })}
-          className="mx-auto"
+          centred={true}
         />
       </Section>
       <Stack gap="field">
@@ -137,7 +137,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           dumps the viewer to the room instead of to the image they were looking at. Re-opening the detail on
           the SAME subject is the return leg (#623 P2: the detail→edit door used to be one-way). Disabled
           mid-edit: leaving the surface that owns the in-flight result would strand it. */}
-      <Row className="flex-wrap" gap="field" justify="between">
+      <Row wrap={true} gap="field" justify="between">
         <Button disabled={editImage.isPending} variant="ghost" onClick={(): void => openImageDetail(subject)} type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to the image

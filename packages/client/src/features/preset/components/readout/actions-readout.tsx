@@ -89,7 +89,7 @@ export function ActionsReadout({ sections, presetId, boundChatId, templateText }
           The live announce is on it: selection is driven from the OTHER pane, so a screen-reader user who
           clicks a row gets no focus change and — without this — no signal that the whole panel just
           re-described itself. `polite` because it follows a deliberate act; it interrupts nothing. */}
-      <Heading aria-live="polite" className="truncate" level={2} voice="label">
+      <Heading aria-live="polite" truncate={true} level={2} voice="label">
         {row.def.label}
       </Heading>
       {delivery.kind === "marker" ? (

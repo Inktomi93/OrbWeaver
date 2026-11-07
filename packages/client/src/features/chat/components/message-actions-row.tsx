@@ -37,7 +37,7 @@ import type { ComponentProps, ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { DescribedMenuItem } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { selectChat, startEditingMessage } from "#state";
 import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
@@ -106,13 +106,16 @@ export interface MessageActionsRowProps {
 // over the line it sits on, not under its words.
 function ActionsFrame({
   chip,
-  className,
   gap,
   align,
   justify,
   reveal,
+  wrap,
   ...row
-}: ComponentProps<"div"> & { readonly chip: boolean } & Pick<ComponentProps<typeof Row>, "gap" | "align" | "justify" | "reveal">): ReactElement {
+}: Omit<ComponentProps<"div">, "className"> & { readonly chip: boolean } & Pick<
+    ComponentProps<typeof Row>,
+    "gap" | "align" | "justify" | "reveal" | "wrap"
+  >): ReactElement {
   return chip ? (
     <Row
       {...row}
@@ -120,12 +123,14 @@ function ActionsFrame({
       align={align}
       justify={justify}
       reveal={reveal}
+      wrap={wrap}
       ground="readingBand"
       cardCorners="all"
-      className={cn("relative z-(--z-raised)", className) ?? ""}
+      layer="raised"
+      className="relative"
     />
   ) : (
-    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} className={className ?? ""} />
+    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} wrap={wrap} />
   );
 }
 
@@ -239,7 +244,7 @@ export function MessageActionsRow({
       chip={chip}
       gap="glyph"
       align="center"
-      className="@max-cq-20:flex-wrap"
+      wrap="cq-20"
       justify="end"
       data-slot="message-actions-row"
       reveal={ACTIONS_REVEAL_POSTURE[messageActions]}

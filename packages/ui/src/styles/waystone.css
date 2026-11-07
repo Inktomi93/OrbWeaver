@@ -244,14 +244,14 @@
     animation: none;
   }
   :root[data-appearance-reduced-motion="on"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
-    opacity: 0.9;
+    opacity: var(--opacity-held);
   }
   @variant motion-reduce {
     :root:not([data-appearance-reduced-motion="off"]) [data-slot="waystone"] * {
       animation: none;
     }
     :root:not([data-appearance-reduced-motion="off"]) [data-slot="waystone"] [data-slot="waystone-bolt"] {
-      opacity: 0.9;
+      opacity: var(--opacity-held);
     }
   }
 }

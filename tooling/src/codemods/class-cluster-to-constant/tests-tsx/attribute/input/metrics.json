@@ -1,0 +1,10 @@
+{
+  "class-cluster-to-constant.moved": [
+    {
+      "cardinality": {
+        "constant": "FIELD_STACK"
+      },
+      "count": 3
+    }
+  ]
+}

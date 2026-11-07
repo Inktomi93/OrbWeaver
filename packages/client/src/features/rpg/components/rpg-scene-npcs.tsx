@@ -231,8 +231,8 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
 
   if (pending === "dismiss") {
     return (
-      <Row gap="field" align="center" justify="end" className="flex-wrap">
-        <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
+      <Row gap="field" align="center" justify="end" wrap={true}>
+        <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
           Forget {actor.name} and everything tracked on them?
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
@@ -246,12 +246,12 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
   }
   if (pending === "promote" && ref.kind === "npc") {
     return (
-      <Row gap="field" align="center" justify="end" className="flex-wrap">
+      <Row gap="field" align="center" justify="end" wrap={true}>
         {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
-        <Text as="span" voice="gloss" className="wrap-anywhere max-inline-full min-inline-0">
+        <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
@@ -264,7 +264,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     );
   }
   return (
-    <Row gap="field" align="center" justify="end" className="flex-wrap">
+    <Row gap="field" align="center" justify="end" wrap={true}>
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (

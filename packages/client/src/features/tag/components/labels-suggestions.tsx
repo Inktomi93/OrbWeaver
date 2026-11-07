@@ -20,7 +20,7 @@ export function LabelsSuggestions(): ReactElement {
     <Section heading="Suggested tags">
       <QueryBoundary
         resetKeys={[]}
-        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
+        fallback={<Skeleton width="full" height="row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="suggested tags" onRetry={retry} />}
       >
         <SuggestionsBody />
@@ -131,7 +131,7 @@ function SuggestionGroupBlock({
   }
   return (
     <Stack gap="field" role="group" aria-label={`Suggested ${group.name}`}>
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         <EditableTagChip tag={first} />
         <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
         <Button
@@ -166,7 +166,8 @@ function SuggestionGroupBlock({
       {/* `w-fit`: the table is as wide as its two columns, so a name's verbs sit beside it instead of a pane-width away. */}
       <Table
         aria-label={`Characters suggested ${group.name}`}
-        className="inline-fit max-inline-full"
+        width="fit"
+        cap="fit"
         columns={columns}
         data={group.rows}
         defaultPagination={{ pageIndex: 0, pageSize: group.rows.length }}
@@ -178,10 +179,11 @@ function SuggestionGroupBlock({
 
 function SuggestionCharacter({ suggestion, groupName }: { readonly suggestion: TagSuggestionView; readonly groupName: string }): ReactElement {
   return (
-    <Row align="center" className="flex-wrap" gap="field">
+    <Row align="center" wrap={true} gap="field">
       {/* `wrap`: a long character name wraps inside its cell instead of pushing the verbs off the pane. */}
       <Button
-        className="text-start min-inline-0"
+        className="min-inline-0"
+        justify="start"
         variant="ghost"
         size="sm"
         wrap={true}

@@ -11,7 +11,7 @@ import type { ComponentProps, ReactElement, Ref } from "react";
 import { useId, useRef, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
-import { cn, resolveCommit } from "#lib";
+import { resolveCommit } from "#lib";
 import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 type TrackerVoice = Extract<ComponentProps<typeof Text>["voice"], "label" | "promoted">;
@@ -34,13 +34,12 @@ interface TrackerValueOwnProps {
   /** Shown (muted) in the REST state when the value is empty, and as the input's placeholder — so an
    *  empty-but-editable field reads as intentionally-blank, not unfinished. */
   readonly placeholder?: string;
-  /** Sizing/alignment for the EDIT input (and, absent `restClassName`, the rest button too). */
-  readonly className?: string;
-  /** The edit input's inline size: content-sized, or one of the numeric column steps. */
+  /** The value's inline size in every state: content-sized, the whole line, a control column, or a numeric step, which the rest state hugs. */
   readonly width?: ComponentProps<typeof Input>["width"];
-  /** Rest-button override: when the input takes a fixed `width` step (the numerics) the rest state
-   *  should still hug its text like the read-only arm; pass the rest-specific classes here. */
-  readonly restClassName?: string;
+  /** The value takes the room left on its line, in every state. */
+  readonly grow?: boolean;
+  /** Where the value's text sets in its box, in every state. @defaultValue "start" */
+  readonly textAlign?: ComponentProps<typeof Input>["textAlign"];
   /** The rest button's `title` — what this edit actually WRITES, when "Click to edit" understates it. The
    *  founding consumer is a meter's MAX on a roster card: the max lives on the tracker DEF, so editing it
    *  from one actor's row changes the ceiling for everyone who carries that tracker (the unification's one
@@ -67,10 +66,12 @@ type TrackerValueProps = TrackerValueOwnProps & ToneInkSelection;
  *  of `TrackerValue` so the editor arm's commit ruling is the only thing that file-reads as branching. */
 function TrackerValueRest({
   ariaLabel,
-  className,
+  grow,
+  textAlign,
   display,
   editTitle,
   onOpen,
+  width,
   placeholder,
   voice,
   tone,
@@ -81,7 +82,9 @@ function TrackerValueRest({
   buttonRef,
 }: {
   readonly ariaLabel: string;
-  readonly className: string;
+  readonly grow: boolean | undefined;
+  readonly textAlign: ComponentProps<typeof Input>["textAlign"];
+  readonly width: ComponentProps<typeof Input>["width"];
   readonly display: string;
   readonly editTitle: string;
   readonly onOpen: () => void;
@@ -111,7 +114,12 @@ function TrackerValueRest({
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The reserved
         // edge holds the edit input's 1px border box, so the click-to-reveal swap does not shift.
         reserveEdge={true}
-        className={cn("gap-0 px-field text-start", className) ?? ""}
+        inset="control"
+        textAlign={textAlign}
+        grow={grow}
+        width={heldWidth(width)}
+        cap={width === "auto" ? "fit" : undefined}
+        className="min-inline-0"
       >
         <Text
           as="span"
@@ -119,13 +127,64 @@ function TrackerValueRest({
           {...(empty ? ({ ink: "muted" } as const) : restPaint)}
           numeric={numeric}
           italic={italic}
-          className={wrap ? "wrap-break-word whitespace-normal min-inline-0" : "truncate"}
+          className={wrap ? "min-inline-0" : undefined}
+          truncate={!wrap}
+          whitespace={wrap ? "normal" : undefined}
+          wrap={wrap ? "word" : undefined}
         >
           {restText}
         </Text>
       </InlineAction>
     </Tip>
   );
+}
+
+/** The display with no editor: the value as a line of text. A content-sized value (`width="auto"`) stays inside its
+ *  wrapping card, as its input and rest button do. */
+function TrackerValueReadOnly({
+  grow,
+  textAlign,
+  display,
+  italic,
+  numeric,
+  tone,
+  ink,
+  voice,
+  width,
+}: {
+  readonly grow: boolean | undefined;
+  readonly textAlign: ComponentProps<typeof Input>["textAlign"];
+  readonly display: string;
+  readonly italic: boolean;
+  readonly numeric: boolean;
+  readonly tone: ToneInkSelection["tone"];
+  readonly ink: ToneInkSelection["ink"];
+  readonly voice: TrackerVoice;
+  readonly width: ComponentProps<typeof Input>["width"];
+}): ReactElement {
+  const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
+  return (
+    <Text
+      as="span"
+      voice={voice}
+      {...paint}
+      numeric={numeric}
+      italic={italic}
+      inset="control"
+      textAlign={textAlign}
+      grow={grow}
+      width={heldWidth(width)}
+      cap={width === "auto" ? "fit" : undefined}
+      className="min-inline-0"
+    >
+      {display}
+    </Text>
+  );
+}
+
+/** The width the rest and read-only states hold: the whole line or a column; a numeric step's value hugs its text there. */
+function heldWidth(width: ComponentProps<typeof Input>["width"]): "full" | "controlCol" | undefined {
+  return width === "full" || width === "controlCol" ? width : undefined;
 }
 
 /** The value cell: static display at rest; click reveals the inline editor (when `onEdit` is set). */
@@ -140,16 +199,15 @@ export function TrackerValue({
   ink,
   voice = "label",
   placeholder,
-  className,
   width,
-  restClassName,
+  grow,
+  textAlign,
   editTitle = "Click to edit",
   wrap = false,
   numeric = false,
   italic = false,
   range,
 }: TrackerValueProps): ReactElement {
-  const paint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   const source = editValue ?? display;
   // ONE state, because the three fields are only ever meaningful together: the draft is seeded when the
   // editor OPENS, `openedFrom` freezes the value it was seeded FROM (what the commit is judged against),
@@ -161,9 +219,17 @@ export function TrackerValue({
 
   if (onEdit === undefined) {
     return (
-      <Text as="span" voice={voice} {...paint} numeric={numeric} italic={italic} className={className}>
-        {display}
-      </Text>
+      <TrackerValueReadOnly
+        grow={grow}
+        textAlign={textAlign}
+        display={display}
+        italic={italic}
+        numeric={numeric}
+        tone={tone}
+        ink={ink}
+        voice={voice}
+        width={width}
+      />
     );
   }
 
@@ -171,7 +237,9 @@ export function TrackerValue({
     return (
       <TrackerValueRest
         ariaLabel={restAriaLabel ?? ariaLabel}
-        className={restClassName ?? className ?? ""}
+        grow={grow}
+        textAlign={textAlign}
+        width={width}
         display={display}
         editTitle={editTitle}
         onOpen={(): void => {
@@ -251,10 +319,11 @@ export function TrackerValue({
         // only, never a height.
         layout="inline"
         width={width}
+        grow={grow}
+        textAlign={textAlign}
         numeric={numeric}
         italic={italic}
         typeStep={voice === "promoted" ? "title" : "field"}
-        className={className ?? ""}
         data-slot="tracker-value-edit"
         // The CONFLICT surface. `data-conflict` carries the value that arrived (an automatable fact, and the
         // one a reader needs), `data-invalid` lights the primitive's own destructive border — the skin the

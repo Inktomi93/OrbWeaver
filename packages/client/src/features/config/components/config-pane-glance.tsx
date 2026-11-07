@@ -29,7 +29,7 @@ export function ConfigPaneGlance({ group, level, blurb }: ConfigPaneGlanceProps)
     </Heading>
   );
   const description = blurb ? (
-    <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+    <Text cap="prose" prose={true} voice="gloss">
       {group.description}
     </Text>
   ) : null;

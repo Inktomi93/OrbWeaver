@@ -1,4 +1,4 @@
-import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, FOCUS_RING_NONE, tv } from "#lib";
+import { DISABLED_STATE_NATIVE, FIELD_CONTROL, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, FOCUS_RING_NONE, GROW, tv, WIDTH } from "#lib";
 
 // The textarea skin — the shared FIELD_CONTROL box, multi-line: a min-height on the control-lg scale
 // and native `field-sizing: content` autosize (the 2026 CSS way — D54), measured in script only where the browser lacks it.
@@ -18,13 +18,15 @@ export const textareaVariants = tv({
     FOCUS_RING_DESTRUCTIVE,
   ],
   variants: {
+    width: { full: WIDTH.full },
+    grow: GROW,
     size: {
       default: "min-block-(--size-control-lg)",
       compact: "min-block-(--size-control-md)",
     },
     // A field that sits inside a box which already draws the field (the composer card): no edge, no fill and no ring
     // of its own, because the host carries the focus state.
-    chrome: { field: "", bare: `border-0 bg-transparent ${FOCUS_RING_NONE}` },
+    chrome: { field: "", bare: `border-0 bg-transparent px-0 ${FOCUS_RING_NONE}` },
     // Code typed into the field (a snippet, a script): the mono face.
     face: { text: "", code: "font-mono" },
   },

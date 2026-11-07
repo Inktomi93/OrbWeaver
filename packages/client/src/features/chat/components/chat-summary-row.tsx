@@ -52,8 +52,8 @@ interface ChatSummaryRowProps {
    *  the whole list so same-named rows can't share one accessible name (`rowQualifiers`). Falls back to the
    *  row's own title + shown stamp for a caller with no list context. */
   readonly actionName?: string;
-  /** Row root className (the chats-list `group` hover-reveal root). */
-  readonly className?: string;
+  /** The row is the `group` its hover-revealed parts key on (the chats list). */
+  readonly hoverGroup?: boolean;
   /** Forwarded to `ListRow` — `"promoted"` takes the room name to the ramp's `title` step, for the ONE
    *  list where the rooms are a surface's content rather than a directory of it (home's also-open block).
    *  Every dense pane leaves it at the tier default. @defaultValue "default" */
@@ -161,15 +161,7 @@ function rowMarkers({
           at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
           the same datum was gone too — a starred chat with no star anywhere on the row. The swap is
           hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
-      {chat.starred ? (
-        <Icon
-          className={interactive ? "group-focus-within/row:invisible group-hover/row:invisible" : ""}
-          icon={Star}
-          label="Starred"
-          size="sm"
-          tone="warning"
-        />
-      ) : null}
+      {chat.starred ? <Icon yieldOnHover={interactive} icon={Star} label="Starred" size="sm" tone="warning" /> : null}
       {chat.archived ? <Badge size="sm">Archived</Badge> : null}
     </>
   );
@@ -187,7 +179,7 @@ export function ChatSummaryRow({
   menu,
   onToggleStar,
   actionName,
-  className,
+  hoverGroup = false,
   titleStep = "default",
 }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
@@ -256,7 +248,7 @@ export function ChatSummaryRow({
       titleStep={titleStep}
       // An archived chat recedes so the live rows read first — the "Archived" badge above is the datum,
       // this is only its reinforcement.
-      className={className ?? ""}
+      className={hoverGroup ? "group" : ""}
       receded={chat.archived}
     />
   );

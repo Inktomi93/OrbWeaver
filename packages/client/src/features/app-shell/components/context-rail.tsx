@@ -17,14 +17,13 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Crown, Ellipsis, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
-import { Row, Stack } from "@orb/ui/layout";
+import { Corner, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useSyncExternalStore } from "react";
 import type { ResolvedContextTab } from "#lib";
-import { cn } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
 import type { RailOverflow } from "../lib/context-rail-overflow.ts";
 import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
@@ -37,18 +36,9 @@ const CELL_ARIA_STRIP = { role: undefined, "aria-selected": undefined } as const
 /** The narrow-panel WRAP: below the `xs` container step a rail of exactly six cells lays out as ROWS of three, because
  *  six cells on one `auto-cols-fr` row clipped four captions to ~3 characters (the list's `fold`; a FINE-pointer
  *  answer, a phone stays one row and scrolls). ONLY a rail that folds EVENLY takes it: a five-cell rail would fold 3+2
- *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `RAIL_TRACK_CLASSES` below keeps
+ *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `track="cells"` keeps
  *  each cell at its whole caption and lets the row overflow. */
 const RAIL_WRAP_CELLS = 6;
-
-/** THE READABLE-CAPTION FLOOR, ON EVERY RAIL — the track-sizing function, unconditional.
- *  `minmax(max-content, 1fr)`: the `1fr` MAX keeps the cells equal columns filling the rail whenever there
- *  is slack (the owner ruling against "bitsy buttons bunched left"); the `max-content` MIN refuses to shrink
- *  a cell below its whole caption, so where the cells no longer fit the tracks OVERFLOW and
- *  `overflow-x-auto` scrolls them. Degrade to a scroll, never into an ellipsis. NOT gated on the cell count:
- *  at the narrowest pane even four equal cells clip a caption like "Members". The FOLD stays count-gated
- *  because it answers a different question. */
-const RAIL_TRACK_CLASSES = "auto-cols-[minmax(max-content,1fr)] overflow-x-auto";
 
 /** The track's measured overflow, as an external-store subscription (ResizeObserver + scroll are the
  *  store; layout is the state's real owner, so `useSyncExternalStore` is the honest shape — the eslint
@@ -117,7 +107,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
       // The state rail holding the selection wears the raised fill; the receded rail wears the pane's own surface.
       ground={ownership === "owning" ? "raised" : undefined}
     >
-      <Row align="center" gap="row" className="relative px-row pbs-field pbe-row min-inline-0">
+      <Row align="center" gap="row" className="relative min-inline-0" paddingBlockEnd="row" paddingBlockStart="field" paddingInline="row">
         {/* Its own root, so the header strip's tab map and indicator never see a state cell. */}
         <Tabs
           value={owns ? activeTab : null}
@@ -126,7 +116,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
               onSelect(value);
             }
           }}
-          className="gap-0 inline-full min-inline-0"
+          flush={true}
+          className="min-inline-0"
         >
           <TabsList
             ref={trackRef}
@@ -134,7 +125,9 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             role="toolbar"
             activateOnFocus={false}
             aria-label={ariaLabel}
-            className={cn("grid grid-flow-col gap-tight inline-full min-inline-0", RAIL_TRACK_CLASSES) ?? ""}
+            track="cells"
+            className="min-inline-0"
+            fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
           >
@@ -161,7 +154,9 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className="pointer-events-none absolute inset-y-0 inset-s-0 inline-gutter"
+          placed="startEdge"
+          passThrough={true}
+          width="gutter"
           fade="start"
           fadeFrom={fill}
         >
@@ -177,7 +172,9 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className="pointer-events-none absolute inset-y-0 inset-e-0 inline-gutter"
+          placed="endEdge"
+          passThrough={true}
+          width="gutter"
           fade="end"
           fadeFrom={fill}
         >
@@ -213,8 +210,8 @@ export function ContextHeaderTabs({
   // (a plain heading, no tablist) beside the trailing controls, and the bracket's panel names the tab.
   if (tabs.length <= 1) {
     return (
-      <Row data-slot="context-tab-strip" align="center" className="flex-1 self-stretch px-block min-inline-0">
-        <Text as="span" voice="label" data-slot="context-header-title" className="truncate min-inline-0">
+      <Row data-slot="context-tab-strip" align="center" className="min-inline-0" self="stretch" grow={true} paddingInline="block">
+        <Text as="span" voice="label" data-slot="context-header-title" truncate={true}>
           {paneLabel ?? ariaLabel}
         </Text>
       </Row>
@@ -225,13 +222,17 @@ export function ContextHeaderTabs({
       data-slot="context-tab-strip"
       data-overflow-start={overflow.start}
       data-overflow-end={overflow.end}
-      className="relative flex-1 self-stretch min-inline-0"
+      className="relative min-inline-0"
+      self="stretch"
+      grow={true}
     >
       <TabsList
         ref={trackRef}
         activateOnFocus={false}
         aria-label={ariaLabel}
-        className="shell-context-tab-strip flex-nowrap overflow-x-auto px-row block-full inline-full min-inline-0"
+        track="strip"
+        className="shell-context-tab-strip min-inline-0"
+        fill={true}
         rule="none"
       >
         {tabs.map((tab) => (
@@ -240,31 +241,26 @@ export function ContextHeaderTabs({
         <TabsIndicator />
       </TabsList>
       {overflow.start || overflow.end ? (
-        <Menu>
-          <MenuTrigger
-            render={
-              <Button
-                aria-label={`All ${ariaLabel} tabs`}
-                data-slot="context-tab-overflow-trigger"
-                variant="ghost"
-                square={true}
-                type="button"
-                className="me-field shrink-0"
-              >
-                <Icon icon={Ellipsis} size="sm" />
-              </Button>
-            }
-          />
-          <MenuPopup align="end">
-            <MenuRadioGroup value={activeTab ?? ""}>
-              {tabs.map((tab) => (
-                <MenuRadioItem key={tab.id} value={tab.id} closeOnClick={true} onClick={(): void => onSelect(tab.id)}>
-                  {tab.label}
-                </MenuRadioItem>
-              ))}
-            </MenuRadioGroup>
-          </MenuPopup>
-        </Menu>
+        <Row className="shrink-0" paddingInlineEnd="field">
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button aria-label={`All ${ariaLabel} tabs`} data-slot="context-tab-overflow-trigger" variant="ghost" square={true} type="button">
+                  <Icon icon={Ellipsis} size="sm" />
+                </Button>
+              }
+            />
+            <MenuPopup align="end">
+              <MenuRadioGroup value={activeTab ?? ""}>
+                {tabs.map((tab) => (
+                  <MenuRadioItem key={tab.id} value={tab.id} closeOnClick={true} onClick={(): void => onSelect(tab.id)}>
+                    {tab.label}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuPopup>
+          </Menu>
+        </Row>
       ) : null}
       <OverflowMarks overflow={overflow} fill="sidebar" />
     </Row>
@@ -285,7 +281,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       className="shrink-0"
     >
       {renderCellIcon(tab, isActive, locked)}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} /> : null}
@@ -357,14 +353,16 @@ function ContextCell({
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
           colour still wins. */}
-      <Text as="span" voice="label" data-slot="context-cell-caption" className="truncate max-inline-full" ink="inherit">
+      <Text as="span" voice="label" data-slot="context-cell-caption" cap="fit" truncate={true} ink="inherit">
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST
-          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
-          LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
-          `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute inset-e-field inset-bs-field" ink="muted" receded={true} /> : null}
+          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped. */}
+      {locked ? (
+        <Corner>
+          <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} />
+        </Corner>
+      ) : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -383,10 +381,16 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} className="absolute inset-e-field inset-bs-field">
-        {count}
-      </Badge>
+      <Corner>
+        <Badge tone="primary" variant="solid" size="sm" aria-hidden={true}>
+          {count}
+        </Badge>
+      </Corner>
     );
   }
-  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-field inset-bs-field" /> : null;
+  return dot ? (
+    <Corner>
+      <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+    </Corner>
+  ) : null;
 }

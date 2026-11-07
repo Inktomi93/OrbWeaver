@@ -47,7 +47,8 @@ export function TextField(props: TextFieldProps): ReactElement {
           autoComplete={props.autoComplete}
           {...(props.describedBy === undefined ? {} : { "aria-describedby": props.describedBy })}
           disabled={props.disabled}
-          className="flex-1 min-inline-0"
+          grow={true}
+          className="min-inline-0"
         />
         {canReveal ? (
           <GlyphButton

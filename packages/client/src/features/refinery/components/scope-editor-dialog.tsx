@@ -117,7 +117,7 @@ function ScopeCheckRow({
   onToggle: () => void;
 }): ReactElement {
   return (
-    <Field className="inline-full" label={name} orientation="horizontal">
+    <Field label={name} orientation="horizontal">
       <Row align="center" gap="row">
         <Checkbox checked={checked} disabled={disabled} indeterminate={indeterminate} onCheckedChange={onToggle} />
         <Text voice="gloss">{gloss}</Text>
@@ -265,7 +265,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
             Select what scored under {LOW_SCORE_BAR}
           </Button>
         ) : null}
-        <Row className="flex-1" gap="row" justify="end">
+        <Row grow={true} gap="row" justify="end">
           <DialogClose
             render={
               <Button variant="ghost" size="sm">

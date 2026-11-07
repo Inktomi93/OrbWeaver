@@ -1,5 +1,5 @@
 // Primitive adoption: raw against primitive elements per section.
-import type { FileFacts } from "./file-facts.ts";
+import type { FileFacts } from "../eslint/index.ts";
 
 export interface SectionAdoption {
   readonly section: string;

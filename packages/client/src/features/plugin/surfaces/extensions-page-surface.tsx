@@ -33,7 +33,7 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { cn, testId, useFocusOnMount } from "#lib";
+import { testId, useFocusOnMount } from "#lib";
 import type { PluginPageKey } from "#state";
 import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
 import { ExtensionsPaneAnchor } from "../anchors/extensions-pane-anchor.tsx";
@@ -67,17 +67,20 @@ function reviewFirstWaiting(plugins: ExtensionsEmptyView["awaitingPlugins"]): vo
 /** Every non-page arm's frame, with the standard content inset, inside {@link PaneFrame}. */
 function InsetPane({
   children,
-  className,
+  paddingBlock,
   ready,
 }: {
   readonly children: ReactNode;
-  readonly className?: string;
+  readonly paddingBlock?: "section";
   /** `data-ready` for an arm with no skeleton while its first read is out; absent for an arm that never waits. */
   readonly ready?: boolean;
 }): ReactElement {
   return (
     <Stack
-      className={cn("relative overflow-y-auto px-section block-full min-block-0", className)}
+      scroll="y"
+      fill={true}
+      paddingBlock={paddingBlock}
+      paddingInline="section"
       {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
     >
       <ExtensionsPaneAnchor>{children}</ExtensionsPaneAnchor>
@@ -91,7 +94,7 @@ function InsetPane({
  *  band + a scrolling body), so a reading-width clamp here would inset a full-page surface inside a gutter it did not ask for. */
 function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
   return (
-    <Stack className="block-full min-block-0" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+    <Stack className="min-block-0" fill={true} focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
       {children}
     </Stack>
   );
@@ -100,7 +103,7 @@ function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HT
 /** One centred teaching empty with its single action. */
 function CentredEmpty({ title, description, action }: { readonly title: string; readonly description: string; readonly action: ReactElement }): ReactElement {
   return (
-    <Stack align="center" className="block-full" justify="center">
+    <Stack align="center" fill={true} justify="center">
       <EmptyState action={action} description={description} icon={<Icon icon={Blocks} size="md" />} measure="wide" title={title} titleAs="h2" />
     </Stack>
   );
@@ -201,7 +204,7 @@ export function ExtensionsPageSurface(): ReactElement {
   let body: ReactElement;
   if (reviewed !== undefined) {
     body = (
-      <InsetPane className="py-section">
+      <InsetPane paddingBlock="section">
         <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
       </InsetPane>
     );

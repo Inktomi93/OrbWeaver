@@ -109,7 +109,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
               <FieldsetLegend>{legend}</FieldsetLegend>
               <HintTrigger className="shrink-0" hint={hint} subject={legend} />
             </Row>
-            <Row className="flex-wrap" gap="field">
+            <Row wrap={true} gap="field">
               {sequences.map((sequence) => {
                 const shown = encodeSequence(sequence);
                 return (

@@ -1,4 +1,4 @@
-// Band — the client-shared BAND anatomy: one ghost `size="sm"` control that NAMES a region, optionally
+// Band — the client-shared BAND anatomy: one ghost `BandButton` control that NAMES a region, optionally
 // discloses it, and optionally states its census. The ONE home for the shape three surfaces were drawing
 // by hand (#1723).
 //
@@ -16,11 +16,11 @@
 // this module is the enforcer, and the two consumers' CTs measure the same box against the same token.
 //
 // ── WHAT IS SEALED, AND WHY EACH PIECE ───────────────────────────────────────────────────────────────
-//  · The CHASSIS: ghost `size="sm"` Button, `w-full` (never `flex-1` — #978 F1 above; every band's parent
-//    is a vertical `Stack`, and the axis is the whole bug), `min-w-0` so the label can truncate,
-//    `justify-start`, `gap-tight` joints, `px-tight` padding. The padding is the RATIFIED value: §3.1's
-//    delta list is exhaustive and padding is not on it, so the preset copy's `px-field` was drift and is
-//    gone (a 2px inline shift, stated rather than smuggled).
+//  · The CHASSIS: a ghost `BandButton` (the sm height with the tight joints and inset),
+//    `width="full"` (never `flex-1` — #978 F1 above; every band's parent is a vertical `Stack`, and the axis
+//    is the whole bug), `min-w-0` so the label can truncate, `justify-start`. The padding is the RATIFIED
+//    value: §3.1's delta list is exhaustive and padding is not on it, so the preset copy's `px-field` was
+//    drift and is gone (a 2px inline shift, stated rather than smuggled).
 //  · The CHEVRON GUTTER is always drawn, painted or not (side-eye 2026-08-08 P3): dropping the glyph also
 //    drops its 16px box and the joint, so a band without one would start its glyph 20px left of its
 //    siblings and the column would become species-dependent — a ragged edge that reads as a rendering bug.
@@ -66,11 +66,10 @@
 // as one token) is a fact about the caller's OWN marks, and a band that guessed a name would be a second,
 // invisible home for the copy.
 
+import { BandButton } from "@orb/ui/band-button";
 import type { ButtonBaseProps } from "@orb/ui/button";
-import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
-import { cn } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { CountText } from "./count-text.tsx";
@@ -86,12 +85,26 @@ export interface BandProps
   extends Omit<
     ButtonBaseProps,
     | "children"
+    | "placed"
     | "variant"
     | "tone"
     | "focal"
     | "shape"
     | "selection"
+    | "justify"
+    | "push"
+    | "self"
+    | "minHeight"
+    | "minWidth"
+    | "explainsDisabled"
+    | "cap"
+    | "grow"
+    | "floor"
+    | "textAlign"
+    | "inset"
+    | "whitespace"
     | "size"
+    | "width"
     | "hiddenAt"
     | "touchFloor"
     | "cardCorners"
@@ -102,6 +115,8 @@ export interface BandProps
     | "quietDisabled"
     | "focusRing"
     | "loading"
+    | "corner"
+    | "stretch"
   > {
   /** The band's ink, spelled on its Button so the variant census reads it. */
   readonly ink?: ButtonBaseProps["ink"];
@@ -129,16 +144,10 @@ export interface BandProps
   readonly marks?: ReactNode;
 }
 
-/** The chassis. `w-full`, NOT `flex-1` — see the header; this class string is the #978 F1 fix's one home.
- *  `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the
- *  glyph column is identical on all thirteen settings bands and all four collection bands and entering a
- *  library cannot shift its own label by 2px (the `ListRow` reservation, for the same reason). */
-const BAND_CHASSIS = "min-inline-0 inline-full justify-start gap-tight px-tight";
-
 const CHEVRON_GLYPH = { reserved: ChevronRight, closed: ChevronRight, open: ChevronDown } as const;
 
 /** One band: `[chevron] [glyph] Label … count marks`. */
-export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, className, ink, ...rest }: BandProps): ReactElement {
+export function Band({ label, chevron, icon, count, censusAlign = "trailing", marks, ink, ...rest }: BandProps): ReactElement {
   // The paint half of `aria-current` (see the header). `"true"` is the token BOTH band species state
   // (config-list-group.tsx's row-less leaf and config-list-collection-group.tsx's library door — the mock design
   // §3.1's owner-authorised amendment picked one token for the pane); `true` is accepted because React's
@@ -147,12 +156,16 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
   // have, so it is deliberately NOT painted rather than silently treated as `"true"`.
   const current = rest["aria-current"] === "true" || rest["aria-current"] === true;
   return (
-    <Button
-      className={cn(BAND_CHASSIS, className) ?? ""}
+    // `SELECTION_RAIL` rides EVERY band, current or not: its resting arm is a transparent 2px rail, so the glyph column is
+    // identical on all thirteen settings bands and all four collection bands and entering a library cannot shift its own
+    // label by 2px (the `ListRow` reservation, for the same reason).
+    <BandButton
+      className="min-inline-0"
+      justify="start"
       selection="rail"
       data-selected={current ? "" : undefined}
       variant="ghost"
-      size="sm"
+      width="full"
       ink={ink}
       type="button"
       {...rest}
@@ -174,15 +187,15 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
           column because a tracked label inside a `truncate` box was clipping "Regex scripts" by 0.42px on the
           271px both-panels pane. The voice keeps it for its dozen other consumers; this band no longer has a
           trailing tracking column to reclaim, so the clip is gone by construction rather than by compensation. */}
-      <Text ink="inherit" as="span" className="truncate" data-slot="band-label" voice="label">
+      <Text ink="inherit" as="span" truncate={true} data-slot="band-label" voice="label">
         {label}
       </Text>
       {count === undefined ? null : (
-        <CountText {...(censusAlign === "trailing" ? { className: "ms-auto" } : {})} data-slot="band-census">
+        <CountText push={censusAlign === "trailing" ? "inlineEnd" : undefined} data-slot="band-census">
           {count}
         </CountText>
       )}
       {marks}
-    </Button>
+    </BandButton>
   );
 }

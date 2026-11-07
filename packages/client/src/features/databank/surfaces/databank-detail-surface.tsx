@@ -52,13 +52,7 @@ export function DatabankDetailSurface(): ReactElement {
   useFocusOnMount(surfaceRef, documentId !== null);
 
   return (
-    <Stack
-      className="relative overflow-y-auto overscroll-contain block-full min-block-0"
-      focusTarget={true}
-      data-slot="databank-content"
-      ref={surfaceRef}
-      tabIndex={-1}
-    >
+    <Stack scroll="y" fill={true} focusTarget={true} data-slot="databank-content" ref={surfaceRef} tabIndex={-1}>
       {documentId === null ? (
         <DatabankWelcome />
       ) : (
@@ -134,7 +128,7 @@ function DatabankWelcome(): ReactElement {
   // error, or paused offline: `isLoading` is a read in flight). The
   // root persists across the read, so a section swap holds the outgoing view for it and shell/motion.css fades it in.
   return (
-    <Stack align="center" className="justify-center block-full min-block-0" data-ready={census.isLoading ? "false" : "true"}>
+    <Stack align="center" className="min-block-0" fill={true} justify="center" data-ready={census.isLoading ? "false" : "true"}>
       {census.data === undefined ? null : (
         // action={null}: the Databank CONTENT landing. It explains the Databank (empty bank) or nudges a pick (populated bank) and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
         <EmptyState
@@ -208,7 +202,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
-        <Grid className="items-baseline" cols="readout" gap="row">
+        <Grid align="baseline" cols="readout" gap="row">
           <DetailRow label="Origin" value={originLabel(doc.origin)} />
           <DetailRow label="Type" value={documentTypeLabel(doc.mime)} />
           <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
@@ -236,11 +230,11 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 AND `justify="start"`, NOT `between` — a cap alone would pay for the measure with a hand-span
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
-          <Row align="center" className="flex-wrap" gap="row" justify="start">
-            <Text className="flex-1 basis-(--width-field-floor) max-inline-(--reading-measure-prose) min-inline-0" voice="gloss">
+          <Row align="center" wrap={true} gap="row" justify="start">
+            <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               Use this after a settings change, or if search misses this document.
             </Text>
-            <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
+            <Button className="shrink-0" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
               <Icon icon={RefreshCw} size="sm" />
               Rebuild search index for this document
             </Button>
@@ -293,8 +287,8 @@ function SourceTextBody({ documentId }: { readonly documentId: DocumentId }): Re
   return (
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
-    <ScrollArea className="max-block-(--height-scroll-lg)" wrapContent={true}>
-      <Text className="wrap-break-word whitespace-pre-wrap max-inline-(--reading-measure-prose)" prose={true}>
+    <ScrollArea maxHeight="scrollLg" wrapContent={true}>
+      <Text cap="prose" whitespace="preWrap" wrap="word" prose={true}>
         {query.data.extractedText ?? ""}
       </Text>
     </ScrollArea>
@@ -321,7 +315,7 @@ function DetailRow({ label, value }: { readonly label: string; readonly value: s
   return (
     <>
       <Text voice="gloss">{label}</Text>
-      <Text className="truncate min-inline-0">{value}</Text>
+      <Text truncate={true}>{value}</Text>
     </>
   );
 }

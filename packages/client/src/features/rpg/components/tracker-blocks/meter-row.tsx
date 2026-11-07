@@ -93,10 +93,9 @@ function MaxCell({
             onEditMax(n);
           }
         }}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
-        restClassName=""
       />
     </Row>
   );
@@ -126,7 +125,7 @@ function ValueCell({
 }): ReactElement {
   return (
     // The inline buttons' token-sized hit pseudos extend beyond their text boxes; reserve that edge inside the row.
-    <Row gap="field" align="center" className="shrink-0 pe-block">
+    <Row gap="field" align="center" className="shrink-0" paddingInlineEnd="block">
       <TrackerValue
         ariaLabel={`${name} value`}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.
@@ -141,11 +140,10 @@ function ValueCell({
           }
         }}
         tone={warning ? "warning" : undefined}
-        className="px-field text-end"
+        textAlign="end"
         numeric={true}
         width="avatar-lg"
         // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
-        restClassName=""
       />
       <MaxCell label={name} max={max} {...(onEditMax === undefined ? {} : { onEditMax })} {...(maxEditTitle === undefined ? {} : { maxEditTitle })} />
     </Row>
@@ -176,7 +174,7 @@ function MeterLabel({
           The READ-ONLY arm keeps it: there the datum is plain text with no name of its own to carry it,
           so hiding the label would orphan the number. `leading` (the lock pin, a real button) is outside
           the hidden node on purpose. */}
-      <Text as="span" ink="muted" className="truncate" {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
+      <Text as="span" ink="muted" truncate={true} {...(nameCarried ? { "aria-hidden": true } : {})} voice="label">
         {label}
       </Text>
       {labelHint === undefined ? null : <HintTrigger className="" hint={labelHint} subject={label} />}

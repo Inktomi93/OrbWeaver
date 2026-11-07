@@ -51,8 +51,6 @@ import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
-
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;
@@ -81,7 +79,7 @@ function WireSection({ heading, gloss, text }: { readonly heading: string; reado
         <Text data-slot="wire-section-gloss" voice="gloss">
           {gloss}
         </Text>
-        <LogViewer lines={toLines(text)} className="max-block-(--height-scroll-md)" />
+        <LogViewer lines={toLines(text)} maxHeight="scrollMd" />
       </Stack>
     </Section>
   );
@@ -95,7 +93,7 @@ function InjectionsSection({ prompt }: { readonly prompt: VariantWireView["promp
   }
   return (
     <Section heading={<Text voice="kicker">{`In-history injections (${prompt.afterHistory.length})`}</Text>}>
-      <LogViewer lines={prompt.afterHistory.map((i) => `[${i.role} @ depth ${i.depth}] ${i.content}`)} className="max-block-(--height-scroll-sm)" />
+      <LogViewer lines={prompt.afterHistory.map((i) => `[${i.role} @ depth ${i.depth}] ${i.content}`)} maxHeight="scrollSm" />
     </Section>
   );
 }
@@ -113,7 +111,7 @@ function MacroDrawsSection({ draws }: { readonly draws: VariantWireView["macroDr
     <Section heading={<Text voice="kicker">{`Frozen random draws (${lines.length})`}</Text>}>
       <Stack gap="field">
         <Text voice="gloss">The random-pick macros this turn rolled, frozen at commit — a swipe or a continue of this reply replays these exact values.</Text>
-        <LogViewer lines={lines} className="max-block-(--height-scroll-sm)" />
+        <LogViewer lines={lines} maxHeight="scrollSm" />
       </Stack>
     </Section>
   );
@@ -132,7 +130,7 @@ function MacroFreezesSection({ freezes }: { readonly freezes: VariantWireView["m
         <Text voice="gloss">Rolls, picks and clock reads are baked destructively into the stored text at commit. These are the values that were baked in.</Text>
         <LogViewer
           lines={freezes.map((freeze) => `{{${freeze.name}${freeze.args === undefined ? "" : `::${freeze.args}`}}} → ${freeze.value}`)}
-          className="max-block-(--height-scroll-sm)"
+          maxHeight="scrollSm"
         />
       </Stack>
     </Section>
@@ -178,7 +176,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   }
   return (
     <Stack gap="section">
-      <Text className={PROSE_MEASURE} data-slot="wire-intro" prose={true} voice="gloss">
+      <Text cap="prose" data-slot="wire-intro" prose={true} voice="gloss">
         The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
         the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
@@ -202,7 +200,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
               Not recorded for this reply.
             </Text>
           ) : (
-            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-block-(--height-scroll-sm)" />
+            <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} maxHeight="scrollSm" />
           )}
         </Section>
       )}

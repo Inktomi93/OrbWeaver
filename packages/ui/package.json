@@ -20,6 +20,7 @@
     "./background-layer": "./src/primitives/background-layer/index.ts",
     "./background-video": "./src/primitives/background-video/index.ts",
     "./badge": "./src/primitives/badge/index.ts",
+    "./band-button": "./src/primitives/band-button/index.ts",
     "./bar-list": "./src/charts/bar-list/index.ts",
     "./button": "./src/primitives/button/index.ts",
     "./button/box-hit-area": "./src/primitives/button/box-hit-area.ts",

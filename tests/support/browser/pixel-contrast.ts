@@ -20,11 +20,26 @@
 // planted control is a locked cell, which goes red if the composite is lost.
 
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
+import { ringBackdropOfRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { compositeForeground, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
+
+/** The drawn marks inside the target, as rectangles of its clip: an icon is foreground, and the backdrop is read where it is not. */
+function markRects(
+  target: Locator,
+  origin: { readonly x: number; readonly y: number },
+): Promise<readonly { left: number; top: number; width: number; height: number }[]> {
+  return target.locator("svg").evaluateAll(
+    (marks, from) =>
+      marks.map((mark) => {
+        const rect = mark.getBoundingClientRect();
+        return { left: Math.floor(rect.left - from.x), top: Math.floor(rect.top - from.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+      }),
+    origin,
+  );
+}
 
 export interface PixelContrastReceipt {
   /** The WCAG ratio of the element's resolved ink against its REAL composited backdrop. */
@@ -202,9 +217,10 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
     throw new Error(`pixelContrast: the target box is empty or off-screen (${JSON.stringify(box)})`);
   }
   const raw = await readInk(target);
+  const marks = await markRects(target, { x, y });
   const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
   const { data, info } = await rawPixels(shot);
-  const backdrop = ringBackdrop(data, info.width, info.height, info.channels);
+  const backdrop = ringBackdropOfRegion(data, info.width, info.channels, { left: 0, top: 0, width: info.width, height: info.height, marks });
   if (raw.opacity < MEASURABLE_OPACITY_MIN) {
     throw new Error(
       `pixelContrast: the target paints at α${raw.opacity.toFixed(2)} — below the measurable floor, so a ratio would be arithmetic, not evidence`,
@@ -353,30 +369,88 @@ export async function auditRenderedTextContrast(
   }
 }
 
+export interface PixelMarkReceipt {
+  /** WCAG ratio of the mark's painted colour against the fill it sits on. */
+  readonly ratio: number;
+  readonly mark: Rgb;
+  readonly fill: Rgb;
+  readonly describe: string;
+}
+
+/** Channel distance under which a pixel counts as the fill itself, so antialiasing at a mark's edge is not read as the mark. */
+const FILL_TOLERANCE = 24;
+
+/** Pixels this close to a field's edge are antialiased against whatever lies behind it, not the fill. */
+const FIELD_EDGE_MARGIN_PX = 2;
+
+interface PixelRect {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+const inRect = (rect: PixelRect, px: number, py: number): boolean =>
+  px >= rect.left && px < rect.left + rect.width && py >= rect.top && py < rect.top + rect.height;
+
+const inEllipse = (width: number, height: number, px: number, py: number): boolean =>
+  ((px + 0.5 - width / 2) / (width / 2 - FIELD_EDGE_MARGIN_PX)) ** 2 + ((py + 0.5 - height / 2) / (height / 2 - FIELD_EDGE_MARGIN_PX)) ** 2 <= 1;
+
+/** The pixels of a shot, as colours, split into those inside the mark's rect and those in the field's inscribed ellipse outside it. */
+function splitPixels(data: Buffer, info: { width: number; height: number; channels: number }, mark: PixelRect): { marks: Rgb[]; fills: Rgb[] } {
+  const marks: Rgb[] = [];
+  const fills: Rgb[] = [];
+  for (let py = 0; py < info.height; py += 1) {
+    for (let px = 0; px < info.width; px += 1) {
+      const offset = (py * info.width + px) * info.channels;
+      const rgb = { r: data[offset] ?? 0, g: data[offset + 1] ?? 0, b: data[offset + 2] ?? 0 };
+      if (inRect(mark, px, py)) {
+        marks.push(rgb);
+      } else if (inEllipse(info.width, info.height, px, py)) {
+        fills.push(rgb);
+      }
+    }
+  }
+  return { marks, fills };
+}
+
+/** The most common colour among the pixels that differ from the fill. */
+function modalColour(pixels: readonly Rgb[], fill: Rgb): Rgb | undefined {
+  const votes = new Map<string, { rgb: Rgb; count: number }>();
+  for (const rgb of pixels) {
+    if (Math.max(Math.abs(rgb.r - fill.r), Math.abs(rgb.g - fill.g), Math.abs(rgb.b - fill.b)) > FILL_TOLERANCE) {
+      const key = show(rgb);
+      votes.set(key, { rgb, count: (votes.get(key)?.count ?? 0) + 1 });
+    }
+  }
+  return [...votes.values()].sort((a, b) => b.count - a.count)[0]?.rgb;
+}
+
 /**
- * The best contrast one rendered box achieves ANYWHERE inside itself, read straight off the framebuffer.
+ * The contrast of a mark against the fill it is drawn on, read from the framebuffer's own pixels: a lock glyph inside a
+ * switch thumb. The mark's colour is the most common pixel inside its box that differs from the fill, and the fill is the
+ * median of the field's inscribed ellipse outside the mark's box.
  *
- * WHY THIS AND NOT {@link pixelContrast} — the whole point of the instrument. `pixelContrast` resolves the
- * ink from `getComputedStyle().color` and composites the ACCUMULATED ANCESTOR OPACITY over a perimeter
- * ring. A `mask-image` is neither: it is PAINT, it does not appear on any computed property of the glyph's
- * element, and it dims the ink and its own backdrop at DIFFERENT rates across the box (a gradient). So
- * `pixelContrast` reports a masked control at its UNMASKED ratio — the same blindness `snap --contrast`,
- * axe and design-audit's whole contrast family carry. This asks the only question a mask can be asked: of the pixels actually on screen inside this
- * control, how far apart are the two furthest?
+ * WHY NOT {@link pixelContrast}: its backdrop is the perimeter ring of the mark's own box, and a glyph that reaches its box
+ * edges puts its strokes in that ring, so the "backdrop" drifts toward the ink and the ratio reads low. This reads the fill
+ * where the mark is not.
  *
- * It is an UPPER BOUND on legibility and that is deliberate: it cannot mistake a partly-faded control for
- * a failing one (the unfaded half still supplies both extremes), so a RED from it is unarguable. A caller
- * owes it a positive control — a box outside the effect, decoded in the same run — or the number is
- * arithmetic rather than evidence.
- *
- * REFUSES rather than fabricating, on {@link pixelContrast}'s terms: no box, an off-viewport box, or a
- * decode failure throws.
- *
- * `region` NARROWS THE QUESTION TO THE PART A GRADIENT ACTUALLY REACHES, and on the INLINE axis that is
- * the difference between a red and a false clean. A block-axis band is deep enough to swallow a
- * whole control, so the whole box can be asked; an edge fade on a horizontally scrolling STRIP reaches
- * only the trailing slice of the item that straddles it, and the unfaded two-thirds of that same item
- * supplies both extremes — the upper bound comes back at the item's FULL ratio while its last characters
- * are dissolving. Name the slice the band covers and the bound is still an upper bound, of the right box.
- * Same shape and same reason as {@link pixelSurface}'s own `region`.
+ * REFUSES rather than fabricating: a missing box, or a mark with no pixel apart from the fill, throws.
  */
+export async function pixelMarkContrast(page: Page, mark: Locator, field: Locator): Promise<PixelMarkReceipt> {
+  const [markBox, fieldBox] = [await mark.boundingBox(), await field.boundingBox()];
+  if (markBox === null || fieldBox === null) {
+    throw new Error("pixelMarkContrast: the mark or its field has no box (not rendered)");
+  }
+  const x = Math.max(0, Math.floor(fieldBox.x));
+  const y = Math.max(0, Math.floor(fieldBox.y));
+  const shot = await page.screenshot({ clip: { x, y, width: Math.ceil(fieldBox.width), height: Math.ceil(fieldBox.height) }, animations: "disabled" });
+  const { data, info } = await rawPixels(shot);
+  const { marks, fills } = splitPixels(data, info, { left: markBox.x - x, top: markBox.y - y, width: markBox.width, height: markBox.height });
+  const fill = medianRgb(Buffer.from(fills.flatMap(({ r, g, b }) => [r, g, b])), 3);
+  const painted = modalColour(marks, fill);
+  if (painted === undefined) {
+    throw new Error(`pixelMarkContrast: no pixel inside the mark differs from the fill ${show(fill)}; the mark is not painted`);
+  }
+  return { ratio: wcagContrastRatio(painted, fill), mark: painted, fill, describe: `mark ${show(painted)} on fill ${show(fill)}` };
+}

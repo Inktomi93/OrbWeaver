@@ -21,8 +21,12 @@ export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, 
     readonly "data-chat-id"?: string;
     readonly "data-variant-id"?: string;
   };
-  readonly titleProps?: Omit<ComponentProps<typeof DialogTitle>, "focusTarget" | "clearsClose">;
-  readonly bodyProps?: ComponentProps<"div">;
+  readonly titleProps?: Omit<ComponentProps<typeof DialogTitle>, "focusTarget" | "clearsClose" | "className" | "truncate">;
+  /** The title holds one line beside the header's actions. */
+  readonly titleTruncate?: boolean;
+  readonly bodyProps?: Omit<ComponentProps<"div">, "className">;
+  /** The body takes programmatic focus, so it draws no outline of its own. */
+  readonly bodyFocusTarget?: boolean;
   readonly bodyContainer?: StackProps["container"];
   readonly headerLeading?: ReactNode;
   readonly headerActions?: ReactNode;
@@ -37,7 +41,9 @@ export function ContentDialog({
   anchor,
   popupProps,
   titleProps,
+  titleTruncate,
   bodyProps,
+  bodyFocusTarget,
   bodyContainer,
   headerLeading,
   headerActions,
@@ -47,14 +53,16 @@ export function ContentDialog({
   return (
     <Dialog {...root}>
       <DialogPopup {...popupProps} size={size} anchor={anchor} spaced={true}>
-        <DialogHeader className="flex-wrap">
-          <Row align="center" gap="row" className="flex-1 basis-(--width-title-floor) min-inline-0">
+        <DialogHeader wrap={true}>
+          <Row align="center" gap="row" className="min-inline-0" floor="title" grow={true}>
             {headerLeading}
-            <DialogTitle {...titleProps}>{title}</DialogTitle>
+            <DialogTitle {...titleProps} truncate={titleTruncate}>
+              {title}
+            </DialogTitle>
           </Row>
           {headerActions}
         </DialogHeader>
-        <DialogBody {...bodyProps} container={bodyContainer} grow={true} gap="block">
+        <DialogBody {...bodyProps} container={bodyContainer} focusTarget={bodyFocusTarget} grow={true} gap="block">
           {children}
           {footer === undefined ? null : <DialogFooter>{footer}</DialogFooter>}
         </DialogBody>

@@ -110,7 +110,9 @@ function CharacterBarStrip({
     <Row
       gap="field"
       align="center"
-      className="flex-wrap px-block py-row"
+      wrap={true}
+      paddingBlock="row"
+      paddingInline="block"
       plate="band"
       data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}
@@ -163,7 +165,7 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
           </Avatar>
           {/* Same #511 arm as the character chip — and this is where it earns most: a human seat is named
               by its EMAIL until a persona names it (#162), the widest chip the strip ever paints. */}
-          <Text as="span" className="truncate min-inline-0" srOnlyAt="coarse" voice="label">
+          <Text as="span" truncate={true} srOnlyAt="coarse" voice="label">
             {member.displayName}
           </Text>
           {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}

@@ -5,12 +5,12 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { PanelEdgeControl } from "#components";
-import { cn, publishInlineFlankFit } from "#lib";
+import { publishInlineFlankFit } from "#lib";
 import type { FlankPresentation } from "../hooks/use-flank-presentation.ts";
 
-/** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the
- *  room's width against the floor plus the flank column and the gap between them, each read off its token so the
- *  threshold tracks the font scale. The sentinel is the threshold itself, laid out and measured. */
+/** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the room's
+ *  width against the token that sums them, so the threshold tracks the font scale. The sentinel is the threshold
+ *  itself, laid out and measured, because a custom property holding a sum cannot be read as pixels. */
 export function InlineFlankFitProbe(): ReactElement {
   const sentinel = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -28,14 +28,7 @@ export function InlineFlankFitProbe(): ReactElement {
       publishInlineFlankFit(true);
     };
   }, []);
-  return (
-    // The sentinel's width is its three token-sized children laid end to end, so the sum is resolved at this element.
-    <Row aria-hidden={true} className="pointer-events-none invisible absolute block-0" ref={sentinel}>
-      <Row className="shrink-0 inline-(--dimension-content-reading-floor)" />
-      <Row className="shrink-0 inline-(--width-sidebar-sm)" />
-      <Row className="shrink-0 inline-(--spacing-block)" />
-    </Row>
-  );
+  return <Row aria-hidden={true} height="none" outOfFlow={true} ref={sentinel} width="flankFit" />;
 }
 
 // A panel-mode column slides; an inline column never moves.
@@ -65,16 +58,16 @@ export function FlankColumn({
   return (
     <Stack
       gap="block"
-      className={cn(
-        "empty:hidden",
-        flank.panelMode
-          ? cn(
-              "relative overflow-y-auto pbs-(--size-control-sm) inline-(--width-sidebar-sm) min-block-0",
-              !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
-              overlaid ? "z-(--z-raised)" : undefined,
-            )
-          : "relative pbs-block max-inline-(--width-sidebar-sm) @max-cq-32:overflow-y-auto @max-cq-32:pbs-0 @max-cq-32:max-block-1/2 @max-cq-32:max-inline-none",
-      )}
+      paddingBlockStart={flank.panelMode ? "clearance" : "block"}
+      cap={flank.panelMode ? undefined : "sidebar"}
+      width={flank.panelMode ? "sidebarSm" : undefined}
+      scroll={flank.panelMode ? "y" : undefined}
+      layer={overlaid ? "raised" : undefined}
+      hiddenAt="empty"
+      maxHeight={flank.panelMode ? undefined : "halfNarrow"}
+      placed={flank.panelMode && !flank.occupiesRow ? "endEdge" : undefined}
+      paddingBlockStartNarrow={bandInset(flank)}
+      className={flank.panelMode ? "min-block-0" : "relative @max-cq-32:overflow-y-auto"}
       // An open panel that overlays the transcript (not set inline beside it) paints the card ground and lifts. The
       // shell's panel sheet (`panels.css`) keys the slide and the lift on this slot and these two stamps.
       ground={overlaid ? "card" : undefined}
@@ -89,6 +82,11 @@ export function FlankColumn({
       {children}
     </Stack>
   );
+}
+
+// A band above the transcript gives up its top inset on a phone.
+function bandInset(flank: FlankPresentation): "none" | undefined {
+  return flank.panelMode ? undefined : "none";
 }
 
 /** The column's one control, at the room's top outer corner where the column's edge is whether it is open or not.
@@ -106,7 +104,7 @@ export function FlankEdge({
     return null;
   }
   return (
-    <Row className="absolute inset-e-0 inset-bs-0 z-(--z-raised)">
+    <Row placed="flushEnd" layer="raised">
       <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} ref={controlRef} />
     </Row>
   );

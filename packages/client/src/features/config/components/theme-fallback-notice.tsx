@@ -47,14 +47,14 @@ export function ThemeFallbackNotice({ background, accent }: FallbackDraft): Reac
       <ToneFallbackReporterContext value={reportTone}>
         <InputBorderFallbackReporterContext value={reportEdge}>
           {/* Keyed by the draft, so a changed theme mounts a fresh scope whose reports replace the reset ones. */}
-          <ThemeScope key={draft} className="hidden" tokens={tokens}>
+          <ThemeScope key={draft} box="hidden" tokens={tokens}>
             {null}
           </ThemeScope>
         </InputBorderFallbackReporterContext>
       </ToneFallbackReporterContext>
       {/* A live region announces only content added after it mounts, so it stays rendered while empty; out of flow
           while empty, it adds no gap to the section. */}
-      <Stack className="empty:absolute" data-slot="theme-fallback-notice" gap="field" role="status">
+      <Stack data-slot="theme-fallback-notice" gap="field" placed="outWhileEmpty" role="status">
         {reports.tone === undefined ? null : (
           <Text data-fallback="tone" tone="warning" voice="gloss">
             {`No one label colour reads on this accent and its hover and pressed shades, so buttons deepen those shades to ${reports.tone.hover}% and ${reports.tone.active}% of the accent.`}

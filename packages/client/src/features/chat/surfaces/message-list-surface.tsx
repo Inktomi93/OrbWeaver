@@ -112,7 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full inline-full min-block-0" focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" fill={true} focusTarget={true}>
       <QueryBoundary
         resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
@@ -134,9 +134,12 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // the loading sibling's translucent plate because this state carries real MUTED-tone text and a
         // control, and `muted-foreground` is floored against `card` (the `error` plate states the ink
         // routing in full). Both classes are inert on a plain background.
-        // It hands the battery its SURFACE rather than wrapping it: an error state renders `QueryErrorState`
-        // directly, never a wrapper, so the plate rides the component's own `plate`.
-        renderError={(_error, retry): ReactElement => <Track of={QueryErrorState} track="chat" label="this conversation" onRetry={retry} plate="error" />}
+        // The track is a box around the state, so the plate rides the component's own `plate`.
+        renderError={(_error, retry): ReactElement => (
+          <Track of={Stack} track="chat">
+            <QueryErrorState label="this conversation" onRetry={retry} plate="error" />
+          </Track>
+        )}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
@@ -410,7 +413,7 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative block-full min-block-0">
+      <Stack className="relative min-block-0" fill={true}>
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
@@ -423,7 +426,7 @@ function ChatThread({
   }
   return (
     <ArtViewerProvider>
-      <Stack className="relative block-full min-block-0">
+      <Stack className="relative min-block-0" fill={true}>
         {sourceStatus}
         <PrintCoverage edges={edges} />
         <MessageList
@@ -456,7 +459,8 @@ function ChatThread({
           blockPaddingToken="block"
           // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
           // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
-          className="block-full @max-cq-28:px-tight"
+          fill={true}
+          paddingInlineNarrow="tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>
@@ -467,7 +471,7 @@ function ChatThread({
 /** Paper has no Earlier messages button, so a transcript that is only part of the room says so on the page. */
 function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactElement | null {
   return edges.earlier || edges.later ? (
-    <Text className="hidden print:block" voice="gloss">
+    <Text hiddenAt="unlessPrint" voice="gloss">
       {CHAT_PRINT_COVERAGE}
     </Text>
   ) : null;
@@ -476,7 +480,7 @@ function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactEle
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
   return (
-    <Stack align="center" justify="center" padding="section" className="block-full">
+    <Stack align="center" justify="center" padding="section" fill={true}>
       {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
           the one line standing in for a whole transcript is the last thing that should recede. */}
       <Text>No messages yet.</Text>

@@ -22,7 +22,7 @@ import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, cn, HIDDEN_AT, resolveCssLength, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
-import { menuVariants } from "./variants.ts";
+import { menuItemBoxVariants, menuPopupBoxVariants, menuVariants } from "./variants.ts";
 
 const slots = menuVariants();
 
@@ -49,7 +49,7 @@ export function MenuTrigger<Payload = unknown>({ className, ...props }: BaseTrig
   );
 }
 
-export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
+export interface MenuPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof menuPopupBoxVariants> {
   className?: string;
   /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" */
   side?: BasePositionerProps["side"];
@@ -67,7 +67,7 @@ export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** The menu surface — bundles Portal → Positioner → Popup so the anatomy can't be mis-assembled. */
 export function MenuPopup(props: MenuPopupProps): ReactElement {
-  const { className, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, collisionAvoidance, container, clamp, ...rest } = props;
+  const { className, cap, children, side, align = "start", sideOffset = DEFAULT_SIDE_OFFSET, collisionAvoidance, container, clamp, ...rest } = props;
   const portalContainer = usePortalContainer();
   return (
     <BaseMenu.Portal container={container ?? portalContainer}>
@@ -80,7 +80,7 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
         side={side}
         sideOffset={sideOffset}
       >
-        <BaseMenu.Popup className={menuVariants({ clamp }).popup({ className })} data-slot="menu-popup" {...rest}>
+        <BaseMenu.Popup className={menuVariants({ clamp }).popup({ className: menuPopupBoxVariants({ cap, className }) })} data-slot="menu-popup" {...rest}>
           {children}
         </BaseMenu.Popup>
       </BaseMenu.Positioner>
@@ -108,7 +108,7 @@ export function MenuArrow(props: MenuArrowProps): ReactElement {
   return <BaseMenu.Arrow className={slots.arrow()} data-slot="menu-arrow" {...props} />;
 }
 
-export interface MenuItemProps extends Omit<BaseItemProps, "className"> {
+export interface MenuItemProps extends Omit<BaseItemProps, "className">, VariantProps<typeof menuItemBoxVariants> {
   className?: string;
   /** The item exists at one pointer class only: the overflow twin of a row control that stands down there. */
   hiddenAt?: keyof typeof HIDDEN_AT;
@@ -116,10 +116,12 @@ export interface MenuItemProps extends Omit<BaseItemProps, "className"> {
 
 /** A selectable menu command (closes the menu on click by default). */
 export function MenuItem(props: MenuItemProps): ReactElement {
-  const { className, hiddenAt, ...rest } = props;
+  const { className, hiddenAt, cap, truncate, stacked, ...rest } = props;
   return (
     <BaseMenu.Item
-      className={slots.item({ className: cn(hiddenAt === undefined ? undefined : HIDDEN_AT[hiddenAt], className) })}
+      className={slots.item({
+        className: menuItemBoxVariants({ cap, truncate, stacked, className: cn(hiddenAt === undefined ? undefined : HIDDEN_AT[hiddenAt], className) }),
+      })}
       data-slot="menu-item"
       {...rest}
     />

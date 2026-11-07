@@ -10,12 +10,14 @@
 // rule here without reopening #512's ruling.
 import type { MouseEventHandler, ReactElement, ReactNode, Ref } from "react";
 import { useId } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { SELECTION_RAIL_TONE } from "#lib";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
 import { listRowVariants } from "./variants.ts";
 
 export interface ListRowProps {
+  readonly align?: VariantProps<typeof listRowVariants>["align"];
   /** Leading slot — avatar/icon, rendered before the title/subtitle stack. */
   leading?: ReactNode;
   /**
@@ -258,6 +260,7 @@ function ListRowBody({
 }
 
 export function ListRow({
+  align,
   leading,
   title,
   titleQualifier,
@@ -290,6 +293,7 @@ export function ListRow({
   const selected = dataSelected !== undefined;
   const disabled = dataDisabled !== undefined;
   const slots = listRowVariants({
+    align,
     clickable,
     float: actionsFloat,
     receded,

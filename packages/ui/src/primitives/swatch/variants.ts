@@ -1,12 +1,16 @@
 import type { ToneStamp } from "#lib";
-import { SWATCH_LADDER_PIGMENT, tv } from "#lib";
+import { GROW, PASS_THROUGH, SWATCH_LADDER_PIGMENT, tv } from "#lib";
 import type { PigmentScope } from "#tokens";
 
 // A decorative mark that IS its colour: a palette sample, a presence dot, a preview's pane, a running hairline. The
-// caller sizes and places it; the swatch owns its fill, its shape and its edge, so a feature never paints a box.
+// caller places it; the swatch owns its size, its fill, its shape and its edge, so a feature never paints a box.
 export const swatchVariants = tv({
   base: "block",
   variants: {
+    passThrough: PASS_THROUGH,
+    // A swatch that holds a glyph in its middle.
+    centres: { true: "flex items-center justify-center" },
+    grow: GROW,
     // The running hairline is one device pixel tall; the caller sets only the inline length.
     indeterminate: { true: "orb-indeterminate-hairline block-px", false: "" },
     fill: {
@@ -26,6 +30,15 @@ export const swatchVariants = tv({
     shape: {
       square: "",
       pill: "rounded-full",
+    },
+    // The mark's box on the token size scale (`--size-dot`, `--size-dot-lg`, `--size-avatar-md`): a square step, `fill` for the whole of its host, or `line` for a bar one preview line
+    // tall whose length the host sets.
+    size: {
+      dot: "block-(--size-dot) inline-(--size-dot)",
+      dotLg: "block-(--size-dot-lg) inline-(--size-dot-lg)",
+      avatarMd: "block-(--size-avatar-md) inline-(--size-avatar-md)",
+      fill: "block-full inline-full",
+      line: "block-(--size-preview-line)",
     },
     // `ring` is an unfilled outline in the muted ink, so a swatch can read as a state with the colour removed
     // (an offline presence dot beside a filled online one). `outline` is a hairline ring in the border ink that

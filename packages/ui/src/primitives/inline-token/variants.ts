@@ -18,6 +18,10 @@ export const inlineTokenVariants = tv({
     inline rounded-inset bg-tone-tint px-tight font-medium whitespace-nowrap text-tone-text-on-tint select-text
     [&>svg]:me-field [&>svg]:inline-block [&>svg]:align-middle
   `,
-  variants: { tone: TONE_ARMS },
+  variants: {
+    // A token that leads a run of words keeps a `field` step before them, which a word space alone does not give a chip.
+    leads: { true: "me-field", false: "" },
+    tone: TONE_ARMS,
+  },
   defaultVariants: { tone: "neutral" },
 });

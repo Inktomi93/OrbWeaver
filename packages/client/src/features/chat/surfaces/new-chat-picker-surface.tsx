@@ -69,7 +69,7 @@ import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useStartChat, useTRPC } from "#data";
@@ -80,7 +80,6 @@ import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
 const SKELETON_ROW_COUNT = 6;
 
 /** Intrinsic label, icon and padding widths determine whether the footer can share a row at the active font scale. */
-const ACTION_BUTTON = "grow basis-auto @cq-28:flex-none";
 
 /** The Start button's full label — also its accessible name at `@cq-28` and up. */
 function startLabelFor(count: number, pending: boolean): string {
@@ -180,9 +179,9 @@ export function NewChatPicker(): ReactElement {
       {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
   ) : null;
-  const blankAction = (className: string): ReactElement => (
-    <Button className={className} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
-      <Icon className="@max-cq-20:hidden" icon={Plus} size="sm" />
+  const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
+    <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
+      <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
       {BLANK_CHAT_NAME}
     </Button>
   );
@@ -193,8 +192,10 @@ export function NewChatPicker(): ReactElement {
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
       {intent?.temporary === true ? (
-        <Row align="center" className="flex-wrap" gap="field" padding="block">
-          <Badge className="truncate max-inline-full">{TEMPORARY_CHAT_BADGE}</Badge>
+        <Row align="center" wrap={true} gap="field" padding="block">
+          <Badge className="truncate" cap="fit">
+            {TEMPORARY_CHAT_BADGE}
+          </Badge>
           <Text ink="muted" voice="gloss" prose={true}>
             This room won't join your chats list, and you can't switch it later.
           </Text>
@@ -202,7 +203,7 @@ export function NewChatPicker(): ReactElement {
       ) : null}
       {hasRosters ? (
         // A short dialog spends no block inset on this row, or the pinned footer would lie over the list's one row.
-        <Row className="flex-wrap dialog-short:py-0 dialog-stacked:hidden" justify="end" padding="block">
+        <Row paddingBlockShort="none" hiddenAt="dialogStacked" wrap={true} justify="end" padding="block">
           {rosterDoor}
         </Row>
       ) : null}
@@ -211,7 +212,7 @@ export function NewChatPicker(): ReactElement {
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
         label="Choose characters"
-        listClassName="max-block-(--height-picker-window) dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0 dialog-short:**:[[cmdk-group-heading]]:hidden"
+        listSize="pickerWindow"
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
@@ -224,38 +225,41 @@ export function NewChatPicker(): ReactElement {
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row
         align="center"
-        className="sticky inset-be-0 flex-wrap dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static"
+        wrap={true}
         data-slot="new-chat-actions"
         divider="top"
         gap="field"
         ground="popover"
         justify="end"
         padding="block"
+        pinned="dialogFooter"
       >
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        {blankAction(`${ACTION_BUTTON} dialog-stacked:hidden`)}
+        {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStacked" })}
         <Button
-          className={ACTION_BUTTON}
+          grow="contentNarrow"
           quietDisabled={teaching}
           disabled={teaching || isPending}
           variant={teaching ? "outline" : "solid"}
           wrap={true}
           onClick={(): void => found([...selected])}
         >
-          <Icon className="@max-cq-20:hidden" icon={MessagesSquare} size="sm" />
+          <Icon hiddenAt="belowCq20" icon={MessagesSquare} size="sm" />
           {/* Both arms are always in the DOM and the container query shows ONE (the message-row pattern) —
               a `display: none` arm is out of the a11y tree too, so the accessible name is always the arm
               on screen. */}
-          <Row className="@cq-28:hidden dialog-stacked:hidden">{compactStartLabel}</Row>
-          <Row className="hidden @cq-28:flex dialog-stacked:hidden">{startLabel}</Row>
-          <Row className="hidden dialog-stacked:flex">{shortStartLabel}</Row>
+          <Row hiddenAt="dialogStacked">
+            <Row hiddenAt="cq-28">{compactStartLabel}</Row>
+            <Row hiddenAt="belowCq28">{startLabel}</Row>
+          </Row>
+          <Row hiddenAt="unlessDialogStacked">{shortStartLabel}</Row>
         </Button>
       </Row>
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
-      <Stack className="hidden dialog-stacked:flex" gap="field" padding="block">
-        {blankAction("inline-full")}
+      <Stack hiddenAt="unlessDialogStacked" gap="field" padding="block">
+        {blankAction({ width: "full" })}
         {rosterDoor}
       </Stack>
     </Stack>

@@ -129,7 +129,7 @@ function ArtCliqueRow({ members }: { readonly members: readonly ArtCliqueMember[
       <Text as="span" voice="label">
         {`${members.length.toString()} cards share this portrait`}
       </Text>
-      <Row align="center" className="flex-wrap" gap="field">
+      <Row align="center" wrap={true} gap="field">
         {shown.map((member) => (
           <Button variant="ghost" key={member.id} onClick={(): void => selectCorpusCharacter(member.id)} size="sm">
             {member.name}
@@ -158,8 +158,9 @@ export function CharacterPairRow({
 }): ReactElement {
   return (
     <Button
-      className="justify-between inline-full"
+      justify="between"
       variant="ghost"
+      width="full"
       onClick={(): void => {
         // The NAMES travel with the ids (#563): the Compare tab's pickers can only name a selection they
         // can find in their own catalog page, and a pair from this list routinely is not in it.
@@ -196,8 +197,9 @@ function ChatPairRow({
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
       aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
-      className="justify-between inline-full"
+      justify="between"
       variant="ghost"
+      width="full"
       onClick={(): void => {
         selectCorpusArtifact({
           kind: "pair",
@@ -225,8 +227,8 @@ function PairFace({
   readonly badge: string | undefined;
 }): ReactElement {
   return (
-    <Row align="center" className="inline-full min-inline-0" gap="field" justify="between">
-      <Text as="span" className="truncate text-start min-inline-0">
+    <Row align="center" className="min-inline-0" width="full" gap="field" justify="between">
+      <Text as="span" textAlign="start" truncate={true}>
         {left} ↔ {right}
       </Text>
       <Row align="center" className="shrink-0" gap="field">
@@ -241,7 +243,7 @@ function PairFace({
 
 export function Muted({ children }: { readonly children: string }): ReactElement {
   return (
-    <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+    <Text cap="prose" voice="gloss">
       {children}
     </Text>
   );

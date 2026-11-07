@@ -1,11 +1,9 @@
 // Form shape: autosave factory against explicit submit per file, and the dismiss words beside each.
 // Law: an autosave form closes with Close, Done or Back; Cancel abandons unsubmitted input, so it belongs to an explicit submit.
 import ts from "typescript";
+import type { Elem, FileFacts, Source } from "../eslint/index.ts";
+import { attrString, childrenText, firstLine, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
-import type { FileFacts } from "./file-facts.ts";
-import { firstLine } from "./file-facts.ts";
-import type { Elem, Source } from "./source.ts";
-import { attrString, childrenText, visit } from "./source.ts";
 
 const FACTORY_MODES: Readonly<Record<string, string>> = { createAutosaveEntityForm: "autosave", createSavedEntityForm: "saved" };
 const WORDS = ["Back", "Cancel", "Close", "Done"] as const;

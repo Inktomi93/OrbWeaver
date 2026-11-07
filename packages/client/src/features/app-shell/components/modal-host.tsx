@@ -108,7 +108,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
       <DrawerVirtualKeyboardProvider>
         <DrawerPopup container={container} finalFocus={resolveDrawerFinalFocus}>
           {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <DialogHeader className="mbe-block" sticky={true}>
+          <DialogHeader sticky={true}>
             <DrawerTitle>{def.title}</DrawerTitle>
             <DrawerClose
               render={
@@ -195,9 +195,6 @@ function DialogModal({
     return false;
   };
 
-  // Shell modals (full/xl) fill the popup height; content modals size to content but still scroll internally when tall.
-  const isShellModal = def.size === "full" || def.size === "xl";
-  const bodyClass = isShellModal ? "flex-1 outline-none" : "outline-none";
   return (
     <FlowDialog
       title={def.title}
@@ -205,7 +202,8 @@ function DialogModal({
       onOpenChange={onOpenChange}
       size={def.size}
       popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
-      bodyProps={{ className: bodyClass, ref: bodyRef, tabIndex: -1 }}
+      bodyFocusTarget={true}
+      bodyProps={{ ref: bodyRef, tabIndex: -1 }}
       headerActions={
         <DialogClose
           render={

@@ -36,7 +36,7 @@ import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, RotateCcw } from "@orb/ui/icons";
 import { Grid, Row } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
-import { Slider } from "@orb/ui/slider";
+import { Slider, SliderRailEnd } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
@@ -93,7 +93,7 @@ export interface KnobRowProps {
  *  name from its rail, the vertical one is the deck's own row rhythm. */
 export function KnobGrid({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Grid className="items-center gap-x-row gap-y-tight" cols="knob">
+    <Grid gapInline="row" gapBlock="tight" align="center" cols="knob">
       {children}
     </Grid>
   );
@@ -214,11 +214,11 @@ function KnobControls({
         value={value ?? ghost?.value ?? min}
       />
 
-      {/* The value cluster — ONE cell (see this function's note). `justify="end"` so a folded row's number
+      {/* The value cluster — ONE cell (see this function's note), end-justified so a folded row's number
           still reads down the same edge the rail ends at.
           FOLDED, IT RIDES THE LABEL'S LINE (side-eye 2026-08-30 P2-C): row 1, second track, ending on the
           RAIL'S edge — where a stacked cell of its own had only the row's whole width and floated 54px short
-          of everything. `me-slider-inset` is what makes that edge the rail's and not the row's: the Slider's
+          of everything. `SliderRailEnd` is what makes that edge the rail's and not the row's: the Slider's
           CONTROL is deliberately inset by half a thumb on both sides (its own `mx-slider-inset`, side-eye
           2026-08-22 P2-8 — at the extremes the knob hangs half outside its box, and flush to a phone's edge
           it sat on the OS swipe bezel). Matching that margin is what makes the column's outer edge and the
@@ -231,7 +231,7 @@ function KnobControls({
           the finding survived its own fix. Reversed, the number is what ends on the rail's edge and the
           reserved slot falls inboard, where it costs nothing and still never jitters. It is a CSS order, not
           a DOM one: the reading order stays name → value → its reset, which is the order the pair means. */}
-      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-cq-32:me-(--size-slider-inset) @max-cq-32:flex-row-reverse">
+      <SliderRailEnd data-slot="knob-value">
         <NumberField
           aria-describedby={describedBy}
           // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
@@ -261,7 +261,7 @@ function KnobControls({
         >
           <Icon icon={RotateCcw} size="xs" />
         </Button>
-      </Row>
+      </SliderRailEnd>
     </>
   );
 }

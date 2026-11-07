@@ -32,7 +32,7 @@ import type { ReactElement, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { useDebouncedValue } from "#lib";
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
@@ -44,9 +44,6 @@ const PICKER_PAGE_LIMIT = 100;
  *  so the fetch starts while the last rows are still being read rather than after the list dead-ends. */
 const TAIL_FETCH_SLACK_PX = 96;
 const DEFAULT_SKELETON_ROW_COUNT = 5;
-
-/** Keystroke→request damper (the chats pane / library value). */
-const SEARCH_DEBOUNCE_MS = 250;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
@@ -69,8 +66,8 @@ export interface CharacterPickerProps {
   readonly isSelected?: (id: CharacterId) => boolean;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
-  /** CommandList max-height utility (e.g. "max-h-(--height-scroll-lg)" / "max-h-(--height-scroll-lg)"). @defaultValue "max-h-(--height-scroll-lg)" */
-  readonly listClassName?: string;
+  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. */
+  readonly listSize?: "grow" | "pickerWindow";
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
   /**
@@ -120,7 +117,7 @@ function CharacterPickerBody({
   excludeIds,
   isSelected,
   rowsHeading,
-  listClassName,
+  listSize,
   onEscape,
   autoFocusSearch = false,
   searchRef: ownerSearchRef,
@@ -192,7 +189,7 @@ function CharacterPickerBody({
   return (
     <Command className="min-block-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList className={listClassName ?? "max-block-(--height-scroll-lg)"} onScroll={onScroll} ref={listRef}>
+      <CommandList {...(listSize === undefined ? ({ maxHeight: "scrollLg" } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
       </CommandList>
@@ -206,11 +203,11 @@ function CharacterPickerBody({
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
       {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-        <Row className="flex-wrap" divider="top" align="center" gap="row" padding="row">
+        <Row wrap={true} divider="top" align="center" gap="row" padding="row">
           <Text as="span" voice="gloss">
             {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
-          <Row className="flex-1 min-inline-0" gap="field" justify="end">
+          <Row className="min-inline-0" grow={true} gap="field" justify="end">
             {query.isFetchNextPageError ? (
               <>
                 <Text role="alert" voice="gloss">
@@ -276,11 +273,11 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
     <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name, character.avatarHash)} value={character.id}>
-      <Row align="center" className="flex-1 min-inline-0" gap="row">
+      <Row align="center" className="min-inline-0" grow={true} gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
-        <Text ink="inherit" as="span" className="flex-1 truncate min-inline-0">
+        <Text ink="inherit" as="span" truncate="fill">
           {character.name}
         </Text>
         {isSelected?.(id) === true ? <Icon icon={Check} size="sm" /> : null}

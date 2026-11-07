@@ -27,7 +27,7 @@ export function AnalyticsContextHeader(): ReactElement {
     return (
       <Row align="center" className="min-inline-0" gap="field">
         <Icon icon={Library} size="sm" />
-        <Text className="truncate" voice="promoted">
+        <Text truncate={true} voice="promoted">
           {CORPUS_WHOLE_LABEL}
         </Text>
       </Row>
@@ -47,7 +47,7 @@ function DrilledCharacterIdentity({ characterId }: { readonly characterId: Chara
       <Avatar size="sm" fallbackDelay={0} hueSeed={characterId} {...(avatarHash === null ? {} : { src: blobUrl(avatarHash) })}>
         {initialsFor(title)}
       </Avatar>
-      <Text voice="promoted" className="truncate">
+      <Text voice="promoted" truncate={true}>
         {title}
       </Text>
     </Row>

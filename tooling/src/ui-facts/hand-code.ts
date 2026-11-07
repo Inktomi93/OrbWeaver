@@ -1,13 +1,7 @@
 // Hand-written values in TS and TSX: whole-string CSS values, media conditions, and the timing and measurement constants that name them.
 import ts from "typescript";
-import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement, QUERY_PROPERTY } from "./hand-model.ts";
-import type { Lit } from "./literals.ts";
-import { conditionStringLits, lit, valueStringLits } from "./literals.ts";
-import type { Source } from "./source.ts";
-import { lineOf, unwrap } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
-import { tokensHolding } from "./tokens.ts";
+import type { Hit, Judgement, Lit, Place, Source, ValueTokens } from "../eslint/index.ts";
+import { conditionStringLits, hitOf, judgeLit, keepJudgement, lineOf, lit, QUERY_PROPERTY, tokensHolding, unwrap, valueStringLits } from "../eslint/index.ts";
 
 const MAX_STRING = 120;
 const REM_PX = 16;
@@ -19,6 +13,8 @@ const CLASS_OR_STYLE_ATTRIBUTE = /^(?:className|style|[a-z][A-Za-z]*ClassName)$/
 const UNIT_WORDS: Readonly<Record<string, "ms" | "s" | "px" | "rem">> = { ms: "ms", sec: "s", seconds: "s", px: "px", rem: "rem" };
 const TIMER_CALLEES: ReadonlySet<string> = new Set(["setTimeout", "setInterval", "debounce", "throttle"]);
 const SENTINEL_WORDS: ReadonlySet<string> = new Set(["sentinel", "sentinels"]);
+// A constant named for the browser's own control (`FALLBACK_NATIVE_HEX`) holds what that control's value grammar takes.
+const NATIVE_WORDS: ReadonlySet<string> = new Set(["native"]);
 const ANIMATION_WORDS: ReadonlySet<string> = new Set(["anim", "animation", "transition", "fade", "duration", "flash", "pulse", "slide", "tween", "count"]);
 
 export interface Constant {
@@ -68,15 +64,19 @@ function stringLits(text: string): readonly Lit[] {
   return text.startsWith("(") ? conditionStringLits(text) : valueStringLits(text);
 }
 
-/** True when the string sits in a declaration whose name says it is a sentinel. */
-function inSentinel(node: ts.Node): boolean {
+/** The keep the name of the declaration a string sits in settles: a sentinel, or a value for the browser's own control. */
+function declaredKeep(node: ts.Node): "sentinel" | "dom-api-literal" | null {
   for (let parent = node.parent; !ts.isSourceFile(parent); parent = parent.parent) {
     const name = ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent) ? parent.name : undefined;
     if (name !== undefined && (ts.isIdentifier(name) || ts.isStringLiteral(name))) {
-      return wordsOf(name.text).some((word) => SENTINEL_WORDS.has(word));
+      const words = wordsOf(name.text);
+      if (words.some((word) => SENTINEL_WORDS.has(word))) {
+        return "sentinel";
+      }
+      return words.some((word) => NATIVE_WORDS.has(word)) ? "dom-api-literal" : null;
     }
   }
-  return false;
+  return null;
 }
 
 function stringHits(reader: Reader, tokens: ValueTokens): readonly Hit[] {
@@ -84,7 +84,8 @@ function stringHits(reader: Reader, tokens: ValueTokens): readonly Hit[] {
     const text = node.text.trim();
     const condition = text.startsWith("(");
     return stringLits(text).map((found) => {
-      const judgement = inSentinel(node) ? keepJudgement("sentinel", found.text) : judgeLit(found, condition ? QUERY_PROPERTY : null, tokens);
+      const kept = declaredKeep(node);
+      const judgement = kept === null ? judgeLit(found, condition ? QUERY_PROPERTY : null, tokens) : keepJudgement(kept, found.text);
       const category = judgement.match === null ? "raw-value" : "token-literal";
       return hitOf(placeOf(reader, node), { category, where: condition ? "query" : "string", detail: `"${text}"` }, judgement);
     });
@@ -194,11 +195,11 @@ const groupKey = (constant: Constant): string => `${constant.found.canon}|${cons
 // Constants read and found to share a number and not a meaning. A group with any other member is a repeat again, so a new constant is judged.
 const COINCIDENT_CONSTANTS: readonly (readonly [why: string, names: ReadonlySet<string>])[] = [
   ["one polls an embedder rebuild, one polls a live share", new Set(["REBUILD_POLL_MS", "LIVE_POLL_MS"])],
-  ["two retry ladders for two protocols: room announce and workload reconcile", new Set(["ANNOUNCE_RETRY_FIRST_MS", "RECONCILE_RETRY_FIRST_MS"])],
-  ["two retry ladders for two protocols: room announce and workload reconcile", new Set(["ANNOUNCE_RETRY_SECOND_MS", "RECONCILE_RETRY_SECOND_MS"])],
   ["one reaps an idle temp chat, one waits for an idle warmup", new Set(["REAP_IDLE_TIMEOUT_MS", "IDLE_WARMUP_TIMEOUT_MS"])],
   ["one waits out a rerank, one waits out an edited draft", new Set(["RERANK_SETTLE_MS", "SCHEMA_PLAN_SETTLE_MS"])],
   ["one revokes a download URL, one is a blur-close guard", new Set(["REVOKE_DELAY_MS", "BLUR_CLOSE_DELAY_MS"])],
+  ["one is the scroll-edge slack, one is the band inside which a persisted height is not rewritten", new Set(["SCROLL_EDGE_EPSILON_PX", "WRITE_EPSILON_PX"])],
+  ["each list seeds its virtualizer with its own row height, and the rows re-measure after mount", new Set(["ESTIMATED_ROW_PX"])],
 ];
 
 const coincidenceOf = (repeats: readonly Constant[]): string | undefined =>

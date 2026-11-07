@@ -147,13 +147,22 @@ function SwitchRow({
   const tabProps = tabIndex === undefined ? {} : { tabIndex };
   const isPlaying = room !== null && persona.id === room.seatId;
   return (
-    <Row align="center" onFocus={onFocusRow} className={ROW_BOX} data-selected={isPlaying ? "" : undefined} gap="row" padding="field">
+    <Row
+      align="center"
+      onFocus={onFocusRow}
+      wrap={true}
+      minHeight="controlMd"
+      className={ROW_BOX}
+      data-selected={isPlaying ? "" : undefined}
+      gap="row"
+      padding="field"
+    >
       {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}
-      <Avatar className="pointer-events-none relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
+      <Avatar passThrough={true} className="relative shrink-0" fallbackDelay={0} hueSeed={persona.id} size="sm" {...avatarSrc}>
         {initialsFor(persona.name)}
       </Avatar>
-      <Text as="span" className="pointer-events-none relative flex-1 basis-(--width-title-floor) truncate min-inline-0" voice="label">
+      <Text as="span" passThrough={true} className="relative" floor="title" truncate="fill" voice="label">
         {persona.name}
       </Text>
       {room === null ? null : <RoomGlyphs persona={persona} room={room} subject={subject} tabIndex={tabIndex} />}
@@ -174,7 +183,7 @@ function SwitchRow({
   );
 }
 
-const ROW_BOX = "group relative flex-wrap min-block-(--size-control-md)";
+const ROW_BOX = "group relative";
 
 /** The row body in a room: one stretched button that switches. The playing row's name says so instead of
  *  offering a no-op verb (§13.10 N3/N4). */
@@ -193,7 +202,7 @@ function SwitchButton({
     <Button
       aria-current={isPlaying ? "true" : undefined}
       aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
-      className="absolute inset-0"
+      placed="fill"
       data-selected={isPlaying ? "" : undefined}
       data-switch-row-button=""
       // In a room the stretched button is the row's body, so it wears the selection rail and the hover tint; the

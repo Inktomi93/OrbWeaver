@@ -2,6 +2,7 @@ import type { ScrollMode } from "@orb/kit/scroll-mode";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, FOCUS_RING_OUTLINE_INSET, gapPxFor, usePrefersReducedMotion } from "#lib";
 import { rowLiveness } from "./announce.ts";
@@ -12,6 +13,7 @@ import type { LiveRows, ReadingRow } from "./reading-row.ts";
 import { holdReadingRow, readingRowOf, rowIndexNow } from "./reading-row.ts";
 import type { MessageListRowNavigation, RowKey, RowPlacement, RowRovingOptions } from "./row-roving.ts";
 import { MESSAGE_LIST_ROW_SLOT, useRowRoving } from "./row-roving.ts";
+import { messageListVariants } from "./variants.ts";
 
 // Chat rows are tall and expensive Markdown trees. Two rows covers a fast scroll gesture without parsing
 // multiple offscreen viewports of multi-kilobyte messages during cold room entry.
@@ -31,8 +33,8 @@ const LEADING_ACTION_PIN = [
   "not-in-data-[has-bg-image]:has-[:focus-visible,[data-keep-in-view]]:bg-background has-[:focus-visible,[data-keep-in-view]]:rounded-card",
 ];
 
-// 80px reads as "pinned to end" for real content; the library's 1px default is too tight for sub-pixel rounding.
-const SCROLL_END_THRESHOLD_PX = 80;
+// The distance from the end that reads as "pinned to end"; the library's 1px default is too tight for sub-pixel rounding. The jump-to-latest pill measures with the same value.
+export const SCROLL_END_THRESHOLD_PX = 80;
 
 // Tolerance for matching virtual-core's own last scrollTop write vs. a genuine external scroll.
 const PROGRAMMATIC_SCROLL_EPSILON_PX = 2;
@@ -53,7 +55,7 @@ export interface MessageListHandle {
   readonly revealIndex: (index: number) => boolean;
 }
 
-export interface MessageListProps<T> {
+export interface MessageListProps<T> extends VariantProps<typeof messageListVariants> {
   /** Accessible name for the live log region (for example, "Conversation messages" or "Log entries"). */
   readonly ariaLabel?: string;
   readonly items: readonly T[];
@@ -131,6 +133,8 @@ export function MessageList<T>({
   renderItem,
   leading,
   leadingAction,
+  fill,
+  paddingInlineNarrow,
   className,
   scrollContainerRef,
   ref,
@@ -611,7 +615,7 @@ export function MessageList<T>({
       // OFF is explicit because `role="log"` implies polite — `announce.ts` owns the whole rule (#1499).
       aria-live="off"
       onScroll={onScrollTracked}
-      className={cn("relative overflow-auto overscroll-contain", className)}
+      className={messageListVariants({ fill, paddingInlineNarrow, className })}
       data-slot="message-list-scroll"
     >
       {leading === undefined && leadingAction === undefined ? null : (

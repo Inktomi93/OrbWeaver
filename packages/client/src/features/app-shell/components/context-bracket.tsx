@@ -96,34 +96,35 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
       }}
       data-context-bracket={true}
       data-slot="context-bracket"
-      // THE COLUMN HAS NO SEAM OF ITS OWN: each slot pays its own padding — `gap-0` overrides the tabs
-      // primitive's own `gap-block` base, which #146 made a deterministic merge.
-      className="flex flex-col gap-0 block-full min-block-0"
+      flush={true}
+      className="min-block-0"
+      fill={true}
       topRule="primary"
     >
       <Row ref={headerRef} data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
         <ContextHeaderTabs ariaLabel={railLabel} paneLabel={paneLabel} tabs={metaTabs} activeTab={view.activeTab} onSelect={view.selectTab} />
         {view.actions === undefined ? null : (
-          <Row align="center" className="shrink-0 pe-field">
+          <Row align="center" className="shrink-0" paddingInlineEnd="field">
             {view.actions}
           </Row>
         )}
         {hasDismiss ? (
-          <Button
-            aria-label={dismissLabel ?? "Close panel"}
-            data-slot="context-bracket-dismiss"
-            variant="ghost"
-            onClick={onDismiss}
-            square={true}
-            type="button"
-            className="me-field shrink-0"
-          >
-            <Icon icon={X} size="sm" />
-          </Button>
+          <Row className="shrink-0" paddingInlineEnd="field">
+            <Button
+              aria-label={dismissLabel ?? "Close panel"}
+              data-slot="context-bracket-dismiss"
+              variant="ghost"
+              onClick={onDismiss}
+              square={true}
+              type="button"
+            >
+              <Icon icon={X} size="sm" />
+            </Button>
+          </Row>
         ) : null}
       </Row>
       {hasBand ? (
-        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0 px-block py-row">
+        <Stack data-slot="context-bracket-band" gap="row" className="relative shrink-0" paddingBlock="row" paddingInline="block">
           {band}
         </Stack>
       ) : null}
@@ -139,7 +140,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           CHILDREN are deferred until first visit, cutting the initial commit-phase cost from 169-214ms
           to only the active tab's tree. */}
       {view.tabs.length === 0 ? (
-        <Stack className="relative overflow-y-auto overscroll-contain min-block-0" padding="row">
+        <Stack scroll="y" padding="row">
           {empty}
         </Stack>
       ) : null}
@@ -152,7 +153,10 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
           role="region"
           // The tab names its panel; with one meta tab there is no strip to name it, so the panel names itself.
           {...(tab.strip === "meta" && metaTabs.length <= 1 ? { "aria-label": tab.label } : { "aria-labelledby": cellDomId(tab.id) })}
-          className="relative flex-initial overflow-y-auto overscroll-contain p-row min-block-0"
+          grow="initial"
+          inset="row"
+          scroll="y"
+          className="min-block-0"
           ground={tab.opaque ? "sidebar" : "none"}
         >
           {visited.has(tab.id) ? tab.node : null}

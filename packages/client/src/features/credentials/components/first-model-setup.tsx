@@ -162,7 +162,7 @@ export function FirstModelSetup({
 
   return (
     <Stack gap="block" data-slot="first-model-setup">
-      <Row gap="field" className="flex-wrap">
+      <Row gap="field" wrap={true}>
         <Text prose={true} role={chatState.failure === null ? undefined : "alert"} voice="gloss">
           {chatAssignmentText(chatState.pending, chatState.failure, name)}
         </Text>

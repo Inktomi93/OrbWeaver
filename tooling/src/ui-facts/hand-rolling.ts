@@ -1,16 +1,15 @@
 // The hand-rolling census: every hand-written design value, class, style, pattern and constant, each with the owner that would retire it.
+
+import type { ClassConstants, ComponentTables, Hit, Source, ValueTokens } from "../eslint/index.ts";
+import { byPlace, elementsOf, hitOf } from "../eslint/index.ts";
+import { classForwards } from "./class-forwards.ts";
+import type { NoRowUse } from "./hand-classes.ts";
 import { classHits } from "./hand-classes.ts";
 import { codeFindings, constantHits } from "./hand-code.ts";
-import type { Hit } from "./hand-model.ts";
-import { byPlace, hitOf } from "./hand-model.ts";
 import { sheetHits } from "./hand-sheets.ts";
 import { styleHits } from "./hand-style.ts";
 import type { Site } from "./sites.ts";
 import { KINDS } from "./sites.ts";
-import type { Source } from "./source.ts";
-import { elementsOf } from "./source.ts";
-import type { ValueTokens } from "./tokens.ts";
-import type { ComponentTables } from "./variant-tables.ts";
 
 /** Site kinds that are a hand-built pattern a primitive owns: a raw element, or a drawing the icon set draws. */
 const PATTERN_KINDS: ReadonlySet<string> = new Set(
@@ -29,7 +28,7 @@ export interface CensusInputs {
   readonly sites: readonly Site[];
   readonly tokens: ValueTokens;
   readonly components: ComponentTables;
-  readonly referenced: ReadonlySet<string>;
+  readonly referenced: ClassConstants;
 }
 
 function patternHits(sites: readonly Site[]): readonly Hit[] {
@@ -58,12 +57,22 @@ function sourceHits(source: Source, inputs: CensusInputs): { readonly hits: read
   return { hits: [...code.hits, ...written.values()], constants: code.constants };
 }
 
-/** Every hit in the sources, sorted by place. */
-export function buildHandRolling(inputs: CensusInputs): readonly Hit[] {
+/** Every hit in the sources, sorted by place, and the class uses no hit covers, largest first. */
+export function buildHandRolling(inputs: CensusInputs): { readonly hits: readonly Hit[]; readonly noRow: readonly NoRowUse[] } {
   const authored = inputs.sources.filter((source) => !GENERATED_HEADER.test(source.text.slice(0, HEADER_BYTES)));
   const parts = authored.map((source) => sourceHits(source, inputs));
   const constants = parts.flatMap((part) => part.constants);
   const code = authored.filter((source) => source.kind !== "css");
-  const classes = classHits(code, { tokens: inputs.tokens, components: inputs.components, referenced: inputs.referenced });
-  return [...parts.flatMap((part) => part.hits), ...constantHits(constants, inputs.tokens), ...classes, ...patternHits(inputs.sites)].toSorted(byPlace);
+  const classes = classHits(code, {
+    tokens: inputs.tokens,
+    components: inputs.components,
+    referenced: inputs.referenced,
+    forwards: classForwards(inputs.sources),
+  });
+  return {
+    hits: [...parts.flatMap((part) => part.hits), ...constantHits(constants, inputs.tokens), ...classes.hits, ...patternHits(inputs.sites)].toSorted(byPlace),
+    noRow: classes.noRow.toSorted(
+      (left, right) => right.uses - left.uses || left.component.localeCompare(right.component) || left.token.localeCompare(right.token),
+    ),
+  };
 }

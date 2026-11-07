@@ -71,7 +71,7 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
       onOpenChange={onOpenChange}
       size="lg"
       popupProps={{ "data-testid": testId("memberCardViewer") }}
-      titleProps={{ className: "truncate" }}
+      titleTruncate={true}
       headerLeading={
         card === undefined ? null : (
           <Avatar size="lg" fallbackDelay={0} hueSeed={card.characterId} {...(card.avatarHash === null ? {} : { src: blobUrl(card.avatarHash) })}>
@@ -139,7 +139,7 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
  *  viewer's level a single "hidden at this level" note appears in place of the withheld tier. */
 function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   return (
-    <Stack gap="block" className="relative overflow-y-auto overscroll-contain min-block-0">
+    <Stack gap="block" scroll="y">
       <Row gap="row" align="center">
         <Stack gap="field" className="min-inline-0">
           <Row gap="field" align="center">
@@ -286,7 +286,7 @@ function TagsSection({
   }
   return (
     <SectionShell icon={Tag} title="Tags">
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         {editableTags === null
           ? tags.map((tag) => (
               <Badge key={tag} size="sm">

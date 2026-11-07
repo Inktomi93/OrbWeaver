@@ -50,6 +50,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
+import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { gutterRailFor } from "../lib/row-placement.ts";
@@ -79,8 +80,8 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
     <Card aria-busy={true}>
       <Stack gap="row" data-slot="forming-card-chip">
         <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…</Text>
-        <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton variant="text" className="block-(--size-control-sm)" />
+        <Skeleton width="full" height="controlMd" />
+        <Skeleton variant="text" height="control" />
       </Stack>
     </Card>
   );
@@ -330,8 +331,7 @@ export function GhostMessageRow({
     renderGhostNameRow({
       attribution,
       stickyAttribution,
-      placement: skin.headerPlacement,
-      pinnedHeader: skin.pinnedHeader,
+      edges: skin,
       named: skin.actionsRow.identity,
       actionsFootprint: <GhostActionsFootprint chatId={chatId} generationCredit={generationCredit} />,
       chip: headerChip,
@@ -359,7 +359,7 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    facts: { box: skin.box, role: "assistant", phoneCap: skin.phoneCap, corners: skin.corners, lastRowFloor: false, editing: false, receded: false },
+    facts: messageBoxFacts(skin, decoration, { role: "assistant", lastRowFloor: false, editing: false, receded: false }),
     decoration,
     weldedAvatar,
     mirrored: false,

@@ -10,6 +10,6 @@ type RoomIslandProps = ComponentProps<"div"> &
   };
 
 /** An island in a room's reading column. It stamps the neutral D336 scope. */
-export function RoomIsland({ ownSlot, layout, holdsField, dropTarget, className, ...rest }: RoomIslandProps): ReactElement {
-  return <div {...rest} {...variantProps(roomIslandVariants, { layout, holdsField, dropTarget }, className, "neutral")} data-slot={ownSlot} />;
+export function RoomIsland({ ownSlot, layout, holdsField, dropTarget, grow, className, ...rest }: RoomIslandProps): ReactElement {
+  return <div {...rest} {...variantProps(roomIslandVariants, { layout, holdsField, dropTarget, grow }, className, "neutral")} data-slot={ownSlot} />;
 }

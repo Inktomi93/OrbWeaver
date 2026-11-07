@@ -1,11 +1,12 @@
 import MiniSearch from "minisearch";
 import type { ChangeEvent, ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
 import type { MacroTrigger } from "./macro-textarea-logic.ts";
 import { computeMacroInsertion, detectTrigger } from "./macro-textarea-logic.ts";
-import { macroTextareaVariants } from "./variants.ts";
+import { macroTextareaBoxVariants, macroTextareaVariants } from "./variants.ts";
 
 const slots = macroTextareaVariants();
 
@@ -36,6 +37,7 @@ export interface MacroSuggestion {
 }
 
 export interface MacroTextareaProps extends Pick<ComponentProps<typeof Textarea>, "aria-describedby"> {
+  readonly minHeight?: VariantProps<typeof macroTextareaBoxVariants>["minHeight"];
   value: string;
   onChange: (next: string) => void;
   onBlur?: () => void;
@@ -198,6 +200,7 @@ export function MacroTextarea({
   placeholder,
   rows = 6,
   maxRows,
+  minHeight,
   className,
   id,
   disabled,
@@ -287,7 +290,7 @@ export function MacroTextarea({
   const argHintText = argHint === null ? null : `Args for {{${argHint.name.split(":")[0]}}}: ${(argHint.args ?? []).join(", ")}`;
 
   return (
-    <div className={cn(slots.root(), className)} data-slot="macro-textarea">
+    <div className={cn(slots.root(), macroTextareaBoxVariants({ minHeight, className }))} data-slot="macro-textarea">
       <Textarea
         aria-activedescendant={open ? optionId(highlight) : undefined}
         // `aria-autocomplete="list"` IS supported on `textbox` and is the honest declaration: typing can

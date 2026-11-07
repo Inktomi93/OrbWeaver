@@ -175,7 +175,8 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
           // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the required half — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
-          className="flex-1 min-block-0"
+          className="min-block-0"
+          grow={true}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
           // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping (the tag
@@ -304,7 +305,7 @@ function RegexPlacementGlyphs({ stages }: { readonly stages: readonly RegexPlace
   return (
     // `as="span"`: this renders INSIDE the subtitle's own span, so the wrapper must be phrasing content.
     // Each glyph's label is its accessible name; the editor's `Runs on` field names the stages in words.
-    <Text as="span" className="inline-flex items-center gap-tight align-middle">
+    <Text as="span" className="align-middle" flow="clusterTight">
       {stages.map((stage) => PLACEMENT_GLYPH_NODES[stage])}
     </Text>
   );

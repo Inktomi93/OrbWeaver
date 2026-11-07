@@ -1,9 +1,9 @@
 // The five-way split of every client A and B site: is the drift a bypass of the system, or the system not covering the need?
 
+import type { LengthTokens, TokenNamespace } from "../eslint/index.ts";
+import { pxOf, tokensFor } from "../eslint/index.ts";
 import type { Classified, Site, SiteClass } from "./sites.ts";
 import { KINDS } from "./sites.ts";
-import type { LengthTokens, TokenNamespace } from "./tokens.ts";
-import { pxOf, tokensFor } from "./tokens.ts";
 
 /** The classification rule, printed at the head of the report so a reader can check it. */
 export const CLASSIFICATION_RULE: readonly string[] = [

@@ -90,9 +90,9 @@ function LaneBody({ stage, run, running, arrived }: { stage: RefineryStage; run:
     return (
       <Stack aria-busy={true} gap="row">
         <Text voice="label">Running {stage}…</Text>
-        <Skeleton className="block-(--size-control-lg) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-2/3" />
+        <Skeleton width="full" height="controlLg" />
+        <Skeleton width="full" height="controlMd" />
+        <Skeleton height="controlMd" variant="text" />
       </Stack>
     );
   }
@@ -118,7 +118,7 @@ export function PayloadLane({
   // `data-lane` rather than a per-stage testid: the registry is a fixed key set and a stage-templated id
   // would be invisible to both the typed-testid gate and the liveness lens. A CT scopes by `[data-lane=…]`.
   return (
-    <FocalSection aria-label={LANE_LABEL[stage]} className="gap-row" focal={focal} data-focal={focal ? "true" : undefined} data-lane={stage}>
+    <FocalSection aria-label={LANE_LABEL[stage]} focal={focal} data-focal={focal ? "true" : undefined} data-lane={stage}>
       <LaneBand kicker={`${LANE_ORDINAL[stage]} · ${LANE_LABEL[stage]}`}>{run === null ? null : <RunModelCredit model={run.model} />}</LaneBand>
       {runControl}
       <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />

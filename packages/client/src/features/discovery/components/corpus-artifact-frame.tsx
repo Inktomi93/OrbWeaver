@@ -11,7 +11,7 @@ export function CorpusArtifactFrame({ title, children }: { readonly title: strin
   useFocusOnMount(backRef);
   return (
     <Stack gap="block">
-      <Button ref={backRef} className="self-start" variant="ghost" size="sm" onClick={clearCorpusSelection}>
+      <Button ref={backRef} self="start" variant="ghost" size="sm" onClick={clearCorpusSelection}>
         Back to Explore
       </Button>
       <Heading level={1}>{title}</Heading>

@@ -138,10 +138,10 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
   };
 
   return (
-    <Stack className="max-inline-(--reading-measure)" gap="row">
+    <Stack cap="reading" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
-        <Stack gap="row" className="flex-1 min-inline-0">
+        <Stack gap="row" className="min-inline-0" grow={true}>
           <form.AppField name="name">
             {(field): ReactElement => <field.TextField label="Name" hint="Characters call you this. It can't be empty." />}
           </form.AppField>
@@ -211,7 +211,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
 
       <ProvenanceChip metadata={baseMetadata} />
 
-      <Row gap="row" align="center" className="flex-wrap justify-end" data-slot="persona-editor-footer">
+      <Row gap="row" align="center" wrap={true} justify="end" data-slot="persona-editor-footer">
         <Button disabled={duplicate.isPending} variant="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
           Duplicate

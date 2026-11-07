@@ -33,7 +33,7 @@ export function SectionJumpRail({ siblings }: { readonly siblings: readonly Home
     .list()
     .filter((def) => def.id !== "home" && !claimed.has(def.id));
   return (
-    <Row className="flex-wrap" gap="field">
+    <Row wrap={true} gap="field">
       {sections.map((def) => (
         // A jump IS an action on the shell store (this app has ONE route), so the destination is a
         // Button, never an `<a href>` — and `shape="pill"` is the rail's whole register: one of many

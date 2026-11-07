@@ -53,13 +53,13 @@ function ArtifactProvenance({ destination }: { readonly destination: CorpusDesti
         <Stack gap="field">
           <Text voice="kicker">Grouping provenance</Text>
           <Text>{destination.cluster.model}</Text>
-          <Text className="break-all" voice="gloss">
+          <Text wrap="all" voice="gloss">
             Grouping input identity: {destination.cluster.passId}
           </Text>
-          <Text className="break-all" voice="gloss">
+          <Text wrap="all" voice="gloss">
             Generation: {destination.cluster.generationId}
           </Text>
-          <Text className="break-all" voice="gloss">
+          <Text wrap="all" voice="gloss">
             Encoder fingerprint: {destination.cluster.fingerprint ?? "not recorded"}
           </Text>
           <Text voice="gloss">
@@ -126,13 +126,13 @@ function MomentProvenance({ destination }: { readonly destination: Extract<Corpu
       <Text voice="gloss">
         Original sequence range: {source.seqStart === null || source.seqEnd === null ? "unavailable" : `${source.seqStart}–${source.seqEnd}`}
       </Text>
-      <Text className="break-all" voice="gloss">
+      <Text wrap="all" voice="gloss">
         Source row: {source.rowId}
       </Text>
-      <Text className="break-all" voice="gloss">
+      <Text wrap="all" voice="gloss">
         Generation: {source.generationId}
       </Text>
-      <Text className="break-all" voice="gloss">
+      <Text wrap="all" voice="gloss">
         Encoder fingerprint: {source.fingerprint ?? "not recorded"}
       </Text>
       {destination.rank === null ? null : <Text voice="gloss">Result rank: {destination.rank}</Text>}

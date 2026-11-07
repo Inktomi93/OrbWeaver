@@ -122,7 +122,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
     // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
     // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
-    <Stack className="flex-1 min-block-0" data-collection={group.id} data-slot="config-collection-landing" gap="section">
+    <Stack className="min-block-0" grow={true} data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigPaneGlance blurb={true} group={group} level={2} />
       <CollectionControlRow collection={collection} filter={filter} label={group.label} onFilterChange={setFilter} />
@@ -135,7 +135,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
           library's read, and an error inside it is the library's to retry, not the pane's to swallow. */}
       <QueryBoundary
         resetKeys={[group.id, filter]}
-        fallback={<Skeleton className="block-(--height-row-placeholder) inline-full" />}
+        fallback={<Skeleton width="full" height="row" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
       >
         {collection.list({
@@ -162,10 +162,10 @@ function CollectionControlRow({
 }): ReactElement {
   const filterRef = useRef<HTMLInputElement>(null);
   return (
-    <Container className="inline-full">
-      <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
+    <Container width="full">
+      <Row align="center" wrap={true} data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
-        <Row align="center" className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0">
+        <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
           <Input
             ref={filterRef}
             aria-label={`Filter ${label.toLowerCase()}`}
@@ -226,7 +226,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack className={inBand ? "order-last basis-full max-inline-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "max-inline-full min-inline-0"}>
+    <Stack cap="fit" className="min-inline-0" floor={inBand ? "line" : undefined} order={inBand ? "lastUntilWide" : undefined}>
       <form
         aria-label={label}
         noValidate={true}
@@ -238,10 +238,12 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
           }
         }}
       >
-        <Row align="center" className="flex-wrap" gap="field">
+        <Row align="center" wrap={true} gap="field">
           <Input
             aria-label={askName.fieldLabel}
-            className="flex-1 basis-(--width-field-floor) max-inline-full min-inline-0"
+            grow={true}
+            floor="field"
+            className="min-inline-0"
             maxLength={askName.maxLength}
             onKeyDown={(event): void => {
               if (event.key === "Escape") {
@@ -253,7 +255,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
             ref={nameRef}
             value={name}
           />
-          <Row className="shrink-0 flex-wrap max-inline-full" gap="field">
+          <Row className="shrink-0" wrap={true} cap="fit" gap="field">
             <Button disabled={trimmed === "" || pending} type="submit" {...(inBand ? { size: "sm" as const } : {})}>
               {DIALOG_VERBS.create}
             </Button>
@@ -344,17 +346,17 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
   return (
     <Stack data-slot="config-library-insights" gap="field">
       {insights.map((insight) => (
-        <Row align="center" className="flex-wrap min-inline-0" gap="field" key={insight.id}>
-          <Row align="center" className="flex-wrap max-inline-full min-inline-0" gap="field">
+        <Row align="center" className="min-inline-0" wrap={true} gap="field" key={insight.id}>
+          <Row align="center" className="min-inline-0" wrap={true} cap="fit" gap="field">
             <Text as="span" voice="kicker">
               {insight.label}
             </Text>
-            <CountText className="shrink-0 whitespace-nowrap">{insight.value}</CountText>
+            <CountText>{insight.value}</CountText>
           </Row>
           {insight.open === undefined ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
-              className="ms-auto wrap-anywhere max-inline-full"
+              push="inlineEnd"
               variant="ghost"
               onClick={insight.open.run}
               size="sm"

@@ -1,11 +1,12 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { EmptyState } from "#primitives/empty-state";
 import type { LucideIcon } from "#primitives/icons";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Icon } from "#primitives/icons";
-import { tableVariants } from "./variants.ts";
+import { tableBoxVariants, tableVariants } from "./variants.ts";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -36,7 +37,7 @@ export interface TablePagination {
   readonly pageSize: number;
 }
 
-export interface TableProps<TData> {
+export interface TableProps<TData> extends VariantProps<typeof tableBoxVariants> {
   readonly columns: readonly TableColumn<TData>[];
   readonly data: readonly TData[];
   /**
@@ -164,6 +165,8 @@ function ariaSortFor(column: Pick<TableColumn<unknown>, "id" | "sortable">, sort
  * and `aria-sort` on sortable header cells.
  */
 export function Table<TData>({
+  width,
+  cap,
   columns,
   data,
   getRowId,
@@ -211,7 +214,7 @@ export function Table<TData>({
   const showPager = pageCount > 1;
 
   return (
-    <div className={cn(slots.root(), className)} data-slot="table-root">
+    <div className={cn(slots.root(), tableBoxVariants({ width, cap, className }))} data-slot="table-root">
       <div className={slots.scroll()} data-slot="table-scroll">
         <table aria-label={ariaLabel} className={slots.table()} data-slot="table">
           <thead className={slots.thead()}>

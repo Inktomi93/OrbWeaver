@@ -10,7 +10,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useId } from "react";
 
 export interface DescribedMenuItemProps
-  extends Omit<ComponentProps<typeof MenuItem>, "aria-describedby" | "aria-labelledby" | "children" | "label" | "hiddenAt"> {
+  extends Omit<ComponentProps<typeof MenuItem>, "aria-describedby" | "aria-labelledby" | "children" | "label" | "hiddenAt" | "cap" | "stacked" | "truncate"> {
   readonly icon?: LucideIcon;
   /** The item's name, also its typeahead text. */
   readonly label: string;

@@ -6,8 +6,9 @@
 // `role="meter"` (bar-as-datum) — the tracker block kit inverts that per §3.2. Homed in charts/meter/
 // (the magnitude-display family; svg-legal data-viz allowlist, §13.7).
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn, isSafeColor } from "#lib";
-import { TRACK_FILL, trackBarVariants } from "./variants.ts";
+import { TRACK_FILL, trackBarBoxVariants, trackBarVariants } from "./variants.ts";
 
 /** Which `--color-track-N` step fills a bar/ring (categorical, by definition order). */
 export type TrackColor = 1 | 2 | 3 | 4 | 5 | 6;
@@ -15,6 +16,7 @@ export type TrackColor = 1 | 2 | 3 | 4 | 5 | 6;
 const FULL_PERCENT = 100;
 
 export interface TrackBarProps {
+  readonly grow?: VariantProps<typeof trackBarBoxVariants>["grow"];
   /** Current magnitude. */
   value: number;
   /** Domain max — the full-bar value. @defaultValue 100 */
@@ -63,6 +65,7 @@ export function TrackBar({
   customColor,
   dangerBelow,
   width = "full",
+  grow,
   className,
 }: TrackBarProps): ReactElement {
   const danger = dangerBelow !== undefined && value < dangerBelow;
@@ -71,7 +74,7 @@ export function TrackBar({
   const custom = !danger && customColor !== undefined && isSafeColor(customColor) ? customColor : undefined;
   const ramped = accent === "ramp" && !danger && custom === undefined;
   return (
-    <div aria-hidden={true} className={cn(slots.root(), className)} data-slot="track-bar">
+    <div aria-hidden={true} className={cn(slots.root(), trackBarBoxVariants({ grow, className }))} data-slot="track-bar">
       {/* width is data (inline style is the only honest home for a runtime fraction); color is a ramp token
           — or the semantic zone accent, or the host-picked color literal (also data, safe-color-gated). */}
       <div

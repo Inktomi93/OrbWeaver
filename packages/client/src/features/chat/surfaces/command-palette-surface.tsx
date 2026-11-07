@@ -98,12 +98,12 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full" focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} fill={true} focusTarget={true}>
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
-      <Command className="flex flex-col block-full" elevated={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
+      <Command elevated={true} fill={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" ref={searchRef} />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>
@@ -250,7 +250,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
               <Text as="span" className="sr-only">
                 {BADGE_SEPARATOR}
               </Text>
-              <Text as="span" className="ms-auto" voice="gloss">
+              <Text as="span" push="inlineEnd" voice="gloss">
                 {row.badge}
               </Text>
             </>

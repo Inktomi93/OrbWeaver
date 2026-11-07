@@ -1,8 +1,8 @@
 // Feedback shape: for each consumer of an entity-mutation hook, what tells the user it worked and what tells them it failed.
 import ts from "typescript";
+import type { Source } from "../eslint/index.ts";
+import { lineOf, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "./compare.ts";
-import type { Source } from "./source.ts";
-import { lineOf, visit } from "./source.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const FACTORY = "createEntityMutation";

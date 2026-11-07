@@ -42,6 +42,7 @@ import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts"
 import { customPropertyUses } from "./tooling/src/css-names/index.ts";
 import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
 import { ROLE_DATA_RESTRICTIONS } from "./tooling/src/eslint/security-policy.ts";
+import { classOwners } from "./tooling/src/eslint/ui-classes/class-owners.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.css", import.meta.url));
@@ -1577,6 +1578,7 @@ const localPlugin = createOrbPlugin({
   candidatesToCss: (classes) => designSystem.candidatesToCss(classes),
   customProperties: customPropertyUses(ROOT),
   classifyClass: classClassifier((classes) => designSystem.candidatesToCss(classes)),
+  propOwners: classOwners(ROOT),
   intentColors: INTENT_COLORS,
   cssVocabulary: {
     tokens: new Map(Object.entries(TOKENS).map(([key, { cssVar }]) => [cssVar, key])),
@@ -1685,8 +1687,6 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}", "tests/**/*.ct.tsx"],
       rules: { "orb/custom-property-declared": "error" },
     },
-    // On by owner ruling before the tree is at zero: the sites drain through items 1334 to 1336 and 1338,
-    // and the pre-push lint stays red until the last one goes.
     {
       files: CLIENT_JSX_SOURCE,
       rules: { "orb/feature-classname-layout-only": "error", "orb/no-built-class-string": "error" },

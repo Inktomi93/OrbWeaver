@@ -30,7 +30,8 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
     <Track
       of={RoomIsland}
       track="composer"
-      className="relative isolate flex-auto min-block-0"
+      grow="content"
+      className="relative isolate min-block-0"
       layout="stack"
       ownSlot="composer"
       {...dropTargetProps}
@@ -41,13 +42,13 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       dropTarget={true}
       holdsField={true}
     >
-      <Stack className="flex-auto min-block-0 min-inline-0" data-slot="composer-content" gap="field">
+      <Stack className="min-block-0 min-inline-0" grow="content" data-slot="composer-content" gap="field">
         {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}
         {dragActive ? (
           <Card tone="primary" variant="outline" dashed={true} ownSlot="composer-drop-affordance" padding="none">
-            <Row gap="field" align="center" justify="center" className="py-field">
+            <Row gap="field" align="center" justify="center" paddingBlock="field">
               <Icon icon={ImagePlus} size="sm" />
               <Text voice="gloss">{DROP_AFFORDANCE}</Text>
             </Row>

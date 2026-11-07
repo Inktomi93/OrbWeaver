@@ -89,7 +89,7 @@ function ModelsBody(): ReactElement {
                     {...(modelName === model.model ? {} : { fullTitle: model.model })}
                     subtitle={`${model.provider ?? "unknown"} · ${formatCompactNoun(model.generations, "generation", "generations")} · ${model.charactersUsedWith === 1 ? "1 character" : `${model.charactersUsedWith} characters`}`}
                     actions={
-                      <Text voice="datumMono" className="whitespace-nowrap">
+                      <Text voice="datumMono" whitespace="nowrap">
                         {formatTokens(model.tokensOut, model.tokensOutProvenance)} · {formatUsd(model.costUsd)}
                       </Text>
                     }
@@ -130,7 +130,7 @@ function OwnerLatency(): ReactElement {
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "owner" }));
   return (
     <Section heading="Reply speed (all models)">
-      <Row gap="block" className="flex-wrap">
+      <Row gap="block" wrap={true}>
         <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
         <StatFigure label={LATENCY_LABELS.p90Ttft} value={formatMs(latency.p90TtftMs)} />
         <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(latency.avgGenMs)} />

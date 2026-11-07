@@ -203,9 +203,6 @@
    * both states, so it sits over the header while the panel is docked and over the topbar's end once it closes, and
    * the band underneath keeps its lane clear. The grid pays the device insets as padding, which absolute offsets
    * ignore, so they are added here. */
-  .shell-grid {
-    --panel-edge-reserve: calc(var(--size-control-sm) + var(--spacing-row));
-  }
   .shell-panel-edge {
     position: absolute;
     inset-block-start: env(safe-area-inset-top);
@@ -228,19 +225,19 @@
     padding-inline-start: var(--spacing-row);
   }
   .shell-grid[data-list-edge="docked"] .shell-panel[data-panel-side="list"] .shell-panel-header {
-    padding-inline-start: var(--panel-edge-reserve);
+    padding-inline-start: var(--size-control-clearance);
   }
   .shell-grid[data-context-edge="docked"] .shell-panel[data-panel-side="context"] .shell-panel-header,
   .shell-grid[data-context-edge="docked"] .shell-context-header {
-    padding-inline-end: var(--panel-edge-reserve);
+    padding-inline-end: var(--size-control-clearance);
   }
   /* The topbar keeps its lane in both states: a lane that opened only when the panel closed would step the trail by
    * its width inside the panel push, which the FLIP cannot counter. */
   .shell-grid[data-list-edge] .shell-topbar {
-    --shell-topbar-lane-start: var(--panel-edge-reserve);
+    --shell-topbar-lane-start: var(--size-control-clearance);
   }
   .shell-grid[data-context-edge] .shell-topbar {
-    --shell-topbar-lane-end: var(--panel-edge-reserve);
+    --shell-topbar-lane-end: var(--size-control-clearance);
   }
 
   .shell-panel-body {

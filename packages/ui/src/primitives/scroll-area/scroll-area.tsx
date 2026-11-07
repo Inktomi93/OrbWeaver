@@ -1,8 +1,9 @@
 import type { ScrollAreaRootProps as BaseRootProps, ScrollAreaViewportProps as BaseViewportProps } from "@base-ui/react/scroll-area";
 import { ScrollArea as BaseScrollArea } from "@base-ui/react/scroll-area";
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { scrollAreaVariants } from "./variants.ts";
+import { scrollAreaBoxVariants, scrollAreaVariants } from "./variants.ts";
 
 const slots = scrollAreaVariants();
 
@@ -10,11 +11,10 @@ export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "classN
   className?: string;
 }
 
-export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
+export interface ScrollAreaProps extends Omit<BaseRootProps, "className">, VariantProps<typeof scrollAreaBoxVariants> {
   className?: string;
-  viewportClassName?: string;
-  /** Class for the sized `Content` wrapper (where `children` live). */
-  contentClassName?: string;
+  /** The `Content` wrapper takes the viewport's whole width, for a list whose rows truncate against it. @defaultValue false */
+  contentFull?: boolean;
   /**
    * The child WRAPS instead of overflowing sideways — a `flex-wrap` rail, a prose column, anything whose
    * width is the viewport's. @defaultValue false
@@ -39,18 +39,18 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
  * cannot be mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, viewportClassName, contentClassName, viewportProps, wrapContent = false, children, ...rest } = props;
+  const { className, grow, maxHeight, contentFull = false, viewportProps, wrapContent = false, children, ...rest } = props;
   return (
-    <BaseScrollArea.Root className={slots.root({ className })} data-slot="scroll-area-root" {...rest}>
+    <BaseScrollArea.Root className={slots.root({ className: scrollAreaBoxVariants({ grow, className }) })} data-slot="scroll-area-root" {...rest}>
       <BaseScrollArea.Viewport
         {...viewportProps}
         className={slots.viewport({
-          className: cn(viewportClassName, viewportProps?.className),
+          className: scrollAreaBoxVariants({ maxHeight, className: viewportProps?.className }),
         })}
         data-slot="scroll-area-viewport"
       >
         <BaseScrollArea.Content
-          className={slots.content({ className: cn(wrapContent ? "min-inline-0" : undefined, contentClassName) })}
+          className={slots.content({ className: cn(wrapContent ? "min-inline-0" : undefined, contentFull ? "inline-full" : undefined) })}
           data-slot="scroll-area-content"
           style={wrapContent ? { minWidth: 0 } : undefined}
         >

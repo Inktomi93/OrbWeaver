@@ -77,8 +77,7 @@ export function StatCell({ label, value, hint, onEditValue, range }: StatCellPro
             // padded button ellipsized a 2-digit value).
             width="avatar-md"
             numeric={true}
-            className="text-center"
-            restClassName="text-center"
+            textAlign="center"
             voice="promoted"
           />
         )}
@@ -121,14 +120,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           {value}
         </Text>
       ) : (
-        <TrackerValue
-          ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`}
-          display={value}
-          onEdit={onEditValue}
-          className="field-sizing-content max-inline-full min-inline-0"
-          width="auto"
-          restClassName="min-inline-0 max-inline-full"
-        />
+        <TrackerValue ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`} display={value} onEdit={onEditValue} width="auto" />
       )}
     </Badge>
   );
@@ -152,14 +144,14 @@ interface BeatLineProps {
  *  The leading em-dash is the mock's beat marker (aria-hidden decoration — the text stays the datum). */
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
-    <Text ink="muted" data-slot="beat-line" className="flex gap-field" voice="gloss" prose={true}>
+    <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" prose={true}>
       <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} ink="foreground">
         —
       </Text>
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
           contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it
           the line forces the tab wide (owner horizontal-scrollbar report, 08-01). */}
-      <Text as="span" ink="muted" className="wrap-break-word min-inline-0" voice="gloss" prose={true}>
+      <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
         {children}
       </Text>
     </Text>
@@ -186,13 +178,13 @@ interface GoalLineProps {
 /** A free-text objective with an optional `n/m` clock; done ⇒ struck through (§3.2). */
 export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProps): ReactElement {
   return (
-    <Row justify="between" align="baseline" gap="block" className="flex-1 min-inline-0" data-slot="goal-line">
+    <Row justify="between" align="baseline" gap="block" className="min-inline-0" grow={true} data-slot="goal-line">
       {onEditText === undefined ? (
-        <Text as="span" ink={done ? "muted" : undefined} strike={done} className="truncate min-inline-0" voice="label">
+        <Text as="span" ink={done ? "muted" : undefined} strike={done} truncate={true} voice="label">
           {text}
         </Text>
       ) : (
-        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="inline-full" />
+        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} width="full" />
       )}
       {clock === undefined ? null : (
         <Text as="span" ink="muted" voice="datum">

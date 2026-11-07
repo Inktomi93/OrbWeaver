@@ -23,6 +23,8 @@ export interface LocalDay {
   readonly tokensOutProvenance: TokenProvenance;
   /** Turns exchanged plus chats opened: the rhythm figures' and weekday bars' definition of activity. */
   readonly activity: number;
+  /** Some bucket that day holds a message with an approximate date. */
+  readonly approx: boolean;
 }
 
 /** The activity timeline folded onto the viewer's calendar. */
@@ -34,13 +36,18 @@ export interface LocalTimeline {
   /** Turns per (weekday, hour), Sun..Sat × 00..23 — system rows are not turns a reader exchanged. */
   readonly weekHourTurns: readonly (readonly number[])[];
   readonly peak: { readonly dayOfWeek: number; readonly hour: number; readonly count: number } | null;
+  /** Some day holds a message with an approximate date, so every figure folded from the timeline counts it. */
+  readonly approx: boolean;
 }
 
 /** Fold the server's UTC quarter-hour timeline into the viewer's days, weekdays and hours. `position` is
  *  the time seam's `calendarPosition`: a quarter-hour bucket never straddles a local hour in any zone, so
  *  placing a bucket by its start instant is exact. Buckets arrive ascending, so days come out ascending. */
 export function localTimeline(
-  buckets: readonly Pick<ActivityBucket, "bucketStart" | "chatsCreated" | "userTurns" | "assistantTurns" | "tokensOut" | "tokensOutProvenance">[],
+  buckets: readonly Pick<
+    ActivityBucket,
+    "bucketStart" | "chatsCreated" | "userTurns" | "assistantTurns" | "tokensOut" | "tokensOutProvenance" | "messageDatesApprox"
+  >[],
   position: (epochMs: number) => CalendarPosition,
 ): LocalTimeline {
   const days = new Map<string, LocalDay>();
@@ -57,13 +64,14 @@ export function localTimeline(
       row[at.hour] = (row[at.hour] ?? 0) + turns;
     }
   }
-  return { days: [...days.values()], weekdayActivity, weekHourTurns, peak: peakCell(weekHourTurns) };
+  const folded = [...days.values()];
+  return { days: folded, weekdayActivity, weekHourTurns, peak: peakCell(weekHourTurns), approx: folded.some((day) => day.approx) };
 }
 
 function addBucketToDay(
   prior: LocalDay | undefined,
   day: string,
-  bucket: Pick<ActivityBucket, "bucketStart" | "assistantTurns" | "tokensOut" | "tokensOutProvenance">,
+  bucket: Pick<ActivityBucket, "bucketStart" | "assistantTurns" | "tokensOut" | "tokensOutProvenance" | "messageDatesApprox">,
   activity: number,
 ): LocalDay {
   if (prior === undefined) {
@@ -74,6 +82,7 @@ function addBucketToDay(
       tokensOut: bucket.tokensOut,
       tokensOutProvenance: bucket.tokensOutProvenance,
       activity,
+      approx: bucket.messageDatesApprox,
     };
   }
   return {
@@ -83,6 +92,7 @@ function addBucketToDay(
     tokensOut: bucket.tokensOut === null ? prior.tokensOut : (prior.tokensOut ?? 0) + bucket.tokensOut,
     tokensOutProvenance: combineTokenProvenance(prior.tokensOutProvenance, bucket.tokensOutProvenance),
     activity: prior.activity + activity,
+    approx: prior.approx || bucket.messageDatesApprox,
   };
 }
 
@@ -102,7 +112,7 @@ function peakCell(matrix: readonly (readonly number[])[]): LocalTimeline["peak"]
 export interface Rhythm {
   readonly activeDays: number;
   readonly longestStreakDays: number;
-  readonly busiestDay: { readonly day: string; readonly start: number; readonly count: number } | null;
+  readonly busiestDay: { readonly day: string; readonly start: number; readonly count: number; readonly approx: boolean } | null;
 }
 
 /** Active days, the longest run of consecutive active days, and the busiest day (the first, on a tie). */
@@ -114,7 +124,7 @@ export function rhythmOf(days: readonly LocalDay[]): Rhythm {
   let previous: number | null = null;
   for (const day of active) {
     if (busiestDay === null || day.activity > busiestDay.count) {
-      busiestDay = { day: day.day, start: day.start, count: day.activity };
+      busiestDay = { day: day.day, start: day.start, count: day.activity, approx: day.approx };
     }
     // A calendar day's ordinal: the local date read as a UTC midnight, so a DST day still steps by one.
     const ordinal = Date.parse(`${day.day}T00:00:00Z`) / MS_PER_DAY;

@@ -24,7 +24,7 @@ export function LooksFoldCaption(): ReactElement {
   const selected = selectedId === null ? undefined : themes?.find((theme) => theme.id === selectedId);
   const current = (selected ?? themes?.find((theme) => theme.isDefault))?.name;
   return (
-    <Text as="span" voice="gloss" className="truncate">
+    <Text as="span" voice="gloss" truncate={true}>
       {current === undefined ? "advanced · your changes" : `advanced · your changes, on top of ${current}`}
     </Text>
   );

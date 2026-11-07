@@ -32,7 +32,7 @@ import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUploadCaps } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { cn, notify, oversizeUploadMessage } from "#lib";
+import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -96,13 +96,13 @@ export function CharacterHeroBand({
   const previewPolicy = usePreviewRenderPolicy(detail);
   return (
     <Stack gap="section" data-slot="character-hero">
-      <Row align="start" gap="block" className="flex-wrap">
+      <Row align="start" gap="block" wrap={true}>
         <HeroPortrait detail={detail} trpc={trpc} />
-        <Stack className="flex-1 min-inline-0" gap="field">
-          <Row align="center" gap="row" className="flex-wrap">
-            <Stack className="flex-1 min-inline-0" gap="field">
+        <Stack className="min-inline-0" grow={true} gap="field">
+          <Row align="center" gap="row" wrap={true}>
+            <Stack className="min-inline-0" grow={true} gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
-              <Text voice="datumMono" className={cn("truncate", HERO_ECHO_CLASS)}>
+              <Text voice="datumMono" className={HERO_ECHO_CLASS} truncate={true}>
                 @{detail.handle}
               </Text>
             </Stack>
@@ -259,8 +259,8 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 // chat-recall-indicator.tsx carries it.) A ghost `InlineAction` chip would draw nothing at
                 // rest and leave the unpressable datum chips as the row's only shaped items.
                 <Button variant="outline" shape="pill" size="sm" type="button">
-                  <ThemeScope className="shrink-0 block-(--size-glyph-xs) inline-(--size-glyph-xs)" tokens={cardTheme}>
-                    <Swatch className="block-full inline-full" edge="outline" fill="primary" shape="pill" />
+                  <ThemeScope box="glyph" tokens={cardTheme}>
+                    <Swatch edge="outline" fill="primary" shape="pill" size="fill" />
                   </ThemeScope>
                   {/* The kicker register at its own weight. `interactiveKicker`, not `kicker`: this text is the
                       VISIBLE LABEL OF A BUTTON, and `kicker` is the micro step — under the readable floor the
@@ -302,7 +302,7 @@ function HeroActions({
   readonly chatCount: number;
 }): ReactElement {
   return (
-    <Row gap="row" align="center" className="flex-wrap">
+    <Row gap="row" align="center" wrap={true}>
       <Button type="button" onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
         New chat

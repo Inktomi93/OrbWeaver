@@ -104,7 +104,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   return (
     <Section container={true} divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.
         </Text>
         <SettingRowGroup>

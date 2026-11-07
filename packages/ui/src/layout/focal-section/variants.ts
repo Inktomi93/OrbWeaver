@@ -3,6 +3,7 @@ import { tv } from "#lib";
 // The edge ring and glow of a region's one focal treatment (CD3): a speaker-ink ring around the box and a glow behind it. The ring is
 // a shadow, not a border, so a rounded box carries no one-sided border.
 export const focalSectionVariants = tv({
+  base: "gap-row",
   variants: {
     focal: {
       true: `

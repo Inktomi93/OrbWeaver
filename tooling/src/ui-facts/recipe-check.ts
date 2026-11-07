@@ -5,22 +5,29 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { cn } from "@orb/ui/lib";
 import ts from "typescript";
-import type { ClassExpression } from "./class-expression.ts";
-import { classesWhen, guardsIn, opaqueIn } from "./class-expression.ts";
-import { attributeClasses } from "./classes.ts";
-import { attributeValue } from "./hand-arms.ts";
+import type { ClassExpression, ComponentRecipe, ComponentTables, Elem } from "../eslint/index.ts";
+import {
+  attributeClasses,
+  attributeValue,
+  classesIn,
+  classesWhen,
+  componentTables,
+  conflicts,
+  doorOf,
+  elementsOf,
+  guardsIn,
+  loadSources,
+  opaqueIn,
+  visit,
+} from "../eslint/index.ts";
 import type { MigrationPlan } from "./migration.ts";
 import { readPlan } from "./migration.ts";
-import type { Elem } from "./source.ts";
-import { doorOf, elementsOf, loadSources, visit } from "./source.ts";
-import type { ComponentRecipe, ComponentTables } from "./variant-tables.ts";
-import { componentTables } from "./variant-tables.ts";
 
 const MAX_STATES = 64;
 const CLASS_NAME = "className";
 const NO_PROP = undefined;
 
-type Recipe = (props: Readonly<Record<string, string | undefined>>) => unknown;
+type Recipe = (props: Readonly<Record<string, string | boolean | undefined>>) => unknown;
 type Choice = readonly [string, readonly (string | undefined)[]];
 
 /** One planned file: its text from the snapshot and from the tree. */
@@ -70,15 +77,44 @@ function classesOf(elem: Elem): ClassExpression {
   return value === undefined ? { kind: "classes", tokens: [] } : attributeClasses(value);
 }
 
-/** The axis props an element sets: the door's literal choices, then each forwarded axis it writes, null where the syntax cannot read the value. */
+/** The axis props an element renders with: the door's defaults, its literal choices, then each forwarded axis it writes, null where the syntax cannot read the value. */
 function axisProps(elem: Elem, recipe: ComponentRecipe): ReadonlyMap<string, string | null> {
   const written = [...elem.attrs].flatMap(([name, attribute]) => (recipe.axes.has(name) ? [[name, attributeValue(attribute)] as const] : []));
-  return new Map([...recipe.chosen, ...written]);
+  return new Map([...recipe.defaults, ...recipe.chosen, ...written]);
+}
+
+type ElementProps = readonly [ReadonlyMap<string, string | null>, ReadonlyMap<string, string | null>];
+type ElementClasses = readonly [ClassExpression, ClassExpression];
+
+/** The props the rewrite changed, and the classes it moved: what one side's class string writes and the other's does not. */
+function rewritten([was, is]: ElementProps, [wasClasses, isClasses]: ElementClasses): { axes: ReadonlySet<string>; tokens: readonly string[] } {
+  const axes = new Set([...was.keys(), ...is.keys()].filter((axis) => was.get(axis) !== is.get(axis)));
+  const [before, after] = [classesIn(wasClasses), classesIn(isClasses)];
+  return { axes, tokens: [...before.filter((token) => !after.includes(token)), ...after.filter((token) => !before.includes(token))] };
+}
+
+/**
+ * Whether an open axis can reach what the rewrite changed. The merger drops a class only for a rival of its own family, so an axis none of whose
+ * classes conflict with a moved class writes the same on both sides and adds nothing but states. A compound joins the axes it reads, so one that
+ * reads a changed prop keeps them all, and the door's computed axes stop multiplying into a limit no move could meet.
+ */
+function reaches(axis: string, recipe: ComponentRecipe, changed: ReturnType<typeof rewritten>): boolean {
+  const compounds = recipe.compounds.filter((compound) => compound.conditions.has(axis));
+  const written = [...[...(recipe.declared.get(axis)?.values() ?? [])].flatMap((arm) => arm.tokens), ...compounds.flatMap((compound) => compound.tokens)];
+  return (
+    changed.axes.has(axis) ||
+    recipe.compoundsUnread ||
+    compounds.some((compound) => [...compound.conditions.keys()].some((read) => changed.axes.has(read))) ||
+    written.some((token) => changed.tokens.some((moved) => conflicts(token, moved)))
+  );
 }
 
 /** Every value a non-literal prop or a guard can take; a literal prop is one fixed state. */
-function choicesOf(recipe: ComponentRecipe, props: readonly ReadonlyMap<string, string | null>[], classes: readonly ClassExpression[]): readonly Choice[] {
-  const open = [...new Set(props.flatMap((one) => [...one].flatMap(([axis, value]) => (value === null ? [axis] : []))))];
+function choicesOf(recipe: ComponentRecipe, props: ElementProps, classes: ElementClasses): readonly Choice[] {
+  const changed = rewritten(props, classes);
+  const open = [...new Set(props.flatMap((one) => [...one].flatMap(([axis, value]) => (value === null ? [axis] : []))))].filter((axis) =>
+    reaches(axis, recipe, changed),
+  );
   const armsOf = (axis: string): Choice => [axis, [...(recipe.declared.get(axis)?.keys() ?? []), NO_PROP]];
   const guards = [...new Set(classes.flatMap(guardsIn))].map((guard): Choice => [guard, [guard, NO_PROP]]);
   return [...open.map(armsOf), ...guards];
@@ -90,13 +126,16 @@ const statesOf = (choices: readonly Choice[]): readonly ReadonlyMap<string, stri
     [new Map()],
   );
 
+// A compound matches a boolean arm by value, so the `true` an attribute reads as text has to reach the recipe as `true`.
+const armValue = (arm: string | undefined): string | boolean | undefined => (arm === "true" || arm === "false" ? arm === "true" : arm);
+
 function classSet(
   recipes: readonly Recipe[],
   props: ReadonlyMap<string, string | null>,
   classes: ClassExpression,
   state: ReadonlyMap<string, string | undefined>,
 ): string {
-  const input = Object.fromEntries([...props].map(([axis, value]) => [axis, value ?? state.get(axis)]));
+  const input = Object.fromEntries([...props].map(([axis, value]) => [axis, armValue(value ?? state.get(axis))]));
   const held = new Set([...state.values()].filter((value) => value !== undefined));
   const written = recipes.map((recipe) => recipe(input));
   if (written.some((one) => typeof one !== "string")) {

@@ -39,7 +39,7 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
     .filter(isTrailEntry)
     .filter((e) => !(mobile && e.mobile === "sheet"))
     .map((entry) => ({ id: entry.id, inline: <TrailEntry entry={entry} />, menu: <TrailMenuEntry entry={entry} /> }));
-  return <OverflowActions actions={actions} className="shell-topbar-trail" gap="field" label={TRAIL_OVERFLOW_LABEL} slot="overflow-actions" />;
+  return <OverflowActions actions={actions} topbarTrail={true} gap="field" label={TRAIL_OVERFLOW_LABEL} slot="overflow-actions" />;
 }
 
 function WidgetMenuForms({ useMenuForms }: { readonly useMenuForms: () => readonly OverflowMenuForm[] }): ReactElement {

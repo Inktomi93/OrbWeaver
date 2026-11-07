@@ -19,6 +19,7 @@ import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
+import { APPROX_DATES_MARK } from "./analytics-copy.ts";
 
 /** Sun..Sat, index 0 = Sunday — matches the server's `dayOfWeek` / heatmap row ordering.
  *
@@ -242,13 +243,22 @@ function formatDayLabel(point: { readonly day: string; readonly start: number },
   return crossesYear ? format.formatDate(point.start) : format.formatMonthDay(point.start);
 }
 
+/** The axis label of a point, marked when its day holds approximate message dates. */
+function markedDayLabel(
+  point: { readonly day: string; readonly start: number; readonly approx: boolean },
+  prevDay: string | undefined,
+  format: DayLabelFormat,
+): string {
+  return `${point.approx ? APPROX_DATES_MARK : ""}${formatDayLabel(point, prevDay, format)}`;
+}
+
 /** Daily points → an assistant-turn histogram in date order. */
 export function dailyTurnBuckets(
-  points: readonly { readonly day: string; readonly start: number; readonly assistantTurns: number }[],
+  points: readonly { readonly day: string; readonly start: number; readonly assistantTurns: number; readonly approx: boolean }[],
   format: DayLabelFormat,
 ): HistogramBucket[] {
   return points.map((point, index) => ({
-    label: formatDayLabel(point, points[index - 1]?.day, format),
+    label: markedDayLabel(point, points[index - 1]?.day, format),
     count: point.assistantTurns,
   }));
 }
@@ -256,15 +266,28 @@ export function dailyTurnBuckets(
 /** Daily points with recorded output usage → an output-token histogram in date order. Unrecorded days are
  *  omitted: a zero-height bar would turn missing accounting into a measured zero. */
 export function dailyTokenBuckets(
-  points: readonly { readonly day: string; readonly start: number; readonly tokensOut: number | null; readonly tokensOutProvenance: TokenProvenance }[],
+  points: readonly {
+    readonly day: string;
+    readonly start: number;
+    readonly tokensOut: number | null;
+    readonly tokensOutProvenance: TokenProvenance;
+    readonly approx: boolean;
+  }[],
   format: DayLabelFormat,
 ): HistogramBucket[] {
   const recorded = points.filter(
-    (point): point is { readonly day: string; readonly start: number; readonly tokensOut: number; readonly tokensOutProvenance: TokenProvenance } =>
-      point.tokensOut !== null && point.tokensOutProvenance !== "unrecorded",
+    (
+      point,
+    ): point is {
+      readonly day: string;
+      readonly start: number;
+      readonly tokensOut: number;
+      readonly tokensOutProvenance: TokenProvenance;
+      readonly approx: boolean;
+    } => point.tokensOut !== null && point.tokensOutProvenance !== "unrecorded",
   );
   return recorded.map((point, index) => ({
-    label: formatDayLabel(point, recorded[index - 1]?.day, format),
+    label: markedDayLabel(point, recorded[index - 1]?.day, format),
     count: point.tokensOut,
   }));
 }

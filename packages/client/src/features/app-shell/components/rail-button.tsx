@@ -89,7 +89,7 @@ export function RailButton({
           </Button>
         }
       />
-      <TooltipPopup className="pointer-events-none" side="right">
+      <TooltipPopup passThrough={true} side="right">
         {label}
       </TooltipPopup>
     </Tooltip>

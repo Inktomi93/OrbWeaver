@@ -167,7 +167,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   return (
     <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="label" ink="muted" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="label" ink="muted" prose={true} cap="prose">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.
         </Text>
         <SettingRowGroup>
@@ -192,7 +192,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
         {/* The prompt-cache knob's clamp, ALWAYS visible (the D126 teaching-copy rider): a `hint` is
             hover-only chrome, and "the number I typed is not the number in use" is exactly the surprise a
             tooltip cannot carry. */}
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           The prompt-cache depth floor only ever moves the cache breakpoint DEEPER. Each turn already computes the shallowest depth that is safe for it, and
           keeps that when it is deeper than this number — so a smaller value here changes nothing, and a turn whose prompt is still shifting is never cached at
           all. Raise it if you see cache writes on turns that should have been reads.

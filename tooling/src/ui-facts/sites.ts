@@ -1,5 +1,5 @@
 // The site and kind vocabulary: one row per hand-rolled thing, with the replacement that owns it and the rule that guards it today.
-import type { Layer } from "./source.ts";
+import type { Layer } from "../eslint/index.ts";
 
 export const SITE_CLASSES = ["bypass", "system-gap", "missing-composite", "token-gap", "one-off"] as const;
 export type SiteClass = (typeof SITE_CLASSES)[number];

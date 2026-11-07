@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
+import { CAPTION, COLOR_MOTION, DISABLED_STATE, FIELD_ROW, FOCUS_RING_HAS, HIDDEN_AT, tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on
@@ -15,7 +15,7 @@ export const fileDropzoneVariants = tv({
         relative flex flex-col items-center justify-center gap-field rounded-control border-rule border-dashed border-input-border bg-muted p-section
         text-center
       `,
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       FOCUS_RING_HAS,
       DISABLED_STATE,
       "data-drag-over:border-primary data-drag-over:bg-accent",
@@ -28,10 +28,16 @@ export const fileDropzoneVariants = tv({
     content: "pointer-events-none flex flex-col items-center gap-field",
     icon: "text-muted-foreground",
     instructions: "text-body leading-body text-foreground",
-    hint: "text-label leading-label text-muted-foreground",
+    hint: CAPTION,
     // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity.
-    error: "flex items-center gap-field text-label leading-label text-destructive max-inline-full",
+    error: `${FIELD_ROW} text-label leading-label text-destructive max-inline-full`,
     errorIcon: "shrink-0",
     errorText: "wrap-anywhere min-inline-0",
+  },
+});
+
+export const fileDropzoneBoxVariants = tv({
+  variants: {
+    hiddenAt: { always: HIDDEN_AT.always },
   },
 });

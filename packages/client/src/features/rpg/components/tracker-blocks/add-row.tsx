@@ -68,11 +68,12 @@ export function AddRow({ ariaLabel, placeholder, actions, leading, trailing, pen
           }}
           // No height here: Input's default `layout="field"` arm already IS `h-(--size-control-sm)` (#169 — the
           // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
-          className="flex-1 min-inline-0"
+          className="min-inline-0"
+          grow={true}
         />
         {trailing}
       </Row>
-      <Row gap="field" justify="end" className="flex-wrap">
+      <Row gap="field" justify="end" wrap={true}>
         {actions.map((action, i) => (
           <Button key={action.key} variant={action.variant ?? (i === 0 ? "solid" : "ghost")} size="sm" disabled={blocked} onClick={(): void => fire(action)}>
             {action.icon === undefined ? null : <Icon icon={action.icon} size="xs" />}

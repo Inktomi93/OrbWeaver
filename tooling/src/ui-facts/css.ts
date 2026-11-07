@@ -1,6 +1,6 @@
 // A sites in stylesheets. Line-based: one declaration per line is the house format, and the read is advisory.
+import type { Source } from "../eslint/index.ts";
 import type { Site } from "./sites.ts";
-import type { Source } from "./source.ts";
 
 // Token layers define values; owner layers are where the system's own CSS lives. A stylesheet elsewhere is hand-rolled paint.
 const TOKEN_FILES = new Set([

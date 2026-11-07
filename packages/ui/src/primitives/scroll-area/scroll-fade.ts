@@ -1,7 +1,6 @@
 import type { RefObject } from "react";
 import { useEffect } from "react";
-
-const EDGE_EPSILON_PX = 1;
+import { SCROLL_EDGE_EPSILON_PX } from "#lib";
 
 export interface ScrollFadeOptions {
   /**
@@ -27,8 +26,8 @@ function useScrollFade(ref: RefObject<HTMLElement | null>, horizontal: boolean, 
     const sync = (): void => {
       const offset = horizontal ? Math.abs(el.scrollLeft) : el.scrollTop;
       const remaining = horizontal ? el.scrollWidth - el.clientWidth - offset : el.scrollHeight - el.clientHeight - offset;
-      el.toggleAttribute(horizontal ? "data-fade-start" : "data-fade-top", offset > EDGE_EPSILON_PX);
-      el.toggleAttribute(horizontal ? "data-fade-end" : "data-fade-bottom", remaining > EDGE_EPSILON_PX);
+      el.toggleAttribute(horizontal ? "data-fade-start" : "data-fade-top", offset > SCROLL_EDGE_EPSILON_PX);
+      el.toggleAttribute(horizontal ? "data-fade-end" : "data-fade-bottom", remaining > SCROLL_EDGE_EPSILON_PX);
     };
     const resize = new ResizeObserver(sync);
     const observeContent = (): void => {

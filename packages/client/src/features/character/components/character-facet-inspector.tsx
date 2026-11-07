@@ -54,7 +54,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
     // because an ancestor flex chain gives it one, and `reserveKey`'s auto-height measuring Stack severs
     // that chain wherever the scroller sits UNDER the boundary; hoisted, the measuring wrapper sits INSIDE
     // the scroller, the chain is unbroken, and the scroller survives the read.
-    <Stack className="relative overflow-y-auto overscroll-contain min-block-0">
+    <Stack scroll="y">
       <QueryBoundary
         resetKeys={[characterId]}
         fallback={<SkeletonRows count={3} shape="datum" />}
@@ -205,7 +205,7 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
       <Section heading="Details">
         <form.Subscribe selector={(s): string => s.values.depthPromptText}>
           {(value): ReactElement => (
-            <Row gap="block" align="center" className="flex-wrap">
+            <Row gap="block" align="center" wrap={true}>
               <Text ink="muted" voice="datum">
                 {value.length} characters
               </Text>
@@ -245,7 +245,7 @@ function CountDetail({
     <Section heading="Details">
       <form.Subscribe selector={(s): string => s.values[name]}>
         {(value): ReactElement => (
-          <Row gap="block" align="center" className="flex-wrap">
+          <Row gap="block" align="center" wrap={true}>
             <Text ink="muted" voice="datum">
               {value.length} characters
             </Text>

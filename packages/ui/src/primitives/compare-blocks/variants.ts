@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CAPTION, FIELD_ROW, FIELD_STACK, ROW_STRIP, TONE_SOFT, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 /**
@@ -32,25 +32,25 @@ export const compareBlocksVariants = tv({
   slots: {
     root: "flex flex-col gap-block",
     // Padded so the label sits INSIDE the box the decision border draws, never on the border itself.
-    block: "flex flex-col gap-field rounded-base border border-transparent p-block",
-    blockHeader: "flex items-center gap-row",
+    block: `${FIELD_STACK} rounded-base border border-transparent p-block`,
+    blockHeader: ROW_STRIP,
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",
     stateChip: "rounded-full px-field py-px text-micro leading-micro font-semibold tracking-caps uppercase",
-    body: "flex flex-col gap-field",
+    body: FIELD_STACK,
     pair: "grid grid-cols-2 gap-row @max-cq-32:grid-cols-1",
-    panel: "flex flex-col gap-field rounded-control p-block",
-    sideHeader: "flex items-center gap-field",
+    panel: `${FIELD_STACK} rounded-control p-block`,
+    sideHeader: FIELD_ROW,
     text: "text-body leading-body whitespace-pre-wrap",
-    stateNote: "text-label leading-label text-muted-foreground",
-    verbRow: "flex items-center gap-row",
+    stateNote: CAPTION,
+    verbRow: ROW_STRIP,
     collapsedRow: "flex cursor-pointer items-center gap-row rounded-control bg-muted px-block py-row text-start inline-full min-block-(--size-touch-target)",
     srOnly: "sr-only",
   },
   variants: {
     side: {
-      before: { panel: "border border-tone-edge bg-tone-tint text-tone-text-on-tint" },
-      after: { panel: "border border-tone-edge bg-tone-tint text-tone-text-on-tint" },
+      before: { panel: TONE_SOFT },
+      after: { panel: TONE_SOFT },
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
       state: { panel: "border border-border bg-muted text-foreground" },
     },

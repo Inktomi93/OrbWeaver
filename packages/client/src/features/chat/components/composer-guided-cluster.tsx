@@ -54,7 +54,7 @@ import { useComposerFieldWrap } from "../hooks/use-composer-field-wrap.ts";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import type { ReplyRowOverflowLevel } from "../hooks/use-reply-row-overflow.ts";
-import { replyBox, useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
+import { useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { CHAT_CONTINUE_REPLY_NAME } from "../lib/chat-surface-names.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -192,7 +192,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="flex-auto inline-full min-block-0 min-inline-0" gap="glyph" data-slot="composer-guided-cluster">
+    <Stack className="min-block-0 min-inline-0" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
       <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu
@@ -216,10 +216,13 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         <Row align="center" gap="glyph" className="shrink-0" ref={seatReplies}>
           <Row
             aria-label="Your message"
-            {...replyBox(level === 2, "pe-field")}
+            className="shrink-0"
             data-slot="composer-you-actions"
+            inert={level === 2}
+            outOfFlow={level === 2}
             divider="end"
             gap="glyph"
+            paddingInlineEnd="field"
             ref={seatYou}
             role="group"
           >
@@ -233,7 +236,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
           <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
-            <Row {...replyBox(level > 0)} ref={seatSwipe}>
+            <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatSwipe}>
               <GuidedIconButton
                 icon={{ glyph: RotateCcw, fills: false }}
                 label={swipeLabel}
@@ -256,7 +259,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
                 refusalStatedBy={offStatedBy}
               />
             </Row>
-            <Row {...replyBox(level > 0)} ref={seatContinuation}>
+            <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatContinuation}>
               <GuidedIconButton
                 icon={{ glyph: FastForward, fills: true }}
                 label={continueLabel}
@@ -275,19 +278,17 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       <Row
         align="center"
         gap="glyph"
-        className="flex-auto min-block-(--size-control-md) min-inline-0"
+        className="min-inline-0"
+        minHeight="controlMd"
+        grow="content"
         data-field-wrapped={fieldWrapped ? "" : undefined}
         data-slot="composer-input"
         ref={seatInput}
       >
-        <Row className="shrink-0 empty:hidden" data-slot="composer-door" ref={seatDoor}>
+        <Row className="shrink-0" hiddenAt="empty" data-slot="composer-door" ref={seatDoor}>
           {chatControl}
         </Row>
-        <Stack
-          className="flex-1 self-stretch max-inline-full min-block-0 min-inline-(--dimension-composer-field-min)"
-          data-slot="composer-field"
-          ref={seatField}
-        >
+        <Stack className="min-block-0" self="stretch" minWidth="composerField" grow={true} cap="fit" data-slot="composer-field" ref={seatField}>
           {messageInput}
         </Stack>
         <Row aria-label="Send controls" className="shrink-0" data-slot="composer-send" gap="field" ref={seatSend} role="group">

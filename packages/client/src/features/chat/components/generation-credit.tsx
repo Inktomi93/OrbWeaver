@@ -21,7 +21,7 @@ const CREDIT_SLOT = "message-metadata-model";
  *  width the settled credit takes without a second `message-metadata-model` on the page. */
 export function GenerationCreditGlyph({ sentence, slot = CREDIT_SLOT }: { readonly sentence?: string; readonly slot?: string }): ReactElement {
   const glyph = (
-    <Text as="span" voice="gloss" className="inline-flex items-center" hiddenAt="coarse" data-slot={slot}>
+    <Text as="span" voice="gloss" flow="cluster" hiddenAt="coarse" data-slot={slot}>
       <Icon aria-hidden={true} shadow={true} icon={Cpu} size="sm" />
       <Text as="span" className="sr-only">
         {sentence}

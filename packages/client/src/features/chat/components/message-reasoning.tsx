@@ -73,10 +73,10 @@ function ReasoningEditor({ message }: { readonly message: MessageView }): ReactE
   };
 
   return (
-    <Stack gap="field" data-slot="message-reasoning-editor" className="inline-full">
+    <Stack gap="field" data-slot="message-reasoning-editor" width="full">
       <Textarea
         ref={fieldRef}
-        className="inline-full"
+        width="full"
         aria-label={MESSAGE_REASONING_EDIT_NAME}
         value={draft}
         onChange={(e): void => setReasoningEditDraft(message.id, e.target.value)}

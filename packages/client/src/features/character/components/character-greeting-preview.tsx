@@ -144,15 +144,7 @@ function GreetingPills({
   return (
     // The strip WRAPS at a narrow pane, so both axes walk the same linear order — APG's own allowance for a
     // wrapping toolbar (the hook's header carries the reasoning).
-    <Row
-      aria-label={GREETINGS_STRIP_LABEL}
-      className="flex-wrap"
-      gap="field"
-      onFocus={roving.onFocus}
-      onKeyDown={roving.onKeyDown}
-      role="toolbar"
-      align="center"
-    >
+    <Row aria-label={GREETINGS_STRIP_LABEL} wrap={true} gap="field" onFocus={roving.onFocus} onKeyDown={roving.onKeyDown} role="toolbar" align="center">
       {Array.from({ length: count }, (_, i) => (
         <Button
           aria-current={i === activeIndex ? "true" : undefined}
@@ -268,7 +260,7 @@ function GreetingActions({
     // pushed to negative x when the four children overflow a ~320-414px width (side-eye V3 P0).
     <Stack gap="field" data-slot="character-greeting-actions">
       <GreetingAttributeRow form={form} index={index} greetingCount={greetingCount} />
-      <Row gap="field" align="center" className="flex-wrap justify-end">
+      <Row gap="field" align="center" wrap={true} justify="end">
         {editing && index > 0 ? (
           <Button
             type="button"

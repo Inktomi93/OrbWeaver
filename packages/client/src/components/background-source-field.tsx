@@ -107,7 +107,7 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       </QueryBoundary>
       {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
       {inExternalMode ? null : (
-        <Row align="center" gap="field" className="justify-between">
+        <Row align="center" gap="field" justify="between">
           <Button variant="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
             {BACKGROUND_FROM_URL_NAME}
           </Button>
@@ -119,7 +119,7 @@ export function BackgroundSourceField({ value, onChange, reserveKey }: Backgroun
       )}
       {inExternalMode ? (
         <Row align="end" gap="field">
-          <Input aria-label={BACKGROUND_URL_FIELD_NAME} className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
+          <Input aria-label={BACKGROUND_URL_FIELD_NAME} grow={true} onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
           <Button disabled={draftValue.trim().length === 0} variant="outline" onClick={applyExternal} type="button">
             {DIALOG_VERBS.apply}
           </Button>
@@ -158,7 +158,8 @@ function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): React
   return (
     <MediaGrid
       ariaLabel="Background"
-      className="inline-full max-block-(--height-scroll-md)"
+      width="full"
+      maxHeight="scrollMd"
       items={tiles}
       minCellWidth={THUMB_WIDTH}
       selection={{

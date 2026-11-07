@@ -58,7 +58,8 @@ export function EditableTagChip({
         render={
           trigger === undefined ? (
             <Button
-              className="max-inline-full min-inline-0"
+              className="min-inline-0"
+              cap="fit"
               aria-label={editTitle}
               variant="ghost"
               size={iconOnly ? "sm" : "chip"}
@@ -69,7 +70,7 @@ export function EditableTagChip({
               {iconOnly ? (
                 <Icon icon={Pencil} size="xs" />
               ) : (
-                <Text ink="inherit" as="span" className="truncate min-inline-0" voice="label">
+                <Text ink="inherit" as="span" truncate={true} voice="label">
                   {name}
                 </Text>
               )}
@@ -82,7 +83,7 @@ export function EditableTagChip({
       <PopoverPopup aria-label={editTitle} finalFocus={navigating ? false : triggerRef} width="stable">
         <Stack gap="block">
           <Row className="min-inline-0" align="center" justify="between" gap="field">
-            <PopoverTitle className="truncate min-inline-0">{editTitle}</PopoverTitle>
+            <PopoverTitle className="truncate">{editTitle}</PopoverTitle>
             <PopoverClose
               render={
                 <Button

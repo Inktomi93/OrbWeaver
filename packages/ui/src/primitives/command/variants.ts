@@ -1,4 +1,4 @@
-import { FOCUS_RING_WITHIN_INSET, tv } from "#lib";
+import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, tv } from "#lib";
 
 /**
  * Slot classes for the command seal (ui-package-design §9 command chunk). `root` is a
@@ -34,18 +34,18 @@ export const commandVariants = tv({
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
     // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
-    inputWrapper: "flex items-center gap-row border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)",
+    inputWrapper: `${ROW_STRIP} border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)`,
     input: `
       flex-1 bg-transparent text-body leading-body text-foreground outline-none block-full inline-full min-inline-0
       placeholder:text-muted-foreground
       pointer-coarse:block-(--size-touch-target)
     `,
-    list: "relative flex flex-col gap-field overflow-y-auto overscroll-contain p-field",
+    list: `relative ${FIELD_STACK} overflow-y-auto overscroll-contain p-field`,
     // Fill a bounded list's content box so a miss reads as an intentional empty surface, not one line
     // stranded above a giant dead cavity. In an auto-sized list, percentage height resolves to auto.
     empty: "flex items-center justify-center px-row text-center text-body leading-body text-muted-foreground block-full",
     group: "flex flex-col",
-    groupHeading: "px-row py-field text-label leading-label text-muted-foreground",
+    groupHeading: `px-row py-field ${CAPTION}`,
     item: `
       flex cursor-default items-center gap-row rounded-control px-row text-body leading-body orb-skip-offscreen outline-none select-none
       min-block-(--size-control-sm)
@@ -63,6 +63,8 @@ export const commandVariants = tv({
   variants: {
     // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
     elevated: { true: { root: "shadow-overlay" } },
+    // The palette takes its parent's whole block extent.
+    fill: { true: { root: "block-full" } },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
@@ -70,7 +72,21 @@ export const commandVariants = tv({
       compact: { list: "block-(--height-scroll-sm) **:[[cmdk-list-sizer]]:block-full" },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
+      // A picker's window inside a dialog: it caps at the window step, and a short dialog drops the inset, the headings and the scroll chain so the rows keep the room.
+      pickerWindow: {
+        list: `
+          max-block-(--height-picker-window)
+          dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
+          dialog-short:**:[[cmdk-group-heading]]:hidden
+        `,
+      },
     },
   },
   defaultVariants: { listSize: "content" },
+});
+
+export const commandListBoxVariants = tv({
+  variants: {
+    maxHeight: MAX_HEIGHT,
+  },
 });

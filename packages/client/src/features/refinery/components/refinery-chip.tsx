@@ -39,7 +39,8 @@ export function RefineryChip({ tone = "neutral", wrap = false, children }: Refin
   // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
   return (
     <Badge
-      className={wrap ? "whitespace-normal max-inline-full" : undefined}
+      cap={wrap ? "fit" : undefined}
+      whitespace={wrap ? "normal" : undefined}
       data-testid={testId("refineryChip")}
       tone={CHIP_BADGE[tone].tone}
       variant={CHIP_BADGE[tone].variant}

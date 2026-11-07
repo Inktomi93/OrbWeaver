@@ -15,6 +15,7 @@ import type { PanelMode } from "#state";
 
 /** The list pane's durable focus-return target after its sheet closes. */
 export const LIST_TOGGLE_MARKER = "shell-list-toggle";
+export const CONTEXT_TOGGLE_MARKER = "shell-context-toggle";
 
 export interface ShellTopbarProps {
   readonly ref?: Ref<HTMLElement>;
@@ -64,12 +65,13 @@ export interface TopbarIconButtonProps {
   /** A shell MARKER class for this button, so `shell.css` can reason about ONE topbar control by name
    *  (the `.shell-chat-member-chip` precedent). Deliberately not `className`:
    *  this is a handle for the shell's own rules, never a styling hatch for a caller. */
-  readonly marker?: string;
+  /** The button is the shell's context toggle, the hook `shell.css` keys on. */
+  readonly contextToggle?: boolean;
 }
 
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
  *  Exported so the trail chrome widgets (features/app-shell/lib) render the SAME affordance shape. */
-export function TopbarIconButton({ label, icon, expanded, onClick, marker, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
+export function TopbarIconButton({ label, icon, expanded, onClick, contextToggle = false, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -77,7 +79,7 @@ export function TopbarIconButton({ label, icon, expanded, onClick, marker, focus
           <Button
             variant="ghost"
             square={true}
-            className={cn("shell-topbar-icon-btn", marker) ?? ""}
+            className={cn("shell-topbar-icon-btn", contextToggle ? CONTEXT_TOGGLE_MARKER : undefined) ?? ""}
             aria-label={label}
             aria-expanded={expanded}
             data-focus-return-marker={focusReturnMarker}
@@ -123,9 +125,9 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
 }
 
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
-function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
+function TopbarTitle({ shellLine = false, children }: { readonly shellLine?: boolean; readonly children: ReactNode }): ReactElement {
   return (
-    <Text className={className} voice="masthead">
+    <Text className={shellLine ? "shell-topbar-title" : ""} truncate={shellLine} voice="masthead">
       {children}
     </Text>
   );
@@ -150,7 +152,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
           {wideIdentity(props)}
         </div>
         <div className="shell-topbar-identity" data-identity="narrow">
-          <TopbarTitle className="shell-topbar-title truncate">{props.screenTitle ?? props.title}</TopbarTitle>
+          <TopbarTitle shellLine={true}>{props.screenTitle ?? props.title}</TopbarTitle>
         </div>
       </div>
 

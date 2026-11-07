@@ -1,11 +1,13 @@
 import type { CSSProperties, ReactElement } from "react";
 import { useState } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
+import { messageMediaVariants } from "./variants.ts";
 
 // asset = our own origin (render freely); external = untrusted URL.
 export type MediaSource = { readonly kind: "asset"; readonly url: string } | { readonly kind: "external"; readonly url: string };
 
-export interface MessageMediaProps {
+export interface MessageMediaProps extends VariantProps<typeof messageMediaVariants> {
   readonly src: MediaSource;
   readonly media: "image" | "audio" | "video";
   readonly alt: string;
@@ -49,7 +51,19 @@ function hostOf(url: string): string {
  * Renders an image / native audio / video with the external-load gate. Untrusted A/V is always
  * `controls` and never `autoplay` (non-overridable — an autoplaying untrusted element is a tracking beacon).
  */
-export function MessageMedia({ src, media, alt, dims, allowExternal = false, className, onActivate }: MessageMediaProps): ReactElement {
+export function MessageMedia({
+  src,
+  media,
+  alt,
+  dims,
+  allowExternal = false,
+  centred,
+  fill,
+  maxHeight,
+  className,
+  onActivate,
+}: MessageMediaProps): ReactElement {
+  const box = messageMediaVariants({ centred, fill, maxHeight, className });
   const isExternal = src.kind === "external";
   const blockedDataUri = isExternal && isDataUri(src.url);
   const mediaIdentity = `${src.kind}:${media}:${src.url}`;
@@ -81,7 +95,7 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
       flex items-center justify-center rounded-base border border-border bg-muted p-block text-body leading-body text-muted-foreground inline-full
       max-inline-full
     `,
-    className,
+    box,
   );
 
   // Blocked before the gate: a data: URI never gets a click-to-load chance.
@@ -114,7 +128,7 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
   // disagree with the bytes (a re-encoded/rotated asset), the declared box still wins the LAYOUT — but the
   // image letterboxes inside it instead of distorting. Never `fill` (the UA default): we do not lie about
   // what an image looks like. A consumer needing a crop passes `object-cover` via `className` (tw-merge wins).
-  const mediaClass = cn("rounded-base object-contain max-inline-full", className);
+  const mediaClass = cn("rounded-base object-contain max-inline-full", box);
 
   if (media === "image") {
     const img = (

@@ -11,9 +11,10 @@ import type {
 } from "@base-ui/react/popover";
 import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { CSSProperties, ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
-import { popoverVariants } from "./variants.ts";
+import { popoverPopupBoxVariants, popoverVariants } from "./variants.ts";
 
 const slots = popoverVariants();
 
@@ -60,7 +61,7 @@ export function PopoverTrigger<Payload = unknown>(props: BaseTriggerProps<Payloa
   return <BasePopover.Trigger {...props} />;
 }
 
-export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
+export interface PopoverPopupProps extends Omit<BasePopupProps, "className">, VariantProps<typeof popoverPopupBoxVariants> {
   className?: string;
   side?: BasePositionerProps["side"];
   align?: BasePositionerProps["align"];
@@ -82,7 +83,20 @@ export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
 
 /** Bundles Portal → (optional Backdrop) → Positioner → Popup so the anatomy cannot be mis-assembled. */
 export function PopoverPopup(props: PopoverPopupProps): ReactElement {
-  const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, alignOffset, container, backdrop = false, width, style, ...rest } = props;
+  const {
+    className,
+    maxHeight,
+    children,
+    side,
+    align,
+    sideOffset = DEFAULT_SIDE_OFFSET,
+    alignOffset,
+    container,
+    backdrop = false,
+    width,
+    style,
+    ...rest
+  } = props;
   const portalContainer = usePortalContainer();
   const popupStyle: BasePopupProps["style"] =
     width === "stable" ? (state): CSSProperties => ({ ...(typeof style === "function" ? style(state) : style), ...STABLE_WIDTH_STYLE }) : style;
@@ -97,7 +111,12 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
         side={side}
         sideOffset={sideOffset}
       >
-        <BasePopover.Popup className={slots.popup({ className })} data-slot="popover-popup" style={popupStyle} {...rest}>
+        <BasePopover.Popup
+          className={slots.popup({ className: popoverPopupBoxVariants({ maxHeight, className }) })}
+          data-slot="popover-popup"
+          style={popupStyle}
+          {...rest}
+        >
           {children}
         </BasePopover.Popup>
       </BasePopover.Positioner>

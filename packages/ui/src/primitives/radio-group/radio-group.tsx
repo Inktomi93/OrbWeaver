@@ -14,7 +14,7 @@ import { Check, Icon, Lock } from "#primitives/icons";
 import type { PickerCellProps } from "../picker-cell/picker-cell.tsx";
 import { PickerCell } from "../picker-cell/picker-cell.tsx";
 import { pickerCellVariants } from "../picker-cell/variants.ts";
-import { radioGroupVariants } from "./variants.ts";
+import { radioGroupPickerItemBoxVariants, radioGroupVariants } from "./variants.ts";
 
 const slots = radioGroupVariants();
 
@@ -102,6 +102,7 @@ export function RadioGroupPicker({ className, detail, ...rest }: RadioGroupPicke
 }
 
 export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "children"> {
+  readonly width?: VariantProps<typeof radioGroupPickerItemBoxVariants>["width"];
   className?: string;
   /** The feature-supplied picture — decorative; the label names the choice. */
   readonly art?: ReactNode | undefined;
@@ -126,7 +127,7 @@ export interface RadioGroupPickerItemProps extends Omit<RadioRootProps, "childre
  * `aria-describedby` — never an `aria-label` that silently overrides the pixels. That is the same wiring
  * the chat-style cards were corrected to in #1022, preserved here.
  */
-export function RadioGroupPickerItem({ className, art, label, description, meta, shape, idPrefix, ...rest }: RadioGroupPickerItemProps): ReactElement {
+export function RadioGroupPickerItem({ className, width, art, label, description, meta, shape, idPrefix, ...rest }: RadioGroupPickerItemProps): ReactElement {
   const labelId = `${idPrefix}-label`;
   const descriptionId = `${idPrefix}-description`;
   return (
@@ -138,7 +139,7 @@ export function RadioGroupPickerItem({ className, art, label, description, meta,
       render={
         <PickerCell
           art={art}
-          className={className}
+          className={radioGroupPickerItemBoxVariants({ width, className })}
           descriptionId={descriptionId}
           label={label}
           labelId={labelId}

@@ -104,20 +104,14 @@ export function AssemblyRack({
                   `not-sr-only` is a reset whose `padding: 0` / `height: auto` beat the Button's own box, so
                   the revealed control lost its control height and its side padding. Same posture, one
                   spelling, both skip links. */}
-              <Button
-                className="not-focus-visible:sr-only focus-visible:self-start"
-                variant="outline"
-                onClick={(): void => afterRackRef.current?.focus()}
-                size="sm"
-                type="button"
-              >
+              <Button hiddenAt="focusInFlow" variant="outline" onClick={(): void => afterRackRef.current?.focus()} size="sm" type="button">
                 Skip the section list
               </Button>
               {zones.missingPivot ? (
                 <Card tone="warning" variant="soft">
                   <Row align="center" gap="row">
                     <Icon icon={TriangleAlert} size="sm" tone="warning" />
-                    <Text className="flex-1" voice="label">
+                    <Text grow={true} voice="label">
                       No chat history marker — the conversation has nowhere to splice in.
                     </Text>
                     <Button variant="outline" onClick={onAddChatHistory} size="sm" type="button">

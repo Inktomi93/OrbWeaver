@@ -157,6 +157,8 @@ interface CssValueEntry {
   readonly placement: CssValuePlacement;
   readonly description: string;
   readonly provenance: readonly string[];
+  /** The one purpose this variable serves, when it is not a general scale step: the census offers it as an owner to no other use. */
+  readonly purpose?: string | undefined;
 }
 
 interface ThemeSet {
@@ -221,6 +223,8 @@ const tonesSchema = z
   .refine((tones) => tones.includes(NEUTRAL_TONE), `tones include ${NEUTRAL_TONE}`);
 /** `orb.rootFloor` carries no operand — the floor IS the token's own authored value at the 16px root. */
 const rootFloorSchema = z.literal(true);
+/** `orb.purpose` names the one purpose a token or a whole group serves; the UI census reads its scope table from it. */
+const purposeSchema = z.string().min(1);
 const llmSchema = z
   .object({ usage: z.array(z.string().min(1)).min(1).optional(), rules: z.string().min(1).optional() })
   .strict()
@@ -231,6 +235,7 @@ const cssValueEntrySchema = z
     placement: z.enum(["theme", "root"]),
     description: z.string().min(1),
     provenance: z.array(z.string().min(1)).min(1),
+    purpose: z.string().min(1).optional(),
   })
   .strict();
 const cssValuesSchema = z.record(z.string().regex(/^--[a-z0-9-]+$/u), cssValueEntrySchema);
@@ -327,6 +332,12 @@ function isRemDimension(value: unknown, effectiveType: TokenType | null): boolea
   return effectiveType === "dimension" && isObject(value) && value["unit"] === "rem";
 }
 
+function purposeFlag(extensions: JsonObject | undefined, path: string, diagnostics: TokenContractDiagnostic[]): void {
+  if (extensions?.["orb.purpose"] !== undefined) {
+    diagnostics.push(...zodDiagnostics(`${path}/$extensions/orb.purpose`, "orb.purpose", purposeSchema.safeParse(extensions["orb.purpose"])));
+  }
+}
+
 function rootFloorFlag(node: JsonObject, path: string, diagnostics: TokenContractDiagnostic[]): boolean {
   const extensions = node["$extensions"];
   if (!isObject(extensions) || extensions["orb.rootFloor"] === undefined) {
@@ -391,7 +402,13 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
   const jsonPath = `/${path.join("/")}`;
   const extensions = node["$extensions"];
   if (isObject(extensions)) {
-    validateOrbExtensionNames(extensions, new Set(["orb.pointerFine", "orb.output", "orb.rootFloor"]), `${jsonPath}/$extensions`, collector.diagnostics);
+    validateOrbExtensionNames(
+      extensions,
+      new Set(["orb.pointerFine", "orb.output", "orb.rootFloor", "orb.purpose"]),
+      `${jsonPath}/$extensions`,
+      collector.diagnostics,
+    );
+    purposeFlag(extensions, jsonPath, collector.diagnostics);
   }
   const { role, derived } = outputRole(node, jsonPath, collector.diagnostics);
   const rootFloor = rootFloorFlag(node, jsonPath, collector.diagnostics);
@@ -425,7 +442,8 @@ function collectTokens(node: JsonObject, path: readonly string[], inheritedType:
   }
   const extensions = node["$extensions"];
   if (path.length > 0 && isObject(extensions)) {
-    validateOrbExtensionNames(extensions, new Set(), `/${path.join("/")}/$extensions`, collector.diagnostics);
+    validateOrbExtensionNames(extensions, new Set(["orb.purpose"]), `/${path.join("/")}/$extensions`, collector.diagnostics);
+    purposeFlag(extensions, `/${path.join("/")}`, collector.diagnostics);
   }
   for (const [key, child] of Object.entries(node)) {
     if (key.startsWith("$") || !isObject(child)) {

@@ -1,10 +1,10 @@
 // The readable report. It leads with the owner's question: how much of the drift is not using the system, and how much is the system not covering the need.
+import { HAND_ROLLING_PART } from "../eslint/index.ts";
 import type { UiFacts } from "./analysis.ts";
 import { isClassified } from "./analysis.ts";
 import { CLASSIFICATION_RULE, CLUSTER_MIN_FILES, LITERAL_MIN_FILES, LITERAL_MIN_SITES } from "./classify.ts";
 import type { Comparison } from "./compare.ts";
 import { compositionLines } from "./composition-report.ts";
-import { HAND_ROLLING_PART } from "./hand-model.ts";
 import { handRollingLines } from "./hand-report.ts";
 import { groupBy, table } from "./markdown.ts";
 import { CANNOT_SEE, NOT_LINTABLE, ruleCandidates } from "./rules.ts";

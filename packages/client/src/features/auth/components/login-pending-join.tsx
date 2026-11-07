@@ -73,8 +73,8 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   if (preview.isPending) {
     return (
       <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton className="block-(--size-control-md) inline-full" />
-        <Skeleton className="block-(--size-control-md) inline-full" />
+        <Skeleton width="full" height="controlMd" />
+        <Skeleton width="full" height="controlMd" />
       </Stack>
     );
   }
@@ -137,8 +137,8 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
             {state.copy}
           </Text>
         ) : null}
-        <Row className="flex-wrap" gap="row">
-          <Button className="max-inline-full" wrap={true} type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
+        <Row wrap={true} gap="row">
+          <Button cap="fit" wrap={true} type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
             {state.kind === "confirming" ? "Joining…" : "Create account and join"}
           </Button>
           <Button variant="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>

@@ -47,7 +47,7 @@ export function RpgAttributeSetup({
   return (
     <Stack gap="field">
       <Text voice="gloss">Fill Strength through Charisma in that order, then edit any score. These actions replace those scores only.</Text>
-      <Row gap="field" className="flex-wrap">
+      <Row gap="field" wrap={true}>
         <Button variant="outline" size="sm" disabled={busy || !canGenerate} aria-describedby={generationReasonId} onClick={(): Promise<void> => fill(true)}>
           Roll 4d6 drop lowest
         </Button>

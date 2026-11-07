@@ -103,10 +103,10 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
 
   if (!resolved) {
     return (
-      <Row gap="row" align="center" aria-busy={true} className="shell-chat-header-lead grow min-inline-0">
+      <Row gap="row" align="center" aria-busy={true} className="shell-chat-header-lead min-inline-0" grow="fill">
         {/* The identity's own footprint, capped on the container scale (never a raw width): it grows with
             the lead and stops where a title would. */}
-        <Skeleton className="block-(--size-control-sm) inline-full max-inline-cq-24" data-slot="chat-header-pending" />
+        <Skeleton cap="paneSm" width="full" height="control" data-slot="chat-header-pending" />
       </Row>
     );
   }
@@ -134,7 +134,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
-      className="shrink-0 whitespace-nowrap"
+      className="shrink-0"
       touchFloor="inline"
       onClick={onClick}
     >

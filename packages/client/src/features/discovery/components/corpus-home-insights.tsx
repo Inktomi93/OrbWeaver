@@ -92,7 +92,7 @@ function NeverPlayedList({
           is alphabetical by name (`domain/discovery/verbs/insights.ts`), which without a caption is
           indistinguishable from a top-8 of something. Both facts in one line, bounded by the reading measure
           so it cannot become the 145-chars/line finding it sits beside. */}
-      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text cap="prose" voice="gloss">
         {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z.`}
       </Text>
       <Stack aria-label="Never played characters" gap="row" role="list">
@@ -109,7 +109,7 @@ function NeverPlayedList({
         ))}
       </Stack>
       {showAll || characters.length <= NEVER_PLAYED_HEAD ? null : (
-        <Button className="self-start" variant="ghost" onClick={(): void => setShowAll(true)} size="sm">
+        <Button self="start" variant="ghost" onClick={(): void => setShowAll(true)} size="sm">
           {`Show all ${formatCount(characters.length)}`}
         </Button>
       )}
@@ -198,10 +198,10 @@ function ModelEconomicsRead(): ReactElement | null {
   return (
     <Section kicker="Models by genre" level={2}>
       <Stack gap="block">
-        <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+        <Text cap="prose" voice="gloss">
           {economicsSummary(routes)}
         </Text>
-        <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+        <Text cap="prose" voice="gloss">
           How often each model answered for each genre of character. A ~ marks an estimate.
         </Text>
         <BarList
@@ -215,7 +215,7 @@ function ModelEconomicsRead(): ReactElement | null {
         />
         <VirtualList
           aria-label="Model routes"
-          className="max-block-(--height-scroll-lg)"
+          maxHeight="scrollLg"
           estimateSize={(): number => ROW_ESTIMATE_PX}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
           items={routes}

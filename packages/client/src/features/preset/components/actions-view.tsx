@@ -167,7 +167,8 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
-            <Stack className="pe-field" gap="tight">
+            {/* The chevron ends its row and the editor's scroller clips past it: the end inset leaves its focus ring the room to paint. */}
+            <Stack paddingInlineEnd="field" gap="tight">
               {group.rows.map((row) => (
                 <TemplateListRow
                   form={form}
@@ -243,8 +244,8 @@ function TemplateCluster({
   if (filtering) {
     return (
       <Stack gap="tight">
-        <Row align="center" className="px-field" gap="tight">
-          <Text as="span" className="truncate" voice="kicker">
+        <Row align="center" paddingInline="field" gap="tight">
+          <Text as="span" truncate={true} voice="kicker">
             {cluster.label}
           </Text>
           <Text as="span" voice="datum">
@@ -387,7 +388,7 @@ function MarkerCrossLink({
   // badge reads as a second, unlabelled control sitting next to it. `InlineAction` keeps the button a
   // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <InlineAction className="self-start" disabled={health === "absent"} variant="ghost" onClick={onClick} step="label" type="button">
+    <InlineAction self="start" disabled={health === "absent"} variant="ghost" onClick={onClick} step="label" type="button">
       <Badge tone={health === "healthy" ? "info" : "warning"} size="sm">
         {MARKER_HEALTH_LABEL[health]}
         <Icon icon={ExternalLink} size="xs" />

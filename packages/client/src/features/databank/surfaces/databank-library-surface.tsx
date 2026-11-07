@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
+import { SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
@@ -64,10 +64,6 @@ import { DATABANK_SEARCH_NAME } from "../lib/databank-names.ts";
 const SKELETON_ROW_COUNT = 6;
 /** Initial row-height guess; `<VirtualList>` re-measures every row after mount. A two-line entity row. */
 const ESTIMATED_ROW_PX = 72;
-
-/** Keystroke→request damper for the server-side search (the character library's value). Long enough that
- *  typing a name is one query rather than eight, short enough that the list answers while you are looking. */
-const SEARCH_DEBOUNCE_MS = 250;
 
 type DatabankListPage = inferOutput<Trpc["databank"]["list"]>;
 
@@ -239,7 +235,7 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
             than sitting under a virtualized viewport it could no longer be part of. */}
         <VirtualList
           aria-label="Documents"
-          className="block-full"
+          fill={true}
           endApproachRows={collection.listProps.endApproachRows}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           gapToken="tight"

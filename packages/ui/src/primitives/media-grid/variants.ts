@@ -1,14 +1,14 @@
-import { FOCUS_RING, SELECTION_RING_SELECTED, tv } from "#lib";
+import { COLOR_MOTION, CORNER, FOCUS_RING, MAX_HEIGHT, SCROLLER, SELECTION_RING_SELECTED, tv, WIDTH } from "#lib";
 
 // The media-grid cell skin (ui-package-design §6.1 / work-order #6). Cells are square (aspect
 // reserved by the grid host, not by the image) so nothing shifts while thumbnails lazy-load. The
 // `group` parent lets the selected badge react to `data-selected` without a second wrapper.
 export const mediaGridVariants = tv({
   slots: {
-    root: "relative overflow-auto overscroll-contain",
+    root: SCROLLER,
     cell: [
       "group relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-control bg-muted outline-none",
-      "transition-colors duration-(--motion-fast) ease-out-expo",
+      COLOR_MOTION,
       "hover:ring-(length:--border-width-rule) hover:ring-(--pigment-accent-aura-media-hover-ring)",
       FOCUS_RING,
       // ONE RING, THE SHARED ONE (#1840, side-eye 2026-09-06 E2). This cell used to paint FOUR layers for
@@ -37,6 +37,13 @@ export const mediaGridVariants = tv({
     // never participates in sizing — it is the authored statement of a box the layout already had.
     image: "aspect-square object-cover block-full inline-full",
     placeholder: "bg-muted block-full inline-full",
-    selectedBadge: "absolute inset-e-field inset-bs-field flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground",
+    selectedBadge: `${CORNER.badge} flex items-center justify-center rounded-full bg-primary p-field text-primary-foreground`,
+  },
+});
+
+export const mediaGridBoxVariants = tv({
+  variants: {
+    width: { full: WIDTH.full },
+    maxHeight: MAX_HEIGHT,
   },
 });

@@ -112,7 +112,7 @@ export function TrackerGrantsEditor({
         <RpgDoorwayLine>No character trackers yet — the host defines them in the Game tab, and grants or revokes them per character here.</RpgDoorwayLine>
       ) : (
         <Stack gap="field">
-          <Text as="span" voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          <Text as="span" voice="gloss" prose={true} cap="prose">
             Who carries each tracker is decided by its class. Grant one this character alone should carry, or revoke one the class swept in.
           </Text>
           {actorDefs.map((def) => {
@@ -120,10 +120,10 @@ export function TrackerGrantsEditor({
             const carried = carriedKeys.has(def.key);
             const outcomeId = `${outcomeIdBase}-${def.key}`;
             return (
-              <Row key={def.key} gap="field" align="center" className="flex-wrap" data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
+              <Row key={def.key} gap="field" align="center" wrap={true} data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
                 {/* A long host-authored label ellipsizes in this column, so it carries its full text on
                     `title` — the mouse-hover recovery a truncated datum owes the reader (side-eye P3). */}
-                <Text as="span" voice="label" className="flex-1 truncate min-inline-0" data-slot="rpg-tracker-grant-label">
+                <Text as="span" voice="label" truncate="fill" data-slot="rpg-tracker-grant-label">
                   {def.label}
                 </Text>
                 <Badge id={outcomeId} tone={carried ? "success" : "neutral"} size="sm" data-slot="rpg-tracker-grant-outcome">
