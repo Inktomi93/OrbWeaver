@@ -104,7 +104,7 @@ export type {
 export { hasCsrfHeader } from "./csrf.ts";
 export { ownerFallbackAllowed } from "./dispatch.ts";
 export { allowedHostsReader, createHostNotAllowedNotice, createRelayHostRegistry, refusedHost } from "./host-allowlist.ts";
-export { createForwardJwtVerifier, createJwksReader } from "./jwks.ts";
+export { createForwardJwtVerifier, createJwksReader, createOperatorKeys } from "./jwks.ts";
 export { readRequestCookie, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
 export { selectSignedForwardJwt } from "./modes/forward-header.ts";
 export {

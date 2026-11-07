@@ -17,7 +17,7 @@ Each sealed adapter is a factory returning an opaque handle. `entry/` constructs
 The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback). Owns:
 
 - **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(peerIp, headers)` (a LOOPBACK TCP peer on a request with no relay tell, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
-- **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `packages/server/src/entry/lifecycle.ts`).
+- **JWT/JWKS verification** (`jwks.ts`) — `createOperatorKeys` (the key set from the operator's `FORWARD_AUTH_JWKS`, an https URL or a JWKS literal parsed at boot) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `packages/server/src/entry/lifecycle.ts`).
 - **The Host allowlist decision** (`host-allowlist.ts`) — `refusedHost` + the throttled `host_not_allowed` notice; `packages/server/src/entry/http/host-allowlist.ts` mounts it before the principal resolves. Deny-only (see "The Host allowlist refuses; it never admits").
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups, email }` (`@orb/contracts/identity`); **NO `userId`** and NO `role` by design (infra must not know DB row ids).
 - **The per-request signals** — the `IdentityResolution` envelope `{ identity, via }` (`contract.ts`), where infra's `via` is `"header" | "fallback"` only (`"cookie"` is the seam's own, post-D40), and the `hasCsrfHeader` predicate (`csrf.ts`); each route gate calls it on the request's own headers.
@@ -74,7 +74,9 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 ## Esoteric quirks
 
-**JWKS fails closed — every rejection is a terminal refusal (`IdentityRefused`), never a 500, never a fall-through, never the owner fallback (Spine-Identity-and-Auth invariant 5).** The forward-header signed path has FIVE fail-closed points: (1) JWT present but no meta-JWKS → reject (stripped/spoofed); (2) verify on but allowlist empty → refuse request-supplied JWKS entirely; (3) `jwksFor` nulls on bad-JSON/non-https/off-allowlist; (4) verified but no `preferred_username` → reject (never fall through to the unsigned path with a usernameless-but-valid JWT); (5) `jwtVerify` throws → reject. **A present-but-invalid JWT NEVER silently falls through to the unsigned path.**
+**JWKS fails closed — every rejection is a terminal refusal (`IdentityRefused`), never a 500, never a fall-through, never the owner fallback (Spine-Identity-and-Auth invariant 5).** The forward-header signed path fails closed at three points: (1) no `FORWARD_AUTH_JWKS` means no verifier, so every JWT is refused; (2) verified but no `preferred_username` → reject (never fall through to the unsigned path with a usernameless-but-valid JWT); (3) `jwtVerify` throws → reject. **A present-but-invalid JWT NEVER silently falls through to the unsigned path.**
+
+**Forward-header keys come only from the operator.** The signed path skips the trusted-proxy peer gate, so its keys are the whole trust decision. `FORWARD_AUTH_JWKS` is the only source. The server reads no key, key set or key URL from a request, and it ignores `X-Authentik-Meta-Jwks`. `ForwardJwtVerifyArgs` has no key field.
 
 **The GCM AAD binding.** `aad` binds `${userId}|${provider}` into the GCM tag; a row moved to a different slot fails tag verification loudly — never a silent wrong decrypt. The string must stay byte-identical across refactors; the box carries it verbatim and is the wrong place to "normalize" it.
 
@@ -104,7 +106,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 2. **Verification deps are INJECTED (`ResolveDeps`), never imported; the cookie→user step is the seam's direct `sessions.validate` call, never an infra port (D40).** *(compile-time + `infra-no-db`.)*
 3. **`ResolvedIdentity` carries NO `userId`.** *(compile-time; the seam adds it when building `Principal`.)*
 4. **`MODE_RESOLVERS` is exhaustive over `AuthConfig["mode"]`.** *(mapped-type `Record` — a missing case fails `tsc`.)*
-5. **JWKS/JWT verification fails closed** (all five points → `null`). *(test-time.)*
+5. **JWKS/JWT verification fails closed** (every point → `null`), over the operator's keys only. *(compile-time + test-time.)*
 6. **`SecretBox` carries the `aad`, never derives it; AAD-swap → GCM failure, not silent wrong decrypt.** *(compile + test-time.)*
 7. **The box degrades at boot, throws only at call.** *(test-time.)*
 8. **CAS writes are crash-atomic + content-verified; CAS fsyncs, the variant cache does not.** *(test-time.)*

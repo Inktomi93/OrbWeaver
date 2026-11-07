@@ -371,9 +371,22 @@ const LOCAL: ModeProject = {
 };
 
 // ── forward-header (SSO trusted-proxy) — ports 8798/5182, isolated DB/assets. AUTH_MODE=forward-header +
-// FORWARD_AUTH_VERIFY_JWT=true + a non-empty JWKS allowlist (the signed path refuses an empty one; the JWKS
-// itself rides each request as a literal, so the allowlist gates only remote-URL egress). The actor mints a
+// FORWARD_AUTH_VERIFY_JWT=true + the public half of the pair below in FORWARD_AUTH_JWKS. The actor mints a
 // signed JWT in-test (jose) — no external IdP, no login. ──
+
+/** DEV-ONLY deterministic signing pair, insecure by design like the other literals here. The stack holds the public
+ *  half and an actor signs with the private half, so the key must be fixed across the Playwright processes. */
+const E2E_FORWARD_PUBLIC_JWK = {
+  kty: "EC",
+  crv: "P-256",
+  x: "Otrkql_0jyVYuq3SvTO0cEO-saYX8ShbGTuwGU6-fsg",
+  y: "3JMjbNfrfZHYdjiYLKJOFq6trb7AQzk4bQ7TynLN6LE",
+  kid: "e2e-forward-key",
+  alg: "ES256",
+  use: "sig",
+} as const;
+export const E2E_FORWARD_PRIVATE_JWK = { ...E2E_FORWARD_PUBLIC_JWK, d: "eabU0IfYzRHWew1FRwtaolYPant_p6hBrTcaEYJF0mw" } as const;
+
 const FWD_BACKEND_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.server);
 const FWD_VITE_PORT = String(E2E_RUN_PORTS.stacks.forwardHeader.vite);
 const FORWARD_HEADER: ModeProject = {
@@ -386,10 +399,8 @@ const FORWARD_HEADER: ModeProject = {
     AUTH_MODE: "forward-header",
     SESSION_SECRET,
     CREDENTIALS_KEY,
-    // The signed-JWT path: verify on (default) + a non-empty allowlist (a dummy host — the JWKS travels as a
-    // request literal, so this only needs to be non-empty to pass the "no trusted key source" gate).
     FORWARD_AUTH_VERIFY_JWT: "true",
-    FORWARD_AUTH_JWKS_ALLOWLIST: "idp.e2e.local",
+    FORWARD_AUTH_JWKS: JSON.stringify({ keys: [E2E_FORWARD_PUBLIC_JWK] }),
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: FWD_BACKEND_PORT,

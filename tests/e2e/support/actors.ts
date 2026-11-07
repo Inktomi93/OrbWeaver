@@ -5,8 +5,8 @@ import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { expect } from "@playwright/test";
-import type { CryptoKey } from "jose";
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { importJWK, SignJWT } from "jose";
+import { E2E_FORWARD_PRIVATE_JWK } from "./modes.ts";
 import type { NewConnection, TrpcClient, TrpcClientOutput } from "./trpc.ts";
 import { createTrpcClient } from "./trpc-client.ts";
 
@@ -134,40 +134,12 @@ export interface ForwardClaims {
   readonly email?: string;
 }
 
-/** The in-test signing keypair: the RS256 private key + the public JWKS literal it verifies against. */
-interface KeyMaterial {
-  readonly privateKey: CryptoKey;
-  readonly jwks: string;
-}
-
-// Minted once per process (jose CryptoKeys). The public JWKS rides EVERY request as the
-// `x-authentik-meta-jwks` literal; the server verifies the signed JWT against it (the jwks.int.test.ts crypto
-// path — real jose, no external IdP). The `kid` lets jose pick the key.
-let keyMaterialPromise: Promise<KeyMaterial> | null = null;
-
-async function mintKeyMaterial(): Promise<KeyMaterial> {
-  const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
-  const jwk = await exportJWK(publicKey);
-  jwk.kid = "e2e-forward-key";
-  jwk.alg = "RS256";
-  jwk.use = "sig";
-  return { privateKey, jwks: JSON.stringify({ keys: [jwk] }) };
-}
-
-function keyMaterial(): Promise<KeyMaterial> {
-  keyMaterialPromise ??= mintKeyMaterial();
-  return keyMaterialPromise;
-}
-
-/** Mint an actor client for a forward-header trusted-proxy identity: sign an RS256 JWT over the claims and
- *  attach it as `x-authentik-jwt` + the public JWKS as `x-authentik-meta-jwks` (the authentik shape the
- *  resolver reads). No login, no cookie; the request IS the identity. The server needs
- *  `AUTH_MODE=forward-header` + a non-empty `FORWARD_AUTH_JWKS_ALLOWLIST` (the signed path refuses an empty
- *  allowlist) — the forward-header Playwright project sets both. The JWKS travels as a LITERAL, so the
- *  allowlist gates only remote-URL egress (never the literal), exactly as jwks.int.test.ts proves. `baseUrl` is
- *  the forward-header project's vite origin. */
+/** Mint an actor client for a forward-header trusted-proxy identity: sign a JWT over the claims with the fixed pair
+ *  whose public half the forward-header Playwright project sets as `FORWARD_AUTH_JWKS`, and attach it as
+ *  `x-authentik-jwt`. No login, no cookie; the request IS the identity. `baseUrl` is the forward-header project's
+ *  vite origin. */
 export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Promise<ActorClient> {
-  const { privateKey, jwks } = await keyMaterial();
+  const privateKey = await importJWK(E2E_FORWARD_PRIVATE_JWK);
   // biome-ignore lint/style/useNamingConvention: OIDC/authentik claim names are wire-fixed snake_case.
   const payload: Record<string, unknown> = { preferred_username: claims.handle, sub: claims.sub ?? `sub-${claims.handle}` };
   if (claims.groups !== undefined) {
@@ -176,8 +148,12 @@ export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Pr
   if (claims.email !== undefined) {
     payload["email"] = claims.email;
   }
-  const jwt = await new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: "e2e-forward-key" }).setIssuedAt().setExpirationTime("5m").sign(privateKey);
-  return makeActorClient(baseUrl, { "x-authentik-jwt": jwt, "x-authentik-meta-jwks": jwks });
+  const jwt = await new SignJWT(payload)
+    .setProtectedHeader({ alg: E2E_FORWARD_PRIVATE_JWK.alg, kid: E2E_FORWARD_PRIVATE_JWK.kid })
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(privateKey);
+  return makeActorClient(baseUrl, { "x-authentik-jwt": jwt });
 }
 
 // ── MEMBERSHIP — seat a second human in a chat (the local multi-human primitive) ────────────────────────

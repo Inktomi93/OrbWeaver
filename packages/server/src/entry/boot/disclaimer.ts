@@ -27,6 +27,8 @@ export interface BootDisclaimerOptions {
   readonly diagnosticsWarnings: readonly string[];
   /** `forward-header` with no `FORWARD_AUTH_TRUSTED_PROXIES`: the unsigned header path refuses everyone. */
   readonly forwardHeaderUnsignedClosed: boolean;
+  /** `forward-header` verifying JWTs with no `FORWARD_AUTH_JWKS`: the signed path refuses everyone. */
+  readonly forwardHeaderSignedClosed: boolean;
   readonly secrets: { readonly sessionSecret: BootSecretProvenance; readonly credentialsKey: BootSecretProvenance };
 }
 
@@ -57,7 +59,11 @@ const BREAK_GLASS_WARNING =
 
 const FORWARD_HEADER_CLOSED_WARNING =
   "AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path refuses every request. Set " +
-  "FORWARD_AUTH_TRUSTED_PROXIES to the proxy's address to enable it; the signed-JWT (authentik) path is unaffected.";
+  "FORWARD_AUTH_TRUSTED_PROXIES to the proxy's address to enable it. The signed-JWT path does not read this setting.";
+
+const FORWARD_HEADER_SIGNED_CLOSED_WARNING =
+  "AUTH_MODE=forward-header with FORWARD_AUTH_JWKS unset — the SIGNED path refuses every forwarded JWT. Set FORWARD_AUTH_JWKS to the " +
+  "proxy's JWKS URL or key set, or set FORWARD_AUTH_VERIFY_JWT=false if the proxy sends no JWT.";
 
 function ownerLine(input: BootDisclaimerOptions): string {
   if (input.authFallback === "deny") {
@@ -96,6 +102,11 @@ function exposure(text: string): BootDisclaimerLine {
   return { topic: "exposure", level: "warn", security: true, text };
 }
 
+// A refused path warns the operator but gives an attacker nothing, so it is never a security line.
+function closedDoor(text: string): BootDisclaimerLine {
+  return { topic: "exposure", level: "warn", security: false, text };
+}
+
 /** Compose the block, in order. A healthy box produces only `info` lines. */
 export function composeBootDisclaimer(input: BootDisclaimerOptions): readonly BootDisclaimerLine[] {
   const breakGlassLive = input.authMode !== "single-user" && input.authFallback === "owner" && input.breakGlass;
@@ -110,6 +121,7 @@ export function composeBootDisclaimer(input: BootDisclaimerOptions): readonly Bo
     ...input.ownerPeerWarnings.map(exposure),
     ...input.diagnosticsWarnings.map(exposure),
     ...(breakGlassLive ? [exposure(BREAK_GLASS_WARNING)] : []),
-    ...(input.forwardHeaderUnsignedClosed ? [{ topic: "exposure", level: "warn", security: false, text: FORWARD_HEADER_CLOSED_WARNING } as const] : []),
+    ...(input.forwardHeaderUnsignedClosed ? [closedDoor(FORWARD_HEADER_CLOSED_WARNING)] : []),
+    ...(input.forwardHeaderSignedClosed ? [closedDoor(FORWARD_HEADER_SIGNED_CLOSED_WARNING)] : []),
   ];
 }
