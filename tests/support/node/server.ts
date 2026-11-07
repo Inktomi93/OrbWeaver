@@ -316,7 +316,8 @@ function networkExecutionOf(options: Pick<ServerHarnessOptions, "networkExecutio
   return { fetch: options.networkExecution?.fetch ?? fallbackFetch, resolver: options.networkExecution?.resolver ?? refusingResolver };
 }
 
-// The local-light cache stays the record's `LOCAL_LIGHT_CACHE_DIR`, which compose reads itself.
+// The local-light cache directory stays the record's `LOCAL_LIGHT_CACHE_DIR`, which compose reads itself; the cache object
+// itself can be injected through `localLightCache`.
 function providerExecutionOf(
   options: Pick<ServerHarnessOptions, "sdkQuery" | "sdkSpawn" | "sdkNative" | "modelKernelModule" | "allowRemoteModels" | "localLightCache" | "runtimeSpan">,
 ): NonNullable<ServicesDeps["providerSeams"]> {

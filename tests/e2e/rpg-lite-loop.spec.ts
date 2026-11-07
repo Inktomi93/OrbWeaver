@@ -620,7 +620,9 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
       throw new Error("the hand edits left no canon row to delete");
     }
     await deleteMessages(chatId, [last.id]);
-    expect((await listCanon(chatId)).some((row) => row.id === last.id)).toBe(false);
+    const remaining = await listCanon(chatId);
+    expect(remaining).toHaveLength(canon.length - 1);
+    expect(remaining.map((row) => row.id)).not.toContain(last.id);
     const afterDelete = await getTrackerView(chatId);
     expect(afterDelete.actors.some((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId)).toBe(true);
     // The location came from the earlier edit, so the read after the delete still resolves it.
