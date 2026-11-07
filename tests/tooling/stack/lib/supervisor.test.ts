@@ -106,18 +106,18 @@ function harness(
 }
 
 /** A launch that reads a mutable `.env` text on every call, the way ops/start.ts reads the file. */
-function fileLaunch(file: { text: string }): () => StartSpawn {
-  return () => ({
-    plan: startLaunch({
+function fileLaunch(file: { text: string }, invocation = INVOCATION): () => StartSpawn {
+  return () => {
+    const launch = startLaunch({
       repoRoot: "/repo",
       nodePath: "/usr/bin/node",
       fileEnv: parseEnv(file.text),
       ambient: Object.fromEntries([["PATH", "/bin"]]),
-      invocation: INVOCATION,
+      invocation,
       logPath: "/l",
-    }).plan,
-    port: PORT,
-  });
+    });
+    return launch.kind === "refused" ? launch : { kind: "launch", plan: launch.plan, port: PORT };
+  };
 }
 
 /** The browser decision `ops/start.ts` makes after the prepare pass, from a terminal answer and a `.env` text. */
@@ -147,6 +147,26 @@ test("a file switched from single-user to local between two runs yields a child 
   for (const plan of run.plans) {
     expect(plan.env[SUPERVISOR_ENV_KEY]).toBe(START_SUPERVISOR);
   }
+});
+
+// The prepare pass asks once, before the build; a restart re-reads `.env`, so the box can turn SSO under a running share.
+test("a share whose box turns oidc before a respawn is refused there: nothing more spawns and the launch exits as misuse", async () => {
+  const file = { text: "AUTH_MODE=local\n" };
+  const run = harness(
+    [
+      {
+        code: RESTART_EXIT_CODE,
+        during: () => {
+          file.text = "AUTH_MODE=oidc\n";
+        },
+      },
+    ],
+    fileLaunch(file, { ...INVOCATION, share: true }),
+  );
+  expect(await superviseStart(run.deps)).toBe(EXIT.misuse);
+  expect(run.plans).toHaveLength(1);
+  expect(run.plans[0]?.env["SHARE_RELAY"]).toBe("quick");
+  expect(run.notices.at(-1)).toContain("--share");
 });
 
 test("the prepare pass runs once across two respawns, and any other exit ends the supervisor with that code", async () => {

@@ -18,7 +18,8 @@ async function openWhenServed(deps: StartSupervisorDeps, port: number, alive: Ab
 }
 
 /** Run the prepare pass once, then the server until it exits with anything but the restart code. A stop signal
- *  ends the loop whatever code the child then exits with, so a Ctrl-C during a restart never respawns. */
+ *  ends the loop whatever code the child then exits with, so a Ctrl-C during a restart never respawns. A launch
+ *  refused on any spawn ends the loop with the misuse exit and spawns nothing. */
 export async function superviseStart(deps: StartSupervisorDeps): Promise<number> {
   const stop = await deps.prepare();
   if (stop !== null) {
@@ -46,6 +47,10 @@ export async function superviseStart(deps: StartSupervisorDeps): Promise<number>
   );
   for (;;) {
     const spawn = deps.launch();
+    if (spawn.kind === "refused") {
+      deps.notice(spawn.reason);
+      return EXIT.misuse;
+    }
     const child = deps.spawn(spawn.plan);
     state.child = child;
     const alive = new AbortController();

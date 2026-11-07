@@ -174,12 +174,10 @@ function ssoShareRefusal(code: SsoShareRefusal): string {
   }
 }
 
-/** Why `--share` cannot serve this box, or null. An oidc or forward-header box is refused and keeps its mode; a
- *  single-user box is not refused, because `--share` starts that run in the local sign-in mode. */
-export function shareLaunchRefusal(
-  fileEnv: Readonly<Record<string, string | undefined>>,
-  ambient: Readonly<Record<string, string | undefined>>,
-): string | null {
+// Why `--share` cannot serve this box, or null. An oidc or forward-header box is refused; a single-user box is not,
+// because `--share` starts that run in the local sign-in mode. Private: `startLaunch` is the only caller, so no launch
+// plan exists without this answer.
+function shareLaunchRefusal(fileEnv: Readonly<Record<string, string | undefined>>, ambient: Readonly<Record<string, string | undefined>>): string | null {
   const refusal = SHARE_MODE_REFUSAL[currentAuthMode(fileEnv, ambient)];
   return refusal === null || refusal === "share_single_user" ? null : ssoShareRefusal(refusal);
 }
@@ -210,7 +208,8 @@ function launchOverrides(
 }
 
 /** One launch from the `.env` read for it: the single-user fill, the flags' overrides and the supervisor marker on the
- *  child env. The supervisor calls this on every spawn, so a restart after a mode change drops a stale fill. */
+ *  child env, or the refusal of a `--share` this box cannot serve. The supervisor calls this on every spawn, so a
+ *  restart after a mode change drops a stale fill and refuses a share the new mode cannot serve. */
 export function startLaunch(opts: {
   readonly repoRoot: string;
   readonly nodePath: string;
@@ -219,6 +218,10 @@ export function startLaunch(opts: {
   readonly invocation: StartInvocation;
   readonly logPath: string;
 }): StartLaunch {
+  const refusal = opts.invocation.share ? shareLaunchRefusal(opts.fileEnv, opts.ambient) : null;
+  if (refusal !== null) {
+    return { kind: "refused", reason: refusal };
+  }
   const overrides = launchOverrides(opts.invocation, opts.fileEnv, opts.ambient);
   // The file as the server will read it: the overrides win over the file, so the mode is decided by both.
   const fileView = { ...opts.fileEnv, ...overrides };
@@ -231,7 +234,7 @@ export function startLaunch(opts: {
     launchEnv: { ...fallbackEnv, ...restated, ...Object.fromEntries([[SUPERVISOR_ENV_KEY, START_SUPERVISOR]]) },
     logPath: opts.logPath,
   });
-  return { plan, mode: effectiveAuthMode(fileView, opts.ambient), fallbackFilled: Object.keys(fallbackEnv).length > 0 };
+  return { kind: "launch", plan, mode: effectiveAuthMode(fileView, opts.ambient), fallbackFilled: Object.keys(fallbackEnv).length > 0 };
 }
 
 /** The production spawn, from the ONE prod spawn plan (lib/spawn-plan.ts) — identical argv, cwd and
