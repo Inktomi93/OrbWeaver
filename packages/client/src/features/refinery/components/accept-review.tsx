@@ -81,7 +81,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
             <RefineryChip tone="warn" wrap={true}>
               Changed since the session started
             </RefineryChip>
-            <Text className="max-inline-(--reading-measure-prose) min-inline-0" floor="field" grow={true} voice="gloss">
+            <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text
             </Text>
           </Row>

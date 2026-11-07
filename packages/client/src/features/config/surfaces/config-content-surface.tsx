@@ -313,7 +313,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
       <Heading level={2} voice="masthead">
         {CONFIG_WELCOME.title}
       </Heading>
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         {CONFIG_WELCOME.teaching}
       </Text>
     </Stack>

@@ -144,7 +144,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
 
   return (
     <Stack gap="block" padding="block">
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         Generate an image into this chat. Every image is a real charge — and the modes that read the conversation spend a second, smaller call to build the
         prompt first.
       </Text>
@@ -197,7 +197,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
               {extract.isPending ? (
                 <PendingLine label="Reading the chat" verb="Reading the chat…" />
               ) : (
-                <Text as="span" className="max-inline-(--reading-measure-prose)" data-slot="imagine-read-cost" voice="reading">
+                <Text as="span" cap="prose" data-slot="imagine-read-cost" voice="reading">
                   {readCostLine(receipt)}
                 </Text>
               )}
@@ -234,7 +234,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
 /** The shared-room sentence D300 owes the person about to spend: where the picture lands and whose it is. */
 function RoomPicturesNote({ shared }: { readonly shared: boolean }): ReactElement | null {
   return shared ? (
-    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-room-pictures-note" voice="gloss">
+    <Text cap="prose" data-slot="imagine-room-pictures-note" voice="gloss">
       {ROOM_PICTURES_NOTE}
     </Text>
   ) : null;
@@ -242,7 +242,7 @@ function RoomPicturesNote({ shared }: { readonly shared: boolean }): ReactElemen
 
 function DoubleSpendNotice({ blind, count }: { readonly blind: boolean; readonly count: number }): ReactElement | null {
   return blind ? (
-    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
+    <Text cap="prose" data-slot="imagine-double-spend" voice="reading">
       Generate now and this mode charges TWICE: one call to read the chat into a prompt, then {count > MIN_IMAGE_COUNT ? "the images" : "the image itself"}.
     </Text>
   ) : null;
@@ -252,7 +252,7 @@ function GeneratingNotice({ pending }: { readonly pending: boolean }): ReactElem
   return pending ? (
     <Stack data-slot="imagine-generating" gap="tight">
       <PendingLine label="Generating the image" verb="Generating the image…" />
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
       </Text>
     </Stack>

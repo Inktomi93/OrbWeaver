@@ -255,7 +255,8 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
           // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's primary tint is a state, so it rides the tone beside the voice; at rest it takes the muted ink.
           <Text
-            className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "text-center")}
+            cap={squeezed ? "fit" : "avatarHero"}
+            className="text-center"
             truncate={true}
             {...(selected ? { tone: "primary" } : { ink: "muted" })}
             voice="label"

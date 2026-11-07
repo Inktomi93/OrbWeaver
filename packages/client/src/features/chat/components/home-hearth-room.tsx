@@ -174,7 +174,7 @@ export function HomeHearthRoom({
           {chat.isGame ? <Badge size="sm">Game</Badge> : null}
         </Row>
         {/* The excerpt is ordinary prose; the outer column independently protects the art and controls. */}
-        <Text className="max-inline-(--reading-measure-prose)" clamp={2} id={scentId} voice="reading">
+        <Text cap="prose" clamp={2} id={scentId} voice="reading">
           {subtitle}
         </Text>
         {/* ALIGNED TO START, NOT CENTRE (side-eye HOME 2026-09-02 H17). At the 430x932 coarse mount the

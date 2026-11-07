@@ -124,7 +124,7 @@ export function AddDocumentBody(): ReactElement {
           empty, 15px in CONTENT) at the moment it matters most. `reading` is the voice minted for exactly
           this ("THE CONTENT ITSELF", text/variants.ts), and it is paired with the reading measure the
           voice's own doc requires, so the line does not run the width of the dialog. */}
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         {DATABANK_INGEST_GLOSS}
       </Text>
       <Stack gap="block">
@@ -155,7 +155,7 @@ export function AddDocumentBody(): ReactElement {
               placeholder="Search characters…"
             />
           ) : null}
-          <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+          <Text cap="prose" prose={true} voice="gloss">
             {scopeCopy[scope]}
           </Text>
         </Stack>

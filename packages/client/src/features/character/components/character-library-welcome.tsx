@@ -339,7 +339,7 @@ function ResumeArm({
           // rides a full-width wrapper, while the measure caps the PARAGRAPH (design-audit `line-length` —
           // uncapped, this line ran to 145 characters at 1280).
           <Stack paddingBlockStart="row" divider="top">
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+            <Text cap="prose" voice="gloss">
               {weekLine(addedThisWeek)}
             </Text>
           </Stack>
@@ -382,7 +382,7 @@ function LandingFrame({
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
                 is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
                 of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
-          <Text className="max-inline-(--reading-measure-prose)" voice="quiet">
+          <Text cap="prose" voice="quiet">
             {gloss}
           </Text>
         </Stack>

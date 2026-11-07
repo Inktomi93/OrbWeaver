@@ -52,14 +52,7 @@ function DescriptionBlock({ label, text, id }: { readonly label: string; readonl
     <Stack gap="tight">
       <Stack gap="tight" id={id}>
         <Text voice="label">{label}</Text>
-        <Text
-          id={textId}
-          voice="reading"
-          className="max-inline-(--reading-measure-prose)"
-          clamp={long && !open ? CLAMP_LINES : undefined}
-          whitespace="preWrap"
-          wrap="word"
-        >
+        <Text id={textId} voice="reading" cap="prose" clamp={long && !open ? CLAMP_LINES : undefined} whitespace="preWrap" wrap="word">
           {shown}
         </Text>
       </Stack>
@@ -81,7 +74,7 @@ function OptionLabel({ title, consequence }: { readonly title: string; readonly 
       <Text as="span" voice="label">
         {title}
       </Text>
-      <Text as="span" voice="quiet" className="max-inline-(--reading-measure-prose)">
+      <Text as="span" voice="quiet" cap="prose">
         {consequence}
       </Text>
     </Stack>

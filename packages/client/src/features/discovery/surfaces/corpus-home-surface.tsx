@@ -220,7 +220,7 @@ function CorpusHomeBody(): ReactElement {
           <Text as="span" voice="kicker">
             Library understanding
           </Text>
-          <Heading className="max-inline-(--reading-measure)" level={1} voice="masthead">
+          <Heading cap="reading" level={1} voice="masthead">
             {state.headline}
           </Heading>
         </Stack>

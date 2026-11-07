@@ -51,8 +51,6 @@ import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
-
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
   readonly variantId: MessageVariantId;
@@ -178,7 +176,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   }
   return (
     <Stack gap="section">
-      <Text className={PROSE_MEASURE} data-slot="wire-intro" prose={true} voice="gloss">
+      <Text cap="prose" data-slot="wire-intro" prose={true} voice="gloss">
         The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
         the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>

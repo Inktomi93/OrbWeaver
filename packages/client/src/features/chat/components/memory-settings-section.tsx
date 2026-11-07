@@ -94,7 +94,7 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
         />
         <Stack gap="field">
           <MemoryUtilityStatus enabled={enabled} />
-          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          <Text voice="gloss" prose={true} cap="prose">
             {`${MEMORY_EXISTING_CHATS_NOTE} To build every chat now, run the Memory backfill job.`}
           </Text>
           {/* A cross-SURFACE pointer is a DOOR, not a sentence (side-eye 2026-08-08 P3): "run it under
@@ -121,7 +121,7 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   }
   if (utility.kind === "ready") {
     return (
-      <Text data-slot="memory-utility-status" prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text data-slot="memory-utility-status" prose={true} cap="prose" voice="gloss">
         {enabled ? `Summaries run on your Utility model, ${utility.label}.` : "Memory is off for your account, so no chat is summarized."}
       </Text>
     );
@@ -129,7 +129,7 @@ function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactE
   const reason = utility.kind === "unset" ? "no Utility model is set" : `your Utility model is set but not running: ${utility.cause}`;
   return (
     <Row align="center" className="flex-wrap" data-slot="memory-utility-status" gap="field">
-      <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text prose={true} cap="prose" voice="gloss">
         {enabled ? `Summaries are paused: ${reason}.` : `Memory also needs a Utility model, and ${reason}.`}
       </Text>
       <UtilityModelDoor />

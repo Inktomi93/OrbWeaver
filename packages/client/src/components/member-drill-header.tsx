@@ -100,7 +100,7 @@ export function MemberDrillHeader({ back, title, meta, actions }: MemberDrillHea
         </Button>
         {/* The title's preferred floor wraps it before collapse; truncation bounds a longer name on its own line. */}
         {title === undefined ? null : (
-          <Heading className="max-inline-full" floor="title" truncate="fill" level={2}>
+          <Heading cap="fit" floor="title" truncate="fill" level={2}>
             {title}
           </Heading>
         )}

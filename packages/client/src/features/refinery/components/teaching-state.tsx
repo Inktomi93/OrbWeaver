@@ -109,7 +109,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
             Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
             picker and three step cards, which are layout, not a line of prose. */}
-        <Text className="text-center max-inline-(--reading-measure-prose)" voice="reading">
+        <Text className="text-center" cap="prose" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>

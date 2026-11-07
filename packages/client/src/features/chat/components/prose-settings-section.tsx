@@ -137,7 +137,7 @@ function ProseBody({ anchorId, sectionId, session, stored, onKeepMine }: ProseBo
   return (
     <Section container={true} divider={true} heading={PROSE_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           The wording the app sends to a model on your behalf — summarizers, the memory writer, and the group turn arbiter. Leave a field blank to use the
           built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap a turn's own prompt —
           the note frames, the continuation cue, and the group-round nudges — live with your preset's templates, not here.

@@ -16,7 +16,6 @@ import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connecti
 import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 // A role with a declared Model roles leaf stamps its picker as that leaf's deep-link focus target.
 function settingControlId(settingId: string | undefined): string | undefined {
@@ -60,7 +59,7 @@ function BuiltinRerankerHint({
   }
   return (
     <Row align="center" className="flex-wrap" gap="field">
-      <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
+      <Text prose={true} voice="gloss" cap="prose">
         {`To use a lighter or older built-in reranker, open ${row.label} under Connections and pick another model.`}
       </Text>
       <Button
@@ -89,7 +88,7 @@ function ModelRolesBody({ anchorId }: { readonly anchorId: string }): ReactEleme
   return (
     <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={anchorId}>
       {/* Funding belongs to the frozen room host; triggering a shared turn does not spend this viewer's role. */}
-      <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
+      <Text prose={true} voice="gloss" cap="prose">
         Pick which connection each role uses. An unset role does nothing — there is no default model. These roles apply in rooms you host and to your work
         outside rooms. Shared-room turns use the room host's connections, frozen when the turn starts.
       </Text>

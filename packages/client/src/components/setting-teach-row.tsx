@@ -163,7 +163,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           `--reading-measure-prose` (#1145), because a `ch` resolves in the element's own font and the
           group's cap is computed at the label step, not at the gloss's 10.5px one. */}
       {annotation === null ? null : (
-        <Text className="col-span-full max-inline-(--reading-measure-prose) min-inline-0" data-slot="setting-row-gloss" voice="gloss">
+        <Text className="col-span-full min-inline-0" cap="prose" data-slot="setting-row-gloss" voice="gloss">
           {annotation.gloss}
         </Text>
       )}

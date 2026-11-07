@@ -1,4 +1,4 @@
-import { FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
+import { CAP, FLOOR, GROW, HIDDEN_AT, HOVER_CUE, INKS, PULSE, RECEDED, SR_ONLY_AT, TONE_TEXT, tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
 // DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
@@ -72,7 +72,7 @@ export const textVariants = tv({
       // So the reading step had no route and surfaces reached for `gloss` instead, which is how a room's
       // last spoken line ends up set at the same 10.5px as a footnote. Rides `--color-prose-body` (the
       // per-theme reading ink, warmer than `foreground` and dimmer than pure white on a dark backdrop) and
-      // the body leading. Pair it with `max-w-(--reading-measure-prose)` — the TEACHING/BODY measure, not
+      // the body leading. Pair it with `cap="prose"` — the TEACHING/BODY measure, not
       // the transcript's wider one (#1145): a reading line is capped on the PARAGRAPH, never on the page.
       // Only the chat transcript itself takes `--reading-measure`; see the token's own $description for
       // why one CSS `ch` is ~1.5 of the characters the design law counts.
@@ -197,6 +197,8 @@ export const textVariants = tv({
     // shrink below its content stays the caller's.
     grow: GROW,
     floor: FLOOR,
+    // The widest the run grows: `prose` is a paragraph's measure, capped on the paragraph and never on the page.
+    cap: CAP,
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).
     wrap: { word: "wrap-break-word", anywhere: "wrap-anywhere" },

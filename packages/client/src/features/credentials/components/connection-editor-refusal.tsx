@@ -8,7 +8,6 @@ import type { ReactElement, ReactNode } from "react";
 import { EMBED_REFUSAL_SLOTS, embedderCheckingText, embedRefusalRowText, embedRefusalText } from "#lib";
 
 // The editor is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 /** A refused embedder write, and the fact row it came from: `null` for a field above Advanced. */
 export interface EditorEmbedRefusal {
@@ -25,7 +24,7 @@ export interface EditorEmbedderCheck {
  *  editor it also says what to set. */
 export function EmbedRefusalAlert({ refusal, onRow }: { readonly refusal: EmbedTargetRefusal; readonly onRow: boolean }): ReactElement {
   return (
-    <Text className={PROSE_MEASURE} tone="warning" data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} role="alert" voice="gloss">
+    <Text cap="prose" tone="warning" data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} role="alert" voice="gloss">
       {onRow ? embedRefusalRowText(refusal) : embedRefusalText(refusal)}
     </Text>
   );
@@ -34,7 +33,7 @@ export function EmbedRefusalAlert({ refusal, onRow }: { readonly refusal: EmbedT
 /** Where a refusal will appear, said while the server checks the embedder before the write lands. */
 export function EmbedderCheckingStatus(): ReactElement {
   return (
-    <Text className={PROSE_MEASURE} data-embedder-check="" role="status" voice="gloss">
+    <Text cap="prose" data-embedder-check="" role="status" voice="gloss">
       {embedderCheckingText()}
     </Text>
   );

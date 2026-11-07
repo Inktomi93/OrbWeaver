@@ -126,7 +126,8 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
           rather than narrowed: transcripts keep `--reading-measure`, teaching prose like this takes
           `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
       <Text
-        className={placeholder ? "invisible max-inline-(--reading-measure-prose)" : "max-inline-(--reading-measure-prose)"}
+        cap="prose"
+        className={placeholder ? "invisible" : undefined}
         ink="muted"
         {...(placeholder ? { "aria-hidden": true } : {})}
         voice="gloss"

@@ -353,7 +353,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                     }}
                   />
                 </Row>
-                <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+                <Text cap="prose" prose={true} voice="gloss">
                   {SUGGEST_ON_REFUSAL_HELP}
                 </Text>
               </Stack>

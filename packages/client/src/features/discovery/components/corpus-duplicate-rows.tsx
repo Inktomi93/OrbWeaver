@@ -243,7 +243,7 @@ function PairFace({
 
 export function Muted({ children }: { readonly children: string }): ReactElement {
   return (
-    <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+    <Text cap="prose" voice="gloss">
       {children}
     </Text>
   );

@@ -43,7 +43,7 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
           </Text>
           {/* The summary is CONTENT — the prose default (§2.3 keeps `body` for content copy), spelled by
               omission rather than by an internal `size` axis. */}
-          <Text className="max-inline-(--reading-measure-prose)" whitespace="preWrap" data-slot="compact-summary-text">
+          <Text cap="prose" whitespace="preWrap" data-slot="compact-summary-text">
             {summary}
           </Text>
         </Stack>

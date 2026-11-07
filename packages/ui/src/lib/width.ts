@@ -16,3 +16,23 @@ export const WIDTH = {
   lane: "@max-cq-64:inline-full @cq-64:inline-(--width-lane)",
   flankFit: "inline-(--dimension-room-flank-fit)",
 } as const;
+
+/** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
+export const CAP = {
+  fit: "max-inline-full",
+  fitNarrow: "@max-cq-20:max-inline-full",
+  reading: "max-inline-(--reading-measure)",
+  prose: "max-inline-(--reading-measure-prose)",
+  readingMin: "max-inline-(--reading-measure-min)",
+  column: "max-inline-(--width-content-col)",
+  columnWide: "max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)",
+  control: "max-inline-(--width-control-col)",
+  surface: "max-inline-(--width-surface-cap)",
+  shell: "max-inline-(--width-shell-content)",
+  pane: "max-inline-(--container-cq-48)",
+  avatarHero: "max-inline-(--size-avatar-hero)",
+  sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
+} as const;
+
+/** A named fixed block size: the viewport, or the height of the control a placeholder or a row stands in for. */
+export const HEIGHT = { viewport: "block-dvh", control: "block-(--size-control-sm)", controlMd: "block-(--size-control-md)" } as const;

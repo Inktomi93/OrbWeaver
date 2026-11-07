@@ -150,13 +150,13 @@ function BoundText({
   const text = resolveString(value, state);
   if (voice === "gloss" || voice === "label") {
     return (
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice={voice}>
+      <Text cap="prose" prose={true} voice={voice}>
         {text}
       </Text>
     );
   }
   return (
-    <Text className="max-inline-(--reading-measure-prose)" prose={true}>
+    <Text cap="prose" prose={true}>
       {text}
     </Text>
   );

@@ -141,16 +141,12 @@ test.for([
   ["an owned class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="justify-end" />);\n`, "`justify-end`"],
   [
     "a width cap no arm writes, on a Stack",
-    `${BOXES}export const T = (<Stack className="max-inline-(--reading-measure-prose)" />);\n`,
-    "`max-inline-(--reading-measure-prose)` is a step `cap` chooses among",
+    `${BOXES}export const T = (<Stack className="max-inline-(--width-popup-floor)" />);\n`,
+    "`max-inline-(--width-popup-floor)` is a step `cap` chooses among",
   ],
   ["a width cap no arm writes, on a Row", `${BOXES}export const T = (<Row className="max-inline-cq-32" />);\n`, "`max-inline-cq-32` is a step `cap`"],
   ["a lone half of a capped arm, on a Grid", `${BOXES}export const T = (<Grid className="max-inline-(--width-sidebar-sm)" />);\n`, '`cap="sidebar"`'],
-  [
-    "a width cap no arm writes, on a Container",
-    `${BOXES}export const T = (<Container className="max-inline-(--reading-measure-prose)" />);\n`,
-    "chooses among",
-  ],
+  ["a width cap no arm writes, on a Container", `${BOXES}export const T = (<Container className="max-inline-(--width-popup-floor)" />);\n`, "chooses among"],
   ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
   ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
   ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-md)" />);\n`, "is a step `width` chooses among"],
@@ -256,7 +252,7 @@ test.for([
     `${PRIMITIVES}const Pass = ({ className }) => <Row className="min-inline-0" title={className} />;\nexport const T = (<Pass className="justify-end" />);\n`,
   ],
   ["a containing block", `${PRIMITIVES}export const T = (<Stack className="relative" />);\n`],
-  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Text className="max-inline-(--reading-measure-prose)" />);\n`],
+  ["a class the tables name no home for", `${PRIMITIVES}export const T = (<Button className="justify-between" />);\n`],
 ] as const)("the layout rule passes %s", async ([, source]) => {
   expect(await findings(LAYOUT_RULE, source)).toEqual([]);
 });

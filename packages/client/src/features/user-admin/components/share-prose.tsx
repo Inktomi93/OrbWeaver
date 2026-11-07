@@ -7,16 +7,14 @@ import type { TextProps } from "@orb/ui/text";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
-
 /** One explanatory sentence or short paragraph on the card. */
 export function ShareProse(props: Pick<TextProps, "children" | "id" | "role">): ReactElement {
-  return <Text voice="gloss" prose={true} className={PROSE_MEASURE} wrap="anywhere" {...props} />;
+  return <Text voice="gloss" prose={true} cap="prose" wrap="anywhere" {...props} />;
 }
 
 /** The card's warnings and the lead line of a notice: body size, capped at the same measure as the prose. */
 export function ShareWarningText(props: Pick<TextProps, "children" | "role">): ReactElement {
-  return <Text voice="reading" className={PROSE_MEASURE} wrap="anywhere" {...props} />;
+  return <Text voice="reading" cap="prose" wrap="anywhere" {...props} />;
 }
 
 /** A command, key or file named inside a sentence: code, in the type of the copyable command chips beside it. */

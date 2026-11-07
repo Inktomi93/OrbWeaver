@@ -88,7 +88,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
               {pass.running ? "Reading your library back to you." : "Read your library back to you."}
             </Heading>
             {/* Capped on the PARAGRAPH, never on the page (the `reading` voice's own contract). */}
-            <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+            <Text cap="prose" voice="reading">
               {passProse(pass)}
             </Text>
             {pass.running ? null : <UnderstandingPassUtilityNote id={utilityNoteId} utility={utility} />}

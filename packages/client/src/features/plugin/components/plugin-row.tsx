@@ -150,7 +150,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 </Badge>
               </Row>
               {/* What the plugin is for, from its own manifest: the person approving needs it before the ask. */}
-              <Text className="max-inline-(--reading-measure-prose)" prose={true}>
+              <Text cap="prose" prose={true}>
                 {plugin.description}
               </Text>
               <Text prose={true} voice="gloss">
@@ -160,7 +160,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               {plugin.lastError === null ? null : (
                 // The raw error is developer text; the card says it plainly and keeps the detail one press away.
                 <Row align="center" className="flex-wrap" gap="field">
-                  <Text tone="destructive" className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+                  <Text tone="destructive" cap="prose" prose={true} voice="gloss">
                     {PLUGIN_ERROR_SENTENCE}
                   </Text>
                   <CopyButton text={plugin.lastError} what={PLUGIN_ERROR_COPY_SUBJECT} />

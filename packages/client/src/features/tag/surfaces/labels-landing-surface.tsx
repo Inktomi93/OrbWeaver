@@ -28,7 +28,7 @@ export function LabelsLandingSurface({ returning = false }: { readonly returning
     <Stack focusTarget={true} data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
       <Stack gap="field">
         <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
-        <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {LABELS_BLURB}
         </Text>
       </Stack>

@@ -87,7 +87,7 @@ export function SessionMasthead({
         step="masthead"
         title={cardName}
       />
-      <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+      <Text cap="prose" voice="gloss">
         Score, rewrite and analyze in one view. Every analyze compares against the card as it was pinned, never the previous rewrite.
       </Text>
       {/* The scope chips are ONE cluster too, and their kicker is its name — `aria-label` rather than an

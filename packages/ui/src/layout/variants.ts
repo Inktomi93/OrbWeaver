@@ -1,6 +1,7 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
   ARRIVAL,
+  CAP,
   CAPTION,
   CARD_CORNERS,
   CORNER,
@@ -10,6 +11,7 @@ import {
   FOCUS_RING,
   GROUND,
   GROW,
+  HEIGHT,
   HIDDEN_AT,
   HOVER_DIM,
   HOVER_REVEAL,
@@ -124,21 +126,6 @@ const REACH = {
   section: "-mx-section px-section",
   column: "-mx-section px-section @max-cq-28:-me-block @max-cq-28:pe-block",
   page: "-mx-gutter px-gutter @max-cq-28:-mx-tight @max-cq-28:px-tight",
-} as const;
-// The widest an inline box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`
-// and `column` are the page measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width.
-const CAP = {
-  fit: "max-inline-full",
-  fitNarrow: "@max-cq-20:max-inline-full",
-  reading: "max-inline-(--reading-measure)",
-  readingMin: "max-inline-(--reading-measure-min)",
-  column: "max-inline-(--width-content-col)",
-  columnWide: "max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)",
-  control: "max-inline-(--width-control-col)",
-  surface: "max-inline-(--width-surface-cap)",
-  shell: "max-inline-(--width-shell-content)",
-  pane: "max-inline-(--container-cq-48)",
-  sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 const ALIGN = {
   start: "items-start",
@@ -256,10 +243,8 @@ const PINNED = {
 // `floor="line"` basis gives way to its content's width.
 const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
 
-// `fill` takes the parent's whole block size; `height` is a named fixed one: the viewport, or the height of the control a
-// placeholder or a row stands in for.
+// `fill` takes the parent's whole block size.
 const FILL = { true: "block-full", false: "" } as const;
-const HEIGHT = { viewport: "block-dvh", control: "block-(--size-control-sm)", controlMd: "block-(--size-control-md)" } as const;
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
 const RECEDED_MOTION = "transition-opacity duration-(--motion-base) ease-out-expo";

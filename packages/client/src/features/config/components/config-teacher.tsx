@@ -125,7 +125,7 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
             )}
           </Row>
           {entry.gloss === null ? null : (
-            <Text voice="gloss" className="max-inline-(--reading-measure)">
+            <Text voice="gloss" cap="reading">
               {entry.gloss}
             </Text>
           )}

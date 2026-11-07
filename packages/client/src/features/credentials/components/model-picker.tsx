@@ -363,7 +363,7 @@ function PickedLine({
     );
   }
   return (
-    <Text tone="warning" className="max-inline-(--reading-measure-prose)" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
+    <Text tone="warning" cap="prose" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
       Picked: {value} — {unlistedModelSentence(listOwner)}
     </Text>
   );

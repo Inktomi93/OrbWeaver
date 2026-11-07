@@ -256,7 +256,7 @@ function OverviewRow({
         <Text voice="label" truncate={true} ink="muted" id={labelId}>
           {label}
         </Text>
-        <Text voice={mono ? "datum" : "label"} className="shrink-0 max-inline-full">
+        <Text voice={mono ? "datum" : "label"} className="shrink-0" cap="fit">
           {value}
         </Text>
       </Row>

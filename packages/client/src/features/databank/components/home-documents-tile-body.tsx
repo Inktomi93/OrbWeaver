@@ -141,7 +141,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
             cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
             and a CSS `ch` is ~1.5 of the characters the design law counts. */}
-        <Text className="max-inline-(--reading-measure-prose)" clamp={3} voice="gloss" prose={true}>
+        <Text cap="prose" clamp={3} voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>

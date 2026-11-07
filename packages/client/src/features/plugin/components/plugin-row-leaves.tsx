@@ -259,7 +259,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       role="alert"
       tone="warning"
     >
-      <Text className="max-inline-(--reading-measure-prose)" voice="promoted">
+      <Text cap="prose" voice="promoted">
         {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
@@ -268,7 +268,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           band; `--reading-measure-prose` (47ch) is the derived one (#1145) and rides the PARAGRAPH, since a
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
           own home (plugin-grant-list.tsx). */}
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {firstAsk
           ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
           : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}

@@ -231,7 +231,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 between the sentence and the button that acts on it ("a measure caps the worst case; it does
                 not tie the pair"). The button rides its own sentence. */}
           <Row align="center" className="flex-wrap" gap="row" justify="start">
-            <Text className="max-inline-(--reading-measure-prose) min-inline-0" floor="field" grow={true} voice="gloss">
+            <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               Use this after a settings change, or if search misses this document.
             </Text>
             <Button className="shrink-0 wrap-anywhere max-inline-full" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
@@ -288,7 +288,7 @@ function SourceTextBody({ documentId }: { readonly documentId: DocumentId }): Re
     // A read-only scroll REGION, not a form control (§2.2): the text is a readout, and `whitespace-pre-wrap`
     // is what keeps the extracted line structure legible.
     <ScrollArea className="max-block-(--height-scroll-lg)" wrapContent={true}>
-      <Text className="max-inline-(--reading-measure-prose)" whitespace="preWrap" wrap="word" prose={true}>
+      <Text cap="prose" whitespace="preWrap" wrap="word" prose={true}>
         {query.data.extractedText ?? ""}
       </Text>
     </ScrollArea>

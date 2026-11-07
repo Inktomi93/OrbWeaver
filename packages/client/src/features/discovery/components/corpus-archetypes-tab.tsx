@@ -77,7 +77,7 @@ function ArchetypesBody(): ReactElement {
     // either — a control that re-clusters data the surface is refusing to show is a control over nothing.
     return (
       <Stack className="relative min-block-0" gap="section" data-slot="archetypes-not-run">
-        <Text prose={true} className="max-inline-(--reading-measure-prose)" voice="gloss">
+        <Text prose={true} cap="prose" voice="gloss">
           Archetypes need your characters sorted first. Start that in Explore.
         </Text>
         <Button variant="ghost" size="sm" onClick={openCorpusOverview}>

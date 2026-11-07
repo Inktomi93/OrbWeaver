@@ -84,7 +84,6 @@ test("every judgement that names a home answers the lint with the census's own r
 
 test("a class the tables give no home is the census's row, not the lint's, and a coded keep is neither", () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("text", "Text", "max-inline-(--reading-measure-prose)", [])).toBeNull();
   expect(ownerOf("layout", "Row", "relative", [])).toBeNull();
   expect(ownerOf("button", "Button", "justify-between", [])).toBeNull();
 });
@@ -138,7 +137,7 @@ test("the real Stack and Row own an inset that steps down below the phone contai
 
 test("a class of a family an axis chooses in is that axis's, with no arm named when no arm writes it", () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("layout", "Stack", "max-inline-(--reading-measure-prose)", [])).toEqual({ axis: "stack.cap", prop: "cap", arm: null });
+  expect(ownerOf("layout", "Stack", "max-inline-(--width-popup-floor)", [])).toEqual({ axis: "stack.cap", prop: "cap", arm: null });
   expect(ownerOf("layout", "Stack", "@max-cq-32:pe-block", [])).toEqual({ axis: "stack.paddingInlineEnd", prop: "paddingInlineEnd", arm: null });
   expect(ownerOf("layout", "Grid", "max-inline-(--width-sidebar-sm)", [])).toEqual({ axis: "grid.cap", prop: "cap", arm: "sidebar" });
   // A zero step is structure, and a family no axis chooses in is the caller's to write.

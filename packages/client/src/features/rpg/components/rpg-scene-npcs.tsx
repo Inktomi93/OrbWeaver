@@ -232,7 +232,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
   if (pending === "dismiss") {
     return (
       <Row gap="field" align="center" justify="end" className="flex-wrap">
-        <Text as="span" voice="gloss" className="max-inline-full min-inline-0" wrap="anywhere">
+        <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
           Forget {actor.name} and everything tracked on them?
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
@@ -251,7 +251,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
             the host's pins all follow her across the re-key; her mood and her stance toward the player have no
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
-        <Text as="span" voice="gloss" className="max-inline-full min-inline-0" wrap="anywhere">
+        <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
           Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
