@@ -617,11 +617,17 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
     // resolve — a deleted turn removes canon rows but never wedges the tracker projection.
     const canon = await listCanon(chatId);
     const last = canon.at(-1);
-    if (last !== undefined) {
-      await deleteMessages(chatId, [last.id]);
+    if (last === undefined) {
+      throw new Error("the hand edits left no canon row to delete");
     }
+    await deleteMessages(chatId, [last.id]);
+    const remaining = await listCanon(chatId);
+    expect(remaining).toHaveLength(canon.length - 1);
+    expect(remaining.map((row) => row.id)).not.toContain(last.id);
     const afterDelete = await getTrackerView(chatId);
     expect(afterDelete.actors.some((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId)).toBe(true);
+    // The location came from the earlier edit, so the read after the delete still resolves it.
+    expect(afterDelete.ambient?.location).toBe("The Watchtower");
     expect(await fetchDebugErrors()).toEqual([]);
   } finally {
     await cleanup();

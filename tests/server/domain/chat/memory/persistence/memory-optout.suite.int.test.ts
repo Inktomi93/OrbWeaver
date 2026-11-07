@@ -3,7 +3,7 @@
 // @subject packages/server/src/domain/chat/memory/generate/turn.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { characters, chatDigests } from "@orb/db";
+import { characters, chatDigests, chatSegments } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -18,11 +18,15 @@ import {
 } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
 
+// The provider's embedding endpoint, as the corpus provider records each request ("POST /v1/embeddings").
+const EMBED_ENDPOINT = "/embeddings";
+
 async function group(memoryEnabled: boolean): Promise<
   AsyncDisposable & {
     readonly h: ChatRoot;
     readonly first: ChatRoot["characters"][number];
     readonly summaries: readonly string[];
+    readonly embedRequests: () => number;
   }
 > {
   await using construction = new AsyncDisposableStack();
@@ -62,23 +66,36 @@ async function group(memoryEnabled: boolean): Promise<
     throw new Error("the real group root did not create both witnesses");
   }
   const lifetime = construction.move();
-  return { h, first, summaries, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  const embedRequests = (): number => provider.requests.filter((request) => request.endsWith(EMBED_ENDPOINT)).length;
+  return { h, first, summaries, embedRequests, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
-test("memory.enabled=false (mode:off) → a completed group turn does ZERO build work (no summarizer, no digest rows)", async () => {
+const syntheticBuckets = (h: ChatRoot): Promise<readonly (typeof characters.$inferSelect)[]> =>
+  h.root.db
+    .select()
+    .from(characters)
+    .where(and(eq(characters.ownerId, h.owner.userId), eq(characters.synthetic, true)));
+
+test("memory.enabled=false (mode:off) → a completed group turn does ZERO build work (no summarizer, no embeds, no rows, no shared bucket)", async () => {
   await using fixture = await group(false);
   const { h } = fixture;
+  const embedsBefore = fixture.embedRequests();
   const outcome = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: fixture.first.id });
   expect(outcome.aborted).toBe(false);
   await h.root.settleBackground();
 
   expect(fixture.summaries).toHaveLength(0);
+  expect(fixture.embedRequests()).toBe(embedsBefore);
+  expect(await h.root.db.select().from(chatSegments)).toHaveLength(0);
   expect(await h.root.db.select().from(chatDigests)).toHaveLength(0);
+  // The build mints the group's shared bucket before its own mode check, so a turn that reached the build leaves it behind.
+  expect(await syntheticBuckets(h)).toHaveLength(0);
 });
 
 test("memory enabled (mode:mixC) → the SAME completed group turn builds digests (summarizer runs, rows land)", async () => {
   await using fixture = await group(true);
   const { h } = fixture;
+  const embedsBefore = fixture.embedRequests();
   const outcome = await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: fixture.first.id });
   expect(outcome.aborted).toBe(false);
   await h.root.settleBackground();
@@ -86,11 +103,10 @@ test("memory enabled (mode:mixC) → the SAME completed group turn builds digest
   const rows = await h.root.db.select().from(chatDigests);
   expect(rows.length).toBeGreaterThan(0);
   expect(fixture.summaries.length).toBeGreaterThan(0);
-  const synthetic = await h.root.db
-    .select()
-    .from(characters)
-    .where(and(eq(characters.ownerId, h.owner.userId), eq(characters.synthetic, true)))
-    .get();
+  // Controls for the opted-out case: the same wiring embeds and stores segments when memory is on.
+  expect(fixture.embedRequests()).toBeGreaterThan(embedsBefore);
+  expect((await h.root.db.select().from(chatSegments)).length).toBeGreaterThan(0);
+  const [synthetic] = await syntheticBuckets(h);
   if (synthetic === undefined) {
     throw new Error("the production group build did not mint its shared bucket");
   }

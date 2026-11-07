@@ -19,16 +19,20 @@ import {
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
+import { SCOPE_INSTRUCTIONS } from "#server/domain/search/substrate/instructions.ts";
 
 const QUERY = "a silver-haired archivist";
 const RERANK_MODEL = modelIdSchema.parse("image-rerank-model");
-const rerankBodySchema = z.object({ query: z.string() });
+const rerankBodySchema = z.object({ query: z.string(), documents: z.array(z.unknown()) });
+const AVATARS = ["birdie", "calamity"] as const;
 const conversationSchema = z.array(z.object({ role: z.string(), content: z.array(z.object({ type: z.string(), text: z.string().optional() })) }));
 
 interface ImageSearchWire {
   readonly system: string | undefined;
   readonly stored: readonly (string | undefined)[];
   readonly rerankQueries: readonly string[];
+  /** The hit hashes in the order the search returned them. */
+  readonly order: readonly string[];
 }
 
 async function imageSearch(instructionAware: boolean, rerank = false): Promise<ImageSearchWire> {
@@ -50,8 +54,11 @@ async function imageSearch(instructionAware: boolean, rerank = false): Promise<I
       if (new URL(request.url).pathname !== "/v1/rerank") {
         return await wire.execute(request);
       }
-      rerankQueries.push(rerankBodySchema.parse(await request.json()).query);
-      return Response.json({ results: [{ index: 0, ["relevance_score"]: 1 }] });
+      const body = rerankBodySchema.parse(await request.json());
+      rerankQueries.push(body.query);
+      // The cross-encoder prefers the last document it was offered, so a search that applies its answer reverses the offered order.
+      const last = body.documents.length - 1;
+      return Response.json({ results: body.documents.map((_, rank) => ({ index: last - rank, ["relevance_score"]: body.documents.length - rank })) });
     },
   });
   const principal = await root.principalFor(root.ownerId);
@@ -82,20 +89,34 @@ async function imageSearch(instructionAware: boolean, rerank = false): Promise<I
     },
   });
   await root.services.connection.setBinding({ principal, task: "imageEmbed", connectionId: embed.id });
-  const bytes = await readFile(new URL(import.meta.resolve("@orb/default-content/avatars/birdie.png")));
-  const avatar = await root.services.assets.store({ principal, kind: "avatar", mime: "image/png", bytes });
-  await root.services.character.create({
-    principal,
-    input: createCharacterSchema.parse({ name: "birdie", handle: "birdie", description: "An avatar-bearing card.", avatarAssetId: avatar.assetId }),
-  });
-  await root.app.embeddings.indexAsset(avatar.assetId, { force: true });
+  // Two pictures, so a rerank that reorders the pool shows in the result order.
+  for (const name of AVATARS) {
+    const bytes = await readFile(new URL(import.meta.resolve(`@orb/default-content/avatars/${name}.png`)));
+    const avatar = await root.services.assets.store({ principal, kind: "avatar", mime: "image/png", bytes });
+    await root.services.character.create({
+      principal,
+      input: createCharacterSchema.parse({ name, handle: name, description: "An avatar-bearing card.", avatarAssetId: avatar.assetId }),
+    });
+    await root.app.embeddings.indexAsset(avatar.assetId, { force: true });
+  }
   await root.app.embeddings.embedAssets({ ownerId: principal.userId, force: false, signal: new AbortController().signal });
   await root.settleBackground();
-  const hits = await root.services.search.images({ ownerId: principal.userId, query: QUERY, topN: 1, lens: rerank ? "image-captioned" : "image-raw", rerank });
-  expect(hits).toHaveLength(1);
+  const hits = await root.services.search.images({
+    ownerId: principal.userId,
+    query: QUERY,
+    topN: AVATARS.length,
+    lens: rerank ? "image-captioned" : "image-raw",
+    rerank,
+  });
+  expect(hits).toHaveLength(AVATARS.length);
   const isQuery = (conversation: z.infer<typeof conversationSchema>): boolean => conversation.at(-1)?.content.some((part) => part.text === QUERY) === true;
   const systemOf = (conversation: z.infer<typeof conversationSchema> | undefined): string | undefined => conversation?.[0]?.content[0]?.text;
-  return { system: systemOf(conversations.find(isQuery)), stored: conversations.filter((conversation) => !isQuery(conversation)).map(systemOf), rerankQueries };
+  return {
+    system: systemOf(conversations.find(isQuery)),
+    stored: conversations.filter((conversation) => !isQuery(conversation)).map(systemOf),
+    rerankQueries,
+    order: hits.map((hit) => hit.hash),
+  };
 }
 
 test("an instruction-aware embedder receives a scope instruction in place of the wire default, and stored images keep theirs", async () => {
@@ -110,8 +131,11 @@ test("an instruction-aware embedder receives a scope instruction in place of the
 });
 
 test("a reranked image search leads the cross-encoder query with a scope instruction, as every other search verb does", async () => {
-  const { rerankQueries } = await imageSearch(false, true);
+  const plain = await imageSearch(false);
+  const { rerankQueries, order } = await imageSearch(false, true);
   expect(rerankQueries).toHaveLength(1);
-  expect(rerankQueries[0]?.endsWith(`\n${QUERY}`)).toBe(true);
-  expect(rerankQueries[0]?.length).toBeGreaterThan(QUERY.length + 1);
+  expect(rerankQueries).toEqual([`${SCOPE_INSTRUCTIONS.images.rerank}\n${QUERY}`]);
+  // The search returns the cross-encoder's order, not the pool's.
+  expect(new Set(plain.order).size).toBe(AVATARS.length);
+  expect(order).toEqual(plain.order.toReversed());
 });

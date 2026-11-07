@@ -138,9 +138,10 @@ test("a real member send defers without a lock while its host is offline and the
     images: [],
   });
   await using root = await createServerHarness({ providerFetch: provider.execute });
-  const { owner, secondUserId } = await seedCorpusActors(root);
+  const { owner, secondUserId, connections } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
-  const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
+  const hostCaller = await root.internalCallerFor(root.ownerId);
+  const chatId = await seedRecallRoom(hostCaller);
   const invite = await seedChatInviteRows(root, {
     principal: owner,
     chatId,
@@ -162,6 +163,12 @@ test("a real member send defers without a lock while its host is offline and the
   expect(completed.locks).toEqual([]);
   const calls = provider.requests.filter((request) => request === "POST /v1/chat/completions");
   expect(calls).toHaveLength(1);
+  // Both humans bind a chat connection on the same endpoint, so only the reply's attribution names who paid: the
+  // host's connection, never the member who triggered it.
+  expect((await hostCaller.chat.listMessages({ chatId })).messages.map((message) => [message.role, message.connectionId])).toEqual([
+    ["user", null],
+    ["assistant", connections.text.id],
+  ]);
   expect(await root.services.chat.drainDeferredTurns({ hostUserId: root.ownerId })).toEqual({ ran: 0, dropped: 0 });
   expect(provider.requests.filter((request) => request === "POST /v1/chat/completions")).toEqual(calls);
 });

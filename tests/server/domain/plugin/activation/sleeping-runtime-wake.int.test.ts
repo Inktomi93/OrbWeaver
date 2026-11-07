@@ -24,12 +24,15 @@ function manifest(id: string): PluginManifest {
   });
 }
 
+// The guest counts its own calls in module state, so a result names the runtime that answered: a warm runtime
+// keeps counting, and a runtime woken from the stored bundle starts again at 1.
 function bundle(plugin: PluginManifest): Uint8Array {
-  const guest = `orb.host(1).tools.register({
+  const guest = `let calls = 0;
+orb.host(1).tools.register({
   name: ${JSON.stringify(TOOL)},
-  description: "Answer with this plugin's id.",
+  description: "Answer with this plugin's id and its call count.",
   parameters: { type: "object", properties: {}, additionalProperties: false },
-  handler: async () => ${JSON.stringify(plugin.id)},
+  handler: async () => ${JSON.stringify(plugin.id)} + "#" + String(++calls),
 });`;
   return zipSync({ [PLUGIN_MANIFEST_ENTRY]: strToU8(JSON.stringify(plugin)), [PLUGIN_MAIN_ENTRY]: strToU8(guest) });
 }
@@ -73,9 +76,10 @@ test("a plugin retired from the one warm worker answers again after its runtime 
     expect(outcome.aborted).toBe(false);
     answered.push(...(outcome.messages.find((message) => message.role === "assistant")?.toolCalls ?? []));
   }
+  // Alpha's third answer counts from 1: its first runtime was retired for beta's, and the wake built a new one.
   expect(answered).toMatchObject([
-    { name: alpha, isError: false, result: "wake-alpha" },
-    { name: beta, isError: false, result: "wake-beta" },
-    { name: alpha, isError: false, result: "wake-alpha" },
+    { name: alpha, isError: false, result: "wake-alpha#1" },
+    { name: beta, isError: false, result: "wake-beta#1" },
+    { name: alpha, isError: false, result: "wake-alpha#1" },
   ]);
 });

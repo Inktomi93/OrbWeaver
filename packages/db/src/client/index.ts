@@ -20,7 +20,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 // biome-ignore lint/performance/noNamespaceImport: drizzle needs the whole schema module as `{ schema }` and as `typeof schema` for the Db type — the canonical pattern.
 import * as schema from "#schema";
-import { backupNamePatterns, isBackupFileName } from "./backup-names.ts";
+import { backupNamePatterns, isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "./backup-names.ts";
 
 /** The handle every domain's `context.ts` closes over. The `db` row types come off `typeof schema`. */
 export type Db = LibSQLDatabase<typeof schema>;
@@ -221,14 +221,6 @@ export async function backupBeforeMigrate(db: Db, url: string, backupDir: string
   }
   return backupPath;
 }
-
-// Retention for {@link pruneDbBackups}. Pre-launch these are CONSTANTS, not knobs — every retained backup
-// is a full copy of the db, so this cap is the only thing bounding `data/`. (Before the boot step gated
-// the backup on pending migrations, every no-op boot copied the db aside: 3.2k copies, 150GB.)
-const KEEP_RECENT_BACKUPS = 5;
-// On top of the recent five, the newest backup of each of the last N distinct days — a coarse history that
-// survives a day of frequent migrating without unbounded growth. Ceiling is KEEP_RECENT + KEEP_DAILY files.
-const KEEP_DAILY_BACKUPS = 7;
 
 // One backup instant: the base copy and/or its sqlite sidecars. `hasBase` false ⇒ orphaned sidecars.
 interface BackupGroup {
