@@ -88,7 +88,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
     // an empty bank once its read lands, and a band that collapsed then shifted every tile below it.
     // The first tile of a column takes that height too, so the two columns' first kickers share one top; growing
     // every band would push the fresh house's columns past the 120px balance budget.
-    <Row align="center" className={trailing === undefined ? "group-first/tile:min-block-(--size-control-sm)" : "min-block-(--size-control-sm)"} gap="field">
+    <Row align="center" minHeight={trailing === undefined ? "firstTile" : "control"} gap="field">
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
@@ -99,7 +99,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
           seven bands put seven UNNAMED separator stops in the a11y tree of one screen (a home walk hit 10).
           `aria-hidden` on the primitive drops the stop and paints identically; the rule is never the only
           carrier of a boundary here, so nothing announced is lost. */}
-      <Separator aria-hidden={true} className="flex-1" />
+      <Separator aria-hidden={true} grow={true} />
       {trailing}
     </Row>
   );
@@ -110,8 +110,10 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
-    <Row align="start" className="ps-row" data-home-tile={tile.id} divider="start" dividerStyle="dashed" gap="row">
-      <Icon className="mbs-tight shrink-0" icon={tile.icon} size="sm" ink="muted" />
+    <Row align="start" indent={true} data-home-tile={tile.id} divider="start" dividerStyle="dashed" gap="row">
+      <Row className="shrink-0" paddingBlockStart="tight">
+        <Icon icon={tile.icon} size="sm" ink="muted" />
+      </Row>
       <Stack className="min-inline-0" gap="tight">
         {/* A REAL HEADING (side-eye rail-home, ARIA rec 2 — 2026-08-22). This was a `<p>`, so `Buddy` and
             `Automation` read to AT as body text with no structural distinction from their own descriptions:

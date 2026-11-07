@@ -119,7 +119,8 @@ export function TagVocabularyPanel({
         <Input
           aria-label={CHARACTER_FILTER_TAGS_NAME}
           aria-controls={panelId}
-          className="flex-1 min-inline-0"
+          className="min-inline-0"
+          grow={true}
           onValueChange={setQuery}
           placeholder="Filter tags…"
           type="search"
@@ -140,7 +141,7 @@ export function TagVocabularyPanel({
         viewportProps={{ role: "region", "aria-label": CHARACTER_TAG_VOCABULARY_NAME }}
         wrapContent={true}
       >
-        {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
+        {/* The end inset is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}
         {/* `role="toolbar"` is what makes the roving stop legible to AT: it announces a GROUP of controls
@@ -150,7 +151,8 @@ export function TagVocabularyPanel({
         <Row
           aria-label="Tag filter vocabulary"
           aria-orientation="horizontal"
-          className="flex-wrap pe-row"
+          wrap={true}
+          paddingInlineEnd="row"
           gap="tight"
           onFocus={roving.onFocus}
           onKeyDown={roving.onKeyDown}
@@ -201,7 +203,7 @@ export function TagFilterChip({
   return (
     // iOS WebKit fires no `contextmenu` on long-press, so touch gets a visible edit button beside the chip.
     // Fine pointers keep right-click and F2 and the rail's resting width.
-    <Row className="max-inline-full min-inline-0" gap="tight">
+    <Row className="min-inline-0" cap="fit" gap="tight">
       <TagFilterChipButton onCycle={onCycle} presentation={presentation} state={state} tabIndex={tabIndex} tag={tag} />
       <Text as="span" hiddenAt="fine">
         <EditableTagChip iconOnly={true} tag={tag} />
@@ -240,7 +242,8 @@ function TagFilterChipButton({
             edit();
           }}
           aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-          className="max-inline-full min-inline-0"
+          cap="fit"
+          className="min-inline-0"
           data-tag-filter-state={state}
           variant="outline"
           onClick={(): void => onCycle(tag.id)}
@@ -256,7 +259,7 @@ function TagFilterChipButton({
           also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
           chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
           the clip. */}
-          <Text as="span" className="truncate min-inline-0" ink="inherit" voice="label">
+          <Text as="span" truncate={true} ink="inherit" voice="label">
             {tag.name}
           </Text>
         </Button>

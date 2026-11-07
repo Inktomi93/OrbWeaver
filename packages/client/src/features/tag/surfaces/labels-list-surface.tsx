@@ -57,7 +57,7 @@ function LabelsSortSelect(): ReactElement {
     <Select
       aria-label="Sort tags"
       // Content-width field Select leaves room for the filter; inline layout would also remove its field chrome.
-      className="inline-auto"
+      layout="hug"
       items={sort.options}
       onValueChange={(value): void => {
         if (value !== null) {

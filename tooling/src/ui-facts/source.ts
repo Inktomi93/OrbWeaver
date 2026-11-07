@@ -3,7 +3,8 @@ import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
-const SCAN_ROOTS = ["packages/client/src", "packages/ui/src"] as const;
+const UI_SCAN_ROOT = "packages/ui/src";
+const SCAN_ROOTS = ["packages/client/src", UI_SCAN_ROOT] as const;
 
 const LAYERS = ["client", "ui"] as const;
 export type Layer = (typeof LAYERS)[number];
@@ -52,6 +53,11 @@ function sourcesUnder(root: string, scanRoot: string, kind: FileKind): readonly 
 
 export function loadSources(root: string): readonly Source[] {
   return SCAN_ROOTS.flatMap((scanRoot) => FILE_KINDS.flatMap((kind) => sourcesUnder(root, scanRoot, kind)));
+}
+
+/** The ui layer alone, which is everything the recipe tables are read from. */
+export function loadUiSources(root: string): readonly Source[] {
+  return FILE_KINDS.flatMap((kind) => sourcesUnder(root, UI_SCAN_ROOT, kind));
 }
 
 export const lineOf = (sf: ts.SourceFile, node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;

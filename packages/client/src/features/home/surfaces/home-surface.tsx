@@ -146,7 +146,11 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     <Surface tier="form">
       {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className="relative overflow-y-auto overscroll-contain px-section pbs-section pbe-gutter block-full min-block-0"
+        scroll="y"
+        paddingBlockEnd="gutter"
+        fill={true}
+        paddingInline="section"
+        paddingBlockStart="section"
         scrollFade="y"
         focusTarget={true}
         gap="section"
@@ -176,7 +180,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
               ))}
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
-              <Grid className="items-start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">
+              <Grid align="start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">
                 {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
                     min-content (a 64px face strip + a headline + a character/age line) is ~743px, which silently
@@ -204,7 +208,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       of the shelf" is the only thing it can say, and it is the same presentation license it
                       already exercises by grouping every doorway under one band. With no doorway group the
                       last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
-                  <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
+                  <Grid className="grid-flow-row-dense" align="start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
                       <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
                         <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
@@ -268,7 +272,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                             {/* DECORATIVE, exactly as on every tile band (`home-tile.tsx` TileBand): the
                                 `h2` beside it already names the region, and a bare `role="separator"` here
                                 would add an unnamed stop to the home walk's a11y tree. */}
-                            <Separator aria-hidden={true} className="flex-1" />
+                            <Separator aria-hidden={true} grow={true} />
                             {/* THE COUNT, in the band's TRAILING slot (#834) — the same position every
                                 `TileBand` puts its one trailing affordance in ("All documents →"), which is
                                 why it needs no chrome of its own. It sits OUTSIDE the trigger deliberately:

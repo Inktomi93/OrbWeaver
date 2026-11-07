@@ -149,7 +149,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
             // either, so they STACK — still trailing, still with their whole words. The panel's
             // `SectionHeader` owns the outer wrap and the trailing edge (its `ms-auto`); this Row owns only
             // the pair's own line-breaking.
-            <Row align="center" className="flex-wrap" gap="tight" justify="end">
+            <Row align="center" wrap={true} gap="tight" justify="end">
               {/* #26 — the saved-roster door (B10: apply-existing = Members "Saved rosters…"): the picker is the destination
                   (openModal, never a feature import); applying and "Save this room's roster" both live inside it, scoped to THIS open room.
 

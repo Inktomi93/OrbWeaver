@@ -196,7 +196,7 @@ function SearchOmnibox({
   const items = suggestionsToShow(pool, trimmed);
 
   return (
-    <Stack className="flex-1 min-inline-0" data-testid={testId("corpusSearchSuggest")}>
+    <Stack className="min-inline-0" grow={true} data-testid={testId("corpusSearchSuggest")}>
       <Autocomplete
         aria-label={CORPUS_SEARCH_NAME}
         inline={true}
@@ -262,7 +262,7 @@ function CorpusRestState({ targetId }: { readonly targetId: string }): ReactElem
     );
   }
   return (
-    <Stack align="center" className="p-block" gap="field">
+    <Stack align="center" padding="block" gap="field">
       <Icon icon={Search} size="lg" />
       <Text>{CORPUS_TARGET_REST_HINTS[resolveSearchTarget(targetId).id]}</Text>
     </Stack>

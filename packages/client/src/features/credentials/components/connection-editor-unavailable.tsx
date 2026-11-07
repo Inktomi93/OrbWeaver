@@ -31,12 +31,12 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   const backRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(backRef);
   return (
-    <Row align="center" className="flex-wrap" data-slot="connection-editor-header" gap="field">
-      <Row align="center" className="flex-1 basis-(--width-title-floor) min-inline-0" gap="field">
+    <Row align="center" wrap={true} data-slot="connection-editor-header" gap="field">
+      <Row align="center" className="min-inline-0" floor="title" grow={true} gap="field">
         <Button aria-label="Back to Connections" className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
         </Button>
-        <Text className="wrap-anywhere min-inline-0" voice="label">
+        <Text className="min-inline-0" wrap="anywhere" voice="label">
           {label}
         </Text>
       </Row>
@@ -72,7 +72,7 @@ export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, fin
             <Text voice="gloss">Saved provider</Text>
             <Text voice="code">{connection.providerId}</Text>
           </Stack>
-          <Row className="flex-wrap" gap="field">
+          <Row wrap={true} gap="field">
             {isPluginProviderId(connection.providerId) ? (
               <Button variant="outline" onClick={(): void => openConfigTo("plugins", "installed")}>
                 Manage plugins

@@ -80,6 +80,7 @@ export function Icon({
   openTurn,
   yieldOnHover,
   flowTurn,
+  hiddenAt,
   className,
 }: IconProps): ReactElement {
   const instanceId = useId().replace(ID_UNSAFE, "");
@@ -91,7 +92,7 @@ export function Icon({
       nonScalingStroke={true}
       aria-hidden={label === undefined}
       aria-label={label}
-      {...variantProps(iconVariants, { size, weight, tone, ink, shadow, receded, pulse, openTurn, yieldOnHover, flowTurn }, className, tone ?? null)}
+      {...variantProps(iconVariants, { size, weight, tone, ink, shadow, receded, pulse, openTurn, yieldOnHover, flowTurn, hiddenAt }, className, tone ?? null)}
       {...(fraction === NO_FILL ? {} : { fill: isPartial ? `url(#${gradientId})` : "currentColor" })}
     >
       {isPartial ? (

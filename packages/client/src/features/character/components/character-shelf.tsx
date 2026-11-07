@@ -44,7 +44,7 @@ export function CharacterShelf({
   const captionScope = useId();
   return (
     <Stack gap="row">
-      <Row align="baseline" className="pbe-tight" divider="bottom" gap="field" justify="between">
+      <Row align="baseline" paddingBlockEnd="tight" divider="bottom" gap="field" justify="between">
         <Heading level={2} voice="kicker">
           {label}
         </Heading>

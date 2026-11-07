@@ -67,7 +67,7 @@ export function DismissedInboxRow({ item, ref }: { readonly item: InboxItem; rea
   const copy = rowCopy(item.payload, pluginName);
   return (
     <Stack aria-label={copy} gap="tight" data-slot="inbox-dismissed-row" ref={ref} role="group" tabIndex={-1}>
-      <Text as="span" voice="gloss" prose={true} className="wrap-anywhere">
+      <Text as="span" voice="gloss" prose={true} wrap="anywhere">
         {copy}
       </Text>
       <Text as="span" voice="gloss" ink="muted">
@@ -210,9 +210,13 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             (the `IndicatorDot`), so "there is a dot" means one thing in this feature rather than two —
             you open the bell because of a dot and find the dot that put it there. `aria-hidden`: the row's
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
-        {item.actionable ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="mbs-field" /> : null}
+        {item.actionable ? (
+          <Row paddingBlockStart="field">
+            <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+          </Row>
+        ) : null}
         <Stack gap="tight" className="min-inline-0">
-          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} className="wrap-anywhere">
+          <Text as="span" voice={item.readAt === null || item.actionable ? "label" : "gloss"} prose={true} wrap="anywhere">
             {rowCopy(item.payload, disabledPluginName)}
           </Text>
           <Text as="span" voice="gloss" ink="muted">
@@ -220,7 +224,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
           </Text>
         </Stack>
       </Row>
-      <Row gap="field" align="center" className="flex-wrap" justify="end">
+      <Row gap="field" align="center" wrap={true} justify="end">
         {isInvite && !acted ? (
           <>
             <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>

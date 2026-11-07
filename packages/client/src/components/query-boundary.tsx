@@ -225,7 +225,7 @@ function PendingFallback({ onPending, children }: { readonly onPending: () => vo
     <>
       {children}
       {online ? null : (
-        <Text role="status" ink="muted" className="text-center" voice="gloss">
+        <Text role="status" ink="muted" textAlign="center" voice="gloss">
           Waiting for connection…
         </Text>
       )}
@@ -347,7 +347,7 @@ function ReservedFallback({
   const measured = useSurfaceBox(reserveKey);
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
-    return <Stack className={fill ? "flex-1 block-full min-block-0" : undefined}>{children}</Stack>;
+    return <Stack fill={fill}>{children}</Stack>;
   }
   return (
     <Stack
@@ -381,7 +381,7 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
     return (): void => observer.disconnect();
   }, [reserveKey]);
   return (
-    <Stack className={fill ? "flex-1 block-full min-block-0" : undefined} ref={bodyRef}>
+    <Stack fill={fill} ref={bodyRef}>
       {children}
     </Stack>
   );

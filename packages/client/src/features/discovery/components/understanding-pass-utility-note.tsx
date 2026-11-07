@@ -29,7 +29,7 @@ export function UnderstandingPassUtilityNote({
     );
   }
   return (
-    <Row align="center" className="flex-wrap" data-slot="understanding-pass-utility" gap="field">
+    <Row align="center" wrap={true} data-slot="understanding-pass-utility" gap="field">
       <Text id={id} voice="gloss">
         {utility.kind === "unset" ? "This needs a helper model — pick one in Model roles." : `Your helper model is set but not running: ${utility.cause}.`}
       </Text>

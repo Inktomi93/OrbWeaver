@@ -76,7 +76,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           because 10.5px was one of 17 `undersized-ui-text` findings. The same argument reaches a SENTENCE
           the reader is meant to read: `prose` is the length statement that lifts the step to 13px without
           leaving the gloss voice, which is the lever the tiles below already use. */}
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         Lifetime totals per character — the most played, longest left alone.
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
@@ -89,14 +89,8 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
         label="Invested but quiet characters"
         renderItem={(gem, index): ReactElement => (
           <Stack gap="tight">
-            <Button
-              className="items-start justify-start text-start inline-full"
-              variant="ghost"
-              onClick={(): void => selectCorpusCharacter(gem.characterId)}
-              size="sm"
-              wrap={true}
-            >
-              <Row align="center" className="inline-full min-inline-0" gap="row">
+            <Button justify="start" variant="ghost" onClick={(): void => selectCorpusCharacter(gem.characterId)} size="stacked" width="full">
+              <Row align="center" className="min-inline-0" width="full" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
                     shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at
                     320 characters the audited row 2 read left→right 510,000 · 540,000 · 570,000 — bars
@@ -114,11 +108,11 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                   {index + 1}
                 </Text>
                 <CharacterAvatar hash={gem.avatarHash} id={gem.characterId} name={gem.name} size="lg" />
-                <Stack className="flex-1 min-inline-0" gap="tight">
+                <Stack className="min-inline-0" grow={true} gap="tight">
                   {/* `block truncate`, not `line-clamp-1`: the Button base is `whitespace-nowrap`, and a
                       nowrap line inside a `-webkit-box` clamp overflows its cell with NO ellipsis at all
                       (measured on the quick-picks shelf — a long character name ran over its neighbour). */}
-                  <Text ink="inherit" as="span" className="block truncate" voice="label">
+                  <Text ink="inherit" as="span" flow="block" truncate={true} voice="label">
                     {gem.name}
                   </Text>
                   {/* TWO LINES, AND BOTH READABLE (side-eye corpus re-pass 2026-08-19, B1). All three
@@ -136,10 +130,10 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                       alone on line two on all twelve tiles — a widow the browser will avoid on its own once
                       it is allowed to (text-wrap: pretty balances the LAST lines). The unit stays the honest
                       word; nothing here shortens a label to win a layout. */}
-                  <Text as="span" className="block text-pretty" lines={2} prose={true} voice="gloss">
+                  <Text as="span" className="text-pretty" flow="block" lines={2} prose={true} voice="gloss">
                     {gemMagnitudes(gem)}
                   </Text>
-                  <Text as="span" className="block truncate" prose={true} voice="gloss">
+                  <Text as="span" flow="block" truncate={true} prose={true} voice="gloss">
                     {gemLastOpened(gem)}
                   </Text>
                 </Stack>

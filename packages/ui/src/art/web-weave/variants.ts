@@ -37,6 +37,8 @@ export const webWeaveVariants = tv({
       false: { root: "pointer-events-none" },
       true: { root: "pointer-events-auto" },
     },
+    // The web fills the viewport's own height, for a backdrop that sticks while the page scrolls over it.
+    viewport: { true: { root: "block-dvh" } },
   },
   defaultVariants: { interactive: false },
 });

@@ -30,8 +30,8 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
     // so the badge yields width to the name (which is `shrink-0` in NpcCard); the Scene card's editor shows the
     // full text. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
-      <Badge size="sm" data-slot="relationship-badge" className="max-inline-(--width-control-col) min-inline-0">
-        <Text ink="inherit" as="span" className="truncate" voice="label">
+      <Badge size="sm" data-slot="relationship-badge" className="min-inline-0" cap="control">
+        <Text ink="inherit" as="span" truncate={true} voice="label">
           {label}
         </Text>
       </Badge>

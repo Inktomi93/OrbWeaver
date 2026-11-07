@@ -95,7 +95,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       // things at rail weight — a label line, the doors, and the shared gloss. ~60px, in the flow, left
       // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
       // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
-      <Stack className="items-start" gap="field">
+      <Stack align="start" gap="field">
         <Text voice="label">No documents yet</Text>
         {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
             Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's
@@ -126,7 +126,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             is answered by the hero itself: it is an ELEVATED, glowing island now rather than a form-tier
             box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
         {/* The two doors wrap: side by side they overrun a phone's column. */}
-        <Row className="flex-wrap" gap="field">
+        <Row wrap={true} gap="field">
           <Button variant="outline" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
             {DATABANK_ADD_FIRST_DOCUMENT_NAME}
@@ -141,7 +141,7 @@ export function HomeDocumentsTileBody(): ReactElement {
             accident rather than a measure. A cap makes it a property of the prose — and since #1145 that
             cap is `--reading-measure-prose`, the TEACHING measure, because the house one is 75 CSS `ch`
             and a CSS `ch` is ~1.5 of the characters the design law counts. */}
-        <Text className="line-clamp-3 max-inline-(--reading-measure-prose)" voice="gloss" prose={true}>
+        <Text cap="prose" clamp={3} voice="gloss" prose={true}>
           {DATABANK_INGEST_GLOSS}
         </Text>
       </Stack>
@@ -157,7 +157,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       {/* The health line. It WRAPS rather than truncating: the chips are the part that matters (a
           `3 stalled` pushed off the end of a nowrap row is the one thing this tile exists to say), and a
           half-span tile at the one-column breakpoint has no width to spare. */}
-      <Row align="center" className="flex-wrap" gap="field" justify="between">
+      <Row align="center" wrap={true} gap="field" justify="between">
         <Text voice="datum">{bankHealthLine(health)}</Text>
         {health.attention.length === 0 ? null : (
           // The chip GROUP wraps too. Measured at the 390px host: a wrapping outer row is not enough,
@@ -167,7 +167,7 @@ export function HomeDocumentsTileBody(): ReactElement {
           //
           // A NAMED GROUP (side-eye 2026-08-08 P3): the chips are a set with a subject, and a bare run of
           // three pills announces as three unrelated words between the datum line and the list.
-          <Row align="center" aria-label="Ingest attention" className="flex-wrap" gap="field" justify="end" role="group">
+          <Row align="center" aria-label="Ingest attention" wrap={true} gap="field" justify="end" role="group">
             {health.attention.map((chip) => (
               // EVERY AGGREGATE IS A CONTROL (side-eye 2026-08-08 P2-a). The chip names documents you
               // cannot see from here; clicking it scopes the Databank list to exactly that phase and takes
@@ -225,7 +225,7 @@ export function HomeDocumentsTileBody(): ReactElement {
                       // (2026-08-19) reaches all three surfaces, not two; safe since the badge inline
                       // arm learned to keep a block svg on the line.
                       subtitleLead: (
-                        <InlineToken className="me-field" tone={badge.tone}>
+                        <InlineToken leads={true} tone={badge.tone}>
                           {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
                           {badge.label}
                         </InlineToken>

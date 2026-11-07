@@ -150,13 +150,13 @@ function BoundText({
   const text = resolveString(value, state);
   if (voice === "gloss" || voice === "label") {
     return (
-      <Text className="max-inline-(--reading-measure-prose)" prose={true} voice={voice}>
+      <Text cap="prose" prose={true} voice={voice}>
         {text}
       </Text>
     );
   }
   return (
-    <Text className="max-inline-(--reading-measure-prose)" prose={true}>
+    <Text cap="prose" prose={true}>
       {text}
     </Text>
   );
@@ -181,7 +181,7 @@ function DisplayLeaf({
   if (node.kind === "badge") {
     return (
       // Plugin text has no length bound the pill was drawn for: wrap inside the surface rather than clip.
-      <Badge className="whitespace-normal max-inline-full" tone={PLUGIN_BADGE_TONE[node.intent ?? "neutral"]} size="sm">
+      <Badge whitespace="normal" cap="fit" tone={PLUGIN_BADGE_TONE[node.intent ?? "neutral"]} size="sm">
         {resolveString(node.text, state)}
       </Badge>
     );
@@ -393,7 +393,8 @@ function FormLeaf({
     // renderer has already told the plugin's author why (`warnPrimaryRefused`).
     return (
       <Button
-        className="self-start wrap-anywhere max-inline-full"
+        className="self-start"
+        cap="fit"
         disabled={buttonDisabled(node, state)}
         variant={buttonVariant(node, primaryButton)}
         loading={submitting}
@@ -435,7 +436,7 @@ function ConfirmButtonLeaf({
       onConfirm={(): void => submit(node.actionId)}
       title={node.confirmTitle}
       trigger={
-        <Button className="self-start wrap-anywhere max-inline-full" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
+        <Button className="self-start" ref={confirmTrigger} tone="destructive" loading={submitting} size="sm" wrap={true}>
           {node.label}
         </Button>
       }

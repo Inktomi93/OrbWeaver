@@ -1,4 +1,4 @@
-import { SCRIM_BASE, tv } from "#lib";
+import { POPUP_DESCRIPTION, SCRIM_BASE, TITLE_STEP, tv } from "#lib";
 
 // The panel is a bottom sheet; its live swipe transform is wired to Base UI's --drawer-* vars
 // (transition suspended while data-swiping so the gesture tracks 1:1). The backdrops compose
@@ -26,7 +26,7 @@ export const drawerVariants = tv({
     swipeArea: "fixed inset-x-0 inset-be-0 z-(--z-overlay) touch-none block-row",
     indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
     indentBackground: `pointer-events-none opacity-0 ${SCRIM_BASE} transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100`,
-    title: "text-title leading-title font-semibold",
-    description: "mbs-field text-body leading-body text-muted-foreground",
+    title: TITLE_STEP,
+    description: POPUP_DESCRIPTION,
   },
 });

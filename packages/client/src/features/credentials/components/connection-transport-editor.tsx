@@ -70,7 +70,7 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
 
   return (
     <Stack gap="row">
-      <Row align="start" className="@max-cq-32:flex-col @max-cq-32:items-stretch" gap="field">
+      <Row align="start" gap="field" stackBelow="cq-32" stretchBelow="cq-32">
         <Field className="grow min-inline-0" description="One per line, as `Name: value`." label="Extra headers">
           <Textarea
             defaultValue={Object.entries(headers)
@@ -202,7 +202,7 @@ function PreviewResolution({
       {stated.map((key) => {
         const resolved = resolveDotPath(parsed.value, map[key] ?? "");
         return (
-          <Row align="center" className="flex-wrap" data-resolved-path={key} gap="field" key={key}>
+          <Row align="center" wrap={true} data-resolved-path={key} gap="field" key={key}>
             <Text voice="label">{RESPONSE_MAP_FIELDS[key]}</Text>
             <Text voice="gloss">→</Text>
             <Text voice="code">{resolved === undefined ? "nothing at that path" : JSON.stringify(resolved)}</Text>

@@ -9,6 +9,6 @@ export interface InlineTokenProps extends ComponentProps<"span">, VariantProps<t
  * InlineToken — a chip that sits inside a run of prose and must not perturb the line box it lives in. Compose a leading
  * `<Icon>` from `@orb/ui/icons` as the first child for a glyph. A status pill beside a control is a `Badge`.
  */
-export function InlineToken({ className, tone, ...props }: InlineTokenProps): ReactElement {
-  return <span data-slot="badge" {...props} {...variantProps(inlineTokenVariants, { tone }, className, tone ?? "neutral")} />;
+export function InlineToken({ className, tone, leads, ...props }: InlineTokenProps): ReactElement {
+  return <span data-slot="badge" {...props} {...variantProps(inlineTokenVariants, { tone, leads }, className, tone ?? "neutral")} />;
 }

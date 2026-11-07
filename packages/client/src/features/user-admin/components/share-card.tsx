@@ -231,7 +231,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Seati
           <ShareProse>{`Relay: ${RELAY_NAME[status.relay.relay]}. ${liveSentence(status.liveSocketCount)}`}</ShareProse>
         </Stack>
       )}
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         {view.phase === "stopped" ? (
           <Button ref={tryAgainRef} type="button" size="sm" loading={start.isPending} onClick={startSharing}>
             Try again
@@ -267,7 +267,7 @@ function PublicAddressPanel({ kind, addresses }: { readonly kind: CookieAuthMode
     <Stack gap="field" data-share-public={kind}>
       {addresses.map((address) => (
         <CopyButton key={address} text={address} what={`the address ${address}`}>
-          <Text voice="code" className="wrap-break-word min-inline-0" data-public-address={address}>
+          <Text voice="code" className="min-inline-0" wrap="word" data-public-address={address}>
             <BreakableUrl url={address} />
           </Text>
         </CopyButton>
@@ -297,7 +297,7 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
     <Stack gap="field">
       {changed ? <LinkChangedNotice onDismiss={onDismissChange} /> : null}
       <CopyButton ref={linkCopyRef} text={url} what={`the share link ${url}`}>
-        <Text voice="code" className="wrap-break-word min-inline-0" data-share-url={url}>
+        <Text voice="code" className="min-inline-0" wrap="word" data-share-url={url}>
           <BreakableUrl url={url} />
         </Text>
       </CopyButton>
@@ -350,7 +350,7 @@ function BreakableUrl({ url }: { readonly url: string }): ReactNode {
 function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): ReactElement {
   return (
     <Stack gap="tight" data-share-notice="link-changed">
-      <Row gap="field" align="center" className="flex-wrap">
+      <Row gap="field" align="center" wrap={true}>
         <Badge tone="warning" variant="solid">
           Link changed
         </Badge>

@@ -17,7 +17,7 @@
 import type { ImportPreview } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef } from "react";
-import { useTRPCClient } from "#data";
+import { RECOVERY_RETRY_BACKOFF_MS, useTRPCClient } from "#data";
 import type { WorkloadSubscriptionHandlers } from "../hooks/use-workload-subscription.ts";
 import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
 import type { BundleCounts } from "../lib/portability-model.ts";
@@ -35,13 +35,6 @@ export interface BundleWorkloadTrackerProps {
 /** The message a failed row shows when the server stored no reason. */
 const UNEXPLAINED_FAILURE = "The import failed. Check the Jobs pane for its status.";
 const CANCELLED_MESSAGE = "The import was cancelled.";
-
-/** The gap-heal re-read's retry schedule — 3 attempts over ~1s, matching the room registry's announce
- *  ladder: enough to outlive a flap that survives the reconnect by a beat, short enough that nothing waits
- *  on it. Hygiene numbers, not load-bearing. */
-const RECONCILE_RETRY_FIRST_MS = 250;
-const RECONCILE_RETRY_SECOND_MS = 750;
-const RECONCILE_RETRY_BACKOFF_MS = [RECONCILE_RETRY_FIRST_MS, RECONCILE_RETRY_SECOND_MS] as const;
 
 /** Tail the import workload; forward progress, and resolve on the terminal event. Renders nothing. */
 export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onFailed }: BundleWorkloadTrackerProps): null {
@@ -113,7 +106,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
 
   const reconcile = (attempt: number): void => {
     // the `.catch` below owns the rejection: it schedules the next
-    // `reconcile(attempt + 1)` from RECONCILE_RETRY_BACKOFF_MS, and the stream's `onSocketLive` re-arms `reconcile(0)`.
+    // `reconcile(attempt + 1)` from RECOVERY_RETRY_BACKOFF_MS, and the stream's `onSocketLive` re-arms `reconcile(0)`.
     // A failed read is never turned into a terminal claim about the run. Ends if a read failure needs its own UI state.
     void trpcClient.workloads.get
       .query({ id })
@@ -126,7 +119,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
         if (!aliveRef.current) {
           return; // …and a failed read after teardown schedules nothing either
         }
-        const backoff = RECONCILE_RETRY_BACKOFF_MS[attempt];
+        const backoff = RECOVERY_RETRY_BACKOFF_MS[attempt];
         if (backoff === undefined) {
           return; // out of attempts — the stream is still attached and remains the authority
         }

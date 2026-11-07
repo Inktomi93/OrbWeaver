@@ -304,7 +304,7 @@ function RegexPlacementGlyphs({ stages }: { readonly stages: readonly RegexPlace
   return (
     // `as="span"`: this renders INSIDE the subtitle's own span, so the wrapper must be phrasing content.
     // Each glyph's label is its accessible name; the editor's `Runs on` field names the stages in words.
-    <Text as="span" className="inline-flex items-center gap-tight align-middle">
+    <Text as="span" className="align-middle" flow="clusterTight">
       {stages.map((stage) => PLACEMENT_GLYPH_NODES[stage])}
     </Text>
   );

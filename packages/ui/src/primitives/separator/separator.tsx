@@ -7,6 +7,7 @@ import { SEPARATOR_TONE, separatorVariants } from "./variants.ts";
 export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
   className?: string;
   tone?: VariantProps<typeof separatorVariants>["tone"];
+  grow?: VariantProps<typeof separatorVariants>["grow"];
 }
 
 /**
@@ -16,12 +17,12 @@ export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
  * Spec: ui-package-design §5/§6.1 (Base UI is THE headless primitive, D42).
  */
 export function Separator(props: SeparatorProps): ReactElement {
-  const { className, orientation = "horizontal", tone, ...rest } = props;
+  const { className, orientation = "horizontal", tone, grow, ...rest } = props;
   return (
     <BaseSeparator
       data-slot="separator"
       data-tone={SEPARATOR_TONE[tone ?? "border"] ?? undefined}
-      className={separatorVariants({ orientation, tone, className })}
+      className={separatorVariants({ orientation, tone, grow, className })}
       orientation={orientation}
       {...rest}
     />

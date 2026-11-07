@@ -109,8 +109,10 @@ function refusal(hit: Hit, owner: string, tables: ComponentTables): string | nul
     return `arm "${arm}" is not a plain string prop value`;
   }
   const writing = axis.get(arm)?.tokens ?? [];
-  if (writing.length !== 1 || writing[0] !== hit.detail) {
-    return `arm "${arm}" writes ${writing.join(" ")}, which is not exactly ${hit.detail}`;
+  // An arm of several classes moves when the class string holds every one of them: the prop then writes exactly what the string did.
+  const worn = new Set([hit.detail, ...element.place.peers]);
+  if (!(writing.includes(hit.detail) && writing.every((written) => worn.has(written)))) {
+    return `arm "${arm}" writes ${writing.join(" ")}, which the class string does not hold whole`;
   }
   const sameClass = [...axis].filter(([, written]) => written.tokens.includes(hit.detail)).map(([name]) => name);
   return sameClass.length === 1
@@ -120,8 +122,9 @@ function refusal(hit: Hit, owner: string, tables: ComponentTables): string | nul
 
 /** Plan one owner: recipe rows with that exact owner. A `, conditional` owner is a different group and never mechanical. */
 export function planOwner(hits: readonly Hit[], tables: ComponentTables, owner: string): MigrationPlan {
-  const sites: PlannedSite[] = [];
+  const planned: { readonly arm: string; readonly site: PlannedSite }[] = [];
   const review: ReviewSite[] = [];
+  const refused = new Map<string, string>();
   const seen = new Set<string>();
   for (const hit of hits.filter((candidate) => candidate.category === "class-utility" && candidate.verdict === "recipe" && candidate.owner === owner)) {
     const key = `${hit.path}:${hit.line}:${hit.element?.place.column}:${hit.detail}`;
@@ -130,23 +133,38 @@ export function planOwner(hits: readonly Hit[], tables: ComponentTables, owner: 
     }
     seen.add(key);
     const reason = refusal(hit, owner, tables);
+    const arm = `${hit.path}:${hit.line}:${hit.element?.place.column}:${hit.match}`;
     if (reason !== null || hit.element === null || hit.match === null) {
       review.push({ path: hit.path, line: hit.line, token: hit.detail, reason: reason ?? "no arm names this class" });
+      refused.set(arm, hit.detail);
       continue;
     }
-    sites.push({
-      path: hit.path,
-      line: hit.line,
-      column: hit.element.place.column,
-      source: hit.element.source,
-      name: hit.element.name,
-      attribute: "className",
-      token: hit.detail,
-      prop: propOf(owner),
-      value: propValueOf(hit.match.slice(owner.length + 1)),
+    planned.push({
+      arm,
+      site: {
+        path: hit.path,
+        line: hit.line,
+        column: hit.element.place.column,
+        source: hit.element.source,
+        name: hit.element.name,
+        attribute: "className",
+        token: hit.detail,
+        prop: propOf(owner),
+        value: propValueOf(hit.match.slice(owner.length + 1)),
+      },
     });
   }
-  return { owner, sites, review };
+  // An arm moves whole or not at all: moving the classes that passed would write the classes that did not.
+  const split = planned.filter(({ arm }) => refused.has(arm));
+  review.push(
+    ...split.map(({ arm, site }) => ({
+      path: site.path,
+      line: site.line,
+      token: site.token,
+      reason: `the arm moves whole, and ${refused.get(arm)} of it stays for review`,
+    })),
+  );
+  return { owner, sites: planned.filter(({ arm }) => !refused.has(arm)).map(({ site }) => site), review };
 }
 
 /** The tsconfig that checks a file: the package that owns it. */

@@ -84,13 +84,13 @@ export function TalkativenessPopover({
           }
         }}
       >
-        <Stack gap="field" className="min-inline-(--width-popup-narrow)">
+        <Stack gap="field" minWidth="popupNarrow">
           <Row gap="field" align="center">
             {/* The popover spells what the chip's percent is a chance OF, live with the thumb. */}
             <Text as="span" voice="label">
               {talkativenessReadout(weight)}
             </Text>
-            <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1" focusTarget={true}>
+            <Stack ref={initialFocusRef} tabIndex={-1} grow={true} focusTarget={true}>
               <Slider
                 value={weight}
                 min={0}

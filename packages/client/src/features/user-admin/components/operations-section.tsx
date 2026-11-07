@@ -63,7 +63,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   return (
     <Section container={true} divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
-        <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" prose={true} cap="prose">
           Indexing and log level apply live — no restart needed.
         </Text>
         <SettingRowGroup>

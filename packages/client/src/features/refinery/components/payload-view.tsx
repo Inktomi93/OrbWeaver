@@ -107,11 +107,11 @@ function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
   return (
     <Stack aria-busy={true} data-testid={testId("refineryPayloadSkeleton")} gap="block">
       {banners.map((field) => (
-        <Skeleton className="block-(--size-control-lg) inline-full" key={field.key} />
+        <Skeleton width="full" height="controlLg" key={field.key} />
       ))}
-      {hero === null ? null : <Skeleton className="block-(--size-avatar-hero) inline-full" />}
+      {hero === null ? null : <Skeleton width="full" height="avatarHero" />}
       {rest.map((field) => (
-        <Skeleton className="block-(--size-control-md) inline-full" key={field.key} />
+        <Skeleton width="full" height="controlMd" key={field.key} />
       ))}
     </Stack>
   );
@@ -420,7 +420,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
             <Stack gap="tight">
               <Button
                 aria-expanded={open}
-                className="justify-start"
+                justify="start"
                 data-testid={testId("refineryAssayRow")}
                 variant="ghost"
                 onClick={(): void => setOpenIndex(open ? null : i)}

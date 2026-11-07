@@ -162,7 +162,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
             is a field below because it needs the target picker, Delete is the row's kebab, D212). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
         {back === undefined ? (
-          <Heading className="truncate min-inline-0" level={2}>
+          <Heading truncate={true} level={2}>
             {tag.name}
           </Heading>
         ) : (
@@ -224,17 +224,17 @@ function TagColorControls({ form }: { readonly form: AutosaveSession<TagEditorVa
   // which registers its id on the Field's labelable control, so the value IS the button's accessible
   // description. The readout is UNKEYED here (`tagColorValueLabel`); the label above carries the key.
   return (
-    <Row align="start" className="*:inline-auto" gap="block">
+    <Row align="start" gap="block">
       <form.AppField name="color">
         {(field): ReactElement => (
-          <Field description={<TagColorReadout value={field.state.value} />} label="Background" name="tag-color">
+          <Field description={<TagColorReadout value={field.state.value} />} label="Background" name="tag-color" width="content">
             <ColorField onValueChange={(value): void => field.handleChange(value === "" ? null : value)} value={field.state.value ?? ""} />
           </Field>
         )}
       </form.AppField>
       <form.AppField name="color2">
         {(field): ReactElement => (
-          <Field description={<TagColorReadout value={field.state.value} />} label="Text" name="tag-color2">
+          <Field description={<TagColorReadout value={field.state.value} />} label="Text" name="tag-color2" width="content">
             <ColorField onValueChange={(value): void => field.handleChange(value === "" ? null : value)} value={field.state.value ?? ""} />
           </Field>
         )}

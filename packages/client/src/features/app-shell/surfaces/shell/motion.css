@@ -129,7 +129,7 @@
    * column's edge control; the centred rows take the same capped half, with `100cqi` as the thread's width. */
   .shell-main [data-slot="chat-room-flank-row"] {
     --flank-flip-dir: 0;
-    --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--size-control-lg));
+    --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--size-control-clearance));
     /* With A the thread after the toggle and B before it: ((A - min(A, W)) - (B - min(B, W))) / 2, A - B = dir * delta. */
     --flank-centre-flip-from: calc(
       (

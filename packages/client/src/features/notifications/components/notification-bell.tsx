@@ -19,7 +19,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Bell, Icon } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
-import { Section, Stack } from "@orb/ui/layout";
+import { Corner, Section, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -238,7 +238,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   // to go (a notification is not a destination). The composed `Row`/`Stack`/`Text` grammar is the fit.
   // The popup's text-scaled width floor must not widen the inline phone sheet past its containing drawer.
   const inbox = (
-    <Stack gap="block" className={isSheet ? "min-inline-0" : "min-inline-(--width-popup-floor)"}>
+    <Stack gap="block" minWidth={isSheet ? undefined : "popupFloor"} className={isSheet ? "min-inline-0" : undefined}>
       {items.length === 0 ? (
         <NoInboxRows loading={loading} readFailed={readFailed} onRetry={retry} onDone={isSheet ? (): void => closeModal() : (): void => setOpen(false)} />
       ) : (
@@ -321,7 +321,11 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
                       it is in the button's own accessible name (`bellLabel`) and in the popover's rows. So
                       the mark says only "something is here", and the button is its positioning context
                       (`relative`) — one `tight` step off its own top/end corner, clear of the glyph. */}
-                  {showIndicator ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} className="absolute inset-e-tight inset-bs-tight" /> : null}
+                  {showIndicator ? (
+                    <Corner inset="tight">
+                      <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+                    </Corner>
+                  ) : null}
                 </Button>
               }
             />

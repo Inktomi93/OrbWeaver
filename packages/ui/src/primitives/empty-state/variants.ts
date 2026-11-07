@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { PUSH, tv } from "#lib";
 
 // The empty-state skin — a centered teaching stack on the section rhythm (ui-package-design §6.1).
 // The mock design's "Weave" moment: (decoration | icon) → title → description → action, copy owned by the
@@ -29,6 +29,8 @@ export const emptyStateVariants = tv({
     action: "pbs-row @max-cq-24:pbs-field",
   },
   variants: {
+    // Centres in a column only while it fits: `justify-center` on a column it overflows pushes its top out of reach.
+    push: { blockCentre: { root: PUSH.blockCentre } },
     titleStep: {
       default: {},
       focal: { title: "font-semibold" },

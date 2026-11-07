@@ -85,7 +85,8 @@ const DISTILL_PAYLOAD = z.object({
   genre: z.enum(GENRES),
   subGenres: z.array(z.string()).max(MAX_SUBGENRES),
   tone: z.enum(TONES),
-  setting: z.string(),
+  // Free text, so a blank reply is trimmed to the empty string the facet census excludes.
+  setting: z.string().trim(),
   tags: z.array(z.string()).min(MIN_TAGS).max(MAX_TAGS),
   elevatorPitch: z.string(),
   overview: z.string(),

@@ -1,0 +1,8 @@
+[
+  {
+    "path": "d.tsx",
+    "line": 3,
+    "token": "justify-end",
+    "reason": "join: the join would be left holding object, which the rewrite does not unwrap"
+  }
+]

@@ -50,8 +50,8 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
   if (detail === undefined) {
     return (
       <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
-        <Skeleton className="shrink-0 block-(--size-avatar-lg) inline-(--size-avatar-lg)" data-slot="character-context-band-pending" variant="portrait" />
-        <Skeleton className="block-(--size-control-sm) inline-full max-inline-cq-24" />
+        <Skeleton className="shrink-0" width="avatarLg" height="avatarLg" data-slot="character-context-band-pending" variant="portrait" />
+        <Skeleton cap="paneSm" width="full" height="control" />
       </Row>
     );
   }
@@ -62,13 +62,13 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
       <Avatar size="lg" alt={detail.name} hueSeed={detail.id} className="shrink-0" {...(detail.avatarHash === null ? {} : { src: blobUrl(detail.avatarHash) })}>
         {initialsFor(detail.name)}
       </Avatar>
-      <Stack gap="field" className="flex-1 min-inline-0">
+      <Stack gap="field" className="min-inline-0" grow={true}>
         {/* A real heading — the pane's own h2, like the LIST band's — so the character is a landmark a rotor
             can jump to; the title step + semibold are the level's own. */}
-        <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance">
+        <Heading level={2} data-slot="character-context-band-name" className="text-balance" clamp={2}>
           {detail.name}
         </Heading>
-        <Text voice="datumMono" className="truncate" data-slot="character-context-band-handle">
+        <Text voice="datumMono" truncate={true} data-slot="character-context-band-handle">
           @{detail.handle}
         </Text>
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS. A narrow pane would wrap the chips 2+1 and leave a

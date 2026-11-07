@@ -69,6 +69,15 @@ test.for([
   ["the touchFloor prop", 'touchFloor="block"'],
   ["a coarse min-block floor class", 'className="pointer-coarse:min-block-(--size-touch-target)"'],
   ["a control-height min-block floor class", 'className="min-block-(--size-control-sm)"'],
+  ["the minHeight prop", 'minHeight="control"'],
 ] as const)("the floorless rule accepts rows floored by %s", async ([, attributes]) => {
   expect(await findings(FLOORLESS, stack(attributes), FEATURE)).toEqual([]);
+});
+
+test.for([
+  ["class", 'className="flex-wrap"'],
+  ["prop", "wrap={true}"],
+] as const)("the floorless rule reports a floorless control in a Row that wraps by its %s", async ([, attributes]) => {
+  const source = `export const T = (<Row ${attributes}><InlineAction step="label">a</InlineAction><InlineAction step="label">b</InlineAction></Row>);\n`;
+  expect(await findings(FLOORLESS, source, FEATURE)).toHaveLength(2);
 });

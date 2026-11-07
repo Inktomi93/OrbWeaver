@@ -77,10 +77,10 @@ function RosterRow(props: {
   const counts = rosterCountsSuffix(roster);
   return (
     <Stack container={true} divider="between" gap="tight" padding="block" data-slot="roster-row">
-      <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
-        <Stack gap="tight" className="flex-1 min-inline-0">
+      <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
+        <Stack gap="tight" className="min-inline-0" grow={true}>
           <Row align="center" gap="field">
-            <Text voice="label" className="flex-1 truncate min-inline-0">
+            <Text voice="label" truncate="fill">
               {roster.name}
             </Text>
             {roster.rules.length > 0 ? (
@@ -96,11 +96,11 @@ function RosterRow(props: {
             {roster.hasGroupConfig ? <Badge className="shrink-0">Group behavior</Badge> : null}
             {roster.game === null ? null : <Badge className="shrink-0">Game</Badge>}
           </Row>
-          <Text voice="gloss" className="truncate">
+          <Text voice="gloss" truncate={true}>
             {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>
-        <Row align="center" gap="tight" justify="end" className="shrink-0 flex-wrap">
+        <Row align="center" gap="tight" justify="end" className="shrink-0" wrap={true}>
           <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
             <Icon icon={MessagesSquare} size="sm" />
             Start
@@ -198,14 +198,15 @@ function SaveCurrentRoster(props: {
     <Stack gap="tight">
       {/* Its own container: below `@cq-28` the name and the Save button stack, so the input keeps its width. */}
       <Stack container={true}>
-        <Row align="center" gap="field" className="@max-cq-28:flex-col @max-cq-28:items-stretch">
+        <Row align="center" gap="field" stackBelow="cq-28" stretchBelow="cq-28">
           <Input
             aria-label="New roster name"
             placeholder="Name this roster…"
             value={name}
             onChange={(e): void => setName(e.target.value)}
             // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
-            className="flex-1 min-inline-0 @max-cq-28:flex-none"
+            className="min-inline-0"
+            grow="wide"
           />
           <Button
             aria-describedby={INCLUDE_LINE_ID}

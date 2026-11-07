@@ -87,6 +87,8 @@ export interface WebWeaveProps {
    *  investigate (weave-lab §2/§5). Takes pointer events; the art stays `aria-hidden` either way —
    *  it announces nothing and has no keyboard path, so there is nothing to expose. @defaultValue false */
   interactive?: boolean;
+  /** Fill the viewport's height instead of the host's. @defaultValue false */
+  viewport?: boolean;
   className?: string;
 }
 
@@ -146,9 +148,10 @@ export function WebWeave({
   dim = 1,
   onPhaseChange,
   interactive = false,
+  viewport = false,
   className,
 }: WebWeaveProps): ReactElement {
-  const slots = webWeaveVariants({ interactive });
+  const slots = webWeaveVariants({ interactive, viewport });
   const reduced = usePrefersReducedMotion();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

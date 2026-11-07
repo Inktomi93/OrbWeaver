@@ -402,7 +402,7 @@ function EditorTier({
   return (
     <Collapsible data-slot="connection-editor-tier" data-tier={title} defaultOpen={defaultOpen}>
       <CollapsibleTrigger chevron={false} className="inline-full">
-        <Row align="center" className="flex-wrap inline-full" gap="field">
+        <Row align="center" wrap={true} width="full" gap="field">
           <Text voice="label">{title}</Text>
           {badge === undefined ? null : (
             <Badge tone="info" size="sm">
@@ -410,7 +410,7 @@ function EditorTier({
             </Badge>
           )}
           {kicker === undefined ? null : (
-            <Text className="truncate min-inline-0" voice="gloss">
+            <Text truncate={true} voice="gloss">
               {kicker}
             </Text>
           )}

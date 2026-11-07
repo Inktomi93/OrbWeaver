@@ -64,6 +64,7 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
+import { RECOVERY_RETRY_BACKOFF_MS } from "./recovery-retry.ts";
 import type { RoomRegistry, RoomSubscriber, RoomTransport, SinceSeqSource } from "./room-registry-contract.ts";
 
 export type { RoomRegistry, RoomSubscriber, SinceSeqSource } from "./room-registry-contract.ts";
@@ -82,13 +83,6 @@ interface RoomEntry {
   /** The pending detach of a room nobody wants right now — cancelled if it is re-joined inside the grace. */
   retire: ReturnType<typeof setTimeout> | undefined;
 }
-
-/** The announce retry schedule — 3 attempts over ~1s, which covers the realistic failure (a flap that
- *  outlives the reconnect by a beat, a server restart between the two requests) without holding a room's
- *  first frames for a human-noticeable time. Hygiene numbers, not load-bearing. */
-const ANNOUNCE_RETRY_FIRST_MS = 250;
-const ANNOUNCE_RETRY_SECOND_MS = 750;
-const ANNOUNCE_RETRY_BACKOFF_MS = [ANNOUNCE_RETRY_FIRST_MS, ANNOUNCE_RETRY_SECOND_MS] as const;
 
 /** What a room whose announce never landed says. The room is genuinely not receiving — the honest thing is
  *  to say so rather than let a live socket look like a quiet chat.
@@ -177,7 +171,7 @@ function createRoomRegistry(): RoomRegistry {
   }
 
   function retryAnnounce(entry: RoomEntry, attempt: number): void {
-    const backoff = ANNOUNCE_RETRY_BACKOFF_MS[attempt];
+    const backoff = RECOVERY_RETRY_BACKOFF_MS[attempt];
     if (backoff === undefined) {
       reportAnnounceFailure(entry);
       return;

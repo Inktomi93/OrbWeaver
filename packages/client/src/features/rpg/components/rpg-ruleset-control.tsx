@@ -55,7 +55,7 @@ export function RpgRulesetControl({ chatId, config }: { readonly chatId: ChatId;
             </Toggle>
           ))}
         </ToggleGroup>
-        <Text voice="gloss" className="flex-1 min-inline-0">
+        <Text voice="gloss" className="min-inline-0" grow={true}>
           {RPG_RULESET_CONSEQUENCE[current]}
         </Text>
       </Row>

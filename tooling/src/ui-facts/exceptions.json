@@ -1,3 +1,9 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "kind": "raw-button",
+      "at": "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
+      "ruling": "docs/law/client-architecture-lockdown.md §4.4: the shell scrim is shell-region paint, a full-bleed dimmer the stylesheet positions and fades; it is a pointer-only dismiss surface (the keyboard closes a sheet with Escape), so a Button's focus ring, hit area and label ink would be wrong on it"
+    }
+  ]
 }

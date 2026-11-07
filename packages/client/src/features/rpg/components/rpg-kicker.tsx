@@ -34,7 +34,7 @@ export function Kicker({ children, crown = false, trailing }: RpgKickerProps): R
         {children}
       </Heading>
       {trailing}
-      <Separator className="flex-1" />
+      <Separator grow={true} />
     </Row>
   );
 }

@@ -178,7 +178,7 @@ export function ImportLibrarySection(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text ink="muted" className="max-inline-(--reading-measure-prose)">
+      <Text ink="muted" cap="prose">
         Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books — everything) or a single
         character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>

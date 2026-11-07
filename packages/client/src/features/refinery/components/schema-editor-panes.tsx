@@ -23,7 +23,6 @@ import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 /** The plan line is a sentence to read, so it takes the prose measure, not the dialog's width. */
-const PLAN_LINE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 /** The raw door's PREFLIGHT (the third tier — see `@orb/contracts/refinery/schema-advisory`'s header).
  *  Tier 1 is `RefusalNote` (the belt's verbatim refusal, unchanged); tier 2 is this, and it NEVER
@@ -45,7 +44,7 @@ export function PreflightNote({ schema, stage }: { schema: Record<string, unknow
       <Stack role="status">
         {plan === null ? null : (
           <Text
-            className={PLAN_LINE_MEASURE}
+            cap="prose"
             data-plan={plan.outcome}
             data-testid={testId("refinerySchemaPlan")}
             prose={true}
@@ -56,7 +55,7 @@ export function PreflightNote({ schema, stage }: { schema: Record<string, unknow
           </Text>
         )}
         {read.state === "failed" ? (
-          <Text className={PLAN_LINE_MEASURE} data-plan="unchecked" data-testid={testId("refinerySchemaPlan")} prose={true} voice="gloss">
+          <Text cap="prose" data-plan="unchecked" data-testid={testId("refinerySchemaPlan")} prose={true} voice="gloss">
             {REFINERY_SCHEMA_PLAN_UNCHECKED_LINE}
           </Text>
         ) : null}

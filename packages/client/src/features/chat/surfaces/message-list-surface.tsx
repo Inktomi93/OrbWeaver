@@ -112,7 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full inline-full min-block-0" focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" fill={true} focusTarget={true}>
       <QueryBoundary
         resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
@@ -410,7 +410,7 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative block-full min-block-0">
+      <Stack className="relative min-block-0" fill={true}>
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
@@ -423,7 +423,7 @@ function ChatThread({
   }
   return (
     <ArtViewerProvider>
-      <Stack className="relative block-full min-block-0">
+      <Stack className="relative min-block-0" fill={true}>
         {sourceStatus}
         <PrintCoverage edges={edges} />
         <MessageList
@@ -467,7 +467,7 @@ function ChatThread({
 /** Paper has no Earlier messages button, so a transcript that is only part of the room says so on the page. */
 function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactElement | null {
   return edges.earlier || edges.later ? (
-    <Text className="hidden print:block" voice="gloss">
+    <Text hiddenAt="unlessPrint" voice="gloss">
       {CHAT_PRINT_COVERAGE}
     </Text>
   ) : null;
@@ -476,7 +476,7 @@ function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactEle
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
   return (
-    <Stack align="center" justify="center" padding="section" className="block-full">
+    <Stack align="center" justify="center" padding="section" fill={true}>
       {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
           the one line standing in for a whole transcript is the last thing that should recede. */}
       <Text>No messages yet.</Text>

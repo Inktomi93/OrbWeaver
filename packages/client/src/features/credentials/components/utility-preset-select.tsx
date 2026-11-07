@@ -16,8 +16,6 @@ import { useSetUtilityPreset } from "../hooks/use-connections-mutations.ts";
 const TASK_DEFAULTS_VALUE = "task-defaults";
 const SAME_AS_CHAT_VALUE = ROLE_PRESET_CHOICE_KINDS.sameAsChat;
 
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
-
 function selectedValueOf(choice: RolePresetChoice | null, presetIds: readonly PresetId[]): string {
   if (choice === null) {
     return TASK_DEFAULTS_VALUE;
@@ -60,10 +58,10 @@ export function UtilityPresetSelect(): ReactElement {
   );
 
   return (
-    <Row gap="field" align="start" justify="between" className="flex-wrap">
+    <Row gap="field" align="start" justify="between" wrap={true}>
       <Stack gap="tight">
         <Text voice="label">Utility preset</Text>
-        <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
+        <Text prose={true} voice="gloss" cap="prose">
           The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts.
         </Text>
       </Stack>

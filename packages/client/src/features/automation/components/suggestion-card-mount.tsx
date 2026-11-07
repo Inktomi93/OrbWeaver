@@ -97,7 +97,7 @@ function SteerDetail({ text }: { readonly text: string }): ReactNode {
       <CollapsibleTrigger>Show the full steer</CollapsibleTrigger>
       <CollapsiblePanel>
         <ScrollArea viewportClassName="max-block-(--height-scroll-md)" wrapContent={true}>
-          <Text as="div" className="whitespace-pre-wrap" data-slot="suggestion-steer">
+          <Text as="div" whitespace="preWrap" data-slot="suggestion-steer">
             {text}
           </Text>
         </ScrollArea>

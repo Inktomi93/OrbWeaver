@@ -37,15 +37,12 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, useDebouncedValue } from "#lib";
+import { DIALOG_VERBS, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
 const PICKER_SKELETON_ROWS = 3;
-
-/** Keystroke→request damper — the library pane's value, so a picker and the pane behave alike. */
-const SEARCH_DEBOUNCE_MS = 250;
 
 export interface AddChatDocumentDialogProps {
   readonly chatId: ChatId;

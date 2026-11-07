@@ -119,7 +119,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
           Content-Security-Policy — and no per-character value can widen it. While the deployment blocks,
           the control is LOCKED rather than offering an "Allow" that nothing honours. */}
       <Section heading="Trust">
-        <Row gap="field" className="flex-wrap">
+        <Row gap="field" wrap={true}>
           {/* No control-has-associated-label suppression here (unlike its sibling): the conditional
               aria-describedby SPREAD makes the rule bail on this element, so a directive would be an
               unused-disable error. The `label` prop still renders the visible, associated label. */}

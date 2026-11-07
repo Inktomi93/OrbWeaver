@@ -1,9 +1,9 @@
-import { tv } from "#lib";
+import { CAP, CAPTION, FIELD_LABEL, FIELD_STACK, GROW, INLINE_FIELD_ROW, tv } from "#lib";
 
 export const fieldVariants = tv({
   slots: {
-    root: "flex flex-col gap-field inline-full",
-    label: "text-label leading-label font-medium text-foreground data-disabled:opacity-disabled",
+    root: `${FIELD_STACK} inline-full`,
+    label: `${FIELD_LABEL} data-disabled:opacity-disabled`,
     // inline-flex so the hint trigger sits on the label's baseline instead of dropping to its own line.
     // FINE-POINTER-ONLY WIDENING (#1286): HintTrigger renders `size="inline"` here — a 12px icon box whose
     // layout-neutral touch-target pseudo (button/variants.ts's `inline` arm) is centered on the box and
@@ -15,7 +15,7 @@ export const fieldVariants = tv({
     // already correct there — this widening is pointer-fine only. `gap-row` (8px) is the exact next step
     // on the spacing scale and closes the reach to flush (8 − 8 = 0px overlap) without touching the
     // `field` intent token, which stays 6px everywhere else it is used (D3).
-    labelRow: "inline-flex items-center gap-field pointer-fine:gap-row",
+    labelRow: `${INLINE_FIELD_ROW} pointer-fine:gap-row`,
     // THE MEASURE RIDES THE BASE SLOT (#1653), not one compound arm. It was spelled ONLY inside the
     // `align:"track" + orientation:"horizontal"` compound below, so every DEFAULT `<Field description=…>`
     // in the app rendered `max-width: none`: measured in the CT browser with real Geist, the tag editor's
@@ -30,12 +30,16 @@ export const fieldVariants = tv({
     // leave every unvisited Field uncapped. A `max-width` can only ever NARROW, and it narrows nothing that
     // is already short — the slot's non-prose occupants (a hex readout, a numeric floor, a match count) sit
     // far inside 423px and are unaffected.
-    description: "text-label leading-label text-muted-foreground max-inline-(--reading-measure-prose)",
+    description: `${CAPTION} max-inline-(--reading-measure-prose)`,
     error: "text-label leading-label text-destructive",
-    labelBlock: "flex flex-col gap-field min-inline-0",
+    labelBlock: `${FIELD_STACK} min-inline-0`,
     controlCol: "flex shrink-0 flex-col items-end gap-field",
   },
   variants: {
+    grow: { true: { root: GROW.true } },
+    cap: { paneSm: { root: CAP.paneSm } },
+    // `content` sizes the field to its control, for fields that share a row at their own widths.
+    width: { full: {}, content: { root: "inline-auto" } },
     // Label + description left, control docked right in a fixed control column so a select can't stretch to 100%.
     orientation: {
       vertical: {},

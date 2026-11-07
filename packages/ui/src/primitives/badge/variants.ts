@@ -1,4 +1,4 @@
-import { TONE_ARMS, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
+import { CAP, HIDDEN_AT, INLINE_FIELD_ROW, TONE_ARMS, TONE_OUTLINE, TONE_SOFT, TOUCH_FLOOR_AT_COARSE, tv } from "#lib";
 import type { Tone } from "#tokens";
 
 // The badge/chip/pill skin — status pills (ui-package-design §6.1). Every fill style paints the D336 roles of the tone
@@ -7,12 +7,12 @@ import type { Tone } from "#tokens";
 // default status-chip look) and `outline` (no fill: the edge and the tone's text ink), for chips that must read
 // quieter than the surface's primary CTA even when there are a dozen of them (UI-Density-Law §3.2 CD3).
 export const badgeVariants = tv({
-  base: "inline-flex items-center gap-field rounded-full font-medium whitespace-nowrap select-none",
+  base: `${INLINE_FIELD_ROW} rounded-full font-medium whitespace-nowrap select-none`,
   variants: {
     variant: {
       solid: "bg-tone-solid text-tone-foreground",
-      soft: "border border-tone-edge bg-tone-tint text-tone-text-on-tint",
-      outline: "border border-tone-edge bg-transparent text-tone-text",
+      soft: TONE_SOFT,
+      outline: TONE_OUTLINE,
     },
     tone: TONE_ARMS,
     size: {
@@ -24,6 +24,10 @@ export const badgeVariants = tv({
     // its own block size at a coarse pointer, so the hit area fits inside the chip.
     touchFloor: { block: TOUCH_FLOOR_AT_COARSE.block },
     // Machine text on the chip (a macro token, a key): the mono face.
+    cap: CAP,
+    hiddenAt: HIDDEN_AT,
+    // A badge that holds a sentence wraps instead of pushing its row wider.
+    whitespace: { normal: "whitespace-normal" },
     face: { text: "", code: "font-mono" },
     // A chip inside a caps kicker reads as a sentence: it stands down the inherited transform and tracking together.
     sentenceCase: { true: "tracking-normal normal-case", false: "" },

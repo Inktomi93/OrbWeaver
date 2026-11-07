@@ -33,6 +33,7 @@ import { setActiveSection, useSectionListMode } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
+import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -66,13 +67,13 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
     }
   }, [returnFocusTo]);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="block-full min-block-0" focusTarget={true} data-testid={testId("analyticsOverviewSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" fill={true} focusTarget={true} data-testid={testId("analyticsOverviewSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller. */}
-      <Stack className="relative overflow-y-auto overscroll-contain py-section block-full min-block-0" data-slot="analytics-content">
+      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="analytics-content">
         <QueryBoundary
           resetKeys={[]}
           fallback={<SkeletonRows count={3} shape="datum" />}
@@ -108,7 +109,8 @@ function OverviewBody(): ReactElement {
     return <EmptyStateNoData />;
   }
 
-  const rhythm = rhythmOf(localTimeline(timeline, timeLib.calendarPosition).days);
+  const local = localTimeline(timeline, timeLib.calendarPosition);
+  const rhythm = rhythmOf(local.days);
   const momentum = localMomentum(momentumBuckets, timeLib.calendarPosition);
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
@@ -125,7 +127,7 @@ function OverviewBody(): ReactElement {
       <Text voice="gloss" role="note">
         Whole library · Aggregate only
       </Text>
-      <Text voice="gloss" role="note" prose={true} className="max-inline-(--reading-measure-prose)">
+      <Text voice="gloss" role="note" prose={true} cap="prose">
         {IMPORTED_ACTIVITY_NOTE}
       </Text>
       <AccountingCoverageNotice />
@@ -160,7 +162,7 @@ function OverviewBody(): ReactElement {
           {/* THE DEFINITIONS, STATED. "Words" is your turns PLUS the replies — one definition, here and on
               the drill. The swipe words sit beside "Swipes" and are NOT in it, so the pair does not read as a
               contradiction. */}
-          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          <Text voice="gloss" prose={true} cap="prose">
             Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included. Swiped
             replies is the share of replies you swiped at least once; swipes to kept reply is how far past the first take your kept reply sat, on average, among
             those. {UNRECORDED_NOTE}
@@ -171,7 +173,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle={topCharacterSubtitle}
               actions={
-                <Text voice="datumMono" className="whitespace-nowrap">
+                <Text voice="datumMono" whitespace="nowrap">
                   {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }
@@ -180,6 +182,11 @@ function OverviewBody(): ReactElement {
         </Stack>
       </Section>
 
+      {local.approx ? (
+        <Text voice="gloss" role="note">
+          {APPROX_DATES_NOTE}
+        </Text>
+      ) : null}
       <RhythmFigures rhythm={rhythm} />
 
       <Section heading="Tokens and cost">
@@ -202,7 +209,7 @@ function OverviewBody(): ReactElement {
                 user's thinking models produce has somewhere to land. Same duration voice as "Time generating" above. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(overview.reasoningMs)} />
           </Grid>
-          <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+          <Text voice="gloss" prose={true} cap="prose">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
             produced a thinking pass. {UNRECORDED_NOTE}
           </Text>
@@ -220,7 +227,7 @@ function OverviewBody(): ReactElement {
                     value={formatThroughput(overview.throughputTps, throughputProvenance(overview.totalGenTimeMs, overview.tokensOutProvenance))}
                   />
                 </Grid>
-                <Text voice="gloss" prose={true} className="max-inline-(--reading-measure-prose)">
+                <Text voice="gloss" prose={true} cap="prose">
                   Speed divides the tokens written by the time spent generating.
                 </Text>
               </Stack>
@@ -240,7 +247,7 @@ function OverviewBody(): ReactElement {
             <Text voice="gloss">
               {timeLib.formatMonthYear(momentum.prev.start)} → {timeLib.formatMonthYear(momentum.latest.start)}
             </Text>
-            <Row gap="section" className="flex-wrap items-start">
+            <Row gap="section" wrap={true} align="start">
               <MomentumColumn label="Rising" rows={rising} sign={1} valueMax={momentumScale} />
               <MomentumColumn label="Falling" rows={falling} sign={-1} valueMax={momentumScale} />
             </Row>
@@ -288,14 +295,14 @@ function MomentumColumn({
 }): ReactElement {
   if (rows.length === 0) {
     return (
-      <Stack gap="field" className="flex-1 min-inline-(--width-popup-narrow)">
+      <Stack gap="field" minWidth="popupNarrow" grow={true}>
         <Text voice="kicker">{label}</Text>
         <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }
   return (
-    <Stack className="flex-1 min-inline-(--width-popup-narrow)">
+    <Stack minWidth="popupNarrow" grow={true}>
       <BarList
         intent={sign > 0 ? "positive" : "negative"}
         items={rows}
@@ -320,7 +327,7 @@ function EmptyStateNoData(): ReactElement {
           </Button>
         }
       />
-      <Text voice="gloss" role="note" prose={true} className="max-inline-(--reading-measure-prose)">
+      <Text voice="gloss" role="note" prose={true} cap="prose">
         {IMPORTED_ACTIVITY_NOTE}
       </Text>
       <RecomputeButton />

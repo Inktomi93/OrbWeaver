@@ -99,7 +99,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
       <Section kicker="Details">
         <ProvenanceStrip assetId={subject.assetId} />
       </Section>
-      <Row className="flex-wrap" gap="field" justify="end">
+      <Row wrap={true} gap="field" justify="end">
         <Button variant="ghost" onClick={(): void => openImageEdit(subject)} type="button">
           <Icon icon={Pencil} size="sm" />
           Edit image

@@ -62,19 +62,19 @@ const PREVIEW_DENSITY = "comfortable";
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
-    <Stack className="justify-between p-tight block-full inline-full" data-slot="theme-mini-room" gap="tight" ground="background">
+    <Stack width="full" fill={true} padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
       <Card className="min-inline-0" padding="none" shape="row">
-        <Row align="center" className="p-tight min-inline-0" gap="tight">
-          <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="foreground" shape="pill" />
+        <Row align="center" className="min-inline-0" padding="tight" gap="tight">
+          <Swatch className="min-inline-0" grow={true} size="line" fill="foreground" shape="pill" />
         </Row>
       </Card>
       {/* The quiet ink + the ACCENT — the one picked token no base derives (`accent-is-inherited-not-derived`). */}
-      <Row align="center" className="gap-tight min-inline-0">
-        <Swatch className="flex-1 block-(--size-preview-line) min-inline-0" fill="muted" shape="pill" />
-        <Swatch className="shrink-0 block-(--size-dot-lg) inline-(--size-dot-lg)" fill="primary" shape="pill" />
+      <Row align="center" className="min-inline-0" gap="tight">
+        <Swatch className="min-inline-0" grow={true} size="line" fill="muted" shape="pill" />
+        <Swatch className="shrink-0" fill="primary" shape="pill" size="dotLg" />
       </Row>
     </Stack>
   );
@@ -91,11 +91,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
     // A seed paints from its generated block ONLY — the `[data-theme]` block for a named palette, and the
     // base-palette block for Hearth, which has no theme block to name.
     return (
-      <Stack
-        className="block-full inline-full"
-        data-slot="theme-mini-surface"
-        {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}
-      >
+      <Stack width="full" fill={true} data-slot="theme-mini-surface" {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}>
         <MiniRoom />
       </Stack>
     );
@@ -108,7 +104,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
       className="flex flex-col block-full inline-full"
       tokens={resolved.tokens}
     >
-      <Stack className="block-full inline-full" data-slot="theme-mini-surface">
+      <Stack width="full" fill={true} data-slot="theme-mini-surface">
         <MiniRoom />
       </Stack>
     </ThemeScope>

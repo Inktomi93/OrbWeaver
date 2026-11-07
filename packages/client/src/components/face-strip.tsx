@@ -68,8 +68,6 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { FoldState } from "./face-strip-fold.ts";
 import { foldFaces, sameFold, tileName } from "./face-strip-fold.ts";
 
-const CAPTIONED_FACE_WIDTH = "inline-(--size-avatar-hero)";
-
 /** One face in the strip; a curation that feeds `FaceStrip` types its output with this. `Id` is the caller's own id
  *  type, so a branded id comes back from `onSelect` still branded. */
 export interface FaceStripItem<Id extends string = string> {
@@ -229,7 +227,7 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
       className={
         cn(
           "shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)",
-          caption ? CAPTIONED_FACE_WIDTH : undefined,
+          caption ? "inline-(--size-avatar-hero)" : undefined,
           squeezed && "max-inline-(--size-control-md)",
         ) ?? ""
       }
@@ -254,11 +252,7 @@ function FaceButton<Id extends string>({ ref, item, selected, verb, caption, squ
           // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `label` VOICE
           // keeps this functional text at the readable label step under the portrait datum. The
           // SELECTED face's primary tint is a state, so it rides the tone beside the voice; at rest it takes the muted ink.
-          <Text
-            className={cn(squeezed ? "max-inline-full" : "max-inline-(--size-avatar-hero)", "truncate text-center")}
-            {...(selected ? { tone: "primary" } : { ink: "muted" })}
-            voice="label"
-          >
+          <Text cap={squeezed ? "fit" : "avatarHero"} textAlign="center" truncate={true} {...(selected ? { tone: "primary" } : { ink: "muted" })} voice="label">
             {item.name}
           </Text>
         ) : null}
@@ -314,13 +308,8 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
       {PLACEHOLDER_SLOTS.map((slot) => (
         // The settled face's own box: `FaceButton`'s per-pointer MIN box (a `PictureButton` is `p-0`, so the
         // button adds nothing else) around the avatar token and its caption line.
-        <Stack
-          align="center"
-          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", caption ? CAPTIONED_FACE_WIDTH : undefined)}
-          gap="tight"
-          key={slot}
-        >
-          <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
+        <Stack align="center" className="shrink-0" minWidth="controlMd" minHeight="controlMd" gap="tight" key={slot} width={caption ? "avatarHero" : undefined}>
+          <Skeleton variant="circle" width="avatarMd" height="avatarMd" />
           {caption ? (
             <Text aria-hidden={true} voice="label">
               {CAPTION_PLACEHOLDER}
@@ -355,7 +344,6 @@ export function FaceStrip<Id extends string = string>({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const folding = overflow !== undefined;
-  const captionWidth = caption ? CAPTIONED_FACE_WIDTH : undefined;
   const moreCaption = caption ? (
     <Text ink="muted" voice="label">
       More
@@ -442,7 +430,8 @@ export function FaceStrip<Id extends string = string>({
                 // class learned hyphens); the captioned strip keeps a uniform cell pitch.
                 <Button
                   aria-label={tileName(caption, overflow.label, hiddenCount)}
-                  className={cn("shrink-0", captionWidth) ?? ""}
+                  className="shrink-0"
+                  width={caption ? "avatarHero" : undefined}
                   data-face-overflow=""
                   ref={overflowRef}
                   variant="ghost"
@@ -455,7 +444,7 @@ export function FaceStrip<Id extends string = string>({
                         avatar radius was the portraits' exact silhouette, so a folded strip scanned as one more
                         character named "More". The header's rhythm ruling is about the BOX, not the DRESS — a
                         dashed ring on no fill reads as a slot rather than a person at the identical pitch. */}
-                    <Swatch shape="pill" edge="dashed" className="flex items-center justify-center block-(--size-avatar-md) inline-(--size-avatar-md)">
+                    <Swatch shape="pill" edge="dashed" size="avatarMd" className="flex items-center justify-center">
                       <Text as="span" ink="muted" voice="label">{`+${hiddenCount}`}</Text>
                     </Swatch>
                     {moreCaption}

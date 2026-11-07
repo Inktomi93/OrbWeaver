@@ -2,6 +2,7 @@ import type { FieldRootProps, FieldValidityProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
 import { createContext, use } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { HintTrigger } from "#primitives/hint-trigger";
 // `<Field>` is this context's ONE provider — the consumer half (`useFieldLabelled`) and the reason it has
@@ -58,7 +59,7 @@ export function FieldLayout({
   );
 }
 
-export interface FieldProps extends Omit<FieldRootProps, "className"> {
+export interface FieldProps extends Omit<FieldRootProps, "className">, Pick<VariantProps<typeof fieldVariants>, "width" | "grow" | "cap"> {
   /** Visible label — Base UI associates it with the control child automatically. */
   label: ReactNode;
   /**
@@ -109,6 +110,9 @@ export function Field({
   hint,
   onHintClick,
   orientation,
+  width,
+  grow,
+  cap,
   error,
   disabled = false,
   name,
@@ -124,7 +128,7 @@ export function Field({
   const hasDescription = description !== undefined && description !== null;
   // A description or an error makes one column multi-line, which is the only case that wants a top-aligned
   // horizontal row (see `multiline` in ./variants.ts).
-  const slots = fieldVariants({ align, orientation: resolved, multiline: hasDescription || hasError });
+  const slots = fieldVariants({ align, orientation: resolved, width, grow, cap, multiline: hasDescription || hasError });
   const hasHint = hint !== undefined && hint !== null;
 
   const labelText = (

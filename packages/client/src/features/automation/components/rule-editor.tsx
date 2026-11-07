@@ -84,21 +84,21 @@ export function RuleEditor({
       <RuleForm entityId={identity} serverValues={serverValues} save={saveRemembered}>
         {(session): ReactElement => (
           <Stack gap="section">
-            <Row gap="field" align="center" className="justify-between">
+            <Row gap="field" align="center" justify="between">
               <Heading level={4}>{chatId === null ? "Library-wide rule" : "Chat rule"}</Heading>
               <Button variant="ghost" onClick={onClose}>
                 Close editor
               </Button>
             </Row>
             <RuleEditorSaveStatus session={session} error={failure} uncreated={confirmed === null} />
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+            <Text cap="prose" voice="gloss">
               Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.
             </Text>
-            <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+            <Text cap="prose" voice="gloss">
               {ruleClockLine({ stored: confirmed?.timeZone, viewerZone: viewerTimeZone(), unknownZone })}
             </Text>
             {rule === null || rule.rulePresetId === null ? null : (
-              <Text className="max-inline-(--reading-measure-prose)" voice="gloss">
+              <Text cap="prose" voice="gloss">
                 Editing makes this a custom rule and removes its rule-preset lineage.
               </Text>
             )}

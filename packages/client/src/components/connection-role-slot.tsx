@@ -44,7 +44,6 @@ import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 const UNSET_VALUE = "";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
-const PROSE_MEASURE = "max-inline-(--reading-measure-prose)";
 
 // Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
 const TEXT_EMBEDDER_UNSET = "None set — search keeps using your last index until you pick an embedder.";
@@ -188,12 +187,12 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap">
+    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" wrap={true}>
       <Row gap="field" align="start">
         <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
-          <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
+          <Text prose={true} voice="gloss" cap="prose">
             {description ?? row.description}
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
@@ -284,7 +283,7 @@ function EmbedderNote({
   return check === null ? (
     <EmbedRefusalLine refused={refused} />
   ) : (
-    <Text voice="gloss" role="status" data-embedder-check="" className={PROSE_MEASURE}>
+    <Text voice="gloss" role="status" data-embedder-check="" cap="prose">
       {embedderCheckingText(check.embedder)}
     </Text>
   );
@@ -292,7 +291,7 @@ function EmbedderNote({
 
 function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | null }): ReactElement | null {
   return refused === null ? null : (
-    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refused.refusal.kind]} className={PROSE_MEASURE} tone="warning">
+    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refused.refusal.kind]} cap="prose" tone="warning">
       {embedRefusalText(refused.refusal, refused.embedder)}
     </Text>
   );
@@ -302,10 +301,10 @@ function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | nu
  *  the rebuild starting and failing are both announced. */
 function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbedderRebuild> }): ReactElement {
   return (
-    <Row role="status" gap="field" align="center" className="flex-wrap">
+    <Row role="status" gap="field" align="center" wrap={true}>
       {rebuild === null ? null : (
         <>
-          <Text voice="gloss" as="span" data-rebuild={rebuild} className={PROSE_MEASURE} tone={rebuild === "failed" ? "warning" : "info"}>
+          <Text voice="gloss" as="span" data-rebuild={rebuild} cap="prose" tone={rebuild === "failed" ? "warning" : "info"}>
             {REBUILD_STATUS_COPY[rebuild]}
           </Text>
           <Button variant="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
@@ -325,7 +324,7 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
   const appearance = { tone: READOUT_TONE[readout.kind], italic: readout.kind === "unset" };
   if (readout.kind === "steady") {
     return (
-      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
+      <Text voice="gloss" {...appearance} cap="prose">
         {readout.connection === null
           ? `${ROLE_STATUS_LABELS.running} on the connection picked here.`
           : `${ROLE_STATUS_LABELS.running} on ${readout.connection}.`}
@@ -334,20 +333,20 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
   }
   if (readout.kind === "divergent") {
     return (
-      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
+      <Text voice="gloss" {...appearance} cap="prose">
         Not applied yet — still running on {readout.connection}.
       </Text>
     );
   }
   if (readout.kind === "unset") {
     return (
-      <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
+      <Text voice="gloss" {...appearance} cap="prose">
         {unsetSentence ?? "Nothing — no connection is set."}
       </Text>
     );
   }
   return (
-    <Text voice="gloss" {...appearance} className={PROSE_MEASURE}>
+    <Text voice="gloss" {...appearance} cap="prose">
       {ROLE_STATUS_LABELS.blocked} — {readout.cause}.
     </Text>
   );
@@ -358,7 +357,7 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
  *  the rail exists to prevent, so it is never dropped for want of a verdict. */
 function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequirementVerdict[] }): ReactElement {
   return (
-    <Row gap="field" align="center" className="flex-wrap">
+    <Row gap="field" align="center" wrap={true}>
       <Text voice="gloss" as="span">
         Needs:
       </Text>

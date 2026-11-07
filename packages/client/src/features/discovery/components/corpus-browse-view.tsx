@@ -1,6 +1,6 @@
 // The corpus BROWSE view (the omnibox's rest state) — a facet filter bar over the owner's distilled
-// catalog. genre/tone come from `discovery.characterFacets` and the tag axis from `discovery.catalog`'s
-// top tags (each value carries its card count) and `sort` orders the result (recent/name). All four drive
+// catalog. genre/tone/setting come from `discovery.characterFacets` and the tag axis from `discovery.catalog`'s
+// top tags (each value carries its card count) and `sort` orders the result (recent/name). All five drive
 // `discovery.browseCharacters`; each row selects a character into the dossier CONTENT. facets are
 // suspense-read (stable); the rows are a keyset-paged `createCollectionSurface` so a filter change
 // re-fetches without re-suspending the whole panel.
@@ -67,6 +67,7 @@ type BrowseRow = BrowsePage["items"][number];
 interface CorpusBrowseParams {
   readonly genre: string;
   readonly tone: string;
+  readonly setting: string;
   readonly tag: string;
   readonly sort: string;
 }
@@ -79,6 +80,7 @@ const useCorpusBrowseCollection = createCollectionSurface({
       {
         ...(params.genre === ANY_VALUE ? {} : { genre: params.genre }),
         ...(params.tone === ANY_VALUE ? {} : { tone: params.tone }),
+        ...(params.setting === ANY_VALUE ? {} : { setting: params.setting }),
         ...(params.tag === ANY_VALUE ? {} : { tag: params.tag }),
         ...(params.sort === ANY_VALUE ? {} : { sort: params.sort as BrowseSort }),
       },
@@ -94,9 +96,10 @@ export function CorpusBrowseView(): ReactElement {
   const trpc = useTRPC();
   const [genre, setGenre] = useState(ANY_VALUE);
   const [tone, setTone] = useState(ANY_VALUE);
+  const [setting, setSetting] = useState(ANY_VALUE);
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
-  const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, tag, sort });
+  const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
   const [facetsRead, catalogRead] = useQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
   });
@@ -119,16 +122,18 @@ export function CorpusBrowseView(): ReactElement {
   }
   const genreItems = toSelectItems("All genres", facets.genres);
   const toneItems = toSelectItems("All tones", facets.tones);
+  const settingItems = toSelectItems("All settings", facets.settings);
   const tagItems = toSelectItems(
     "All tags",
     catalog.topTags.map((t) => ({ value: t.tag, count: t.count })),
   );
 
   return (
-    <Stack className="flex-1 min-block-0" data-testid={testId("corpusBrowseView")} gap="block">
-      <Row align="center" gap="field" className="flex-wrap">
+    <Stack className="min-block-0" grow={true} data-testid={testId("corpusBrowseView")} gap="block">
+      <Row align="center" gap="field" wrap={true}>
         <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} />
+        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} />
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
@@ -159,7 +164,7 @@ function BrowseRows({
   }
   if (collection.items.length === 0) {
     return distilled ? (
-      <Stack align="center" className="p-block" gap="field">
+      <Stack align="center" padding="block" gap="field">
         <Icon icon={Library} size="lg" />
         <Text>No characters match — loosen the filters.</Text>
       </Stack>
@@ -176,7 +181,7 @@ function BrowseRows({
   return (
     // The bounded height is this Stack's — `VirtualList` throws at mount on an unbounded scroll element,
     // which is the primitive refusing to be a list that silently renders everything.
-    <Stack className="flex-1 min-block-0">
+    <Stack className="min-block-0" grow={true}>
       <VirtualList
         aria-label={CORPUS_DISTILLED_CATALOG_NAME}
         className="block-full"
@@ -194,7 +199,7 @@ function BrowseRows({
 }
 
 function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement {
-  const facet = characterFacetLine(row.genre, row.tone);
+  const facet = characterFacetLine(row.genre, row.tone, row.setting);
   const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
   return (
     <ListRow

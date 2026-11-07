@@ -84,6 +84,7 @@ export type { BrowseCursor } from "@orb/contracts/discovery";
 export interface BrowseFilter {
   readonly genre?: string;
   readonly tone?: string;
+  readonly setting?: string;
   readonly tag?: string;
   readonly q?: string;
   readonly sort?: BrowseSort;

@@ -1,14 +1,25 @@
-import { CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, INKS, SELECTED_FILL_PRESSED, TONE_ARMS, tv } from "#lib";
+import {
+  COLOR_MOTION,
+  CONTROL_SIZE,
+  DISABLED_STATE,
+  DISABLED_STATE_NATIVE,
+  FOCUS_RING,
+  INKS,
+  SELECTED_FILL_PRESSED,
+  TONE_ARMS,
+  TONE_OUTLINE,
+  TONE_TINT_HOVER,
+  tv,
+} from "#lib";
 
 // The toggle skin — a pressable on/off button (bold/italic-style controls). At rest it paints only the roles of its
 // stamped D336 tone, so every tone works with every style. Pressed (data-pressed), it wears the one selected fill the app
 // uses for a set state, whatever the tone, and no ring, so a pressed toggle never reads as the focused one.
-const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
 
 export const toggleVariants = tv({
   base: [
     "inline-flex items-center justify-center gap-field font-sans font-medium whitespace-nowrap select-none",
-    "transition-colors duration-(--motion-fast) ease-out-expo",
+    COLOR_MOTION,
     "outline-none",
     FOCUS_RING,
     SELECTED_FILL_PRESSED,
@@ -23,7 +34,7 @@ export const toggleVariants = tv({
       // THE RESTING HAIRLINE — the scope half of a filter rail (Favorites / Archived), which must read as the same
       // class of thing as the outline tag chips beside it. Pressed, it drops the edge, so the selected pill is a FILL,
       // not a fill wearing a spare outline.
-      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER} data-pressed:border-transparent`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER} data-pressed:border-transparent`,
     },
     tone: TONE_ARMS,
     // A named ink at rest; `Toggle` resolves `muted` for a neutral toggle, which recedes until pressed. A view COMMAND

@@ -151,7 +151,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
       {/* `@cq-32:` — the same container step the group's track set uses. Ungated, `col-span-2` in the ONE-column
           narrow arm mints an implicit second column instead of stacking. */}
       <Stack className="min-inline-0 @cq-32:col-span-2" data-slot="setting-row-lead" gap="tight">
-        <Text as="span" className="inline-flex items-center gap-field" voice="label">
+        <Text as="span" flow="clusterField" voice="label">
           {label}
           {annotation === null ? null : <HintTrigger hint={annotation.hint} onClick={annotation.onHintClick} subject={label} />}
         </Text>
@@ -163,7 +163,7 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
           `--reading-measure-prose` (#1145), because a `ch` resolves in the element's own font and the
           group's cap is computed at the label step, not at the gloss's 10.5px one. */}
       {annotation === null ? null : (
-        <Text className="col-span-full max-inline-(--reading-measure-prose) min-inline-0" data-slot="setting-row-gloss" voice="gloss">
+        <Text className="col-span-full min-inline-0" cap="prose" data-slot="setting-row-gloss" voice="gloss">
           {annotation.gloss}
         </Text>
       )}

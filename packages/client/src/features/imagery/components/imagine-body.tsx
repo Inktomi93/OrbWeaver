@@ -39,10 +39,10 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { ROOM_PICTURES_NOTE, viewerTimeZone } from "#lib";
+import { ROOM_PICTURES_NOTE, useElapsedSeconds, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -63,8 +63,6 @@ const MODE_LABELS: Record<ImagineMode, string> = {
 
 const PROMPT_ROWS = 3;
 const PROMPT_MAX_ROWS = 8;
-/** The pending counters tick in whole seconds — a wall-clock read is banned in render scope. */
-const ELAPSED_TICK_MS = 1000;
 
 /** The read call's own result, kept WHOLE — `costUsd` (nullable on the wire: a backend with no usage
  *  accounting reports nothing) and `source` were both destructured away before #623. Derived from the verb,
@@ -146,7 +144,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
 
   return (
     <Stack gap="block" padding="block">
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         Generate an image into this chat. Every image is a real charge — and the modes that read the conversation spend a second, smaller call to build the
         prompt first.
       </Text>
@@ -192,14 +190,14 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         {isExtraction ? (
           <Stack gap="tight">
             <DoubleSpendNotice blind={blindDoubleSpend} count={count} />
-            <Row align="center" className="flex-wrap" gap="field">
+            <Row align="center" wrap={true} gap="field">
               <Button disabled={busy} variant="outline" onClick={preview} size="sm" type="button">
                 Read the chat first
               </Button>
               {extract.isPending ? (
                 <PendingLine label="Reading the chat" verb="Reading the chat…" />
               ) : (
-                <Text as="span" className="max-inline-(--reading-measure-prose)" data-slot="imagine-read-cost" voice="reading">
+                <Text as="span" cap="prose" data-slot="imagine-read-cost" voice="reading">
                   {readCostLine(receipt)}
                 </Text>
               )}
@@ -236,7 +234,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
 /** The shared-room sentence D300 owes the person about to spend: where the picture lands and whose it is. */
 function RoomPicturesNote({ shared }: { readonly shared: boolean }): ReactElement | null {
   return shared ? (
-    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-room-pictures-note" voice="gloss">
+    <Text cap="prose" data-slot="imagine-room-pictures-note" voice="gloss">
       {ROOM_PICTURES_NOTE}
     </Text>
   ) : null;
@@ -244,7 +242,7 @@ function RoomPicturesNote({ shared }: { readonly shared: boolean }): ReactElemen
 
 function DoubleSpendNotice({ blind, count }: { readonly blind: boolean; readonly count: number }): ReactElement | null {
   return blind ? (
-    <Text className="max-inline-(--reading-measure-prose)" data-slot="imagine-double-spend" voice="reading">
+    <Text cap="prose" data-slot="imagine-double-spend" voice="reading">
       Generate now and this mode charges TWICE: one call to read the chat into a prompt, then {count > MIN_IMAGE_COUNT ? "the images" : "the image itself"}.
     </Text>
   ) : null;
@@ -254,7 +252,7 @@ function GeneratingNotice({ pending }: { readonly pending: boolean }): ReactElem
   return pending ? (
     <Stack data-slot="imagine-generating" gap="tight">
       <PendingLine label="Generating the image" verb="Generating the image…" />
-      <Text className="max-inline-(--reading-measure-prose)" voice="reading">
+      <Text cap="prose" voice="reading">
         Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
       </Text>
     </Stack>
@@ -306,11 +304,7 @@ function readCostLine(receipt: ExtractedPromptResult | undefined): string {
  * (the `reasoning-block` precedent).
  */
 function PendingLine({ label, verb }: { readonly label: string; readonly verb: string }): ReactElement {
-  const [seconds, setSeconds] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setSeconds((current) => current + 1), ELAPSED_TICK_MS);
-    return (): void => clearInterval(id);
-  }, []);
+  const seconds = useElapsedSeconds(true);
   return (
     <Row align="center" gap="field">
       <WebSpinner label={label} size="sm" />

@@ -110,7 +110,7 @@ function TargetBlock({ mode, install, shareRefusal }: TargetBlockProps): ReactEl
       <Text voice="label">{`${mode}: ${MODE_NAME[mode]}`}</Text>
       <ShareProse>{shareSentence(shareRefusal)}</ShareProse>
       <CopyButton text={text} what={`the ${mode} lines`}>
-        <Text voice="code" className="wrap-anywhere whitespace-pre-wrap min-inline-0">
+        <Text voice="code" className="min-inline-0" whitespace="preWrap" wrap="anywhere">
           {text}
         </Text>
       </CopyButton>

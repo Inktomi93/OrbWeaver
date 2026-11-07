@@ -1,26 +1,35 @@
 import type { ClassValue, VariantProps } from "tailwind-variants";
 import {
+  CAP,
   CARD_CORNERS,
+  CONTROL_BLOCK,
   CONTROL_INLINE,
+  CONTROL_INSET,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
-  CONTROL_SIZES,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
+  FLOOR,
   FOCUS_RING,
   FOCUS_RING_INSET,
   FOCUS_RING_NONE,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_ON_STATE_RING,
+  GROW,
   HIDDEN_AT,
   HOVER_REVEAL,
   INKS,
+  PUSH,
   SELECTED_FILL,
   SELECTION_RAIL,
   SELECTION_RAIL_TONE,
+  TEXT_ALIGN,
   TONE_ARMS,
+  TONE_OUTLINE,
+  TONE_TINT_HOVER,
   TOUCH_FLOOR_AT_COARSE,
   tv,
+  WIDTH,
 } from "#lib";
 import type { Tone } from "#tokens";
 import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
@@ -31,8 +40,14 @@ import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
 // component that passes neither draws no Button box and no Button style. `Button` resolves both defaults itself.
 // The size axis is the sole owner of Button's box: a call-site class cannot reliably beat a custom-token height.
 
-// The pressed tint of a fill-less style: the tone's tint-active fill under its on-tint ink.
-const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
+// Button's box: the control scale plus the two steps that only a Button wears. `band` names a region in a list pane: the sm height
+// with the tight atom gap and inset. `stacked` holds a block of lines in a column, start-aligned, and grows with its content from
+// the sm height as a floor (a compound below).
+const BUTTON_SIZE = {
+  ...CONTROL_SIZE,
+  band: `${CONTROL_BLOCK.sm} gap-tight px-tight text-label leading-label`,
+  stacked: "flex-col items-start px-row py-row block-auto text-label leading-label",
+} as const;
 
 export const buttonVariants = tv({
   base: [
@@ -47,6 +62,8 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
+    // A label set at the line's start: the content packs to the start, and a label that wraps stays there.
+    justify: { start: "justify-start text-start", between: "justify-between" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
@@ -58,7 +75,7 @@ export const buttonVariants = tv({
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
-      outline: `border border-tone-edge bg-transparent text-tone-text ${TONE_TINT_HOVER}`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER}`,
       ghost: `text-tone-text ${TONE_TINT_HOVER}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
@@ -70,7 +87,7 @@ export const buttonVariants = tv({
     // The focal action under CD3: the CTA lift and, through `data-cta`, the gradient ring. `ButtonCore` resolves it on
     // for a solid primary unless the call site passes `focal={false}`.
     focal: { true: "shadow-cta hover:shadow-cta-glow", false: "" },
-    size: CONTROL_SIZE satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.button, ClassValue>,
+    size: BUTTON_SIZE satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.button, ClassValue>,
     // ICON-ONLY: the step's height as its width too, with no inline padding beside the glyph. `shrink-0` because a
     // square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it falls under the tap
     // floor. The width per step is a compound below.
@@ -79,7 +96,21 @@ export const buttonVariants = tv({
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
-    wrap: { true: "py-tight whitespace-normal block-auto", false: "" },
+    wrap: { true: `py-tight wrap-anywhere whitespace-normal block-auto ${CAP.fit}`, false: "" },
+    // Declared after `size`, so the arm's own inset beats the step's. A button that is a row's door takes the room left beside its
+    // siblings and sets its label at the start. `line` is a whole list line: the full width and the field inset, its text set at
+    // the start.
+    stretch: { row: "flex-1 justify-start min-inline-0", line: `px-field text-start ${WIDTH.full}` },
+    // The button's own inline size, where the parent's width is the whole line.
+    width: WIDTH,
+    cap: CAP,
+    grow: GROW,
+    floor: FLOOR,
+    textAlign: TEXT_ALIGN,
+    inset: CONTROL_INSET,
+    // A label that wraps at spaces inside the nowrap base, on a box that keeps its own height: an inline action over a line of prose.
+    whitespace: { normal: "whitespace-normal" },
+    push: PUSH,
     // THE RADIUS AXIS. A radius on the base would make a pill unspellable from a call site: `rounded-control` is a
     // custom `--radius-*` token tailwind-merge cannot classify, so a call-site `rounded-full` would keep both and win by
     // stylesheet order.
@@ -135,11 +166,19 @@ export const buttonVariants = tv({
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
-  // A square's width and a wrap's floor are the scale step's own height; the other boxes take neither.
-  compoundVariants: CONTROL_SIZES.flatMap((size) => [
-    { size, square: true, class: CONTROL_INLINE[size] },
-    { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
-  ]),
+  // A square's width and a wrap's floor are the scale step's own height, and a stacked block floors at the sm height; the other
+  // boxes take none.
+  compoundVariants: [
+    { size: "stacked", class: CONTROL_MIN_BLOCK.sm },
+    { size: "chip", square: true, class: CONTROL_INLINE.chip },
+    { size: "sm", square: true, class: CONTROL_INLINE.sm },
+    { size: "md", square: true, class: CONTROL_INLINE.md },
+    { size: "lg", square: true, class: CONTROL_INLINE.lg },
+    { size: "chip", wrap: true, class: CONTROL_MIN_BLOCK.chip },
+    { size: "sm", wrap: true, class: CONTROL_MIN_BLOCK.sm },
+    { size: "md", wrap: true, class: CONTROL_MIN_BLOCK.md },
+    { size: "lg", wrap: true, class: CONTROL_MIN_BLOCK.lg },
+  ],
   defaultVariants: {
     square: false,
     wrap: false,
@@ -154,6 +193,9 @@ export const buttonVariants = tv({
 });
 
 export type ButtonVariant = keyof typeof buttonVariants.variants.variant;
+
+/** Button's boxes: the control scale, then the `band` and `stacked` steps only a Button wears. */
+export type ButtonSize = keyof typeof BUTTON_SIZE;
 
 /** The tone a style takes when the call site names none: the solid and the link are the primary action and its
  *  inline twin; an edge and a ghost stay neutral, so they read as quieter than the region's one CTA. A button family

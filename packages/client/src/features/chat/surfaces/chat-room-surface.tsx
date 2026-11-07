@@ -22,7 +22,7 @@ import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
+import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
@@ -109,10 +109,13 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
-  // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
+  // that corner clear; shell.css's flank distance reads the same clearance.
   const thread = (
     <Stack
-      className={cn("flex-1 min-block-(--height-room-thread-min) min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")}
+      className="min-inline-0"
+      minHeight="roomThread"
+      paddingInlineEnd={flank.occupiesRow ? undefined : "clearance"}
+      grow={true}
       data-slot="chat-room-thread"
     >
       <MessageThreadAnchor>
@@ -150,7 +153,12 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // the wallpaper IS the page and the reading plates carry the text).
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
-          className="overflow-y-auto overscroll-y-none px-block pbe-block block-full @max-cq-28:px-tight"
+          className="overscroll-y-none"
+          paddingBlockEnd="block"
+          fill={true}
+          scroll="y"
+          paddingInline="block"
+          paddingInlineNarrow="tight"
           focusTarget={true}
           ground={roomTheme?.background === undefined ? undefined : "backgroundUnlessArt"}
           gap="field"
@@ -167,14 +175,14 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           <ChatCharacterBar chatId={chatId} />
           {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can split it between reading
               and writing. */}
-          <Stack className="flex-1 min-block-0" gap="field" data-slot="chat-room-body">
+          <Stack className="min-block-0" grow={true} gap="field" data-slot="chat-room-body">
             {bodyMounted ? (
               <>
                 {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
                  *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
                  *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
                  *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
-                 *  `@max-cq-32:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
+                 *  `stackBelow` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
                  *  different thing on each arm (the axis-disagreement family):
                  *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
                  *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
@@ -204,7 +212,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   <Row
                     gap="block"
                     align="stretch"
-                    className="relative overflow-x-clip block-full min-block-(--height-room-thread-min) @max-cq-32:flex-col"
+                    className="relative overflow-x-clip"
+                    minHeight="roomThread"
+                    fill={true}
+                    stackBelow="cq-32"
                     data-slot="chat-room-flank-row"
                     ref={flankRowRef}
                   >
@@ -258,7 +269,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
                   // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
                   // non-empty.
-                  <Track of={Stack} track="composer" gap="row" className="empty:hidden" data-slot="chat-above-composer">
+                  <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
                     {aboveComposerContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
                     ))}
@@ -286,7 +297,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
 
 function RoomTranscriptSkeleton(): ReactElement {
   return (
-    <Stack className="flex-1 min-block-0" data-slot="chat-room-mounting">
+    <Stack className="min-block-0" grow={true} data-slot="chat-room-mounting">
       <Track of={Stack} track="chat" plate="loading">
         <SkeletonRows count={3} />
       </Track>

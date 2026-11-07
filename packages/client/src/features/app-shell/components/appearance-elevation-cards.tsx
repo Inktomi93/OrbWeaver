@@ -46,9 +46,9 @@ type Elevation = AppearanceSettings["elevation"];
 function FlatDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="sidebar" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
-      <Row className="flex-1" />
-      <Row className="flex-1" divider="start" dividerTone="sidebar" dividerWeight="rule" />
-      <Row className="flex-2" divider="start" dividerTone="sidebar" dividerWeight="rule" />
+      <Row grow={true} />
+      <Row grow={true} divider="start" dividerTone="sidebar" dividerWeight="rule" />
+      <Row grow="double" divider="start" dividerTone="sidebar" dividerWeight="rule" />
     </ThemePreviewPane>
   );
 }
@@ -62,9 +62,9 @@ function FlatDiagram(): ReactElement {
 function RampDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="background" shape="row" padding="none" className="flex items-center overflow-hidden block-(--size-preview-strip) inline-full">
-      <Swatch className="flex-1" fill="step1" />
-      <Swatch className="flex-1" fill="step2" />
-      <Swatch className="flex-2" fill="step3" />
+      <Swatch grow={true} fill="step1" />
+      <Swatch grow={true} fill="step2" />
+      <Swatch grow="double" fill="step3" />
     </ThemePreviewPane>
   );
 }
@@ -75,7 +75,7 @@ function RampDiagram(): ReactElement {
 function GlowDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="background" shape="row" padding="none" className="overflow-hidden block-(--size-preview-strip) inline-full">
-      <Row gap="row" className="p-row block-full inline-full">
+      <Row gap="row" width="full" fill={true} padding="row">
         <ThemePreviewPane className="flex-1 block-3/4" padding="none" fill="sidebar" lifted={true} shape="inset" />
         <ThemePreviewPane className="flex-2 block-3/4" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
       </Row>
@@ -107,7 +107,7 @@ export function ElevationCards({ value, onPick }: ElevationCardsProps): ReactEle
           <RadioGroupPickerItem
             key={item.value}
             art={
-              <Stack className="justify-center p-tight block-full inline-full">
+              <Stack width="full" fill={true} padding="tight" justify="center">
                 <Diagram />
               </Stack>
             }

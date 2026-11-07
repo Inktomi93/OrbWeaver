@@ -111,8 +111,9 @@ function ActionsFrame({
   align,
   justify,
   reveal,
+  wrap,
   ...row
-}: ComponentProps<"div"> & { readonly chip: boolean } & Pick<ComponentProps<typeof Row>, "gap" | "align" | "justify" | "reveal">): ReactElement {
+}: ComponentProps<"div"> & { readonly chip: boolean } & Pick<ComponentProps<typeof Row>, "gap" | "align" | "justify" | "reveal" | "wrap">): ReactElement {
   return chip ? (
     <Row
       {...row}
@@ -120,12 +121,14 @@ function ActionsFrame({
       align={align}
       justify={justify}
       reveal={reveal}
+      wrap={wrap}
       ground="readingBand"
       cardCorners="all"
-      className={cn("relative z-(--z-raised)", className) ?? ""}
+      layer="raised"
+      className={cn("relative", className) ?? ""}
     />
   ) : (
-    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} className={className ?? ""} />
+    <Row {...row} gap={gap} align={align} justify={justify} reveal={reveal} wrap={wrap} className={className ?? ""} />
   );
 }
 
@@ -239,7 +242,7 @@ export function MessageActionsRow({
       chip={chip}
       gap="glyph"
       align="center"
-      className="@max-cq-20:flex-wrap"
+      wrap="cq-20"
       justify="end"
       data-slot="message-actions-row"
       reveal={ACTIONS_REVEAL_POSTURE[messageActions]}

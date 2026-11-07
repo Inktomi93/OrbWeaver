@@ -45,7 +45,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
         disabled={props.disabled ?? false}
         helper={
           props.showTokenCount === true ? (
-            <Text as="span" className="block text-end" ink="muted" voice="datum">
+            <Text as="span" flow="block" textAlign="end" ink="muted" voice="datum">
               ~{estimateTokens(field.state.value)} tokens
             </Text>
           ) : undefined

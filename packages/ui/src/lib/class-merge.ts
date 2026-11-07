@@ -107,6 +107,8 @@ const SIZE_SCALE = scaleOf("size");
 const HEIGHT_SCALE = scaleOf("height");
 const ASPECT_SCALE = scaleOf("aspect");
 const BLUR_SCALE = scaleOf("blur");
+// `--shadow-*` (`shadow-overlay`, `shadow-glow`) feeds `shadow`; unregistered, a token beside `shadow-none` survives and the stylesheet order decides.
+const SHADOW_SCALE = scaleOf("shadow");
 const EASE_SCALE = scaleOf("ease");
 // `--opacity-*` (`opacity-receded`) sits beside the stock numeric steps; unregistered, a stock step beside it survives.
 const OPACITY_SCALE = scaleOf("opacity");
@@ -145,6 +147,7 @@ const THEME = {
   container: CONTAINER_SCALE,
   aspect: ASPECT_SCALE,
   blur: BLUR_SCALE,
+  shadow: SHADOW_SCALE,
   ease: EASE_SCALE,
 };
 

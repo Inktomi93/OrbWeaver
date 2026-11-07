@@ -205,7 +205,7 @@ function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadIn
       )}
       {/* The count never breaks inside itself; at a phone's width the buttons wrap below it instead. */}
       <DialogFooter>
-        <Text voice="gloss" className="me-auto whitespace-nowrap">
+        <Text voice="gloss" push="inlineStart" whitespace="nowrap">
           {selected.size} selected
         </Text>
         <DialogClose

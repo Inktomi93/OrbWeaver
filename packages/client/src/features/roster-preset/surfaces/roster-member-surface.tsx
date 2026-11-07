@@ -62,7 +62,7 @@ function RosterRuleBlock(props: {
   const gloss = rosterRuleKnobGloss(preset, knobs);
   return (
     <Stack gap="tight">
-      <Text voice="label" className="truncate">
+      <Text voice="label" truncate={true}>
         {preset === undefined ? rulePresetId : preset.title}
       </Text>
       {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
@@ -190,7 +190,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       <Section kicker="Characters">
         {roster.members.map((member) => (
           <Row align="center" gap="field" key={member.characterId}>
-            <Text voice="label" className="flex-1 truncate min-inline-0">
+            <Text voice="label" truncate="fill">
               {member.name}
             </Text>
             {member.disabled ? (
@@ -207,7 +207,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             )}
           </Row>
         ))}
-        <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
+        <Text voice="gloss" cap="prose">
           To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
         </Text>
       </Section>
@@ -216,7 +216,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
           {roster.rules.map((rule) => (
             <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
           ))}
-          <Text voice="gloss" className="max-inline-(--reading-measure-prose)">
+          <Text voice="gloss" cap="prose">
             Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
           </Text>
         </Section>

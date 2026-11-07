@@ -81,10 +81,9 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
             const n = Number.parseInt(trimmed, 10);
             onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
           }}
-          className="px-field text-end"
+          textAlign="end"
           numeric={true}
           width="avatar-md"
-          restClassName=""
         />
       </Row>
     </Badge>
@@ -101,7 +100,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
       return null;
     }
     return (
-      <Text as="span" voice="label" className="px-field wrap-break-word min-inline-0">
+      <Text as="span" voice="label" className="min-inline-0" inset="control" wrap="word">
         {actor.sheet.flavor}
       </Text>
     );
@@ -115,7 +114,6 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
         ink="muted"
         onEdit={onEditFlavor}
         wrap={true}
-        className="field-sizing-content max-inline-full min-inline-0"
         width="auto"
       />
     </Row>
@@ -155,10 +153,9 @@ function WalletChip({
                 onEditAmount(n);
               }
             }}
-            className="px-field text-end"
+            textAlign="end"
             numeric={true}
             width="avatar-md"
-            restClassName=""
             voice="label"
           />
           <Text as="span" voice="gloss">
@@ -234,18 +231,18 @@ function IdentityBlock({
       <Avatar size="lg" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
-      <Stack gap="field" className="flex-1 min-inline-0">
-        <Heading level={3} voice="label" className="px-field wrap-break-word min-inline-0">
+      <Stack gap="field" className="min-inline-0" grow={true}>
+        <Heading level={3} voice="label" className="min-inline-0" inset="control" wrap="word">
           {actor.name}
         </Heading>
         <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
         {/* Flavor sits with the identity, ABOVE the volatile status line: who they are, then how they are. */}
         <SheetFlavor actor={actor} {...(onEditFlavor === undefined ? {} : { onEditFlavor })} />
         <StatusLine status={actor.volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
-        <Row gap="field" align="center" className="flex-wrap">
+        <Row gap="field" align="center" wrap={true}>
           <SheetLevel level={actor.sheet.level} {...(onEditLevel === undefined ? {} : { onEditLevel })} />
           {/* The story's own purse, named apart from any Coin tracker the host adds below: that one is a game stat. */}
-          <Row gap="field" align="center" className="flex-wrap" role="group" aria-label="Story currency">
+          <Row gap="field" align="center" wrap={true} role="group" aria-label="Story currency">
             <Text as="span" voice="gloss">
               Story currency
             </Text>
@@ -379,7 +376,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
         <Text as="span" voice="gloss" aria-hidden={true}>
           /
         </Text>
-        <Text as="span" voice="gloss" className="truncate">
+        <Text as="span" voice="gloss" truncate={true}>
           {actor.name}
         </Text>
       </Row>
@@ -424,22 +421,14 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="px-field wrap-break-word min-inline-0">
+      <Text as="span" voice="gloss" className="min-inline-0" inset="control" wrap="word">
         {actor.sheet.className}
       </Text>
     );
   }
   return (
     <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
-      <TrackerValue
-        ariaLabel={`${actor.name} title`}
-        display={actor.sheet.className}
-        placeholder="title…"
-        onEdit={onEditTitle}
-        wrap={true}
-        className="field-sizing-content max-inline-full min-inline-0"
-        width="auto"
-      />
+      <TrackerValue ariaLabel={`${actor.name} title`} display={actor.sheet.className} placeholder="title…" onEdit={onEditTitle} wrap={true} width="auto" />
     </Row>
   );
 }

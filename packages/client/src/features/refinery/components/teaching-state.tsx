@@ -91,12 +91,12 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const { containerRef, searchRef } = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={containerRef}>
-      <Stack align="center" className="max-inline-(--reading-measure)" gap="tight">
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" paddingBlock="section" ref={containerRef}>
+      <Stack align="center" cap="reading" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two
             different axes in one four-line block (measured in the CT shot at 1280px). */}
-        <Heading className="text-center" level={2} voice="masthead">
+        <Heading textAlign="center" level={2} voice="masthead">
           Score → rewrite → analyze a card without drifting from your original
         </Heading>
         {/* READING, NOT GLOSS (side-eye 2026-08-19 P2). This is the SAFETY PROMISE the whole feature rests
@@ -109,7 +109,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
             ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
             Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
             picker and three step cards, which are layout, not a line of prose. */}
-        <Text className="text-center max-inline-(--reading-measure-prose)" voice="reading">
+        <Text textAlign="center" cap="prose" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>
@@ -143,7 +143,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      <Section className="inline-full max-inline-(--reading-measure)" kicker="How it works">
+      <Section cap="reading" kicker="How it works" width="full">
         {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
         <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
           {STEPS.map((step, index) => (
@@ -155,7 +155,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                 again. It is decoration either way (`Icon` with no `label` is `aria-hidden`), so nothing
                 about the announced order changes — that is DOM order, which is the real sequence. */}
               {index === 0 ? null : <Icon flowTurn={true} icon={ChevronRight} size="sm" />}
-              <Stack className="flex-1 block-full" gap="tight">
+              <Stack fill={true} grow={true} gap="tight">
                 <Row align="center" gap="tight">
                   <Icon icon={step.glyph} size="sm" />
                   <Text voice="label">{step.name}</Text>

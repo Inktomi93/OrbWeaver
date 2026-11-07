@@ -1,8 +1,9 @@
-import { HOVER_YIELD, INKS, OPEN_TURN, PULSE, RECEDED, TONE_TEXT, tv } from "#lib";
+import { HIDDEN_AT, HOVER_YIELD, INKS, OPEN_TURN, PULSE, RECEDED, TONE_TEXT, tv } from "#lib";
 
 // The glyph paints `currentColor`, so `tone` and `ink` colour it from the maps Text shares (D336).
 export const iconVariants = tv({
   variants: {
+    hiddenAt: HIDDEN_AT,
     size: {
       xs: "block-(--size-icon-xs) inline-(--size-icon-xs)",
       sm: "block-(--size-icon-sm) inline-(--size-icon-sm)",

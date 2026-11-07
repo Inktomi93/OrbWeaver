@@ -11,15 +11,8 @@ export type ReplyRowOverflowLevel = 0 | 1 | 2;
 
 type SeatSetter = (node: HTMLElement | null) => void;
 
-// A box the row keeps mounted but out of flow while its action sits in the menu, so its width stays measurable.
-const OUT_OF_FLOW = "invisible absolute pointer-events-none";
 // Sub-pixel layout rounding must not flip a fit that holds.
 const FIT_EPSILON = 0.5;
-
-/** The class and `inert` of one movable box: in flow, or out of flow and unreachable. */
-export function replyBox(out: boolean, extraClass = ""): { readonly className: string; readonly inert: boolean } {
-  return { className: `shrink-0 ${extraClass} ${out ? OUT_OF_FLOW : ""}`.replaceAll(/\s+/gu, " ").trim(), inert: out };
-}
 
 const gapOf = (element: HTMLElement): number => Number.parseFloat(getComputedStyle(element).columnGap) || 0;
 const widthOf = (element: HTMLElement): number => element.getBoundingClientRect().width;
