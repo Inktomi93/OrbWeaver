@@ -2,15 +2,7 @@
 // and the note row that says what is wrong with what it is showing. Both are shared by all three lanes, so
 // they are one anatomy in one file rather than three drawings that drift.
 //
-// WHY NOT `<Section kicker>`. That primitive IS the sanctioned band (caps micro heading + a hairline rule
-// running to the edge) and the lanes keep its exact anatomy — but its rule is `flex-1` to the edge with no
-// trailing slot, and the mockup's rewrite band carries the accept tally after the rule. Rather than fight a
-// sealed primitive from a feature, the band is composed here from the SAME two parts the primitive uses
-// (`Heading voice="kicker"` + `Separator`), which is what keeps the drawing identical: one voice, one rule,
-// one step. The heading is a real heading — the three lanes are peer blocks of the workbench, not children
-// of whichever lane precedes them (the outline lesson from home's side-eye F6).
-//
-// …AT `h3`, NOT `h2`, so the session title never sits at its lanes' level. The workbench's one opening statement is the masthead's `h2` (`session-masthead.tsx`), and the
+// THE BAND IS A `Section` KICKER AT `h3`, NOT `h2`, so the session title never sits at its lanes' level. The workbench's one opening statement is the masthead's `h2` (`session-masthead.tsx`), and the
 // lanes are blocks OF that session — three peers one step under it, which is exactly what `Section`'s own
 // `level` default states for the same shape. At `h2` the outline would say the session and each of
 // its lanes are siblings, so a heading walk would read four peer blocks with no subject.
@@ -22,9 +14,8 @@
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
-import { Row } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
-import { Heading, Text } from "@orb/ui/text";
+import { Row, Section } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -37,15 +28,7 @@ export interface LaneBandProps {
 }
 
 export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
-  return (
-    <Row align="center" wrap={true} data-testid={testId("refineryLaneBand")} gap="field">
-      <Heading level={3} voice="kicker">
-        {kicker}
-      </Heading>
-      <Separator grow={true} />
-      {children}
-    </Row>
-  );
+  return <Section data-testid={testId("refineryLaneBand")} kicker={kicker} level={3} trailing={children ?? null} />;
 }
 
 /** The model that produced THIS lane's result — each stage can run on a different model, so the credit

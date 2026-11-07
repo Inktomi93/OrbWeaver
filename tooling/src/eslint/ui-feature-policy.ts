@@ -41,34 +41,30 @@ const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|ma
 const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b(?![^]*\b(search|filters?)\b)/i`;
 const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
 // Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
-const CONFIRM_IN_FILE = "JSXOpeningElement[name.name=/^(ConfirmDialog|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|ContentDialog|FlowDialog)$/]";
+const CONFIRM_IN_FILE =
+  "JSXOpeningElement[name.name=/^(ConfirmDialog|DestructiveAction|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|FormDialogPopup|DismissDialog|ContentDialog|FlowDialog)$/]";
 const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
 // An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
-// The Cancel word is either literal text or the shared `DIALOG_VERBS.cancel`.
-const KEEP_BESIDE = String.raw`:matches(JSXElement:has(> JSXText[value=/^\s*(Cancel|Keep)\s*$/]), JSXElement:has(> JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']))`;
+// The Cancel word is literal text or the shared `DIALOG_VERBS.cancel`, on the button or inside a dialog close's `render`.
+const CANCEL_WORD = String.raw`JSXText[value=/^\s*(Cancel|Keep)\s*$/]`;
+const CANCEL_VERB = "JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']";
+const DIALOG_CLOSE = "JSXElement[openingElement.name.name=/^(Alert)?DialogClose$/]";
+const KEEP_BESIDE = `:matches(JSXElement:has(> ${CANCEL_WORD}), JSXElement:has(> ${CANCEL_VERB}), ${DIALOG_CLOSE}:has(${CANCEL_WORD}), ${DIALOG_CLOSE}:has(${CANCEL_VERB}))`;
 const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
 const DESTRUCTIVE_MESSAGE =
-  "A control that destroys data needs a ConfirmDialog or an undo (docs/law/client-architecture-state-and-gates.md §14). Wrap it in a ConfirmDialog trigger, or offer Undo.";
+  "A control that destroys data needs a DestructiveAction or an undo (docs/law/client-architecture-state-and-gates.md §14). Make it a DestructiveAction, or offer Undo.";
 
 // Files exempt from `destructive-needs-confirm`, each with the owner-delegated call that permits it
 // (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
 export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reason: string }[] = [
-  { path: "packages/client/src/features/automation/components/rule-*-fields.tsx", reason: "rule editor: removes an optional field from the form being edited" },
+  { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin moves a pointer, which the same menu sets again" },
   {
-    path: "packages/client/src/features/automation/components/rule-editor-settings.tsx",
-    reason: "rule editor: removes an optional field from the form being edited",
+    path: "packages/client/src/features/refinery/components/apply-outcome.tsx",
+    reason: "the label names the discard, and the refused rewrite was never applied",
   },
-  { path: "packages/client/src/features/chat/components/injections-manager.tsx", reason: "injection rows are re-added in one step" },
-  { path: "packages/client/src/features/chat/components/room-overrides-form.tsx", reason: "clears a field of the override form being edited" },
-  { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin is one click to undo: re-pin" },
-  { path: "packages/client/src/features/persona/components/persona-editor.tsx", reason: "asks the caller to delete; the caller owns the confirm" },
-  { path: "packages/client/src/features/character/components/greeting-studio.tsx", reason: "discards a generated preview that was never saved" },
-  { path: "packages/client/src/features/refinery/components/accept-review.tsx", reason: "discards a rewrite that was never applied" },
-  { path: "packages/client/src/features/refinery/components/apply-outcome.tsx", reason: "discards a refused rewrite that was never applied" },
-  { path: "packages/client/src/features/preset/components/staleness-row.tsx", reason: "Clear removes stored values the model ignores, so they are inert" },
   {
     path: "packages/client/src/features/config/components/config-teacher.tsx",
-    reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast",
+    reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast, and a scalar is one click from set again",
   },
 ];
 
@@ -217,8 +213,18 @@ export const UI_FEATURE_RESTRICTIONS = [
     id: "dialog-via-composite",
     selectors: [
       {
-        selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name='Dialog']",
-        message: "A features/** file imports the raw `Dialog` root from @orb/ui/dialog — use FormDialog for a form/prompt or ConfirmDialog for an alert.",
+        // The popup is refused with the root: `FormDialogRoot` is a root, so a raw popup inside it would have no way out.
+        selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name=/^(Dialog|DialogPopup)$/]",
+        message: "A features/** file imports a raw dialog part from @orb/ui/dialog — use FormDialog for a form/prompt or ConfirmDialog for an alert.",
+      },
+    ],
+  },
+  {
+    id: "required-dialog-home",
+    selectors: [
+      {
+        selector: "ImportSpecifier[imported.name='RequiredFormDialog']",
+        message: "`RequiredFormDialog` has no way out, and D330 grants that to the first-run persona ask alone. Use FormDialog or DismissDialog.",
       },
     ],
   },
@@ -234,25 +240,6 @@ export const UI_FEATURE_RESTRICTIONS = [
         // An `<a>` with no href is an anchor TARGET, not a control.
         selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='a']:has(> JSXAttribute[name.name='href'])",
         message: "A raw `<a href>` in a feature (D62) — use the @orb/ui Link primitive.",
-      },
-    ],
-  },
-  {
-    // The dialogs that build their own footer. ConfirmDialog, ViewerDialog and PickerDialog carry a built-in dismiss.
-    id: "dialog-needs-dismiss",
-    selectors: [
-      {
-        selector: [
-          "JSXElement[openingElement.name.name=/^(FormDialog|ContentDialog|FlowDialog)$/][openingElement.selfClosing=false]",
-          // A dialog that mounts a `...Body` component hands it the footer; that file is read as a whole by `pnpm ui-facts`.
-          ":not(:has(JSXOpeningElement[name.name=/Body$/]))",
-          ":not(:has(JSXOpeningElement[name.name=/^(FormSubmitButton|DialogClose|AlertDialogClose|ContentDialogClose)$/]))",
-          ":not(:has(JSXOpeningElement > JSXAttribute[name.name=/^(submit|dismissLabel|closeButton|footer|headerActions)$/]))",
-          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXText[value=/^\\s*(Cancel|Close|Done|Back|Dismiss|Discard|Keep editing)\\s*$/]))",
-          ":not(:has(JSXElement[openingElement.name.name='Button'] > JSXExpressionContainer > MemberExpression[object.name='DIALOG_VERBS'][property.name=/^(cancel|close|done)$/]))",
-        ].join(""),
-        message:
-          "A dialog needs a dismiss path: a `dismissLabel`, a `submit` footer (it carries Cancel), a `FormSubmitButton`, a `DialogClose`, or a Cancel or Close button.",
       },
     ],
   },

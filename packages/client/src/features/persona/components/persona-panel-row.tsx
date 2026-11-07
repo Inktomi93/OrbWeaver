@@ -18,8 +18,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog, RowActionsMenu } from "#components";
+import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { rowActionSubject, rowActionsName } from "#lib";
@@ -57,7 +56,6 @@ export function PersonaPanelRow({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
   // ONE ANNOUNCED IDENTITY PER ROW (#443/#458/#463): every control on the row embeds the same subject.
   const subject = rowActionSubject(persona.name, qualifier);
@@ -118,18 +116,9 @@ export function PersonaPanelRow({
         {...(persona.title === null ? {} : { subtitle: persona.title })}
       />
 
-      <ConfirmDialog
-        confirmLabel="Delete"
-        description={<>This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>}
-        onConfirm={onDelete}
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
-        title="Delete this persona?"
-      />
-
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
-          <PersonaEditorRegion persona={persona} subject={subject} onRequestDelete={(): void => setDeleteOpen(true)} />
+          <PersonaEditorRegion persona={persona} subject={subject} onDelete={onDelete} />
         </CollapsiblePanel>
       </Collapsible>
     </Stack>

@@ -8,7 +8,7 @@ import { sectionVariants } from "./variants.ts";
 const HEADING_TAGS = { 2: "h2", 3: "h3", 4: "h4" } as const;
 type SectionLevel = keyof typeof HEADING_TAGS;
 
-export interface SectionProps extends ComponentProps<"section">, VariantProps<typeof sectionVariants> {
+interface SectionBaseProps extends ComponentProps<"section">, Omit<VariantProps<typeof sectionVariants>, "trails"> {
   heading?: ReactNode;
   /**
    * The INSTRUMENT-tier form of `heading` (UI-Density-Law.md §2.3/§4.3): the section's name in the
@@ -47,6 +47,11 @@ export interface SectionProps extends ComponentProps<"section">, VariantProps<ty
   level?: SectionLevel;
 }
 
+/** A stacked kicker's band may carry trailing content; no other heading has a rule to trail. */
+type SectionTrailing = { kicker: ReactNode; kickerLayout?: "stacked"; trailing?: ReactNode } | { trailing?: never };
+
+export type SectionProps = SectionBaseProps & SectionTrailing;
+
 /**
  * Block-spacing wrapper with an optional heading slot (ui-package-design §6.1).
  *
@@ -65,10 +70,11 @@ export function Section({
   hiddenAt,
   hint,
   level = 3,
+  trailing,
   children,
   ...props
 }: SectionProps): ReactElement {
-  const slots = sectionVariants({ divider, kickerLayout, container, cap, width, height, hiddenAt });
+  const slots = sectionVariants({ divider, kickerLayout, container, cap, width, height, hiddenAt, trails: trailing !== undefined });
   const hasHint = hint !== undefined && hint !== null;
   // h3 by default, not h2: a Section is normally a SUB-heading of its hosting surface (a dialog's Title and a
   // drawer's Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level.
@@ -92,6 +98,7 @@ export function Section({
             `role="separator"` it announced as an anonymous divider on every surface that renders a kicker
             band. `aria-hidden` drops the orphan from the a11y tree while the rule still paints. */}
         {kickerLayout === "stacked" ? <Separator aria-hidden={true} className="flex-1" /> : null}
+        {trailing}
       </div>
     );
   } else if (heading !== undefined) {

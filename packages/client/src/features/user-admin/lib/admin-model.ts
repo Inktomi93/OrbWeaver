@@ -1,9 +1,7 @@
 // admin-model — the Admin pane's pure vocabulary: the create-user form shape + defaults, the role Select
 // options (never `owner` — the setRole verb refuses minting a second owner) and the badge-tone maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
-import type { UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
-import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
 
 /** The props of an admin dialog that acts on one account (link SSO, reset password, sessions). */
@@ -33,20 +31,6 @@ export const ROLE_ITEMS: SelectItems = [
   { value: "user", label: "User" },
   { value: "admin", label: "Admin" },
 ];
-
-/** Role → chip label (the per-row role badge copy). */
-export const ROLE_LABELS: Record<UserRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  user: "User",
-};
-
-/** Role → badge tone (the per-row role chip). */
-export const ROLE_BADGE_TONE: Record<UserRole, NonNullable<BadgeProps["tone"]>> = {
-  owner: "primary",
-  admin: "info",
-  user: "neutral",
-};
 
 // The Admin pane's ACCESSIBLE-NAME builders. Every per-row control here repeats the row's handle (or the
 // handle) because the pane renders N otherwise-identical controls, and an unqualified name would hand a

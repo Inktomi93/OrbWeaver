@@ -6,13 +6,11 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { DialogClose } from "@orb/ui/dialog";
 import { Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ConfirmDialog, ViewerDialog } from "#components";
-import { DIALOG_VERBS } from "#lib";
+import { DestructiveAction, ViewerDialog } from "#components";
 
 /** The one image the lightbox shows. `name` is the grid cell's own name, so both say the same thing. */
 interface GalleryLightboxImage {
@@ -83,7 +81,6 @@ function useChromeHeight(popup: HTMLDivElement | null, frame: RefObject<HTMLDivE
 }
 
 export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled }: GalleryLightboxProps): ReactElement {
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const { aspect, naturalWidth } = useImageSize(image === null ? null : image.hash);
   // State, not a ref: the popup mounts after the lightbox opens, and the measure must run once it exists.
@@ -97,15 +94,7 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
       title={image === null ? "Image" : image.name}
       size="xlFit"
       popupProps={{ initialFocus: closeRef, finalFocus, ref: setPopup }}
-      headerActions={
-        <DialogClose
-          render={
-            <Button className="shrink-0" variant="ghost" ref={closeRef} size="sm">
-              {DIALOG_VERBS.close}
-            </Button>
-          }
-        />
-      }
+      dismiss={{ at: "header", control: closeRef }}
       open={image !== null}
       onOpenChange={(next): void => {
         if (!next) {
@@ -125,23 +114,22 @@ export function GalleryLightbox({ image, removal, onClose, finalFocus, onSettled
           </Stack>
           {removal === undefined ? null : (
             <Row justify="start" align="center" className="shrink-0">
-              <Button tone="destructive" onClick={(): void => setConfirmOpen(true)}>
-                <Icon icon={Trash} size="sm" />
-                Remove from gallery
-              </Button>
+              <DestructiveAction
+                confirm={{
+                  confirmLabel: "Remove",
+                  description: `This removes the image from ${removal.characterName}'s gallery. The image itself stays in your uploads.`,
+                  title: "Remove this image?",
+                }}
+                forceRender={true}
+                onConfirm={removal.onRemove}
+                trigger={
+                  <Button tone="destructive">
+                    <Icon icon={Trash} size="sm" />
+                    Remove from gallery
+                  </Button>
+                }
+              />
             </Row>
-          )}
-
-          {removal === undefined ? null : (
-            <ConfirmDialog
-              confirmLabel="Remove"
-              description={`This removes the image from ${removal.characterName}'s gallery. The image itself stays in your uploads.`}
-              forceRender={true}
-              onConfirm={removal.onRemove}
-              onOpenChange={setConfirmOpen}
-              open={confirmOpen}
-              title="Remove this image?"
-            />
           )}
         </Stack>
       )}

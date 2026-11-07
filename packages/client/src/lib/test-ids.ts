@@ -155,8 +155,7 @@ const TEST_IDS = {
   // accessible name, which is also how a user meets it; a marker a primitive drops is worse than none.
   corpusDiscoverEvidence: "corpus-discover-evidence",
   corpusBrowseView: "corpus-browse-view",
-  /** The add-document dialog's scrape arm submit — the FORM-body dialog's own button (FormSubmitButton
-   *  requires a registered key; the other two arms are plain buttons reachable by their labels). */
+  /** The add-document dialog's scrape arm submit; the other two arms are plain buttons reachable by their labels. */
   databankScrapeSubmit: "databank-scrape-submit",
   corpusHomeSurface: "corpus-home-surface",
   corpusDossierSurface: "corpus-dossier-surface",

@@ -110,6 +110,18 @@ catalog:
   "@total-typescript/ts-reset": ^0.6.1
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
   jscpd: ^5.4.2
+  # stryker: mutation testing for one lane's named files (`pnpm test:mutation <file...>`); D333 keeps it a tool, never a gate.
+  # All four move together, exact. patches/@stryker-mutator__core@<version>.patch is keyed to the version: it points
+  # workspace links at the instrumented sandbox copies and copies the store for permissioned children, and it fences the
+  # node_modules walk off lane worktrees. A bump that misses it reads as a clean run over unmutated code, so it owes the
+  # planted control in D333. The tests/tooling/stryker-sandbox-*.int.test.ts suites pin the installed patch.
+  # The checker runs its classic path on the TS6 `typescript` above, over one world's tsconfig chosen per run.
+  "@stryker-mutator/core": 10.1.1
+  "@stryker-mutator/vitest-runner": 10.1.1
+  "@stryker-mutator/typescript-checker": 10.1.1
+  "@stryker-mutator/api": 10.1.1
+  # The parser Stryker's instrumenter pins, so the ARID test reads the AST the mutator sees. Moves with the pins above.
+  "@babel/parser": 8.0.10
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.6.7
   typeid-js: ^1.2.0
@@ -437,6 +449,10 @@ auditConfig:
     - GHSA-ggr8-5vv4-36mx # deepmerge-ts, html-to-text merges only a fixed options constant
     - GHSA-w5hq-g745-h8pq # uuid, typeid-js calls v7; the advisory covers v3, v5 and v6
     - GHSA-67mh-4wv8-2f99 # esbuild, drizzle-kit dev dependency, dev server never started
+    - GHSA-q8mj-m7cp-5q26 # qs, Stryker's dashboard client; no dashboard reporter is configured
+    - GHSA-x5fp-wj9c-mxmx # qs, Stryker's dashboard client; no dashboard reporter is configured
+    - GHSA-4mjr-xmp4-gh2g # qs, Stryker's dashboard client; no dashboard reporter is configured
+    - GHSA-6pq8-jhm2-2vcw # qs, Stryker's dashboard client; no dashboard reporter is configured
 
 minimumReleaseAge: 1440
 patchedDependencies:
@@ -468,5 +484,10 @@ patchedDependencies:
   echarts@6.1.0: patches/echarts@6.1.0.patch
   # React 19 scopes JSX to React; remove when the wrapper imports that type.
   echarts-for-react@3.0.6: patches/echarts-for-react@3.0.6.patch
+  # Also carries open upstream stryker-js#6209 (PR 6293): with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
+  '@stryker-mutator/core@10.1.1': patches/@stryker-mutator__core@10.1.1.patch
+  # Two open upstream fixes; a bump drops each one that has landed. stryker-js#6256 (PR 6275): a run where no test reaches a
+  # selected mutant reports NoCoverage, not Survived. PR 6312: `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
+  '@stryker-mutator/vitest-runner@10.1.1': patches/@stryker-mutator__vitest-runner@10.1.1.patch
 
 nodeOptions: "--max-old-space-size=16384"

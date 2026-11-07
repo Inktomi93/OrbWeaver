@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
-import type { ContentDialogProps } from "./content-dialog.tsx";
-import { ContentDialog, ContentDialogClose } from "./content-dialog.tsx";
+import type { HeaderDismissDialogProps } from "./content-dialog.tsx";
+import { ContentDialog } from "./content-dialog.tsx";
 
 /** Read-only content with a persistent dismiss control and a wide default viewport. */
-export function ViewerDialog(props: ContentDialogProps): ReactElement {
-  return <ContentDialog {...props} size={props.size ?? "lg"} headerActions={props.headerActions ?? <ContentDialogClose />} />;
+export function ViewerDialog(props: HeaderDismissDialogProps): ReactElement {
+  return <ContentDialog {...props} size={props.size ?? "lg"} dismiss={props.dismiss ?? { at: "header" }} />;
 }

@@ -18,6 +18,7 @@ export function FlowDialogStory(): ReactElement {
   return (
     <CtIsolation subject="FlowDialog" isolates="isolates dialog stage geometry from authenticated feature data">
       <FlowDialog
+        dismiss={{ at: "footer", label: "Not now" }}
         defaultOpen={true}
         title="Join a room"
         bodyContainer={true}

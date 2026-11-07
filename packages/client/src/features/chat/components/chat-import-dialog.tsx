@@ -17,7 +17,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog, ImportedChatsMemoryOffer } from "#components";
+import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 
@@ -115,7 +115,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   };
 
   return (
-    <FormDialog
+    <DismissDialog
       closeButton={true}
       description="SillyTavern .jsonl transcripts or orbweaver .orb.json exports. Import the character first: each chat attaches to the character it names."
       dismissLabel={DIALOG_VERBS.cancel}
@@ -129,6 +129,6 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}
         scope={offer?.scope ?? null}
       />
-    </FormDialog>
+    </DismissDialog>
   );
 }

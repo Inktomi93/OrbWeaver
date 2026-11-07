@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { ConfirmDialog, Tip } from "#components";
+import { DestructiveAction, Tip } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
 import { journalRowLabel } from "../lib/journal-labels.ts";
@@ -88,10 +88,12 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
         </>
       }
       trailing={
-        <ConfirmDialog
-          title={`Delete "${beat.title}"?`}
-          description="The entry leaves the chronicle for good. Nothing else in the game state changes."
-          confirmLabel="Delete"
+        <DestructiveAction
+          confirm={{
+            title: `Delete "${beat.title}"?`,
+            description: "The entry leaves the chronicle for good. Nothing else in the game state changes.",
+            confirmLabel: "Delete",
+          }}
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
             <GlyphButton aria-label={`Delete entry: ${beat.title}`} variant="ghost" glyph="sm">

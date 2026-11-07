@@ -5,7 +5,7 @@ import { Text } from "@orb/ui/text";
 import { isTRPCClientError } from "@trpc/client";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { DestructiveAction } from "#components";
 import { useBusRoom, useInvalidation, useTRPC } from "#data";
 import { useRestartServer } from "../hooks/use-admin-mutations.ts";
 
@@ -94,10 +94,10 @@ export function RestartServerControl(): ReactElement {
   const statusCopy = busy || hasLiveIdentity ? RESTART_COPY[phase] : RESTART_NOT_READY_COPY;
   return (
     <Stack gap="tight">
-      <ConfirmDialog
-        title="Restart the server?"
-        description={
-          !(hasLiveIdentity || busy) ? (
+      <DestructiveAction
+        confirm={{
+          title: "Restart the server?",
+          description: !(hasLiveIdentity || busy) ? (
             RESTART_NOT_READY_COPY
           ) : (
             <>
@@ -108,9 +108,9 @@ export function RestartServerControl(): ReactElement {
               ) : null}{" "}
               Active requests stop while the server starts again. Everyone reconnects afterward. An in-app sharing link ends.
             </>
-          )
-        }
-        confirmLabel={RESTART_SERVER_LABEL}
+          ),
+          confirmLabel: RESTART_SERVER_LABEL,
+        }}
         confirmDisabled={busy || !hasLiveIdentity}
         confirmLoading={restart.isPending}
         onConfirm={confirmRestart}

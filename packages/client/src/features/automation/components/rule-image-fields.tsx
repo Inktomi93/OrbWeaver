@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleCharacterField } from "./rule-character-field.tsx";
+import { RuleRemoveField } from "./rule-remove-field.tsx";
 
 const IMAGE_MODE_LABELS = {
   free: "Custom prompt",
@@ -50,9 +51,7 @@ export function RuleImageFields({
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Image prompt" suggestions={[]} />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                Remove image prompt
-              </Button>
+              <RuleRemoveField name="image prompt" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
             </Stack>
           )
         }
@@ -67,9 +66,7 @@ export function RuleImageFields({
           ) : (
             <Stack gap="tight">
               <field.MacroField label="Negative prompt" suggestions={[]} />
-              <Button variant="ghost" justify="start" onClick={(): void => field.handleChange(undefined)}>
-                Remove negative prompt
-              </Button>
+              <RuleRemoveField name="negative prompt" onRemove={(): void => field.handleChange(undefined)} value={field.state.value} />
             </Stack>
           )
         }

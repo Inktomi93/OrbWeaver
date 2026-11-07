@@ -7,10 +7,9 @@
 // attempt's values.
 
 import { handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
-import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
@@ -28,15 +27,9 @@ export interface AdminCreateUserDialogProps {
 /** The dialog shell — the form body mounts fresh per open (Base UI unmounts closed popups). */
 export function AdminCreateUserDialog({ open, onOpenChange, viewerIsOwner }: AdminCreateUserDialogProps): ReactElement {
   return (
-    <FormDialog
-      description="Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later."
-      onOpenChange={onOpenChange}
-      open={open}
-      testKey="adminCreateUserDialog"
-      title="Create user"
-    >
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
       <CreateUserFormBody viewerIsOwner={viewerIsOwner} onDone={(): void => onOpenChange(false)} />
-    </FormDialog>
+    </FormDialogRoot>
   );
 }
 
@@ -58,7 +51,20 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
   const { form } = useCreateUserForm({ entityId: "create-user", serverValues: undefined, save });
 
   return (
-    <Stack gap="block">
+    <FormDialogPopup
+      description="Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later."
+      submit={{
+        label: createUser.isPending ? "Creating…" : "Create user",
+        disabled: createUser.isPending,
+        testKey: "adminCreateUserSubmit",
+        onSubmit: (): void => {
+          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
+          form.handleSubmit().catch(() => undefined);
+        },
+      }}
+      testKey="adminCreateUserDialog"
+      title="Create user"
+    >
       <form.AppField name="handle">{(field): ReactElement => <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />}</form.AppField>
       <form.AppField name="password">
         {(field): ReactElement => (
@@ -80,15 +86,6 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
           Couldn't create the user — that handle may already be taken.
         </Text>
       )}
-      <FormSubmitButton
-        disabled={createUser.isPending}
-        label={createUser.isPending ? "Creating…" : "Create user"}
-        onSubmit={(): void => {
-          // The save's failure is already said, inline or by the toast; the rethrow carries nothing new.
-          form.handleSubmit().catch(() => undefined);
-        }}
-        testKey="adminCreateUserSubmit"
-      />
-    </Stack>
+    </FormDialogPopup>
   );
 }

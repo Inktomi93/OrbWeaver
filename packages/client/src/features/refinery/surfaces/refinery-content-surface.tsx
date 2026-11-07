@@ -349,7 +349,7 @@ function useScopeDoor(): { readonly open: boolean; readonly setOpen: (open: bool
   return { open: openedHere || requestedDoor === "scope", setOpen };
 }
 
-/** The refused-apply recovery (owner ruling: Apply is atomic, recovery is an explicit discard): which kept
+/** The refused-apply recovery. Apply is atomic, so one refused entry refuses the act, and only the reader may discard it: which kept
  *  entries the act refused and what would remain. Null when nothing was refused or nothing would remain. */
 function recoveryOf(
   outcome: OutcomeState | null,

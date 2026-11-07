@@ -25,7 +25,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, SettingTrackRow } from "#components";
+import { DestructiveAction, SettingTrackRow } from "#components";
 
 /** The numeric row's floor formatter — the SAME default format the NumberField primitive formats its visible
  *  value with (locale defaulted, grouping off), so the floor sentence reads in the same digits as the control
@@ -177,11 +177,13 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
           </Button>
         )}
         {anyOverridden ? (
-          <ConfirmDialog
-            confirmLabel="Reset to defaults"
-            description={`Every override in ${sectionLabel} is cleared and the built-in defaults apply again.`}
+          <DestructiveAction
+            confirm={{
+              confirmLabel: "Reset to defaults",
+              description: `Every override in ${sectionLabel} is cleared and the built-in defaults apply again.`,
+              title: `Reset ${sectionLabel} to defaults?`,
+            }}
             onConfirm={onReset}
-            title={`Reset ${sectionLabel} to defaults?`}
             trigger={
               <Button aria-label={`Reset to defaults: ${sectionLabel}`} variant="outline" size="sm" disabled={saving}>
                 Reset to defaults

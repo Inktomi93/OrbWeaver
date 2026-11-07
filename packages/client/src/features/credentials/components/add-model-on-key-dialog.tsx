@@ -10,17 +10,14 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
-import { Stack } from "@orb/ui/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { FormDialogPopup, FormDialogRoot, QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { peekQueryData, useSuspenseQuery } from "#data";
 import { touchedFieldError } from "#forms/editor";
-import { connectionHost, DIALOG_VERBS, notify } from "#lib";
+import { connectionHost, notify } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
@@ -49,27 +46,30 @@ export interface AddModelOnKeyDialogProps {
 
 export function AddModelOnKeyDialog({ open, onOpenChange, connection, provider, scope, trpc, invalidation }: AddModelOnKeyDialogProps): ReactElement {
   return (
-    <FormDialog
-      description={addModelActionGloss(scope, providerDisplayLabel(provider))}
-      onOpenChange={onOpenChange}
-      open={open}
-      size="wide"
-      title={addModelActionLabel(scope)}
-    >
-      <AddModelOnKeyBody connection={connection} invalidation={invalidation} onDone={(): void => onOpenChange(false)} provider={provider} trpc={trpc} />
-    </FormDialog>
+    <FormDialogRoot onOpenChange={onOpenChange} open={open}>
+      <AddModelOnKeyBody
+        connection={connection}
+        invalidation={invalidation}
+        onDone={(): void => onOpenChange(false)}
+        provider={provider}
+        scope={scope}
+        trpc={trpc}
+      />
+    </FormDialogRoot>
   );
 }
 
 function AddModelOnKeyBody({
   connection,
   provider,
+  scope,
   trpc,
   invalidation,
   onDone,
 }: {
   readonly connection: ConnectionListItem;
   readonly provider: ProviderDef;
+  readonly scope: AddModelScope;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly onDone: () => void;
@@ -108,17 +108,19 @@ function AddModelOnKeyBody({
   const { form } = useAddModelOnKeyForm({ entityId: `add-model-on-key-${connection.id}`, serverValues: undefined, save });
   const listOwner = connectionHost(connection.baseUrl) ?? providerLabel;
 
+  const submit = (): void => {
+    form.handleSubmit().catch((err: unknown) => notify.error({ title: CONNECTION_FORM_COPY.submitFailed, description: errorMessage(err) }));
+  };
+
   return (
-    <form.AppForm>
-      <form
-        aria-label="Add a model"
-        onSubmit={(event): void => {
-          event.preventDefault();
-          event.stopPropagation();
-          form.handleSubmit().catch((err: unknown) => notify.error({ title: CONNECTION_FORM_COPY.submitFailed, description: errorMessage(err) }));
-        }}
-      >
-        <Stack gap="block">
+    <form.Subscribe selector={(state): readonly [boolean, boolean] => [state.canSubmit, state.isSubmitting] as const}>
+      {([canSubmit, isSubmitting]): ReactElement => (
+        <FormDialogPopup
+          description={addModelActionGloss(scope, providerLabel)}
+          size="wide"
+          submit={{ label: CONNECTION_FORM_COPY.submit, disabled: !canSubmit || isSubmitting, loading: isSubmitting, onSubmit: submit }}
+          title={addModelActionLabel(scope)}
+        >
           <form.AppField name="model">
             {(field): ReactElement => {
               const picker: Omit<ModelPickerProps, "source"> = {
@@ -152,13 +154,9 @@ function AddModelOnKeyBody({
               <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />
             )}
           </form.AppField>
-          <DialogFooter>
-            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-            <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-          </DialogFooter>
-        </Stack>
-      </form>
-    </form.AppForm>
+        </FormDialogPopup>
+      )}
+    </form.Subscribe>
   );
 }
 

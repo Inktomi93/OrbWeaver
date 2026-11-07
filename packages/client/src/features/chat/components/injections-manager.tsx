@@ -24,8 +24,8 @@
 // field they came for.
 //
 // REMOVE LIVES IN THE PANEL, exactly where the Field-overrides row puts Clear. Collapsed rows are a list a
-// host scans; a destructive, irreversible affordance one click from the surface of a scan-list is the
-// pattern side-eye #621 already demoted on the rule row. Expanding is the confirmation.
+// host scans, and a destructive, irreversible affordance does not belong on the surface of a scan-list.
+// It still asks: the row's authored text has no way back.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
@@ -40,7 +40,8 @@ import type { SelectItems } from "@orb/ui/select";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { DestructiveAction, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
@@ -110,10 +111,16 @@ interface InjectionsListProps {
   readonly isHost: boolean;
   readonly onAdd: () => void;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
-  readonly onDelete: (key: string) => void;
+  readonly onDelete: (key: string) => Promise<void>;
 }
 
 function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
+  // The last row's removal has no neighbour, so Add is the list's landing place.
+  const addRef = useRef<HTMLButtonElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    addRef,
+    rows.map((row) => row.key),
+  );
   return (
     <Stack gap="section">
       <Text voice="gloss">{injectionsIntro(isHost)}</Text>
@@ -125,13 +132,13 @@ function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsLis
       ) : (
         <Stack gap="section">
           {rows.map((row, index) => (
-            <InjectionRow key={row.key} ordinal={index + 1} row={row} isHost={isHost} onSave={onSave} onDelete={onDelete} />
+            <InjectionRow key={row.key} ordinal={index + 1} row={row} isHost={isHost} onSave={onSave} onDelete={onDelete} rowFocus={rowFocus} />
           ))}
         </Stack>
       )}
 
       {isHost ? (
-        <Button variant="outline" size="sm" onClick={onAdd}>
+        <Button ref={addRef} variant="outline" size="sm" onClick={onAdd}>
           Add injection
         </Button>
       ) : null}
@@ -147,10 +154,12 @@ interface InjectionRowProps {
   readonly ordinal: number;
   readonly isHost: boolean;
   readonly onSave: (key: string, values: InjectionFormValues) => Promise<unknown>;
-  readonly onDelete: (key: string) => void;
+  readonly onDelete: (key: string) => Promise<void>;
+  readonly rowFocus: ReturnType<typeof useRowDeleteFocus>;
 }
 
-function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowProps): ReactElement {
+function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: InjectionRowProps): ReactElement {
+  const removal = rowFocus.delete(row.key, (): Promise<void> => onDelete(row.key));
   const save = isHost ? (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values) : undefined;
   // Seeded from the SERVER row, not subscribed to the live value: a host who types into a blank row must
   // not have it fold shut under them, and a host who clears one must not have it fold shut either.
@@ -174,7 +183,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                       coarse / 32px fine) — the disclosure IS the row, and it is the only door to the
                       editor. The accessible name COMPUTES from the trigger's own content ("Injection 1 …"),
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
-                  <CollapsibleTrigger inset="block" width="full" size="control">
+                  <CollapsibleTrigger ref={rowFocus.bodyRef(row.key)} inset="block" width="full" size="control">
                     <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
                       <Text voice="label">{`Injection ${ordinal}`}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
@@ -247,9 +256,16 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete }: InjectionRowPr
                     irreversible action is never one click off a collapsed scan-list. */}
                 {isHost ? (
                   <Row align="center" gap="field">
-                    <Button variant="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
-                      Remove
-                    </Button>
+                    <DestructiveAction
+                      confirm={{ confirmLabel: "Remove", description: "Its text leaves this chat. This can't be undone.", title: "Remove this injection?" }}
+                      finalFocus={removal.deleteFinalFocus}
+                      onConfirm={removal.onDelete}
+                      trigger={
+                        <Button variant="ghost" size="sm" aria-label="Remove injection">
+                          Remove
+                        </Button>
+                      }
+                    />
                   </Row>
                 ) : null}
               </Stack>
@@ -345,8 +361,8 @@ export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): R
           ...fromInjectionForm(values),
         })
       }
-      onDelete={(key): void => {
-        deleteInjection.mutate({ chatId, injectionId: typeIdSchema(ID_PREFIX.chatInjection).parse(key) });
+      onDelete={async (key): Promise<void> => {
+        await deleteInjection.mutateAsync({ chatId, injectionId: typeIdSchema(ID_PREFIX.chatInjection).parse(key) });
       }}
     />
   );

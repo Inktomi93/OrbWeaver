@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-07
 priority: P3
 area: ui
+lane: wt/agent-afb5bff2b14113d1d
 plan: cross-surface-consistency
 ---
 
@@ -11,7 +12,7 @@ plan: cross-surface-consistency
 
 ## What
 
-On a phone a screen title such as Characters truncates when actions share the bar. The shell topbar needs a title floor, with actions folding first. This is the remaining part (c) of item 1825.
+Split the shell topbar screen title into name and count, so the count truncates first and the name stays whole at phone widths. Measured at 390 the name fits by one pixel and only the census clips, so the fix touches every section's title.
 
 ## Why
 
@@ -19,7 +20,7 @@ A cut title stops naming the screen, and the same shape was fixed for list panes
 
 ## Done when
 
-At phone widths each section title reads whole or its actions fold first, with a CT.
+A CT at 360, 390 and 430 with the longest section name keeps the name whole.
 
 ## Evidence
 

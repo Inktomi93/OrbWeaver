@@ -8,7 +8,8 @@
 //   · VERSIONS — the D28 snapshot walk: label-classified rows (Refinery / Manual / Pre-restore)
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
-import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
+import type { RefinerySchemaStage, RefineryStage, RefineryVerdict, RenderHintTone } from "@orb/contracts/refinery";
+import { refineryVerdictSchema } from "@orb/contracts/refinery";
 import type { RefineryRunId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
@@ -21,7 +22,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ContextTabBody, QueryBoundary } from "#components";
+import { ContextTabBody, DestructiveAction, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
@@ -45,12 +46,13 @@ const MS_PER_SECOND = 1000;
 const REFINERY_SNAPSHOT_PREFIX = "auto: before refinery apply";
 const PRE_RESTORE_PREFIX = "auto: before restore";
 
-function verdictOf(run: RunView): string | null {
+/** A custom analyze schema pins the verdict's spellings at save, but this payload is a stored run, so it parses here. */
+function verdictOf(run: RunView): RefineryVerdict | null {
   if (run.stage !== "analyze") {
     return null;
   }
-  const verdict = (run.payload as Record<string, unknown>)["verdict"];
-  return typeof verdict === "string" ? verdict : null;
+  const verdict = refineryVerdictSchema.safeParse((run.payload as Record<string, unknown>)["verdict"]);
+  return verdict.success ? verdict.data : null;
 }
 
 function economicsOf(run: RunView): string {
@@ -350,12 +352,14 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                 <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
                   {refineryCompareToggleName(compareId === snapshot.id)}
                 </Button>
-                <ConfirmDialog
-                  confirmLabel={DIALOG_VERBS.restore}
-                  confirmTone="primary"
-                  description="This replaces the live card with this version. The current card is snapshotted first, so you can undo it."
+                <DestructiveAction
+                  confirm={{
+                    confirmLabel: DIALOG_VERBS.restore,
+                    confirmTone: "primary",
+                    description: "This replaces the live card with this version. The current card is snapshotted first, so you can undo it.",
+                    title: "Restore this snapshot?",
+                  }}
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
-                  title="Restore this snapshot?"
                   trigger={
                     <Button variant="ghost" size="sm">
                       {DIALOG_VERBS.restore}

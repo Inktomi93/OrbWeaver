@@ -1,0 +1,84 @@
+diff --git a/dist/schema/vitest-runner-options.json b/dist/schema/vitest-runner-options.json
+--- a/dist/schema/vitest-runner-options.json
++++ b/dist/schema/vitest-runner-options.json
+@@ -29,6 +29,12 @@
+                     "type": "string",
+                     "enum": ["threads", "forks", "vmThreads", "vmForks"],
+                     "default": "threads"
++                },
++                "dryRunMaxWorkers": {
++                    "description": "The number of Vitest workers for the initial test run (dry run). Mutant runs always use one worker per test runner.",
++                    "type": "integer",
++                    "minimum": 1,
++                    "default": 1
+                 }
+             }
+         }
+diff --git a/dist/src/stryker-setup.js b/dist/src/stryker-setup.js
+--- a/dist/src/stryker-setup.js
++++ b/dist/src/stryker-setup.js
+@@ -47,17 +47,20 @@
+         // Vitest's hooks API requires this empty destructure to allow access to suite.meta
+         // eslint-disable-next-line no-empty-pattern
+         afterAll(({}, suite) => {
+-            suite.meta.mutantCoverage = ns.mutantCoverage;
++            suite.meta.mutantCoverage = ns.mutantCoverage ?? emptyCoverage();
+         });
+     }
+     else {
+         // @ts-expect-error This was changed in Vitest v4.1
+         afterAll(({ meta }) => {
+-            meta.mutantCoverage = ns.mutantCoverage;
++            meta.mutantCoverage = ns.mutantCoverage ?? emptyCoverage();
+         });
+     }
+ }
+ // Stryker disable all: this file is copied to the sandbox dir
++function emptyCoverage() {
++    return { static: {}, perTest: {} };
++}
+ function collectTestName({ name, suite, }, separator) {
+     const nameParts = [name];
+     let currentSuite = suite;
+diff --git a/dist/src/vitest-test-runner.js b/dist/src/vitest-test-runner.js
+--- a/dist/src/vitest-test-runner.js
++++ b/dist/src/vitest-test-runner.js
+@@ -153,16 +153,35 @@
+             this.log.debug(`vitest final config: ${JSON.stringify(this.ctx.config, null, 2)}`);
+         }
+     }
++    async #withDryRunWorkers(run) {
++        const maxWorkers = this.options.vitest.dryRunMaxWorkers;
++        if (maxWorkers <= 1) {
++            return run();
++        }
++        const configs = [this.ctx.config, ...this.ctx.projects.map(({ config }) => config)];
++        const previous = configs.map((config) => config.maxWorkers);
++        configs.forEach((config) => {
++            config.maxWorkers = maxWorkers;
++        });
++        try {
++            return await run();
++        }
++        finally {
++            configs.forEach((config, index) => {
++                config.maxWorkers = previous[index];
++            });
++        }
++    }
+     async dryRun(options) {
+         this.ctx.provide('mode', 'dry-run');
+         // If testFilter is provided, use those files directly instead of relying on related files
+         // We still need to pass relatedFiles for vitest to properly resolve the test files
+-        const testResult = testFilesProvided(options)
+-            ? await this.run({
++        const testResult = await this.#withDryRunWorkers(() => testFilesProvided(options)
++            ? this.run({
+                 testFiles: options.testFiles,
+                 relatedFiles: options.files,
+             })
+-            : await this.run({ relatedFiles: options.files });
++            : this.run({ relatedFiles: options.files }));
+         if (testResult.status === DryRunStatus.Complete &&
+             testResult.tests.length === 0 &&
+             this.options.vitest.related &&

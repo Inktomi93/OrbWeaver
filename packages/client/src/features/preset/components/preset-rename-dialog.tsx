@@ -8,10 +8,7 @@
 // tags and regex already ship) and the list-row kebab's item went. Nothing about the dialog changed; only
 // who opens it.
 
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
@@ -34,6 +31,14 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
 
   return (
     <FormDialog
+      submit={{
+        label: DIALOG_VERBS.save,
+        disabled: !canSave,
+        onSubmit: (): void => {
+          onRename(trimmed);
+          onOpenChange(false);
+        },
+      }}
       onOpenChange={(next): void => {
         // Re-seed on each open so a cancelled edit doesn't carry into the next rename.
         if (next) {
@@ -44,26 +49,7 @@ export function PresetRenameDialog({ open, onOpenChange, currentName, onRename }
       open={open}
       title={PRESET_RENAME_NAME}
     >
-      <form
-        aria-label={PRESET_RENAME_NAME}
-        onSubmit={(event): void => {
-          event.preventDefault();
-          if (canSave) {
-            onRename(trimmed);
-            onOpenChange(false);
-          }
-        }}
-      >
-        <Stack gap="block">
-          <Input value={name} onValueChange={setName} aria-label={PRESET_NAME_FIELD_NAME} placeholder="Preset name" />
-          <DialogFooter>
-            <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-            <Button type="submit" disabled={!canSave}>
-              {DIALOG_VERBS.save}
-            </Button>
-          </DialogFooter>
-        </Stack>
-      </form>
+      <Input value={name} onValueChange={setName} aria-label={PRESET_NAME_FIELD_NAME} placeholder="Preset name" />
     </FormDialog>
   );
 }

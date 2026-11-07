@@ -27,6 +27,7 @@
 // read already performs, so the list names EVERY session it lists and there is no second query here.
 
 import { blobUrl } from "@orb/contracts/assets";
+import type { RefineryVerdict } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -55,7 +56,7 @@ interface ResolvedRow {
   readonly characterId: CharacterId;
   readonly sessionName: string | null;
   readonly iterationCount: number;
-  readonly latestVerdict: string | null;
+  readonly latestVerdict: RefineryVerdict | null;
   /** The session's start time — the subtitle's readout stamp AND the same-card distinguisher (see
    *  `readoutSubtitleOf`). `updatedAt` is no longer read here: the list arrives newest-updated first, so
    *  freshness is positional and the start stamp is the fact that tells two sessions on one card apart. */

@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -296,11 +296,9 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
         <Button variant="outline" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
           {approveLabel(plugin.name, plugin.declaredCapabilities.length)}
         </Button>
-        <ConfirmDialog
-          confirmLabel="Remove plugin"
-          description={REMOVE_PLUGIN_DESCRIPTION}
+        <DestructiveAction
+          confirm={{ confirmLabel: "Remove plugin", description: REMOVE_PLUGIN_DESCRIPTION, title: `Remove "${plugin.name}"?` }}
           onConfirm={onRemove}
-          title={`Remove "${plugin.name}"?`}
           trigger={
             // Removal stays quieter than approval without adding another page-level primary.
             <Button variant="ghost" loading={removing} size="sm">

@@ -18,8 +18,6 @@
 import type { StDroppedField, StImportOutcome, StImportResult } from "@orb/contracts/preset";
 import { PRESET_SCHEMA_KIND, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import { isPlainObject } from "@orb/kit/guards";
-import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -27,7 +25,6 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
-import { DIALOG_VERBS } from "#lib";
 import { PRESET_IMPORT_NAME } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
@@ -187,6 +184,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         onOpenChange(next);
       }}
       open={open}
+      submit={{ label: PRESET_IMPORT_NAME, disabled: parsed === null || busy, onSubmit: onConfirm }}
       title="Import a preset"
     >
       <Stack gap="block">
@@ -214,13 +212,6 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
         {parsed === null ? null : <ImportSummary parsed={parsed} />}
       </Stack>
-
-      <DialogFooter>
-        <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={parsed === null || busy} onClick={onConfirm}>
-          {PRESET_IMPORT_NAME}
-        </Button>
-      </DialogFooter>
     </FormDialog>
   );
 }

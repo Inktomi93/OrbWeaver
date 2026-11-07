@@ -53,7 +53,7 @@ test("a class string in three files is a missing composite, and an equal-valued 
 test("a dialog with no dismiss path is a defect the majority cannot hide", ({ scratch }) => {
   const root = plantDir(scratch, "dialog");
   const open = (name: string, props: string): string =>
-    `import { FormDialog } from "#components";\nexport const ${name} = () => <FormDialog open={true} onOpenChange={() => {}} title="T" ${props}>body</FormDialog>;`;
+    `import { DismissDialog } from "#components";\nexport const ${name} = () => <DismissDialog open={true} onOpenChange={() => {}} title="T" ${props}>body</DismissDialog>;`;
   plantClient(root, {
     "components/ok1.tsx": open("A", "dismissLabel='Close'"),
     "components/ok2.tsx": open("B", "dismissLabel='Close'"),

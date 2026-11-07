@@ -12,7 +12,6 @@ import {
   SETUP_COMMAND,
   signInModeEnvLines,
 } from "@orb/contracts/identity";
-import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { CopyButton } from "@orb/ui/copy-button";
@@ -21,7 +20,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, StatusChip } from "#components";
 import { SkeletonRows } from "#data";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
 import { canStartSharing, MODE_NAME, refusalRow, sharePreconditions } from "../lib/share-model.ts";
@@ -193,14 +192,11 @@ interface PreconditionItemProps {
 }
 
 function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: PreconditionItemProps): ReactElement {
-  const badge = VERDICT_BADGE[row.verdict];
   return (
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
       <Row gap="field" align="center" wrap={true}>
         <Text voice="label">{PRECONDITION_LABEL[row.id]}</Text>
-        <Badge tone={badge.tone} variant={STATUS_PILL_VARIANT[badge.tone]}>
-          {badge.label}
-        </Badge>
+        <StatusChip status={row.verdict} vocabulary={VERDICT_BADGE} />
       </Row>
       {/* The server's refusal names its own fix, so it replaces the row's standing detail; `alert` because it lands
           after the press while the status line above still reads Not sharing. */}

@@ -4,7 +4,6 @@
 
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { DialogClose, DialogFooter } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -31,6 +30,7 @@ export interface VariableEditorDialogProps {
 export function VariableEditorDialog({ form, index, onClose }: VariableEditorDialogProps): ReactElement {
   return (
     <FlowDialog
+      dismiss={{ at: "footer", label: DIALOG_VERBS.done, primary: true }}
       title="Edit variable"
       open={true}
       onOpenChange={(next): void => {
@@ -60,10 +60,6 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
       <form.AppField name={`variables[${index}].randomPick`}>
         {(field): ReactElement => <field.SwitchField label="Random pick" description="Choose an option at random instead of asking." />}
       </form.AppField>
-
-      <DialogFooter>
-        <DialogClose render={<Button>{DIALOG_VERBS.done}</Button>} />
-      </DialogFooter>
     </FlowDialog>
   );
 }
