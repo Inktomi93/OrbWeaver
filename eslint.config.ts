@@ -387,8 +387,12 @@ const WALKER_LETTER_REGEX_SYNTAX = {
 
 // `tagName` is uppercased only for HTML-namespace elements, so a walker comparison against an uppercase SVG name never
 // matches. The source is a string to every other check, and the selector reads the page's code from the cooked text.
+// The names are the SVG elements a walker can meet in the page. Each is caught as a quoted name, an object-table key
+// and a regex alternative; prose such as "RECT: a pseudo" is not a key, because a key's value is a number, a boolean or a string.
+const SVG_UPPERCASE_TAG_NAMES =
+  "SVG|G|PATH|CIRCLE|ELLIPSE|LINE|POLYLINE|POLYGON|RECT|TEXT|TSPAN|TEXTPATH|IMAGE|USE|SYMBOL|DEFS|FOREIGNOBJECT|MASK|PATTERN|CLIPPATH|MARKER|FILTER|STOP|LINEARGRADIENT|RADIALGRADIENT";
 const WALKER_UPPERCASE_SVG_TAG_SYNTAX = {
-  selector: String.raw`TemplateElement[value.cooked=/["'](SVG|PATH|G|CIRCLE|RECT|USE|POLYGON)["']|\b(SVG|PATH|CIRCLE|RECT|POLYGON)\s*:\s*\d/]`,
+  selector: String.raw`TemplateElement[value.cooked=/["'](${SVG_UPPERCASE_TAG_NAMES})["']|\b(${SVG_UPPERCASE_TAG_NAMES})\s*:\s*(\d|true\b|false\b|["'])|\x2f[\^(]*([A-Z]+\|)*(${SVG_UPPERCASE_TAG_NAMES})(\|[A-Z]+)*[)$]*\x2f/]`,
   message: "An inline SVG element reports a lowercase tagName: compare el.localName against the lowercase name.",
 };
 

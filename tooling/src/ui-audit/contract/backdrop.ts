@@ -24,7 +24,12 @@ export type Backdrop =
   | { readonly kind: "flat"; readonly color: Rgb }
   | { readonly kind: "gradient"; readonly stops: readonly Rgb[] }
   | { readonly kind: "image-indeterminate" }
-  | { readonly kind: "unresolved"; readonly reason: "paint-layer-over-base" | "no-opaque-base"; readonly fallback: Rgb };
+  | { readonly kind: "unresolved"; readonly reason: UnresolvedBackdropReason; readonly fallback: Rgb };
+
+const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "art-under-subject", "no-opaque-base"] as const;
+/** Why the walk found no trustworthy base. `art-under-subject` is art in any position under one subject's centre,
+ *  which a scroll can bring into view; `paint-layer-over-base` is a positioned layer that backs every text under it. */
+type UnresolvedBackdropReason = (typeof UNRESOLVED_BACKDROP_REASONS)[number];
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──
 // Moved here from samples.ts (2026-09-01) with `Backdrop`'s cycle-break rationale: samples-hover.ts

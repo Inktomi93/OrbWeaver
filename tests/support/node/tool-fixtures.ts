@@ -316,7 +316,7 @@ export function auditRuleTest<const Proofs extends readonly AuditRuleProof[]>(
           report,
           proof.rule,
           proof.disposition,
-          proofs.some((other) => other.kind === "fires" && other.rule === proof.rule),
+          proofs.some((other) => other.kind === "fires" && other.rule === proof.rule) && report.findings.some((finding) => finding.rule === proof.rule),
         );
       }
     }

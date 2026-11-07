@@ -41,9 +41,8 @@ auditRuleTest(
     {
       rule: "side-tab",
       kind: "silent",
-      reason:
-        "a full-box gradient ring is a border on four sides — the one shape §6 does not ban — and its paint is an IMAGE, so it carries no background colour for this arm to read",
-      disposition: { kind: "no-candidate" },
+      reason: "the picture of an accent edge inside an illustrated picker's art aperture is read off the HOST and excluded on the pseudo channel too",
+      disposition: { kind: "excluded", reason: "illustratedPickerArt" },
     },
     {
       rule: "border-accent-on-rounded",
@@ -86,7 +85,11 @@ auditRuleTest(
         `${rule}: #1642's art-pane exemption must reach the pseudo channel`,
       ).toBe(false);
     }
-    return readAuditReport(res.stdout);
+    const report = await readAuditReport(res.stdout);
+    // A full-box gradient ring is a border on four sides, the one shape §6 does not ban, and its paint is an image with
+    // no background colour for the bar channel to read: the two candidates are the bar and the picker art, never the ring.
+    expect(report.populationAccounting?.["side-tab"]).toMatchObject({ candidates: 2, affected: 1, excluded: { illustratedPickerArt: 1 } });
+    return report;
   },
 );
 

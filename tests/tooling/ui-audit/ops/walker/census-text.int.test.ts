@@ -411,6 +411,81 @@ test.for(PLATE_OVER_ART_SHAPES)("small ink on a translucent plate over %s is mea
   expect(report.populationAccounting?.["contrast"]).toMatchObject({ affected: 1 });
 });
 
+const CAPTIONED_CARD = `<div style="${CARD_BOX}"><img alt="" src="${ART_RASTER_URL}" style="${WHITE_ART_BOX}">${CAPTION_PLATE}</div>`;
+
+auditRuleTest(
+  [
+    { rule: "contrast", kind: "fires", reason: "the caption below the fold is scrolled to and measured like its in-view twin, so both fail" },
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "a caption the audit can scroll to is measured, never filed as art it could not see",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "a caption over in-flow art below the fold is measured, not filed as unseen art",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "caption-below-fold", `${CAPTIONED_CARD}<div style="height:2400px"></div>${CAPTIONED_CARD}`);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 2, affected: 2 });
+    expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 2 });
+    return report;
+  },
+);
+
+// Each depth is more than half a viewport from the last, so every caption needs a scroll position of its own. The
+// hover label sits above them all: the hover pass runs after the reveal and must find the page where the walk left it.
+const DEEP_CAPTIONS = [0, 1, 2, 3].map(() => `${CAPTIONED_CARD}<div style="height:1400px"></div>`).join("");
+const HOVER_LABEL =
+  '<style>.hover-label { display: inline-block; color: #8a8a8a; } .hover-label:hover { color: #ffffff; }</style><span class="hover-label">hover label</span>';
+
+auditRuleTest(
+  [
+    { rule: "contrast", kind: "fires", reason: "a caption at every depth is measured from a shot of its own, and each fails" },
+    {
+      rule: "hover-contrast",
+      kind: "silent",
+      reason: "the hover pass after the reveal judges the label above the captions, so the scroll came back",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "captions at four depths are each measured, and the hover pass after them still judges the top of the page",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "caption-depths", `${HOVER_LABEL}${DEEP_CAPTIONS}`);
+    // Five texts: the four captions, which fail, and the hover label, which passes at rest.
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 5, affected: 4, withheld: {} });
+    expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 5 });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "a caption parked past a carousel's edge stays off-screen after the page scroll, so it has no verdict",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "a caption the audit could not reach is withheld, never filed as unseen art",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+  ],
+  "a caption over in-flow art that no page scroll reaches is withheld",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(
+      scratch,
+      runCli,
+      "caption-past-carousel",
+      `<div style="display:flex;width:340px;overflow-x:auto"><div style="flex:none;width:2400px"></div>${CAPTIONED_CARD}</div>`,
+    );
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 1, judged: 0 });
+    return report;
+  },
+);
+
 // A picture beside a label, and an icon inside one, sit next to the glyphs: neither backs them.
 const ART_BESIDE_INK_SHAPES = [
   [
@@ -428,7 +503,7 @@ test.for(ART_BESIDE_INK_SHAPES)("%s stays a flat backdrop", async ([name, body],
   expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
   expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
   expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
-  expect(report.populationAccounting?.["gray-on-color"]?.excluded ?? {}).not.toHaveProperty("pixelSampled");
+  expect(report.populationAccounting?.["gray-on-color"]).toMatchObject({ excluded: expect.not.objectContaining({ pixelSampled: expect.anything() }) });
 });
 
 auditRuleTest(

@@ -226,7 +226,7 @@ export const WALKER_RESOLVE = `
       } else if (!layer.fixed && !(lr.left < elRect.right && lr.right > elRect.left && lr.top < elRect.bottom && lr.bottom > elRect.top)) {
         continue;
       }
-      return layer.el;
+      return layer;
     }
     return null;
   }
@@ -256,7 +256,9 @@ export const WALKER_RESOLVE = `
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
-          if (over !== null) return { kind: "unresolved", reason: "paint-layer-over-base", fallback: acc };
+          // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only a layer
+          // that backs every text earns the unseen-art reclassification in ops/pixels.ts.
+          if (over !== null) return { kind: "unresolved", reason: over.centreOnly ? "art-under-subject" : "paint-layer-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }
         layers.push(bg);

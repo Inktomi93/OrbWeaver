@@ -54,6 +54,12 @@ test("a walker segment refuses an uppercase SVG tag and accepts the lowercase na
     'const a = `if (tag === "SVG") return true;`;',
     "const a = `if (el.tagName === 'PATH') return true;`;",
     "const a = `var TAGS = { SVG: 1 };`;",
+    "const a = `var TAGS = { SVG: true };`;",
+    'const a = `var TAGS = { FOREIGNOBJECT: "art" };`;',
+    "const a = `if (/^(SVG|IMG)$/.test(el.tagName)) return true;`;",
+    "const a = `if (/^(IMG|TEXT)$/.test(el.tagName)) return true;`;",
+    "const a = `if (/^ELLIPSE$/.test(tag)) return true;`;",
+    'const a = `if (tag === "LINE" || tag === "IMAGE") return true;`;',
   ]) {
     expect(
       linter.verify(source, native, { filename }).map(({ ruleId }) => ruleId),
@@ -65,6 +71,8 @@ test("a walker segment refuses an uppercase SVG tag and accepts the lowercase na
     'const a = `if (el.tagName === "IMG") return true;`;',
     "const a = `// an inline SVG paints`;",
     "const a = `// BOUNDED BY ITS MEASURED RECT: a pseudo`;",
+    "const a = `if (/^(IMG|VIDEO)$/.test(el.tagName)) return true;`;",
+    "const a = `// TEXT: the label the census reads`;",
   ]) {
     expect(linter.verify(source, native, { filename }), source).toEqual([]);
   }

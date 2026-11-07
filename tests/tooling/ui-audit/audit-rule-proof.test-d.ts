@@ -36,4 +36,14 @@ register(
   },
 );
 
+register(
+  [{ rule: "broken-image", kind: "silent", reason: "no row", disposition: { kind: "no-population" } }],
+  "a hand-built report satisfies no silent row",
+  // @ts-expect-error only readAuditReport mints a report, so no run stands behind this one
+  async () => {
+    await Promise.resolve();
+    return { findings: [] };
+  },
+);
+
 register([{ rule: "contrast", kind: "fires", reason: "a failing ratio" }], "a fires-only case returns nothing", () => undefined);
