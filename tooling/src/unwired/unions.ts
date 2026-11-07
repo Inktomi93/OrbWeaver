@@ -76,15 +76,40 @@ interface Tuple {
   readonly name: string;
   readonly keys: readonly string[];
   readonly members: readonly Member[];
+  /** The members' text: the vocabulary a construction must belong to. */
+  readonly texts: ReadonlySet<string>;
 }
 
-// A literal or object key carrying a member's text, and whether the type it lands in holds that member.
-interface LiteralSite {
+// The string literals a slot's type holds, and whether it holds the literal written there.
+interface Slot {
+  readonly holds: boolean;
+  /** Null where the slot is a `Record` key, which names no union of its own. */
+  readonly texts: ReadonlySet<string> | null;
+}
+
+// A literal or object key carrying a member's text, and the slot it lands in.
+interface LiteralSite extends Slot {
   readonly site: Site;
   readonly text: string;
   readonly role: LiteralRole | "record-key";
-  readonly holds: boolean;
 }
+
+// Where each text is built: the vocabularies of the slots its constructing literals land in.
+type Built = ReadonlyMap<string, readonly (ReadonlySet<string> | null)[]>;
+
+function builtInto(constructions: Iterable<{ readonly text: string; readonly texts: ReadonlySet<string> | null }>): Built {
+  const built = new Map<string, (ReadonlySet<string> | null)[]>();
+  for (const { text, texts } of constructions) {
+    built.set(text, [...(built.get(text) ?? []), texts]);
+  }
+  return built;
+}
+
+// A slot belongs to a tuple's vocabulary when one holds the other: the tuple's own union, a union that also holds
+// it, or a union derived from it. A union that shares only the member's text belongs to another vocabulary.
+const belongsTo = (slot: ReadonlySet<string> | null, tuple: Tuple): boolean => slot === null || slot.isSubsetOf(tuple.texts) || tuple.texts.isSubsetOf(slot);
+
+const buildsMember = (built: Built, tuple: Tuple, text: string): boolean => (built.get(text) ?? []).some((slot) => belongsTo(slot, tuple));
 
 const lineOf = (node: Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1;
 
@@ -141,16 +166,20 @@ function tuples(world: NativeWorld): readonly Tuple[] {
       name: name.text,
       keys: symbol === undefined ? [] : declarationKeys(symbol),
       members: elements.map((element) => ({ text: element.text, site: world.siteOf(element), line: lineOf(element) })),
+      texts: new Set(elements.map((element) => element.text)),
     };
   });
 }
 
-function* holdsText(type: Type | undefined, text: string): APIRequestGenerator<boolean> {
+const NO_SLOT: Slot = { holds: false, texts: new Set() };
+
+function* slotOf(type: Type | undefined, text: string): APIRequestGenerator<Slot> {
   if (type === undefined) {
-    return false;
+    return NO_SLOT;
   }
   const members = yield* constituents(type);
-  return members.some((member) => member.isStringLiteralType() && member.value === text);
+  const texts = new Set(members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : [])));
+  return { holds: texts.has(text), texts };
 }
 
 function keyedLiteral(node: Node): ObjectLiteralExpression | null {
@@ -165,23 +194,23 @@ interface Found {
 }
 
 // The literal's slot: the other operand of an equality, the switch expression of a `case`, else its contextual type.
-function* slotHolds(world: NativeWorld, node: StringLiteral): APIRequestGenerator<boolean> {
+function* slotAt(world: NativeWorld, node: StringLiteral): APIRequestGenerator<Slot> {
   const { parent } = node;
   if (isBinaryExpression(parent)) {
-    return yield* holdsText(yield* world.checker.getTypeAtLocation.gen(parent.left === node ? parent.right : parent.left), node.text);
+    return yield* slotOf(yield* world.checker.getTypeAtLocation.gen(parent.left === node ? parent.right : parent.left), node.text);
   }
   const block = parent.parent;
   if (isCaseClause(parent) && isCaseBlock(block) && isSwitchStatement(block.parent)) {
-    return yield* holdsText(yield* world.checker.getTypeAtLocation.gen(block.parent.expression), node.text);
+    return yield* slotOf(yield* world.checker.getTypeAtLocation.gen(block.parent.expression), node.text);
   }
-  return yield* holdsText(yield* world.checker.getContextualType.gen(node), node.text);
+  return yield* slotOf(yield* world.checker.getContextualType.gen(node), node.text);
 }
 
 // A `Record<Union, …>` key: the literal's contextual type has the property, and no declaration writes it.
-function* isRecordKey(world: NativeWorld, literal: ObjectLiteralExpression, text: string): APIRequestGenerator<boolean> {
+function* recordKeySlot(world: NativeWorld, literal: ObjectLiteralExpression, text: string): APIRequestGenerator<Slot> {
   const type = yield* world.checker.getContextualType.gen(literal);
   const property = type === undefined ? undefined : yield* world.checker.getPropertyOfType.gen(type, text);
-  return property !== undefined && property.declarations.length === 0;
+  return { holds: property !== undefined && property.declarations.length === 0, texts: null };
 }
 
 // Literals and object keys that carry a member's text, outside the tuples themselves.
@@ -205,13 +234,13 @@ function literalSites(world: NativeWorld, sources: Sources, local: readonly Tupl
       values.push({ node, site, role: literalRoleAt(sources.get(site.file), site.position) });
     }
   });
-  const holds = world.batch([
-    ...values.map(({ node, role }) => (role === "type" || role === "module" ? holdsText(undefined, node.text) : slotHolds(world, node))),
-    ...keys.map(({ node, literal }) => isRecordKey(world, literal, node.text)),
+  const slots = world.batch([
+    ...values.map(({ node, role }) => (role === "type" || role === "module" ? slotOf(undefined, node.text) : slotAt(world, node))),
+    ...keys.map(({ node, literal }) => recordKeySlot(world, literal, node.text)),
   ]);
   return [
-    ...values.map(({ node, site, role }, index) => ({ site, text: node.text, role, holds: holds[index] === true })),
-    ...keys.map(({ node, site }, index) => ({ site, text: node.text, role: "record-key" as const, holds: holds[values.length + index] === true })),
+    ...values.map(({ node, site, role }, index) => ({ site, text: node.text, role, ...(slots[index] ?? NO_SLOT) })),
+    ...keys.map(({ node, site }, index) => ({ site, text: node.text, role: "record-key" as const, ...(slots[values.length + index] ?? NO_SLOT) })),
   ];
 }
 
@@ -230,23 +259,31 @@ const NARROWING_USES: ReadonlySet<ValueUse> = new Set<ValueUse>(["parse", "test"
 const parses = (sources: Sources, sites: Iterable<Site>): boolean =>
   [...sites].some((site) => isProductionFile(site.file) && NARROWING_USES.has(valueUseAt(sources.get(site.file), site.position)));
 
-function serviceHolds(world: ServiceWorld, node: ts.StringLiteral): boolean {
+// The string literals the literal's contextual type holds, or null when that type does not hold the literal itself.
+function serviceSlot(world: ServiceWorld, node: ts.StringLiteral): ReadonlySet<string> | null {
   const type = world.checker.getContextualType(node);
   if (type === undefined) {
-    return false;
+    return null;
   }
-  return (type.isUnion() ? type.types : [type]).some((member) => member.isStringLiteral() && member.value === node.text);
+  const texts = new Set((type.isUnion() ? type.types : [type]).flatMap((member) => (member.isStringLiteral() ? [member.value] : [])));
+  return texts.has(node.text) ? texts : null;
 }
 
-// Engine two's view of which texts production builds: a TypeScript 6 literal whose contextual type holds it.
-function builtByService(world: ServiceWorld, sources: Sources, texts: ReadonlySet<string>, own: ReadonlySet<string>): ReadonlySet<string> {
-  const built = new Set<string>();
+interface Construction {
+  readonly text: string;
+  readonly texts: ReadonlySet<string>;
+}
+
+// Engine two's view of where production builds each text: a TypeScript 6 literal whose contextual type holds it.
+function builtByService(world: ServiceWorld, sources: Sources, texts: ReadonlySet<string>, own: ReadonlySet<string>): readonly Construction[] {
+  const built: Construction[] = [];
   const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteral(node) && texts.has(node.text) && !built.has(node.text)) {
+    if (ts.isStringLiteral(node) && texts.has(node.text)) {
       const site = world.siteOf(node);
       const constructs = !own.has(siteKey(site)) && literalRoleAt(sources.get(site.file), site.position) === "construct";
-      if (constructs && serviceHolds(world, node)) {
-        built.add(node.text);
+      const slot = constructs ? serviceSlot(world, node) : null;
+      if (slot !== null) {
+        built.push({ text: node.text, texts: slot });
       }
     }
     ts.forEachChild(node, visit);
@@ -296,11 +333,11 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   const entries = [...first.tuples.values()];
   const enumerated = entries.filter(({ references }) => enumerates(sources, references.values())).map(({ tuple }) => tuple.key);
   const judged = entries.map(({ tuple }) => tuple).filter((tuple) => !enumerated.includes(tuple.key));
-  const built = new Set(first.literals.filter((site) => site.role === "construct" && site.holds).map((site) => site.text));
-  const candidates = judged.flatMap((tuple) => tuple.members.filter((member) => !built.has(member.text)).map((member) => ({ tuple, member })));
+  const built = builtInto(first.literals.filter((site) => site.role === "construct" && site.holds));
+  const candidates = judged.flatMap((tuple) => tuple.members.filter((member) => !buildsMember(built, tuple, member.text)).map((member) => ({ tuple, member })));
   const own = new Set(entries.flatMap(({ tuple }) => tuple.members.map((member) => siteKey(member.site))));
   const texts = new Set(candidates.map(({ member }) => member.text));
-  const builtTwo = new Set(worlds.flatMap((config) => [...builtByService(ServiceWorld.open(options.root, config), sources, texts, own)]));
+  const builtTwo = builtInto(worlds.flatMap((config) => builtByService(ServiceWorld.open(options.root, config), sources, texts, own)));
   const tupleSites = [...new Set(candidates.map(({ tuple }) => tuple))].map((tuple) => tuple.site);
   const referencesTwo = serviceReferences(options.root, worlds, tupleSites, { log: options.log, crossCheck: options.crossCheck });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
@@ -310,11 +347,11 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   for (const { tuple, member } of candidates) {
     const key = `${tuple.key}.${member.text}`;
     const two = referencesTwo.get(siteKey(tuple.site)) ?? [];
-    if (builtTwo.has(member.text) || enumerates(sources, two) || parses(sources, two) !== parsed.has(tuple.key)) {
+    if (buildsMember(builtTwo, tuple, member.text) || enumerates(sources, two) || parses(sources, two) !== parsed.has(tuple.key)) {
       disagreements.push(key);
       continue;
     }
-    const sites = first.literals.filter((site) => site.text === member.text && site.holds);
+    const sites = first.literals.filter((site) => site.text === member.text && site.holds && belongsTo(site.texts, tuple));
     const of = (role: LiteralSite["role"]): readonly string[] => sites.filter((site) => site.role === role).map((site) => located(site.site));
     findings.push({
       key,

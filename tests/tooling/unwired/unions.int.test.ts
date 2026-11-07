@@ -62,3 +62,43 @@ test("the unions scan reports an unbuilt member with its dead branch, check and 
   expect(report.enumerated).toEqual(["packages/a/src/mode.ts:SIZES"]);
   expect(report.disagreements).toEqual([]);
 });
+
+// Construction evidence belongs to the vocabulary whose slot it lands in. `KINDS_A` and `KINDS_B` share the text
+// `shared`; only `KINDS_B`'s slot is ever built with it. The remaining tuples are controls that must clear: a slot
+// that unions two vocabularies builds `dual` in both, and a slot derived from one tuple builds its own member.
+const SHARED_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/shared.ts": [
+    'export const KINDS_A = ["alpha", "shared"] as const;',
+    "export type KindA = (typeof KINDS_A)[number];",
+    'export const KINDS_B = ["beta", "shared"] as const;',
+    "export type KindB = (typeof KINDS_B)[number];",
+    "export const takeA = (kind: KindA): KindA => kind;",
+    "export const takeB = (kind: KindB): KindB => kind;",
+    'export const builtA = takeA("alpha");',
+    'export const builtB = [takeB("beta"), takeB("shared")];',
+  ].join("\n"),
+  "packages/a/src/dual.ts": [
+    'export const KINDS_P = ["p", "dual"] as const;',
+    'export const KINDS_Q = ["q", "dual"] as const;',
+    "type Either = (typeof KINDS_P)[number] | (typeof KINDS_Q)[number];",
+    "export const takeEither = (kind: Either): Either => kind;",
+    'export const builtDual = [takeEither("dual"), takeEither("p"), takeEither("q")];',
+  ].join("\n"),
+  "packages/a/src/narrow.ts": [
+    'export const KINDS_R = ["r", "narrow", "other"] as const;',
+    "type Narrow = Exclude<(typeof KINDS_R)[number], 'other'>;",
+    "export const takeNarrow = (kind: Narrow): Narrow => kind;",
+    "export const takeR = (kind: (typeof KINDS_R)[number]): string => kind;",
+    'export const builtR = [takeNarrow("r"), takeNarrow("narrow"), takeR("other")];',
+  ].join("\n"),
+};
+
+test("the unions scan keeps construction evidence with its own vocabulary: a shared text built only in another tuple's slot stays unbuilt", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(SHARED_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member }) => ({ kind, home, member }))).toEqual([{ kind: "unbuilt", home: "KINDS_A", member: "shared" }]);
+  expect(report.disagreements).toEqual([]);
+});
