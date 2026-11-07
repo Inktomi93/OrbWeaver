@@ -3,7 +3,7 @@
 
 import type { Dirent } from "node:fs";
 import { lstat, readdir, realpath, rm } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
 import { STAGED_UPLOAD_OUTDATED } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress, WorkloadKind } from "@orb/contracts/workloads";
@@ -95,10 +95,14 @@ type ImportContributions = readonly [
  *
  * CONTAINMENT IS RESOLVED, NEVER STRING-MATCHED. A lexical `startsWith` says "inside the root" about a path
  * whose own components are symlinks pointing anywhere on the box — and `readFile` / the profile-tree walker
- * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root
+ * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root's PARENT
  * (the configured root may itself sit behind a link) and on the target, with the two required to agree.
  * "No writer of ours creates symlinks under the staging root" is not a containment argument either: the root
  * is operator-configurable (`IMPORT_STAGING_DIR`) and may point anywhere, including a shared directory.
+ *
+ * SECURITY: `stagingRoot` here is the OWNER'S folder, and a staging actor can replace that folder with a link. Its own
+ * realpath would then move both ends of the comparison together and the handle would resolve wherever the link
+ * points, so every read and every `rm` below would act there. The comparison anchors one level up for that reason.
  */
 async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
@@ -106,9 +110,11 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
   if (!isStrictDescendant(root, target, HOST_PATH)) {
     throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
-  const realRoot = await realpath(root).catch(() => {
-    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
-  });
+  const realRoot = await realpath(dirname(root))
+    .then((parent) => join(parent, basename(root)))
+    .catch(() => {
+      throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
+    });
   const realTarget = await realpath(target).catch(() => {
     throw new DomainOperationError("staged_path_missing", `staged handle names nothing under the staging root: ${stagedHandle}`);
   });
@@ -244,6 +250,8 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       // Every per-entity write is dedupe-gated, so a retry re-runs the whole loop safely.
       resume: "idempotent-restart",
       admit: ({ params }) => Promise.resolve(params.stagedDir !== undefined && params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
+      // With no upload behind it the run reads the operator's tree (D340).
+      ownerOnly: (params) => params.stagedDir === undefined,
       releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.stagedDir),
       // Declared once: both staged kinds share this root, and the sweep reads the rows of both.
       sweepOnBoot: (active) => sweepStaging(deps, active),

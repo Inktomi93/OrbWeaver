@@ -43,6 +43,15 @@ export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
 export const workloadKindSchema = z.enum(WORKLOAD_KINDS) satisfies z.ZodType<WorkloadKind>;
 
+/** The kind only an upload route starts: its params name bytes the server wrote, so a client never names this kind. */
+export const ROUTE_STARTED_WORKLOAD_KIND = "import-bundle" satisfies WorkloadKind;
+
+/** The kind that reads the operator's tree when no upload stands behind it, which only the box owner may do (D340). */
+export const OPERATOR_TREE_WORKLOAD_KIND = "import-st" satisfies WorkloadKind;
+
+/** The kinds a client may name at all. */
+export type WireWorkloadKind = Exclude<WorkloadKind, typeof ROUTE_STARTED_WORKLOAD_KIND>;
+
 /** The workload kinds an embedder change queues, one per scope search waits on: cards and pictures, documents, memory. */
 export const EMBEDDER_REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const satisfies readonly WorkloadKind[];
 

@@ -118,7 +118,7 @@ export function isReadinessRun(stage: CorpusReadinessStageId, row: { readonly ki
   return runs.some(
     (run) =>
       run.input.kind === row.kind &&
-      (row.kind !== "index" || (row.params !== null && "source" in row.params && row.params.source === run.input.params["source"])),
+      (run.input.kind !== "index" || (row.params !== null && "source" in row.params && row.params.source === run.input.params["source"])),
   );
 }
 

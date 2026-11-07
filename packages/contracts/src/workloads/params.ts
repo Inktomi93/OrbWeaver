@@ -21,7 +21,7 @@ import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "
 import { personaCollisionChoicesSchema } from "#import";
 import type { RefineScoreSweepWorkloadParams } from "#refinery";
 import type { WorkloadKind } from "./axes.ts";
-import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
+import { indexSourceSchema, OPERATOR_TREE_WORKLOAD_KIND, ROUTE_STARTED_WORKLOAD_KIND, workloadKindSchema } from "./axes.ts";
 
 const noParams = z.object({}).strip();
 
@@ -35,12 +35,11 @@ export const WORKLOAD_LIST_MAX_LIMIT = 500;
 type NoWorkloadParams = z.infer<typeof noParams>;
 
 /** A staged-upload handle is a SINGLE path segment minted by the import HTTP routes
- *  (`import-tree-<uuid>` / `import-bundle-<uuid>.zip`) — never a path. This is the OUTER (contract-layer) belt:
- *  a tRPC-crafted `".."`, `"."`, `"/etc"`, `"a/b"`, or `"a\\b"` fails validation here, before the import
- *  contribution ever resolves it. The contribution's resolve-and-contain check (`resolveStagedPath`) is the
- *  authoritative inner belt; this makes the traversal shapes unrepresentable at the boundary. Charset admits
- *  exactly the minted tokens: alphanumerics, `-`, `.`, `_`, first char alphanumeric (so a leading-dot
- *  `.`/`..`/`.hidden` is rejected), and no `..` substring anywhere. */
+ *  (`import-tree-<uuid>` / `import-bundle-<uuid>.zip`) — never a path. The wire cannot name one, so this outer belt
+ *  judges what a route or a stored row hands the domain door: `".."`, `"."`, `"/etc"`, `"a/b"`, or `"a\\b"` fails here,
+ *  before the import contribution ever resolves it. The contribution's resolve-and-contain check
+ *  (`resolveStagedPath`) is the authoritative inner belt. Charset admits exactly the minted tokens: alphanumerics,
+ *  `-`, `.`, `_`, first char alphanumeric (so a leading-dot `.`/`..`/`.hidden` is rejected), and no `..` substring. */
 const STAGED_HANDLE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 /** Common single-segment filename ceiling — a UUID token is ~50 chars; this is just a sane upper bound. */
 const STAGED_HANDLE_MAX = 255;
@@ -50,9 +49,10 @@ const stagedHandleSchema = z
   .regex(STAGED_HANDLE, "must be a single safe path segment (no separators, no leading dot)")
   .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
 
-/** The sha256 the upload route recorded for a staged upload: of its manifest for a tree, of the file for a zip. A run
- *  reads only bytes that hash to it. Optional here because a row queued before digests existed must still parse and
- *  reach the run's refusal, which asks for a new upload; the kind's `admit` refuses a new row without one. */
+/** The sha256 the upload route recorded for a staged upload: of its manifest for a tree, of the file for a zip. Only
+ *  an upload route writes it, and a run reads only bytes that hash to it. Optional here because a row queued before
+ *  digests existed must still parse and reach the run's refusal, which asks for a new upload; the kind's `admit`
+ *  refuses a new row without one. */
 const stagedDigestSchema = z.string().refine(isAssetHash, "must be a sha-256 hex digest");
 
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
@@ -93,8 +93,8 @@ export const assetsRebuildIndexWorkloadParams = z.object({ kind: assetKindSchema
 
 /** import-st tunables: the maintenance `dryRun` plus an optional folder-upload `stagedDir` override (a
  *  server-minted staging handle — a single safe path segment; the import contribution resolves it to a
- *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir.
- *  `personaCollisions` is the review's per-collision choice; an unlisted collision merges. */
+ *  strict descendant of the staging root). Absent `stagedDir` ⇒ the env-configured ST profile dir, which only the
+ *  box owner reads. `personaCollisions` is the review's per-collision choice; an unlisted collision merges. */
 export const importStWorkloadParams = z
   .object({
     dryRun: z.boolean().optional(),
@@ -106,7 +106,8 @@ export const importStWorkloadParams = z
 
 /** import-bundle: a server-minted staging handle (a single safe path segment); the import contribution
  *  resolves it to a strict descendant of the staging root (path-traversal-safe). `source` selects the staged
- *  shape: `zip` (a single archive, the default) or `dir` (a folder-upload tree). */
+ *  shape: `zip` (a single archive, the default) or `dir` (a folder-upload tree). Every field is the route's, so this
+ *  kind has no wire form. */
 export const importBundleWorkloadParams = z
   .object({
     token: stagedHandleSchema,
@@ -155,7 +156,8 @@ export interface WorkloadParamsByKind {
 export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; readonly params: WorkloadParamsByKind[K] } }[WorkloadKind];
 
 /**
- * The `start`/`createSchedule` wire validator: a known `kind` + a params OBJECT, and nothing more.
+ * The envelope the domain door re-parses: a known `kind` + a params OBJECT, and nothing more. An upload route reaches
+ * that door with params it minted, so this form names every kind. The wire uses {@link wireStartWorkloadEnvelope}.
  *
  * It deliberately does NOT enforce the kind's own params shape — the per-kind schemas live with their
  * owners now (there is no central schema map left to build a discriminated union from), so the
@@ -165,10 +167,23 @@ export type StartWorkloadInput = { [K in WorkloadKind]: { readonly kind: K; read
  */
 export const startWorkloadEnvelope = z.strictObject({ kind: workloadKindSchema, params: z.record(z.string(), z.unknown()) });
 
-export type StartWorkloadEnvelope = z.infer<typeof startWorkloadEnvelope>;
+/**
+ * What a client may send to `start`, `createSchedule`, `updateSchedule` and `estimateModelCalls` (D340). A staged handle
+ * and its digest are the server's: `import-bundle` has no wire form, and `import-st` has no wire spelling of either, so
+ * every wire `import-st` reads the operator's tree. Any other kind keeps the plain envelope.
+ */
+export const wireStartWorkloadEnvelope = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: workloadKindSchema.exclude([ROUTE_STARTED_WORKLOAD_KIND, OPERATOR_TREE_WORKLOAD_KIND]),
+    params: z.record(z.string(), z.unknown()),
+  }),
+  z.strictObject({ kind: z.literal(OPERATOR_TREE_WORKLOAD_KIND), params: importStWorkloadParams.pick({ dryRun: true, personaCollisions: true }).strict() }),
+]);
 
-/** The ONE home of the envelope→per-kind widening (the transport hands the domain door a not-yet-per-kind
- *  -validated input; the door re-parses it). Contained here so no call site spells a bare cast. */
-export function asStartWorkloadInput(envelope: StartWorkloadEnvelope): StartWorkloadInput {
+type WireStartWorkloadInput = z.infer<typeof wireStartWorkloadEnvelope>;
+
+/** The ONE home of the wire→per-kind widening (the transport hands the domain door a not-yet-per-kind-validated input;
+ *  the door re-parses it). Contained here so no call site spells a bare cast. */
+export function asStartWorkloadInput(envelope: WireStartWorkloadInput): StartWorkloadInput {
   return envelope as StartWorkloadInput;
 }

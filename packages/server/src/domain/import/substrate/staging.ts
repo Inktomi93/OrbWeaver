@@ -3,13 +3,10 @@
 // (`entry/http/import.ts`, `entry/http/import-tree.ts`) and the READER (`../workload-contributions.ts`) must
 // agree byte-for-byte or the import silently reads nothing.
 //
-// WHY A PER-OWNER SUBDIR (#1534). A staged handle is a NAME, not a capability. `workloads.start` is
-// `authedProcedure` and `import-bundle`/`import-st` are singular kinds, so ANY authenticated user may post
-// `{kind:"import-bundle", params:{token:"<someone else's handle>"}}`: before this split, that imported the
-// other user's whole staged library into the caller's own account and then DELETED the staged file in the
-// run's cleanup `finally`. Only the handle's unguessability stood between the two users, and the handle is
-// not a secret — it is echoed in the uploader's own workload row (`workloads.params`, readable by every
-// admin through the deployment-wide `workloads.list`/`get` arms) and, when the staging root is the OS temp
+// WHY A PER-OWNER SUBDIR. A staged handle is a NAME, not a capability. The wire cannot name one (D340), but the
+// domain door takes one from any composed caller, and a run reads and then deletes whatever its handle resolves to.
+// The handle is not a secret either: it is echoed in the uploader's own workload row (`workloads.params`, readable
+// by every admin through the deployment-wide `workloads.list`/`get` arms) and, when the staging root is the OS temp
 // dir, it is listable by anything else on the box.
 //
 // So authority is NOT a token check: the staged bytes live under the owner they were staged for, and the

@@ -3,7 +3,8 @@
 // no open can bind a read to an earlier listing on every platform. The server wrote these bytes, so it records their
 // hash as it writes, and a reader accepts bytes only if they hash to that record. A followed link, a swapped parent and
 // an in-place rewrite all hash wrong on every filesystem, so no check here depends on a platform or on timing. The
-// manifest file sits in the actor's namespace; the digest that vouches for it sits in the workload row.
+// manifest file sits in the actor's namespace; the digest that vouches for it sits in the workload row, and only an
+// upload route writes that param, because the wire has no spelling for it (D340).
 
 import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
@@ -64,7 +65,7 @@ function isRelativeStagedPath(path: string): boolean {
   return path.split(PATH_SEPARATOR).every((segment) => segment.length > 0 && segment !== CURRENT_DIR && segment !== PARENT_DIR);
 }
 
-// A digest can reach a row through the enqueue door, so a manifest that matches it is still checked as input.
+// The digest vouches for bytes, not for their shape, and these bytes came back off a disk, so they parse as input.
 const stagedManifestSchema = z.array(
   z.object({ path: z.string().refine(isRelativeStagedPath), size: z.number().int().nonnegative(), sha256: z.string().refine(isAssetHash) }),
 );
@@ -119,7 +120,7 @@ async function readAtMost(handle: FileHandle, limit: number): Promise<Uint8Array
 }
 
 function parseManifest(bytes: Uint8Array): StagedManifest {
-  // A digest the enqueue door admitted can vouch for bytes that are no manifest, so a parse failure is a refusal too.
+  // A parse failure is a refusal too, so bytes that are no manifest never read as an empty tree.
   try {
     return stagedManifestSchema.parse(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {

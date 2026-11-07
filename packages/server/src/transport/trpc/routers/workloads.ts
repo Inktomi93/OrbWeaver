@@ -4,6 +4,7 @@
 //   • `start` — a BULK run requires the BOX OWNER (LAYER-1 gate HERE on the payload's `mode`; the verb
 //     re-checks as LAYER-2 + validates the kind supports the mode); a SINGULAR run is any authed caller and
 //     stamps `ownerId = caller`. A bulk CREATE-kind carries a `targetOwnerId` (the mint destination).
+//     The wire envelope has no spelling for a staged handle or digest (D340): only an upload route mints those.
 //   • `list`/`get`/`cancel`/`retry` — IDOR-scoped in the verb to the caller's own `ownerId`
 //     (a non-admin), or across ALL owners (owner∪admin = the deployment-wide view). A foreign/absent id →
 //     leak-free NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
@@ -19,7 +20,7 @@ import {
   cancelWorkloadResultSchema,
   modelCallEstimateSchema,
   scheduleCadenceSchema,
-  startWorkloadEnvelope,
+  wireStartWorkloadEnvelope,
   workloadListInputSchema,
   workloadModeSchema,
   workloadRefSchema,
@@ -41,7 +42,7 @@ export const workloadsRouter = t.router({
     .input(
       strictTwin(
         z.strictObject({
-          input: startWorkloadEnvelope,
+          input: wireStartWorkloadEnvelope,
           // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
           mode: workloadModeSchema.default("singular"),
           targetOwnerId: brandedId("UserId").optional(),
@@ -73,7 +74,7 @@ export const workloadsRouter = t.router({
     .input(
       strictTwin(
         z.strictObject({
-          input: startWorkloadEnvelope,
+          input: wireStartWorkloadEnvelope,
           mode: workloadModeSchema.default("singular"),
           targetOwnerId: brandedId("UserId").optional(),
           assumeAdmitted: z.boolean().optional(),
@@ -137,7 +138,7 @@ export const workloadsRouter = t.router({
     .input(
       strictTwin(
         z.strictObject({
-          input: startWorkloadEnvelope,
+          input: wireStartWorkloadEnvelope,
           cadence: scheduleCadenceSchema,
           mode: workloadModeSchema.default("singular"),
           enabled: z.boolean().optional(),
@@ -164,7 +165,7 @@ export const workloadsRouter = t.router({
       strictTwin(
         z.strictObject({
           id: typeIdSchema(ID_PREFIX.workloadSchedule),
-          input: startWorkloadEnvelope.optional(),
+          input: wireStartWorkloadEnvelope.optional(),
           cadence: scheduleCadenceSchema.optional(),
           mode: workloadModeSchema.optional(),
         }),

@@ -8,11 +8,10 @@
 // The staged zip is owned by the workload from `start` on (its runner-env op cleans it up in a finally);
 // a pre-dispatch failure removes it here instead.
 //
-// PER-UPLOADER STAGING ROOT (#1534): the bytes land under `<root>/<uploader userId>/`, the namespace the
-// import contribution re-derives from ITS row's owner. The handle is not a capability — `workloads.start` is
-// `authedProcedure` and would otherwise accept another user's handle from anyone who learned it (and it is
-// echoed in the uploader's own workload row). `domain/import/substrate/staging.ts` is the one home for both
-// the derivation and the app-owned default root (never the shared OS temp dir).
+// PER-UPLOADER STAGING ROOT: the bytes land under `<root>/<uploader userId>/`, the namespace the import contribution
+// re-derives from ITS row's owner. The handle is not a capability, and this route is the only minter of it and of its
+// digest: the wire cannot name either (D340). `domain/import/substrate/staging.ts` is the one home for both the
+// derivation and the app-owned default root (never the shared OS temp dir).
 
 import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";

@@ -86,7 +86,7 @@ function asConflict(cause: unknown, kind: WorkloadKind): DomainConflictError {
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
   async function start(params: StartWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
-    const input = parseWorkloadInput(contributions, params.input);
+    const input = parseWorkloadInput(ctx, params.caller, params.input);
     const ownerId = resolveRunOwner(ctx.requireOwner, params, input.kind);
     const dependsOn = params.dependsOn ?? [];
     const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, dependsOn, ownerId);

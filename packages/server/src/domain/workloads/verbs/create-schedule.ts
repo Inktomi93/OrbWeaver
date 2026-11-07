@@ -18,7 +18,7 @@ import { parseWorkloadInput } from "../substrate/params.ts";
 
 export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
   async function createSchedule(params: CreateScheduleParams): Promise<WorkloadScheduleRef> {
-    const input = parseWorkloadInput(ctx.getContributions(), params.input);
+    const input = parseWorkloadInput(ctx, params.caller, params.input);
     assertKindSupportsMode(input.kind, params.mode);
     if (params.mode === "bulk" && params.caller !== null) {
       ctx.requireOwner(params.caller);
