@@ -555,6 +555,19 @@ function assertSeedBlockRestatesEmitSurface(block: string, label: string): void 
  * Seed palettes follow the default root and pointer values in the theme layer, so Light's
  * color-scheme wins by source order. Each seed declares its complete palette.
  */
+// The spacing steps `tiers.css` re-values in a density scope.
+const DENSITY_SPACING = /var\(--spacing-(?:field|row|block|section)\)/u;
+
+/**
+ * A sum that reads a density step resolves at the element that declares it, and the root sits above every density scope. Each such `orb.cssValues` entry
+ * is declared again where density is stamped, read off its value, so a new sum follows density with no edit and the formula keeps one home.
+ */
+function renderDensitySums(cssValues: TokenContractResult["cssValues"], portableByPath: ReadonlyMap<string, string>): string {
+  const sums = Object.entries(cssValues).filter(([, entry]) => DENSITY_SPACING.test(entry.value));
+  const body = sums.map(([target, entry]) => `    ${target}: ${resolveCssValue(entry.value, portableByPath)};`).join("\n");
+  return `\n@layer ui {\n  [data-density] {\n${body}\n  }\n}\n`;
+}
+
 function renderSeedThemesBlock(themes: readonly SeedTheme[], resets: readonly string[]): string {
   const parts: string[] = [];
   for (const theme of themes) {
@@ -687,7 +700,9 @@ export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: stri
           renderToneBlocks(tones) +
           renderPigmentBlocks(contract.pigments),
         toneRootDefaults(tones),
-      ) + renderToneHostUtilities(),
+      ) +
+      renderToneHostUtilities() +
+      renderDensitySums(contract.cssValues, portableByPath),
     tokensTs: renderTokensTs({ tokens: flat, polarityArms, lengths, conditions, tones, pigments: contract.pigments }),
     themesTs: renderSeedThemesTs(seedThemes),
   };

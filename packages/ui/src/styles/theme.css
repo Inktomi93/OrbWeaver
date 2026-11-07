@@ -905,3 +905,14 @@
 @utility tone-host-system-bubble {
   --tone-host: var(--color-system-bubble);
 }
+
+@layer ui {
+  [data-density] {
+    --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
+    --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
+    --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
+  }
+}
