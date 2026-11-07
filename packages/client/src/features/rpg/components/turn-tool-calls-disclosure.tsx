@@ -3,25 +3,14 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgToolCallDisclosure, RpgToolCallVerdict, RpgToolCallWithholdReason } from "@orb/contracts/rpg";
-import type { BadgeProps } from "@orb/ui/badge";
-import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { CircleAlert, Dices, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import type { StatusVocabulary } from "#components";
+import { StatusChip } from "#components";
 import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
-
-/** The badge tone per verdict — a mapped Record, so a widened verdict axis fails `tsc` here (§5.5) rather
- *  than silently rendering a lost write as if it had landed. */
-const VERDICT_BADGE_TONE: Record<RpgToolCallVerdict, NonNullable<BadgeProps["tone"]>> = {
-  applied: "success",
-  salvaged: "warning",
-  dropped: "destructive",
-  // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
-  // `success`: part of what the model wrote is not in the state, and the line below names which path.
-  overridden: "warning",
-};
 
 /** WHY the args are not this reader's to see, said as a sentence rather than as the enum (#1690). A mapped
  *  Record over the tuple, so a second withhold reason fails `tsc` here instead of rendering as nothing. */
@@ -38,6 +27,15 @@ const VERDICT_LABEL: Record<RpgToolCallVerdict, string> = {
   // Says whose decision it was, not what the merge did: the host pinned this field, so the honest sentence
   // is that their edit held — the `issues` line under the badge names the path it held.
   overridden: "your edit kept",
+};
+
+const VERDICT_STATUS: StatusVocabulary<RpgToolCallVerdict> = {
+  applied: { label: VERDICT_LABEL.applied, tone: "success" },
+  salvaged: { label: VERDICT_LABEL.salvaged, tone: "warning" },
+  dropped: { label: VERDICT_LABEL.dropped, tone: "destructive" },
+  // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
+  // `success`: part of what the model wrote is not in the state, and the line below names which path.
+  overridden: { label: VERDICT_LABEL.overridden, tone: "warning" },
 };
 
 export interface TurnToolCallsDisclosureProps {
@@ -108,9 +106,7 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
     <Stack data-slot="turn-tool-call" gap="row">
       <Row align="center" gap="field" justify="between">
         <Text voice="code">{call.name}</Text>
-        <Badge tone={VERDICT_BADGE_TONE[call.verdict]} variant="solid">
-          {VERDICT_LABEL[call.verdict]}
-        </Badge>
+        <StatusChip status={call.verdict} vocabulary={VERDICT_STATUS} />
       </Row>
       {call.issues.length === 0 ? null : (
         <Stack data-slot="turn-tool-call-issues" gap="tight">

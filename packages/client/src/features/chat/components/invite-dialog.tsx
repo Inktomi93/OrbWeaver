@@ -8,7 +8,7 @@
 import { SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
-import { Badge, STATUS_PILL_VARIANT } from "@orb/ui/badge";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Grid, Row, Stack } from "@orb/ui/layout";
@@ -20,7 +20,8 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import type { StatusVocabulary } from "#components";
+import { FormDialog, QueryBoundary, StatusChip } from "#components";
 import type { Trpc } from "#data";
 import {
   fetchLiveShare,
@@ -370,12 +371,12 @@ function OutstandingInvitesList({ chatId }: { readonly chatId: ChatId }): ReactE
   );
 }
 
-const STATUS_TONE: Record<InviteView["status"], "info" | "success" | "neutral" | "destructive"> = {
-  pending: "info",
-  accepted: "success",
-  declined: "neutral",
-  expired: "neutral",
-  revoked: "destructive",
+const INVITE_STATUS: StatusVocabulary<InviteView["status"]> = {
+  pending: { label: "Pending", tone: "info" },
+  accepted: { label: "Accepted", tone: "success" },
+  declined: { label: "Declined", tone: "neutral" },
+  expired: { label: "Expired", tone: "neutral" },
+  revoked: { label: "Revoked", tone: "destructive" },
 };
 
 // What the row is: a sign-up link creates accounts, so it never reads as a plain share link, Revoke included.
@@ -412,11 +413,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
           </Button>
         ) : null
       }
-      leading={
-        <Badge size="sm" tone={STATUS_TONE[invite.status]} variant={STATUS_PILL_VARIANT[STATUS_TONE[invite.status]]}>
-          {invite.status}
-        </Badge>
-      }
+      leading={<StatusChip size="sm" status={invite.status} vocabulary={INVITE_STATUS} />}
       subtitle={`${uses} · ${expiry}`}
       subtitleWrap={true}
       title={kind}

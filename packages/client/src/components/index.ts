@@ -53,6 +53,8 @@ export { SettingTrackRow } from "./setting-track-row.tsx";
 export { SettingsPane } from "./settings-pane.tsx";
 export { CORNER_RADIUS_NAME } from "./shared-control-names.ts";
 export { SkipToFirstRow } from "./skip-to-first-row.tsx";
+export type { StatusVocabulary } from "./status-chip.tsx";
+export { StatusChip } from "./status-chip.tsx";
 export { StoredConfigUnreadableNotice } from "./stored-config-unreadable-notice.tsx";
 export { TagEditorBody } from "./tag-editor-body.tsx";
 export {

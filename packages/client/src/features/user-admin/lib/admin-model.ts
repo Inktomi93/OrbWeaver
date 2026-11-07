@@ -3,8 +3,8 @@
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
-import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
+import type { StatusVocabulary } from "#components";
 
 /** The props of an admin dialog that acts on one account (link SSO, reset password, sessions). */
 export interface AdminUserDialogProps {
@@ -41,11 +41,11 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   user: "User",
 };
 
-/** Role → badge tone (the per-row role chip). */
-export const ROLE_BADGE_TONE: Record<UserRole, NonNullable<BadgeProps["tone"]>> = {
-  owner: "primary",
-  admin: "info",
-  user: "neutral",
+/** The per-row role chip. */
+export const ROLE_STATUS: StatusVocabulary<UserRole> = {
+  owner: { label: ROLE_LABELS.owner, tone: "primary" },
+  admin: { label: ROLE_LABELS.admin, tone: "info" },
+  user: { label: ROLE_LABELS.user, tone: "neutral" },
 };
 
 // The Admin pane's ACCESSIBLE-NAME builders. Every per-row control here repeats the row's handle (or the

@@ -8,7 +8,8 @@
 //   · VERSIONS — the D28 snapshot walk: label-classified rows (Refinery / Manual / Pre-restore)
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
-import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
+import type { RefinerySchemaStage, RefineryStage, RefineryVerdict, RenderHintTone } from "@orb/contracts/refinery";
+import { refineryVerdictSchema } from "@orb/contracts/refinery";
 import type { RefineryRunId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
@@ -45,12 +46,13 @@ const MS_PER_SECOND = 1000;
 const REFINERY_SNAPSHOT_PREFIX = "auto: before refinery apply";
 const PRE_RESTORE_PREFIX = "auto: before restore";
 
-function verdictOf(run: RunView): string | null {
+/** A custom analyze schema pins the verdict's spellings at save, but this payload is a stored run, so it parses here. */
+function verdictOf(run: RunView): RefineryVerdict | null {
   if (run.stage !== "analyze") {
     return null;
   }
-  const verdict = (run.payload as Record<string, unknown>)["verdict"];
-  return typeof verdict === "string" ? verdict : null;
+  const verdict = refineryVerdictSchema.safeParse((run.payload as Record<string, unknown>)["verdict"]);
+  return verdict.success ? verdict.data : null;
 }
 
 function economicsOf(run: RunView): string {
