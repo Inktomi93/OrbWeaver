@@ -7,6 +7,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
 import {
+  absenceWindow,
   createShellAmbientReads,
   holdServed,
   ROOM_PROCEDURES,
@@ -30,6 +31,8 @@ import {
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
+// Past the moment a stray read would have started.
+const QUIET_SPELL_MS = 800;
 const EXTRA_ROWS = 115;
 // The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
 const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
@@ -226,7 +229,7 @@ function alertsSeen(page: Page): Promise<unknown> {
 
 /** Waits past the moment a stray read would have started: the behaviour under test is a request that never leaves. */
 function quietSpell(page: Page): Promise<void> {
-  return page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 800)));
+  return absenceWindow(page, QUIET_SPELL_MS);
 }
 
 /** A room with older pages loaded whose forward reads from `floor` up fail once `bridgeDown` says so, past a real refresh. */

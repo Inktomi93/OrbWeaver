@@ -418,6 +418,12 @@ const TEST_ENVIRONMENT_RESTRICTIONS = [
 const TEST_SYNTAX = [INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS, ...OWNED_DB_RESTRICTIONS];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
+// `playwright/no-wait-for-timeout` judges one method, so a timer inside `page.evaluate` passes it. `test.setTimeout` is the case budget.
+const PAGE_SLEEP_RESTRICTION = {
+  selector: "CallExpression:matches([callee.name='setTimeout'], [callee.property.name='setTimeout']:not([callee.object.name='test']))",
+  message:
+    "A fixed wait proves nothing. Wait on a rendered witness; an absence window goes through absenceWindow from @orb/testkit/ct with a positive control.",
+};
 
 const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
@@ -2314,7 +2320,7 @@ export default [
   {
     files: ["tests/e2e/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),
@@ -2325,6 +2331,7 @@ export default [
     rules: {
       "no-restricted-syntax": restrictedSyntax(
         ...TEST_SYNTAX,
+        PAGE_SLEEP_RESTRICTION,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
           selector: "CallExpression[callee.name='mount']:not([typeArguments])",

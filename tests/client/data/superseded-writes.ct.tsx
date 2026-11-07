@@ -6,7 +6,6 @@ import type { SupersededWritesStory } from "./_superseded-writes-stories.tsx";
 
 const STORY = "tests/client/data/_superseded-writes-stories/SupersededWritesStory";
 const SAVE_FAILED = "Couldn't save the setting.";
-const settle = (): Promise<void> => new Promise<void>((done) => setTimeout(done, 400));
 
 test("a write that fails after a newer write succeeded is still said", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
@@ -21,7 +20,7 @@ test("a write that fails after a newer write succeeded is still said", async ({ 
   await page.getByRole("button", { name: "Write first", exact: true }).click();
   await hold.requested;
   await page.getByRole("button", { name: "Write second", exact: true }).click();
-  await page.evaluate(settle);
+  await expect(page.getByRole("status", { name: "Second write", exact: true })).toHaveText("Saved");
   hold.fail();
   await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
 });
