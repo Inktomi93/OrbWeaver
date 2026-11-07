@@ -24,7 +24,7 @@
 // WIRING (deception-active flips the game verdict) — see the report for the precise boundary.
 
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
-import { buildCardFrameCsp, CARD_FRAME_SANDBOX } from "@orb/kit/card-frame";
+import { buildCardFrameCsp } from "@orb/kit/card-frame";
 import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { revealActionName } from "@orb/ui/lib";
@@ -174,6 +174,10 @@ const CARD_MARKER = "MEET·ME·AT·THE·DOCKS·CAPSTONE";
 const CARD_FENCE = `:::card title="${CARD_TITLE}"\n<p>${CARD_MARKER}</p>\n:::`;
 const CARD_FRAME_SELECTOR = '[data-slot="sandbox-frame"]';
 const MINT_REFUSED_STATUS = 503;
+// The reviewed sandbox grants, spelled out on purpose: they are the contract under test, so a widened production
+// constant must fail here rather than flow into both the expectation and the frame.
+const ROUTED_SANDBOX_GRANT = "allow-scripts";
+const FLOOR_SANDBOX_GRANT = "";
 
 const isCardFrameMint = (response: Response): boolean => response.request().method() === "POST" && new URL(response.url()).pathname === CARD_FRAME_ROUTE;
 const isCardFrameDocument = (response: Response): boolean =>
@@ -194,30 +198,44 @@ test("P4 immersive HTML: a planted :::card settles routed under the D294 grant, 
     const greeting = await greetingRowId(chatId);
     await editMessage(chatId, greeting, `The old man slides a folded paper across the table.\n${CARD_FENCE}`);
 
-    const [mint, frameDocument] = await Promise.all([
-      page.waitForResponse(isCardFrameMint, { timeout: WAIT_ROUND_TRIP_MS }),
-      page.waitForResponse(isCardFrameDocument, { timeout: WAIT_ROUND_TRIP_MS }),
-      openNewestChat(page),
-    ]);
+    // Every answer, not the first: a theme that settles after the first paint changes the mint body, and that re-mints.
+    const mints: Response[] = [];
+    const frameDocuments: Response[] = [];
+    page.on("response", (response) => {
+      if (isCardFrameMint(response)) {
+        mints.push(response);
+      } else if (isCardFrameDocument(response)) {
+        frameDocuments.push(response);
+      }
+    });
+    await openNewestChat(page);
 
     // ── FE: the ImmersiveCard chrome renders (the tierB lifecycle) — title band present, sandboxed body. ──
     const card = page.locator('[data-slot="immersive-card"]').first();
     await expect(card).toBeVisible({ timeout: WAIT_ROUND_TRIP_MS });
     await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText(CARD_TITLE);
 
-    // The srcdoc floor paints first, so the frame's attributes prove nothing until delivery settles: read the
-    // mint's answer, then the routed document it named, then the frame that holds it.
-    expect(mint.status()).toBe(200);
-    const minted = cardFrameMintResponseSchema.parse(await mint.json());
-    expect(minted.granted.interactive).toBe(true);
+    // The srcdoc floor paints first, so the frame's attributes prove nothing until delivery settles: read the frame
+    // once it is routed, then the mint that named its document, then that document's own response.
     const iframe = card.locator(CARD_FRAME_SELECTOR);
-    await expect(iframe).toHaveAttribute("data-delivery", "routed");
-    await expect(iframe).toHaveAttribute("src", minted.url);
-    await expect(iframe).toHaveAttribute("sandbox", CARD_FRAME_SANDBOX.document);
-    expect(frameDocument.status()).toBe(200);
-    expect(frameDocument.headers()["content-security-policy"]).toBe(
+    await expect(iframe).toHaveAttribute("data-delivery", "routed", { timeout: WAIT_ROUND_TRIP_MS });
+    await expect(iframe).toHaveAttribute("sandbox", ROUTED_SANDBOX_GRANT);
+    const src = await iframe.getAttribute("src");
+    const answered = await Promise.all(
+      mints.filter((response) => response.ok()).map(async (response) => cardFrameMintResponseSchema.parse(await response.json())),
+    );
+    const minted = answered.find((answer) => answer.url === src);
+    if (minted === undefined) {
+      throw new Error(`the routed frame names ${String(src)}, which no mint answered`);
+    }
+    expect(minted.granted.interactive).toBe(true);
+    const documentOf = (): Response | undefined => frameDocuments.find((response) => new URL(response.url()).pathname === src);
+    await expect.poll(() => documentOf()?.status(), { timeout: WAIT_ROUND_TRIP_MS }).toBe(200);
+    const servedPolicy = documentOf()?.headers()["content-security-policy"];
+    expect(servedPolicy).toBe(
       buildCardFrameCsp({ allowExternalMedia: minted.granted.externalMedia, allowInlineData: minted.granted.inlineData }, "document", "interactive"),
     );
+    expect(servedPolicy?.split("; ")).toContain(`sandbox ${ROUTED_SANDBOX_GRANT}`);
     await expect(card.frameLocator(CARD_FRAME_SELECTOR).getByText(CARD_MARKER)).toBeVisible();
     // The raw fence/HTML never leaked into the card chrome's own text content (it's inside the iframe document).
     await expect(card).not.toContainText(":::card");
@@ -264,7 +282,7 @@ test("P4 immersive HTML: a refused mint leaves the card on the script-dead srcdo
 
     const iframe = page.locator('[data-slot="immersive-card"]').first().locator(CARD_FRAME_SELECTOR);
     await expect(iframe).toHaveAttribute("data-delivery", "srcdoc");
-    await expect(iframe).toHaveAttribute("sandbox", CARD_FRAME_SANDBOX.meta);
+    await expect(iframe).toHaveAttribute("sandbox", FLOOR_SANDBOX_GRANT);
     await expect(iframe).not.toHaveAttribute("src");
     // A floor document runs no script, so its bytes are read off the attribute that carries them.
     await expect(iframe).toHaveAttribute("srcdoc", new RegExp(CARD_MARKER, "u"));
