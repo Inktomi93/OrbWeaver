@@ -88,19 +88,66 @@ const TEST_INHERITED_ENV_KEYS = [
   "CORPUS_PRIVATE_EXECUTION_EXPIRES_AT_MS",
 ] as const;
 
+// Process and loader plumbing, locale, and the display and session keys Chromium's X11 and Wayland
+// selection reads. Runner protocols stay out too: Playwright reporters write launch options to disk, so a
+// browser must never inherit a credential, and only an allowlist holds against a secret added later. The
+// session bus address stays out: no launch needs it, and with it every browser connects to the desktop bus.
+const BROWSER_INHERITED_ENV_KEYS = [
+  "PATH",
+  "Path",
+  "PATHEXT",
+  "SystemRoot",
+  "SYSTEMROOT",
+  "ComSpec",
+  "COMSPEC",
+  "HOME",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "LD_LIBRARY_PATH",
+  "XDG_RUNTIME_DIR",
+  "XDG_CACHE_HOME",
+  "XDG_CONFIG_HOME",
+  "XDG_DATA_HOME",
+  "XDG_CONFIG_DIRS",
+  "XDG_DATA_DIRS",
+  "LANG",
+  "LANGUAGE",
+  "LC_ALL",
+  "LC_CTYPE",
+  "LC_MESSAGES",
+  "TZ",
+  "DISPLAY",
+  "XAUTHORITY",
+  "WAYLAND_DISPLAY",
+  "XDG_SESSION_TYPE",
+] as const;
+
+function pickedEnv(keys: readonly string[], ambient: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const picked: NodeJS.ProcessEnv = {};
+  for (const key of keys) {
+    const value = ambient[key];
+    if (value !== undefined) {
+      picked[key] = value;
+    }
+  }
+  return picked;
+}
+
+/** The environment a launched browser receives: only {@link BROWSER_INHERITED_ENV_KEYS} from the ambient
+ *  environment, plus explicit overrides such as the run marker, lease and graphics selectors. */
+export function browserProcessEnv(overrides: NodeJS.ProcessEnv = {}, ambient: NodeJS.ProcessEnv = ambientProcessEnv()): NodeJS.ProcessEnv {
+  return { ...pickedEnv(BROWSER_INHERITED_ENV_KEYS, ambient), ...overrides };
+}
+
 /** Node's lazy storage getter warns on browser-code imports even when no storage file exists. Test
  * runners need absent Node storage globals, not a shared persistence file; Chromium storage is separate.
  * Only declared runner protocols inherit; explicit overrides authorize fixture-specific inputs. */
 export function testProcessEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
-  const ambient = ambientProcessEnv();
-  const inherited: NodeJS.ProcessEnv = {};
-  for (const key of TEST_INHERITED_ENV_KEYS) {
-    const value = ambient[key];
-    if (value !== undefined) {
-      inherited[key] = value;
-    }
-  }
-  const environment: NodeJS.ProcessEnv = { ...inherited, [ENV_NO_FILE_KEY]: "1", ...overrides };
+  const environment: NodeJS.ProcessEnv = { ...pickedEnv(TEST_INHERITED_ENV_KEYS, ambientProcessEnv()), [ENV_NO_FILE_KEY]: "1", ...overrides };
   const nodeOptions = environment["NODE_OPTIONS"];
   if (nodeOptions?.trimEnd().split(/\s+/u).at(-1) !== TEST_NODE_WEB_STORAGE_OPTION) {
     environment["NODE_OPTIONS"] = [nodeOptions, TEST_NODE_WEB_STORAGE_OPTION].filter(Boolean).join(" ");

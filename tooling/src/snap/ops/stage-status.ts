@@ -98,7 +98,8 @@ function bandCensus(
   return { views, verdicts };
 }
 
-function evidenceFor(view: StageBandView, pids: readonly number[], nowMs: number): StageSweepEvidence {
+/** The evidence the sweep verdict judges for one band: the census view plus the age of the pids holding its ports. */
+export function evidenceFor(view: StageBandView, pids: readonly number[], nowMs: number): StageSweepEvidence {
   return {
     row: view.row,
     bandBound: view.bandBound,

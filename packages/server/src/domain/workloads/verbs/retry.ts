@@ -8,7 +8,7 @@
 // instead of dropping it — and clones the RAW params blob so the operator's original input survives verbatim
 // into a build that may have fixed the schema.
 
-import type { WorkloadRef, WorkloadRowAnyKind } from "@orb/contracts/workloads";
+import type { WorkloadLane, WorkloadRef, WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadContributions } from "../contract/contribution.ts";
@@ -17,25 +17,30 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, runAccount } from "../substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, resolveLane, runAccount } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
-/** The clone's params + admission key. A HEALTHY row re-uses its parsed params and re-derives its key from the
- *  kind's CURRENT contribution (the same live-declaration rule the lane follows). A POISON row carries the RAW
- *  blob verbatim — its parsed view is `null`, and an admission key is itself a params read, so the clone locks
- *  under the shared `none` bucket. */
+/** The clone's params + admission key + lane. A HEALTHY row re-uses its parsed params and re-derives its key and
+ *  lane from the kind's CURRENT contribution. A POISON row carries the RAW blob verbatim — its parsed view is
+ *  `null`, and an admission key and a params-dependent lane are both params reads, so the clone locks under the
+ *  shared `none` bucket and takes the kind's fixed lane. */
 async function resolveCloneParams(
   ctx: WorkloadServiceContext,
   contributions: WorkloadContributions,
   original: WorkloadRowAnyKind,
-): Promise<{ params: Record<string, unknown>; admissionKey: string }> {
+): Promise<{ params: Record<string, unknown>; admissionKey: string; lane: WorkloadLane }> {
   if (original.poison) {
-    return { params: (await loadRawWorkloadParams(ctx.db, original.id)) ?? {}, admissionKey: DEFAULT_ADMISSION_KEY };
+    return {
+      params: (await loadRawWorkloadParams(ctx.db, original.id)) ?? {},
+      admissionKey: DEFAULT_ADMISSION_KEY,
+      lane: contributions[original.kind].lane,
+    };
   }
   return {
     params: original.params,
     admissionKey: resolveAdmissionKey(contributions, original.kind, original.params),
+    lane: resolveLane(contributions, original.kind, original.params),
   };
 }
 
@@ -78,7 +83,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         kind: original.kind,
         mode: original.mode,
         admissionKey: clone.admissionKey,
-        lane: contributions[original.kind].lane,
+        lane: clone.lane,
         params: clone.params,
         ownerId: original.ownerId,
         funderUserId: original.funderUserId,

@@ -280,7 +280,7 @@ export interface StageSweepEvidence {
    *  regardless of idle age — the negative control the TTL exists to not violate. */
   readonly liveSessions: readonly string[];
   /** The row's live holders (`liveHoldersOf`). Any one pins the row `live`: a run is reading the stage. */
-  readonly liveHolders?: readonly StageHolder[];
+  readonly liveHolders: readonly StageHolder[];
   readonly nowMs: number;
 }
 

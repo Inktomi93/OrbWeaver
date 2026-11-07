@@ -127,8 +127,8 @@ const HIDE_DEV_SERVER_HUD_SCRIPT = `(() => {
   else document.addEventListener("DOMContentLoaded", install);
 })();`;
 
-/** Exported for its pin (`tests/tooling/floor/browser/browser-context.int.test.ts`): the planted control shows the
- *  checker badge's pixels reaching a contrast sample without this script, and gone with it. */
+/** Exported for its pin (`tests/tooling/floor/browser/browser-context.int.test.ts`): a bare context shows the
+ *  checker badge's pixels reaching a contrast sample, and a probe context shows them gone. */
 export const DEV_SERVER_HUD = { selector: DEV_SERVER_HUD_SELECTOR, initScript: HIDE_DEV_SERVER_HUD_SCRIPT } as const;
 
 async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<SettingsShimEvidence> {

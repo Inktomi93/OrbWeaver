@@ -121,7 +121,7 @@ export function stageSweepVerdict(evidence: StageSweepEvidence, ttlMs: number): 
   if (evidence.row?.dead !== undefined) {
     return "stranded";
   }
-  if (evidence.liveSessions.length > 0 || (evidence.liveHolders ?? []).length > 0) {
+  if (evidence.liveSessions.length > 0 || evidence.liveHolders.length > 0) {
     return "live";
   }
   if (evidence.row === null) {

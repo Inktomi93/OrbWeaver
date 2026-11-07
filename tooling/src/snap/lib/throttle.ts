@@ -8,7 +8,7 @@
 // nothing about the margin. The arm that reveals the margin is CPU throttling, and it was unreachable
 // from snap: the measurement that decided #819 cost 14 chrome-devtools MCP calls against a ~8 budget.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { DriveBudgets, NetworkConditions, NetworkProfileName } from "../contract/load-emulation.ts";
+import type { AppliedLoadEmulation, DriveBudgets, NetworkConditions, NetworkProfileName } from "../contract/load-emulation.ts";
 import {
   NAV_TIMEOUT_MS,
   STAGE_NAV_TIMEOUT_MS,
@@ -77,9 +77,9 @@ export const NETWORK_PROFILE_SPELLINGS: readonly string[] = ["slow-3g", "fast-3g
 
 /** The RESULT-line value: what a reader must be able to see WITHOUT re-reading the argv, because every
  *  number in that run was measured under it. */
-export function throttleResultValue(cpuRate: number, network: NetworkProfileName | null): string {
-  const cpu = cpuRate === NO_CPU_THROTTLE ? "cpu:1x" : `cpu:${cpuRate}x`;
-  return `${cpu}/net:${network ?? "live"}`;
+export function throttleResultValue(applied: AppliedLoadEmulation): string {
+  const cpu = applied.cpuRate === NO_CPU_THROTTLE ? "cpu:1x" : `cpu:${applied.cpuRate}x`;
+  return `${cpu}/net:${applied.network ?? "live"}`;
 }
 
 /** THE BUDGETS A LOAD ARM IS JUDGED AGAINST (#836). A declared throttle moves the wall clock the run

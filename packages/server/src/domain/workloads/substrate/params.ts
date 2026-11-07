@@ -4,7 +4,7 @@
 // so this file only routes a blob to the right contribution and translates a parse failure into a domain
 // error.
 
-import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope, WORKLOAD_NOT_ADMISSIBLE, WORKLOAD_OWNER_ONLY_REFUSAL } from "@orb/contracts/workloads";
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
@@ -81,6 +81,12 @@ export async function parseWorkloadInput(
  */
 export function resolveAdmissionKey<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): string {
   return contributions[kind].admissionKey?.(params) ?? DEFAULT_ADMISSION_KEY;
+}
+
+/** The lane a row is stamped with: the kind's params-dependent answer when it declares one, else its fixed lane. */
+export function resolveLane<K extends WorkloadKind>(contributions: WorkloadContributions, kind: K, params: WorkloadParamsByKind[K]): WorkloadLane {
+  const contribution = contributions[kind];
+  return contribution.laneFor?.(params) ?? contribution.lane;
 }
 
 /**

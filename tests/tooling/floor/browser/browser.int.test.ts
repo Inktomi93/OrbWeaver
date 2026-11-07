@@ -15,9 +15,9 @@ import {
   watchChromiumDescendants,
 } from "@orb/testkit/node/helpers";
 import { expect, test } from "@orb/testkit/tooling";
-import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/floor/browser/browser";
-import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
-import type { LocalStorageSeed } from "@orb/tooling/floor/browser/browser-contract";
+import { closeProbeSession, launchProbeSession, ownedLaunchOptions, withProbeSession } from "@orb/tooling/floor/browser/browser";
+import { GPU_LAUNCH_SWITCH, readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
+import type { LocalStorageSeed, ProbeLaunchOptions } from "@orb/tooling/floor/browser/browser-contract";
 import { MOBILE_DEVICE, readBrowserEnvironment } from "@orb/tooling/floor/browser/browser-environment";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
@@ -118,14 +118,24 @@ test("a real Chromium process is disconnected after a driven body throws", async
   expect(session.browser.isConnected()).toBe(false);
 });
 
-test("the shared launch publishes an explicit acceleration backend and feature receipt", async () => {
-  const session = await launchProbeSession({
+test("the owned launch asks for the GPU on both launch kinds and publishes an acceleration receipt", async () => {
+  const opts = {
     headless: true,
     viewport: { width: 320, height: 240 },
     colorScheme: null,
     reducedMotion: false,
     localStorage: [],
-  });
+  } as const satisfies ProbeLaunchOptions;
+  // The argv itself, because a software renderer satisfies the receipt below with or without the switch.
+  // Only `args` is compared: the options also carry the inherited env, which a failure must not print.
+  const plain = ownedLaunchOptions(opts, null);
+  expect(plain.kind).toBe("browser");
+  expect(plain.options.args).toContain(GPU_LAUNCH_SWITCH);
+  const profileArgs = ["--orb-profile-planted"];
+  const persistent = ownedLaunchOptions({ ...opts, persistentProfileDir: join(TEMP, "gpu-profile"), browserArgs: profileArgs }, null);
+  expect(persistent.kind).toBe("persistent");
+  expect(persistent.options.args).toEqual(expect.arrayContaining([GPU_LAUNCH_SWITCH, ...profileArgs]));
+  const session = await launchProbeSession(opts);
   await withProbeSession(session, async () => {
     const acceleration = await readBrowserAcceleration(session.browser);
     expect(acceleration.backend).not.toBe("unknown");

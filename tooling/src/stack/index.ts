@@ -114,7 +114,6 @@ export {
   parseStartArgv,
   restateFileEnv,
   START_USAGE,
-  shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
   startBrowser,
