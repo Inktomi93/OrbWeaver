@@ -30,7 +30,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DetailHeader, EditorPage, QueryBoundary, Tip } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, QueryUnavailableState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
@@ -129,6 +129,15 @@ function DatabankWelcome(): ReactElement {
   // root persists across the read, so a section swap holds the outgoing view for it and shell/motion.css fades it in.
   return (
     <Stack align="center" className="min-block-0" fill={true} justify="center" data-ready={census.isLoading ? "false" : "true"}>
+      {census.data === undefined && !census.isLoading ? (
+        <QueryUnavailableState
+          label="your databank"
+          onRetry={(): void => {
+            census.refetch().catch((error: unknown) => globalThis.reportError(error));
+          }}
+          paused={census.isPaused}
+        />
+      ) : null}
       {census.data === undefined ? null : (
         // action={null}: the Databank CONTENT landing. It explains the Databank (empty bank) or nudges a pick (populated bank) and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
         <EmptyState

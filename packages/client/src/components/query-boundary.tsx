@@ -38,6 +38,7 @@ import type { ReactElement, ReactNode, Ref, RefObject } from "react";
 import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
 import { rememberSurfaceBox, useSurfaceBox } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
+import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
 import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
 import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
 import { SkeletonRows } from "../data/skeleton-rows.tsx";
@@ -226,7 +227,7 @@ function PendingFallback({ onPending, children }: { readonly onPending: () => vo
       {children}
       {online ? null : (
         <Text role="status" ink="muted" textAlign="center" voice="gloss">
-          Waiting for connection…
+          {QUERY_WAITING_LINE}
         </Text>
       )}
     </>

@@ -8,6 +8,7 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { QUERY_WAITING_LINE, queryFailedLabel } from "./query-state-copy.ts";
 
 export interface QueryErrorStateProps {
   /** What failed to load, e.g. "your chats" / "the character library" (rendered as "Couldn't load \{label\}."). */
@@ -33,7 +34,7 @@ export function QueryErrorState({ label, onRetry, renderRetry, plate }: QueryErr
   return (
     <Stack align="center" data-slot="query-error" gap="row" justify="center" padding="section" plate={plate}>
       <Text role="status" ink="muted">
-        Couldn't load {label}.
+        {queryFailedLabel(label)}
       </Text>
       {renderRetry?.(onRetry) ?? (
         <Button variant="ghost" onClick={onRetry}>
@@ -41,5 +42,21 @@ export function QueryErrorState({ label, onRetry, renderRetry, plate }: QueryErr
         </Button>
       )}
     </Stack>
+  );
+}
+
+export interface QueryUnavailableStateProps extends Pick<QueryErrorStateProps, "label" | "onRetry"> {
+  /** The read is paused offline: it resumes when the connection returns, so a Retry would do nothing. */
+  readonly paused: boolean;
+}
+
+/** A non-suspending surface's first read, settled with no data: paused offline it waits, failed it offers the retry. */
+export function QueryUnavailableState({ label, onRetry, paused }: QueryUnavailableStateProps): ReactElement {
+  return paused ? (
+    <Text role="status" ink="muted" textAlign="center" voice="gloss">
+      {QUERY_WAITING_LINE}
+    </Text>
+  ) : (
+    <QueryErrorState label={label} onRetry={onRetry} />
   );
 }
