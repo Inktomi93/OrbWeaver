@@ -273,3 +273,13 @@ const COMPARE: Record<(typeof COMPARISONS)[number], (content: string | undefined
     expect(content).toBe(fragments[0]);
   },
 };
+
+test("a follow-up past the script, which production swallows, still fails the room when it closes", async () => {
+  await expect(async () => {
+    await using h = await followupRoom([{ text: "cut off", finishReason: "length" }], { group: { output: "per-speaker", policy: "natural" } });
+    await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinue: true } });
+    expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "go" })).aborted).toBe(false);
+    await h.root.settleBackground();
+    expect(h.requests.filter((request) => new URL(request.url).pathname.endsWith("/chat/completions"))).toHaveLength(2);
+  }).rejects.toThrow("the explicit-terminal reply plan was asked for 1 reply beyond the 1 it scripted");
+});

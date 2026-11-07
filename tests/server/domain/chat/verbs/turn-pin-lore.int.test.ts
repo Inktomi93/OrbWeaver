@@ -238,7 +238,7 @@ test("the host's member-lore switch governs a member's pin as it governs a membe
 
 test("a held pin keeps the card identity while the voice and people rows leave with its owner", async () => {
   const characters = [createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "{{user}} is my brother" })];
-  await using h = await personaRoom(REPLIES, { characters, group: { output: "per-speaker", policy: "list" } });
+  await using h = await personaRoom([], { characters, group: { output: "per-speaker", policy: "list" } });
   await seatPersona(h, h.owner, "Host voice", "The host's own voice.");
   const { pinned } = await heldPinRoom(h);
 
