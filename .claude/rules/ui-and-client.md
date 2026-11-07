@@ -78,3 +78,9 @@ paths:
 - `window.__orb` does not exist in a prod bundle. Measure prod layout shift with a buffered `PerformanceObserver`, not `getEntriesByType`.
 - A session-deduped evidence ring's timestamp is its first raise, not an occurrence. Never time-window filter it.
 - Gate a new `EventSource` on the feature being active; the browser's per-origin connection budget is shared and small.
+
+## Moving hand-written styling
+
+- Prove what a move renders, then fix to the correct design. "It would change pixels" is never a reason to keep a class. A keep needs a design reason, coded in the census.
+- A prop names a design idea on a ramp or a meaning. A prop that spells one site's class, or a concept each primitive re-declares, is the same hand-rolling under another name.
+- List every visible change for the rendered review.

@@ -46,6 +46,8 @@ security-builder when the risk is unclear.
 
 ## Reporting
 
+Finish every check you were asked for before you hand back, and write the report file first. A card that names unfinished checks is not a review.
+
 Write the full review to the report path your role names. Your final message is a review card of 25 lines or fewer:
 
 - The verdict: blocking or not.
