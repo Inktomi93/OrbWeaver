@@ -2,14 +2,13 @@
 // tight step, and a tint that stands apart from the frame it sits in, under each seed.
 import { oklabDistance, srgbToOklch, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
-import { keysOf } from "@orb/testkit/iso";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { MacroTextStory } from "./_macro-text-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_macro-text-stories/MacroTextStory";
-const THEMES = [undefined, ...keysOf(SEED_THEME_VALUE_SETS)] as const;
+const THEMES = [undefined, ...SEED_THEME_NAMES] as const;
 
 function style(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);

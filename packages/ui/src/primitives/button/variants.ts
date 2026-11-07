@@ -35,7 +35,7 @@ import {
   WIDTH,
 } from "#lib";
 import type { Tone } from "#tokens";
-import type { BUTTON_BOX_OVERFLOW } from "./box-hit-area.ts";
+import type { BUTTON_BOX_STEPS } from "./box-hit-area.ts";
 
 // The button family's one recipe: the fill style, tone and state axes every button paints through `ButtonCore`, plus
 // Button's own box, the D336 control scale. A box that is not a scale step is a named component with its own recipe
@@ -81,7 +81,7 @@ export const buttonVariants = tv({
     // The focal action under CD3: the CTA lift and, through `data-cta`, the gradient ring. `ButtonCore` resolves it on
     // for a solid primary unless the call site passes `focal={false}`.
     focal: { true: "shadow-cta hover:shadow-cta-glow", false: "" },
-    size: CONTROL_SIZE satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.button, ClassValue>,
+    size: CONTROL_SIZE satisfies Record<(typeof BUTTON_BOX_STEPS.button)[number], ClassValue>,
     // ICON-ONLY: the step's height as its width too, with no inline padding beside the glyph. `shrink-0` because a
     // square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it falls under the tap
     // floor. The width per step is a compound below.
