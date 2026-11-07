@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-07
 priority: P2
 area: tooling
 plan: test-foundation
@@ -11,11 +11,7 @@ plan: test-foundation
 
 ## What
 
-Revalidate the cited source on live main before deciding the finding. Preserve existing coverage and governing decisions.
-
-`AF3-B036-2507`: Fix the raw-JS template separator so the emitted code splits whitespace, then extend existing native browser controls for multiple IDs and an ID containing s.
-
-Inspect `tests/tooling/design-audit-walker.ct.tsx`, `tests/tooling/ui-audit/index.int.test.ts`, `tooling/src/ui-audit/ops/walker/census-interactive-navigability.ts`, `packages/ui/src/primitives/tooltip/tooltip.tsx`.
+Fix the whitespace split at tooling/src/ui-audit/ops/walker/census-interactive-navigability.ts and its twin at tooling/src/ui-audit/ops/walker/census-text.ts. Group P8 in docs/plans/test-foundation/finding-triage.md holds the evidence.
 
 ## Why
 

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-07
 priority: P2
 area: testing
 plan: test-foundation
@@ -11,11 +11,7 @@ plan: test-foundation
 
 ## What
 
-Revalidate the cited source on live main before deciding the finding. Preserve existing coverage and governing decisions.
-
-`AF3-FSEC-Q0005`: Check raw owner ID exclusion, digest format and independently established owner linkage at the Anthropic request boundary.
-
-Inspect `tests/inference/roles/side-gen.int.test.ts`, `packages/inference/src/backends/anthropic-messages/extras.ts`, `packages/inference/src/roles/side-gen.ts`.
+Pin owner-derived metadata at the wire boundary in tests/inference/roles/side-gen.int.test.ts and tests/inference/backends/anthropic-messages/chat-wire.int.test.ts. docs/plans/test-foundation/finding-triage.md holds the evidence.
 
 ## Why
 
