@@ -21,6 +21,16 @@ export interface NetworkConditions {
   readonly latency: number;
 }
 
+declare const applied: unique symbol;
+
+/** The load emulation a session's pages were actually sent. Only `applyLoadEmulation` (ops/session.ts) mints it,
+ *  so a RESULT line built from it cannot echo an argv the browser never received. */
+export interface AppliedLoadEmulation {
+  readonly cpuRate: number;
+  readonly network: NetworkProfileName | null;
+  readonly [applied]: true;
+}
+
 /** The two wall-clock ceilings one drive is judged against (#836). They are a function of what the run is
  *  serving (a cold `--isolated` vite) AND of the load arm it declared: a `--network`/`--cpu-throttle` run
  *  is deliberately slower, so holding it to the un-throttled budget refuses the flag it was asked for.

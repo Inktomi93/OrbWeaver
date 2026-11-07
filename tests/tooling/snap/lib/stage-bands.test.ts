@@ -116,7 +116,7 @@ test("an unparseable TTL/cap is a NAMED refusal that falls back, never a silent 
 
 // ── the strand rule, and the fence that matters ───────────────────────────────────────────────────────
 
-const BOUND_STAGE = { bandBound: true, bandIsStageRooted: true, bandProcessAgeSeconds: null, nowMs: NOW };
+const BOUND_STAGE = { bandBound: true, bandIsStageRooted: true, bandProcessAgeSeconds: null, liveHolders: [], nowMs: NOW };
 
 test("a row past its idle TTL is STRANDED, and a fresh one is LIVE", () => {
   expect(stageSweepVerdict({ ...BOUND_STAGE, row: row(0, { lastUsedAt: USED_LONG_AGO }), liveSessions: [] }, TTL_MS)).toBe("stranded");
@@ -373,6 +373,7 @@ test("a holder is live while its process runs, or otherwise until its stamp ages
     bandIsStageRooted: true,
     bandProcessAgeSeconds: null,
     liveSessions: [],
+    liveHolders: [],
     nowMs: NOW,
   };
   expect(stageSweepVerdict(evidence, TTL_MS)).toBe("stranded");

@@ -125,7 +125,7 @@ export {
 // that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule), bar a
 // stage already warming.
 export { boundStageRow, markStageSettled, markStageUnsettled, registerStageRunBinding, takeStageOutcome } from "./lib/stage-run-binding.ts";
-export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
+export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
 // `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session; the

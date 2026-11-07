@@ -18,7 +18,6 @@ import {
   partitionFailedRequests,
   selectConsoleMessagesForReport,
   splitTrailingEvals,
-  throttleResultValue,
 } from "../../../tooling/src/snap/index.ts";
 import { __resetPrivateValues } from "../../../tooling/src/snap/lib/private-values.ts";
 import { scaledBudget } from "../_load-budget.ts";
@@ -548,7 +547,8 @@ test("sandbox-trace noise is excluded from the error verdict but never from the 
 // The arm that decided #819 (does a click-adjacent settle cross the 500ms hadRecentInput cliff under
 // load) was unreachable from snap and cost 14 chrome-devtools MCP calls. Parse-side pins: the values
 // reach Args, a bad value REFUSES (a silently-ignored throttle flag would report a load arm that never
-// ran), the DevTools numbers are the DevTools numbers, and the RESULT line publishes the arm.
+// ran), and the DevTools numbers are the DevTools numbers. The RESULT line's arm is pinned beside its
+// applier (tests/tooling/snap/ops/session-load-emulation.int.test.ts).
 
 test("snap parses the load-emulation arms into Args, defaulting to no throttle and the real link", () => {
   const off = parseSnapArgs(["/"]);
@@ -579,11 +579,6 @@ test("the --network vocabulary is DevTools' own, case/separator-insensitive, wit
   // Verbatim from front_end/core/sdk/NetworkManager.ts: 1.6 Mbps × 0.9 ÷ 8, 750 Kbps × 0.9 ÷ 8, 150 × 3.75.
   expect(NETWORK_PROFILES["slow-4g"]).toEqual({ offline: false, downloadThroughput: 180_000, uploadThroughput: 84_375, latency: 562.5 });
   expect(NETWORK_PROFILES.offline.offline).toBe(true);
-});
-
-test("the RESULT line publishes the arm every number in the run was measured under", () => {
-  expect(throttleResultValue(NO_CPU_THROTTLE, null)).toBe("cpu:1x/net:live");
-  expect(throttleResultValue(4, "slow-4g")).toBe("cpu:4x/net:slow-4g");
 });
 
 // ── Cold-stage vite churn is not a failure (issue #148 item 3) ──────────────────────────────────────

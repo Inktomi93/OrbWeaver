@@ -19,7 +19,7 @@ import {
   THROTTLED_READY_TIMEOUT_MS,
   WAIT_SELECTOR_TIMEOUT_MS,
 } from "../../../../tooling/src/snap/lib/budgets.ts";
-import { driveBudgets, NETWORK_PROFILES, parseNetworkProfile, throttleResultValue } from "../../../../tooling/src/snap/lib/throttle.ts";
+import { driveBudgets, NETWORK_PROFILES, parseNetworkProfile } from "../../../../tooling/src/snap/lib/throttle.ts";
 
 // #1283: these four ceilings are `budget(<X>_BASE_MS)` (#1266) — a LOAD-SCALED reading of the box, not
 // the fixed literal this file used to assert. Comparing against the SAME live constants `driveBudgets`
@@ -59,9 +59,4 @@ test("the network vocabulary resolves DevTools' own names, aliases and refusals"
   expect(parseNetworkProfile("fast-3g"), "DevTools' retired name for Slow 4G is an alias, never a fifth condition").toBe("slow-4g");
   expect(parseNetworkProfile("2g"), "an unknown spelling REFUSES — a silently-ignored throttle reports an arm that never ran").toBeNull();
   expect(NETWORK_PROFILES["slow-4g"].downloadThroughput, "1.6 Mbps x 0.9 / 8 bits, straight from NetworkManager.ts").toBe(180_000);
-});
-
-test("the RESULT line states the arm every number in the run was measured under", () => {
-  expect(throttleResultValue(1, null)).toBe("cpu:1x/net:live");
-  expect(throttleResultValue(4, "slow-4g")).toBe("cpu:4x/net:slow-4g");
 });
