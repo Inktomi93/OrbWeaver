@@ -57,7 +57,9 @@ function allocateAgainst(claim: StageRow, nowMs: number): ReturnType<typeof allo
   return allocateStageBand({ views: fullTable(claim, nowMs), checkout: "/other-owner", targetSha: SHA, dirty: false, fresh: false, limits: LIMITS, nowMs });
 }
 
-test("a claim still booting is held by the claiming process, so a full table does not reap it", () => {
+// The claiming process is proven running by its kernel start ticks, which only Linux provides; a stamp alone, however
+// stale, cannot hold the claim, so the epoch stamp below isolates that identity witness.
+test.skipIf(process.platform !== "linux")("a claim still booting is held by the claiming process, so a full table does not reap it", () => {
   const nowMs = FROZEN_AT_MS;
   const booted = claimRow({
     band: 0,
@@ -74,4 +76,19 @@ test("a claim still booting is held by the claiming process, so a full table doe
   expect(allocateAgainst(claim, nowMs).kind).toBe("exhausted");
   // Positive control: the same claim with no holder is the dangling residue the reap exists for.
   expect(allocateAgainst({ ...claim, holders: [] }, nowMs)).toEqual(expect.objectContaining({ kind: "reap", band: 0 }));
+});
+
+test("a claim whose holder has no start time is held while the stamp is recent and reaped once it is stale", () => {
+  const nowMs = FROZEN_AT_MS;
+  const booted = claimRow({
+    band: 0,
+    checkout: CHECKOUT,
+    owner: CHECKOUT,
+    targetSha: SHA,
+    dir: `${CHECKOUT}/.cache/snap-stage/0123456789ab`,
+    nowIso: new Date(nowMs).toISOString(),
+  });
+  const stamped = (stampedAt: string): StageRow => ({ ...booted, holders: [{ pid: process.pid, checkout: CHECKOUT, stampedAt }] });
+  expect(allocateAgainst(stamped(new Date(nowMs - MS_PER_MINUTE).toISOString()), nowMs).kind).toBe("exhausted");
+  expect(allocateAgainst(stamped(new Date(0).toISOString()), nowMs)).toEqual(expect.objectContaining({ kind: "reap", band: 0 }));
 });

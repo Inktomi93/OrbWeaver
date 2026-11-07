@@ -88,12 +88,32 @@ test("a holder whose pid now belongs to another process does not pin the stage",
     const reused: StageHolder = { pid, pidStart: "1", checkout: SIBLING, stampedAt: DAYS_AGO };
     expect(holderProcessRunning(reused)).toBe(false);
     expect(liveHoldersOf(stageRow({ holders: [reused] }), FROZEN_AT_MS, holderProcessRunning)).toEqual([]);
-    // Positive control: the same pid with its real start time is running.
-    const genuine: StageHolder = { ...reused, pidStart: processStartTicks(pid) ?? "unreadable" };
-    expect(holderProcessRunning(genuine)).toBe(true);
   } finally {
     unrelated.kill();
   }
+});
+
+// Kernel start ticks exist on Linux only; elsewhere a holder carries no start time and its liveness is its stamp's age.
+test.skipIf(process.platform !== "linux")("a holder whose pid carries its real kernel start time is running", () => {
+  const live = spawn("sleep", ["30"], { stdio: "ignore" });
+  try {
+    const pid = live.pid ?? 0;
+    const ticks = processStartTicks(pid);
+    expect(ticks).not.toBeNull();
+    expect(holderProcessRunning({ pid, pidStart: ticks ?? "", checkout: SIBLING, stampedAt: DAYS_AGO })).toBe(true);
+  } finally {
+    live.kill();
+  }
+});
+
+test("a holder with no start time is live only while its stamp is recent", () => {
+  const row = stageRow({
+    holders: [
+      { pid: process.pid, checkout: SIBLING, stampedAt: NOW_ISO },
+      { pid: process.pid, checkout: OWNER, stampedAt: DAYS_AGO },
+    ],
+  });
+  expect(liveHoldersOf(row, FROZEN_AT_MS, holderProcessRunning).map((holder) => holder.checkout)).toEqual([SIBLING]);
 });
 
 test("dead holder entries are pruned whenever the table is written, so they never pile up across runs", () => {
