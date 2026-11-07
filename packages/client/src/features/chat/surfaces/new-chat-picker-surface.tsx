@@ -72,7 +72,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
-import { useStartChat, useTRPC } from "#data";
+import { pickerWindowBox, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
@@ -216,6 +216,7 @@ export function NewChatPicker(): ReactElement {
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
+        reserveBlock={pickerWindowBox()}
         reserveKey="chat.newChatPicker"
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}

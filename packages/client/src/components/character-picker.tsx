@@ -77,6 +77,8 @@ export interface CharacterPickerProps {
    * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
    */
   readonly reserveKey?: string | undefined;
+  /** The box the picker settles at, held open until this device has measured it. Needs a `reserveKey`. */
+  readonly reserveBlock?: number | undefined;
   /** Escape handler (modal consumers close on Esc). */
   readonly onEscape?: () => void;
   /** Put the caret in the search field as soon as the ROWS mount. Opt-in, because the two postures differ:
@@ -99,6 +101,7 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
       fallback={<SkeletonRows count={props.skeletonCount ?? DEFAULT_SKELETON_ROW_COUNT} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the character library" onRetry={retry} />}
       {...(props.reserveKey === undefined ? {} : { reserveKey: props.reserveKey })}
+      reserveBlock={props.reserveBlock}
     >
       <CharacterPickerBody {...props} />
     </QueryBoundary>

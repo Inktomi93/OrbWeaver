@@ -26,7 +26,7 @@ import { chatDeletedFromList, chatSectionSelection, openNewChatPicker, selectCha
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
-import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
+import { ChatsTopbarHeader, ChatsTopbarMark } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
 import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
@@ -145,6 +145,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: the open room's roster header, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
+    topbarMark: () => <ChatsTopbarMark />,
     context: defineContextTabs<CommittedChatContext>({
       useContextState: useChatContextState,
       useResetKeys: useChatContextResetKeys,
