@@ -20,10 +20,9 @@
 //
 // WHY THIS TIER. `elementFromPoint` is the compositor; there is no unit-testable surface for "the browser
 // declines to answer at this coordinate", and the sub-pixel boundary is the whole mechanism.
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, expectPopulation, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -48,6 +47,7 @@ test("a subject on the viewport fold is revealed and MEASURED, not withheld", as
   expect(res.stdout, "a fold subject is reachable by scrolling, so its verdict is owed").toContain("obscured-unaskable=0");
   expect(res.stdout, "and the run keeps its verdict, which is the whole cost of the defect").toContain("design-audit=measured");
   expect(res.stdout).not.toContain("produced no compositor verdict after re-centring");
+  expectPopulation(await readAuditReport(res.stdout), "obscured-target", { kind: "judged" });
 });
 
 /** THE CONTROL IN THE OTHER DIRECTION — a subject the reveal genuinely cannot make answerable.
@@ -96,7 +96,7 @@ test("obscured targets scan past the old cap and retain a later distinct collisi
   const auditRun = await runCli("snap", ["--file", join(scratch, "obscured-populations.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(auditRun.stdout);
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toHaveLength(2);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({
     affected: 24,
@@ -114,7 +114,7 @@ test("obscured withholding names the exact partially visible subject and centre"
   const result = await runCli("snap", ["--file", join(scratch, "obscured-unaskable.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(2);
   expect(report.obscuredUnaskable).toEqual([
@@ -137,7 +137,7 @@ test("obscured census recentres a partially visible subject before judging its c
   const result = await runCli("snap", ["--file", join(scratch, "obscured-recentred.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(0);
   expect(report.obscuredRecentred).toBe(1);
@@ -162,7 +162,7 @@ test("a target clipped by a scroll ancestor is reachable by scrolling, not obscu
   const result = await runCli("snap", ["--file", join(scratch, "obscured-scroll-clipped.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(result.stdout);
 
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([]);
 });
@@ -176,7 +176,7 @@ test("a target still covered after the scroller reveals it reports", async ({ ru
   const result = await runCli("snap", ["--file", join(scratch, "obscured-scroll-covered.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(result.stdout);
 
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).not.toEqual([]);
 });
@@ -190,7 +190,7 @@ test("obscured census keeps a null compositor answer withheld after the centre i
   const result = await runCli("snap", ["--file", join(scratch, "obscured-hit-test-null.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(2);
   expect(report.obscuredUnaskable).toEqual([expect.objectContaining({ selector: expect.stringContaining("data-slot=null-hit"), reason: "hit-test-null" })]);

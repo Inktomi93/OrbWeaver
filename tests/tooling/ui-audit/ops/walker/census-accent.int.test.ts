@@ -15,10 +15,8 @@
 // this repair (step 4: a printed `excluded`, not a silent skip).
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -31,20 +29,6 @@ const FIXTURE_CSS = `.bar-host { position: relative; border: 1px solid #555; bor
 .ring-host::after { content: ""; position: absolute; inset: 0; border-radius: 10px; background: linear-gradient(180deg, oklch(0.72 0.175 52 / 0.45), oklch(0.99 0.005 60 / 0.03)) }`;
 
 const ACCENT_RULES = ["side-tab", "border-accent-on-rounded"] as const;
-
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  // Vitest parses the fixture callback's first argument SYNTACTICALLY and refuses anything but an object
-  // destructuring pattern, so the wrapper has to name the fixtures it forwards rather than pass a bag.
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
 
 auditRuleTest(
   [
@@ -59,6 +43,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a full-box gradient ring is a border on four sides — the one shape §6 does not ban — and its paint is an IMAGE, so it carries no background colour for this arm to read",
+      disposition: { kind: "no-candidate" },
     },
     {
       rule: "border-accent-on-rounded",
@@ -70,6 +55,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "#1642's illustrated-picker art exemption is read off the HOST, so it reaches the new channel the day it lands instead of being re-opened by this repair (#1151)",
+      disposition: { kind: "excluded", reason: "illustratedPickerArt" },
     },
   ],
   "an accent bar painted on a ::after layer is judged; the full-box gradient ring and the picker's art pane are not",
@@ -100,6 +86,7 @@ auditRuleTest(
         `${rule}: #1642's art-pane exemption must reach the pseudo channel`,
       ).toBe(false);
     }
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -116,11 +103,13 @@ auditRuleTest(
       rule: "side-tab",
       kind: "silent",
       reason: "a selected list-row-root wears the ratified selection rail and is exempt",
+      disposition: { kind: "excluded", reason: "ratifiedSelectionRail" },
     },
     {
       rule: "side-tab",
       kind: "silent",
       reason: "a selected config-band wears the identical ratified rail (#1823) and is exempt too",
+      disposition: { kind: "excluded", reason: "ratifiedSelectionRail" },
     },
     {
       rule: "side-tab",
@@ -141,5 +130,6 @@ auditRuleTest(
     expect(selectors, "a selected list-row-root wears the rail and must stay exempt").not.toContain("#rail-row");
     expect(selectors, "a selected config-band wears the identical rail and must stay exempt").not.toContain("#rail-band");
     expect(selectors, "an UNSELECTED band is not exempt — it must still fire").toContain("#rail-band-off");
+    return readAuditReport(res.stdout);
   },
 );

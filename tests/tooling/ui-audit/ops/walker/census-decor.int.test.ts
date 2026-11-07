@@ -16,24 +16,10 @@
 // false positive for a false clean.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
-
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
 
 /** Border + radius + fill on both boxes: `isCardLike` for the inner, `hasEnclosingBox` for the outer. The
  *  inner carries enough text and box to clear the small-chip exclusion the same predicate applies. */
@@ -52,6 +38,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a real `role=menu` popup surface painted inside a card is a floating layer, not a card-in-card — the exemption survives the rewrite, now keyed on the ARIA role the app actually publishes",
+      disposition: { kind: "no-population" },
     },
   ],
   "the popup exemption follows the ARIA role, not a word inside a Tailwind class string",
@@ -66,6 +53,7 @@ auditRuleTest(
     // One and only one: the class-word coincidence is judged (it was silently exempt before), and the
     // real popup role stays exempt — the rewrite must not trade one error for the other.
     expect(findingSelectors(res.stdout, "nested-card")).toEqual(["#inner-classword"]);
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -80,6 +68,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "inside an illustrated picker's art pane the accent stripe IS the subject of the picture — the cell exists to show the reader what that skin looks like, so judging it reports the diagram instead of the design",
+      disposition: { kind: "excluded", reason: "illustratedPickerArt" },
     },
     {
       rule: "side-tab",
@@ -90,6 +79,7 @@ auditRuleTest(
       rule: "border-accent-on-rounded",
       kind: "silent",
       reason: "the same picture, the same subject — an art pane is one exemption for the whole accent-border family, not a per-rule patch",
+      disposition: { kind: "excluded", reason: "illustratedPickerArt" },
     },
     {
       rule: "border-accent-on-rounded",
@@ -115,6 +105,7 @@ auditRuleTest(
       expect(selectors, `${rule}: the rule's real target must stay judged`).toContain("#real-stripe");
       expect(selectors, `${rule}: the picture of the tell is not the tell`).not.toContain("#art-stripe");
     }
+    return readAuditReport(res.stdout);
   },
 );
 
@@ -156,6 +147,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a static image with no hover/group-hover transform anywhere in its wrapper chain is the negative control — the widened wrapper walk must not blanket-flag every image",
+      disposition: { kind: "no-population" },
     },
   ],
   "a static image with no hover transform in its wrapper chain is not flagged",
@@ -168,5 +160,6 @@ auditRuleTest(
     await writeFile(join(scratch, "media-zoom-static.html"), relationalDocument(body));
     const res = await runCli("snap", ["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
+    return readAuditReport(res.stdout);
   },
 );

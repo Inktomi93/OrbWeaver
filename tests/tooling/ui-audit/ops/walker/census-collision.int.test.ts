@@ -1,24 +1,10 @@
 // Authored-decision population controls for the collision censuses (#987).
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof, RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
-
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
 
 test("truncated text instances collapse by authored decision without erasing a later distinct repair", async ({ runCli, scratch }) => {
   const repeated = Array.from(
@@ -36,7 +22,7 @@ test("truncated text instances collapse by authored decision without erasing a l
   const auditRun = await runCli("snap", ["--file", join(scratch, "truncated-populations.html"), "--viewport", "1000x3000", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as RelationalPopulationReport;
+  const report = await readAuditReport(auditRun.stdout);
   expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(2);
   expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({
     candidates: 46,
@@ -70,7 +56,7 @@ auditRuleTest(
       '<canvas id="chart-canvas" width="200" height="120" style="display:block"></canvas>';
     await writeFile(join(scratch, "canvas-ink-fires.html"), relationalDocument(body));
     const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-fires.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-    const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+    const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 1, judged: 0, excluded: { canvasPaint: 1 } });
   },
 );
@@ -81,6 +67,7 @@ auditRuleTest(
       rule: "canvas-ink",
       kind: "silent",
       reason: "a pane with no canvases is the negative control — the census must not manufacture ink that is not there",
+      disposition: { kind: "no-candidate" },
     },
   ],
   "a pane with no canvases produces no canvas-ink row",
@@ -88,7 +75,8 @@ auditRuleTest(
     const body = '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />';
     await writeFile(join(scratch, "canvas-ink-silent.html"), relationalDocument(body));
     const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-silent.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-    const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
+    const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 0, excluded: {} });
+    return report;
   },
 );

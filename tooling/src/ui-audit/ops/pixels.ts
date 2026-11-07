@@ -16,7 +16,7 @@
 // ones to `flat`, but off-screen or occluded texts remain `unresolved`, which the population accounting
 // tallies as `withheld` — and too many withheld samples make the run NO VERDICT over a surface that is
 // perfectly measurable in the viewport. The honest reclassification: a text whose walker PROVED a paint
-// layer (a positioned background-image sibling) sits between it and the resolved base IS text over art;
+// layer (an art element that is no ancestor of the text) sits between it and the resolved base IS text over art;
 // the sampler merely cannot resolve the exact composite. `image-indeterminate` is exactly that semantic:
 // "there is a background-image layer here, contrast is indeterminate" — the `text-over-art` rule emits
 // a P1, which is JUDGED rather than withheld, so the population can produce a verdict. Only

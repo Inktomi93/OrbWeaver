@@ -1,14 +1,29 @@
-import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
+import { readFile } from "node:fs/promises";
+import type { DesignAuditRuleId, PopulationAccounting, RulePopulationAccounting } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { expect } from "./fixtures.ts";
 
-/** One proof a `auditRuleTest` registration attaches to a rule: the registry id is a type, so a stale or
- *  misspelled id fails the compiler before the coverage test runs. */
-export interface AuditRuleProof {
+/** Why a rule said nothing on a live run. The causes read the same in the findings table, and a withheld or unreached
+ *  subject is never a clean one. `no-candidate` says the census offered the rule nothing to look at, and
+ *  `no-population` says the rule publishes no row, so the report holds no evidence that it looked at all. */
+export type SilentDisposition =
+  | { readonly kind: "judged" }
+  | { readonly kind: "excluded" | "withheld"; readonly reason: string }
+  | { readonly kind: "no-candidate" | "no-population" };
+
+interface ProofFields {
   readonly rule: DesignAuditRuleId;
-  readonly kind: "fires" | "silent";
   readonly reason: string;
 }
+
+export type FiresAuditRuleProof = ProofFields & { readonly kind: "fires" };
+
+/** One proof a live `auditRuleTest` attaches to a rule. A silent row must state its disposition, and the
+ *  registration reads it from the run's report. */
+export type AuditRuleProof = FiresAuditRuleProof | (ProofFields & { readonly kind: "silent"; readonly disposition: SilentDisposition });
+
+/** A proof over a pure check. No run stands behind it, so there is no population to name. */
+export type PureAuditRuleProof = ProofFields & { readonly kind: "fires" | "silent" };
 
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
 
@@ -54,7 +69,7 @@ export function relationalDocument(body: string): string {
 }
 
 export interface RelationalPopulationReport {
-  readonly findings: readonly { readonly rule: string }[];
+  readonly findings: readonly { readonly rule: DesignAuditRuleId }[];
   readonly obscuredRecentred?: number;
   readonly obscuredUnaskable?: readonly {
     readonly selector: string;
@@ -62,18 +77,53 @@ export interface RelationalPopulationReport {
     readonly centre: { readonly x: number; readonly y: number };
     readonly rect: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   }[];
-  readonly populationAccounting?: Readonly<
-    Record<
-      string,
-      {
-        readonly candidates: number;
-        readonly emitted: number;
-        readonly excluded: Readonly<Record<string, number>>;
-        readonly judged: number;
-        readonly withheld: Readonly<Record<string, number>>;
-      }
-    >
-  >;
+  readonly populationAccounting?: PopulationAccounting;
+}
+
+function isAuditReport(value: unknown): value is RelationalPopulationReport {
+  return typeof value === "object" && value !== null && "findings" in value && Array.isArray(value.findings);
+}
+
+/** The filed report behind a run's `report <path>` line. */
+export async function readAuditReport(stdout: string): Promise<RelationalPopulationReport> {
+  const path = auditReport(stdout);
+  const report = JSON.parse(await readFile(path, "utf8"));
+  if (!isAuditReport(report)) {
+    throw new Error(`${path} holds no findings list`);
+  }
+  return report;
+}
+
+/** How many of a row's subjects the disposition accounts for. Zero means the rule was silent for another cause. */
+function subjectsDisposed(row: RulePopulationAccounting | undefined, disposition: SilentDisposition, alongsideFires: boolean): number {
+  if (row === undefined) {
+    return disposition.kind === "no-population" ? 1 : 0;
+  }
+  switch (disposition.kind) {
+    case "judged": {
+      return row.judged - row.affected;
+    }
+    case "excluded": {
+      return row.excluded[disposition.reason] ?? 0;
+    }
+    case "withheld": {
+      return row.withheld[disposition.reason] ?? 0;
+    }
+    case "no-candidate": {
+      return (alongsideFires ? row.judged === row.affected : row.candidates === 0) ? 1 : 0;
+    }
+    case "no-population": {
+      return 0;
+    }
+  }
+}
+
+/** Read one rule's disposition from a report. `alongsideFires` marks a run where another subject of the same rule
+ *  fires by design, so the row keeps its affected count and the silence is what remains beside it. */
+export function expectPopulation(report: RelationalPopulationReport, rule: DesignAuditRuleId, disposition: SilentDisposition, alongsideFires = false): void {
+  const row = report.populationAccounting?.[rule];
+  expect(subjectsDisposed(row, disposition, alongsideFires), `${rule} ${JSON.stringify(row)} is not ${JSON.stringify(disposition)}`).toBeGreaterThan(0);
+  expect(alongsideFires ? [] : report.findings.filter((finding) => finding.rule === rule), `${rule} was silent, so it files nothing`).toEqual([]);
 }
 
 export function stateTwin(kind: "checked" | "current" | "selected", selectedStyle: string, baseStyle = ""): string {

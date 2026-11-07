@@ -155,12 +155,16 @@ export const WALKER_RESOLVE = `
   // resolvePixelBackdrops) — the same posture snap's --contrast takes, and the reason it disagreed by
   // 1.6x with this instrument on the app's most important reading surface.
   //
-  // A PAINT LAYER here is deliberately narrow: positioned (fixed/absolute), visibly painted (a background
-  // image or any non-zero background alpha), and CONTENTLESS. The contentless test is what keeps a chrome
-  // panel — a topbar, a drawer, a dialog — out of this census: those OCCLUDE text rather than back it, and
-  // "the topbar is over this glyph" is a different refusal (snap owns it as OCCLUDED). A fixed layer is
-  // viewport-anchored, so it backs EVERY element that resolves through it, in view or not; an absolutely
-  // positioned one is document-anchored and only matters where it geometrically intersects.
+  // A POSITIONED PAINT LAYER is deliberately narrow: fixed/absolute, visibly painted (a background image or
+  // any non-zero background alpha), and CONTENTLESS. The contentless test is what keeps a chrome panel — a
+  // topbar, a drawer, a dialog — out of this census: those OCCLUDE text rather than back it, and "the topbar
+  // is over this glyph" is a different refusal (snap owns it as OCCLUDED). A fixed layer is viewport-anchored,
+  // so it backs EVERY element that resolves through it, in view or not; an absolutely positioned one is
+  // document-anchored and only matters where it geometrically intersects.
+  //
+  // ART IN ANY OTHER POSITION BACKS A SUBJECT ONLY UNDER ITS CENTRE. A caption plate sits over the card's
+  // ordinary in-flow picture, so art needs no position and may share a host with text. A mere box overlap
+  // would be every icon beside a label, so \`centreOnly\` asks whether the art reaches the subject's centre.
   var OPAQUE_MIN_ALPHA = 0.999;
   var REPLACED_ART_SELECTOR = "img, video, canvas, picture";
   var paintLayerCensus = null;
@@ -172,14 +176,19 @@ export const WALKER_RESOLVE = `
       var lel = candidates[pl];
       var ls = getComputedStyle(lel);
       var fixed = ls.position === "fixed";
-      if (!fixed && ls.position !== "absolute") continue;
-      if ((lel.textContent || "").trim() !== "") continue;
+      var positioned = fixed || ls.position === "absolute";
+      var inlineSvg = lel.localName === "svg";
+      var replaced = inlineSvg || lel.matches(REPLACED_ART_SELECTOR);
+      var imaged = Boolean(ls.backgroundImage) && ls.backgroundImage !== "none";
+      if (!positioned && !replaced && !imaged) continue;
+      var holdsText = !replaced && (lel.textContent || "").trim() !== "";
+      if (holdsText && !imaged) continue;
       var lbg = parseRgb(ls.backgroundColor);
-      // A replaced element (img, video, canvas, picture) paints art with no CSS background, whether it is the
-      // layer or sits inside it, and a plate over it composites against the pixels, not the body base.
-      var painted = (ls.backgroundImage && ls.backgroundImage !== "none") || (lbg !== null && lbg.a > 0) || lel.matches(REPLACED_ART_SELECTOR) || lel.querySelector(REPLACED_ART_SELECTOR) !== null;
-      if (!painted || !isVisible(lel)) continue;
-      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect() });
+      // A replaced element paints art with no CSS background, whether it is the layer or sits inside it, and a
+      // plate over it composites against the pixels, not the body base.
+      var filled = positioned && ((lbg !== null && lbg.a > 0) || lel.querySelector(REPLACED_ART_SELECTOR) !== null);
+      if (!(imaged || replaced || filled) || !isVisible(lel)) continue;
+      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect(), centreOnly: !positioned || inlineSvg || holdsText });
     }
     return paintLayerCensus;
   }
@@ -209,9 +218,13 @@ export const WALKER_RESOLVE = `
       if (layer.el === el || layer.el.contains(el)) continue;
       if (underQuery && (el.contains(layer.el) || paintsOverSubject(layer.el, el))) continue;
       if (!baseNode.contains(layer.el) || layer.el === baseNode) continue;
-      if (!layer.fixed) {
-        var lr = layer.rect;
-        if (!(lr.left < elRect.right && lr.right > elRect.left && lr.top < elRect.bottom && lr.bottom > elRect.top)) continue;
+      var lr = layer.rect;
+      if (layer.centreOnly) {
+        var centreX = (elRect.left + elRect.right) / 2;
+        var centreY = (elRect.top + elRect.bottom) / 2;
+        if (el.contains(layer.el) || !(lr.left <= centreX && lr.right >= centreX && lr.top <= centreY && lr.bottom >= centreY)) continue;
+      } else if (!layer.fixed && !(lr.left < elRect.right && lr.right > elRect.left && lr.top < elRect.bottom && lr.bottom > elRect.top)) {
+        continue;
       }
       return layer.el;
     }

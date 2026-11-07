@@ -314,6 +314,8 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       // zero-size positioned arm below (declared insets as the only evidence) exists precisely for
       // children it would reject.
       if (isVisuallyHidden(cchild)) continue;
+      // Computed visibility inherits, so this reads a hidden subtree too: a parked panel keeps its box and paints nothing.
+      if (ccStyle.visibility === "hidden" || ccStyle.visibility === "collapse") continue;
       // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), and it must be or
       // carry a CONTROL — in-flow text spill is text-overflow's.
       if (!ccPositioned && !(ccControl && isVisible(cchild))) continue;

@@ -385,6 +385,13 @@ const WALKER_LETTER_REGEX_SYNTAX = {
     "A walker segment is a template literal: write a character class with a double backslash (\\\\s, \\\\d, \\\\w), or the emitted regex matches the bare letter.",
 };
 
+// `tagName` is uppercased only for HTML-namespace elements, so a walker comparison against an uppercase SVG name never
+// matches. The source is a string to every other check, and the selector reads the page's code from the cooked text.
+const WALKER_UPPERCASE_SVG_TAG_SYNTAX = {
+  selector: String.raw`TemplateElement[value.cooked=/["'](SVG|PATH|G|CIRCLE|RECT|USE|POLYGON)["']|\b(SVG|PATH|CIRCLE|RECT|POLYGON)\s*:\s*\d/]`,
+  message: "An inline SVG element reports a lowercase tagName: compare el.localName against the lowercase name.",
+};
+
 // The integration project shares one module registry (`isolate: false`), so a stubbed or written process
 // environment leaks across files and the first file's value wins. Tests pass the value through the harness seam
 // (`createServerHarness` options) or the subject's own parameter instead.
@@ -2298,7 +2305,7 @@ export default [
   },
   {
     files: ["tooling/src/ui-audit/ops/walker/**/*.ts"],
-    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX, WALKER_UPPERCASE_SVG_TAG_SYNTAX) },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],

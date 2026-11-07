@@ -19,26 +19,13 @@
 // the word — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AuditRuleProof } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import type { CliResult, RunCliOpts } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-interface ToolContext {
-  readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  readonly scratch: string;
-}
-
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: (context: ToolContext) => Promise<void>): void {
-  test(title, ({ runCli, scratch }: ToolContext) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-    return fn({ runCli, scratch });
-  });
-}
-
-async function auditStdout(scratch: string, runCli: ToolContext["runCli"], name: string, body: string): Promise<string> {
+async function auditStdout(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<string> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
   const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return res.stdout;
@@ -96,15 +83,18 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a `data-slot=scroll-area-viewport` container IS the app's authored clipping viewport (packages/ui/src/primitives/scroll-area), where clipping is the point — and the old class-only test could not see that slot at all",
+      disposition: { kind: "no-population" },
     },
   ],
   "the clip exemption follows the authored data-slot, not a word inside a Tailwind class string",
   async ({ runCli, scratch }) => {
     const body = `${clippedCarrier("clip-class", 'class="preview-pane rounded-md"')}${clippedCarrier("clip-slot", 'data-slot="scroll-area-viewport"')}`;
-    const cuts = findingSelectors(await auditStdout(scratch, runCli, "clip-exemption", body), "clipped-overflow");
+    const stdout = await auditStdout(scratch, runCli, "clip-exemption", body);
+    const cuts = findingSelectors(stdout, "clipped-overflow");
     // One and only one: the class-word coincidence is judged (it was silently skipped before), and the
     // authored viewport slot is exempt (it was invisible to the old class-only test, so it was judged).
     expect(cuts).toEqual(["#clip-class"]);
+    return readAuditReport(stdout);
   },
 );
 
@@ -117,6 +107,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a Base UI Slider's real <input type=range> is `visuallyHidden` at position:fixed sized 100%/100% — a viewport-sized rect that paints ZERO pixels, so its 'spill' past any clipping container is arithmetic about a box nobody can see. The rule's POSITIONED arm never called isVisuallyHidden (the in-flow arm always did), which minted a P2 for every Slider inside a clipping container app-wide (#1770 measured 'clips Temperature right by 383px' on Presets → Default)",
+      disposition: { kind: "no-population" },
     },
     {
       rule: "clipped-overflow",
@@ -132,8 +123,35 @@ auditRuleTest(
     const body = `<div id="clip-hidden" style="overflow:hidden;width:120px;height:60px;position:relative">
   <input type="range" aria-label="Temperature" style="${VISUALLY_HIDDEN_INPUT_STYLE}">
 </div>${clippedCarrier("clip-real", "")}`;
-    const cuts = findingSelectors(await auditStdout(scratch, runCli, "clip-visually-hidden", body), "clipped-overflow");
+    const stdout = await auditStdout(scratch, runCli, "clip-visually-hidden", body);
+    const cuts = findingSelectors(stdout, "clipped-overflow");
 
     expect(cuts).toEqual(["#clip-real"]);
+    return readAuditReport(stdout);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "clipped-overflow",
+      kind: "silent",
+      reason: "a panel parked past the clip with visibility:hidden keeps its box and paints nothing, so no one sees a cut",
+      disposition: { kind: "no-population" },
+    },
+    {
+      rule: "clipped-overflow",
+      kind: "fires",
+      reason: "the same panel left visible is the planted control in the same run: the fence reads paint, not position",
+    },
+  ],
+  "a parked panel that paints nothing cuts nothing, and the same panel left visible still reports",
+  async ({ runCli, scratch }) => {
+    const parked = (id: string, visibility: string): string =>
+      `<div id="${id}" style="overflow-x:clip;width:120px;height:60px;position:relative"><div style="position:absolute;left:100px;top:0;width:200px;visibility:${visibility}"><button>Panel action</button></div></div>`;
+    const stdout = await auditStdout(scratch, runCli, "clip-parked-panel", `${parked("clip-parked", "hidden")}${parked("clip-shown", "visible")}`);
+
+    expect(findingSelectors(stdout, "clipped-overflow")).toEqual(["#clip-shown"]);
+    return readAuditReport(stdout);
   },
 );

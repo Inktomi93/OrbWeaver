@@ -13,7 +13,7 @@
 // Owner posture (the buried-raster precedent, one family over): a clean run is a SUCCESS condition. The
 // epsilon is float-noise slack, never a threshold to loosen until something fires.
 
-import type { AuditRuleProof } from "@orb/testkit/node";
+import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
@@ -66,10 +66,7 @@ function restTransform(over: Partial<OffGridTransformInput> = {}): OffGridTransf
   return { ...base, ...over };
 }
 
-// ── design-audit proof denominator ──────────────
-// The coverage test reads its rows from a TOP-LEVEL `auditRuleTest(...)` call bound to this file's own local
-// helper — the binding is structural, not a describe-nested test.
-function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
+function auditRuleTest(proofs: readonly PureAuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();
