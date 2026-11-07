@@ -5,39 +5,47 @@
 // battery). This leg only confirms that on the OPERATOR-started live stack a real turn is captured and the
 // four layers agree, driving ONE representative row (names 'completion') through the stateless (openai-compat)
 // wire — where the `name` fingerprint manifests (the agent-sdk path collapses history into a session prompt).
+// The preset is a throwaway made active for the run: a stack with no explicit pick runs the built-in, which a write
+// forks without activating. Role handling is `none` because a merging level inlines the speaker instead of naming it.
 //   1. FE       — the active preset (preset.get) reflects what the harness set.
 //   2. ASSEMBLE — chat.getShapeTrace stage counts.
 //   3. WIRE     — the captured provider body (/api/_debug/wire/captures).
 //   4. DB       — chat.listMessages `model` stamp.
 //
-// @live: one real warm-8B turn (~3-6s). Skipped unless E2E_LIVE=1 (the `@live` grepInvert). REQUIRES
-// WIRE_CAPTURE=on on the OPERATOR-started live stack (the #14 human-supervised live-drive precedent — NOT set
-// by playwright's webServer). When capture is OFF (empty read), the row SKIPS with an explicit message ("the
-// int test is the authoritative harness") — never a false pass. Self-seeds a fresh chat (shared-DB isolation:
-// never listChats()[0]). Restores the mutated preset + the prior chat Model role in a finally.
+// @live: one real turn. Skipped unless E2E_LIVE=1 (the `@live` grepInvert). REQUIRES WIRE_CAPTURE=on, which the
+// harness stacks set (support/modes.ts) and an operator-started stack may not. When capture is OFF (empty read), the
+// row SKIPS with an explicit message ("the int test is the authoritative harness") — never a false pass. Self-seeds its character and chat (shared-DB
+// isolation: never listChats()[0]) and restores the active preset + the prior chat Model role in a finally.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { expect, test } from "@playwright/test";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
+  createPreset,
+  deleteChat,
   fetchWireCaptures,
   getActivePreset,
   getShapeTrace,
+  getUserSettings,
   listCanon,
-  listCharacters,
+  localEngineConnection,
+  mintFreshCharacter,
   pinChatToLocalEngine,
+  removeCharacter,
+  removePreset,
   restoreChatBinding,
   sendTurn,
   startChat,
   updatePresetConfig,
+  updateSettingsSection,
 } from "./support/trpc.ts";
 
-const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
+const CHARACTER_NAME = "Fidelity Probe";
+const HANDLE = castId<CharacterHandle>("e2e-live-fidelity");
 const PROBE = "Reply with exactly: fidelity-probe-ok";
-// A leading "Author: " prefix on wire content (the completion mode must NOT produce one). Bounded, no nesting.
-const AUTHOR_PREFIX_RE = /^[^:\n]{1,40}: /u;
 
 /** The wire `messages[]` array (openai-compat), typed to the fields the harness reads. */
 interface WireMessage {
@@ -68,14 +76,18 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
   // The STATELESS openai-compat wire is the harness's local-engine connection — the `name` fingerprint this
   // spec reads manifests there (the agent-sdk path collapses history into a session prompt).
   const priorChatBinding = await pinChatToLocalEngine();
-  const preset = await getActivePreset();
-  const originalConfig = preset?.config;
+  const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
+  const engine = await localEngineConnection();
+  const characterId = await mintFreshCharacter(HANDLE, CHARACTER_NAME, "The probe looks up.");
+  const chatId = await startChat([characterId]);
+  const preset = await createPreset("e2e-fidelity-names");
   try {
-    if (preset !== undefined && originalConfig !== undefined) {
-      await updatePresetConfig(preset.id, { ...structuredClone(originalConfig), namesBehavior: "completion" });
-    }
-    const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
-    const chatId = await startChat([characterId]);
+    await updatePresetConfig(preset.id, {
+      ...preset.config,
+      namesBehavior: "completion",
+      params: { ...preset.config.params, advanced: { ...preset.config.params.advanced, roleHandling: "none" } },
+    });
+    await updateSettingsSection("seeds", { defaultPresetId: preset.id });
     await sendTurn(chatId, PROBE);
 
     const read = await fetchWireCaptures(chatId, "vllm");
@@ -92,18 +104,20 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     expect((await getActivePreset())?.config.namesBehavior).toBe("completion");
     // ASSEMBLE — the name-stamp pass touched rows.
     expect((await getShapeTrace(chatId)).stageCounts.named).toBeGreaterThan(0);
-    // WIRE — a non-system message carries a `name` (the completion fingerprint), NO inline "Author: " prefix.
+    // WIRE — the user row carries its speaker in `name` (the completion fingerprint) with its content untouched,
+    // and no row spells a real author inline. The probe has a colon of its own, so only an author's name counts.
     const msgs = nonSystemWireMessages(wire["messages"]);
-    expect(msgs.some((m) => m.name !== undefined && m.name.length > 0)).toBe(true);
-    expect(msgs.every((m) => !AUTHOR_PREFIX_RE.test(m.content))).toBe(true);
+    expect(msgs).toContainEqual({ role: "user", content: PROBE, name: DEFAULT_PERSONA_NAME });
+    expect(msgs.filter((m) => [CHARACTER_NAME, DEFAULT_PERSONA_NAME].some((author) => m.content.startsWith(`${author}: `)))).toEqual([]);
     // DB — the assistant row is stamped with the local model.
     await expect
       .poll(async () => (await listCanon(chatId)).filter((c) => c.role === "assistant" && c.model !== null).at(-1)?.model ?? null, { timeout: WAIT_SURFACE_MS })
-      .toBe(LOCAL_MODEL_LEAF);
+      .toBe(engine.model);
   } finally {
-    if (preset !== undefined && originalConfig !== undefined) {
-      await updatePresetConfig(preset.id, originalConfig).catch(() => null);
-    }
+    await updateSettingsSection("seeds", { defaultPresetId: priorDefaultPresetId ?? null });
+    await removePreset(preset.id);
     await restoreChatBinding(priorChatBinding);
+    await deleteChat(chatId);
+    await removeCharacter(characterId);
   }
 });

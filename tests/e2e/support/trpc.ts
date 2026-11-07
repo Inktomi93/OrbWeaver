@@ -311,7 +311,8 @@ export async function claudeSubConnection(): Promise<ConnectionRow | undefined> 
   return (await listConnections()).find((connection) => connection.providerId === "claude-sub");
 }
 
-/** Resolve the active default preset (settings.seeds.defaultPresetId → preset.get). Undefined when unset. */
+/** Resolve the explicit active preset (settings.seeds.defaultPresetId → preset.get). Undefined when no pick is set,
+ *  which means the built-in runs; a spec that needs its own settings activates a preset of its own. */
 export async function getActivePreset(): Promise<TrpcClientOutput<"preset.get"> | undefined> {
   const settings = await getUserSettings();
   const id = settings.config.seeds.defaultPresetId;
