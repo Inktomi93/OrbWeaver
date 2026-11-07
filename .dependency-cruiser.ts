@@ -111,6 +111,7 @@ const ROOT_FILES_TESTS_LOAD = {
   "^package\\.json$": "suites read the workspace manifest",
   "^stylelint\\.config\\.ts$": "stylelint suites run this config",
   "^vitest\\.config\\.ts$": "runner suites read the projects",
+  "^vitest\\.stryker\\.config\\.ts$": "the mutation overlay suite classifies the projects",
 } as const satisfies Readonly<Record<string, string>>;
 // Browser-support files a mount imports; a mount may not enter any other test-side file.
 const MOUNT_SUPPORT_FILES = {

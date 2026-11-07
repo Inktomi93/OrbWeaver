@@ -258,13 +258,13 @@ Evidence of reach: native V8 coverage used as a hit map, never a percentage, rep
 
 Rank the worklist by writes and authorization, then complexity times change frequency, then unasserted outcomes, then defect history. Filter barrels and composition files. Weight a fix commit by how few files it touches, and divide by file size. Mark code that changed since its last hit as a gap.
 
-The highest-risk modules get hand-planted mutants in a lane brief: a throwaway script that edits one line, runs named tests, records the result and reverts. Keep nothing in the repository.
+`pnpm hotspots` ranks the change and defect history. The highest-risk modules go through `pnpm test:mutation` on named files. Before a lane adds a test for a gap, it compares the legacy reference case in this register, because the case may already exist there.
 
 A case judged not worth a test is recorded once with its reason.
 
 First step: run the ledger read-only on `packages/kit` and `domain/tag`. Stop if the output is noise.
 
-Rejected: a test per export, because constants and re-exports produce filler; StrykerJS, because it needed a sandbox patch, an ignorer plugin and a gate, and was deleted for its upkeep; a coverage percentage, because it does not show that a test asserts behavior.
+Rejected: a test per export, because constants and re-exports produce filler; a coverage percentage, because it does not show that a test asserts behavior.
 
 ## Rejected
 

@@ -116,6 +116,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | How X works, or the path from X to Y | the `codegraph_explore` MCP tool, naming the symbols |
 | Who calls X, what breaks if X changes, which tests cover a file | `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
 | A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
+| Which files keep getting fixed or churned | `pnpm hotspots` |
 | Literal text, config | `rg`; the Bash `grep` is a ugrep wrapper that honors ignore files. Read law docs in full: a ruling lives in the context around a line |
 
 - A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.
