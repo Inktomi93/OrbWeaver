@@ -42,15 +42,23 @@ function medianChannel(values: number[]): number {
   return values[Math.floor(values.length / 2)] ?? 0;
 }
 
+export interface PixelRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** A region of the buffer to read the ring of. `marks` are rectangles relative to its corner whose pixels are the foreground itself, left
+ *  out of the ring: a glyph that reaches the box edge puts its strokes in the ring and drags the backdrop toward its ink. */
+export interface RingRegion extends PixelRect {
+  marks?: readonly PixelRect[];
+}
+
 /** Per-channel median of the PERIMETER RING of a `region` inside a raw RGB(A) buffer of `imageWidth`
  *  pixels per row. `region` is in buffer pixel coordinates and MUST already sit inside the image — the
  *  caller clamps (an out-of-bounds read would silently sample the next row's pixels). */
-export function ringBackdropOfRegion(
-  data: Buffer | Uint8Array,
-  imageWidth: number,
-  channels: number,
-  region: { left: number; top: number; width: number; height: number },
-): Rgb {
+export function ringBackdropOfRegion(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): Rgb {
   const ring = ringPixels(data, imageWidth, channels, region);
   return { r: medianChannel(ring.rs), g: medianChannel(ring.gs), b: medianChannel(ring.bs) };
 }
@@ -63,12 +71,10 @@ const RING_SPREAD_HIGH_QUANTILE = 0.9;
 /** WCAG's flare term, so a near-black ring does not read as a huge ratio over a rounding step. */
 const LUMINANCE_FLARE = 0.05;
 
-function ringPixels(
-  data: Buffer | Uint8Array,
-  imageWidth: number,
-  channels: number,
-  region: { left: number; top: number; width: number; height: number },
-): { rs: number[]; gs: number[]; bs: number[] } {
+const inside = (rect: PixelRect, x: number, y: number): boolean => x >= rect.left && x < rect.left + rect.width && y >= rect.top && y < rect.top + rect.height;
+
+function ringPixels(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): { rs: number[]; gs: number[]; bs: number[] } {
+  const marks = region.marks ?? [];
   const ring = Math.max(1, Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(region.width, region.height) * SAMPLE_RING_FRAC)));
   const rs: number[] = [];
   const gs: number[] = [];
@@ -76,7 +82,7 @@ function ringPixels(
   for (let y = 0; y < region.height; y += 1) {
     const edgeRow = y < ring || y >= region.height - ring;
     for (let x = 0; x < region.width; x += 1) {
-      if (!(edgeRow || x < ring || x >= region.width - ring)) {
+      if (!(edgeRow || x < ring || x >= region.width - ring) || marks.some((mark) => inside(mark, x, y))) {
         continue;
       }
       const i = ((region.top + y) * imageWidth + (region.left + x)) * channels;
@@ -90,12 +96,7 @@ function ringPixels(
 
 /** `ringBackdropOfRegion`, or `null` when the ring is not one backdrop (p90:p10 luminance spread over
  *  {@link RING_MAX_SPREAD_RATIO}). The caller must report the measurement unresolved, never the median. */
-export function uniformRingBackdropOfRegion(
-  data: Buffer | Uint8Array,
-  imageWidth: number,
-  channels: number,
-  region: { left: number; top: number; width: number; height: number },
-): Rgb | null {
+export function uniformRingBackdropOfRegion(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: PixelRect): Rgb | null {
   const { rs, gs, bs } = ringPixels(data, imageWidth, channels, region);
   const luminances = rs.map((r, i) => relativeLuminance({ r, g: gs[i] ?? 0, b: bs[i] ?? 0 })).sort((a, b) => a - b);
   const low = percentile(luminances, RING_SPREAD_LOW_QUANTILE);

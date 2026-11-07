@@ -4,7 +4,7 @@ import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.
 import { clusterKey, proposeName } from "./classify.ts";
 import { coveredJudgement, elementRefOf, newArmJudgement, undeclaredJudgement, writingAxis } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
-import { hitOf, judgeLit, keepJudgement } from "./hand-model.ts";
+import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
 import { lit, valueStringLits } from "./literals.ts";
 import { CLUSTER_TOKENS, CONTAINER_TAGS } from "./markup.ts";
@@ -148,7 +148,7 @@ const FIXED: Readonly<Record<string, Judgement>> = {
   "tw-important": {
     verdict: "decide",
     match: null,
-    owner: "decide: an important modifier needs a variant",
+    owner: IMPORTANT_OWNER,
     reason: "an important modifier fights a primitive; no variant owns the need yet",
     keep: null,
   },
@@ -159,7 +159,7 @@ const FIXED: Readonly<Record<string, Judgement>> = {
     reason: "a viewport breakpoint variant is a container-query variant (@cq-*)",
     keep: null,
   },
-  "tw-gradient": { verdict: "decide", match: null, owner: "decide: gradient has no owner", reason: "no token or primitive owns gradients", keep: null },
+  "tw-gradient": { verdict: "decide", match: null, owner: GRADIENT_OWNER, reason: "no token or primitive owns gradients", keep: null },
   "tw-clip": { verdict: "decide", match: null, owner: "decide: clip-path has no owner", reason: "no token or primitive owns clip paths", keep: null },
 };
 

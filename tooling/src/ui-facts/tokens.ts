@@ -5,6 +5,7 @@ import type { CssNode, FunctionNode } from "@eslint/css-tree";
 import { parse, walk } from "@eslint/css-tree";
 import type { Lit } from "./literals.ts";
 import { lit, litsOf, normalised, parseValue, VALUE_KINDS } from "./literals.ts";
+import { loadPurposes } from "./purposes.ts";
 
 const THEME = "packages/ui/src/styles/theme.css";
 const ROOT_PX = 16;
@@ -88,10 +89,14 @@ export interface ValueToken {
   readonly name: string;
   readonly space: ValueNamespace;
   readonly lit: Lit;
+  /** The one purpose this token serves, or null for a general scale step or role (`orb.purpose` in tokens.json). */
+  readonly scope: string | null;
 }
 
 export interface ValueTokens {
   readonly all: readonly ValueToken[];
+  /** Purposes in tokens.json whose variables the theme does not declare. */
+  readonly staleScopes: readonly string[];
   /** `kind:canon` to the tokens that hold it, in file order. */
   readonly byValue: ReadonlyMap<string, readonly ValueToken[]>;
 }
@@ -140,26 +145,30 @@ const spaceOf = (name: string): ValueNamespace | undefined => VALUE_NAMESPACES.f
 /** The value tokens in the theme's `@theme` blocks and `:root`, each as the literal it holds. A token that is a formula holds no single value and is left out. */
 export function loadValueTokens(root: string): ValueTokens {
   const ast = parse(readFileSync(join(root, THEME), "utf8"), { positions: false });
-  const all: ValueToken[] = [];
+  const held: Omit<ValueToken, "scope">[] = [];
+  const declared = new Set<string>();
   walk(ast, {
     enter(node): void {
-      const scope = this.atrule?.name === "theme" || (this.rule !== null && normalised(this.rule.prelude) === ":root");
-      const space = node.type === "Declaration" && scope ? spaceOf(node.property) : undefined;
-      if (node.type !== "Declaration" || space === undefined) {
+      const inTheme = this.atrule?.name === "theme" || (this.rule !== null && normalised(this.rule.prelude) === ":root");
+      if (node.type !== "Declaration" || !inTheme) {
         return;
       }
+      declared.add(node.property);
+      const space = spaceOf(node.property);
       const value = node.value.type === "Raw" ? parseValue(node.value.value.trim()) : node.value;
-      const found = value === null ? null : tokenLit(space, value);
-      if (found !== null) {
-        all.push({ name: node.property, space, lit: found });
+      const found = space === undefined || value === null ? null : tokenLit(space, value);
+      if (space !== undefined && found !== null) {
+        held.push({ name: node.property, space, lit: found });
       }
     },
   });
+  const purposes = loadPurposes(root, declared);
+  const all = held.map((token) => ({ ...token, scope: purposes.byName.get(token.name) ?? null }));
   const byValue = new Map<string, ValueToken[]>();
   for (const token of all) {
     byValue.set(valueKey(token.lit), [...(byValue.get(valueKey(token.lit)) ?? []), token]);
   }
-  return { all, byValue };
+  return { all, byValue, staleScopes: purposes.stale };
 }
 
 /** The tokens in the given namespaces that hold the literal, in namespace order. */

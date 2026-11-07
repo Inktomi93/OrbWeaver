@@ -78,12 +78,19 @@ function offersFamily(arms: ArmClasses, base: string): boolean {
   return written.length === 1 && arms.size > 1 && (written[0]?.length ?? 0) > 0;
 }
 
-/** The axis of a component's recipe that owns the class: an arm writes it alone, or writes it as the axis's choice in its family. */
+/** The axis is a switch for the arm that lists the class: that arm is the only one that writes anything, so the axis turns every class of it on together. */
+function switchesOn(arms: ArmClasses, token: string): boolean {
+  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  return arms.size > 1 && writing.length === 1 && writing[0]?.tokens.includes(token) === true;
+}
+
+/** The axis of a component's recipe that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is the only arm that writes anything. */
 export function axisWriting(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
   const axes = [...(recipe?.axes ?? [])];
   return (
     axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
-    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token))
+    axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token)) ??
+    axes.find(([, arms]) => switchesOn(arms, token))
   );
 }
 
@@ -141,7 +148,7 @@ export function undeclaredJudgement(elem: Elem | null, token: string, components
   };
 }
 
-/** An arm writes one unconditional class; a class under a variant, a ternary or `&&` is a conditional use. */
+/** A class under a variant, a ternary or `&&` is a conditional use, so a new arm for it is a design call. */
 const conditionalMark = (token: string, guarded: boolean): string => (guarded || baseOf(token).variants !== "" ? ", conditional" : "");
 
 /** The recipe verdict for a class an arm of the axis writes, naming the slots when the arm is slot-keyed. */
@@ -151,7 +158,8 @@ export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boo
   return {
     verdict: "recipe",
     match: `${axis.label}.${arm}`,
-    owner: `${axis.label}${conditionalMark(token, guarded)}`,
+    // An arm that writes the variant-prefixed class whole applies the same variant, so the prefix leaves the move exact; only a guard conditions it.
+    owner: `${axis.label}${guarded ? ", conditional" : ""}`,
     reason: `arm "${arm}" of ${axis.label} writes ${token}${slots}`,
     keep: null,
   };

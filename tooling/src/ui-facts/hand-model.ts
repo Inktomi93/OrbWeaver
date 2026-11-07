@@ -1,5 +1,5 @@
 // The hand-rolling census vocabulary: one hit per hand-written thing, the verdict it earns and the owner that would retire it.
-import { generalTokens, scopeOf } from "./hand-scope.ts";
+import { generalTokens } from "./hand-scope.ts";
 import type { Lit, ValueKind } from "./literals.ts";
 import type { Layer } from "./source.ts";
 import type { ValueNamespace, ValueTokens } from "./tokens.ts";
@@ -36,6 +36,13 @@ export const KEEP_REASONS = {
   "keyframe-waypoint": "a keyframe waypoint is an animation value, not a meaning, so it stays a literal (the opacity group in tokens.json)",
   "one-sided-clearance": "padding on one inline edge clears a neighbouring mark; a recipe owns both edges, and no axis names a side",
   "coincident-number": "constants that share a number and name different things; each stays with its own meaning",
+  "dom-api-literal": "a literal a DOM API takes in a fixed grammar (a colour input's `#rrggbb` value) cannot be a custom property",
+  "svg-geometry": "an SVG radius or centre is in user units of the drawing, not a length the spacing or size scales price",
+  "vendor-override":
+    "an important modifier inside `@orb/ui` beats a vendor library's inline style, which no variant can out-rank; the suppression at the site states the part",
+  "dev-seed-data": "a value the dev seed writes into the app's own records is authored sample data, not paint the client draws",
+  "owned-gradient":
+    "a gradient the ui layer spells sits in the recipe arm or primitive rule that owns that look, with its stops drawn from tokens; only a gradient written outside ui is unowned",
 } as const;
 export type KeepCode = keyof typeof KEEP_REASONS;
 
@@ -168,6 +175,28 @@ const STRUCTURAL_KEEP: Readonly<Record<string, KeepCode>> = {
 
 const MATCHES_SHOWN = 2;
 
+// The properties that place or size an SVG shape in the drawing's own user units.
+const SVG_GEOMETRY: ReadonlySet<string> = new Set(["r", "rx", "ry", "cx", "cy"]);
+
+/** The owner a gradient literal or class gets before the layer it sits in is known. */
+export const GRADIENT_OWNER = "decide: gradient has no owner";
+
+/** The owner an important modifier gets before the layer it sits in is known. */
+export const IMPORTANT_OWNER = "decide: an important modifier needs a variant";
+
+const DEV_SEED_PATH = "packages/client/src/dev/";
+
+/** What the place the hit sits in settles: ui spells its own gradients and vendor overrides, and the dev seed writes sample data. */
+function placedJudgement(place: Place, written: Written, judgement: Judgement): Judgement {
+  if (place.layer === "ui" && judgement.owner === GRADIENT_OWNER) {
+    return keepJudgement("owned-gradient", written.detail);
+  }
+  if (place.layer === "ui" && judgement.owner === IMPORTANT_OWNER) {
+    return keepJudgement("vendor-override", written.detail);
+  }
+  return place.path.startsWith(DEV_SEED_PATH) && judgement.verdict !== "keep" ? keepJudgement("dev-seed-data", written.detail) : judgement;
+}
+
 /** The verdict for one literal: a token that holds it, a token that should, or a structural value that stays. */
 export function judgeLit(found: Lit, property: string | null, tokens: ValueTokens): Judgement {
   if (property === CONTAINER_PROPERTY) {
@@ -183,11 +212,14 @@ export function judgeLit(found: Lit, property: string | null, tokens: ValueToken
   if (property === KEYFRAME_PROPERTY) {
     return keepJudgement("keyframe-waypoint", found.text);
   }
+  if (property !== null && SVG_GEOMETRY.has(property.toLowerCase())) {
+    return keepJudgement("svg-geometry", found.text);
+  }
   if (found.kind === "gradient") {
     return {
       verdict: "decide",
       match: null,
-      owner: "decide: gradient has no owner",
+      owner: GRADIENT_OWNER,
       reason: `${found.text} has no token or primitive that owns gradients`,
       keep: null,
     };
@@ -202,11 +234,12 @@ export function judgeLit(found: Lit, property: string | null, tokens: ValueToken
   }
   const scoped = tokensHolding(tokens, found, spaces)[0];
   if (scoped !== undefined) {
+    const purpose = tokens.all.find((token) => token.name === scoped)?.scope;
     return {
       verdict: "decide",
       match: null,
       owner: `decide: ${kind} ${found.canon}, only a purpose token holds it`,
-      reason: `${scoped} holds ${found.text} but is scoped to ${scopeOf(scoped) ?? "one purpose"}; a site with another purpose needs its own step`,
+      reason: `${scoped} holds ${found.text} but is scoped to ${purpose ?? "one purpose"}; a site with another purpose needs its own step`,
       keep: null,
     };
   }
@@ -229,7 +262,7 @@ export interface Written {
 export const hitOf = (place: Place, written: Written, judgement: Judgement, element: ElementRef | null = null): Hit => ({
   ...written,
   ...place,
-  ...judgement,
+  ...placedJudgement(place, written, judgement),
   element,
 });
 

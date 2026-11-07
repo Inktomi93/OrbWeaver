@@ -153,3 +153,21 @@ test("a box entirely outside the image resolves to NOTHING — the caller must r
   expect(clampBoxToImage({ x: 400, y: -719, width: 588, height: 43 }, 1280, 800)).toBeNull();
   expect(clampBoxToImage({ x: 1400, y: 100, width: 200, height: 40 }, 1280, 800)).toBeNull();
 });
+
+test("a mark that reaches the box edge is left out of the ring, so its strokes do not drag the backdrop toward its ink", () => {
+  // A 10x10 glyph box whose ink covers three of the four ring edges: without the exclusion the ring median is the ink.
+  const data = frame({ width: 10, height: 10, border: 2, ring: [20, 20, 20], fill: [20, 20, 20] });
+  for (let y = 0; y < 10; y += 1) {
+    for (let x = 0; x < 10; x += 1) {
+      if (x < 8) {
+        const i = (y * 10 + x) * CHANNELS;
+        data[i] = 240;
+        data[i + 1] = 240;
+        data[i + 2] = 240;
+      }
+    }
+  }
+  const whole = { left: 0, top: 0, width: 10, height: 10 };
+  expect(ringBackdropOfRegion(data, 10, CHANNELS, whole)).toEqual({ r: 240, g: 240, b: 240 });
+  expect(ringBackdropOfRegion(data, 10, CHANNELS, { ...whole, marks: [{ left: 0, top: 0, width: 8, height: 10 }] })).toEqual({ r: 20, g: 20, b: 20 });
+});

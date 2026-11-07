@@ -79,3 +79,39 @@ test("the real Stack and Row own an inset that steps down below the phone contai
   expect(ownerOf("layout", "Row", "@max-cq-28:px-row")).toEqual({ axis: "row.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "row" });
   expect(ownerOf("layout", "Stack", "pbs-row")).toEqual({ axis: "stack.paddingBlockStart", prop: "paddingBlockStart", arm: "row" });
 });
+
+const CARD_PACKAGE = JSON.stringify({ exports: { "./card": "./src/primitives/card/index.ts" } });
+const CARD_COMPONENT = [
+  "export function Card({ focusable, className }) {",
+  "  const fill = props.fill;",
+  "  return <div className={cardVariants({ focusable, className })} data-fill={fill} />;",
+  "}",
+].join("\n");
+
+function cardOwners(scratch: string, variants: string): ReturnType<typeof classOwners> {
+  const root = plantDir(scratch, "card-owners");
+  plantFile(root, "packages/ui/package.json", CARD_PACKAGE);
+  plantFile(root, "packages/ui/src/lib/ring.ts", 'export const FOCUS_RING = "ring-2 ring-ring";\nexport const fill = "block-full flex-1";');
+  plantFile(root, "packages/ui/src/primitives/card/variants.ts", variants);
+  plantFile(root, "packages/ui/src/primitives/card/card.tsx", CARD_COMPONENT);
+  return classOwners(root);
+}
+
+test("an arm that writes an imported class constant owns each class in it, beside the literal classes it writes", ({ scratch }) => {
+  const ownerOf = cardOwners(
+    scratch,
+    [
+      'import { FOCUS_RING } from "../../lib/ring.ts";',
+      `export const cardVariants = tv({ variants: { focusable: { true: \`outline-none \${FOCUS_RING}\`, false: '' } } });`,
+    ].join("\n"),
+  );
+  const owner = { axis: "card.focusable", prop: "focusable", arm: "true" };
+  expect(ownerOf("card", "Card", "outline-none")).toEqual(owner);
+  expect(ownerOf("card", "Card", "ring-2")).toEqual(owner);
+  expect(ownerOf("card", "Card", "ring-ring")).toEqual(owner);
+});
+
+test("a name the arm's file does not import reads nothing, even when a ui constant of that name exists", ({ scratch }) => {
+  const ownerOf = cardOwners(scratch, "export const cardVariants = tv({ variants: { focusable: { true: fill, false: '' } } });");
+  expect(ownerOf("card", "Card", "block-full")).toBeNull();
+});

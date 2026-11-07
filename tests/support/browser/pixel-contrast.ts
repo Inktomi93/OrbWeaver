@@ -20,11 +20,26 @@
 // planted control is a locked cell, which goes red if the composite is lost.
 
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { ringBackdrop } from "@orb/tooling/floor/instrument/pixel-backdrop";
+import { ringBackdropOfRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import { compositeForeground, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
+
+/** The drawn marks inside the target, as rectangles of its clip: an icon is foreground, and the backdrop is read where it is not. */
+function markRects(
+  target: Locator,
+  origin: { readonly x: number; readonly y: number },
+): Promise<readonly { left: number; top: number; width: number; height: number }[]> {
+  return target.locator("svg").evaluateAll(
+    (marks, from) =>
+      marks.map((mark) => {
+        const rect = mark.getBoundingClientRect();
+        return { left: Math.floor(rect.left - from.x), top: Math.floor(rect.top - from.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+      }),
+    origin,
+  );
+}
 
 export interface PixelContrastReceipt {
   /** The WCAG ratio of the element's resolved ink against its REAL composited backdrop. */
@@ -202,9 +217,10 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
     throw new Error(`pixelContrast: the target box is empty or off-screen (${JSON.stringify(box)})`);
   }
   const raw = await readInk(target);
+  const marks = await markRects(target, { x, y });
   const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
   const { data, info } = await rawPixels(shot);
-  const backdrop = ringBackdrop(data, info.width, info.height, info.channels);
+  const backdrop = ringBackdropOfRegion(data, info.width, info.channels, { left: 0, top: 0, width: info.width, height: info.height, marks });
   if (raw.opacity < MEASURABLE_OPACITY_MIN) {
     throw new Error(
       `pixelContrast: the target paints at α${raw.opacity.toFixed(2)} — below the measurable floor, so a ratio would be arithmetic, not evidence`,
