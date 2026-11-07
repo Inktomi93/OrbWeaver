@@ -49,7 +49,7 @@ export function Card(props: CardProps): ReactElement {
     className,
     width,
     cap,
-    fill,
+    height,
     centres,
     shape,
     elevated,
@@ -69,7 +69,7 @@ export function Card(props: CardProps): ReactElement {
     cardVariants({
       width,
       cap,
-      fill,
+      height,
       centres,
       shape,
       elevated,

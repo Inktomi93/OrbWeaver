@@ -48,7 +48,10 @@ function FootRow({
   justify,
   gap,
   ...props
-}: ComponentProps<"div"> & { readonly edge: SwipeFoot["edge"] } & Pick<ComponentProps<typeof Row>, "align" | "justify" | "gap">): ReactElement {
+}: Omit<ComponentProps<"div">, "className"> & { readonly edge: SwipeFoot["edge"] } & Pick<
+    ComponentProps<typeof Row>,
+    "align" | "justify" | "gap"
+  >): ReactElement {
   if (edge === "card") {
     return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" reach="foot" wrap={true} className={FOOT_INSIDE} />;
   }

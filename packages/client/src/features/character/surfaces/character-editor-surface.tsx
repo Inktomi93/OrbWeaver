@@ -136,7 +136,7 @@ export function CharacterEditorSurface({ characterId, detailContributors, onReve
     <Stack
       ref={scrollRef}
       scroll="y"
-      fill={true}
+      height="fill"
       onScroll={(event): void => {
         const node = event.currentTarget;
         // A hidden Activity reports zero layout, not a new reader position.

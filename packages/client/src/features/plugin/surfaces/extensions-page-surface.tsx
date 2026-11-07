@@ -78,7 +78,7 @@ function InsetPane({
   return (
     <Stack
       scroll="y"
-      fill={true}
+      height="fill"
       paddingBlock={paddingBlock}
       paddingInline="section"
       {...(ready === undefined ? {} : { "data-ready": ready ? "true" : "false" })}
@@ -94,7 +94,7 @@ function InsetPane({
  *  band + a scrolling body), so a reading-width clamp here would inset a full-page surface inside a gutter it did not ask for. */
 function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HTMLDivElement | null>; readonly children: ReactNode }): ReactElement {
   return (
-    <Stack className="min-block-0" fill={true} focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
+    <Stack className="min-block-0" height="fill" focusTarget={true} data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
       {children}
     </Stack>
   );
@@ -103,7 +103,7 @@ function PaneFrame({ surfaceRef, children }: { readonly surfaceRef: RefObject<HT
 /** One centred teaching empty with its single action. */
 function CentredEmpty({ title, description, action }: { readonly title: string; readonly description: string; readonly action: ReactElement }): ReactElement {
   return (
-    <Stack align="center" fill={true} justify="center">
+    <Stack align="center" height="fill" justify="center">
       <EmptyState action={action} description={description} icon={<Icon icon={Blocks} size="md" />} measure="wide" title={title} titleAs="h2" />
     </Stack>
   );

@@ -12,7 +12,6 @@ const CHAT = "packages/client/src/features/chat/";
 const CARRIER = `${CHAT}components/composer-strip.tsx`;
 const OTHER_FEATURE = "packages/client/src/features/config/components/probe.tsx";
 const CHAT_TRACK_HOME = `${CHAT}lib/chat-track.tsx`;
-const ROW_VARIANTS = `${CHAT}lib/message-row-variants.ts`;
 const RULE = "no-restricted-syntax";
 
 // The first config calculation loads the whole repo config; it must not bill to a test's timeout.
@@ -37,17 +36,13 @@ async function findings(source: string, path: string): Promise<readonly Linter.L
 }
 
 test.for([
-  ["a chat-track className on a carrier", 'export const A = () => <Stack className="orb-chat-track inline-full" />;', CARRIER, 1],
-  ["a composer-track className on a carrier", 'export const A = () => <Stack className="orb-composer-track" />;', CARRIER, 1],
-  ["a track string held in a constant", 'const TRACK = "orb-chat-track";\nexport const A = TRACK;', CARRIER, 1],
-  ["a track string in a template", "export const A = `x orb-composer-track`;", CARRIER, 1],
-  ["a track string outside the chat feature", 'export const A = "orb-chat-track";', OTHER_FEATURE, 1],
-  ["the chat-track home", 'export const CHAT_TRACK = "orb-chat-track inline-full";', CHAT_TRACK_HOME, 0],
-  ["the echo track home", 'const ECHO_TRACK = "mx-auto orb-echo-track";', CHAT_TRACK_HOME, 0],
-  ["a track string in the skin table", 'const ECHO_TRACK = "mx-auto orb-echo-track";', ROW_VARIANTS, 1],
-  ["a name that only starts like a track", 'export const A = "orb-native";', CARRIER, 0],
-  ["a comment that names the track", "// the orb-chat-track carrier\nexport const A = 1;", CARRIER, 0],
-  ["a hand-built queryKey in a home file", 'export const A = { queryKey: ["x"] };', CHAT_TRACK_HOME, 1],
-] as const)("orb track class strings: %s", async ([, source, path, count]) => {
+  ["a stamp on a carrier", 'export const A = () => <Stack data-track="chat" />;', CARRIER, 1],
+  ["a computed stamp", "export const A = ({ track }) => <Stack data-track={track} />;", CARRIER, 1],
+  ["a stamp outside the chat feature", 'export const A = () => <Stack data-track="composer" />;', OTHER_FEATURE, 1],
+  ["the stamp's home", "export const A = ({ track }) => <Primitive data-track={track} />;", CHAT_TRACK_HOME, 0],
+  ["the carrier through its component", 'export const A = () => <Track of={Stack} track="chat" />;', CARRIER, 0],
+  ["another data attribute", 'export const A = () => <Stack data-tracked="chat" />;', CARRIER, 0],
+  ["a hand-built queryKey in the home file", 'export const A = { queryKey: ["x"] };', CHAT_TRACK_HOME, 1],
+] as const)("the track stamp: %s", async ([, source, path, count]) => {
   expect(await findings(source, path)).toHaveLength(count);
 });

@@ -43,6 +43,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
   "ease",
   "opacity",
 ] as const;
+type CssMergeFamily = (typeof CSS_MERGE_FAMILY_NAMES)[number];
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
 // tailwind-merge cannot classify them: it reads `text-title` as a text COLOR (dropping the size beside
@@ -159,19 +160,111 @@ const THEME = {
   ease: EASE_SCALE,
 };
 
-const FAMILY_TOKEN_NAMES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, tokens: scaleOf(family) }));
+const SIZING_UTILITIES = [
+  "w",
+  "h",
+  "size",
+  "min-w",
+  "max-w",
+  "min-h",
+  "max-h",
+  "inline",
+  "block",
+  "min-inline",
+  "max-inline",
+  "min-block",
+  "max-block",
+  "basis",
+];
+const INSET_SIDES = ["", "x", "y", "s", "e", "t", "r", "b", "l", "bs", "be"];
+const spacingSides = (utility: string): readonly string[] => INSET_SIDES.map((side) => `${utility}${side}`);
+const BORDER_UTILITIES = ["border", ...BORDER_WIDTH_SIDES.map((side) => `border-${side}`)];
+const CORNERS = ["t", "r", "b", "l", "s", "e", "tl", "tr", "br", "bl", "ss", "se", "es", "ee"];
 
-function hasFamilyToken(className: string, tokens: readonly string[]): boolean {
-  return tokens.some((token) => className.endsWith(`-${token}`));
+/** The utilities each token namespace feeds. A class belongs to a family only through one of them: `flex-col` is no spacing class, though `col` is a spacing token. */
+const FAMILY_UTILITIES: Readonly<Record<CssMergeFamily, readonly string[]>> = {
+  color: [
+    "text",
+    "bg",
+    ...BORDER_UTILITIES,
+    "outline",
+    "ring",
+    "ring-offset",
+    "inset-ring",
+    "shadow",
+    "inset-shadow",
+    "decoration",
+    "divide",
+    "stroke",
+    "fill",
+  ],
+  spacing: [
+    ...SIZING_UTILITIES,
+    ...spacingSides("p"),
+    ...spacingSides("m"),
+    ...["scroll-m", "scroll-p"].flatMap(spacingSides),
+    "gap",
+    "gap-x",
+    "gap-y",
+    "space-x",
+    "space-y",
+    "inset",
+    "inset-x",
+    "inset-y",
+    "inset-bs",
+    "inset-be",
+    "top",
+    "right",
+    "bottom",
+    "left",
+    "start",
+    "end",
+    "translate",
+    "translate-x",
+    "translate-y",
+    "indent",
+  ],
+  radius: ["rounded", ...CORNERS.map((corner) => `rounded-${corner}`)],
+  aspect: ["aspect"],
+  shadow: ["shadow"],
+  blur: ["blur", "backdrop-blur"],
+  "border-width": BORDER_UTILITIES,
+  "stroke-width": ["stroke"],
+  font: ["font"],
+  "font-weight": ["font"],
+  text: ["text"],
+  leading: ["leading"],
+  tracking: ["tracking"],
+  container: SIZING_UTILITIES,
+  width: SIZING_UTILITIES,
+  size: SIZING_UTILITIES,
+  height: SIZING_UTILITIES,
+  ease: ["ease"],
+  opacity: ["opacity"],
+};
+
+const familyScale = (family: CssMergeFamily): readonly string[] => (family === "text" ? TYPE_SCALE : scaleOf(family));
+const FAMILY_SCALES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, utilities: FAMILY_UTILITIES[family], tokens: new Set(familyScale(family)) }));
+const FAMILY_OF_VARIABLE = new Map<string, CssMergeFamily>(
+  FAMILY_SCALES.flatMap(({ family, tokens }) => [...tokens].map((token) => [`--${family}-${token}`, family] as const)),
+);
+const VARIABLE_VALUE = /\((?:[a-z-]+:)?(--[^)]+)\)$/u;
+
+/** The token family a class draws on: its utility with a token of that family, or the family's own variable (`block-(--size-control-sm)`). */
+function familyOf(className: string): CssMergeFamily | undefined {
+  const base = baseUtility(className).replace(/^-/u, "");
+  const variable = VARIABLE_VALUE.exec(base)?.[1];
+  if (variable !== undefined) {
+    return FAMILY_OF_VARIABLE.get(variable);
+  }
+  return FAMILY_SCALES.find(({ utilities, tokens }) =>
+    utilities.some((utility) => base.startsWith(`${utility}-`) && tokens.has(base.slice(utility.length + 1))),
+  )?.family;
 }
 
 function conflictAxis(loser: string, winner: string): string {
-  for (const family of FAMILY_TOKEN_NAMES) {
-    if (hasFamilyToken(loser, family.tokens) || hasFamilyToken(winner, family.tokens)) {
-      return `orb:${family.family}`;
-    }
-  }
-  return "tailwind-core";
+  const family = familyOf(loser) ?? familyOf(winner);
+  return family === undefined ? "tailwind-core" : `orb:${family}`;
 }
 
 // CROSS-GROUP EVICTION — the #2450 defect made detectable (#2460).
@@ -201,10 +294,23 @@ const CORE_COLOR_NAMES = new Set(["current", "inherit", "transparent", "black", 
 const CORE_PALETTE_STEP = /^[a-z]+-\d{2,3}$/u;
 const COLOR_TOKEN_NAMES = new Set(scaleOf("color"));
 
+// A colon inside a value (`ring-(length:--border-width-rule)`, `has-[a:b]:flex`) belongs to the value, not to a modifier.
+function modifiersEnd(className: string): number {
+  let depth = 0;
+  let end = 0;
+  for (let index = 0; index < className.length; index += 1) {
+    const char = className.charAt(index);
+    depth += "([".includes(char) ? 1 : 0;
+    depth -= ")]".includes(char) ? 1 : 0;
+    end = char === ":" && depth === 0 ? index + 1 : end;
+  }
+  return end;
+}
+
 /** `hover:text-foreground/50!` → `text-foreground`: the merge groups a class by its base utility, so the
  *  modifier prefix, the important marker and the opacity postfix are all stripped before classification. */
 function baseUtility(className: string): string {
-  const afterModifiers = className.slice(className.lastIndexOf(":") + 1);
+  const afterModifiers = className.slice(modifiersEnd(className));
   const withoutImportant = afterModifiers.startsWith("!") ? afterModifiers.slice(1) : afterModifiers.replace(/!$/u, "");
   const slash = withoutImportant.indexOf("/");
   return slash === -1 ? withoutImportant : withoutImportant.slice(0, slash);

@@ -347,7 +347,7 @@ function ReservedFallback({
   const measured = useSurfaceBox(reserveKey);
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
-    return <Stack fill={fill}>{children}</Stack>;
+    return <Stack height={fill ? "fill" : undefined}>{children}</Stack>;
   }
   return (
     <Stack
@@ -381,7 +381,7 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
     return (): void => observer.disconnect();
   }, [reserveKey]);
   return (
-    <Stack fill={fill} ref={bodyRef}>
+    <Stack height={fill ? "fill" : undefined} ref={bodyRef}>
       {children}
     </Stack>
   );

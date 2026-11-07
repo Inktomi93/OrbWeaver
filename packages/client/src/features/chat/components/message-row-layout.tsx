@@ -10,6 +10,9 @@ import { Track } from "../lib/chat-track.tsx";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { rowAlignFor } from "../lib/row-placement.ts";
 
+/** A row box's own attributes: its classes are the skin's, written here, never a caller's. */
+type RowBoxProps = Omit<ComponentProps<"div">, "className">;
+
 /** The row's root on the skin's track. `hoverGroup` makes it the `group` its action cluster reveals on. */
 export function MessageRowRoot({
   skin,
@@ -17,7 +20,7 @@ export function MessageRowRoot({
   hoverGroup,
   arrival,
   ...props
-}: ComponentProps<"div"> & {
+}: RowBoxProps & {
   readonly skin: RowSkin;
   readonly messageRole: MessageRole;
   readonly hoverGroup: boolean;
@@ -45,7 +48,7 @@ export function MessageRowRoot({
 /** The row body (#1728 arm B): a flex line for an `anchored` skin, the three `gutterCentred` rails for a centred one.
  *  Tracks on the same element rather than a swapped one, because swapping the element at a width step would remount
  *  the row and drop mid-edit state. */
-export function MessageRowBody({ skin, ...props }: ComponentProps<"div"> & { readonly skin: RowSkin }): ReactElement {
+export function MessageRowBody({ skin, ...props }: RowBoxProps & { readonly skin: RowSkin }): ReactElement {
   return (
     <Row
       {...props}
@@ -73,11 +76,7 @@ const TRAIN_COLUMN = "min-inline-0";
 
 /** The content column for this skin's placement. A MIRRORED row packs its content to the column's trailing edge, so a
  *  phone-capped bubble sits flush against its chip and the cap's gap falls on the far side. */
-export function MessageContentColumn({
-  skin,
-  mirrored,
-  ...props
-}: ComponentProps<"div"> & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
+export function MessageContentColumn({ skin, mirrored, ...props }: RowBoxProps & { readonly skin: RowSkin; readonly mirrored: boolean }): ReactElement {
   const align = mirrored ? "end" : undefined;
   if (skin.columnPlacement === "gutterCentred") {
     return (

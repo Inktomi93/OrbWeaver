@@ -725,6 +725,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
       "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",
   },
+  "tests/client/features/chat/lib/_chat-track-stories.tsx": {
+    "packages/client/src/features/chat/lib/chat-track.tsx": "Track: the room's track carrier, which only the chat feature renders and no door forwards",
+  },
   "tests/client/features/chat/components/_chat-header-title-stories.tsx": {
     "packages/client/src/features/chat/components/chat-header-title.tsx":
       "ChatHeaderTitle: the topbar's rename button, which only the chat header renders and no door forwards",

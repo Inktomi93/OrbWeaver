@@ -10,8 +10,8 @@ import { CorpusHomeSurface } from "../surfaces/corpus-home-surface.tsx";
 export function CorpusContent(): ReactElement {
   const destination = useSelectedCorpusDestination();
   return (
-    <Container className="min-block-0" fill={true}>
-      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="corpus-content">
+    <Container className="min-block-0" height="fill">
+      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="corpus-content">
         {destination === null ? <CorpusHomeSurface /> : <CorpusArtifactSurface key={corpusDestinationIdentity(destination)} destination={destination} />}
       </Stack>
     </Container>

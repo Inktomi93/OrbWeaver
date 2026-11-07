@@ -90,7 +90,7 @@ export function PresetLibraryWelcome(): ReactElement {
     // `data-ready`: this pane has no skeleton, so it declares when its first read has settled or cannot proceed (data,
     // empty, error, or paused offline: `isLoading` is a read that is actually in flight). A section swap holds the
     // outgoing view for it, and shell/motion.css fades the pane in if it settles later.
-    <Stack align="center" fill={true} scroll="y" data-ready={isLoading ? "false" : "true"}>
+    <Stack align="center" height="fill" scroll="y" data-ready={isLoading ? "false" : "true"}>
       {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
       {/* action={null}: the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState

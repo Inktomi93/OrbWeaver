@@ -19,7 +19,7 @@ export function Container({
   width,
   centred,
   grow,
-  fill,
+  height,
   paddingInline,
   ground,
   style,
@@ -29,6 +29,6 @@ export function Container({
   // The className AND the `data-size` axis stamp, from ONE selection object (#1080). `size` has no
   // `defaultVariants` arm here, so an unset container stamps nothing rather than a guessed default.
   return (
-    <div {...props} style={named} {...variantProps(containerVariants, { scroll, size, cap, width, centred, grow, fill, paddingInline, ground }, className)} />
+    <div {...props} style={named} {...variantProps(containerVariants, { scroll, size, cap, width, centred, grow, height, paddingInline, ground }, className)} />
   );
 }

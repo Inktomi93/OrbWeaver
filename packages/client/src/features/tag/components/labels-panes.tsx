@@ -33,8 +33,8 @@ export function LabelsContent(): ReactElement {
   }
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
-    <Container className="min-block-0" fill={true}>
-      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="labels-content">
+    <Container className="min-block-0" height="fill">
+      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="labels-content">
         {tagId === null ? (
           <LabelsLandingSurface returning={editorWasOpen} />
         ) : (
