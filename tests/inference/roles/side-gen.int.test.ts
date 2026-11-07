@@ -556,7 +556,7 @@ test("(9) a chat template's role refusal on summarize reads as the chat turn's f
   expect(recorded).toHaveLength(1);
 });
 
-test("(10) an unterminated <think> block at the output cap never reaches the summary text", async () => {
+test("(10) an unterminated <think> block at the output cap leaves an empty summary, neither its tag nor its reasoning", async () => {
   using server = openAiServer([], () => ({ content: "<think>weighing which beats matter and never closing", finish: "length" }));
   await using root = await createRuntimeRoot({
     providerFetch: server.execute,
@@ -564,7 +564,20 @@ test("(10) an unterminated <think> block at the output cap never reaches the sum
   const executor = root.app.runtime.executor;
   const connection = await wireConnection(root, { task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
   const result = await executor.summarize({ connection, inputs: [ITEM], maxTokens: 64 });
-  expect(result.items[0]?.text).not.toContain("<think>");
+  expect(result.items[0]?.text).toBe("");
+});
+
+test("(10) a literal think tag inside a structured payload stays the payload's own content", async () => {
+  const payload = JSON.stringify({ note: "<think>the card says this aloud</think> and goes on" });
+  using server = openAiServer([], () => ({ content: payload }));
+  await using root = await createRuntimeRoot({
+    providerFetch: server.execute,
+  });
+  const executor = root.app.runtime.executor;
+  const connection = await wireConnection(root, { task: "structured", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const responseFormat: ResponseFormat = { name: "row", schema: projectJsonSchema(z.object({ note: z.string() })) };
+  const result = await executor.structured({ connection, inputs: [ITEM], responseFormat });
+  expect(result.items[0]?.text).toBe(payload);
 });
 
 test("(10) the Utility preset's own tag pair splits a summarize reply in place of the house pair", async () => {
