@@ -1,9 +1,11 @@
 // No arm of a flat `tv()` recipe erases another axis unless the pair is declared here: `cn` drops the earlier class silently, and a caller who sets both props gets one.
-// An erasure is a fact of the `tv` table, so the table, derived from `applied`, is the key: a new table is undeclared, and a component reusing a declared table adds nothing to judge.
-// The key cannot see a slotted axis (no flat arm to compare), a class a door writes beside its table, or a second erasure under a name that table already declares for that arm.
-import { join } from "node:path";
+// An erasure is a fact of the `tv` table, so the table, derived from `applied`, is the key. A new table a door applies goes red under a declared axis name.
+// Out of reach, each a test below: a table applied through a `.ts` helper, and a loose door over a declared table, whose `CLOSED_BY_TYPE` closure lives in another door's props.
+import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import ts from "typescript";
 import { survives } from "../../../tooling/src/eslint/ui-classes/class-conflict.ts";
+import type { Source } from "../../../tooling/src/eslint/ui-classes/source.ts";
 import { loadUiSources } from "../../../tooling/src/eslint/ui-classes/source.ts";
 import type { ComponentRecipe } from "../../../tooling/src/eslint/ui-classes/variant-tables.ts";
 import { componentTables } from "../../../tooling/src/eslint/ui-classes/variant-tables.ts";
@@ -392,4 +394,35 @@ test("a new component's own table joins no declared pair unseen", { timeout: WHO
     applied: [{ file: "packages/ui/src/primitives/zz/variants.ts", name: "zzVariants" }],
   }));
   expect(undeclared([...RECIPES, ...copies])).toContain("height > minHeight @ primitives/zz/variants#zzVariants: rail");
+});
+
+// The same table, with a `.tsx` door beside it: applied straight from the door it is read, applied through a `.ts` helper it is not.
+const PLANT_TABLE = 'import { tv } from "#lib";\nexport const zzVariants = tv({ variants: { height: { rail: "h-4" }, minHeight: { rail: "h-8" } } });\n';
+const PLANT_HELPER = 'import { zzVariants } from "./zz-variants.ts";\nexport const zzClass = (height, minHeight) => zzVariants({ height, minHeight });\n';
+const PLANT_DIRECT =
+  'import { zzVariants } from "./zz-variants.ts";\nexport function Zz({ height, minHeight }) { return <div className={zzVariants({ height, minHeight })} />; }\n';
+const PLANT_INDIRECT =
+  'import { zzClass } from "./zz-recipe.ts";\nexport function Zz({ height, minHeight }) { return <div className={zzClass(height, minHeight)} />; }\n';
+
+function planted(files: Readonly<Record<string, string>>): readonly ComponentRecipe[] {
+  const sources = loadUiSources(ROOT);
+  const door = sources.find(({ path }) => path.endsWith("primitives/button/variants.ts")) as Source;
+  const added = Object.entries(files).map(([name, text]): Source => {
+    const path = join(dirname(door.path), name);
+    return { ...door, path, text, kind: name.endsWith("x") ? "tsx" : "ts", sf: ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true) };
+  });
+  return [...componentTables(ROOT, [...sources, ...added]).values()].flatMap((components) => [...components.values()]);
+}
+
+test("a table applied through a .ts helper is out of reach, and the same table applied from its door is not", { timeout: WHOLE_RECIPE_WALK_MS }, () => {
+  const row = "height > minHeight @ primitives/button/zz-variants#zzVariants: rail";
+  expect(undeclared(planted({ "zz-variants.ts": PLANT_TABLE, "zz-direct.tsx": PLANT_DIRECT }))).toContain(row);
+  expect(undeclared(planted({ "zz-variants.ts": PLANT_TABLE, "zz-recipe.ts": PLANT_HELPER, "zz-indirect.tsx": PLANT_INDIRECT }))).toEqual([]);
+});
+
+// `ButtonBox` closes `square` with `stretch` on `Button`. A second door over `buttonVariants` with plain props repeats the recipe, so the key sees nothing new.
+test("a loose door over a declared table is out of reach", { timeout: WHOLE_RECIPE_WALK_MS }, () => {
+  const loose = RECIPES.filter(({ applied }) => applied.map(tableKey).join("+") === BUTTON);
+  expect(loose.length).toBeGreaterThan(0);
+  expect(undeclared([...RECIPES, ...loose])).toEqual([]);
 });

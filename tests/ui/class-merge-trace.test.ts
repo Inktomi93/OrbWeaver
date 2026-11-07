@@ -25,6 +25,12 @@ test.for([
 test.for([
   ["gap-tight", "gap-field", "orb:spacing"],
   ["gap-0", "gap-block", "orb:spacing"],
+  // Utilities only the merger's own config names.
+  ["inset-s-tight", "inset-s-0", "orb:spacing"],
+  ["inset-e-tight", "inset-e-0", "orb:spacing"],
+  ["border-spacing-tight", "border-spacing-0", "orb:spacing"],
+  ["border-spacing-x-tight", "border-spacing-x-0", "orb:spacing"],
+  ["translate-z-tight", "translate-z-0", "orb:spacing"],
   ["-mx-block", "-mx-gutter", "orb:spacing"],
   ["rounded-none", "rounded-control", "orb:radius"],
   ["leading-tight", "leading-body", "orb:leading"],

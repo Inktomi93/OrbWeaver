@@ -85,6 +85,8 @@ test.for([
     "a union with an index-signature arm",
     "export const Probe = (bag: Readonly<Record<string, string>> | { readonly id: string }): ReactElement => <Button {...bag}>x</Button>;",
   ],
+  ["an index signature of a class union", 'export const Probe = (bag: Readonly<Record<string, "flex" | "grid">>): ReactElement => <Row {...bag} />;'],
+  ["an index signature typed unknown", "export const Probe = (bag: Readonly<Record<string, unknown>>): ReactElement => <Row {...bag} />;"],
   ["a spread typed any", "export const Probe = (bag: any): ReactElement => <Button {...bag}>x</Button>;"],
 ] as const)("flags %s", async ([, body]) => {
   const found = await findings(body);
@@ -141,6 +143,8 @@ test.for([
     "declare function Local(props: object): ReactElement;\nexport const Probe = (rest: { readonly className: string }): ReactElement => <Local {...rest} />;",
   ],
   ["an index signature", "export const Probe = (bag: Readonly<Record<string, string>>): ReactElement => <Row {...bag} />;"],
+  ["an index signature of a class union", 'export const Probe = (bag: Readonly<Record<string, "flex" | "grid">>): ReactElement => <Row {...bag} />;'],
+  ["an index signature typed unknown", "export const Probe = (bag: Readonly<Record<string, unknown>>): ReactElement => <Row {...bag} />;"],
   ["a spread typed any", "export const Probe = (bag: any): ReactElement => <Row {...bag} />;"],
   [
     "an element factory's props",
@@ -157,6 +161,8 @@ test.for([
   ["a type that closes the key", "export const Probe = (rest: { readonly className?: never }): ReactElement => <Row {...rest} />;"],
   ["an object literal the static rules read", 'export const Probe = (): ReactElement => <Row {...{ className: "shrink-0" }} />;'],
   ["a same-file const the static rules read", 'const HELD = { className: "shrink-0" };\nexport const Probe = (): ReactElement => <Row {...HELD} />;'],
+  ["a record of handlers", "export const Probe = (bag: Readonly<Record<string, () => void>>): ReactElement => <Row {...bag} />;"],
+  ["a record of counts", "export const Probe = (bag: Readonly<Record<string, number>>): ReactElement => <Row {...bag} />;"],
   ["a raw element, which the intrinsic rule owns", 'export const Probe = (rest: ComponentProps<"div">): ReactElement => <div {...rest} />;'],
   [
     "an element factory's props with no class",
@@ -166,13 +172,28 @@ test.for([
   expect(await findings(body, CLASS_RULE)).toEqual([]);
 });
 
-// The limit the rule header names: a type is all this rule reads, and a call's argument stays open because an RPG sheet's `className` is data.
-test("a class object a call hands back under a wider type stays out of reach", async () => {
-  const body = [
-    "interface Kept { readonly inert: boolean }",
-    "const widen = (kept: Kept): Kept => kept;",
-    'const HELD = { className: "justify-end", inert: true };',
-    "export const Probe = (): ReactElement => <Row {...widen(HELD)} />;",
-  ].join("\n");
+// Spells a template placeholder inside a fixture.
+const TEMPLATE_HOLE = "$";
+
+// The limits the rule comments name: a type is all this rule reads, and a call's argument stays open because an RPG sheet's `className` is data. Each is a class
+// that lands, so a row that starts failing has closed a limit and its comment changes with it.
+test.for([
+  [
+    "a call that hands a class back under a wider type",
+    [
+      "interface Kept { readonly inert: boolean }",
+      "const widen = (kept: Kept): Kept => kept;",
+      'const HELD = { className: "justify-end", inert: true };',
+      "export const Probe = (): ReactElement => <Row {...widen(HELD)} />;",
+    ].join("\n"),
+  ],
+  ["a rest cast to object", "export const Probe = (rest: { readonly className: string }): ReactElement => <Row {...(rest as object)} />;"],
+  [
+    "a default under a wider type",
+    'const HELD = { className: "justify-end" };\nexport const Probe = ({ box = HELD }: { readonly box?: object }): ReactElement => <Row {...box} />;',
+  ],
+  ["Reflect.set", 'const box = {};\nReflect.set(box, "className", "justify-end");\nexport const Probe = (): ReactElement => <Row {...box} />;'],
+  ["a template-keyed record", `export const Probe = (bag: Readonly<Record<\`${TEMPLATE_HOLE}{string}ClassName\`, string>>): ReactElement => <Row {...bag} />;`],
+] as const)("out of reach of the class rule: %s", async ([, body]) => {
   expect(await findings(body, CLASS_RULE)).toEqual([]);
 });

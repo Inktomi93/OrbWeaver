@@ -15,8 +15,8 @@
 //
 // Enforcers (a prose-only boundary is a wish — constitution §2): dep-cruiser seals both tailwind-merge and
 // runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
-import type { DefaultClassGroupIds } from "tailwind-merge";
-import { extendTailwindMerge, validators } from "tailwind-merge";
+import type { Config, DefaultClassGroupIds } from "tailwind-merge";
+import { extendTailwindMerge, getDefaultConfig, validators } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
 import { TOKENS } from "#tokens";
@@ -176,75 +176,48 @@ const SIZING_UTILITIES = [
   "max-block",
   "basis",
 ];
-const INSET_SIDES = ["", "x", "y", "s", "e", "t", "r", "b", "l", "bs", "be"];
-const spacingSides = (utility: string): readonly string[] => INSET_SIDES.map((side) => `${utility}${side}`);
 const BORDER_UTILITIES = ["border", ...BORDER_WIDTH_SIDES.map((side) => `border-${side}`)];
-const CORNERS = ["t", "r", "b", "l", "s", "e", "tl", "tr", "br", "bl", "ss", "se", "es", "ee"];
 
-/** The utilities each token namespace feeds. A class belongs to a family only through one of them: `flex-col` is no spacing class, though `col` is a spacing token. */
-const FAMILY_UTILITIES: Readonly<Record<CssMergeFamily, readonly string[]>> = {
-  color: [
-    "text",
-    "bg",
-    ...BORDER_UTILITIES,
-    "outline",
-    "ring",
-    "ring-offset",
-    "inset-ring",
-    "shadow",
-    "inset-shadow",
-    "decoration",
-    "divide",
-    "stroke",
-    "fill",
-  ],
-  spacing: [
-    ...SIZING_UTILITIES,
-    ...spacingSides("p"),
-    ...spacingSides("m"),
-    ...["scroll-m", "scroll-p"].flatMap(spacingSides),
-    "gap",
-    "gap-x",
-    "gap-y",
-    "space-x",
-    "space-y",
-    "inset",
-    "inset-x",
-    "inset-y",
-    "inset-bs",
-    "inset-be",
-    "top",
-    "right",
-    "bottom",
-    "left",
-    "start",
-    "end",
-    "translate",
-    "translate-x",
-    "translate-y",
-    "indent",
-  ],
-  radius: ["rounded", ...CORNERS.map((corner) => `rounded-${corner}`)],
-  aspect: ["aspect"],
-  shadow: ["shadow"],
-  blur: ["blur", "backdrop-blur"],
+// Each family a theme key names answers with its own name, and every other key with nothing.
+const THEME_PROBE: Record<string, readonly string[]> = Object.fromEntries(CSS_MERGE_FAMILY_NAMES.map((family) => [family, [family]]));
+type ClassDefinitions = Config<string, string>["classGroups"][string];
+
+/** Every `[family, utility]` pair under a class group: the merger's own config says which utilities a theme feeds, so a new utility joins its family unlisted. */
+function themeFeeds(utility: string, definitions: ClassDefinitions): readonly (readonly [family: string, utility: string])[] {
+  return definitions.flatMap((definition) => {
+    if (typeof definition === "string") {
+      return [];
+    }
+    if (typeof definition === "function") {
+      return "isThemeGetter" in definition ? definition(THEME_PROBE).flatMap((family) => (typeof family === "string" ? [[family, utility] as const] : [])) : [];
+    }
+    return Object.entries(definition).flatMap(([key, nested]) => themeFeeds([utility, key].filter(Boolean).join("-"), nested));
+  });
+}
+
+// `leading` also takes the spacing theme as a bare number, but a line height is never a spacing class.
+const THEME_FEEDS = Object.values<ClassDefinitions>(getDefaultConfig().classGroups)
+  .flatMap((group) => themeFeeds("", group))
+  .filter(([family, utility]) => family !== "spacing" || utility !== "leading");
+
+/** The families no theme key feeds: their scales reach the merger as plain class groups here. */
+const UNTHEMED_UTILITIES: Partial<Record<CssMergeFamily, readonly string[]>> = {
   "border-width": BORDER_UTILITIES,
   "stroke-width": ["stroke"],
-  font: ["font"],
-  "font-weight": ["font"],
-  text: ["text"],
-  leading: ["leading"],
-  tracking: ["tracking"],
-  container: SIZING_UTILITIES,
   width: SIZING_UTILITIES,
   size: SIZING_UTILITIES,
   height: SIZING_UTILITIES,
-  ease: ["ease"],
   opacity: ["opacity"],
 };
 
+/** A class belongs to a family only through a utility that family feeds: `flex-col` is no spacing class, though `col` is a spacing token. */
+const familyUtilities = (family: CssMergeFamily): readonly string[] => [
+  ...THEME_FEEDS.filter(([fed]) => fed === family).map(([, utility]) => utility),
+  ...(UNTHEMED_UTILITIES[family] ?? []),
+];
+
 const familyScale = (family: CssMergeFamily): readonly string[] => (family === "text" ? TYPE_SCALE : scaleOf(family));
-const FAMILY_SCALES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, utilities: FAMILY_UTILITIES[family], tokens: new Set(familyScale(family)) }));
+const FAMILY_SCALES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, utilities: familyUtilities(family), tokens: new Set(familyScale(family)) }));
 const FAMILY_OF_VARIABLE = new Map<string, CssMergeFamily>(
   FAMILY_SCALES.flatMap(({ family, tokens }) => [...tokens].map((token) => [`--${family}-${token}`, family] as const)),
 );

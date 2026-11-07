@@ -594,8 +594,9 @@ const CLIENT_FORM_NAME_SYNTAX = {
 // A room's track is a stamp the client stylesheet keys on. It is written in the one file below, and every carrier renders through the chat
 // feature's `Track` component, so a copy cannot drift from the CSS that reads it.
 const TRACK_STAMP_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx"];
+const TRACK_STAMP_PATTERN = String.raw`/\bdata-track\b/`;
 const TRACK_STAMP_SYNTAX = {
-  selector: "JSXAttribute[name.name='data-track']",
+  selector: `:matches(JSXAttribute[name.name='data-track'], Literal[value=${TRACK_STAMP_PATTERN}], TemplateElement[value.raw=${TRACK_STAMP_PATTERN}])`,
   message: "A `data-track` stamp belongs to its home file; render the carrier through the chat feature's `Track` component.",
 };
 // Flat config replaces rule options, so each authored override carries the invariant.
