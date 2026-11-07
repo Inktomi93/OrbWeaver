@@ -75,7 +75,12 @@ test("the real Row owns each class it writes below a container step, on the step
 test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Stack", "@max-cq-28:px-tight", [])).toEqual({ axis: "stack.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "tight" });
-  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", [])).toEqual({ axis: "stack.paddingInlineEndNarrow", prop: "paddingInlineEndNarrow", arm: "block" });
+  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", ["px-section", "py-row"])).toEqual({
+    axis: "stack.readingInset",
+    prop: "readingInset",
+    arm: "plate",
+  });
+  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", [])).toBeNull();
   expect(ownerOf("layout", "Row", "@max-cq-28:px-row", [])).toEqual({ axis: "row.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "row" });
   expect(ownerOf("layout", "Stack", "pbs-row", [])).toEqual({ axis: "stack.paddingBlockStart", prop: "paddingBlockStart", arm: "row" });
 });

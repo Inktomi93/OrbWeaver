@@ -66,16 +66,6 @@ function readingInk(box: RowSkin["box"], role: MessageRole): "prose" | "muted" |
   return role === "system" ? "muted" : undefined;
 }
 
-// The insets a reading box lays on its stack, by the box that takes them. The plate column is inset a section from its
-// gutter; on a phone its trailing edge takes a block, which leaves flat the 32px more reading width that the small avatar
-// chip buys. The page is inset the gutter with no block-end inset, so the next page runs on, and keeps a tight inset on a
-// phone. A box that hands its inset to its own content takes `none`.
-const READING_INSET = {
-  plate: { inline: "section", block: "row", blockStart: undefined, inlineNarrow: undefined, inlineEndNarrow: "block" },
-  page: { inline: "gutter", block: undefined, blockStart: "row", inlineNarrow: "tight", inlineEndNarrow: undefined },
-  none: { inline: undefined, block: undefined, blockStart: undefined, inlineNarrow: undefined, inlineEndNarrow: undefined },
-} as const;
-
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
 function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, children }: ReadingBoxProps): ReactElement {
   const page = box === "page";
@@ -83,7 +73,6 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
   const floor = page && lastRowFloor;
   const overlayPage = page && !lastRowFloor;
   const weld = shape === "weld";
-  const insets = READING_INSET[inset ? box : "none"];
   return (
     <Stack
       data-slot={MESSAGE_BUBBLE_SLOT}
@@ -92,11 +81,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
       plate="reading"
       ink={readingInk(box, role)}
       receded={receded}
-      paddingInline={insets.inline}
-      paddingBlock={insets.block}
-      paddingBlockStart={insets.blockStart}
-      paddingInlineNarrow={insets.inlineNarrow}
-      paddingInlineEndNarrow={insets.inlineEndNarrow}
+      readingInset={inset ? box : undefined}
       className={cn(
         "inline-full",
         overlayPage ? "grid" : undefined,

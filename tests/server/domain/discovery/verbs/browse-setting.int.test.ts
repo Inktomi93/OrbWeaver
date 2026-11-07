@@ -40,12 +40,12 @@ test("a distilled setting reaches the browse rows, the facet and the filter, for
   await using root = await createServerHarness({ providerFetch: wire.execute });
   const principal = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, principal);
-  const [loom, castle, plain] = await Promise.all(
-    ["loom-keeper", "castle-keeper", "plain-keeper"].map((handle) =>
+  const [loom, castle, plain, empty, blank] = await Promise.all(
+    ["loom-keeper", "castle-keeper", "plain-keeper", "empty-keeper", "blank-keeper"].map((handle) =>
       root.services.character.create({ principal, input: createCharacterSchema.parse({ handle, name: handle, description: `${handle} keeps watch.` }) }),
     ),
   );
-  if (loom === undefined || castle === undefined || plain === undefined) {
+  if (loom === undefined || castle === undefined || plain === undefined || empty === undefined || blank === undefined) {
     throw new Error("the production character verb returned no card");
   }
   // One scripted reply per pass: the setting each card stores is whatever its own distill call received.
@@ -53,11 +53,18 @@ test("a distilled setting reaches the browse rows, the facet and the filter, for
   await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: loom.id });
   replies.set(DISTILLATION_REPLY, distillation(CASTLE_SETTING));
   await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: castle.id });
+  // A free-text field can come back empty or as blank space; neither is a setting a reader can filter by.
+  replies.set(DISTILLATION_REPLY, distillation(""));
+  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: empty.id });
+  replies.set(DISTILLATION_REPLY, distillation("   "));
+  await seedCharacterDistillations(root, { ownerId: root.ownerId, funderUserId: root.ownerId, characterId: blank.id });
 
   const { discovery } = root.services;
   const page = await discovery.browseCharacters(root.ownerId, { sort: "name" });
   expect(page.items.map(({ name, setting }) => ({ name, setting }))).toEqual([
+    { name: "blank-keeper", setting: "" },
     { name: "castle-keeper", setting: CASTLE_SETTING },
+    { name: "empty-keeper", setting: "" },
     { name: "loom-keeper", setting: LOOM_SETTING },
     // Never distilled: absent like its genre and tone, not an empty string.
     { name: "plain-keeper", setting: null },

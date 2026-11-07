@@ -41,8 +41,8 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // from three props any caller override can quietly break. The div arm stays: `interactive` is also used on
 // islands that carry their own `role` (a listbox option, a grid cell), where a `<button>` would be wrong.
 //
-// Island padding is resolved from the surface's tier by tiers.css (D7); `padding` overrides it: `none` delegates the inset
-// to the card's own content, `field` and `row` pick a ramp step. `data-elevated`, `data-nested` and `data-padding` are the
+// Island padding is resolved from the surface's tier by tiers.css (D7); `padding="none"` delegates the inset
+// to the card's own content, which takes any step through a Row or Stack. `data-elevated`, `data-nested` and `data-padding` are the
 // attributes the tiers.css rules key on; the variant's utility alone would lose to the tier rule inside a Surface.
 export function Card(props: CardProps): ReactElement {
   const { className, shape, elevated, interactive, nested, padding, tone, variant, dashed, glow, rail, artDecoration, focusable, ownSlot } = props;

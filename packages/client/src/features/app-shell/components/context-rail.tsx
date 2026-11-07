@@ -17,7 +17,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Crown, Ellipsis, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
-import { Row, Stack } from "@orb/ui/layout";
+import { Corner, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
@@ -367,7 +367,11 @@ function ContextCell({
           cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
           LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
           `ui-size-via-variant` reads these class strings statically. */}
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} corner="badge" ink="muted" receded={true} /> : null}
+      {locked ? (
+        <Corner>
+          <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} />
+        </Corner>
+      ) : null}
       {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
@@ -386,10 +390,16 @@ function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: bool
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
   if (count > 0) {
     return (
-      <Badge tone="primary" variant="solid" size="sm" aria-hidden={true} corner="badge">
-        {count}
-      </Badge>
+      <Corner>
+        <Badge tone="primary" variant="solid" size="sm" aria-hidden={true}>
+          {count}
+        </Badge>
+      </Corner>
     );
   }
-  return dot ? <IndicatorDot tone="primary" variant="solid" aria-hidden={true} corner="badge" /> : null;
+  return dot ? (
+    <Corner>
+      <IndicatorDot tone="primary" variant="solid" aria-hidden={true} />
+    </Corner>
+  ) : null;
 }

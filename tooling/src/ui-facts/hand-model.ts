@@ -22,6 +22,7 @@ type Where = (typeof WHERES)[number];
 export const KEEP_REASONS = {
   "zero-sentinel": "zero, one or none as a state or stacking sentinel, legal in every home (client-architecture-lockdown.md 4.4)",
   "relative-unit": "a viewport, container, font-relative or percentage unit is layout structure, legal in the shell (client-architecture-lockdown.md 4.4)",
+  "unit-cast": "a 1 beside a * turns a unitless dial into the length it means; the unit is the cast, not a design value",
   "angle-or-fraction": "an angle is geometry; no token family prices it",
   "derived-colour": "a colour derived from a token (relative colour or mix) is composition, legal per site (client-architecture-lockdown.md 4.4)",
   "css-mechanism": "a transform, clip, mask or track formula is the CSS mechanism itself; no token family prices it",
@@ -171,6 +172,7 @@ const STRUCTURAL_KEEP: Readonly<Record<string, KeepCode>> = {
   derived: "derived-colour",
   mechanism: "css-mechanism",
   floor: "motion-floor",
+  unit: "unit-cast",
 };
 
 const MATCHES_SHOWN = 2;

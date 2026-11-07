@@ -4,7 +4,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
-import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Corner, Row, Stack, Surface } from "@orb/ui/layout";
 import { Swatch } from "@orb/ui/swatch";
 import { Heading, Text } from "@orb/ui/text";
 import { TOKENS } from "@orb/ui/tokens";
@@ -23,20 +23,27 @@ export function OneAxisOwnersStory(): ReactElement {
       <Row paddingBlock="row" data-probe="row-block" />
       <Stack padding="gutter" paddingInline="field" data-probe="stack-override" />
       <div data-probe="corner-host" style={{ position: "relative", width: BOX_PX, height: BOX_PX }}>
-        <Badge corner="badge" data-probe="corner-badge">
-          3
-        </Badge>
-        <Text as="span" corner="badge" data-probe="corner-text">
-          3
-        </Text>
-        <IndicatorDot corner="badge" data-probe="corner-dot" />
+        <Corner data-probe="corner-badge">
+          <Badge>3</Badge>
+        </Corner>
+        <Corner data-probe="corner-text">
+          <Text as="span">3</Text>
+        </Corner>
+        <Corner data-probe="corner-dot">
+          <IndicatorDot />
+        </Corner>
+        <Corner data-probe="corner-icon">
+          <Icon icon={Lock} />
+        </Corner>
+        <Corner inset="tight" data-probe="corner-tight">
+          <IndicatorDot />
+        </Corner>
         <Button aria-label="Close" corner="badge" data-probe="corner-button" square={true} variant="ghost">
           x
         </Button>
-        <Icon corner="badge" icon={Lock} />
       </div>
       <Surface tier="form">
-        <Card padding="row" data-probe="card-padding-row">
+        <Card padding="none" data-probe="card-padding-none">
           x
         </Card>
       </Surface>

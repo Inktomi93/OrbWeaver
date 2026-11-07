@@ -22,7 +22,7 @@ import { Card } from "@orb/ui/card";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
-import { Grid, Row, Stack } from "@orb/ui/layout";
+import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -96,9 +96,11 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
       {QUEST_TYPE_RE.test(item.type) ? (
         // The accent quest-bound dot (primary voice = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" voice="gloss" aria-hidden={true} corner="badge" tone="primary">
-          ●
-        </Text>
+        <Corner>
+          <Text as="span" voice="gloss" aria-hidden={true} tone="primary">
+            ●
+          </Text>
+        </Corner>
       ) : null}
       <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="sm" ink="muted" className="shrink-0" />
       <Stack gap="field" className="min-inline-0" grow={true}>

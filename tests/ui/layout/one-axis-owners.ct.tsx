@@ -58,10 +58,10 @@ test.describe("cap", () => {
 });
 
 test.describe("recipe axes the client used to hand-write", () => {
-  test("a card's padding step holds inside a surface tier, which outranks a padding utility", async ({ mount }) => {
+  test("a card that delegates its inset holds none inside a surface tier, which outranks a padding utility", async ({ mount }) => {
     const component = await mount<typeof OneAxisOwnersStory>(STORY);
-    const card = await paddingOf(component.locator('[data-probe="card-padding-row"]'));
-    expect(card).toEqual(await paddingOf(component.locator('[data-probe="ref-row"]')));
+    const card = await paddingOf(component.locator('[data-probe="card-padding-none"]'));
+    expect(card).toEqual({ inline: ["0px", "0px"], block: ["0px", "0px"] });
   });
 
   test("a swatch size is its token", async ({ mount }) => {
@@ -91,17 +91,17 @@ test.describe("recipe axes the client used to hand-write", () => {
 });
 
 test.describe("corner", () => {
-  test("every primitive pins a badge to its parent's block-start, inline-end corner", async ({ mount }) => {
+  test("a Corner pins its mark to its parent's block-start, inline-end corner, tight or one field step in", async ({ mount }) => {
     const component = await mount<typeof OneAxisOwnersStory>(STORY);
     const host = await component.locator('[data-probe="corner-host"]').boundingBox();
     expect(host).not.toBeNull();
-    // Icon takes no data attribute, so it is addressed as the host's one svg.
     const marks = {
       "corner-badge": component.locator('[data-probe="corner-badge"]'),
       "corner-text": component.locator('[data-probe="corner-text"]'),
       "corner-dot": component.locator('[data-probe="corner-dot"]'),
       "corner-button": component.locator('[data-probe="corner-button"]'),
-      "corner-icon": component.locator('[data-probe="corner-host"] > svg'),
+      "corner-icon": component.locator('[data-probe="corner-icon"]'),
+      "corner-tight": component.locator('[data-probe="corner-tight"]'),
     };
     for (const [probe, element] of Object.entries(marks)) {
       await expect(element, probe).toHaveCSS("position", "absolute");
@@ -110,6 +110,9 @@ test.describe("corner", () => {
       expect(box?.y ?? Number.NaN, probe).toBeLessThan((host?.y ?? 0) + (host?.height ?? 0) / 2);
       expect(box?.x ?? Number.NaN, probe).toBeGreaterThan((host?.x ?? 0) + (host?.width ?? 0) / 2);
     }
+    // The tight inset sits nearer the host's corner than the field inset does.
+    const [tight, field] = await Promise.all([marks["corner-tight"].boundingBox(), marks["corner-badge"].boundingBox()]);
+    expect((tight?.x ?? 0) + (tight?.width ?? 0)).toBeGreaterThan((field?.x ?? 0) + (field?.width ?? 0));
   });
 });
 

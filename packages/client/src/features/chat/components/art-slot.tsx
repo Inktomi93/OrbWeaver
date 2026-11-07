@@ -155,8 +155,8 @@ export function WhisperBand({
       featherSrc={showsImage ? url : undefined}
       // Moonlit Echoes: the banner sits at the card's top right, half its width, and dissolves toward the left; a phone widens
       // it to 55% and keeps it at least a minimum tall. The image rests dimmed and a tap target brightens under the pointer.
-      className="relative ms-auto inline-1/2 @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)"
-      cap="whisper"
+      className="relative ms-auto"
+      artPane="banner"
       ref={attach}
       style={style}
     >

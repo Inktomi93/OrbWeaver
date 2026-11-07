@@ -67,12 +67,12 @@ export const selectVariants = tv({
       md: { trigger: CONTROL_BLOCK.md },
       lg: { trigger: CONTROL_BLOCK.lg },
     },
-    // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name, same two arms). `field` is the form
-    // control: the full FIELD_CONTROL chrome at the sealed control height. `inline` is the IDENTITY-LINE
-    // trigger — a name/datum that happens to open a menu, so it wears the text itself (content width,
-    // text-height, no box) and the popup is the affordance.
+    // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name; Input has no `hug`). `field` is the form
+    // control: the full FIELD_CONTROL chrome at the sealed control height. `hug` is that chrome at its value's width.
+    // `inline` is the IDENTITY-LINE trigger — a name/datum that happens to open a menu, so it wears the text itself
+    // (content width, text-height, no box) and the popup is the affordance.
     //
-    // Both arms live here rather than at the call site because the chrome they swap is custom-token
+    // The arms live here rather than at the call site because the chrome they swap is custom-token
     // (`h-(--size-control-sm)`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.

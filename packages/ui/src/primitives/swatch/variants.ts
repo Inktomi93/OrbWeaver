@@ -27,12 +27,11 @@ export const swatchVariants = tv({
       square: "",
       pill: "rounded-full",
     },
-    // The mark's box on the token size scale: a square step, `fill` for the whole of its host, or `line` for a bar one preview line
+    // The mark's box on the token size scale (`--size-dot`, `--size-dot-lg`, `--size-avatar-md`): a square step, `fill` for the whole of its host, or `line` for a bar one preview line
     // tall whose length the host sets.
     size: {
       dot: "block-(--size-dot) inline-(--size-dot)",
       dotLg: "block-(--size-dot-lg) inline-(--size-dot-lg)",
-      glyphXs: "block-(--size-glyph-xs) inline-(--size-glyph-xs)",
       avatarMd: "block-(--size-avatar-md) inline-(--size-avatar-md)",
       fill: "block-full inline-full",
       line: "block-(--size-preview-line)",

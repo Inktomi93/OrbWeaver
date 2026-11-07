@@ -290,8 +290,10 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shelf === null ? null : <CharacterShelf door="open" faces={shelf.faces} label={shelf.label} legend={null} onOpen={selectCharacter} />}
-        <Card className="max-inline-(--reading-measure-prose)" variant="outline" dashed={true} padding="row">
-          <Text voice="quiet">{FRESH_HINT}</Text>
+        <Card className="max-inline-(--reading-measure-prose)" variant="outline" dashed={true} padding="none">
+          <Stack padding="row">
+            <Text voice="quiet">{FRESH_HINT}</Text>
+          </Stack>
         </Card>
       </Stack>
     </LandingFrame>

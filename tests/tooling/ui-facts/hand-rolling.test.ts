@@ -297,6 +297,19 @@ test("a keyframe waypoint keeps its literal opacity, and the same number outside
   ]);
 });
 
+test("a rule inside a cascade layer is read, and a 1 beside a star is a unit cast, not a length", ({ scratch }) => {
+  const root = plantDir(scratch, "layered");
+  plant(root, {
+    "styles/probe.css": "@layer ui {\n  .a {\n    opacity: 0.35;\n    margin-block-start: calc(var(--dial) * 1rem);\n    border-width: 1px;\n  }\n}\n",
+  });
+  const rows = census(root).hits.map((hit) => [hit.line, hit.keep, hit.verdict]);
+  expect(rows).toEqual([
+    [3, null, "token"],
+    [4, "unit-cast", "keep"],
+    [5, null, "decide"],
+  ]);
+});
+
 test("an alpha named for an opacity step stays visible beside a numbered one", ({ scratch }) => {
   const root = plantDir(scratch, "named-alpha");
   plant(root, { "components/uses.tsx": 'export const A = () => <><span className="active:bg-accent/hover" /><span className="bg-primary/hover" /></>;' });

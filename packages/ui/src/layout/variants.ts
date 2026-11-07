@@ -3,6 +3,7 @@ import {
   ARRIVAL,
   CAPTION,
   CARD_CORNERS,
+  CORNER,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
   FOCUS_RING,
@@ -66,21 +67,18 @@ const PADDING_BLOCK = {
 const PADDING_BLOCK_START = {
   tight: "pbs-tight",
   field: "pbs-field",
-  // Clears the floating control bar that sits over the box's top edge.
+  // One `control-sm` step: the clearance for a floating control bar that sits over the box's top edge.
   control: "pbs-(--size-control-sm)",
   row: "pbs-row",
   block: "pbs-block",
   section: "pbs-section",
   gutter: "pbs-gutter",
 } as const;
-// The inline inset a box gives up below the `cq-28` container step (a phone-width pane): both sides, or the end side
-// alone. It only ever steps down, so `tight` is a member here and a full ramp is not.
+// The inline inset a box gives up below the `cq-28` container step (a phone-width pane), on both sides. It only ever steps down,
+// so `tight` is a member here and a full ramp is not.
 const PADDING_INLINE_NARROW = {
   tight: "@max-cq-28:px-tight",
   row: "@max-cq-28:px-row",
-} as const;
-const PADDING_INLINE_END_NARROW = {
-  block: "@max-cq-28:pe-block",
 } as const;
 // The widest an inline box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`
 // and `column` are the page measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width.
@@ -95,7 +93,6 @@ const CAP = {
   surface: "max-inline-(--width-surface-cap)",
   shell: "max-inline-(--width-shell-content)",
   pane: "max-inline-(--container-cq-48)",
-  whisper: "max-inline-(--immersive-whisper-banner-inline-cap)",
   sidebar: "max-inline-(--width-sidebar-sm) @max-cq-32:max-inline-none",
 } as const;
 const ALIGN = {
@@ -131,6 +128,7 @@ const STRETCH_BELOW = {
 const END_BELOW = {
   "cq-28": "@max-cq-28:justify-end",
   "cq-32": "@max-cq-32:justify-end",
+  "cq-40": "@max-cq-40:justify-end",
   "cq-64": "@max-cq-64:justify-end",
 } as const;
 
@@ -227,7 +225,6 @@ export const stackVariants = tv({
     paddingBlock: PADDING_BLOCK,
     paddingBlockStart: PADDING_BLOCK_START,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
-    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -261,6 +258,13 @@ export const stackVariants = tv({
     // gradient over a cover image anchored at the top, the gradient filling the box.
     imageFit: { cover: "bg-cover bg-center bg-no-repeat", underFeather: "bg-size-[auto,cover] bg-position-[left_top,center_top] bg-no-repeat" },
     artDecoration: ART_DECORATION,
+    // The insets a reading box lays on its column, by the box that takes them. The plate is inset a section from its gutter, and on a
+    // phone its trailing edge takes a block, which leaves flat the 32px more reading width that the small avatar chip buys. The page is
+    // inset the gutter with no block-end inset, so the next page runs on, and keeps a tight inset on a phone.
+    readingInset: {
+      plate: "px-section py-row @max-cq-28:pe-block",
+      page: "px-gutter pbs-row @max-cq-28:px-tight",
+    },
     artMask: { start: "orb-art-mask-start", end: "orb-art-mask-end" },
     // The content column's cap, which a stylesheet rule reads from `--column-measure`: `illustrated` reserves an art pane
     // beside the measure; `tide` takes its share of the row (more on a phone), never past the reading measure.
@@ -268,8 +272,13 @@ export const stackVariants = tv({
       illustrated: "orb-art-reservation",
       tide: "[--column-measure:var(--reading-tide-share-cap)] @max-cq-28:[--column-measure:var(--reading-tide-share-phone)]",
     },
-    // The art pane beside a message: its width, its portrait aspect, and on a phone the fixed height the echo art takes instead of the aspect.
+    // The art pane beside or above a message. `portrait` is its width, its portrait aspect, and on a phone the fixed height the echo art takes
+    // instead of the aspect. `banner` is half the card's width (more on a phone, with a minimum height) and never past the banner's own cap.
     artPane: {
+      banner: `
+        inline-1/2 max-inline-(--immersive-whisper-banner-inline-cap)
+        @max-cq-28:inline-11/20 @max-cq-28:min-block-(--immersive-whisper-band-min-height-phone)
+      `,
       portrait: `
         aspect-(--aspect-portrait) orb-art-reservation inline-(--art-pane-width) max-block-full
         @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)
@@ -289,11 +298,11 @@ export const stackVariants = tv({
     arrival: ARRIVAL,
     focusTarget: FOCUS_TARGET,
     cap: CAP,
+    fill: FILL,
+    height: HEIGHT,
     grow: GROW,
     floor: FLOOR,
     order: ORDER,
-    fill: FILL,
-    height: HEIGHT,
     minHeight: { viewport: "min-block-dvh" },
     scroll: SCROLL,
     scrollFade: SCROLL_FADE,
@@ -309,7 +318,7 @@ const DIALOG_SCROLL_CLASS =
 
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
-  variants: { grow: { true: "flex-1", false: "" } },
+  variants: { grow: { true: GROW.true, false: GROW.false } },
 });
 
 export const rowVariants = tv({
@@ -334,7 +343,6 @@ export const rowVariants = tv({
     paddingBlock: PADDING_BLOCK,
     paddingBlockStart: PADDING_BLOCK_START,
     paddingInlineNarrow: PADDING_INLINE_NARROW,
-    paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     touchFloor: TOUCH_FLOOR,
@@ -356,6 +364,14 @@ export const rowVariants = tv({
     tracks: { gutterCentred: `grid ${GUTTER_CENTRED_TRACKS}` },
   },
   compoundVariants: [...DIVIDER_RULE],
+});
+
+// A mark pinned to its positioned host's block-start, inline-end corner (see corner.tsx): `field` is the standard inset, `tight` a mark on a
+// glyph-sized host that must stay clear of the glyph. A flex box, so the mark inside has no baseline gap under it.
+export const cornerVariants = tv({
+  base: "flex",
+  variants: { inset: { field: CORNER.badge, tight: "absolute inset-e-tight inset-bs-tight" } },
+  defaultVariants: { inset: "field" },
 });
 
 // One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed
@@ -388,7 +404,7 @@ export const sectionVariants = tv({
       true: { root: "@container" },
     },
     // The cap a section holds its rows to; only the reading measure has a caller, so it is the only arm.
-    cap: { reading: { root: "max-inline-(--reading-measure)" } },
+    cap: { reading: { root: CAP.reading } },
     fill: { true: { root: "block-full" }, false: { root: "" } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
@@ -421,7 +437,6 @@ export const gridVariants = tv({
   base: "grid",
   variants: {
     gap: GAP,
-    align: ALIGN,
     cap: CAP,
     paddingInline: PADDING_INLINE,
     cols: {
@@ -662,6 +677,7 @@ export const gridVariants = tv({
       // placement law (which home sits where) belongs to the bar, not to this recipe.
       actionBar: "grid-cols-[auto_auto_1fr_auto] items-center @max-cq-28:flex @max-cq-28:flex-wrap",
     },
+    align: ALIGN,
   },
   defaultVariants: { cols: "auto" },
 });

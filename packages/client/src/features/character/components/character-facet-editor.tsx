@@ -333,12 +333,14 @@ function ExampleTranscript({
         <Card
           // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to the keyed immutable transcript snapshot; replacement remounts native Markdown state.
           key={index}
-          padding="field"
+          padding="none"
           variant="outline"
         >
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-            {block}
-          </Markdown>
+          <Stack padding="field">
+            <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
+              {block}
+            </Markdown>
+          </Stack>
         </Card>
       ))}
     </Stack>
