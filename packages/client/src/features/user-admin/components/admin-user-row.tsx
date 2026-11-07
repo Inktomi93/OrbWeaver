@@ -14,10 +14,10 @@ import { Switch } from "@orb/ui/switch";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, RowActionsMenu, StatusChip } from "#components";
+import { ConfirmDialog, RowActionsMenu, StatusChip, USER_ROLE_STATUS } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
-import { ROLE_ITEMS, ROLE_STATUS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
+import { ROLE_ITEMS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -50,7 +50,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
         subtitle={subtitle}
         actions={
           <Row align="center" gap="row">
-            {isOwnerRow ? <StatusChip status={user.role} vocabulary={ROLE_STATUS} /> : null}
+            {isOwnerRow ? <StatusChip status={user.role} vocabulary={USER_ROLE_STATUS} /> : null}
             {user.enabled ? null : (
               <Badge tone="destructive" variant="solid">
                 Disabled
