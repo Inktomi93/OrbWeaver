@@ -10,8 +10,8 @@ import { isProductionFile, nameAt } from "./classify.ts";
  *  tuple may rule out. */
 export type Origins = ReadonlySet<string> | null;
 
-/** A value, or the requests that produce it: the native engine batches its questions, the TypeScript 6 engine answers at once. */
-export type Answer<T> = T | APIRequestGenerator<T>;
+// A value, or the requests that produce it: the native engine batches its questions, the TypeScript 6 engine answers at once.
+type Answer<T> = T | APIRequestGenerator<T>;
 
 const isRequests = <T>(answer: Answer<T>): answer is APIRequestGenerator<T> =>
   typeof answer === "object" && answer !== null && "next" in answer && "throw" in answer;

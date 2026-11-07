@@ -1,5 +1,6 @@
 // A stage hold's soundness: every ensureStage caller holds what it bound, a reused pid never pins a stage,
 // dead entries never pile up, a normal exit lets go, and the first beat is written before the run proceeds.
+import type { ChildProcess } from "node:child_process";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -81,8 +82,12 @@ test("a sibling's cache:check that shared-reuses a stage through ensureStage hol
   expect(ownerFresh(home)).toBe("refuse");
 });
 
+// An idle process that exists wherever the suite runs, unlike a `sleep` binary.
+const IDLE_SOURCE = "setTimeout(() => undefined, 30000)";
+const spawnIdle = (): ChildProcess => spawn(process.execPath, ["-e", IDLE_SOURCE], { stdio: "ignore" });
+
 test("a holder whose pid now belongs to another process does not pin the stage", () => {
-  const unrelated = spawn("sleep", ["30"], { stdio: "ignore" });
+  const unrelated = spawnIdle();
   try {
     const pid = unrelated.pid ?? 0;
     const reused: StageHolder = { pid, pidStart: "1", checkout: SIBLING, stampedAt: DAYS_AGO };
@@ -95,7 +100,7 @@ test("a holder whose pid now belongs to another process does not pin the stage",
 
 // Kernel start ticks exist on Linux only; elsewhere a holder carries no start time and its liveness is its stamp's age.
 test.skipIf(process.platform !== "linux")("a holder whose pid carries its real kernel start time is running", () => {
-  const live = spawn("sleep", ["30"], { stdio: "ignore" });
+  const live = spawnIdle();
   try {
     const pid = live.pid ?? 0;
     const ticks = processStartTicks(pid);
