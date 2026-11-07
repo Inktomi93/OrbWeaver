@@ -62,7 +62,7 @@ const PREVIEW_DENSITY = "comfortable";
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
-    <Stack className="block-full inline-full" padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
+    <Stack className="inline-full" fill={true} padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
@@ -92,7 +92,8 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
     // base-palette block for Hearth, which has no theme block to name.
     return (
       <Stack
-        className="block-full inline-full"
+        className="inline-full"
+        fill={true}
         data-slot="theme-mini-surface"
         {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}
       >
@@ -108,7 +109,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
       className="flex flex-col block-full inline-full"
       tokens={resolved.tokens}
     >
-      <Stack className="block-full inline-full" data-slot="theme-mini-surface">
+      <Stack className="inline-full" fill={true} data-slot="theme-mini-surface">
         <MiniRoom />
       </Stack>
     </ThemeScope>

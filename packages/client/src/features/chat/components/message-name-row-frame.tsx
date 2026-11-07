@@ -117,7 +117,7 @@ export function NameRowFrame({
     >
       {identity}
       {actions === null ? null : (
-        <Row align="center" cap="fitNarrow" className="block-0 min-block-(--size-glyph-lg) @max-cq-20:block-auto" data-slot="message-actions-slot">
+        <Row align="center" cap="fitNarrow" height="rail" data-slot="message-actions-slot">
           {actions}
         </Row>
       )}

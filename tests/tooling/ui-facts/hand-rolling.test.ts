@@ -590,7 +590,7 @@ test("a plan lists a row only when the arm writes exactly its class on a named c
   ]);
   // The conditional site is a different owner and never appears; the arm that writes two classes and the carrier go to review.
   expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([
-    [6, 'arm "between" writes justify-between items-baseline, which is not exactly justify-between'],
+    [6, 'arm "between" writes justify-between items-baseline, which the class string does not hold whole'],
     [8, "the class is written on a carrier that renders Row"],
   ]);
 });
@@ -663,6 +663,28 @@ test("a gradient, a vendor override, an SVG radius, a native control value and d
   expect(at("native.ts", "#808080")).toEqual(["keep", "dom-api-literal"]);
   expect(at("native.ts", "#818181")[0]).toBe("token");
   expect(at("dev/seed.ts", "#e05a5a")).toEqual(["keep", "dev-seed-data"]);
+});
+
+test("an arm of several classes plans each of them when the class string holds all, and none when a class is missing", ({ scratch }) => {
+  const root = plantDir(scratch, "multi-class-arm");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      "export const A = () => (",
+      "  <>",
+      '    <Row className="justify-between items-baseline x" />',
+      '    <Row className="items-baseline" />',
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  migrate(root, "plan", "row.justify");
+  const plan = planOf(root);
+  expect(plan.sites.map(({ line, token, value }) => [line, token, value])).toEqual([
+    [4, "items-baseline", "between"],
+    [4, "justify-between", "between"],
+  ]);
+  expect(plan.review).toEqual([]);
 });
 
 test("an empty plan fails when the census ranks rows under the owner or nothing declares it, and is clean only when no row is left", ({ scratch }) => {
@@ -936,8 +958,13 @@ const SHUT_DOORS: readonly (readonly [string, string, string])[] = [
   ],
   [
     "Whole",
-    "function Whole(props) { const { justify, className } = props; return <div data-j={props.justify} className={fooVariants({ justify, className })} />; }",
+    "function Whole(props) { const { justify, className } = props; return <div data-j={describe(props)} className={fooVariants({ justify, className })} />; }",
     "the door takes its props whole, so its reads of them are not visible",
+  ],
+  [
+    "Named",
+    "function Named(props) { const { justify, className } = props; return <div data-j={props.justify} className={fooVariants({ justify, className })} />; }",
+    "the door reads justify beyond the recipe, so the prop does more than write justify-end",
   ],
   [
     "Peeks",

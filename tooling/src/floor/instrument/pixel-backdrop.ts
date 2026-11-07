@@ -73,12 +73,16 @@ const LUMINANCE_FLARE = 0.05;
 
 const inside = (rect: PixelRect, x: number, y: number): boolean => x >= rect.left && x < rect.left + rect.width && y >= rect.top && y < rect.top + rect.height;
 
-function ringPixels(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): { rs: number[]; gs: number[]; bs: number[] } {
+interface RingSamples {
+  rs: number[];
+  gs: number[];
+  bs: number[];
+}
+
+function sampleRing(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): RingSamples {
   const marks = region.marks ?? [];
   const ring = Math.max(1, Math.min(SAMPLE_RING_MAX_PX, Math.floor(Math.min(region.width, region.height) * SAMPLE_RING_FRAC)));
-  const rs: number[] = [];
-  const gs: number[] = [];
-  const bs: number[] = [];
+  const samples: RingSamples = { rs: [], gs: [], bs: [] };
   for (let y = 0; y < region.height; y += 1) {
     const edgeRow = y < ring || y >= region.height - ring;
     for (let x = 0; x < region.width; x += 1) {
@@ -86,12 +90,18 @@ function ringPixels(data: Buffer | Uint8Array, imageWidth: number, channels: num
         continue;
       }
       const i = ((region.top + y) * imageWidth + (region.left + x)) * channels;
-      rs.push(data[i] ?? 0);
-      gs.push(data[i + 1] ?? 0);
-      bs.push(data[i + 2] ?? 0);
+      samples.rs.push(data[i] ?? 0);
+      samples.gs.push(data[i + 1] ?? 0);
+      samples.bs.push(data[i + 2] ?? 0);
     }
   }
-  return { rs, gs, bs };
+  return samples;
+}
+
+// A mark that covers the whole ring means the target is the mark (a diagram that fills its box): its own edge is then the only backdrop there is.
+function ringPixels(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): RingSamples {
+  const masked = sampleRing(data, imageWidth, channels, region);
+  return masked.rs.length > 0 ? masked : sampleRing(data, imageWidth, channels, { ...region, marks: [] });
 }
 
 /** `ringBackdropOfRegion`, or `null` when the ring is not one backdrop (p90:p10 luminance spread over

@@ -189,11 +189,7 @@ export function EchoArtTile({
     <Stack
       aria-hidden={tappable ? undefined : "true"}
       artPane="portrait"
-      className={cn(
-        "absolute inset-bs-0 aspect-(--aspect-portrait) max-block-full @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)",
-        tappable ? undefined : "pointer-events-none",
-        art.side === "left" ? "inset-s-0" : "inset-e-0",
-      )}
+      className={cn("absolute inset-bs-0", tappable ? undefined : "pointer-events-none", art.side === "left" ? "inset-s-0" : "inset-e-0")}
       ref={attach}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}

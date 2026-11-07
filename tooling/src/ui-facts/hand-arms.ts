@@ -78,31 +78,36 @@ function offersFamily(arms: ArmClasses, base: string): boolean {
   return written.length === 1 && arms.size > 1 && (written[0]?.length ?? 0) > 0;
 }
 
-/** The axis is a switch for the arm that lists the class: that arm is the only one that writes anything, so the axis turns every class of it on together. */
-function switchesOn(arms: ArmClasses, token: string): boolean {
-  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
-  return arms.size > 1 && writing.length === 1 && writing[0]?.tokens.includes(token) === true;
-}
+/** The arm lists more than one class and the element wears every one of them: the arm is what they write together. */
+const wornWhole = (arm: Arm, token: string, siblings: readonly string[]): boolean =>
+  arm.tokens.length > 1 && arm.tokens.includes(token) && arm.tokens.every((written) => written === token || siblings.includes(written));
 
-/** The axis of a component's recipe that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is the only arm that writes anything. */
-export function axisWriting(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
+/**
+ * The axis of a component's recipe that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is a
+ * multi-class arm whose every class the element wears (`siblings` are the classes written beside it).
+ */
+export function axisWriting(recipe: ComponentRecipe | undefined, token: string, siblings: readonly string[]): readonly [string, ArmClasses] | undefined {
   const axes = [...(recipe?.axes ?? [])];
   return (
     axes.find(([, arms]) => armsOf(arms).some((arm) => writesOnly(arm, token))) ??
     axes.find(([, arms]) => armsOf(arms).some((arm) => arm.tokens.includes(token)) && picksFamily(arms, token)) ??
-    axes.find(([, arms]) => switchesOn(arms, token))
+    axes.find(([, arms]) => armsOf(arms).some((arm) => wornWhole(arm, token, siblings)))
   );
 }
 
-/** The arm of an axis that writes the class: one that writes it alone, else the first that lists it. */
-export function armWriting(arms: ArmClasses, token: string): readonly [string, Arm] | undefined {
+/** The arm of an axis that writes the class: one that writes it alone, else one the element wears whole, else the first that lists it. */
+export function armWriting(arms: ArmClasses, token: string, siblings: readonly string[]): readonly [string, Arm] | undefined {
   const all = [...arms];
-  return all.find(([, candidate]) => writesOnly(candidate, token)) ?? all.find(([, candidate]) => candidate.tokens.includes(token));
+  return (
+    all.find(([, candidate]) => writesOnly(candidate, token)) ??
+    all.find(([, candidate]) => wornWhole(candidate, token, siblings)) ??
+    all.find(([, candidate]) => candidate.tokens.includes(token))
+  );
 }
 
-/** The axis that owns the class: an arm writes it alone, or writes it as the axis's choice in its family. Null when the element is not a primitive or no arm does. */
-export function writingAxis(elem: Elem | null, token: string, components: ComponentTables): DeclaredAxis | null {
-  const found = axisWriting(recipeOf(elem, components), token);
+/** The axis that owns the class: an arm writes it alone, writes it as the axis's choice in its family, or is worn whole. Null when the element is not a primitive or no arm does. */
+export function writingAxis(elem: Elem | null, token: string, siblings: readonly string[], components: ComponentTables): DeclaredAxis | null {
+  const found = axisWriting(recipeOf(elem, components), token, siblings);
   return elem === null || found === undefined ? null : declaredAxis(elem, found[0], found[1]);
 }
 
@@ -152,8 +157,8 @@ export function undeclaredJudgement(elem: Elem | null, token: string, components
 const conditionalMark = (token: string, guarded: boolean): string => (guarded || baseOf(token).variants !== "" ? ", conditional" : "");
 
 /** The recipe verdict for a class an arm of the axis writes, naming the slots when the arm is slot-keyed. */
-export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boolean): Judgement {
-  const [arm, written] = armWriting(axis.arms, token) ?? ["", null];
+export function coveredJudgement(axis: DeclaredAxis, token: string, guarded: boolean, siblings: readonly string[]): Judgement {
+  const [arm, written] = armWriting(axis.arms, token, siblings) ?? ["", null];
   const slots = written === null || written.slots.length === 0 ? "" : ` in slots ${written.slots.join(", ")}`;
   return {
     verdict: "recipe",

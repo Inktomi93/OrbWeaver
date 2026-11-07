@@ -68,7 +68,7 @@ function MapBody(): ReactElement {
     // and the key leave. A FIT fix, not a count gate: the square was never a requirement of the projection,
     // which is a PCA into an arbitrary 2D frame and reads the same at any aspect. The min-height keeps it a
     // chart rather than a strip if a host ever hands it no height at all.
-    <Stack fill={true} gap="block">
+    <Stack className="min-block-0" fill={true} gap="block" grow={true}>
       <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
       <Stack className="inline-full min-block-(--height-scroll-lg)" grow={true}>
         {/* THE KEY IS THE HALF THAT COULD BE READ (side-eye corpus re-pass B5). The tab said "colored by

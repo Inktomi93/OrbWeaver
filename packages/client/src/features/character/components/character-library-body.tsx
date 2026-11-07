@@ -165,7 +165,7 @@ export function CharacterLibraryBody({
     // the pane announced "list, 1 item" (the inner list) and then "list, 11 items", and the outer container
     // failed `aria-required-children` on both axe and Lighthouse's agentic audit (agent-nav 50/100). The
     // label belongs on the element that actually holds the items.
-    <Stack className="block-full min-block-0">
+    <Stack className="min-block-0" fill={true}>
       <VirtualList
         aria-label={ariaLabel}
         className="flex-1 min-block-0"

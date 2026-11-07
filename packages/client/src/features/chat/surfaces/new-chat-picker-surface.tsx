@@ -224,13 +224,14 @@ export function NewChatPicker(): ReactElement {
           scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
       <Row
         align="center"
-        className="sticky inset-be-0 flex-wrap dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static"
+        className="flex-wrap"
         data-slot="new-chat-actions"
         divider="top"
         gap="field"
         ground="popover"
         justify="end"
         padding="block"
+        pinned="dialogFooter"
       >
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}

@@ -7,10 +7,10 @@ import { componentTables } from "./variant-tables.ts";
 /** Build the lookup over the ui sources once; a lint run asks it for every class on every primitive. */
 export function classOwners(root: string): PropOwners {
   const components = componentTables(root, loadUiSources(root));
-  return (door, component, token) => {
+  return (door, component, token, siblings) => {
     const recipe = components.get(door)?.get(component);
-    const found = axisWriting(recipe, token);
-    const written = found === undefined ? undefined : armWriting(found[1], token);
+    const found = axisWriting(recipe, token, siblings);
+    const written = found === undefined ? undefined : armWriting(found[1], token, siblings);
     // A slot-keyed arm lands on a part inside the component, so a className on the root never competes with it.
     if (recipe === undefined || found === undefined || written === undefined || (written[1].slots.length > 0 && !written[1].slots.includes("root"))) {
       return null;

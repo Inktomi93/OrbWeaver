@@ -5,7 +5,6 @@ import {
   CARD_CORNERS,
   DISABLED_STATE_NATIVE,
   FIELD_ROW,
-  FILL_PARENT,
   FOCUS_RING,
   GROUND,
   HIDDEN_AT,
@@ -192,11 +191,24 @@ const SCROLL = { y: SCROLLER_Y } as const;
 // A flex child takes the room that is left (`grow`) from a starting width (`floor`), so a wrapping header gives the title
 // or the filter its own line before it squeezes. The `min-inline-0` that lets it shrink below its content stays the
 // caller's class, because only some children want that.
-const GROW = { true: "flex-1", false: "" } as const;
+// `content` grows from the content's own size where `true` grows from nothing; `double` takes twice the share of a `true` sibling.
+const GROW = { true: "flex-1", false: "", content: "flex-auto", double: "flex-2" } as const;
 const FLOOR = {
   title: "basis-(--width-title-floor)",
   field: "basis-(--width-field-floor)",
+  line: "basis-full",
 } as const;
+// A row pinned to the foot of a scrolling dialog body: it gives its block inset back as the dialog gets short, drops it
+// when the dialog stacks, and stops pinning under the tiny step, where a pinned row would cover the content.
+const PINNED = { dialogFooter: "sticky inset-be-0 dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static" } as const;
+// A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
+// `floor="line"` basis gives way to its content's width.
+const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
+
+// `fill` takes the parent's whole block size; `height` is a named fixed one: the viewport, or the height of the control a
+// placeholder or a row stands in for.
+const FILL = { true: "block-full", false: "" } as const;
+const HEIGHT = { viewport: "block-dvh", control: "block-(--size-control-sm)", controlMd: "block-(--size-control-md)" } as const;
 
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).
@@ -256,7 +268,13 @@ export const stackVariants = tv({
       illustrated: "orb-art-reservation",
       tide: "[--column-measure:var(--reading-tide-share-cap)] @max-cq-28:[--column-measure:var(--reading-tide-share-phone)]",
     },
-    artPane: { portrait: "orb-art-reservation inline-(--art-pane-width)" },
+    // The art pane beside a message: its width, its portrait aspect, and on a phone the fixed height the echo art takes instead of the aspect.
+    artPane: {
+      portrait: `
+        aspect-(--aspect-portrait) orb-art-reservation inline-(--art-pane-width) max-block-full
+        @max-cq-28:aspect-auto @max-cq-28:block-(--immersive-echo-art-height-phone)
+      `,
+    },
     feather: {
       bubble: "orb-art-band [--art-feather-fill:var(--color-ai-bubble)]",
       userBubble: "orb-art-band [--art-feather-fill:var(--color-user-bubble)]",
@@ -273,7 +291,10 @@ export const stackVariants = tv({
     cap: CAP,
     grow: GROW,
     floor: FLOOR,
-    fill: { true: FILL_PARENT, false: "" },
+    order: ORDER,
+    fill: FILL,
+    height: HEIGHT,
+    minHeight: { viewport: "min-block-dvh" },
     scroll: SCROLL,
     scrollFade: SCROLL_FADE,
     fade: FADE,
@@ -303,6 +324,11 @@ export const rowVariants = tv({
     cap: CAP,
     grow: GROW,
     floor: FLOOR,
+    order: ORDER,
+    pinned: PINNED,
+    fill: FILL,
+    // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
+    height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto" },
     padding: PADDING,
     paddingInline: PADDING_INLINE,
     paddingBlock: PADDING_BLOCK,
@@ -363,6 +389,7 @@ export const sectionVariants = tv({
     },
     // The cap a section holds its rows to; only the reading measure has a caller, so it is the only arm.
     cap: { reading: { root: "max-inline-(--reading-measure)" } },
+    fill: { true: { root: "block-full" }, false: { root: "" } },
     // A hairline under the section heading — reads as a header edge over its rows, not a floating label.
     divider: {
       true: { heading: "border-be border-border pbe-field" },
@@ -645,6 +672,8 @@ export const containerVariants = tv({
   variants: {
     size: { sm: "max-inline-cq-24", md: "max-inline-cq-32", lg: "max-inline-cq-48" },
     cap: CAP,
+    grow: GROW,
+    fill: FILL,
     paddingInline: PADDING_INLINE,
     ground: GROUND,
   },

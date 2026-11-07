@@ -171,3 +171,9 @@ test("a mark that reaches the box edge is left out of the ring, so its strokes d
   expect(ringBackdropOfRegion(data, 10, CHANNELS, whole)).toEqual({ r: 240, g: 240, b: 240 });
   expect(ringBackdropOfRegion(data, 10, CHANNELS, { ...whole, marks: [{ left: 0, top: 0, width: 8, height: 10 }] })).toEqual({ r: 20, g: 20, b: 20 });
 });
+
+test("a mark that covers the whole ring leaves the ring as it was, since the target is then the mark itself", () => {
+  const data = frame({ width: 10, height: 10, border: 2, ring: [20, 20, 20], fill: [200, 200, 200] });
+  const whole = { left: 0, top: 0, width: 10, height: 10 };
+  expect(ringBackdropOfRegion(data, 10, CHANNELS, { ...whole, marks: [whole] })).toEqual(ringBackdropOfRegion(data, 10, CHANNELS, whole));
+});

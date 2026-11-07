@@ -4,7 +4,6 @@ import {
   CONTROL_INLINE,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
-  CONTROL_SIZES,
   CORNER,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
@@ -49,7 +48,8 @@ export const buttonVariants = tv({
   variants: {
     corner: CORNER,
     // A button that is a row's door: it takes the room left beside its siblings and sets its label at the start.
-    stretch: { row: "flex-1 justify-start min-inline-0" },
+    // `line` is a whole list line: the full width and the field inset, its text set at the start.
+    stretch: { row: "flex-1 justify-start min-inline-0", line: "px-field text-start inline-full" },
     // THE FILL STYLE (D336), painted only with the roles of the stamped tone, so every tone works with every style.
     variant: {
       // A disabled solid drops its fill for the neutral muted pair (a half-opacity fill read as nearly enabled).
@@ -139,10 +139,16 @@ export const buttonVariants = tv({
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
   // A square's width and a wrap's floor are the scale step's own height; the other boxes take neither.
-  compoundVariants: CONTROL_SIZES.flatMap((size) => [
-    { size, square: true, class: CONTROL_INLINE[size] },
-    { size, wrap: true, class: CONTROL_MIN_BLOCK[size] },
-  ]),
+  compoundVariants: [
+    { size: "chip", square: true, class: CONTROL_INLINE.chip },
+    { size: "sm", square: true, class: CONTROL_INLINE.sm },
+    { size: "md", square: true, class: CONTROL_INLINE.md },
+    { size: "lg", square: true, class: CONTROL_INLINE.lg },
+    { size: "chip", wrap: true, class: CONTROL_MIN_BLOCK.chip },
+    { size: "sm", wrap: true, class: CONTROL_MIN_BLOCK.sm },
+    { size: "md", wrap: true, class: CONTROL_MIN_BLOCK.md },
+    { size: "lg", wrap: true, class: CONTROL_MIN_BLOCK.lg },
+  ],
   defaultVariants: {
     square: false,
     wrap: false,

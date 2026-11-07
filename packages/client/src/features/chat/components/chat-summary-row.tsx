@@ -161,15 +161,7 @@ function rowMarkers({
           at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
           the same datum was gone too — a starred chat with no star anywhere on the row. The swap is
           hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
-      {chat.starred ? (
-        <Icon
-          className={interactive ? "group-focus-within/row:invisible group-hover/row:invisible" : ""}
-          icon={Star}
-          label="Starred"
-          size="sm"
-          tone="warning"
-        />
-      ) : null}
+      {chat.starred ? <Icon yieldOnHover={interactive} icon={Star} label="Starred" size="sm" tone="warning" /> : null}
       {chat.archived ? <Badge size="sm">Archived</Badge> : null}
     </>
   );

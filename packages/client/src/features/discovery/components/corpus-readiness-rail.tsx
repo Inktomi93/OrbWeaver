@@ -76,7 +76,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
     // So the stage stack is natural again: hairline rows at the tier's own `py-field` pitch, and the column
     // simply ends where its content does. `h-full` stays — the grid still stretches the track, and a Section
     // that fills a stretched track costs nothing while keeping the rail's own background band whole.
-    <Section className="block-full" data-slot="readiness-rail" kicker="Readiness" level={2}>
+    <Section fill={true} data-slot="readiness-rail" kicker="Readiness" level={2}>
       {/* IT IS A LIST, AND IT SAYS SO (#537, corpus ARIA sweep). The rail rendered as a `<section>` full of
           role-less `<div>`s: a screen reader met five stage rows as one undifferentiated run of text with
           no count and no way to step row by row, on the ONE surface element whose whole job is "here is

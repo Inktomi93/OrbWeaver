@@ -182,7 +182,7 @@ function QueueRow({
           {label}
         </Text>
       ) : (
-        <Button className="flex-1 basis-auto justify-start max-inline-full min-inline-0" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
+        <Button className="basis-auto max-inline-full" stretch="row" variant="ghost" onClick={onOpen} size="sm" wrap={true}>
           <Text as="span" truncate={true} ink="inherit" voice="label">
             {label}
           </Text>

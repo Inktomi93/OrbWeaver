@@ -109,7 +109,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
     // INSTRUMENT tier (UI-Density-Law.md §3.1): a side pane of rows, scanned — same steps as the chats pane it
     // mirrors, so the two lists of the same rows can never drift apart in density.
     <Surface tier="instrument">
-      <Stack className="block-full min-block-0" gap="row">
+      <Stack className="min-block-0" fill={true} gap="row">
         {items.length > SEARCH_THRESHOLD || query !== "" ? (
           <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
         ) : null}

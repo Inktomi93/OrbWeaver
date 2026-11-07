@@ -109,8 +109,10 @@ function refusal(hit: Hit, owner: string, tables: ComponentTables): string | nul
     return `arm "${arm}" is not a plain string prop value`;
   }
   const writing = axis.get(arm)?.tokens ?? [];
-  if (writing.length !== 1 || writing[0] !== hit.detail) {
-    return `arm "${arm}" writes ${writing.join(" ")}, which is not exactly ${hit.detail}`;
+  // An arm of several classes moves when the class string holds every one of them: the prop then writes exactly what the string did.
+  const worn = new Set([hit.detail, ...element.place.peers]);
+  if (!(writing.includes(hit.detail) && writing.every((written) => worn.has(written)))) {
+    return `arm "${arm}" writes ${writing.join(" ")}, which the class string does not hold whole`;
   }
   const sameClass = [...axis].filter(([, written]) => written.tokens.includes(hit.detail)).map(([name]) => name);
   return sameClass.length === 1

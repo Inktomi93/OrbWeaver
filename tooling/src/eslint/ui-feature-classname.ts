@@ -27,7 +27,7 @@ export interface PropOwner {
  * `classOwners` in ui-facts reads the tables. A prop owns every class it writes, wherever the element sits in the axis order: a recipe that
  * orders two props so a class would beat the prop is a recipe to reorder, never a class to keep.
  */
-export type PropOwners = (door: string, component: string, token: string) => PropOwner | null;
+export type PropOwners = (door: string, component: string, token: string, siblings: readonly string[]) => PropOwner | null;
 
 /** Tailwind's `DesignSystem.candidatesToCss`: one CSS string per candidate, `null` when it does not compile. */
 export type CandidatesToCss = (classes: string[]) => (string | null)[];
@@ -325,7 +325,7 @@ function primitiveOf(context: OrbRuleContext, element: TSESTree.JSXOpeningElemen
 /** The classes of one `className` that a prop of the primitive writes, each with that prop. */
 function ownedTokens(primitive: Primitive, tokens: readonly string[], ownerOf: PropOwners): readonly (readonly [string, PropOwner])[] {
   return tokens.flatMap((token) => {
-    const owner = ownerOf(primitive.door, primitive.component, token);
+    const owner = ownerOf(primitive.door, primitive.component, token, tokens);
     return owner === null ? [] : [[token, owner] as const];
   });
 }

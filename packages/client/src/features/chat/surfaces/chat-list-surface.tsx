@@ -279,7 +279,7 @@ function ChatListBody({
   }
 
   return (
-    <Stack className="block-full min-block-0" gap="block">
+    <Stack className="min-block-0" fill={true} gap="block">
       {/* The strip renders ABOVE this body (in the surface), so it stays put across every body state —
           including an empty scope, where it is the way OUT. */}
       <Stack className="min-block-0" grow={true}>
@@ -363,7 +363,7 @@ function ChatRows({
   return (
     // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at mount
     // otherwise) — `h-full` inside the surface's `min-h-0 flex-1` column is where that bound comes from.
-    <Stack className="block-full min-block-0">
+    <Stack className="min-block-0" fill={true}>
       <VirtualList
         // THE LIST NAMES ITSELF AS A LIST (side-eye HOME 2026-09-02 H20). It was `aria-label="Chats"` —
         // the same string the RAIL's own nav button carries one region over — so one document held two

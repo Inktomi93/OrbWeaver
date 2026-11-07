@@ -226,7 +226,7 @@ function CollectionCreate({ collection, inBand = false }: { readonly collection:
   return (
     // In the control row the form takes its own full-width line under the other controls when the row's
     // container is narrow, so asking for a name never squeezes the filter out.
-    <Stack cap="fit" className={inBand ? "order-last basis-full min-inline-0 @cq-40:order-0 @cq-40:basis-auto" : "min-inline-0"}>
+    <Stack cap="fit" className="min-inline-0" floor={inBand ? "line" : undefined} order={inBand ? "lastUntilWide" : undefined}>
       <form
         aria-label={label}
         noValidate={true}

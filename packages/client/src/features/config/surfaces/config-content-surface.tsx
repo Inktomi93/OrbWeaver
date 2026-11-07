@@ -203,7 +203,7 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
     // scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
     // landed on an intermediate section (caught by that CT, not by the eye).
-    <Stack className="block-full min-block-0" paddingInline="section" data-slot="config-pane" gap="row">
+    <Stack className="min-block-0" fill={true} paddingInline="section" data-slot="config-pane" gap="row">
       {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
             of its results"): Base UI form primitives park `sr-only` boxes at `position:absolute`, and an
             `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE COLUMN PADS,
@@ -215,7 +215,8 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
       <Stack
         aria-label={regionLabel}
         scroll="y"
-        className="-mx-row block-full"
+        className="-mx-row"
+        fill={true}
         grow={true}
         paddingBlock="section"
         paddingInline="row"

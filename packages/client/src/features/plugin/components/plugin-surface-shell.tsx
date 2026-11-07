@@ -65,7 +65,7 @@ export function PluginSurfaceShell({
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {
     return (
-      <Stack className="block-full min-block-0" data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
+      <Stack className="min-block-0" fill={true} data-plugin-surface-scale="page" {...pluginSurfaceAuditAttributes(pluginId, surfaceId, anchor)}>
         {/* THE PINNED BAND (§9). `shrink-0` + the scrolling body below it means it survives every scroll
             position — a band that scrolled away would leave the page unlabelled exactly when a person has
             forgotten what they are looking at. */}

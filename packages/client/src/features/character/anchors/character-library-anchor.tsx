@@ -13,7 +13,7 @@ export interface CharacterLibraryAnchorProps {
 /** Provide the `character-library` container box the library surface consumes. */
 export function CharacterLibraryAnchor({ children }: CharacterLibraryAnchorProps): ReactElement {
   return (
-    <Container className="block-full" name="character-library">
+    <Container fill={true} name="character-library">
       {children}
     </Container>
   );
