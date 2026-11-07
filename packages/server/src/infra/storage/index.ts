@@ -7,9 +7,11 @@
 export { createCas } from "./cas.ts";
 export type { Cas, ExtractOptions, StagedArchive, StagedEntry, VariantCache, ZipEntry, ZipSource } from "./contract.ts";
 export { RUNTIME_TOOL_OF_WIRE } from "./contract.ts";
-export { createNodeFsImportPort } from "./profile-fs.ts";
+export { createOperatorImportPort, createStagedImportPort } from "./profile-fs.ts";
 export { writeImportReportFile } from "./report.ts";
 export { stageDirectory } from "./stage-dir.ts";
+export type { StagedFile } from "./staged-manifest.ts";
+export { openVerifiedArchive, readStagedManifest, stagedFileOf, writeStagedManifest } from "./staged-manifest.ts";
 export { createUserRuntimeDirs } from "./user-runtime-dir.ts";
 export { createVariantCache } from "./variant-cache.ts";
 export { extractZip, packZip, ZIP_STAGING_PREFIX } from "./zip.ts";

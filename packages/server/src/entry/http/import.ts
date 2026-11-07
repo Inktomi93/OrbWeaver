@@ -14,6 +14,7 @@
 // echoed in the uploader's own workload row). `domain/import/substrate/staging.ts` is the one home for both
 // the derivation and the app-owned default root (never the shared OS temp dir).
 
+import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -46,15 +47,17 @@ export interface ImportBundleDeps {
   readonly newOpaqueId: IdSource["uuid"];
 }
 
-/** Write the upload stream to `path`, aborting (returning `false`) the instant it exceeds `maxBytes`.
+/** Write the upload stream to `path`, aborting (returning `null`) the instant it exceeds `maxBytes`, and return the
+ *  sha256 of what was written: the run accepts the file only if it still hashes to this.
  *  O_CREAT|O_EXCL|O_NOFOLLOW (the flags the zip + folder-tree stagers already carry): a staged upload is
  *  always a fresh regular file, so nothing our own writers put under the staging root can be a symlink for
  *  the import contribution's containment belt to meet. */
-async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<boolean> {
+async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<string | null> {
   await using incomplete = new AsyncDisposableStack();
   let complete = false;
   let withinCap = false;
   let total = 0;
+  const hash = createHash("sha256");
   {
     // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the sibling staging writers carry the same exemption).
     await using handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW);
@@ -76,11 +79,12 @@ async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBy
         await reader.cancel();
         break;
       }
+      hash.update(value);
       await handle.write(value);
     }
   }
   complete = withinCap;
-  return withinCap;
+  return withinCap ? hash.digest("hex") : null;
 }
 
 /** Register `POST /api/import/bundle` on `app`. Auth-first, CSRF-guarded, DoS-capped; stages the upload +
@@ -128,14 +132,14 @@ async function stageAndStart(c: Context<PrincipalEnv>, body: ReadableStream<Uint
   await mkdir(stagingRoot, { recursive: true, mode: OWNER_ONLY_DIR });
   const token = `${STAGED_BUNDLE_PREFIX}${deps.newOpaqueId()}.zip`;
   const stagedPath = join(stagingRoot, token);
-  const staged = await stageCapped(body, stagedPath, IMPORT_BUNDLE_MAX_BYTES);
-  if (!staged) {
+  const stagedDigest = await stageCapped(body, stagedPath, IMPORT_BUNDLE_MAX_BYTES);
+  if (stagedDigest === null) {
     return c.json({ error: "bundle exceeds the maximum upload size" }, PAYLOAD_TOO_LARGE);
   }
 
   try {
     const { id } = await deps.workloads.start({
-      input: { kind: "import-bundle", params: { token } },
+      input: { kind: "import-bundle", params: { token, stagedDigest } },
       caller: principal,
       mode: "singular",
       ownerId: principal.userId,

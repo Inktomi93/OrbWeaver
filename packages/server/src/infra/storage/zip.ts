@@ -14,8 +14,7 @@ import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
 import { errnoCode } from "#primitives/errno";
 import type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry, ZipSource } from "./contract.ts";
-import type { HeldDirectory } from "./held-dir.ts";
-import { holdTree, readHeldFile } from "./held-dir.ts";
+import { readVerified, stagedFileOf } from "./staged-manifest.ts";
 
 const SIG_LOCAL = 0x04_03_4b_50;
 const SIG_CENTRAL = 0x02_01_4b_50;
@@ -441,12 +440,7 @@ async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
   }
 }
 
-async function stageRecords(
-  held: HeldDirectory,
-  archive: ArchiveReader,
-  records: readonly CentralRecord[],
-  maxTotalDecompressedBytes: number,
-): Promise<StagedEntry[]> {
+async function stageRecords(dir: string, archive: ArchiveReader, records: readonly CentralRecord[], maxTotalDecompressedBytes: number): Promise<StagedEntry[]> {
   const entries: StagedEntry[] = [];
   let producedTotal = 0;
   for (const [i, rec] of records.entries()) {
@@ -456,9 +450,10 @@ async function stageRecords(
       throw new ZipRejectedError("bomb", `aggregate decompressed size exceeds ${maxTotalDecompressedBytes} bytes (amplification bomb)`);
     }
     // Staged filename is the entry INDEX, never the archive's own attacker-chosen path.
-    const stagedName = String(i);
-    await writeStaged(held.child(stagedName), bytes);
-    entries.push({ path: rec.name, read: () => readHeldFile(held, stagedName) });
+    const staged = stagedFileOf(String(i), bytes);
+    await writeStaged(join(dir, staged.path), bytes);
+    // Extraction and the reads share one process, so the record stays in memory, out of the staging namespace.
+    entries.push({ path: rec.name, read: () => readVerified(dir, staged) });
   }
   return entries;
 }
@@ -480,12 +475,7 @@ export async function extractZip(source: ZipSource, options?: ExtractOptions): P
   const dir = await mkdtemp(join(stagingRoot, ZIP_STAGING_PREFIX));
   await using staging = new AsyncDisposableStack();
   staging.defer(() => rm(dir, { recursive: true, force: true }));
-  // biome-ignore lint/nursery/useDisposables: staging.move transfers the hold to the returned dispose; local disposal would close it before any read.
-  const held = staging.use(await holdTree(dir));
-  if (held === null) {
-    throw new Error(`the staging directory vanished: ${dir}`);
-  }
-  const entries = await stageRecords(held, archive, records, maxTotalDecompressedBytes);
+  const entries = await stageRecords(dir, archive, records, maxTotalDecompressedBytes);
   const lifetime = staging.move();
   return { entries, dispose: () => lifetime.disposeAsync() };
 }

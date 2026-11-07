@@ -7,8 +7,9 @@ interface FsDirEntry {
 }
 
 /**
- * One open directory of a profile tree. A `name` is one entry of this directory and nothing else, and the port binds
- * every read to this directory, so a listed name cannot be redirected by a later change to a parent path.
+ * One open directory of a profile tree. A `name` is one entry of this directory and nothing else. The port decides how
+ * far a read is trusted: a staged tree accepts only bytes that hash to the server's record of them, and the operator's
+ * configured tree reads what its links reach.
  */
 export interface ImportDirectory extends AsyncDisposable {
   /** The directory's display path, for reports and errors only. It is never a read input. */
@@ -17,16 +18,16 @@ export interface ImportDirectory extends AsyncDisposable {
    *  imports a truncated profile while reporting success. The collector wraps the rejection as
    *  `ImportInfraFailureError` naming the dir and `readdir`. */
   readonly list: () => Promise<readonly FsDirEntry[]>;
-  /** Null for a MISSING child, or one a file or a link occupies: a profile may carry only one plane, and a link is
-   *  not a directory of this tree. An infrastructure fault must reject. */
+  /** Null for a MISSING child, or one a file occupies: a profile may carry only one plane. A dangling link and an
+   *  infrastructure fault must reject, because reading either as absent drops the plane's data silently. */
   readonly openDirectory: (name: string) => Promise<ImportDirectory | null>;
   readonly readFile: (name: string) => Promise<Uint8Array>;
   readonly stat: (name: string) => Promise<{ readonly size: number }>;
 }
 
-/** Filesystem reads distinguish an absent plane from an infrastructure failure. */
+/** Filesystem reads distinguish an absent plane from an infrastructure failure. One port reads one tree. */
 export interface ImportFsPort {
-  /** The tree at `root`, or null when nothing is there. */
-  readonly openTree: (root: string) => Promise<ImportDirectory | null>;
+  /** The port's tree, or null when nothing is there. */
+  readonly openTree: () => Promise<ImportDirectory | null>;
   readonly join: (...parts: string[]) => string;
 }

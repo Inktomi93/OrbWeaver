@@ -12,6 +12,7 @@
 // every kind validates uniformly.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import { isAssetHash } from "@orb/kit/assets";
 import { z } from "zod";
 import { assetKindSchema } from "#assets";
 import type { MemoryBackfillWorkloadParams } from "#chat";
@@ -48,6 +49,11 @@ const stagedHandleSchema = z
   .max(STAGED_HANDLE_MAX)
   .regex(STAGED_HANDLE, "must be a single safe path segment (no separators, no leading dot)")
   .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
+
+/** The sha256 the upload route recorded for a staged upload: of its manifest for a tree, of the file for a zip. A run
+ *  reads only bytes that hash to it. Optional here because a row queued before digests existed must still parse and
+ *  reach the run's refusal, which asks for a new upload; the kind's `admit` refuses a new row without one. */
+const stagedDigestSchema = z.string().refine(isAssetHash, "must be a sha-256 hex digest");
 
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
  *  owner (`ctx.ownerId`) scopes the run. */
@@ -93,6 +99,7 @@ export const importStWorkloadParams = z
   .object({
     dryRun: z.boolean().optional(),
     stagedDir: stagedHandleSchema.optional(),
+    stagedDigest: stagedDigestSchema.optional(),
     personaCollisions: personaCollisionChoicesSchema.optional(),
   })
   .strip();
@@ -103,6 +110,7 @@ export const importStWorkloadParams = z
 export const importBundleWorkloadParams = z
   .object({
     token: stagedHandleSchema,
+    stagedDigest: stagedDigestSchema.optional(),
     source: z.enum(["zip", "dir"]).optional(),
   })
   .strip();

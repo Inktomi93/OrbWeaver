@@ -21,6 +21,9 @@ import { vi } from "vitest";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
 import { admit, cardPng, finish, harness, settings, stagedEntries, stagedTree } from "./_st-tree-door.ts";
 
+// A well-formed digest the enqueue door admits. These rows are cancelled before any run reads it.
+const ANY_DIGEST = "0".repeat(64);
+
 function folder(root: ServerTestHarness): Readonly<Record<string, string | Uint8Array>> {
   return { [ST_SETTINGS_FILE]: settings({ "bob.png": "Bob" }), "characters/Aria.png": cardPng(root, "Aria") };
 }
@@ -75,7 +78,12 @@ test("a queued cancel frees only the row owner's upload, and a foreign caller fr
   await plantOrphan(root, stagedDir, member.id);
   const ownerRun = await admit(root, folder(root), [TREE_DRY_RUN_VALUE]);
   const ownerTree = await stagedEntries(root);
-  const memberRun = await root.services.workloads.start({ input: { kind: "import-st", params: { stagedDir } }, caller, mode: "singular", ownerId: member.id });
+  const memberRun = await root.services.workloads.start({
+    input: { kind: "import-st", params: { stagedDir, stagedDigest: ANY_DIGEST } },
+    caller,
+    mode: "singular",
+    ownerId: member.id,
+  });
 
   await expect(root.services.workloads.cancel({ caller, id: ownerRun })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await stagedEntries(root)).toEqual(ownerTree);
@@ -94,7 +102,12 @@ test("a member who queues a row naming another account's upload and cancels it f
   const ownerTree = await stagedEntries(root);
   const stagedDir = basename(await stagedTree(root));
 
-  const forged = await root.services.workloads.start({ input: { kind: "import-st", params: { stagedDir } }, caller, mode: "singular", ownerId: member.id });
+  const forged = await root.services.workloads.start({
+    input: { kind: "import-st", params: { stagedDir, stagedDigest: ANY_DIGEST } },
+    caller,
+    mode: "singular",
+    ownerId: member.id,
+  });
   expect(await root.services.workloads.cancel({ caller, id: forged.id })).toEqual({ status: "cancelled" });
 
   expect(await stagedEntries(root)).toEqual(ownerTree);

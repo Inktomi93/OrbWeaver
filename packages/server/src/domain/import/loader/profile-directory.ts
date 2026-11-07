@@ -90,7 +90,7 @@ function withProfileReadLimits(fs: ImportFsPort): ImportFsPort {
       },
     };
   };
-  return { ...fs, openTree: async (root): Promise<ImportDirectory | null> => limited(await fs.openTree(root)) };
+  return { ...fs, openTree: async (): Promise<ImportDirectory | null> => limited(await fs.openTree()) };
 }
 
 /** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
@@ -133,7 +133,7 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
  *  non-profile entry (a stray file, a `_cache` dir with no `characters/`) yields an empty collect and adds
  *  nothing — the loader's port returns `[]` for a missing subdir rather than throwing. */
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCollected> {
-  const { fs, profileRoot, signal } = deps;
+  const { fs, signal } = deps;
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
@@ -170,7 +170,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     unhandledSettings: [],
     truncatedDirs: [],
   };
-  await using root = await fs.openTree(profileRoot);
+  await using root = await fs.openTree();
   for (const ent of ((await root?.list()) ?? []).toSorted((a, b) => a.name.localeCompare(b.name))) {
     if (signal.aborted) {
       break;

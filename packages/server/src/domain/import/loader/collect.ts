@@ -219,15 +219,15 @@ function rethrowInfraFailure(error: unknown, path: string, operation: string): v
   }
 }
 
-// A plane the profile listing says is a directory, opened for resolving names read from file content. The read stays
-// on this same open directory, so what a later name selects is what this listing held.
+// A plane the profile listing says is a directory, opened for resolving names read from file content. Later names
+// select only what this listing held.
 async function listedPlane(fs: ImportFsPort, profile: ListedProfile, plane: string): Promise<ImportDirectory | null> {
   return profile.entries.some((ent) => ent.name === plane && ent.kind === "directory") ? await openPlane(fs, profile.dir, plane) : null;
 }
 
 // The files a plane holds. A name from file content only selects an entry this listing already returned and never
-// reaches the filesystem itself, so a climb, an absolute path or a separator has nothing to match. A link is neither a
-// "file" nor a "directory" entry, so a linked file or plane stays out of reach.
+// reaches the filesystem itself, so a climb, an absolute path or a separator has nothing to match. A linked file is
+// never a "file" entry, so it stays out of reach.
 async function planeFiles(plane: ImportDirectory | null, state: CollectState): Promise<ReadonlySet<string>> {
   if (plane === null) {
     return new Set();
