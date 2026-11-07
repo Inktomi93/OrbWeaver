@@ -44,7 +44,7 @@ import {
 } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
+import { collectChatRoomFrames, deliveredText, readStreamEvent, requireSatisfied, textDeltaOf } from "./support/sse.ts";
 import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
@@ -70,14 +70,7 @@ function sawReply(values: readonly StreamValue[]): boolean {
  *  sees deltas verbatim, so the raw opener bytes are findable there). Resuming AT this seq puts a reader's
  *  first delta squarely inside the still-open tag. */
 function openerSeq(values: readonly StreamValue[]): number | undefined {
-  return values.find((value) => {
-    const event = readStreamEvent(value);
-    if (event["type"] !== "delta") {
-      return false;
-    }
-    const delta = pageObject(event["delta"], "SSE opener delta");
-    return pageString(delta["kind"], "SSE opener delta kind") === "text" && pageString(delta["text"], "SSE opener delta text").includes(OPENER_MARKER);
-  })?.seq;
+  return values.find((value) => textDeltaOf(value)?.includes(OPENER_MARKER))?.seq;
 }
 
 test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {
@@ -144,11 +137,11 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     );
 
     const memberBytes = JSON.stringify(memberResume);
-    const hostBytes = JSON.stringify(hostResume);
 
-    // DELIVERY FLOOR — the member's resume is not empty: the post-`/>` prose rides the SAME chunk as the
-    // tail, so receiving it proves the reader got that chunk and withheld only the tag.
-    expect(memberBytes, "the member's resumed stream must actually deliver the chunk's visible bytes").toContain(FIXTURE_POST_SPAN_PROSE);
+    // DELIVERY FLOOR — read from text deltas only, because the committed frame repeats this prose and would pass
+    // with no resumed delta at all. The post-`/>` prose rides the SAME chunk as the tail, so receiving it proves the
+    // reader got that chunk and withheld only the tag.
+    expect(deliveredText(memberResume), "the member's resumed deltas must deliver the chunk's visible bytes").toContain(FIXTURE_POST_SPAN_PROSE);
 
     // THE INVARIANT — no tail, no tag, in the member's whole resumed payload.
     expect(memberBytes).not.toContain(FIXTURE_LIE_TAIL);
@@ -157,7 +150,9 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
 
     // THE DIFFERENTIAL — the HOST resuming from the identical cursor DOES receive the tail, so the member's
     // clean payload is a per-viewer withholding, not "the cursor was past everything".
-    expect(hostBytes, "the host resuming from the same cursor must receive the tail (else the cursor proved nothing)").toContain(FIXTURE_LIE_TAIL);
+    expect(deliveredText(hostResume), "the host resuming from the same cursor must receive the tail (else the cursor proved nothing)").toContain(
+      FIXTURE_LIE_TAIL,
+    );
   } finally {
     await host.trpc.character.remove.mutate({ characterId: character.id });
     await restoreProvider?.();

@@ -113,8 +113,7 @@ async function typeSteer(page: Page, steer: string): Promise<void> {
   const box = composer(page);
   await box.click();
   await box.fill(steer);
-  // `fill` bypasses React onChange for a CONTROLLED textarea — verify the value stuck; if a room-settle
-  // remount ate it, retype (chat-room.ts typeAndSend documents this remount hazard).
+  // `fill` bypasses React onChange for a CONTROLLED textarea, so a room-settle remount can eat the value.
   await expect(box).toHaveValue(steer, { timeout: WAIT_UI_MS });
 }
 

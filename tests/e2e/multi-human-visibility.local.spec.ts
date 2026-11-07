@@ -394,15 +394,18 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     const refused = await member.expectError("chat.setChatAnchorPersona", { chatId, personaId: null }, "mutation");
     expect(refused.status).toBeGreaterThanOrEqual(HTTP_BAD_REQUEST);
 
-    // MEMBERSHIP GATE — consent is the persona owner's PRESENT membership. Once the member leaves, the pin
-    // stops resolving and their persona leaves the room's prompt entirely: not the voice part, not the people
-    // block, not the card's `{{user}}`. The pinned arm above is this arm's positive control.
+    // D315: the pin holds. Once the member leaves, the room still reads their persona as the card's identity, so
+    // its name in the card is lawful. Voice stays consent-gated: the host's seat takes the voice part and the departed
+    // persona has no row in the persona marker. The pinned case above is this case's positive control.
     await member.trpc.invites.selfLeave.mutate({ chatId });
-    const departedBytes = JSON.stringify(await host.trpc.chat.previewAssembly.query({ chatId, timeZone: UTC_TIME_ZONE }));
-    expect(departedBytes).not.toContain(MEMBER_PERSONA_NAME);
-    expect(departedBytes).not.toContain(MEMBER_PERSONA_DESCRIPTION);
-    const departedCard = await host.trpc.chat.getMemberCard.query({ chatId, characterId, timeZone: UTC_TIME_ZONE });
-    expect(departedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
+    const held = await host.trpc.chat.getChat.query({ chatId });
+    expect(held.anchorState).toBe("held");
+    expect(held.anchorPersonaId).toBe(persona.id);
+    const heldCard = await host.trpc.chat.getMemberCard.query({ chatId, characterId, timeZone: UTC_TIME_ZONE });
+    expect(heldCard.description).toBe(`${MEMBER_PERSONA_NAME} is my brother`);
+    const heldRows = personaRowLabels(await host.trpc.chat.previewAssembly.query({ chatId, timeZone: UTC_TIME_ZONE }));
+    expect(heldRows[0]).toContain(HOST_PERSONA_NAME);
+    expect(heldRows.filter((label) => label.includes(MEMBER_PERSONA_NAME))).toEqual([]);
   } finally {
     await host.trpc.character.remove.mutate({ characterId });
     await member.trpc.persona.remove.mutate({ personaId: persona.id });
