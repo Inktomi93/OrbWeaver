@@ -9,9 +9,8 @@
 //       distinctive user text — see the parity note below for exactly what is compared and why).
 //   (c) BUS EVENT ORDER — the room's chat frames on the live stream (read on the wire) show the turn's real
 //       invalidating sequence: messageCommitted (user) → messageCommitted (assistant) → turnCompleted.
-//   (d) ENGINE HONESTY — the local gen engine log (.cache/stack/vllm-gen.log) gained ≥1
-//       `POST /v1/chat/completions` during the turn, AND the new assistant canon row's `model` is the LOCAL leaf
-//       alias "Qwen3-VL-8B-Instruct" (the served-model-name leaf, vllm-engine.sh) — never a hosted id.
+//   (d) ENGINE HONESTY — `expectLocalEngineServed`: the chat's recorded provider request and the committed row
+//       both name the bound local engine's model, never a hosted id.
 //
 // OPT-IN (`@live`): fires a real turn on the warm local 8B (~3-6s), skipped unless E2E_LIVE=1 (config
 // grepInvert) so routine `pnpm e2e` spends no model traffic. globalSetup pins routing.chat = chat-completions/vllm.
@@ -20,29 +19,18 @@
 // turn bumps its updatedAt, so the open room stays that chat throughout. The chat is deleted in `finally`
 // so it never becomes the newest row a later spec opens.
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import process from "node:process";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openNewestChat, sendHeldTurn, waitForStreamOpen } from "./support/chat-room.ts";
+import { expectLocalEngineServed } from "./support/engine-witness.ts";
 import { chatFrameTypes, frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
-const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
-const GEN_POST_MARKER = "POST /v1/chat/completions";
-const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
 const USER_PROMPT = "Reply with exactly: parity-probe-ok";
 const NON_WS = /\S/u;
-
-/** Count the local gen engine's message-POST log lines (the per-turn traffic marker). 0 if the log is absent. */
-async function genPostCount(): Promise<number> {
-  const text = await readFile(GEN_LOG, "utf8").catch(() => "");
-  return text.split("\n").filter((l) => l.includes(GEN_POST_MARKER)).length;
-}
 
 /** The DOM transcript, top-to-bottom: each durable message-row's role + trimmed text. */
 function domTranscript(page: Page): Promise<readonly { role: string; text: string }[]> {
@@ -70,8 +58,6 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     const since = frameCursor(page);
     await openNewestChat(page);
     await waitForStreamOpen(page, chatId, since);
-
-    const beforePosts = await genPostCount();
 
     const held = await sendHeldTurn({ page, chatId }, USER_PROMPT);
 
@@ -146,10 +132,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     expect(commitIdxs.at(-1)).toBeLessThan(completeIdx);
 
     // ── (d) ENGINE HONESTY ──
-    // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
-    await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
-    // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.
-    expect(canon.find((c) => c.id === assistantId)?.model).toBe(LOCAL_MODEL_LEAF);
+    await expectLocalEngineServed(chatId, assistantId);
   } finally {
     await deleteChat(chatId);
   }

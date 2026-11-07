@@ -156,7 +156,7 @@ export async function collectVirtualRows(page: Page): Promise<readonly SweptRow[
 
 // The distinctive-fragment content check tolerates the RAW-vs-RENDERED gap (the same trap
 // `live-turn-canon-parity.spec.ts` solves — see its "PARITY of content" note): canon `content` is stored RAW
-// (macro placeholders + markdown), but the DOM row renders it — `{{user}}`→the persona name ("You"), `**bold**`
+// (macro placeholders + markdown), but the DOM row renders it — `{{user}}`→the persona name, `**bold**`
 // stripped to plain text, plus a speaker-name + timestamp prefix on the row. A raw-equals-rendered `toContain`
 // is dishonest (it fails on any macro/markdown row, e.g. the greeting). So we assert containment of the canon's
 // MACRO-FREE, MARKDOWN-STRIPPED literal fragments only: split on `{{…}}` (the kit can't predict a macro's

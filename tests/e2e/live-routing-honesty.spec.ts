@@ -5,36 +5,20 @@
 //      against the seed silently drifting. This read is strictly stronger than the settings blob it
 //      replaces: `resolved` is the PERSISTED-read resolve the pane renders (§5.3a), so a stored pin the
 //      resolver would refuse shows up here as `unavailableCause` rather than as a green leaf.
-//   2. USED — drive one real turn and prove it rode the LOCAL engine, not a hosted one: the gen engine log
-//      (.cache/stack/vllm-gen.log) gains a message-POST during the turn, AND the new assistant canon row's
-//      `model` is the local leaf alias "Qwen3-VL-8B-Instruct". Stored-config alone is not proof (a broken
-//      resolver could ignore it) — the engine-traffic delta + the stamped local model are the "actually
-//      used" evidence.
-//
-// Pinned honesty note: on a local vLLM turn the canon `provider` field is NULL (verified live 2026-07-24) —
-// only `model` carries the local-engine tell, so this spec asserts on `model`, never on a non-null provider.
+//   2. USED — drive one real turn and prove it rode the LOCAL engine, not a hosted one: `expectLocalEngineServed`
+//      reads the chat's recorded provider request and the row it committed. Stored-config alone is not proof (a broken
+//      resolver could ignore it).
 //
 // OPT-IN (`@live`): one warm-8B turn (~3-6s), skipped unless E2E_LIVE=1. Self-seeding via globalSetup's chat.
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import process from "node:process";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, sendHeldTurn, waitForStreamOpen } from "./support/chat-room.ts";
+import { expectLocalEngineServed } from "./support/engine-witness.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
-import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
-import { canonMessage, getChatBindingRow, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
-
-const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
-const GEN_POST_MARKER = "POST /v1/chat/completions";
-const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
-
-async function genPostCount(): Promise<number> {
-  const text = await readFile(GEN_LOG, "utf8").catch(() => "");
-  return text.split("\n").filter((l) => l.includes(GEN_POST_MARKER)).length;
-}
+import { CASE_LIVE_FOLLOW_UP_MS, WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS } from "./support/timeouts.ts";
+import { getChatBindingRow, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
 test("the chat Model role is what's stored AND what the turn actually rides (local vLLM)", {
   tag: "@live",
@@ -60,7 +44,6 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
   await openNewestChat(page);
   await waitForStreamOpen(page, chatId, since);
 
-  const beforePosts = await genPostCount();
   const held = await sendHeldTurn({ page, chatId }, "Reply with exactly: routing-probe-ok");
 
   // The ghost RESOLVES into a durable reply.
@@ -68,9 +51,5 @@ test("the chat Model role is what's stored AND what the turn actually rides (loc
   await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout: WAIT_LIVE_TURN_MS });
   const { assistantId } = await held.awaitReply();
 
-  // The local gen engine logged a message-POST for this turn (real local traffic).
-  await expect.poll(async () => genPostCount(), { timeout: WAIT_SURFACE_MS }).toBeGreaterThan(beforePosts);
-
-  // THIS turn's assistant row is stamped with the LOCAL model leaf — the "was actually used" proof.
-  expect((await canonMessage(chatId, assistantId))?.model).toBe(LOCAL_MODEL_LEAF);
+  await expectLocalEngineServed(chatId, assistantId);
 });

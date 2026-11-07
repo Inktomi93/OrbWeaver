@@ -13,9 +13,11 @@ import type { Db } from "@orb/db";
 import {
   assets,
   characterEmbeddings,
+  characters,
   chatDigestSpeakers,
   chatDigests,
   chatSegments,
+  chats,
   documentChunks,
   documents,
   embedGenerations,
@@ -63,6 +65,8 @@ const LIMIT_ONE = 1;
 // A store pins its generation before it embeds, so its write can land after the owner's target moved on. Each
 // upsert's batch takes such a row straight back out: a vector lands only while its generation is still a target,
 // and a generation id is minted per owner and task, so that is this owner's target for this task.
+// An embed can also outlast the rows the vector hangs from. Each upsert selects from those parents, so a parent deleted
+// meanwhile inserts nothing where a VALUES row would fail its foreign key.
 function retiredGeneration(generationId: EmbedGenerationId): SQL {
   return sql`not exists (select 1 from embed_generation_targets t where t.generation_id = ${generationId})`;
 }
@@ -165,20 +169,28 @@ interface UpsertCharacterInput {
 }
 
 /** Upsert a card-text vector by `(characterId, generationId)`. On conflict updates `embedding`/`content_hash`/`dim`
- *  only — `hub_score`, `model`, `created_at` are left as-is. Returns `false` when the generation was retired. */
+ *  only — `hub_score`, `model`, `created_at` are left as-is. Returns `false` when the generation was retired or the
+ *  card is gone. */
 export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInput): Promise<boolean> {
   const upsert = db
     .insert(characterEmbeddings)
-    .values({
-      id: input.id,
-      characterId: input.characterId,
-      embedding: input.embedding,
-      contentHash: input.contentHash,
-      model: input.model,
-      generationId: input.generationId,
-      dim: input.dim,
-      createdAt: input.now,
-    })
+    .select(
+      db
+        .select({
+          id: sql<CharacterEmbeddingId>`${input.id}`.as("id"),
+          characterId: sql<CharacterId>`${input.characterId}`.as("character_id"),
+          embedding: sql<Float32Array>`${sql.param(input.embedding, characterEmbeddings.embedding)}`.as("embedding"),
+          contentHash: sql<string>`${input.contentHash}`.as("content_hash"),
+          hubScore: sql<number | null>`null`.as("hub_score"),
+          model: sql<string>`${input.model}`.as("model"),
+          generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
+          dim: sql<number>`${input.dim}`.as("dim"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(characters)
+        .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))
+        .where(eq(characters.id, input.characterId)),
+    )
     .onConflictDoUpdate({
       target: [characterEmbeddings.characterId, characterEmbeddings.generationId],
       set: {
@@ -186,7 +198,8 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
         contentHash: input.contentHash,
         dim: input.dim,
       },
-    });
+    })
+    .returning({ id: characterEmbeddings.id });
   const refuse = db
     .delete(characterEmbeddings)
     .where(
@@ -197,8 +210,8 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
       ),
     )
     .returning({ id: characterEmbeddings.id });
-  const [, refused] = await db.batch([upsert, refuse]);
-  return landed("character_embeddings", input.generationId, refused, input.logger);
+  const [written, refused] = await db.batch([upsert, refuse]);
+  return written.length > 0 && landed("character_embeddings", input.generationId, refused, input.logger);
 }
 
 /** The persistence-internal arg bundle for {@link upsertImageEmbedding} (file-local). */
@@ -341,25 +354,32 @@ interface UpsertSegmentInput {
  *  text + seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is
  *  (§invariant 2). `model` is in the conflict key: a new space inserts, never overwrites the old
  *  one. `chunkIdx` joined it with #172 — a block over the embed window is N rows, never a truncated one.
- *  Returns `false` when the generation was retired. */
+ *  Returns `false` when the generation was retired or the chat is gone. */
 export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<boolean> {
   const upsert = db
     .insert(chatSegments)
-    .values({
-      id: input.id,
-      chatId: input.chatId,
-      blockIdx: input.blockIdx,
-      chunkIdx: input.chunkIdx,
-      seqStart: input.seqStart,
-      seqEnd: input.seqEnd,
-      text: input.text,
-      embedding: input.embedding,
-      contentHash: input.contentHash,
-      model: input.model,
-      generationId: input.generationId,
-      dim: input.dim,
-      createdAt: input.now,
-    })
+    .select(
+      db
+        .select({
+          id: sql<ChatSegmentId>`${input.id}`.as("id"),
+          chatId: sql<ChatId>`${input.chatId}`.as("chat_id"),
+          blockIdx: sql<number>`${input.blockIdx}`.as("block_idx"),
+          chunkIdx: sql<number>`${input.chunkIdx}`.as("chunk_idx"),
+          seqStart: sql<number>`${input.seqStart}`.as("seq_start"),
+          seqEnd: sql<number>`${input.seqEnd}`.as("seq_end"),
+          text: sql<string>`${input.text}`.as("text"),
+          embedding: sql<Float32Array>`${sql.param(input.embedding, chatSegments.embedding)}`.as("embedding"),
+          contentHash: sql<string>`${input.contentHash}`.as("content_hash"),
+          hubScore: sql<number | null>`null`.as("hub_score"),
+          model: sql<string>`${input.model}`.as("model"),
+          generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
+          dim: sql<number>`${input.dim}`.as("dim"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(chats)
+        .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))
+        .where(eq(chats.id, input.chatId)),
+    )
     .onConflictDoUpdate({
       target: [chatSegments.chatId, chatSegments.blockIdx, chatSegments.chunkIdx, chatSegments.generationId],
       set: {
@@ -370,7 +390,8 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
         contentHash: input.contentHash,
         dim: input.dim,
       },
-    });
+    })
+    .returning({ id: chatSegments.id });
   const refuse = db
     .delete(chatSegments)
     .where(
@@ -383,8 +404,8 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       ),
     )
     .returning({ id: chatSegments.id });
-  const [, refused] = await db.batch([upsert, refuse]);
-  return landed("chat_segments", input.generationId, refused, input.logger);
+  const [written, refused] = await db.batch([upsert, refuse]);
+  return written.length > 0 && landed("chat_segments", input.generationId, refused, input.logger);
 }
 
 /** The persistence-internal arg bundle for {@link upsertChatDigest} (file-local). */
@@ -411,7 +432,8 @@ interface UpsertDigestInput {
 
 /** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, generationId)` and replace its
  *  speaker projection in the SAME batch. The generation is in the conflict key: a new space inserts additively
- *  rather than overwriting the old space in place. Returns `false` when the generation was retired. */
+ *  rather than overwriting the old space in place. Returns `false` when the generation was retired or the chat or the
+ *  scoped character is gone. A speaker who is gone drops out of the projection, as the cascade would have dropped it. */
 export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<boolean> {
   const key = and(
     eq(chatDigests.chatId, input.chatId),
@@ -422,23 +444,31 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
   );
   const upsert = db
     .insert(chatDigests)
-    .values({
-      id: input.id,
-      chatId: input.chatId,
-      scopedCharacterId: input.scopedCharacterId,
-      isGroup: input.isGroup,
-      tier: input.tier,
-      blockIdx: input.blockIdx,
-      text: input.text,
-      topicAnchor: input.topicAnchor,
-      keywords: [...input.keywords],
-      embedding: input.embedding,
-      contentHash: input.contentHash,
-      model: input.model,
-      generationId: input.generationId,
-      dim: input.dim,
-      createdAt: input.now,
-    })
+    .select(
+      db
+        .select({
+          id: sql<ChatDigestId>`${input.id}`.as("id"),
+          chatId: sql<ChatId>`${input.chatId}`.as("chat_id"),
+          scopedCharacterId: sql<CharacterId>`${input.scopedCharacterId}`.as("scoped_character_id"),
+          isGroup: sql<boolean>`${sql.param(input.isGroup, chatDigests.isGroup)}`.as("is_group"),
+          tier: sql<number>`${input.tier}`.as("tier"),
+          blockIdx: sql<number>`${input.blockIdx}`.as("block_idx"),
+          text: sql<string>`${input.text}`.as("text"),
+          embedding: sql<Float32Array>`${sql.param(input.embedding, chatDigests.embedding)}`.as("embedding"),
+          contentHash: sql<string>`${input.contentHash}`.as("content_hash"),
+          hubScore: sql<number | null>`null`.as("hub_score"),
+          topicAnchor: sql<string>`${input.topicAnchor}`.as("topic_anchor"),
+          keywords: sql<string[]>`${sql.param([...input.keywords], chatDigests.keywords)}`.as("keywords"),
+          model: sql<string>`${input.model}`.as("model"),
+          generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
+          dim: sql<number>`${input.dim}`.as("dim"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(chats)
+        .innerJoin(characters, eq(characters.id, input.scopedCharacterId))
+        .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))
+        .where(eq(chats.id, input.chatId)),
+    )
     .onConflictDoUpdate({
       target: [chatDigests.chatId, chatDigests.scopedCharacterId, chatDigests.tier, chatDigests.blockIdx, chatDigests.generationId],
       set: {
@@ -463,6 +493,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
             db
               .select({ digestId: chatDigests.id, characterId: sql<CharacterId>`${characterId}`.as("character_id") })
               .from(chatDigests)
+              .innerJoin(characters, eq(characters.id, characterId))
               .where(key),
           )
           .onConflictDoNothing(),
@@ -476,8 +507,9 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
     .returning({ id: chatDigests.id });
   statements.push(batchStmt(refuse));
   const results = await db.batch(batchMany(statements));
+  const [written] = results;
   const refused = results.at(-1);
-  return landed("chat_digests", input.generationId, Array.isArray(refused) ? refused : [], input.logger);
+  return Array.isArray(written) && written.length > 0 && landed("chat_digests", input.generationId, Array.isArray(refused) ? refused : [], input.logger);
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
@@ -547,24 +579,31 @@ interface UpsertDocumentChunkInput {
 /** Upsert a document chunk by `(documentId, chunkIdx, model)`. On conflict updates the vector + content +
  *  span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2).
  *  `model` is in the conflict key: a new space inserts additively rather than overwriting the old. Returns
- *  `false` when the generation was retired. */
+ *  `false` when the generation was retired or the document is gone. */
 export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<boolean> {
   const upsert = db
     .insert(documentChunks)
-    .values({
-      id: input.id,
-      documentId: input.documentId,
-      chunkIdx: input.chunkIdx,
-      content: input.content,
-      charStart: input.charStart,
-      charEnd: input.charEnd,
-      embedding: input.embedding,
-      contentHash: input.contentHash,
-      model: input.model,
-      generationId: input.generationId,
-      dim: input.dim,
-      createdAt: input.now,
-    })
+    .select(
+      db
+        .select({
+          id: sql<DocumentChunkId>`${input.id}`.as("id"),
+          documentId: sql<DocumentId>`${input.documentId}`.as("document_id"),
+          chunkIdx: sql<number>`${input.chunkIdx}`.as("chunk_idx"),
+          content: sql<string>`${input.content}`.as("content"),
+          charStart: sql<number>`${input.charStart}`.as("char_start"),
+          charEnd: sql<number>`${input.charEnd}`.as("char_end"),
+          embedding: sql<Float32Array>`${sql.param(input.embedding, documentChunks.embedding)}`.as("embedding"),
+          contentHash: sql<string>`${input.contentHash}`.as("content_hash"),
+          hubScore: sql<number | null>`null`.as("hub_score"),
+          model: sql<string>`${input.model}`.as("model"),
+          generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
+          dim: sql<number>`${input.dim}`.as("dim"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(documents)
+        .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))
+        .where(eq(documents.id, input.documentId)),
+    )
     .onConflictDoUpdate({
       target: [documentChunks.documentId, documentChunks.chunkIdx, documentChunks.generationId],
       set: {
@@ -575,7 +614,8 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
         contentHash: input.contentHash,
         dim: input.dim,
       },
-    });
+    })
+    .returning({ id: documentChunks.id });
   const refuse = db
     .delete(documentChunks)
     .where(
@@ -587,8 +627,8 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
       ),
     )
     .returning({ id: documentChunks.id });
-  const [, refused] = await db.batch([upsert, refuse]);
-  return landed("document_chunks", input.generationId, refused, input.logger);
+  const [written, refused] = await db.batch([upsert, refuse]);
+  return written.length > 0 && landed("document_chunks", input.generationId, refused, input.logger);
 }
 
 function assertNever(value: never): never {
