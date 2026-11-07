@@ -16,6 +16,8 @@ import type { Viewport } from "../../floor/instrument/argv.ts";
 import { readMember } from "../../floor/instrument/member.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
 import type { DiskSafeBrowserPageError, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
+import type { CoreCapturePopulations } from "../contract/core-capture.ts";
+import { CORE_CAPTURE_BASIS } from "../contract/core-capture.ts";
 import type { Args, CaptureOutcome, DriveFailure, WatchTick } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import {
@@ -104,19 +106,7 @@ interface SnapManifest {
 
 interface SnapCoreCaptureEvidence {
   readonly v: 1;
-  readonly populations: {
-    /** #1507: `dropped`/`complete` are READ OFF the page-error ring's retention receipt, never asserted.
-     *  They were hardcoded `0`/`true` over a `BoundedEvidenceRing` that has always tracked a real
-     *  per-scope eviction count — so a capacity-evicted page error made this row a lie, at the exact
-     *  moment the evidence mattered most. `basis` stays "all-observed": the ring observes every error and
-     *  says how many it had to drop. */
-    readonly pageErrors: { readonly records: number; readonly dropped: number; readonly complete: boolean; readonly basis: "all-observed" };
-    readonly failedRequests: { readonly records: number; readonly dropped: null; readonly complete: false; readonly basis: "latest-per-url" };
-    /** EARNED, re-derived #1507: captures are the `CaptureOutcome[]` the run built, one row per page it
-     *  actually captured (ops/run.ts → `capturePages`) — a plain array with no ring, no capacity and no
-     *  eviction path. Nothing can drop a capture without the run itself failing, so 0/true is a fact. */
-    readonly captures: { readonly records: number; readonly dropped: 0; readonly complete: true; readonly basis: "all-pages" };
-  };
+  readonly populations: CoreCapturePopulations;
   readonly failures: SnapFailureSummary;
   readonly pageErrors: readonly DiskSafeBrowserPageError[];
   readonly failedRequests: readonly ReturnType<typeof redactCapturedRequest>[];
@@ -358,12 +348,12 @@ export async function writeCoreCaptureEvidence(input: ManifestInput, retention: 
         records: input.pageErrors.length,
         dropped: pageErrorRetention.dropped,
         complete: pageErrorRetention.complete,
-        basis: "all-observed",
+        basis: CORE_CAPTURE_BASIS.pageErrors,
       },
       // The browser source is a URL-keyed Map: repeated attempts replace the prior row. Preserve that
       // useful latest failure, but never mislabel it as a complete request-event population.
-      failedRequests: { records: input.failedRequests.length, dropped: null, complete: false, basis: "latest-per-url" },
-      captures: { records: input.captures.length, dropped: 0, complete: true, basis: "all-pages" },
+      failedRequests: { records: input.failedRequests.length, dropped: null, complete: false, basis: CORE_CAPTURE_BASIS.failedRequests },
+      captures: { records: input.captures.length, dropped: 0, complete: true, basis: CORE_CAPTURE_BASIS.captures },
     },
     failures: input.failures,
     pageErrors: input.pageErrors.map((entry) => redactBrowserPageError(entry)),
